@@ -1,34 +1,38 @@
-// Inspired by https://usehooks.com/useLocalStorage/
+
 "use client";
 
 import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
-  // State to store our value
-  // Pass initial state function to useState so logic is only executed once
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') {
-      return initialValue;
-    }
-    try {
-      // Get from local storage by key
-      const item = window.localStorage.getItem(key);
-      // Parse stored json or if none return initialValue
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      // If error also return initialValue
-      console.error(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
-    }
-  });
+  const [storedValue, setStoredValue] = useState<T>(initialValue); // Always initialize with initialValue
 
-  // useEffect to update local storage when the state changes
+  // Effect to load from localStorage ONCE after mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
+        const item = window.localStorage.getItem(key);
+        if (item) {
+          setStoredValue(JSON.parse(item));
+        }
+        // If no item, it remains initialValue, which is correct for this phase
+      } catch (error) {
+        console.error(`Error reading localStorage key "${key}":`, error);
+        // Remains initialValue if error
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]); // Key is included so if it ever changes, it re-reads. initialValue is not needed as it's for first init.
+
+  // Effect to update localStorage when storedValue changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // We only want to save to localStorage if the storedValue is not the initial seed value,
+      // or if it has been explicitly set by the user/application logic after initial load.
+      // A simple check here is sufficient because the first effect handles the "load" phase.
+      // Any subsequent change to storedValue (via the returned setter) should be persisted.
+      try {
         window.localStorage.setItem(key, JSON.stringify(storedValue));
       } catch (error) {
-        // A more advanced implementation would handle the error case
         console.error(`Error setting localStorage key "${key}":`, error);
       }
     }
