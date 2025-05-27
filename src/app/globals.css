@@ -1,90 +1,93 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Helvetica Neue", Arial, sans-serif; /* Added Helvetica Neue as a common fantasy game font fallback */
 }
 
 @layer base {
   :root {
-    --background: 16 67% 93.9%; /* Light Peach #F9E7E1 */
-    --foreground: 20 50% 20%; /* Dark Brown for contrast on peach */
+    /* Dark Fantasy TCG Theme */
+    --background: 220 15% 12%; /* Dark Slate Blue/Charcoal #1C1F26 */
+    --foreground: 220 10% 85%; /* Light Grey/Off-white #D4D6D9 */
 
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 20 50% 20%; /* Dark Brown */
+    --card: 220 15% 20%; /* Slightly Lighter Dark Slate #2D313B */
+    --card-foreground: 220 10% 80%; /* Light Grey #C8CACD */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 50% 20%;
+    --popover: 220 15% 18%; /* Darker popover #262A33 */
+    --popover-foreground: 220 10% 85%;
 
-    --primary: 16 100% 63.1%; /* Warm Orange #FF7043 */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 260 60% 55%; /* Arcane Purple #7A52CC */
+    --primary-foreground: 220 10% 95%; /* Very Light Grey for contrast on purple */
 
-    --secondary: 16 60% 85%; /* Lighter Peach */
-    --secondary-foreground: 16 100% 30%; /* Darker Orange */
+    --secondary: 220 20% 30%; /* Medium Slate #404754 */
+    --secondary-foreground: 220 10% 90%; /* Lighter Grey */
 
-    --muted: 16 50% 90%; /* Muted Peach */
-    --muted-foreground: 16 50% 50%; /* Muted Peach Foreground */
+    --muted: 220 15% 25%; /* Muted Dark Slate #353A45 */
+    --muted-foreground: 220 10% 60%; /* Grey for muted text #909399 */
 
-    --accent: 174 40.1% 50.8%; /* Muted Teal #4DB6AC */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 50 100% 60%; /* Fiery Gold/Orange #FFBF3F */
+    --accent-foreground: 220 20% 10%; /* Dark Brown/Black for contrast on gold */
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 70% 50%; /* Blood Red #B33636 */
+    --destructive-foreground: 0 0% 98%; /* Almost White */
 
-    --border: 16 50% 80%; /* Peach Border */
-    --input: 16 50% 88%; /* Peach Input Background */
-    --ring: 16 100% 63.1%; /* Warm Orange for focus rings */
+    --border: 220 15% 30%; /* Slate Border #404754 */
+    --input: 220 15% 22%; /* Dark Input Background #2F343F */
+    --ring: 50 100% 70%; /* Brighter Gold for focus rings */
 
     --radius: 0.5rem;
 
     /* Chart colors - can be adjusted if charts are used */
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-
-    /* Sidebar specific colors - not used in current simplified layout but good to keep themed */
-    --sidebar-background: 16 50% 90%;
-    --sidebar-foreground: 20 80% 20%;
-    --sidebar-primary: 16 100% 63.1%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 40.1% 50.8%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 16 50% 80%;
-    --sidebar-ring: 16 100% 63.1%;
+    --chart-1: 260 70% 60%; /* Brighter Purple */
+    --chart-2: 210 70% 55%; /* Steel Blue */
+    --chart-3: 0 60% 55%; /* Crimson */
+    --chart-4: 120 40% 50%; /* Forest Green */
+    --chart-5: 30 70% 50%; /* Deep Orange */
+    
+    /* Sidebar specific colors */
+    --sidebar-background: 220 15% 10%; /* Even Darker Sidebar #14171C */
+    --sidebar-foreground: 220 10% 75%; /* Slightly Dimmer Text #B9BBC0 */
+    --sidebar-primary: 260 60% 55%; /* Arcane Purple */
+    --sidebar-primary-foreground: 220 10% 95%;
+    --sidebar-accent: 50 100% 60%; /* Fiery Gold */
+    --sidebar-accent-foreground: 220 20% 10%;
+    --sidebar-border: 220 15% 20%; /* #2D313B */
+    --sidebar-ring: 50 100% 70%;
   }
 
   .dark {
-    /* Define dark theme if needed, for now keeping consistent with light theme vars */
-    --background: 20 50% 10%; 
-    --foreground: 16 67% 93.9%;
+    /* Using the same variables as :root for a consistent dark theme */
+    /* If a separate light theme is ever needed, these would be different */
+    --background: 220 15% 12%; 
+    --foreground: 220 10% 85%;
 
-    --card: 20 50% 15%;
-    --card-foreground: 16 67% 93.9%;
+    --card: 220 15% 20%;
+    --card-foreground: 220 10% 80%;
 
-    --popover: 20 50% 10%;
-    --popover-foreground: 16 67% 93.9%;
+    --popover: 220 15% 18%;
+    --popover-foreground: 220 10% 85%;
 
-    --primary: 16 100% 63.1%;
-    --primary-foreground: 20 50% 10%;
+    --primary: 260 60% 55%;
+    --primary-foreground: 220 10% 95%;
 
-    --secondary: 20 50% 25%;
-    --secondary-foreground: 16 67% 93.9%;
+    --secondary: 220 20% 30%;
+    --secondary-foreground: 220 10% 90%;
 
-    --muted: 20 50% 20%;
-    --muted-foreground: 16 50% 70%;
+    --muted: 220 15% 25%;
+    --muted-foreground: 220 10% 60%;
 
-    --accent: 174 40.1% 50.8%;
-    --accent-foreground: 20 50% 10%;
+    --accent: 50 100% 60%;
+    --accent-foreground: 220 20% 10%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 20 50% 25%;
-    --input: 20 50% 25%;
-    --ring: 16 100% 63.1%;
+    --border: 220 15% 30%;
+    --input: 220 15% 22%;
+    --ring: 50 100% 70%;
   }
 }
 
@@ -102,24 +105,45 @@ body {
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    background-color: white !important; /* Ensure white background for printing */
+    color: black !important; /* Ensure black text for printing */
   }
   .no-print {
     display: none !important;
   }
   #printable-cards-area {
     display: block !important;
+    background-color: white !important;
   }
   .card-preview-print {
-    width: 80mm !important; /* Approximate size for printing */
-    height: 50mm !important; /* Approximate size for printing, adjust based on aspect ratio */
-    border: 1px dashed #999 !important;
+    width: 63mm !important; /* Standard TCG card width */
+    height: 88mm !important; /* Standard TCG card height */
+    border: 1px dashed #333 !important; /* Lighter border for print guides */
     page-break-inside: avoid !important;
-    margin: 5mm !important;
+    margin: 2mm !important; /* Spacing between cards on the print sheet */
     box-shadow: none !important;
+    background-color: white !important; /* Ensure card background is white for print if not explicitly set */
   }
+  /* Ensure text within cards is black for print unless card styling overrides it */
+  .card-preview-print, .card-preview-print * {
+    color: black !important; 
+  }
+  .card-preview-print .tcg-card-name,
+  .card-preview-print .tcg-mana-cost,
+  .card-preview-print .tcg-type-line,
+  .card-preview-print .tcg-rules-text,
+  .card-preview-print .tcg-flavor-text,
+  .card-preview-print .tcg-pt,
+  .card-preview-print .tcg-artist,
+  .card-preview-print .tcg-rarity {
+    color: black !important; /* Override themed colors for print */
+  }
+
+
   .printable-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80mm, 1fr));
-    gap: 5mm;
+    /* Adjust grid to fit TCG cards (e.g., 3x3 on Letter/A4) */
+    grid-template-columns: repeat(auto-fill, minmax(63mm, 1fr)); 
+    gap: 2mm;
   }
 }
