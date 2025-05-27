@@ -40,14 +40,18 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
 
 const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate => {
   const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
+  // Deep clone the preset
   const newTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
   newTemplate.id = id || nanoid();
   newTemplate.name = name || 'New Custom Template (Row Layout)';
+  
+  // Ensure rows and columns within rows have IDs if they were somehow missed in constants
   newTemplate.rows = (newTemplate.rows || []).map(r => ({
     ...r,
     id: r.id || nanoid(), 
     columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) 
   }));
+
   newTemplate.aspectRatio = newTemplate.aspectRatio || "63:88";
   newTemplate.frameStyle = newTemplate.frameStyle || 'standard';
   newTemplate.baseBackgroundColor = newTemplate.baseBackgroundColor || '';
@@ -66,7 +70,14 @@ export function TemplateEditor({
   const { toast } = useToast();
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(
-     () => initialTemplate ? JSON.parse(JSON.stringify(initialTemplate)) : getFreshDefaultTemplate()
+     () => {
+      if (initialTemplate) {
+        const clonedInitial = JSON.parse(JSON.stringify(initialTemplate)) as TCGCardTemplate;
+        clonedInitial.rows = (clonedInitial.rows || []).map(r => ({...r, id: r.id || nanoid(), columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) }));
+        return clonedInitial;
+      }
+      return getFreshDefaultTemplate();
+     }
   );
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
 
@@ -82,29 +93,32 @@ export function TemplateEditor({
     if (selectedTemplateToEditId) {
       const templateToEdit = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateToEdit) {
-        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); 
+        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); // Deep clone
       } else {
+        // This case might happen if the selected ID is no longer in templates list
+        // or if we are creating a new one implicitly by setting selectedTemplateToEditId
         newTemplateToSet = getFreshDefaultTemplate(selectedTemplateToEditId, "New Custom Template");
       }
     } else if (initialTemplate) {
-      newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); 
+      newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); // Deep clone
     } else {
       newTemplateToSet = getFreshDefaultTemplate();
     }
     
+    // Ensure defaults are set if missing after cloning or creation
     newTemplateToSet.aspectRatio = newTemplateToSet.aspectRatio || "63:88";
     newTemplateToSet.frameStyle = newTemplateToSet.frameStyle || 'standard';
     newTemplateToSet.baseBackgroundColor = newTemplateToSet.baseBackgroundColor || '';
     newTemplateToSet.baseTextColor = newTemplateToSet.baseTextColor || '';
     newTemplateToSet.borderColor = newTemplateToSet.borderColor || '';
+    // Critical: Ensure rows and columns have IDs, especially after JSON.parse(stringify)
     newTemplateToSet.rows = (newTemplateToSet.rows || []).map(r => ({
         ...r,
-        columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) 
+        id: r.id || nanoid(), // Ensure row has an ID
+        columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) // Ensure column has an ID
       }));
 
-
     setCurrentTemplate(newTemplateToSet);
-    // setActiveRowAccordionItems(newTemplateToSet.rows.map(r => r.id)); // Moved this to specific actions
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateToEditId, initialTemplate, templates]);
 
@@ -242,7 +256,7 @@ export function TemplateEditor({
   
 
   const handleSubmit = (part: 'settings' | 'sections') => {
-    let templateToSave = JSON.parse(JSON.stringify(currentTemplate));
+    let templateToSave = JSON.parse(JSON.stringify(currentTemplate)); // Deep clone for saving
     
     if (part === 'settings') {
       if (!templateToSave.name.trim()) {
@@ -406,7 +420,7 @@ export function TemplateEditor({
                         />
                         <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. Current: {currentTemplate.aspectRatio}</p>
                     </div>
-
+                    
                     <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling-accordion">
                         <AccordionItem value="overall-styling-accordion" className="border rounded-md">
                             <AccordionTrigger className="px-3 py-2 text-sm font-medium hover:no-underline">
@@ -540,18 +554,16 @@ export function TemplateEditor({
                                                 <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" /> Styling Options</div>
                                             </AccordionTrigger>
                                             <AccordionContent className="pt-2 pb-3 px-3 space-y-2 border-t">
-                                                {section.type === 'Artwork' && (
-                                                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                                                <div className="grid grid-cols-2 gap-x-3 gap-y-2">
                                                     <div>
-                                                      <Label htmlFor={`artworkHeight-${section.id}`} className="text-xs">Artwork Height</Label>
-                                                      <Input id={`artworkHeight-${section.id}`} value={section.customHeight || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { customHeight: e.target.value })} placeholder="e.g., 180px, 50%, auto" className="h-8 text-xs" />
+                                                      <Label htmlFor={`customHeight-${section.id}`} className="text-xs">Custom Height</Label>
+                                                      <Input id={`customHeight-${section.id}`} value={section.customHeight || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { customHeight: e.target.value })} placeholder="e.g., 180px, 50%, auto" className="h-8 text-xs" />
                                                     </div>
                                                     <div>
-                                                      <Label htmlFor={`artworkWidth-${section.id}`} className="text-xs">Artwork Width</Label>
-                                                      <Input id={`artworkWidth-${section.id}`} value={section.customWidth || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { customWidth: e.target.value })} placeholder="e.g., 100%, 250px, auto" className="h-8 text-xs" />
+                                                      <Label htmlFor={`customWidth-${section.id}`} className="text-xs">Custom Width</Label>
+                                                      <Input id={`customWidth-${section.id}`} value={section.customWidth || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { customWidth: e.target.value })} placeholder="e.g., 100%, 250px, auto" className="h-8 text-xs" />
                                                     </div>
-                                                  </div>
-                                                )}
+                                                </div>
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
                                                   <div><Label htmlFor={`flexGrow-${section.id}`} className="text-xs">Flex Grow (0 for content size)</Label><Input id={`flexGrow-${section.id}`} type="number" min="0" step="0.1" className="h-8 text-xs" value={section.flexGrow || 0} onChange={(e) => updateSectionInRow(row.id, section.id, { flexGrow: parseFloat(e.target.value) || 0 })} /></div>
                                                   <div><Label htmlFor={`fontFamily-${section.id}`} className="text-xs">Font</Label><Select value={section.fontFamily || 'font-sans'} onValueChange={v => updateSectionInRow(row.id, section.id, {fontFamily: v})}><SelectTrigger id={`fontFamily-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger><SelectContent>{AVAILABLE_FONTS.map(f=><SelectItem key={f.value} value={f.value!} className="text-xs"><span className={f.value}>{f.name}</span></SelectItem>)}</SelectContent></Select></div>

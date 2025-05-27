@@ -87,10 +87,8 @@ export function CardPreview({
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
-      // In editor preview, show if content placeholder is set, even if it would be empty with current data
       return section.contentPlaceholder?.trim() === ''; 
     }
-    // For actual card display
     if (hideEmptySections) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false; 
       return processedContent.trim() === '';
@@ -162,6 +160,8 @@ export function CardPreview({
                   flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto', 
                   minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined,
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
+                  height: section.customHeight || undefined,
+                  width: section.customWidth || undefined,
                 };
 
                 if (section.borderColor) {
@@ -172,15 +172,8 @@ export function CardPreview({
                   sectionStyle.borderColor = 'hsl(var(--border))';
                 }
                 
-                // Apply custom dimensions for Artwork sections if provided
-                if (section.type === 'Artwork') {
-                    if (section.customHeight) sectionStyle.height = section.customHeight;
-                    if (section.customWidth) sectionStyle.width = section.customWidth;
-                }
-
-
                 const sectionClasses = cn(
-                  'relative', // Keep relative for potential absolute children or ::before/::after
+                  'relative', 
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
@@ -201,21 +194,20 @@ export function CardPreview({
 
                 if (section.type === 'Artwork') {
                   if (isEditorPreview) {
-                    // In editor preview, show a styled placeholder box
                     const editorPreviewStyle: React.CSSProperties = {
-                      ...sectionStyle,
-                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' ? undefined : '180px'), // Use customHeight or fallback
+                      ...sectionStyle, // Includes customHeight/customWidth if set
+                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' ? undefined : '180px'),
                       width: section.customWidth || '100%',
                       backgroundColor: 'hsl(var(--muted) / 0.5)',
                       border: '1px dashed hsl(var(--border))',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      flexDirection: 'column', // To stack text lines
+                      flexDirection: 'column',
                       textAlign: 'center',
-                      fontSize: '0.75rem', // Smaller text for placeholder
+                      fontSize: '0.75rem', 
                       color: 'hsl(var(--muted-foreground))',
-                      boxSizing: 'border-box', // Ensure padding/border are included in width/height
+                      boxSizing: 'border-box', 
                     };
                     return (
                       <div
@@ -230,13 +222,12 @@ export function CardPreview({
                       </div>
                     );
                   } else {
-                    // Actual card rendering with next/image
                     let artworkDisplaySrc = sectionContent;
                     const looksLikePlaceholder = !sectionContent || sectionContent.trim() === '' || (sectionContent.startsWith('{{') && sectionContent.endsWith('}}'));
                     const isNotHttpOrData = sectionContent && !sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:');
                     
                     if (looksLikePlaceholder || isNotHttpOrData ) {
-                      artworkDisplaySrc = `https://placehold.co/600x400.png`;
+                      artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`;
                     }
                     
                     const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
@@ -244,8 +235,8 @@ export function CardPreview({
                     return (
                       <div
                         key={section.id}
-                        className={cn(sectionClasses, "relative", section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')} 
-                        style={sectionStyle}
+                        className={cn("relative", sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')} 
+                        style={sectionStyle} // sectionStyle already includes customHeight/Width
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
                       >
