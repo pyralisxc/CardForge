@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus } from 'lucide-react';
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler } from 'lucide-react';
 import { TCG_ASPECT_RATIO, SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -38,6 +38,7 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
   Divider: Minus,
 };
 
+type DimensionUnit = 'px' | 'in' | 'cm' | 'ratio';
 
 export function TemplateEditor({
   onSaveTemplate,
@@ -46,62 +47,112 @@ export function TemplateEditor({
   initialTemplate,
 }: TemplateEditorProps) {
   const { toast } = useToast();
-  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(
-    initialTemplate || JSON.parse(JSON.stringify(PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0])) || { 
-      id: nanoid(),
-      name: 'New Custom Template',
-      templateType: 'CustomSequential',
-      aspectRatio: TCG_ASPECT_RATIO,
-      sections: [createDefaultSection('CardName'), createDefaultSection('Artwork'), createDefaultSection('RulesText')],
-      frameColor: '#CCCCCC',
-      borderColor: '#888888',
-      baseBackgroundColor: '#FFFFFF',
-      baseTextColor: '#000000',
-    }
-  );
+  
+  const getDefaultTemplate = () => {
+    const creaturePreset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
+    return JSON.parse(JSON.stringify(creaturePreset));
+  };
+
+  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(initialTemplate || getDefaultTemplate());
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
   const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>([]);
 
+  const [dimensionWidth, setDimensionWidth] = useState<string>("");
+  const [dimensionHeight, setDimensionHeight] = useState<string>("");
+  const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>('ratio');
 
   useEffect(() => {
     let newTemplateToSet: TCGCardTemplate;
-    const creaturePreset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
+    const defaultTpl = getDefaultTemplate();
     
     if (selectedTemplateToEditId) {
       const templateToEdit = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateToEdit) {
         newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); 
       } else {
-        newTemplateToSet = {...JSON.parse(JSON.stringify(creaturePreset)), id: nanoid(), name: "New Custom Template (Loaded Default)"};
+        newTemplateToSet = {...defaultTpl, id: nanoid(), name: "New Custom Template (Loaded Default)"};
         setSelectedTemplateToEditId(newTemplateToSet.id); 
       }
     } else if (initialTemplate) {
          newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); 
     } else {
         newTemplateToSet = {
-            ...JSON.parse(JSON.stringify(creaturePreset)),
+            ...defaultTpl,
             id: nanoid(), 
             name: 'New Custom Template',
         };
     }
 
-    newTemplateToSet.sections = newTemplateToSet.sections.map(s => ({...s, id: s.id || nanoid()}));
+    newTemplateToSet.sections = (newTemplateToSet.sections || []).map((s: CardSection) => ({...s, id: s.id || nanoid()}));
+    if (newTemplateToSet.sections.length === 0) { // Ensure there's at least one section for new templates
+        newTemplateToSet.sections = [createDefaultSection('CardName')];
+    }
+
 
     setCurrentTemplate(newTemplateToSet);
     setActiveAccordionItems(newTemplateToSet.sections.map(s => s.id));
+    
+    // Initialize dimension inputs from template's aspect ratio
+    const [w, h] = (newTemplateToSet.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
+    if (!isNaN(w) && !isNaN(h)) {
+        setDimensionWidth(String(w));
+        setDimensionHeight(String(h));
+        setDimensionUnit('ratio');
+    } else {
+        setDimensionWidth("");
+        setDimensionHeight("");
+        setDimensionUnit('ratio');
+    }
   }, [selectedTemplateToEditId, templates, initialTemplate]);
+
+
+  // Update aspectRatio when dimension inputs change
+  useEffect(() => {
+    const w = parseFloat(dimensionWidth);
+    const h = parseFloat(dimensionHeight);
+
+    if (!isNaN(w) && w > 0 && !isNaN(h) && h > 0) {
+      // For px, in, cm, we just care about the ratio they form.
+      // We don't need to convert between units for aspectRatio, just use their numbers.
+      updateCurrentTemplate({ aspectRatio: `${w}:${h}` });
+    } else if (dimensionUnit === 'ratio' && !isNaN(w) && w > 0 && !isNaN(h) && h > 0) {
+      updateCurrentTemplate({ aspectRatio: `${w}:${h}` });
+    }
+    // If inputs are invalid, aspect ratio doesn't change from its last valid state or template default
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dimensionWidth, dimensionHeight, dimensionUnit]);
+
+
+  // Update dimension inputs when aspectRatio string changes directly
+  useEffect(() => {
+    const [wStr, hStr] = (currentTemplate.aspectRatio || TCG_ASPECT_RATIO).split(':');
+    const w = parseFloat(wStr);
+    const h = parseFloat(hStr);
+    if (!isNaN(w) && !isNaN(h) && dimensionUnit === 'ratio') { // Only update if unit is ratio to avoid feedback loop
+        if (String(w) !== dimensionWidth) setDimensionWidth(String(w));
+        if (String(h) !== dimensionHeight) setDimensionHeight(String(h));
+    }
+  }, [currentTemplate.aspectRatio, dimensionUnit, dimensionWidth, dimensionHeight]);
+
 
   const handleTemplatePresetChange = (presetName: string) => {
     const preset = PRESET_TEMPLATES.find(t => t.name === presetName);
     if (preset) {
       const newSections = preset.sections.map(s => ({...s, id: s.id || nanoid() })); 
-      setCurrentTemplate({
+      const newPresetTemplate = {
         ...JSON.parse(JSON.stringify(preset)), 
         id: currentTemplate.id, 
         name: currentTemplate.name || preset.name, 
         sections: newSections,
-      });
+      };
+      setCurrentTemplate(newPresetTemplate);
       setActiveAccordionItems(newSections.map(s => s.id));
+
+      const [w, h] = (newPresetTemplate.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
+      setDimensionWidth(String(w));
+      setDimensionHeight(String(h));
+      setDimensionUnit('ratio');
+
       toast({ title: "Preset Loaded", description: `"${preset.name}" structure loaded into editor.`});
     }
   };
@@ -144,14 +195,20 @@ export function TemplateEditor({
     const newTemplateBase = PRESET_TEMPLATES.find(t => t.name.includes("Basic Custom Card")) || PRESET_TEMPLATES[0];
     const newSections = newTemplateBase.sections.map(s => ({...s, id: s.id || nanoid()}));
     const newId = nanoid();
-    setCurrentTemplate({
+    const newDefaultTemplate = {
       ...JSON.parse(JSON.stringify(newTemplateBase)), 
       id: newId,
       name: 'New Custom Template',
       sections: newSections,
-    });
+    };
+    setCurrentTemplate(newDefaultTemplate);
     setSelectedTemplateToEditId(newId); 
     setActiveAccordionItems(newSections.map(s => s.id));
+    
+    const [w, h] = (newDefaultTemplate.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
+    setDimensionWidth(String(w));
+    setDimensionHeight(String(h));
+    setDimensionUnit('ratio');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -164,21 +221,31 @@ export function TemplateEditor({
       toast({ title: "Validation Error", description: 'Custom template must have at least one section.', variant: "destructive" });
       return;
     }
-    onSaveTemplate(JSON.parse(JSON.stringify(currentTemplate))); 
+     // Ensure aspect ratio is valid before saving
+    const w = parseFloat(dimensionWidth);
+    const h = parseFloat(dimensionHeight);
+    if (isNaN(w) || w <= 0 || isNaN(h) || h <= 0) {
+        toast({ title: "Validation Error", description: 'Card dimensions for aspect ratio must be positive numbers.', variant: "destructive" });
+        return;
+    }
+    // The aspectRatio is already updated by the useEffect, so we just save currentTemplate
+    onSaveTemplate(JSON.parse(JSON.stringify({...currentTemplate, aspectRatio: `${w}:${h}`}))); 
   };
   
   const handleSelectTemplateToEdit = (templateId: string) => {
     setSelectedTemplateToEditId(templateId);
+    // useEffect will handle updating currentTemplate and dimension fields
   };
 
   const handleSectionClickFromPreview = (sectionId: string) => {
     setActiveAccordionItems(prev => {
-      return [sectionId]; 
+      if (prev.includes(sectionId)) return prev; // Already open or part of multi-open
+      return [sectionId]; // Focus on this one
     });
+    // Scroll to the accordion item
     const itemElement = document.getElementById(`accordion-item-${sectionId}`);
     itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
-
 
   const livePreviewData = useMemo(() => {
     const data: { [key: string]: string } = {};
@@ -254,7 +321,7 @@ export function TemplateEditor({
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>{currentTemplate.id === selectedTemplateToEditId && templates.find(t=>t.id === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: {currentTemplate.name}</CardTitle>
-            <CardDescription>Define overall style and card sections from top to bottom.</CardDescription>
+            <CardDescription>Define overall style and card sections from top to bottom. Direct manipulation of elements on the preview (drag/drop reorder or resize) is a very complex feature and not yet implemented. Use the controls below.</CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[calc(100vh-300px)] pr-2"> 
@@ -266,6 +333,33 @@ export function TemplateEditor({
                     <Input id="templateName" value={currentTemplate.name} onChange={(e) => updateCurrentTemplate({ name: e.target.value })} placeholder="e.g., Red Creature Aggro" required />
                   </div>
                   
+                  <div>
+                    <Label>Card Dimensions (for Aspect Ratio)</Label>
+                    <div className="grid grid-cols-3 gap-2 items-end">
+                        <div>
+                            <Label htmlFor="dimensionWidth" className="text-xs">Width</Label>
+                            <Input id="dimensionWidth" type="number" value={dimensionWidth} onChange={(e) => setDimensionWidth(e.target.value)} placeholder="e.g., 63" className="w-full" />
+                        </div>
+                        <div>
+                            <Label htmlFor="dimensionHeight" className="text-xs">Height</Label>
+                            <Input id="dimensionHeight" type="number" value={dimensionHeight} onChange={(e) => setDimensionHeight(e.target.value)} placeholder="e.g., 88" className="w-full" />
+                        </div>
+                        <div>
+                            <Label htmlFor="dimensionUnit" className="text-xs">Unit</Label>
+                            <Select value={dimensionUnit} onValueChange={(v) => setDimensionUnit(v as DimensionUnit)}>
+                                <SelectTrigger id="dimensionUnit"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ratio">Ratio</SelectItem>
+                                    <SelectItem value="px">Pixels (px)</SelectItem>
+                                    <SelectItem value="in">Inches (in)</SelectItem>
+                                    <SelectItem value="cm">Centimeters (cm)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Current Aspect Ratio: {currentTemplate.aspectRatio || "Not set"}</p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="templateType">Template Type</Label>
@@ -276,9 +370,25 @@ export function TemplateEditor({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label htmlFor="aspectRatio">Aspect Ratio (e.g., 63:88)</Label>
-                      <Input id="aspectRatio" value={currentTemplate.aspectRatio} onChange={(e) => updateCurrentTemplate({ aspectRatio: e.target.value })} placeholder="e.g., 63:88" />
+                     <div>
+                        <Label htmlFor="directAspectRatio">Direct Aspect Ratio (W:H)</Label>
+                        <Input 
+                            id="directAspectRatio" 
+                            value={currentTemplate.aspectRatio} 
+                            onChange={(e) => {
+                                updateCurrentTemplate({ aspectRatio: e.target.value });
+                                // Attempt to parse and update W/H fields if unit is ratio
+                                const [wStr, hStr] = e.target.value.split(':');
+                                const w = parseFloat(wStr);
+                                const h = parseFloat(hStr);
+                                if (!isNaN(w) && !isNaN(h)) {
+                                    setDimensionWidth(String(w));
+                                    setDimensionHeight(String(h));
+                                    setDimensionUnit("ratio");
+                                }
+                            }} 
+                            placeholder="e.g., 63:88" 
+                        />
                     </div>
                   </div>
 
@@ -295,7 +405,7 @@ export function TemplateEditor({
 
                 <section className="space-y-1">
                   <h4 className="text-lg font-semibold pt-3 border-t flex items-center gap-2">
-                    <ChevronsUpDown className="h-5 w-5 text-primary" /> Card Sections (Top to Bottom)
+                    <ChevronsUpDown className="h-5 w-5 text-primary" /> Card Sections (Top to Bottom Order)
                   </h4>
                   <Accordion 
                     type="multiple" 
@@ -453,6 +563,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
-
-    
