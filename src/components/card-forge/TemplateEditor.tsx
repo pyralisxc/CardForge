@@ -27,13 +27,13 @@ interface TemplateEditorProps {
 
 const iconMap: Record<CardSectionType, React.ElementType> = {
   CardName: TextCursorInput,
-  ManaCost: Baseline, // Could use a currency icon if available
+  ManaCost: Baseline, 
   Artwork: Paintbrush,
   TypeLine: Type,
-  RulesText: AlignLeft, // Or 'List'
+  RulesText: AlignLeft, 
   FlavorText: Italic,
-  PowerToughness: ChevronsUpDown, // Or 'Scaling'
-  ArtistCredit: Baseline, // Or 'UserCircle'
+  PowerToughness: ChevronsUpDown, 
+  ArtistCredit: Baseline, 
   CustomText: Type,
   Divider: Minus,
 };
@@ -72,36 +72,33 @@ export function TemplateEditor({
       if (templateToEdit) {
         newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); 
       } else {
-        // This case might happen if selectedTemplateToEditId refers to a deleted template
         newTemplateToSet = {...JSON.parse(JSON.stringify(creaturePreset)), id: nanoid(), name: "New Custom Template (Loaded Default)"};
-        setSelectedTemplateToEditId(newTemplateToSet.id); // Update ID to new one
+        setSelectedTemplateToEditId(newTemplateToSet.id); 
       }
     } else if (initialTemplate) {
          newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); 
     } else {
         newTemplateToSet = {
             ...JSON.parse(JSON.stringify(creaturePreset)),
-            id: nanoid(), // Ensure a new ID for a completely new template
+            id: nanoid(), 
             name: 'New Custom Template',
         };
     }
 
-    // Ensure all sections have IDs, especially when loading presets
     newTemplateToSet.sections = newTemplateToSet.sections.map(s => ({...s, id: s.id || nanoid()}));
 
     setCurrentTemplate(newTemplateToSet);
-    // Expand all sections by default when a template is loaded or created
     setActiveAccordionItems(newTemplateToSet.sections.map(s => s.id));
   }, [selectedTemplateToEditId, templates, initialTemplate]);
 
   const handleTemplatePresetChange = (presetName: string) => {
     const preset = PRESET_TEMPLATES.find(t => t.name === presetName);
     if (preset) {
-      const newSections = preset.sections.map(s => ({...s, id: s.id || nanoid() })); // Ensure new section IDs for preset
+      const newSections = preset.sections.map(s => ({...s, id: s.id || nanoid() })); 
       setCurrentTemplate({
         ...JSON.parse(JSON.stringify(preset)), 
-        id: currentTemplate.id, // Keep current template ID if editing, or it's a new ID
-        name: currentTemplate.name || preset.name, // Keep current name or use preset name
+        id: currentTemplate.id, 
+        name: currentTemplate.name || preset.name, 
         sections: newSections,
       });
       setActiveAccordionItems(newSections.map(s => s.id));
@@ -148,12 +145,12 @@ export function TemplateEditor({
     const newSections = newTemplateBase.sections.map(s => ({...s, id: s.id || nanoid()}));
     const newId = nanoid();
     setCurrentTemplate({
-      ...JSON.parse(JSON.stringify(newTemplateBase)), // Deep copy preset structure
+      ...JSON.parse(JSON.stringify(newTemplateBase)), 
       id: newId,
       name: 'New Custom Template',
       sections: newSections,
     });
-    setSelectedTemplateToEditId(newId); // Set the ID for the new template being edited
+    setSelectedTemplateToEditId(newId); 
     setActiveAccordionItems(newSections.map(s => s.id));
   };
 
@@ -176,10 +173,7 @@ export function TemplateEditor({
 
   const handleSectionClickFromPreview = (sectionId: string) => {
     setActiveAccordionItems(prev => {
-      // Toggle: if already active, keep others as is. If not, make it the only active one.
-      // Or simply always make it the only active one for focus.
-      // if (prev.includes(sectionId)) return prev.filter(id => id !== sectionId); // This would toggle
-      return [sectionId]; // This focuses by making it the only open one
+      return [sectionId]; 
     });
     const itemElement = document.getElementById(`accordion-item-${sectionId}`);
     itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -263,7 +257,7 @@ export function TemplateEditor({
             <CardDescription>Define overall style and card sections from top to bottom.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[calc(100vh-300px)] pr-2"> {/* Adjusted height and added pr-2 */}
+            <ScrollArea className="h-[calc(100vh-300px)] pr-2"> 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <section className="space-y-4 p-4 border rounded-md bg-card/30">
                   <h4 className="text-lg font-semibold flex items-center gap-2"><Settings2 className="h-5 w-5 text-primary" />Template Settings</h4>
@@ -279,7 +273,6 @@ export function TemplateEditor({
                         <SelectTrigger id="templateType"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="CustomSequential">Custom Sequential (Build Your Own)</SelectItem>
-                          {/* Future: <SelectItem value="StandardFantasyTCG">Standard Fantasy (Fixed Layout)</SelectItem> */}
                         </SelectContent>
                       </Select>
                     </div>
@@ -392,14 +385,20 @@ export function TemplateEditor({
                               <div><Label htmlFor={`borderColor-${section.id}`}>Border Color</Label><Input id={`borderColor-${section.id}`} type="color" value={section.borderColor || currentTemplate.borderColor || '#888888'} onChange={(e) => updateSection(section.id, { borderColor: e.target.value })} /></div>
                               <div>
                                 <Label htmlFor={`borderWidth-${section.id}`}>Border Width</Label>
-                                <Select value={section.borderWidth || ''} onValueChange={v => updateSection(section.id, {borderWidth: v})}>
+                                <Select 
+                                  value={section.borderWidth || '_none_'} 
+                                  onValueChange={v => updateSection(section.id, {borderWidth: v === '_none_' ? '' : v})}
+                                >
                                     <SelectTrigger id={`borderWidth-${section.id}`}><SelectValue placeholder="No border"/></SelectTrigger>
                                     <SelectContent>{BORDER_WIDTH_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
                                 </Select>
                               </div>
                               <div>
                                 <Label htmlFor={`minHeight-${section.id}`}>Min Height</Label>
-                                <Select value={section.minHeight || ''} onValueChange={v => updateSection(section.id, {minHeight: v})}>
+                                 <Select 
+                                  value={section.minHeight || '_auto_'} 
+                                  onValueChange={v => updateSection(section.id, {minHeight: v === '_auto_' ? '' : v})}
+                                >
                                     <SelectTrigger id={`minHeight-${section.id}`}><SelectValue placeholder="Auto"/></SelectTrigger>
                                     <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -437,7 +436,7 @@ export function TemplateEditor({
              <div className="mt-6 pt-6 border-t">
                 <h4 className="text-lg font-semibold mb-2 text-center">Live Template Preview</h4>
                 <p className="text-xs text-muted-foreground text-center mb-3">(Shows placeholders as content. Click section to edit.)</p>
-                <div className="mx-auto max-w-xs"> {/* Constrain width of preview container */}
+                <div className="mx-auto max-w-xs"> 
                   <CardPreview 
                     template={currentTemplate} 
                     data={livePreviewData} 

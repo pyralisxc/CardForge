@@ -61,7 +61,7 @@ export const PADDING_OPTIONS: Array<{ label: string; value: string }> = [
 ];
 
 export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'None', value: '' },
+  { label: 'None', value: '_none_' }, // Changed from ''
   { label: '1px (All Sides)', value: 'border' },
   { label: '2px (All Sides)', value: 'border-2' },
   { label: '4px (All Sides)', value: 'border-4' },
@@ -80,7 +80,7 @@ export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
 ];
 
 export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'Auto', value: '' },
+  { label: 'Auto', value: '_auto_' }, // Changed from ''
   { label: 'Extra Small (20px)', value: 'min-h-[20px]' },
   { label: 'Small (40px)', value: 'min-h-[40px]' },
   { label: 'Medium (80px)', value: 'min-h-[80px]' },
@@ -142,7 +142,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
     id: 'default-fantasy-creature-v1',
     name: 'Standard Fantasy Creature',
-    templateType: 'CustomSequential', // Changed to CustomSequential to use the new system
+    templateType: 'CustomSequential', 
     aspectRatio: TCG_ASPECT_RATIO,
     frameColor: '#777777', 
     borderColor: '#444444', 
@@ -186,7 +186,8 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'flavorText', label: 'Flavor Text', type: 'textarea', example: 'It charges mindlessly.' },
   { key: 'power', label: 'Power', type: 'input', example: '2' },
   { key: 'toughness', label: 'Toughness', type: 'input', example: '1' },
-  { key: 'rarity', label: 'Rarity', type: 'input', example: 'Common' },
+  { key: 'rarity', label: 'Rarity', type: 'input', example: 'Common' }, // Kept for data definition, symbol used in ArtistCredit
+  { key: 'raritySymbol', label: 'Rarity Symbol (Text)', type: 'input', example: 'C' }, // For the actual symbol in template
   { key: 'artistName', label: 'Artist Name', type: 'input', example: 'AI Artist' },
   { key: 'customValue', label: 'Custom Value', type: 'input', example: 'Some text' },
   { key: 'level', label: 'Level', type: 'input' },
@@ -194,7 +195,6 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'energyCost', label: 'Energy Cost', type: 'input' },
   { key: 'points', label: 'Points', type: 'input' },
   { key: 'effectText', label: 'Effect Text', type: 'textarea' },
-  { key: 'raritySymbol', label: 'Rarity Symbol (Text)', type: 'input', example: 'C' }
 ];
 
 
