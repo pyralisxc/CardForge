@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/card-forge/Header';
 import { TemplateEditor } from '@/components/card-forge/TemplateEditor';
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
-import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator'; // Added
+import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
@@ -13,8 +13,8 @@ import { PrintButton } from '@/components/card-forge/PrintButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator'; // Added
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutTemplate } from 'lucide-react'; // Added LayoutTemplate
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
@@ -22,7 +22,7 @@ import type { TCGCardTemplate, PaperSize, DisplayCard } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CardForgePage() {
-  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV2', DEFAULT_TEMPLATES); // Changed key for new structure
+  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV3', DEFAULT_TEMPLATES); // New key for new structure
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
   
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
@@ -30,30 +30,57 @@ export default function CardForgePage() {
   const [activeTab, setActiveTab] = useState<string>("editor");
   const { toast } = useToast();
 
+  // Ensure templates have unique IDs and valid sections, especially when loading from older localStorage
+  useEffect(() => {
+    setTemplates(prevTemplates => {
+      return prevTemplates.map(t => {
+        if (!t.sections || !Array.isArray(t.sections)) {
+          // Attempt to migrate or use default if sections are missing/invalid
+          const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
+          return {
+            ...t, // Keep existing ID, name, etc.
+            id: t.id || Date.now().toString(), // Ensure ID
+            sections: JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)), // Deep copy default sections
+            templateType: t.templateType || defaultTemplateForMigration.templateType,
+            aspectRatio: t.aspectRatio || defaultTemplateForMigration.aspectRatio,
+          };
+        }
+        // Ensure sections have IDs
+        t.sections = t.sections.map(s => ({...s, id: s.id || Date.now().toString() + Math.random() }));
+        return t;
+      });
+    });
+  }, []); // Run once on mount
+
+
   const handleSaveTemplate = (template: TCGCardTemplate) => {
     const existingIndex = templates.findIndex(t => t.id === template.id);
     if (existingIndex > -1) {
       const updatedTemplates = [...templates];
       updatedTemplates[existingIndex] = template;
       setTemplates(updatedTemplates);
-      toast({ title: "TCG Template Updated", description: `"${template.name}" has been updated.` });
+      toast({ title: "Template Updated", description: `"${template.name}" has been updated.` });
     } else {
       setTemplates(prevTemplates => [...prevTemplates, template]);
-      toast({ title: "TCG Template Saved", description: `"${template.name}" has been saved.` });
+      toast({ title: "Template Saved", description: `"${template.name}" has been saved.` });
     }
-    setEditingTemplate(template); 
+    // If we were editing this specific instance (by passing initialTemplate), update it.
+    // Or, if the ID matches, it means we are re-saving an existing one.
+    if (editingTemplate?.id === template.id || existingIndex > -1) {
+        setEditingTemplate(template); 
+    }
   };
 
   const handleDeleteTemplate = (templateId: string) => {
     setTemplates(prevTemplates => prevTemplates.filter(t => t.id !== templateId));
     if (editingTemplate?.id === templateId) {
-      setEditingTemplate(null);
+      setEditingTemplate(null); // Clear editing state if the deleted template was being edited
     }
-    toast({ title: "TCG Template Deleted", description: "The TCG template has been removed." });
+    toast({ title: "Template Deleted", description: "The template has been removed." });
   };
   
   const handleBulkCardsGenerated = (cards: DisplayCard[]) => {
-    setGeneratedDisplayCards(prev => [...prev, ...cards]); // Append new cards
+    setGeneratedDisplayCards(prev => [...prev, ...cards]);
     if (cards.length > 0) {
         setActiveTab("generator"); 
         toast({ title: "Bulk Generation Complete", description: `${cards.length} cards added to preview.` });
@@ -61,15 +88,22 @@ export default function CardForgePage() {
   };
 
   const handleSingleCardAdded = (card: DisplayCard) => {
-    setGeneratedDisplayCards(prev => [...prev, card]); // Append single card
+    setGeneratedDisplayCards(prev => [...prev, card]);
     setActiveTab("generator");
     // Toast is handled in SingleCardGenerator
   };
 
   const handleClearGeneratedCards = () => {
     setGeneratedDisplayCards([]);
-    toast({ title: "Cleared", description: "Generated TCG cards have been cleared." });
+    toast({ title: "Cleared", description: "Generated cards have been cleared." });
   };
+
+  // Function to pass to TemplateEditor to set a template for editing
+  const selectTemplateForEditing = (template: TCGCardTemplate) => {
+    setEditingTemplate(template);
+    setActiveTab("editor"); // Switch to editor tab
+  };
+
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -78,10 +112,10 @@ export default function CardForgePage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6 no-print">
             <TabsTrigger value="editor" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" /> TCG Template Editor
+              <LayoutTemplate className="h-4 w-4" /> Template Editor
             </TabsTrigger>
             <TabsTrigger value="generator" className="flex items-center gap-2">
-              <PackageOpen className="h-4 w-4" /> TCG Card Generator
+              <PackageOpen className="h-4 w-4" /> Card Generator
             </TabsTrigger>
             <TabsTrigger value="ai" className="flex items-center gap-2">
               <Wand2 className="h-4 w-4" /> AI Helper
@@ -93,7 +127,7 @@ export default function CardForgePage() {
               onSaveTemplate={handleSaveTemplate}
               templates={templates}
               onDeleteTemplate={handleDeleteTemplate}
-              initialTemplate={editingTemplate}
+              initialTemplate={editingTemplate} // Pass the template to be edited
             />
           </TabsContent>
 
@@ -116,18 +150,18 @@ export default function CardForgePage() {
                     <PrintButton disabled={generatedDisplayCards.length === 0} />
                     {generatedDisplayCards.length > 0 && (
                         <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
-                            <Trash2 className="h-4 w-4" /> Clear All Generated Cards
+                            <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
                         </Button>
                     )}
                 </div>
               </div>
               <div className="md:col-span-2">
-                <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated TCG Cards Preview ({generatedDisplayCards.length})</h2>
+                <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
                 {generatedDisplayCards.length === 0 ? (
-                  <p className="text-muted-foreground">No TCG cards generated yet. Use the panels on the left to add cards individually or in bulk.</p>
+                  <p className="text-muted-foreground">No cards generated yet. Use the panels on the left to add cards.</p>
                 ) : (
                   <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card shadow-inner">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 printable-grid"> {/* Max 3 wide for TCG cards usually */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 printable-grid">
                       {generatedDisplayCards.map((cardItem) => (
                         <CardPreview
                           key={cardItem.uniqueId}
@@ -145,7 +179,7 @@ export default function CardForgePage() {
           </TabsContent>
 
           <TabsContent value="ai">
-            <AIDesignAssistant />
+            <AIDesignAssistant templates={templates} />
           </TabsContent>
         </Tabs>
       </main>

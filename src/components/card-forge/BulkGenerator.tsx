@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
+import type { TCGCardTemplate, CardData, DisplayCard, CardSection } from '@/types';
 import { useState, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +13,7 @@ import { generateCardText } from '@/ai/flows/generate-card-text';
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { Sparkles, Download } from 'lucide-react';
+import { extractUniquePlaceholderKeys } from '@/lib/utils';
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
@@ -28,17 +29,36 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+
+  const getPlaceholdersFromTemplate = (template: TCGCardTemplate | undefined): string[] => {
+    if (!template) return [];
+    const placeholderSet = new Set<string>();
+    template.sections.forEach(section => {
+      extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(key => placeholderSet.add(key));
+    });
+    return Array.from(placeholderSet);
+  };
+  
+  const exampleCSVHeaders = getPlaceholdersFromTemplate(selectedTemplate).join(',');
+  const exampleCSVDataLine = getPlaceholdersFromTemplate(selectedTemplate).map(h => {
+    if (h.toLowerCase().includes('url')) return 'https://placehold.co/300x200.png';
+    if (h.toLowerCase().includes('name')) return 'Sample Card';
+    if (h.toLowerCase().includes('cost')) return '3';
+    if (h.toLowerCase().includes('type')) return 'Sample Type';
+    if (h.toLowerCase().includes('text')) return 'Sample effect text.';
+    return 'value';
+  }).join(',');
+
+  const exampleCSV = exampleCSVHeaders + '\n' + exampleCSVDataLine;
+
+
   const handleGenerate = async () => {
-    if (!selectedTemplateId) {
+    if (!selectedTemplate) {
       toast({ title: "Error", description: "Please select a TCG template.", variant: "destructive" });
       return;
     }
-    const template = templates.find(t => t.id === selectedTemplateId);
-    if (!template) {
-      toast({ title: "Error", description: "Selected TCG template not found.", variant: "destructive" });
-      return;
-    }
-
+    
     setIsLoading(true);
     let generatedCardsData: CardData[] = [];
 
@@ -70,37 +90,46 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           setIsLoading(false);
           return;
         }
+        
+        const placeholders = getPlaceholdersFromTemplate(selectedTemplate);
+        const primaryTextPlaceholder = placeholders.find(p => p.toLowerCase().includes('rules') || p.toLowerCase().includes('text') || p.toLowerCase().includes('effect')) || placeholders[0] || 'customValue';
+        const namePlaceholder = placeholders.find(p => p.toLowerCase().includes('name')) || 'cardName';
+        const artworkPlaceholder = placeholders.find(p => p.toLowerCase().includes('art') && p.toLowerCase().includes('url')) || 'artworkUrl';
+
+
         for (let i = 0; i < numAiCards; i++) {
           const aiResult = await generateCardText({ theme: `A fantasy TCG card ability or flavor text for a card concept: ${aiTheme}` });
           
-          // Basic mapping: AI generates rules text, theme is card name.
-          // Other fields will use template defaults or be blank.
-          const cardData: CardData = {
-            cardName: `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`,
-            rulesText: aiResult.cardText, // Using 'rulesText' as a common key
-            // Attempt to fill other common TCG fields, user can override later
-            manaCost: template.manaCostPlaceholder ? '{{manaCost}}' : '3', // Default example
-            cardType: template.cardTypeLinePlaceholder ? '{{cardType}}' : 'Spell - Arcane', // Default example
-            power: template.powerToughnessPlaceholder ? 'X' : '',
-            toughness: template.powerToughnessPlaceholder ? 'Y' : '',
-            rarity: template.rarityPlaceholder ? 'C' : 'Common',
-            artistName: template.artistCreditPlaceholder ? 'AI & You' : 'AI & You',
-            artworkUrl: template.artworkUrlPlaceholder || `https://placehold.co/375x275.png`,
-          };
-          // Filter out keys that don't have corresponding placeholders in the template
-          // This is a simple way to avoid sending useless data
-          Object.keys(cardData).forEach(key => {
-            const placeholderKey = (key + 'Placeholder') as keyof TCGCardTemplate;
-            if (placeholderKey.endsWith('Placeholder') && !template[placeholderKey as keyof TCGCardTemplate]) {
-                // If placeholder like 'cardNamePlaceholder' doesn't exist on template, remove the data key
-                // This is a very rough check. Better to align CardData keys with known template placeholder names.
+          const cardData: CardData = {};
+          // Pre-fill all placeholders with empty strings or defaults
+          placeholders.forEach(pKey => {
+            cardData[pKey] = ''; // Default to empty
+            if (pKey === artworkPlaceholder) {
+                cardData[pKey] = `https://placehold.co/300x200.png?text=${encodeURIComponent(aiTheme)}`
             }
           });
+
+          cardData[namePlaceholder] = `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`;
+          cardData[primaryTextPlaceholder] = aiResult.cardText;
+          
+          // Example: Try to fill other common fields if placeholders exist
+          const costPlaceholder = placeholders.find(p => p.toLowerCase().includes('cost'));
+          if (costPlaceholder) cardData[costPlaceholder] = 'X';
+          
+          const typePlaceholder = placeholders.find(p => p.toLowerCase().includes('type') && !p.toLowerCase().includes('sub'));
+          if (typePlaceholder) cardData[typePlaceholder] = 'Spell';
+          
+          const ptPowerPlaceholder = placeholders.find(p => p.toLowerCase().includes('power') && !p.toLowerCase().includes('toughness'));
+          const ptToughnessPlaceholder = placeholders.find(p => p.toLowerCase().includes('toughness'));
+          if(ptPowerPlaceholder) cardData[ptPowerPlaceholder] = '?';
+          if(ptToughnessPlaceholder) cardData[ptToughnessPlaceholder] = '?';
+
+
           generatedCardsData.push(cardData);
         }
       }
       
-      const displayCards = generatedCardsData.map(data => ({ template, data, uniqueId: nanoid() }));
+      const displayCards = generatedCardsData.map(data => ({ template: selectedTemplate, data, uniqueId: nanoid() }));
       onCardsGenerated(displayCards);
       toast({ title: "Success", description: `${displayCards.length} TCG cards generated.` });
 
@@ -116,23 +145,18 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     setBulkDataInput(e.target.value);
   };
 
-  const exampleCSV = `cardName,manaCost,artworkUrl,cardType,rulesText,flavorText,power,toughness,rarity,artistName
-Goblin Raider,1R,https://placehold.co/375x275.png?text=Goblin,Creature - Goblin Warrior,"Haste (This creature can attack and {T} as soon as it comes under your control.)","Goblins are not known for their patience, or their hygiene.",2,1,C,AI The Goblin
-Arcane Blast,2U,https://placehold.co/375x275.png?text=Spell,Instant,"Deal 3 damage to any target. Draw a card.","The air crackled with raw magic.",,,U,AI The Mage
-Ancient Relic,3,https://placehold.co/375x275.png?text=Artifact,Artifact,"{T}: Add one mana of any color.","Its purpose lost to time, its power remains.",,,R,AI The Historian`;
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Bulk TCG Card Generator</CardTitle>
-        <CardDescription>Generate multiple TCG cards from a template using CSV data or AI.</CardDescription>
+        <CardTitle>Bulk Card Generator</CardTitle>
+        <CardDescription>Generate multiple cards from a template using CSV data or AI.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <Label htmlFor="bulkTemplateSelect">Select TCG Template</Label>
+          <Label htmlFor="bulkTemplateSelect">Select Template</Label>
           <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
             <SelectTrigger id="bulkTemplateSelect">
-              <SelectValue placeholder="Choose a TCG template" />
+              <SelectValue placeholder="Choose a template" />
             </SelectTrigger>
             <SelectContent>
               {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
@@ -156,19 +180,21 @@ Ancient Relic,3,https://placehold.co/375x275.png?text=Artifact,Artifact,"{T}: Ad
         {generationMethod === 'csv' && (
           <div>
             <Label htmlFor="bulkData">
-              Card Data (CSV: headers matching template fields, then data lines)
+              Card Data (CSV: headers matching template placeholders, then data lines)
             </Label>
             <Textarea
               id="bulkData"
               value={bulkDataInput}
               onChange={handleDataInputChange}
-              placeholder={exampleCSV}
+              placeholder={selectedTemplate ? exampleCSV : "Select a template to see example CSV structure."}
               rows={8}
               className="font-mono text-sm"
+              disabled={!selectedTemplate}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Common TCG field names: cardName, manaCost, artworkUrl, cardType, rulesText, flavorText, power, toughness, rarity, artistName. Ensure your CSV headers match the data keys you intend to use.
-            </p>
+            {selectedTemplate && <p className="text-xs text-muted-foreground mt-1">
+              Your CSV headers should be: <strong>{exampleCSVHeaders}</strong>
+            </p>}
+            {!selectedTemplate && <p className="text-xs text-muted-foreground mt-1">Select a template first to see the expected CSV format based on its placeholders.</p>}
           </div>
         )}
 
@@ -177,7 +203,7 @@ Ancient Relic,3,https://placehold.co/375x275.png?text=Artifact,Artifact,"{T}: Ad
             <div>
               <Label htmlFor="aiTheme">Card Concept/Theme for AI</Label>
               <Input id="aiTheme" value={aiTheme} onChange={(e) => setAiTheme(e.target.value)} placeholder="e.g., Swift Goblin Scout, Arcane Blast" />
-              <p className="text-xs text-muted-foreground mt-1">AI will generate rules/flavor text. Card name will be based on the theme.</p>
+              <p className="text-xs text-muted-foreground mt-1">AI will generate text for primary text fields. Card name will be based on the theme.</p>
             </div>
             <div>
               <Label htmlFor="numAiCards">Number of Cards (AI)</Label>

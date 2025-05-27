@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
+import type { TCGCardTemplate, CardData, DisplayCard, CardSection } from '@/types';
 import { TCG_FIELD_DEFINITIONS } from '@/lib/constants';
 import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
 import { useState, ChangeEvent, useEffect } from 'react';
@@ -24,6 +24,7 @@ interface DynamicField {
   key: string;
   label: string;
   type: 'input' | 'textarea';
+  example?: string;
 }
 
 export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCardGeneratorProps) {
@@ -37,30 +38,35 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
   useEffect(() => {
     if (selectedTemplate) {
       const allPlaceholderKeys = new Set<string>();
-      // Iterate over all string properties of the template that might contain placeholders
-      (Object.keys(selectedTemplate) as Array<keyof TCGCardTemplate>).forEach(propKey => {
-        const value = selectedTemplate[propKey];
-        if (typeof value === 'string') {
-          extractUniquePlaceholderKeys(value).forEach(pKey => allPlaceholderKeys.add(pKey));
-        }
+      selectedTemplate.sections.forEach(section => {
+        extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(pKey => allPlaceholderKeys.add(pKey));
       });
 
       const fields: DynamicField[] = Array.from(allPlaceholderKeys).map(key => {
         const definition = TCG_FIELD_DEFINITIONS.find(def => def.key === key);
         return {
           key,
-          label: definition?.label || toTitleCase(key),
+          label: definition?.label || toTitleCase(key.replace(/_/g, ' ')),
           type: definition?.type === 'textarea' ? 'textarea' : 'input',
+          example: definition?.example || `e.g., ${toTitleCase(key.replace(/_/g, ' '))}`,
         };
       });
       setDynamicFields(fields);
       
       const newCardData: CardData = {};
       fields.forEach(f => {
-        if (f.key === 'artworkUrl' && selectedTemplate.artworkUrlPlaceholder) {
-            newCardData[f.key] = cardData[f.key] || selectedTemplate.artworkUrlPlaceholder;
-        } else {
-            newCardData[f.key] = cardData[f.key] || '';
+        // Preserve existing data if key matches, otherwise initialize
+        newCardData[f.key] = cardData[f.key] || ''; 
+        // Special handling for default artwork URL if the template has an artwork section and the key is 'artworkUrl'
+        const artSection = selectedTemplate.sections.find(s => s.type === 'Artwork');
+        if (f.key === 'artworkUrl' && artSection && artSection.contentPlaceholder.includes('{{artworkUrl}}') && !newCardData[f.key]) {
+            // Try to get a default URL if placeholder itself is a URL (not ideal, but for compatibility)
+            const defaultArtUrlMatch = artSection.contentPlaceholder.match(/^(https?:\/\/[^\s{}]+\.(?:png|jpg|jpeg|gif|svg))/i);
+            if (defaultArtUrlMatch && defaultArtUrlMatch[0] !== artSection.contentPlaceholder) { // i.e. it's not *just* {{artworkUrl}}
+                 newCardData[f.key] = defaultArtUrlMatch[0];
+            } else {
+                 newCardData[f.key] = 'https://placehold.co/300x200.png'; // Fallback
+            }
         }
       });
       setCardData(newCardData);
@@ -70,7 +76,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       setCardData({});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateId]); // Depend on selectedTemplateId to re-run when template changes
+  }, [selectedTemplateId, templates]); // Rerun when selectedTemplateId or available templates change
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
@@ -82,21 +88,17 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       return;
     }
 
-    // Basic validation: ensure at least a card name is provided if 'cardName' is a dynamic field
-    const cardNameField = dynamicFields.find(f => f.key === 'cardName');
-    if (cardNameField && !cardData[cardNameField.key]?.trim()) {
-        toast({ title: "Error", description: `${cardNameField.label} is required.`, variant: "destructive" });
-        return;
+    // Basic validation: ensure at least one "name" like field is provided if it exists
+    const nameLikeField = dynamicFields.find(f => f.key.toLowerCase().includes('name'));
+    if (nameLikeField && !cardData[nameLikeField.key]?.toString().trim()) {
+        toast({ title: "Error", description: `${nameLikeField.label} is recommended.`, variant: "warning" });
+        // Not returning error, just a warning.
     }
     
     const completeCardData: CardData = { ...cardData };
     dynamicFields.forEach(field => {
         if (completeCardData[field.key] === undefined) {
-          if (field.key === 'artworkUrl' && selectedTemplate.artworkUrlPlaceholder && !completeCardData.artworkUrl) {
-            completeCardData.artworkUrl = selectedTemplate.artworkUrlPlaceholder;
-          } else {
-            completeCardData[field.key] = ''; 
-          }
+          completeCardData[field.key] = ''; 
         }
     });
 
@@ -106,11 +108,20 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       uniqueId: nanoid(),
     };
     onSingleCardAdded(displayCard);
-    toast({ title: "Success", description: `TCG card "${completeCardData.cardName || completeCardData[dynamicFields.find(f => f.key.toLowerCase().includes('name'))?.key || ''] || 'Untitled Card'}" added.` });
+    
+    let cardIdentifier = "Untitled Card";
+    const nameFieldKey = dynamicFields.find(f => f.key.toLowerCase().includes("name"))?.key;
+    if (nameFieldKey && completeCardData[nameFieldKey]) {
+        cardIdentifier = String(completeCardData[nameFieldKey]);
+    } else if (dynamicFields.length > 0 && completeCardData[dynamicFields[0].key]) {
+        cardIdentifier = String(completeCardData[dynamicFields[0].key]);
+    }
+
+    toast({ title: "Success", description: `Card "${cardIdentifier}" added to preview.` });
     
     // Optionally reset form:
     // const freshCardData: CardData = {};
-    // dynamicFields.forEach(f => { freshCardData[f.key] = (f.key === 'artworkUrl' && selectedTemplate.artworkUrlPlaceholder) ? selectedTemplate.artworkUrlPlaceholder : ''; });
+    // dynamicFields.forEach(f => { freshCardData[f.key] = (f.key === 'artworkUrl' /* && some default art condition */) ? 'https://placehold.co/300x200.png' : ''; });
     // setCardData(freshCardData);
   };
 
@@ -118,21 +129,21 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Single TCG Card Entry</CardTitle>
-        <CardDescription>Select a template and fill in the details for one card. Placeholders like {'{{variableName}}'} in the template will appear as fields here.</CardDescription>
+        <CardTitle>Single Card Entry</CardTitle>
+        <CardDescription>Select a template and fill in data for its placeholders (e.g., {'{{cardName}}'}).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label htmlFor="singleTemplateSelect">Select TCG Template</Label>
+          <Label htmlFor="singleTemplateSelect">Select Template</Label>
           <Select 
             value={selectedTemplateId} 
             onValueChange={(id) => {
               setSelectedTemplateId(id);
-              // Card data & dynamic fields will be reset by the useEffect hook when selectedTemplateId changes
+              // Card data & dynamic fields will be reset by the useEffect hook
             }}
           >
             <SelectTrigger id="singleTemplateSelect">
-              <SelectValue placeholder="Choose a TCG template" />
+              <SelectValue placeholder="Choose a template" />
             </SelectTrigger>
             <SelectContent>
               {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
@@ -142,6 +153,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
 
         {selectedTemplate && dynamicFields.length > 0 && (
           <div className="space-y-3 mt-4 border-t pt-4">
+            <p className="text-sm text-muted-foreground">Enter data for placeholders in template: <strong className="text-foreground">{selectedTemplate.name}</strong></p>
             {dynamicFields.map(field => (
               <div key={field.key}>
                 <Label htmlFor={`singleCard-${field.key}`}>{field.label}</Label>
@@ -150,7 +162,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
                     id={`singleCard-${field.key}`}
                     value={(cardData[field.key] as string) || ''}
                     onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+                    placeholder={field.example || `Enter ${field.label.toLowerCase()}...`}
                     rows={field.key.toLowerCase().includes('rules') || field.key.toLowerCase().includes('text') ? 3 : 2}
                   />
                 ) : (
@@ -158,7 +170,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
                     id={`singleCard-${field.key}`}
                     value={(cardData[field.key] as string) || ''}
                     onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+                    placeholder={field.example || `Enter ${field.label.toLowerCase()}...`}
                   />
                 )}
               </div>
@@ -167,7 +179,10 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
         )}
         
         {selectedTemplate && dynamicFields.length === 0 && (
-            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{`{{cardName}}`}</code>, <code>{`{{manaCost}}`}</code>). Please edit the template to include them in its placeholder strings.</p>
+            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{`{{cardName}}`}</code>, <code>{`{{manaCost}}`}</code>). Please edit the template to include them in its section content placeholders.</p>
+        )}
+         {!selectedTemplate && (
+            <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
         )}
 
 
@@ -178,4 +193,3 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
     </Card>
   );
 }
-

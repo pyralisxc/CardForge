@@ -1,5 +1,5 @@
 
-import type { PaperSize, TCGCardTemplate, CardData } from '@/types';
+import type { PaperSize, TCGCardTemplate, CardSection, CardSectionType } from '@/types';
 import { nanoid } from 'nanoid';
 
 export const PAPER_SIZES: PaperSize[] = [
@@ -9,117 +9,129 @@ export const PAPER_SIZES: PaperSize[] = [
 
 export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
 
+export const SECTION_TYPES: CardSectionType[] = [
+  'CardName', 
+  'ManaCost', 
+  'Artwork', 
+  'TypeLine', 
+  'RulesText', 
+  'FlavorText', 
+  'PowerToughness', 
+  'ArtistCredit',
+  'CustomText',
+  'Divider'
+];
+
+export const FONT_SIZES: Array<CardSection['fontSize']> = ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl'];
+export const FONT_WEIGHTS: Array<CardSection['fontWeight']> = ['font-normal', 'font-medium', 'font-semibold', 'font-bold'];
+export const TEXT_ALIGNS: Array<CardSection['textAlign']> = ['left', 'center', 'right'];
+export const FONT_STYLES: Array<CardSection['fontStyle']> = ['normal', 'italic'];
+
+
+export const createDefaultSection = (type: CardSectionType): CardSection => {
+  const baseSection = {
+    id: nanoid(),
+    type,
+    contentPlaceholder: '',
+    textColor: '#000000', // Default to black
+    backgroundColor: '', // Default to transparent
+    fontSize: 'text-sm' as CardSection['fontSize'],
+    fontWeight: 'font-normal' as CardSection['fontWeight'],
+    textAlign: 'left' as CardSection['textAlign'],
+    fontStyle: 'normal' as CardSection['fontStyle'],
+    padding: 'p-1',
+    borderColor: '',
+    borderWidth: '',
+    minHeight: '',
+    flexGrow: false,
+  };
+
+  switch (type) {
+    case 'CardName':
+      return { ...baseSection, contentPlaceholder: '{{cardName}}', fontSize: 'text-base', fontWeight: 'font-bold', padding: 'px-2 pt-1 pb-0.5' };
+    case 'ManaCost':
+      return { ...baseSection, contentPlaceholder: '{{manaCost}}', textAlign: 'right', padding: 'px-2 pt-1 pb-0.5' };
+    case 'Artwork':
+      return { ...baseSection, contentPlaceholder: '{{artworkUrl}}', backgroundColor: '#CCCCCC', minHeight: 'min-h-[150px]', flexGrow: true, padding: 'p-0.5' };
+    case 'TypeLine':
+      return { ...baseSection, contentPlaceholder: '{{cardType}} - {{subTypes}}', fontWeight: 'font-semibold', backgroundColor: '#DDDDDD', padding: 'px-2 py-1', borderWidth: 'border-y', borderColor: '#AAAAAA'};
+    case 'RulesText':
+      return { ...baseSection, contentPlaceholder: '{{rulesText}}', minHeight: 'min-h-[60px]', flexGrow: true, backgroundColor: '#FFFFFF', padding: 'p-2', borderWidth: 'border', borderColor: '#CCCCCC'};
+    case 'FlavorText':
+      return { ...baseSection, contentPlaceholder: '"{{flavorText}}"', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[30px]', backgroundColor: '#FFFFFF', padding: 'p-2 pt-1', borderWidth: 'border-t', borderColor: '#DDDDDD' };
+    case 'PowerToughness':
+      return { ...baseSection, contentPlaceholder: '{{power}}/{{toughness}}', fontWeight: 'font-bold', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: '#DDDDDD', borderWidth: 'border-t', borderColor: '#AAAAAA' };
+    case 'ArtistCredit':
+      return { ...baseSection, contentPlaceholder: 'Illus. {{artistName}} {{{raritySymbol}}}', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5' };
+    case 'CustomText':
+      return { ...baseSection, contentPlaceholder: '{{customValue}}', padding: 'p-1' };
+    case 'Divider':
+      return { ...baseSection, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: '#CCCCCC', padding: 'my-1' }; // Placeholder content not used
+    default:
+      return baseSection;
+  }
+};
+
+
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
     id: nanoid(),
-    name: 'Blue Creature Template',
-    cardNamePlaceholder: '{{cardName}}',
-    manaCostPlaceholder: '{{manaCost}}',
-    artworkUrlPlaceholder: `https://placehold.co/375x275.png`,
-    cardTypeLinePlaceholder: 'Creature - {{subType}}',
-    rulesTextPlaceholder: '{{abilityDescription}}\n{{triggeredAbility}}',
-    flavorTextPlaceholder: '"{{flavorText}}"',
-    powerToughnessPlaceholder: '{{power}}/{{toughness}}',
-    rarityPlaceholder: '{{rarity}}',
-    artistCreditPlaceholder: 'Illus. {{artistName}}',
+    name: 'Standard Fantasy Creature',
+    templateType: 'StandardFantasyTCG',
     aspectRatio: TCG_ASPECT_RATIO,
-    frameColor: '#A0C8E0', // Light Blue frame
-    borderColor: '#5A8AA8', // Darker Blue border for elements
-    baseBackgroundColor: '#F0F4F7', // Main card background
-    baseTextColor: '#1C1C1C', // Default text color
-    nameTextColor: '#102A43', // Darker blue for name
-    costTextColor: '#102A43', // Darker blue for cost
-    typeLineTextColor: '#102A43', // Darker blue for type line
-    rulesTextColor: '#243B53', // Standard text for rules
-    flavorTextColor: '#486581', // Slightly lighter for flavor
-    ptTextColor: '#102A43', // Darker blue for P/T
-    artBoxBackgroundColor: '#D0E0E3', // Light muted blue for artbox BG
-    textBoxBackgroundColor: '#E0E8F0', // Slightly off-white/blue for textbox BG
+    frameColor: '#777777', // Neutral Grey Frame
+    borderColor: '#444444', // Darker Grey for inner borders
+    baseBackgroundColor: '#F0F0F0', // Light Grey card body
+    baseTextColor: '#1C1C1C', // Dark text
+    sections: [
+      { ...createDefaultSection('CardName'), contentPlaceholder: '{{cardName}}', textColor: '#102A43', fontWeight: 'font-bold', fontSize: 'text-lg', padding: 'px-2 pt-1.5 pb-0', textAlign: 'left' },
+      { ...createDefaultSection('ManaCost'), contentPlaceholder: '{{manaCost}}', textColor: '#102A43', fontWeight: 'font-bold', fontSize: 'text-base', padding: 'px-2 pt-1.5 pb-0', textAlign: 'right' },
+      { ...createDefaultSection('Artwork'), contentPlaceholder: '{{artworkUrl}}', backgroundColor: '#D0D0D0', minHeight: 'min-h-[180px]', flexGrow: true, padding: 'p-1', borderColor: '#555555', borderWidth: 'border-2' },
+      { ...createDefaultSection('TypeLine'), contentPlaceholder: '{{cardType}} \u2014 {{subTypes}}', textColor: '#FFFFFF', fontWeight: 'font-semibold', backgroundColor: '#555555', padding: 'px-2 py-1', borderWidth: 'border-y-2', borderColor: '#333333', textAlign: 'center', fontSize: 'text-sm' },
+      { ...createDefaultSection('RulesText'), contentPlaceholder: '{{rulesText}}', textColor: '#243B53', fontSize: 'text-sm', backgroundColor: '#FFFFFF', padding: 'p-2', borderColor: '#AAAAAA', borderWidth: 'border-2', minHeight: 'min-h-[80px]', flexGrow: true },
+      { ...createDefaultSection('FlavorText'), contentPlaceholder: '"{{flavorText}}"', textColor: '#486581', fontSize: 'text-xs', fontStyle: 'italic', backgroundColor: '#FFFFFF', padding: 'p-2 pt-1', borderColor: '#AAAAAA', borderWidth: 'border-t-2' },
+      { ...createDefaultSection('PowerToughness'), contentPlaceholder: '{{power}}/{{toughness}}', textColor: '#FFFFFF', fontWeight: 'font-bold', fontSize: 'text-lg', backgroundColor: '#555555', padding: 'px-3 py-1', textAlign: 'center', borderWidth: 'border-t-2', borderColor: '#333333'},
+      { ...createDefaultSection('ArtistCredit'), contentPlaceholder: 'Illus. {{artistName}} \u2022 {{rarity}}', textColor: '#333333', fontSize: 'text-xs', padding: 'px-2 py-1 text-center' },
+    ]
   },
   {
     id: nanoid(),
-    name: 'Red Spell Template',
-    cardNamePlaceholder: '{{spellName}}', // Note: use 'cardName' for consistency if preferred, or allow any key
-    manaCostPlaceholder: '{{manaCost}}',
-    artworkUrlPlaceholder: `https://placehold.co/375x275.png`,
-    cardTypeLinePlaceholder: 'Instant - {{spellSubType}}',
-    rulesTextPlaceholder: '{{spellEffect}}\n{{additionalCost}}',
-    flavorTextPlaceholder: '"{{spellQuote}}"',
-    powerToughnessPlaceholder: '', 
-    rarityPlaceholder: '{{rarity}}',
-    artistCreditPlaceholder: 'Illus. {{artistName}}',
+    name: 'Basic Custom Card',
+    templateType: 'CustomSequential',
     aspectRatio: TCG_ASPECT_RATIO,
-    frameColor: '#E8B0A0', 
-    borderColor: '#A8605A', 
-    baseBackgroundColor: '#F7F0F0',
-    baseTextColor: '#1C1C1C',
-    nameTextColor: '#610316',
-    costTextColor: '#610316',
-    typeLineTextColor: '#610316',
-    rulesTextColor: '#721121',
-    flavorTextColor: '#8C1C13',
-    ptTextColor: '#610316',
-    artBoxBackgroundColor: '#F0D8D4',
-    textBoxBackgroundColor: '#F5E8E6',
-  },
-  {
-    id: nanoid(),
-    name: 'Artifact Template',
-    cardNamePlaceholder: '{{artifactName}}', // Note: use 'cardName' for consistency if preferred
-    manaCostPlaceholder: '{{manaCost}}',
-    artworkUrlPlaceholder: `https://placehold.co/375x275.png`,
-    cardTypeLinePlaceholder: 'Artifact - {{artifactSubType}}',
-    rulesTextPlaceholder: '{{staticAbility}}\n{{activatedAbility}}',
-    flavorTextPlaceholder: '"{{artifactLore}}"',
-    powerToughnessPlaceholder: '{{power}}/{{toughness}}', 
-    rarityPlaceholder: '{{rarity}}',
-    artistCreditPlaceholder: 'Illus. {{artistName}}',
-    aspectRatio: TCG_ASPECT_RATIO,
-    frameColor: '#C0C0C0', 
-    borderColor: '#808080', 
-    baseBackgroundColor: '#F5F5F5',
-    baseTextColor: '#1C1C1C',
-    nameTextColor: '#333333',
-    costTextColor: '#333333',
-    typeLineTextColor: '#333333',
-    rulesTextColor: '#444444',
-    flavorTextColor: '#555555',
-    ptTextColor: '#333333',
-    artBoxBackgroundColor: '#E0E0E0',
-    textBoxBackgroundColor: '#EDEDED',
+    frameColor: '#AAAAAA',
+    borderColor: '#777777',
+    baseBackgroundColor: '#FFFFFF',
+    baseTextColor: '#000000',
+    sections: [
+      createDefaultSection('CardName'),
+      createDefaultSection('Artwork'),
+      createDefaultSection('CustomText'),
+    ]
   }
 ];
 
 // For SingleCardGenerator: provides hints for labels and input types
 // if a dynamically extracted placeholder key matches one of these.
 // The 'key' should match the placeholder name *inside* {{...}}.
-export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input' | 'textarea' }[] = [
-  { key: 'cardName', label: 'Card Name', type: 'input' },
-  { key: 'spellName', label: 'Spell Name', type: 'input' }, // Example for 'Red Spell Template'
-  { key: 'artifactName', label: 'Artifact Name', type: 'input' }, // Example for 'Artifact Template'
-  { key: 'manaCost', label: 'Mana Cost', type: 'input' },
-  { key: 'artworkUrl', label: 'Artwork URL', type: 'input' },
-  { key: 'cardType', label: 'Card Type Line', type: 'input' }, // General key if user uses {{cardType}}
-  { key: 'subType', label: 'Sub-Type', type: 'input' }, // e.g. Goblin, Warrior, Instant, etc.
-  { key: 'spellSubType', label: 'Spell Sub-Type', type: 'input' },
-  { key: 'artifactSubType', label: 'Artifact Sub-Type', type: 'input' },
-  { key: 'rulesText', label: 'Rules Text / Abilities', type: 'textarea' },
-  { key: 'abilityDescription', label: 'Ability Description', type: 'textarea' },
-  { key: 'triggeredAbility', label: 'Triggered Ability', type: 'textarea' },
-  { key: 'staticAbility', label: 'Static Ability', type: 'textarea' },
-  { key: 'activatedAbility', label: 'Activated Ability', type: 'textarea' },
-  { key: 'spellEffect', label: 'Spell Effect', type: 'textarea' },
-  { key: 'additionalCost', label: 'Additional Cost', type: 'textarea' },
-  { key: 'flavorText', label: 'Flavor Text', type: 'textarea' },
-  { key: 'spellQuote', label: 'Spell Quote', type: 'textarea' },
-  { key: 'artifactLore', label: 'Artifact Lore', type: 'textarea' },
-  { key: 'power', label: 'Power', type: 'input' },
-  { key: 'toughness', label: 'Toughness', type: 'input' },
-  { key: 'rarity', label: 'Rarity (e.g., C, U, R, M)', type: 'input' },
-  { key: 'artistName', label: 'Artist Name', type: 'input' },
+export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input' | 'textarea'; example?: string }[] = [
+  { key: 'cardName', label: 'Card Name', type: 'input', example: 'Goblin Raider' },
+  { key: 'manaCost', label: 'Mana Cost', type: 'input', example: '1R' },
+  { key: 'artworkUrl', label: 'Artwork URL', type: 'input', example: 'https://placehold.co/300x200.png' },
+  { key: 'cardType', label: 'Card Type', type: 'input', example: 'Creature' },
+  { key: 'subTypes', label: 'Sub-Types', type: 'input', example: 'Goblin Warrior' },
+  { key: 'rulesText', label: 'Rules Text / Abilities', type: 'textarea', example: 'Haste\nWhen this enters, deal 1 damage.' },
+  { key: 'flavorText', label: 'Flavor Text', type: 'textarea', example: 'It charges mindlessly.' },
+  { key: 'power', label: 'Power', type: 'input', example: '2' },
+  { key: 'toughness', label: 'Toughness', type: 'input', example: '1' },
+  { key: 'rarity', label: 'Rarity', type: 'input', example: 'Common' },
+  { key: 'artistName', label: 'Artist Name', type: 'input', example: 'AI Artist' },
+  { key: 'customValue', label: 'Custom Value', type: 'input', example: 'Some text' },
   // Add other common TCG terms that might be used as placeholders
   { key: 'level', label: 'Level', type: 'input' },
   { key: 'attribute', label: 'Attribute', type: 'input' },
   { key: 'energyCost', label: 'Energy Cost', type: 'input' },
   { key: 'points', label: 'Points', type: 'input' },
+  { key: 'effectText', label: 'Effect Text', type: 'textarea' },
+  { key: 'raritySymbol', label: 'Rarity Symbol (Text)', type: 'input', example: 'C' }
 ];

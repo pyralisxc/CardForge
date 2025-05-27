@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData } from '@/types';
+import type { TCGCardTemplate, CardData, CardSection } from '@/types';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
@@ -13,55 +13,48 @@ interface CardPreviewProps {
 }
 
 function replacePlaceholders(text: string | undefined, data: CardData): string {
-  if (!text) return '';
-  let result = text;
+  if (text === undefined || text === null) return '';
+  let result = String(text); // Ensure text is a string
+  
   // First, replace known data fields
   for (const key in data) {
-    const placeholder = `{{${key}}}`;
-    result = result.replace(new RegExp(placeholder.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), 'g'), String(data[key]));
+    if (data[key] !== undefined && data[key] !== null) {
+      const placeholder = `{{${key}}}`;
+      // Escape special characters in placeholder for regex
+      const escapedPlaceholder = placeholder.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+      result = result.replace(new RegExp(escapedPlaceholder, 'g'), String(data[key]));
+    }
   }
-  // Remove any unreplaced placeholders (e.g. {{unfilledValue}})
+  // Remove any unreplaced placeholders (e.g. {{unfilledValue}}) or those with undefined/null data
   result = result.replace(/{{\s*[\w-]+\s*}}/g, '');
   return result;
 }
 
 export function CardPreview({ template, data, className, isPrintMode = false }: CardPreviewProps) {
-  const [aspectW, aspectH] = template.aspectRatio.split(':').map(Number);
+  if (!template) return <div className="text-red-500">Error: Template not provided to CardPreview.</div>;
 
-  // Fallbacks for new specific colors to existing general colors
-  const nameColor = template.nameTextColor || template.baseTextColor || '#000000';
-  const costColor = template.costTextColor || template.baseTextColor || '#000000';
-  const typeLineColor = template.typeLineTextColor || template.baseTextColor || '#000000';
-  const rulesColor = template.rulesTextColor || template.baseTextColor || '#000000';
-  const flavorColor = template.flavorTextColor || template.rulesTextColor || template.baseTextColor || '#333333'; // Flavor often slightly different
-  const ptColor = template.ptTextColor || template.baseTextColor || '#000000';
-  
-  const artBg = template.artBoxBackgroundColor || template.baseBackgroundColor || '#CCCCCC'; // Default artbox bg
-  const textBg = template.textBoxBackgroundColor || template.baseBackgroundColor || '#FFFFFF'; // Default textbox bg
-  const cardBodyBg = template.baseBackgroundColor || '#FFFFFF';
+  const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
 
-
-  const containerStyle: React.CSSProperties = {
-    backgroundColor: cardBodyBg,
+  const cardContainerStyle: React.CSSProperties = {
+    backgroundColor: template.baseBackgroundColor || '#FFFFFF',
     color: template.baseTextColor || '#000000',
     aspectRatio: `${aspectW} / ${aspectH}`,
-    width: isPrintMode ? '100%' : '250px',
+    width: isPrintMode ? '100%' : '280px', // Slightly larger for better viewing
     height: isPrintMode ? '100%' : 'auto',
     border: `4px solid ${template.frameColor || 'grey'}`,
     boxSizing: 'border-box',
   };
-  
-  const cardName = replacePlaceholders(template.cardNamePlaceholder, data);
-  const manaCost = replacePlaceholders(template.manaCostPlaceholder, data);
-  const artworkUrl = data.artworkUrl as string || template.artworkUrlPlaceholder || 'https://placehold.co/375x275.png';
-  const cardTypeLine = replacePlaceholders(template.cardTypeLinePlaceholder, data);
-  const rulesText = replacePlaceholders(template.rulesTextPlaceholder, data);
-  const flavorText = replacePlaceholders(template.flavorTextPlaceholder, data);
-  const powerToughness = replacePlaceholders(template.powerToughnessPlaceholder, data);
-  const rarity = replacePlaceholders(template.rarityPlaceholder, data);
-  const artistCredit = replacePlaceholders(template.artistCreditPlaceholder, data);
 
-  const artworkHint = (cardTypeLine.toLowerCase().includes("creature") ? "fantasy creature" : cardTypeLine.toLowerCase().includes("spell") || cardTypeLine.toLowerCase().includes("instant") ? "spell effect" : "fantasy item") || "card art";
+  // Determine overall artwork hint from multiple sections if possible
+  let artworkHint = "card art"; // Default
+  const artSection = template.sections?.find(s => s.type === 'Artwork');
+  const typeSection = template.sections?.find(s => s.type === 'TypeLine');
+  if (typeSection) {
+    const typeLineText = replacePlaceholders(typeSection.contentPlaceholder, data).toLowerCase();
+    if (typeLineText.includes("creature")) artworkHint = "fantasy creature";
+    else if (typeLineText.includes("spell") || typeLineText.includes("instant")) artworkHint = "spell effect";
+    else if (typeLineText.includes("item") || typeLineText.includes("artifact")) artworkHint = "fantasy item";
+  }
 
 
   return (
@@ -71,51 +64,94 @@ export function CardPreview({ template, data, className, isPrintMode = false }: 
         isPrintMode ? "card-preview-print" : "",
         className
       )}
-      style={containerStyle}
-      data-ai-hint="tcg card"
+      style={cardContainerStyle}
+      data-ai-hint="tcg card custom"
     >
-      {/* Header: Name and Mana Cost */}
-      <div className="tcg-header flex justify-between items-center p-1.5 sm:p-2" style={{ backgroundColor: template.frameColor, borderBottom: `2px solid ${template.borderColor || template.frameColor}` }}>
-        <h3 className="tcg-card-name font-bold text-sm sm:text-base leading-tight truncate" style={{ color: nameColor }}>{cardName || "Card Name"}</h3>
-        {manaCost && <span className="tcg-mana-cost text-xs sm:text-sm font-semibold px-1 py-0.5 rounded" style={{ backgroundColor: cardBodyBg, color: costColor, border: `1px solid ${template.borderColor || template.frameColor}` }}>{manaCost}</span>}
-      </div>
+      {template.sections?.map((section) => {
+        const sectionContent = replacePlaceholders(section.contentPlaceholder, data);
+        
+        // Skip rendering section if its placeholder was for an optional field and data is missing,
+        // unless it's an artwork section (which might have a default bg) or a divider.
+        if (!sectionContent && 
+            section.type !== 'Artwork' && 
+            section.type !== 'Divider' && 
+            section.contentPlaceholder && section.contentPlaceholder.includes("{{") && section.contentPlaceholder.includes("}}") &&
+            !Object.keys(data).some(key => section.contentPlaceholder.includes(`{{${key}}}`) && data[key]) 
+           ) {
+             // This logic is tricky: aims to hide sections if their *only* content was an empty placeholder
+             // A section with "Cost: {{cost}}" and cost is empty, should still show "Cost: " if that's desired.
+             // For now, if all placeholders are empty and there's no static text, and it's not Art/Divider, skip.
+             const allPlaceholders = Array.from(section.contentPlaceholder.matchAll(/{{\s*([\w-]+)\s*}}/g)).map(m => m[1]);
+             const allPlaceholdersEmpty = allPlaceholders.every(pKey => !data[pKey]);
+             if (allPlaceholders.length > 0 && allPlaceholdersEmpty && section.contentPlaceholder.replace(/{{\s*[\w-]+\s*}}/g, '').trim() === '') {
+                 return null;
+             }
+        }
 
-      {/* Artwork */}
-      <div className="tcg-artwork-area flex-grow m-1.5 sm:m-2" style={{ backgroundColor: artBg, borderColor: template.borderColor || template.frameColor, borderWidth: '2px', borderStyle: 'solid', minHeight: '100px' }}>
-        <Image
-          src={artworkUrl}
-          alt={cardName || "Card artwork"}
-          layout="responsive"
-          width={375}
-          height={275}
-          className="object-cover w-full h-full"
-          data-ai-hint={artworkHint}
-        />
-      </div>
 
-      {/* Type Line */}
-      <div className="tcg-type-line-box p-1.5 sm:p-2 text-xs sm:text-sm font-semibold" style={{ backgroundColor: template.frameColor, color: typeLineColor, borderTop: `2px solid ${template.borderColor || template.frameColor}`, borderBottom: `2px solid ${template.borderColor || template.frameColor}` }}>
-        <p className="tcg-type-line truncate">{cardTypeLine || "Card Type"}</p>
-      </div>
+        const sectionStyle: React.CSSProperties = {
+          color: section.textColor || template.baseTextColor || '#000000',
+          backgroundColor: section.backgroundColor || 'transparent', // Sections are transparent by default over card BG
+          textAlign: section.textAlign || 'left',
+          fontStyle: section.fontStyle || 'normal',
+          minHeight: section.minHeight || 'auto',
+          flexGrow: section.flexGrow ? 1 : 0,
+        };
+        
+        const sectionClasses = cn(
+          section.padding || 'p-0',
+          section.fontSize || 'text-sm',
+          section.fontWeight || 'font-normal',
+          section.borderWidth, // e.g. "border-t-2"
+        );
+        
+        if (section.borderColor) {
+            sectionStyle.borderColor = section.borderColor;
+        } else if (section.borderWidth && template.borderColor) {
+            sectionStyle.borderColor = template.borderColor; // Use template default border color if section has border width but no specific color
+        }
+        if (section.borderWidth && !sectionStyle.borderStyle) {
+            sectionStyle.borderStyle = 'solid'; // Default to solid if borderWidth is set
+        }
 
-      {/* Rules Text Box */}
-      <div className="tcg-text-box flex-grow p-1.5 sm:p-2 text-xs sm:text-[10px] leading-snug overflow-y-auto space-y-1 m-1.5 sm:m-2" style={{ backgroundColor: textBg, border: `2px solid ${template.borderColor || template.frameColor}`, minHeight: '60px' }}>
-        {rulesText && <pre className="tcg-rules-text whitespace-pre-wrap font-sans" style={{ color: rulesColor }}>{rulesText}</pre>}
-        {flavorText && <pre className="tcg-flavor-text italic whitespace-pre-wrap font-sans pt-1 border-t border-dashed" style={{ borderColor: template.borderColor || template.frameColor, color: flavorColor }}>{flavorText}</pre>}
-      </div>
-      
-      {/* Footer: P/T, Rarity, Artist */}
-      <div className="tcg-footer flex justify-between items-end p-1.5 sm:p-2 text-[9px] sm:text-xs" style={{ color: template.baseTextColor, borderTop: `2px solid ${template.borderColor || template.frameColor}` }}>
-        <div className="tcg-artist-rarity space-x-2">
-            {artistCredit && <span className="tcg-artist">{artistCredit}</span>}
-            {rarity && <span className="tcg-rarity">({rarity})</span>}
-        </div>
-        {powerToughness && powerToughness.trim() !== "/" && powerToughness.trim() !== "" && (
-          <div className="tcg-pt-box font-bold text-sm sm:text-base px-2 py-0.5 rounded" style={{ backgroundColor: template.frameColor, color: ptColor, border: `1px solid ${template.borderColor || template.frameColor}`}}>
-            <span className="tcg-pt">{powerToughness}</span>
-          </div>
-        )}
-      </div>
+
+        if (section.type === 'Artwork') {
+          const artworkUrl = sectionContent || 'https://placehold.co/300x200.png'; // sectionContent here is the resolved URL
+          return (
+            <div key={section.id} className={cn("tcg-section-artwork", sectionClasses, section.flexGrow ? 'flex-grow' : '')} style={sectionStyle}>
+              <Image
+                src={artworkUrl}
+                alt={replacePlaceholders(template.sections.find(s=>s.type === 'CardName')?.contentPlaceholder, data) || "Card artwork"}
+                layout="responsive"
+                width={aspectW > aspectH ? 3 : 2} // Simple aspect ratio check for width/height dominance
+                height={aspectH > aspectW ? 3 : 2}
+                className="object-cover w-full h-full"
+                data-ai-hint={artworkHint}
+              />
+            </div>
+          );
+        }
+
+        if (section.type === 'Divider') {
+            return (
+                 <div key={section.id} className={cn("tcg-section-divider", sectionClasses)} style={{...sectionStyle, height: section.minHeight || '1px', backgroundColor: section.backgroundColor || template.borderColor || '#AAAAAA'}}></div>
+            );
+        }
+        
+        // For text based sections
+        // Using <pre> for rules/flavor to respect newlines, but might need adjustment for other text types.
+        const Tag = (section.type === 'RulesText' || section.type === 'FlavorText') ? 'pre' : 'div';
+
+        return (
+          <Tag key={section.id} className={cn(`tcg-section-${section.type.toLowerCase()}`, sectionClasses, section.flexGrow ? 'flex-grow overflow-y-auto' : 'shrink-0')} style={sectionStyle}>
+            {/* Using dangerouslySetInnerHTML for rich text/symbols can be risky if content is user-input without sanitization.
+                For now, assuming placeholders are simple text. If HTML is intended in placeholders, sanitization is CRITICAL.
+                A safer approach would be a mini-parser for specific syntax like {symbol_mana_R} -> <img> etc.
+            */}
+            {Tag === 'pre' ? sectionContent : <span className="whitespace-pre-wrap">{sectionContent}</span>}
+          </Tag>
+        );
+      })}
     </div>
   );
 }

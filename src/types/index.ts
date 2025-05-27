@@ -1,59 +1,63 @@
 
+export type CardSectionType = 
+  | 'CardName' 
+  | 'ManaCost' 
+  | 'Artwork' 
+  | 'TypeLine' 
+  | 'RulesText' 
+  | 'FlavorText' 
+  | 'PowerToughness' 
+  | 'ArtistCredit' 
+  | 'CustomText'
+  | 'Divider'; // New simple divider type
+
+export interface CardSection {
+  id: string; // Unique ID for this section instance
+  type: CardSectionType;
+  contentPlaceholder: string; // e.g., "{{cardName}}", "Effect: {{effectText}}", for Artwork: "{{artworkUrl}}"
+  
+  // Optional styling for this specific section
+  textColor?: string;
+  backgroundColor?: string;
+  fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
+  fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
+  textAlign?: 'left' | 'center' | 'right';
+  fontStyle?: 'normal' | 'italic';
+  padding?: string; // e.g., "p-1", "px-2 py-1"
+  borderColor?: string; // Optional border for this section
+  borderWidth?: string; // e.g., "border-t-2", "border-b"
+  minHeight?: string; // e.g., "min-h-[100px]" for artwork or text boxes
+  flexGrow?: boolean; // If this section should try to take up remaining space
+}
+
 export interface TCGCardTemplate {
   id: string;
-  name: string; // Template name, e.g., "Blue Creature Standard Frame"
+  name: string;
+  templateType: 'StandardFantasyTCG' | 'CustomSequential'; // To guide initial setup or behavior
 
-  // Placeholders for card content
-  cardNamePlaceholder?: string; // e.g., "{{cardName}}"
-  manaCostPlaceholder?: string; // e.g., "{{manaCost}}" (text like "2UU" or "RRR")
-  artworkUrlPlaceholder?: string; // URL for default/placeholder artwork
-  cardTypeLinePlaceholder?: string; // e.g., "Creature - {{subType}}" or "Instant"
-  rulesTextPlaceholder?: string;  // e.g., "{{abilityDescription}}\n{{ability2}}"
-  flavorTextPlaceholder?: string; // e.g., "{{flavorText}}"
-  powerToughnessPlaceholder?: string; // e.g., "{{power}}/{{toughness}}"
-  rarityPlaceholder?: string; // e.g., "{{rarity}}" (Could be C, U, R, M or a color indicator)
-  artistCreditPlaceholder?: string; // e.g., "Illus. {{artistName}}"
+  // Overall card styling
+  aspectRatio: string; // e.g., "63:88"
+  frameColor?: string; // Main outer frame/border of the card
+  borderColor?: string; // Default border color for inner elements if not overridden by section
+  baseBackgroundColor?: string; // Overall card background
+  baseTextColor?: string; // Default text color if not overridden by section
   
-  // Basic styling - more complex frames would require more fields or different approach
-  aspectRatio: string; // Should be fixed for TCGs, e.g., "63:88"
-  frameColor?: string; // A dominant color for the card frame, e.g., blue, black, green
-  borderColor?: string; // Border color around art, text boxes
-  
-  baseBackgroundColor?: string; // Fallback background for the card body itself
-  baseTextColor?: string; // Default text color for elements if not overridden
-
-  // More specific color options
-  nameTextColor?: string;
-  costTextColor?: string;
-  typeLineTextColor?: string;
-  rulesTextColor?: string;
-  flavorTextColor?: string;
-  ptTextColor?: string; // Power/Toughness text color
-
-  artBoxBackgroundColor?: string; // Background for the artwork area if image is transparent/smaller
-  textBoxBackgroundColor?: string; // Background for the rules/flavor text area
+  sections: CardSection[];
 }
 
 export interface CardData {
   // Flexible structure for variable replacement
-  // e.g., { cardName: "Goblin Raider", manaCost: "1R", power: "2", toughness: "1", subType: "Goblin Warrior", artworkUrl: "..." }
-  [key: string]: string | number;
-}
-
-// GeneratedCard remains the same structure
-export interface GeneratedCard extends CardData {
-  id: string; 
+  [key: string]: string | number | undefined; // Allow undefined for optional fields
 }
 
 export interface PaperSize {
   name: string;
-  widthMm: number; // Paper width in millimeters
-  heightMm: number; // Paper height in millimeters
+  widthMm: number;
+  heightMm: number;
 }
 
-// Represents a card to be displayed, combining template and specific data
 export interface DisplayCard {
   template: TCGCardTemplate;
   data: CardData;
-  uniqueId: string; // For React keys
+  uniqueId: string;
 }
