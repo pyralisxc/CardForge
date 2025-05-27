@@ -8,16 +8,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Added Select
 import { suggestCardLayout, SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout';
-import { generateCardText } from '@/ai/flows/generate-card-text';
+import { generateCardText, GenerateCardTextInput } from '@/ai/flows/generate-card-text';
+import { generateCardImage, GenerateCardImageInput } from '@/ai/flows/generate-card-image'; // Added Image Flow
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, TextQuote, Palette, Lightbulb, Copy } from 'lucide-react'; // Added Lightbulb, Copy
+import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, DownloadCloud } from 'lucide-react'; // Added ImageIcon, DownloadCloud
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TCGCardTemplate } from '@/types'; 
+import Image from 'next/image'; // For displaying generated image
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
 }
+
+type TextGenType = GenerateCardTextInput['textType'];
 
 export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
   const [activeAiTab, setActiveAiTab] = useState("designSuggestions");
@@ -29,8 +34,13 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
   const [isLoadingLayout, setIsLoadingLayout] = useState(false);
 
   const [textTheme, setTextTheme] = useState<string>('');
+  const [textGenType, setTextGenType] = useState<TextGenType>('RulesText');
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isLoadingText, setIsLoadingText] = useState(false);
+
+  const [imageConcept, setImageConcept] = useState<string>('');
+  const [generatedImageDataUri, setGeneratedImageDataUri] = useState<string>('');
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
 
   const { toast } = useToast();
 
@@ -68,7 +78,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     setIsLoadingText(true);
     setGeneratedText('');
     try {
-      const result = await generateCardText({ theme: textTheme });
+      const result = await generateCardText({ theme: textTheme, textType: textGenType });
       setGeneratedText(result.cardText);
       toast({ title: "Text Ready", description: "AI generated text is available." });
     } catch (error) {
@@ -79,6 +89,33 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     }
   };
 
+  const handleGenerateImage = async () => {
+    if (!imageConcept.trim()) {
+      toast({ title: "Input Required", description: "Please enter a concept for image generation.", variant: "destructive" });
+      return;
+    }
+    setIsLoadingImage(true);
+    setGeneratedImageDataUri('');
+    try {
+      const result = await generateCardImage({ cardConcept: imageConcept });
+      setGeneratedImageDataUri(result.imageDataUri);
+      toast({ title: "Image Ready", description: "AI generated image is available." });
+    } catch (error) {
+      console.error("Error generating AI image:", error);
+      toast({ title: "Error", description: `Failed to generate AI image: ${(error as Error).message}`, variant: "destructive" });
+    } finally {
+      setIsLoadingImage(false);
+    }
+  };
+
+  const copyToClipboard = (textToCopy: string, successMessage: string) => {
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => toast({ title: "Copied!", description: successMessage }))
+      .catch(err => {
+        console.error('Failed to copy text: ', err);
+        toast({ title: "Copy Failed", description: "Could not copy text to clipboard.", variant: "destructive" });
+      });
+  };
 
   return (
     <Card>
@@ -87,13 +124,14 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
           <Sparkles className="mr-2 h-5 w-5 text-primary" />
           AI Helper
         </CardTitle>
-        <CardDescription>Get AI-powered assistance for card text generation and design layout ideas.</CardDescription>
+        <CardDescription>Get AI-powered assistance for card text, design, and image ideas.</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeAiTab} onValueChange={setActiveAiTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4"> {/* Updated to 3 columns */}
             <TabsTrigger value="designSuggestions" className="flex items-center gap-2"><Palette className="h-4 w-4" />Design Ideas</TabsTrigger>
             <TabsTrigger value="textGeneration" className="flex items-center gap-2"><TextQuote className="h-4 w-4" />Text Generation</TabsTrigger>
+            <TabsTrigger value="imageGeneration" className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />Image Ideas</TabsTrigger> {/* New Tab */}
           </TabsList>
 
           <TabsContent value="designSuggestions" className="space-y-4">
@@ -137,6 +175,9 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                 <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/50">
                   <pre className="whitespace-pre-wrap text-sm">{designSuggestion}</pre>
                 </ScrollArea>
+                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(designSuggestion, "Design suggestion copied.")}>
+                  <Copy className="mr-2 h-3 w-3" /> Copy Suggestion
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -149,8 +190,22 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                 id="textTheme"
                 value={textTheme}
                 onChange={(e) => setTextTheme(e.target.value)}
-                placeholder="e.g., Goblin Archer with Reach, Ancient Spell of Shielding, Mysterious Forest Spirit flavor text"
+                placeholder="e.g., Goblin Archer with Reach, Ancient Spell of Shielding"
               />
+            </div>
+            <div>
+              <Label htmlFor="textGenTypeSelect">Type of Text to Generate</Label>
+              <Select value={textGenType} onValueChange={(value) => setTextGenType(value as TextGenType)}>
+                <SelectTrigger id="textGenTypeSelect">
+                  <SelectValue placeholder="Choose text type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RulesText">Rules Text / Ability</SelectItem>
+                  <SelectItem value="FlavorText">Flavor Text</SelectItem>
+                  <SelectItem value="CardName">Card Name</SelectItem>
+                  <SelectItem value="FullConceptIdea">Full Card Concept Idea</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={handleGenerateText} disabled={isLoadingText} className="w-full">
               <Sparkles className="mr-2 h-4 w-4" /> {isLoadingText ? 'Generating...' : 'Generate Card Text'}
@@ -161,12 +216,56 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                  <ScrollArea className="h-32 w-full rounded-md border p-3 bg-muted/50">
                   <pre className="whitespace-pre-wrap text-sm">{generatedText}</pre>
                 </ScrollArea>
-                <Button variant="outline" size="sm" onClick={() => {
-                  navigator.clipboard.writeText(generatedText);
-                  toast({title: "Copied!", description: "Generated text copied to clipboard."});
-                }}>
+                <Button variant="outline" size="sm" onClick={() => copyToClipboard(generatedText, "Generated text copied.")}>
                   <Copy className="mr-2 h-3 w-3" /> Copy Text
                 </Button>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="imageGeneration" className="space-y-4">
+            <CardDescription>Generate artwork ideas for your card. The AI will provide a Data URI for the image.</CardDescription>
+            <div>
+              <Label htmlFor="imageConcept">Card Concept for Image Generation</Label>
+              <Input
+                id="imageConcept"
+                value={imageConcept}
+                onChange={(e) => setImageConcept(e.target.value)}
+                placeholder="e.g., 'Ancient stone golem awakening in a ruin', 'Knight facing a fiery dragon'"
+              />
+               <p className="text-xs text-muted-foreground mt-1">Describe the desired artwork. Be descriptive for best results.</p>
+            </div>
+            <Button onClick={handleGenerateImage} disabled={isLoadingImage} className="w-full">
+              <ImageIcon className="mr-2 h-4 w-4" /> {isLoadingImage ? 'Generating Image...' : 'Generate Image Idea'}
+            </Button>
+            {generatedImageDataUri && (
+              <div className="mt-4 space-y-2">
+                <h4 className="font-semibold">Generated Image:</h4>
+                <div className="border rounded-md p-2 bg-muted/50 flex justify-center items-center max-h-96 overflow-hidden">
+                  <Image 
+                    src={generatedImageDataUri} 
+                    alt="AI Generated Card Artwork" 
+                    width={300} 
+                    height={400} 
+                    className="rounded"
+                    style={{ objectFit: 'contain', width: 'auto', height: 'auto', maxHeight: '360px' }}
+                    data-ai-hint="generated card art"
+                    />
+                </div>
+                <Textarea
+                  value={generatedImageDataUri}
+                  readOnly
+                  rows={3}
+                  className="mt-2 font-mono text-xs"
+                  aria-label="Generated Image Data URI"
+                />
+                <Button variant="outline" size="sm" onClick={() => copyToClipboard(generatedImageDataUri, "Image Data URI copied.")}>
+                  <Copy className="mr-2 h-3 w-3" /> Copy Data URI
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Copy this Data URI and paste it into the 'Artwork URL' field in the Single or Bulk Card Generator.
+                  Note: Generated images can be large and may impact performance if many are used.
+                </p>
               </div>
             )}
           </TabsContent>

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { generateCardText } from '@/ai/flows/generate-card-text';
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
-import { Sparkles, Download, PackagePlus } from 'lucide-react'; // Added PackagePlus
+import { Sparkles, Download, PackagePlus } from 'lucide-react'; 
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
 
 interface BulkGeneratorProps {
@@ -42,7 +42,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
   
   const exampleCSVHeaders = getPlaceholdersFromTemplate(selectedTemplate).join(',');
   const exampleCSVDataLine = getPlaceholdersFromTemplate(selectedTemplate).map(h => {
-    if (h.toLowerCase().includes('url')) return 'https://placehold.co/300x200.png';
+    if (h.toLowerCase().includes('url') || h.toLowerCase().includes('artwork')) return 'https://placehold.co/600x400.png?text=Artwork';
     if (h.toLowerCase().includes('name')) return 'Sample Card';
     if (h.toLowerCase().includes('cost')) return '3';
     if (h.toLowerCase().includes('type')) return 'Sample Type';
@@ -94,28 +94,50 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         const placeholders = getPlaceholdersFromTemplate(selectedTemplate);
         const primaryTextPlaceholder = placeholders.find(p => p.toLowerCase().includes('rules') || p.toLowerCase().includes('text') || p.toLowerCase().includes('effect')) || placeholders[0] || 'customValue';
         const namePlaceholder = placeholders.find(p => p.toLowerCase().includes('name')) || 'cardName';
-        const artworkPlaceholder = placeholders.find(p => p.toLowerCase().includes('art') && p.toLowerCase().includes('url')) || 'artworkUrl';
+        const artworkPlaceholder = placeholders.find(p => p.toLowerCase().includes('art') && (p.toLowerCase().includes('url') || p.toLowerCase().includes('image'))) || 'artworkUrl';
 
 
         for (let i = 0; i < numAiCards; i++) {
-          const aiResult = await generateCardText({ theme: `A fantasy TCG card ability or flavor text for a card concept: ${aiTheme}` });
+          // Use the "FullConceptIdea" to get a broader set of text from the AI
+          const aiResult = await generateCardText({ 
+            theme: `A fantasy TCG card with the concept: ${aiTheme}${numAiCards > 1 ? ` (variation ${i+1})` : ''}`,
+            textType: 'FullConceptIdea'
+          });
           
           const cardData: CardData = {};
           placeholders.forEach(pKey => {
             cardData[pKey] = ''; 
             if (pKey === artworkPlaceholder) {
-                cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme)}`
+                // For AI bulk gen, we use a placeholder URL with text query based on theme
+                // The actual AI image generation happens in the AI Helper tab
+                cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme)}`;
             }
           });
 
-          cardData[namePlaceholder] = `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`;
-          cardData[primaryTextPlaceholder] = aiResult.cardText;
+          // Attempt to parse the "FullConceptIdea" output
+          const lines = aiResult.cardText.split('\\n');
+          let parsedName = `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`;
+          let parsedRules = "AI generated text.";
+
+          lines.forEach(line => {
+            if (line.toLowerCase().startsWith("card name:")) {
+              parsedName = line.substring("card name:".length).trim();
+            } else if (line.toLowerCase().startsWith("rules text:")) {
+              parsedRules = line.substring("rules text:".length).trim();
+            } else if (line.toLowerCase().startsWith("flavor text:")) {
+              const flavorPlaceholder = placeholders.find(p => p.toLowerCase().includes('flavor'));
+              if (flavorPlaceholder) cardData[flavorPlaceholder] = line.substring("flavor text:".length).trim();
+            }
+          });
+
+          cardData[namePlaceholder] = parsedName;
+          cardData[primaryTextPlaceholder] = parsedRules;
           
           const costPlaceholder = placeholders.find(p => p.toLowerCase().includes('cost'));
           if (costPlaceholder) cardData[costPlaceholder] = 'X';
           
           const typePlaceholder = placeholders.find(p => p.toLowerCase().includes('type') && !p.toLowerCase().includes('sub'));
-          if (typePlaceholder) cardData[typePlaceholder] = 'Spell';
+          if (typePlaceholder) cardData[typePlaceholder] = 'Spell'; // Default, could be parsed from concept if AI output is richer
           
           const ptPowerPlaceholder = placeholders.find(p => p.toLowerCase().includes('power') && !p.toLowerCase().includes('toughness'));
           const ptToughnessPlaceholder = placeholders.find(p => p.toLowerCase().includes('toughness'));
@@ -133,7 +155,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
 
     } catch (error) {
       console.error("Error generating TCG cards:", error);
-      toast({ title: "Error", description: "Failed to generate TCG cards. Check console.", variant: "destructive" });
+      toast({ title: "Error", description: `Failed to generate TCG cards: ${(error as Error).message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -178,19 +200,19 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         {generationMethod === 'csv' && (
           <div>
             <Label htmlFor="bulkData">
-              Card Data (CSV Format)
+              Card Data (CSV Format - use newline '\n' for line breaks within data, not actual newlines in textarea)
             </Label>
             <Textarea
               id="bulkData"
               value={bulkDataInput}
               onChange={handleDataInputChange}
-              placeholder={selectedTemplate ? exampleCSV : "Select a template to see example CSV structure."}
+              placeholder={selectedTemplate ? exampleCSV.replace(/\\n/g, '\n') : "Select a template to see example CSV structure."}
               rows={8}
               className="font-mono text-sm"
               disabled={!selectedTemplate}
             />
             {selectedTemplate && <p className="text-xs text-muted-foreground mt-1">
-              Your CSV headers should be: <strong>{exampleCSVHeaders || "No placeholders found in template"}</strong>
+              Your CSV headers should be: <strong>{exampleCSVHeaders || "No placeholders found in template"}</strong>. Use '\n' for line breaks in text.
             </p>}
             {!selectedTemplate && <p className="text-xs text-muted-foreground mt-1">Select a template first to see the expected CSV format based on its placeholders.</p>}
           </div>
@@ -201,7 +223,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
             <div>
               <Label htmlFor="aiTheme">Card Concept/Theme for AI</Label>
               <Input id="aiTheme" value={aiTheme} onChange={(e) => setAiTheme(e.target.value)} placeholder="e.g., Swift Goblin Scout, Arcane Blast" />
-              <p className="text-xs text-muted-foreground mt-1">AI will generate text for primary text fields. Card name will be based on the theme. Other fields may get generic values.</p>
+              <p className="text-xs text-muted-foreground mt-1">AI will generate text for name, rules, and flavor. Other fields may get generic values. Artwork is a placeholder.</p>
             </div>
             <div>
               <Label htmlFor="numAiCards">Number of Cards (AI)</Label>

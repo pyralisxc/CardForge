@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview Generates sample text content (rules, abilities, flavor) for TCG cards based on a given theme or topic.
+ * @fileOverview Generates sample text content (rules, abilities, flavor) for TCG cards based on a given theme or topic and text type.
  *
  * - generateCardText - A function that generates sample card text.
  * - GenerateCardTextInput - The input type for the generateCardText function.
@@ -16,11 +16,15 @@ const GenerateCardTextInputSchema = z.object({
   theme: z
     .string()
     .describe('The theme, concept, or specific card idea for text generation (e.g., "Goblin Archer with Reach", "Ancient Spell of Shielding", "Mysterious Forest Spirit flavor text").'),
+  textType: z.enum(['CardName', 'RulesText', 'FlavorText', 'FullConceptIdea'])
+    .optional()
+    .default('RulesText')
+    .describe("The specific type of text to generate. 'FullConceptIdea' might generate a name, simple rules, and flavor.")
 });
 export type GenerateCardTextInput = z.infer<typeof GenerateCardTextInputSchema>;
 
 const GenerateCardTextOutputSchema = z.object({
-  cardText: z.string().describe('The generated sample text content (e.g., rules, abilities, flavor text) for the TCG card.'),
+  cardText: z.string().describe('The generated sample text content (e.g., rules, abilities, flavor text, or full concept) for the TCG card.'),
 });
 export type GenerateCardTextOutput = z.infer<typeof GenerateCardTextOutputSchema>;
 
@@ -28,16 +32,32 @@ export async function generateCardText(input: GenerateCardTextInput): Promise<Ge
   return generateCardTextFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateCardTextPrompt',
-  input: {schema: GenerateCardTextInputSchema},
-  output: {schema: GenerateCardTextOutputSchema},
-  prompt: `You are a creative writing assistant specializing in fantasy Trading Card Games (TCGs) like Magic: The Gathering or Hearthstone. 
-Generate compelling and thematic text (rules, abilities, or flavor text) for a TCG card based on the following theme or concept: {{{theme}}}. 
-The text should be concise, evocative, and suitable for a fantasy TCG card. If the theme implies rules, provide functional game text. If it implies flavor, provide immersive descriptive text.
-Focus on one primary aspect (e.g., one ability, or a short flavor paragraph).
-Output only the generated text itself.`,
-});
+const constructPrompt = (textType: GenerateCardTextInput['textType'], theme: string) => {
+  let taskDescription = "";
+  switch (textType) {
+    case 'CardName':
+      taskDescription = `Generate a compelling and thematic card name for a fantasy TCG card based on the concept: "${theme}". The name should be concise and evocative. Output only the card name.`;
+      break;
+    case 'FlavorText':
+      taskDescription = `Generate immersive and thematic flavor text for a fantasy TCG card based on the concept: "${theme}". The text should be short (1-2 sentences) and suitable for a fantasy TCG card. Output only the flavor text.`;
+      break;
+    case 'FullConceptIdea':
+      taskDescription = `Generate a full card concept idea for a fantasy TCG. Based on the theme "${theme}", provide:
+1. Card Name: A thematic name.
+2. Basic Rules Text: A simple, functional game mechanic or ability.
+3. Flavor Text: A short, evocative sentence.
+Format the output clearly, for example:
+Card Name: [Generated Name]
+Rules Text: [Generated Rules]
+Flavor Text: [Generated Flavor]`;
+      break;
+    case 'RulesText':
+    default:
+      taskDescription = `Generate compelling and thematic rules text or ability description for a fantasy TCG card based on the concept: "${theme}". The text should be concise, functional, and suitable for a fantasy TCG. Focus on one primary ability or effect. Output only the rules text.`;
+      break;
+  }
+  return `You are a creative writing assistant specializing in fantasy Trading Card Games (TCGs) like Magic: The Gathering or Hearthstone. ${taskDescription}`;
+};
 
 const generateCardTextFlow = ai.defineFlow(
   {
@@ -45,8 +65,20 @@ const generateCardTextFlow = ai.defineFlow(
     inputSchema: GenerateCardTextInputSchema,
     outputSchema: GenerateCardTextOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input) => {
+    const { theme, textType } = input;
+    const dynamicPrompt = constructPrompt(textType, theme);
+
+    const {output} = await ai.generate({ // Using ai.generate directly to use dynamic prompt string
+      prompt: dynamicPrompt,
+      // No specific input/output schema here as prompt is dynamic
+      // The model will try its best to adhere to the prompt's output instructions
+      config: {
+        // Optional: Add safety settings if needed
+      }
+    });
+    
+    // The output from ai.generate when schema isn't strictly defined is just `text`
+    return { cardText: output?.text || "No text generated." };
   }
 );
