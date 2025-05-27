@@ -27,6 +27,14 @@ export const FONT_WEIGHTS: Array<CardSection['fontWeight']> = ['font-normal', 'f
 export const TEXT_ALIGNS: Array<CardSection['textAlign']> = ['left', 'center', 'right'];
 export const FONT_STYLES: Array<CardSection['fontStyle']> = ['normal', 'italic'];
 
+export const AVAILABLE_FONTS: Array<{name: string, value: string}> = [
+    { name: 'Default Sans-Serif', value: 'font-sans' },
+    { name: 'Serif (Georgia-like)', value: 'font-serif' },
+    { name: 'Monospaced', value: 'font-mono' },
+    { name: 'Fantasy (Cinzel)', value: 'font-cinzel' }, // Added new font
+    { name: 'Clean Sans (Lato)', value: 'font-lato' }, // Added new font
+];
+
 
 export const createDefaultSection = (type: CardSectionType): CardSection => {
   const baseSection = {
@@ -35,6 +43,7 @@ export const createDefaultSection = (type: CardSectionType): CardSection => {
     contentPlaceholder: '',
     textColor: '#000000', // Default to black
     backgroundColor: '', // Default to transparent
+    fontFamily: 'font-sans', // Default font
     fontSize: 'text-sm' as CardSection['fontSize'],
     fontWeight: 'font-normal' as CardSection['fontWeight'],
     textAlign: 'left' as CardSection['textAlign'],
@@ -48,23 +57,23 @@ export const createDefaultSection = (type: CardSectionType): CardSection => {
 
   switch (type) {
     case 'CardName':
-      return { ...baseSection, contentPlaceholder: '{{cardName}}', fontSize: 'text-base', fontWeight: 'font-bold', padding: 'px-2 pt-1 pb-0.5' };
+      return { ...baseSection, contentPlaceholder: '{{cardName}}', fontFamily: 'font-cinzel', fontSize: 'text-base', fontWeight: 'font-bold', padding: 'px-2 pt-1 pb-0.5' };
     case 'ManaCost':
-      return { ...baseSection, contentPlaceholder: '{{manaCost}}', textAlign: 'right', padding: 'px-2 pt-1 pb-0.5' };
+      return { ...baseSection, contentPlaceholder: '{{manaCost}}', fontFamily: 'font-lato', textAlign: 'right', padding: 'px-2 pt-1 pb-0.5' };
     case 'Artwork':
       return { ...baseSection, contentPlaceholder: '{{artworkUrl}}', backgroundColor: '#CCCCCC', minHeight: 'min-h-[150px]', flexGrow: true, padding: 'p-0.5' };
     case 'TypeLine':
-      return { ...baseSection, contentPlaceholder: '{{cardType}} - {{subTypes}}', fontWeight: 'font-semibold', backgroundColor: '#DDDDDD', padding: 'px-2 py-1', borderWidth: 'border-y', borderColor: '#AAAAAA'};
+      return { ...baseSection, contentPlaceholder: '{{cardType}} - {{subTypes}}', fontFamily: 'font-lato', fontWeight: 'font-semibold', backgroundColor: '#DDDDDD', padding: 'px-2 py-1', borderWidth: 'border-y', borderColor: '#AAAAAA'};
     case 'RulesText':
-      return { ...baseSection, contentPlaceholder: '{{rulesText}}', minHeight: 'min-h-[60px]', flexGrow: true, backgroundColor: '#FFFFFF', padding: 'p-2', borderWidth: 'border', borderColor: '#CCCCCC'};
+      return { ...baseSection, contentPlaceholder: '{{rulesText}}', fontFamily: 'font-serif', minHeight: 'min-h-[60px]', flexGrow: true, backgroundColor: '#FFFFFF', padding: 'p-2', borderWidth: 'border', borderColor: '#CCCCCC'};
     case 'FlavorText':
-      return { ...baseSection, contentPlaceholder: '"{{flavorText}}"', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[30px]', backgroundColor: '#FFFFFF', padding: 'p-2 pt-1', borderWidth: 'border-t', borderColor: '#DDDDDD' };
+      return { ...baseSection, contentPlaceholder: '"{{flavorText}}"', fontFamily: 'font-serif', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[30px]', backgroundColor: '#FFFFFF', padding: 'p-2 pt-1', borderWidth: 'border-t', borderColor: '#DDDDDD' };
     case 'PowerToughness':
-      return { ...baseSection, contentPlaceholder: '{{power}}/{{toughness}}', fontWeight: 'font-bold', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: '#DDDDDD', borderWidth: 'border-t', borderColor: '#AAAAAA' };
+      return { ...baseSection, contentPlaceholder: '{{power}}/{{toughness}}', fontFamily: 'font-lato', fontWeight: 'font-bold', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: '#DDDDDD', borderWidth: 'border-t', borderColor: '#AAAAAA' };
     case 'ArtistCredit':
-      return { ...baseSection, contentPlaceholder: 'Illus. {{artistName}} {{{raritySymbol}}}', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5' };
+      return { ...baseSection, contentPlaceholder: 'Illus. {{artistName}} {{{raritySymbol}}}', fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5' };
     case 'CustomText':
-      return { ...baseSection, contentPlaceholder: '{{customValue}}', padding: 'p-1' };
+      return { ...baseSection, contentPlaceholder: '{{customValue}}', fontFamily: 'font-sans', padding: 'p-1' };
     case 'Divider':
       return { ...baseSection, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: '#CCCCCC', padding: 'my-1' }; // Placeholder content not used
     default:
@@ -84,14 +93,14 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     baseBackgroundColor: '#F0F0F0', // Light Grey card body
     baseTextColor: '#1C1C1C', // Dark text
     sections: [
-      { ...createDefaultSection('CardName'), contentPlaceholder: '{{cardName}}', textColor: '#102A43', fontWeight: 'font-bold', fontSize: 'text-lg', padding: 'px-2 pt-1.5 pb-0', textAlign: 'left' },
-      { ...createDefaultSection('ManaCost'), contentPlaceholder: '{{manaCost}}', textColor: '#102A43', fontWeight: 'font-bold', fontSize: 'text-base', padding: 'px-2 pt-1.5 pb-0', textAlign: 'right' },
+      { ...createDefaultSection('CardName'), contentPlaceholder: '{{cardName}}', textColor: '#102A43', fontFamily: 'font-cinzel', fontWeight: 'font-bold', fontSize: 'text-lg', padding: 'px-2 pt-1.5 pb-0', textAlign: 'left' },
+      { ...createDefaultSection('ManaCost'), contentPlaceholder: '{{manaCost}}', textColor: '#102A43', fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-base', padding: 'px-2 pt-1.5 pb-0', textAlign: 'right' },
       { ...createDefaultSection('Artwork'), contentPlaceholder: '{{artworkUrl}}', backgroundColor: '#D0D0D0', minHeight: 'min-h-[180px]', flexGrow: true, padding: 'p-1', borderColor: '#555555', borderWidth: 'border-2' },
-      { ...createDefaultSection('TypeLine'), contentPlaceholder: '{{cardType}} \u2014 {{subTypes}}', textColor: '#FFFFFF', fontWeight: 'font-semibold', backgroundColor: '#555555', padding: 'px-2 py-1', borderWidth: 'border-y-2', borderColor: '#333333', textAlign: 'center', fontSize: 'text-sm' },
-      { ...createDefaultSection('RulesText'), contentPlaceholder: '{{rulesText}}', textColor: '#243B53', fontSize: 'text-sm', backgroundColor: '#FFFFFF', padding: 'p-2', borderColor: '#AAAAAA', borderWidth: 'border-2', minHeight: 'min-h-[80px]', flexGrow: true },
-      { ...createDefaultSection('FlavorText'), contentPlaceholder: '"{{flavorText}}"', textColor: '#486581', fontSize: 'text-xs', fontStyle: 'italic', backgroundColor: '#FFFFFF', padding: 'p-2 pt-1', borderColor: '#AAAAAA', borderWidth: 'border-t-2' },
-      { ...createDefaultSection('PowerToughness'), contentPlaceholder: '{{power}}/{{toughness}}', textColor: '#FFFFFF', fontWeight: 'font-bold', fontSize: 'text-lg', backgroundColor: '#555555', padding: 'px-3 py-1', textAlign: 'center', borderWidth: 'border-t-2', borderColor: '#333333'},
-      { ...createDefaultSection('ArtistCredit'), contentPlaceholder: 'Illus. {{artistName}} \u2022 {{rarity}}', textColor: '#333333', fontSize: 'text-xs', padding: 'px-2 py-1 text-center' },
+      { ...createDefaultSection('TypeLine'), contentPlaceholder: '{{cardType}} \u2014 {{subTypes}}', textColor: '#FFFFFF', fontFamily: 'font-lato', fontWeight: 'font-semibold', backgroundColor: '#555555', padding: 'px-2 py-1', borderWidth: 'border-y-2', borderColor: '#333333', textAlign: 'center', fontSize: 'text-sm' },
+      { ...createDefaultSection('RulesText'), contentPlaceholder: '{{rulesText}}', textColor: '#243B53', fontFamily: 'font-serif', fontSize: 'text-sm', backgroundColor: '#FFFFFF', padding: 'p-2', borderColor: '#AAAAAA', borderWidth: 'border-2', minHeight: 'min-h-[80px]', flexGrow: true },
+      { ...createDefaultSection('FlavorText'), contentPlaceholder: '"{{flavorText}}"', textColor: '#486581', fontFamily: 'font-serif', fontSize: 'text-xs', fontStyle: 'italic', backgroundColor: '#FFFFFF', padding: 'p-2 pt-1', borderColor: '#AAAAAA', borderWidth: 'border-t-2' },
+      { ...createDefaultSection('PowerToughness'), contentPlaceholder: '{{power}}/{{toughness}}', textColor: '#FFFFFF', fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', backgroundColor: '#555555', padding: 'px-3 py-1', textAlign: 'center', borderWidth: 'border-t-2', borderColor: '#333333'},
+      { ...createDefaultSection('ArtistCredit'), contentPlaceholder: 'Illus. {{artistName}} \u2022 {{rarity}}', textColor: '#333333', fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 py-1 text-center' },
     ]
   },
   {
@@ -135,3 +144,4 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'effectText', label: 'Effect Text', type: 'textarea' },
   { key: 'raritySymbol', label: 'Rarity Symbol (Text)', type: 'input', example: 'C' }
 ];
+

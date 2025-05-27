@@ -19,6 +19,7 @@ export interface CardSection {
   // Optional styling for this specific section
   textColor?: string;
   backgroundColor?: string;
+  fontFamily?: string; // e.g., 'font-serif', 'font-fantasy-cinzel'
   fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
   textAlign?: 'left' | 'center' | 'right';
@@ -61,3 +62,4 @@ export interface DisplayCard {
   data: CardData;
   uniqueId: string;
 }
+

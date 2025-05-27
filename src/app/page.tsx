@@ -14,8 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutTemplate } from 'lucide-react'; // Added LayoutTemplate
-import { nanoid } from 'nanoid'; // Import nanoid
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutTemplate } from 'lucide-react';
+import { nanoid } from 'nanoid'; 
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
@@ -31,27 +31,24 @@ export default function CardForgePage() {
   const [activeTab, setActiveTab] = useState<string>("editor");
   const { toast } = useToast();
 
-  // Ensure templates have unique IDs and valid sections, especially when loading from older localStorage
   useEffect(() => {
     setTemplates(prevTemplates => {
       return prevTemplates.map(t => {
-        const newT = {...t}; // Work on a copy
+        const newT = {...t}; 
         let changed = false;
 
-        if (!newT.id) { // Ensure template has an ID
+        if (!newT.id) { 
           newT.id = nanoid();
           changed = true;
         }
 
         if (!newT.sections || !Array.isArray(newT.sections) || newT.sections.length === 0) {
-          // If sections are missing or invalid, try to apply a default
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)); // Deep copy default sections
+          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)); 
           newT.templateType = newT.templateType || defaultTemplateForMigration.templateType;
           newT.aspectRatio = newT.aspectRatio || defaultTemplateForMigration.aspectRatio;
           changed = true;
         } else {
-          // Ensure sections have IDs
           const originalSectionsJSON = JSON.stringify(newT.sections);
           newT.sections = newT.sections.map(s => {
             if (!s.id) {
@@ -61,22 +58,14 @@ export default function CardForgePage() {
             return s;
           });
           if (JSON.stringify(newT.sections) !== originalSectionsJSON) {
-            // This check is implicitly covered if any s.id was missing and 'changed' became true.
-            // But explicitly, if section objects themselves changed (e.g. new ID assigned).
             changed = true; 
           }
         }
-        // If changes were made (e.g. IDs added), return the new object. Otherwise, return original to avoid unnecessary re-renders.
-        // Note: This effect runs after useLocalStorage has loaded data. If data from localStorage was modified,
-        // useLocalStorage will handle saving it back. This effect primarily ensures data integrity.
-        return newT; // Always return newT because object identity might change even if 'changed' is false due to spread {...t}
+        return newT; 
       });
     });
-  // DEFAULT_TEMPLATES can be a dependency if it could change, but it's a constant.
-  // setTemplates is stable.
-  // This effect should run when the templates from useLocalStorage are first processed.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount after initial templates are loaded by useLocalStorage
+  }, []); 
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -121,10 +110,11 @@ export default function CardForgePage() {
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
   };
 
-  const selectTemplateForEditing = (template: TCGCardTemplate) => {
-    setEditingTemplate(template);
-    setActiveTab("editor"); 
-  };
+  // This function is not currently used, but kept for potential future use
+  // const selectTemplateForEditing = (template: TCGCardTemplate) => {
+  //   setEditingTemplate(template);
+  //   setActiveTab("editor"); 
+  // };
 
 
   return (
@@ -184,13 +174,14 @@ export default function CardForgePage() {
                 ) : (
                   <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card shadow-inner">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 printable-grid">
-                      {generatedDisplayCards.map((cardItem) => (
+                      {generatedDisplayCards.map((cardItem, index) => (
                         <CardPreview
                           key={cardItem.uniqueId}
                           template={cardItem.template}
                           data={cardItem.data}
                           isPrintMode={false} 
                           className="mx-auto"
+                          showSizeInfo={index === 0} // Only show size info for the first card in preview
                         />
                       ))}
                     </div>
@@ -211,3 +202,4 @@ export default function CardForgePage() {
     </div>
   );
 }
+
