@@ -88,11 +88,15 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
+      // In editor preview, only hide if the placeholder string itself is completely empty (rare)
+      // Or if the section is not Artwork/Divider and its placeholder is empty.
+      // We generally want to see sections in the editor preview even if their content would be empty in a real card.
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
       return section.contentPlaceholder?.trim() === '';
     }
+    // For actual card previews (not editor)
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false;
+      if (section.type === 'Artwork' || section.type === 'Divider') return false; // Artwork might have a default bg, Dividers are always shown
       return processedContent.trim() === '';
     }
     return false;
@@ -148,15 +152,10 @@ export function CardPreview({
               {row.columns.map((section, sectionIndex) => {
                 const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data);
 
-                if (shouldHideSection(section, sectionContent) && !isEditorPreview) { // Don't hide in editor preview based on content
+                if (shouldHideSection(section, sectionContent)) { 
                     return null;
                 }
-                if (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider' && section.contentPlaceholder?.trim() === '') {
-                    // For editor preview, if placeholder string itself is empty (except Art/Divider), don't render
-                    return null;
-                }
-
-
+                
                 const sectionStyle: React.CSSProperties = {
                   color: section.textColor || undefined,
                   backgroundColor: section.backgroundColor || 'transparent',
@@ -164,10 +163,10 @@ export function CardPreview({
                   fontStyle: section.fontStyle || 'normal',
                   minHeight: section.minHeight === '_auto_' || !section.minHeight ? undefined : section.minHeight,
                   flexGrow: section.flexGrow || 0,
-                  flexShrink: section.flexGrow && section.flexGrow > 0 ? 1 : 0, // Allow growable items to shrink, others not
+                  flexShrink: section.flexGrow && section.flexGrow > 0 ? 1 : 0,
                   flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto',
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
-                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined, // Allow flex items to shrink below content size
+                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined,
                 };
 
                 if (section.borderColor) {
@@ -198,11 +197,21 @@ export function CardPreview({
 
                 if (section.type === 'Artwork') {
                   let artworkDisplaySrc = sectionContent;
+                  
                   if (isEditorPreview) {
-                    artworkDisplaySrc = `https://placehold.co/600x400.png`; // Always use placeholder in editor
+                     // In editor preview, always use placeholder if current content is not a valid URL
+                     const isPlaceholderString = artworkDisplaySrc.startsWith('{{') && artworkDisplaySrc.endsWith('}}');
+                     const isEmpty = artworkDisplaySrc.trim() === '';
+                     const isNotHttp = !artworkDisplaySrc.startsWith('http://') && !artworkDisplaySrc.startsWith('https://') && !artworkDisplaySrc.startsWith('data:');
+                     
+                     if (isPlaceholderString || isEmpty || isNotHttp) {
+                       artworkDisplaySrc = `https://placehold.co/600x400.png`;
+                     }
                   } else if (!artworkDisplaySrc || artworkDisplaySrc.trim() === '' || (artworkDisplaySrc.startsWith('{{') && artworkDisplaySrc.endsWith('}}'))) {
-                    artworkDisplaySrc = `https://placehold.co/600x400.png`; // Fallback for actual cards if src is invalid/missing
+                    // Fallback for actual cards if src is invalid/missing and not in editor preview
+                    artworkDisplaySrc = `https://placehold.co/600x400.png`; 
                   }
+
 
                   return (
                     <div
@@ -219,7 +228,7 @@ export function CardPreview({
                         objectFit="cover"
                         className="w-full h-full"
                         data-ai-hint={artworkHint}
-                        priority={sectionIndex === 0 && row.id === template.rows[0]?.id}
+                        priority={sectionIndex === 0 && template.rows[0] && row.id === template.rows[0].id}
                       />
                     </div>
                   );
@@ -240,12 +249,9 @@ export function CardPreview({
                 const Tag = (section.type === 'RulesText' || section.type === 'FlavorText') ? 'pre' : 'div';
 
                 let displayContent = sectionContent;
-                // In editor preview, if the content is the placeholder string itself (after initial replacement), show the placeholder.
-                // This also handles the case where the placeholder in the template is empty initially.
                 if (isEditorPreview && section.contentPlaceholder && sectionContent === section.contentPlaceholder) {
                    displayContent = section.contentPlaceholder;
                 } else if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '' && section.contentPlaceholder.trim() !== '') {
-                    // If content becomes empty but placeholder wasn't, show placeholder
                     displayContent = section.contentPlaceholder;
                 }
 
