@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"; // Keep ShadCN Accordion components
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, ChevronDown } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput } from 'lucide-react';
 import { TCG_ASPECT_RATIO, SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -35,7 +35,7 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
   PowerToughness: ChevronsUpDown,
   ArtistCredit: Baseline,
   CustomText: Type,
-  Divider: Baseline,
+  Divider: Baseline, // Consider a specific icon like Minus if available and suitable
 };
 
 
@@ -68,17 +68,16 @@ export function TemplateEditor({
     if (selectedTemplateToEditId) {
       const templateToEdit = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateToEdit) {
-        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit));
+        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); // Deep copy
       } else {
-        // Fallback if selected ID is somehow invalid
         const base = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
         newTemplateToSet = {...JSON.parse(JSON.stringify(base)), id: nanoid(), name: "New Custom Template", sections: base.sections.map(s => ({...s, id: s.id || nanoid()}))};
       }
     } else if (initialTemplate) {
-         newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate));
+         newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); // Deep copy
     } else {
         const newTemplateBase = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
-        const newSections = newTemplateBase.sections.map(s => ({...s, id: s.id || nanoid() })); // Ensure sections have IDs
+        const newSections = newTemplateBase.sections.map(s => ({...s, id: s.id || nanoid() }));
         newTemplateToSet = {
             id: nanoid(),
             name: 'New Custom Template',
@@ -92,7 +91,6 @@ export function TemplateEditor({
         };
     }
     setCurrentTemplate(newTemplateToSet);
-    // Expand all sections when a template is loaded or created
     setActiveAccordionItems(newTemplateToSet.sections.map(s => s.id));
   }, [selectedTemplateToEditId, templates, initialTemplate]);
 
@@ -122,7 +120,7 @@ export function TemplateEditor({
   };
 
   const addSection = (type: CardSectionType) => {
-    const newSection = createDefaultSection(type); // createDefaultSection ensures ID is present
+    const newSection = createDefaultSection(type);
     updateCurrentTemplate({ sections: [...currentTemplate.sections, newSection] });
     setActiveAccordionItems(prev => [...prev, newSection.id]);
   };
@@ -178,8 +176,15 @@ export function TemplateEditor({
   
   const handleSelectTemplateToEdit = (templateId: string) => {
     setSelectedTemplateToEditId(templateId);
-    // The useEffect hook will handle updating currentTemplate and activeAccordionItems
   };
+
+  const handleSectionClickFromPreview = (sectionId: string) => {
+    setActiveAccordionItems([sectionId]); // Open only the clicked section
+    // Optionally, scroll to the accordion item
+    const itemElement = document.getElementById(`accordion-item-${sectionId}`);
+    itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
 
   const livePreviewData = useMemo(() => {
     const data: { [key: string]: string } = {};
@@ -232,14 +237,15 @@ export function TemplateEditor({
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => e.key === 'Enter' && handleSelectTemplateToEdit(template.id)}
+                      aria-label={`Edit template ${template.name}`}
                     >
                       {template.name}
                     </span>
                     <Button variant="ghost" size="sm" onClick={(e) => {
-                        e.stopPropagation(); // Prevent click from bubbling to the li/span
+                        e.stopPropagation(); 
                         onDeleteTemplate(template.id);
                         if (selectedTemplateToEditId === template.id) resetFormToNew();
-                    }} aria-label="Delete template">
+                    }} aria-label={`Delete template ${template.name}`}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </li>
@@ -273,7 +279,6 @@ export function TemplateEditor({
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="CustomSequential">Custom Sequential (Build Your Own)</SelectItem>
-                           {/* Could add other types like 'StandardFantasyTCG' here if they had fixed structures */}
                         </SelectContent>
                       </Select>
                     </div>
@@ -307,17 +312,14 @@ export function TemplateEditor({
                     {currentTemplate.sections.map((section, index) => {
                       const IconComponent = iconMap[section.type] || Type;
                       return (
-                      <AccordionItem value={section.id} key={section.id} className="border-border bg-card/40 rounded-md mb-2 overflow-hidden">
-                        <div className="flex items-center w-full px-3 py-1 hover:bg-muted/50 rounded-t-md"> {/* Wrapper for trigger and actions */}
+                      <AccordionItem value={section.id} key={section.id} id={`accordion-item-${section.id}`} className="border-border bg-card/40 rounded-md mb-2 overflow-hidden">
+                        <div className="flex items-center w-full px-3 py-1 hover:bg-muted/50 rounded-t-md">
                           <AccordionTrigger className="flex-grow p-1 text-left rounded-sm justify-start data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent">
-                            {/* Content for the trigger: icon and name */}
                             <div className="flex items-center gap-2">
                               <IconComponent className="h-4 w-4 text-muted-foreground" />
                               <span className="font-medium">{index + 1}. {section.type}</span>
                             </div>
-                            {/* ChevronDown is automatically added by the ShadCN AccordionTrigger component */}
                           </AccordionTrigger>
-                          {/* Action buttons are siblings to AccordionTrigger */}
                           <div className="flex gap-1 ml-2 flex-shrink-0">
                             <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'up')}} disabled={index === 0} aria-label="Move section up"><ArrowUp className="h-4 w-4" /></Button>
                             <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'down')}} disabled={index === currentTemplate.sections.length - 1} aria-label="Move section down"><ArrowDown className="h-4 w-4" /></Button>
@@ -386,8 +388,15 @@ export function TemplateEditor({
              <div className="mt-6 pt-6 border-t">
                 <h4 className="text-lg font-semibold mb-2 text-center">Live Template Preview</h4>
                 <p className="text-xs text-muted-foreground text-center mb-3">(Shows placeholders as content)</p>
-                <div className="mx-auto max-w-xs"> {/* Changed from max-w-sm for slightly smaller preview */}
-                <CardPreview template={currentTemplate} data={livePreviewData} isPrintMode={false} isEditorPreview={true} hideEmptySections={false} />
+                <div className="mx-auto max-w-xs">
+                  <CardPreview 
+                    template={currentTemplate} 
+                    data={livePreviewData} 
+                    isPrintMode={false} 
+                    isEditorPreview={true} 
+                    hideEmptySections={false} 
+                    onSectionClick={handleSectionClickFromPreview}
+                  />
                 </div>
             </div>
           </CardContent>
@@ -396,4 +405,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
