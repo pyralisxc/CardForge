@@ -53,37 +53,44 @@ export default function CardForgePage() {
   ];
 
 
-  // Effect for migrating older templates stored in localStorage
+  // Effect for migrating older templates stored in localStorage and ensuring IDs
   useEffect(() => {
     setTemplates(prevTemplates => {
       return prevTemplates.map(t => {
-        const newT = {...t};
-        if (!newT.id) {
-          newT.id = nanoid();
-        }
-        // Migration for new row/column structure
-        if (!newT.rows || !Array.isArray(newT.rows)) {
+        const newT = {...t}; // Shallow copy template
+        newT.id = newT.id || nanoid(); // Ensure template has an ID
+
+        // Ensure rows and columns have IDs
+        if (newT.rows && Array.isArray(newT.rows)) {
+          newT.rows = newT.rows.map(r => {
+            const newR = {...r}; // Shallow copy row
+            newR.id = newR.id || nanoid(); // Ensure row has an ID
+            if (newR.columns && Array.isArray(newR.columns)) {
+              newR.columns = newR.columns.map(c => {
+                const newC = {...c}; // Shallow copy column
+                newC.id = newC.id || nanoid(); // Ensure column has an ID
+                return newC;
+              });
+            } else {
+              newR.columns = []; // Initialize if missing
+            }
+            return newR;
+          });
+        } else {
+          // Attempt to migrate very old 'sections' based templates
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
           newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
             ...row,
             id: row.id || nanoid(),
             columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()}))
           }));
-          // @ts-expect-error: remove old sections if migrating
-          delete newT.sections; 
-        } else {
-           newT.rows = newT.rows.map((row: CardRow) => ({
-            ...row,
-            id: row.id || nanoid(),
-            columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()}))
-          }));
+           // @ts-expect-error: remove old sections if migrating
+          if (newT.sections) delete newT.sections;
         }
-        if (!newT.aspectRatio) {
-            newT.aspectRatio = "63:88"; 
-        }
-        if (!newT.frameStyle) {
-          newT.frameStyle = 'standard';
-        }
+
+        // Ensure other defaults
+        newT.aspectRatio = newT.aspectRatio || "63:88";
+        newT.frameStyle = newT.frameStyle || 'standard';
         newT.baseBackgroundColor = newT.baseBackgroundColor || '';
         newT.baseTextColor = newT.baseTextColor || '';
         newT.borderColor = newT.borderColor || '';
@@ -91,7 +98,7 @@ export default function CardForgePage() {
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []); // Run once on mount
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -106,14 +113,14 @@ export default function CardForgePage() {
       toast({ title: "Template Saved", description: `"${template.name}" has been saved.` });
     }
     if (editingTemplate?.id === template.id || existingIndex === -1) {
-        setEditingTemplate(template);
+        setEditingTemplate(template); // Keep the editor in sync if currently editing this or it's new
     }
   };
 
   const handleDeleteTemplate = (templateId: string) => {
     setTemplates(prevTemplates => prevTemplates.filter(t => t.id !== templateId));
     if (editingTemplate?.id === templateId) {
-      setEditingTemplate(null); 
+      setEditingTemplate(null); // Clear editing state if deleted template was being edited
     }
     toast({ title: "Template Deleted", description: "The template has been removed." });
   };
@@ -151,11 +158,11 @@ export default function CardForgePage() {
   const handleDuplicateCard = (cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
       ...cardToDuplicate,
-      uniqueId: nanoid(), 
+      uniqueId: nanoid(),
     };
     setGeneratedDisplayCards(prev => [...prev, newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
-    setIsEditDialogOpen(false); 
+    setIsEditDialogOpen(false);
     setEditingCard(null);
   };
 
@@ -190,19 +197,21 @@ export default function CardForgePage() {
         try {
           const jsonString = e.target?.result as string;
           const loadedCards = JSON.parse(jsonString) as DisplayCard[];
-          
+
           if (Array.isArray(loadedCards) && loadedCards.every(isValidDisplayCard)) {
+            // Ensure loaded cards and their nested structures have IDs
             const processedCards = loadedCards.map(card => ({
               ...card,
+              uniqueId: card.uniqueId || nanoid(),
               template: {
                 ...card.template,
-                rows: (card.template.rows || []).map((r: CardRow) => ({ 
-                    ...r, 
+                id: card.template.id || nanoid(),
+                rows: (card.template.rows || []).map((r: CardRow) => ({
+                    ...r,
                     id: r.id || nanoid(),
                     columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid() }))
                 }))
-              },
-              uniqueId: card.uniqueId || nanoid()
+              }
             }));
             setGeneratedDisplayCards(processedCards);
             toast({ title: "Set Loaded", description: `${processedCards.length} cards loaded successfully.` });
@@ -222,6 +231,7 @@ export default function CardForgePage() {
   };
 
   const isValidDisplayCard = (item: any): item is DisplayCard => {
+    // Basic check, can be more thorough
     return item && typeof item.template === 'object' && Array.isArray(item.template.rows) && typeof item.data === 'object';
   };
 
@@ -253,9 +263,9 @@ export default function CardForgePage() {
 
       const cardData: { [key: string]: string } = {};
       placeholders.forEach(pKey => {
-        cardData[pKey] = ''; 
+        cardData[pKey] = ''; // Initialize all placeholders
         if (pKey.toLowerCase().includes('art') && (pKey.toLowerCase().includes('url') || pKey.toLowerCase().includes('image'))) {
-            cardData[pKey] = `https://placehold.co/600x400.png?text=AI+Art`;
+            cardData[pKey] = `https://placehold.co/600x400.png?text=AI+Art`; // Default art
         }
       });
 
@@ -275,6 +285,7 @@ export default function CardForgePage() {
         if (pKeyLower.includes('name')) cardData[pKey] = parsedName;
         else if (pKeyLower.includes('rules') || pKeyLower.includes('text') || pKeyLower.includes('effect') && !pKeyLower.includes('flavor')) cardData[pKey] = parsedRules;
         else if (pKeyLower.includes('flavor')) cardData[pKey] = parsedFlavor;
+        // Update artwork placeholder with the generated name
         else if (pKeyLower.includes('art') && (pKeyLower.includes('url') || pKeyLower.includes('image'))) cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(parsedName.substring(0,20))}`;
         else if (pKeyLower.includes('cost')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
         else if (pKeyLower.includes('power') || pKeyLower.includes('attack')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
@@ -358,8 +369,8 @@ export default function CardForgePage() {
           <TabsContent value="generator">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1 space-y-6">
-                <SingleCardGenerator 
-                  templates={templates} 
+                <SingleCardGenerator
+                  templates={templates}
                   onSingleCardAdded={handleSingleCardAdded}
                   onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
                 />
