@@ -18,6 +18,7 @@ import { PlusSquare, FilePlus2 } from 'lucide-react';
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
   onSingleCardAdded: (card: DisplayCard) => void;
+  onTemplateSelectionChange?: (templateId: string) => void;
 }
 
 interface DynamicField {
@@ -27,7 +28,7 @@ interface DynamicField {
   example?: string;
 }
 
-export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCardGeneratorProps) {
+export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSelectionChange }: SingleCardGeneratorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
@@ -60,11 +61,12 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       
       const newCardData: CardData = {};
       fields.forEach(f => {
-        newCardData[f.key] = cardData[f.key] || ''; 
+        newCardData[f.key] = cardData[f.key] || ''; // Preserve existing data if field key matches, otherwise init as empty
         // Logic for default artwork URL if template has an artwork section with {{artworkUrl}}
         // and no value is currently set for it.
         const artSection = selectedTemplate.sections.find(s => s.type === 'Artwork' && s.contentPlaceholder.includes(`{{${f.key}}}`));
         if (artSection && (f.key.toLowerCase().includes('url') || f.key.toLowerCase().includes('artwork')) && !newCardData[f.key]) {
+            // Try to extract a default URL if one is hardcoded in the placeholder (but not {{...}})
             const defaultArtUrlMatch = artSection.contentPlaceholder.match(/^(https?:\/\/[^\s{}]+\.(?:png|jpg|jpeg|gif|svg|webp))/i); // Added webp
             if (defaultArtUrlMatch && defaultArtUrlMatch[0] !== artSection.contentPlaceholder && !defaultArtUrlMatch[0].startsWith('{{')) {
                  newCardData[f.key] = defaultArtUrlMatch[0];
@@ -73,14 +75,21 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
             }
         }
       });
-      setCardData(newCardData);
+      setCardData(newCardData); // Set new card data structure
+      if (onTemplateSelectionChange) {
+        onTemplateSelectionChange(selectedTemplate.id);
+      }
 
     } else {
       setDynamicFields([]);
       setCardData({});
+      if (onTemplateSelectionChange) {
+        onTemplateSelectionChange(''); // No template selected
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateId, selectedTemplate]); // Added selectedTemplate to dependency array
+  }, [selectedTemplateId, selectedTemplate]); // Re-run when template changes. cardData removed from deps to avoid reset loop.
+
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
@@ -92,10 +101,11 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       return;
     }
     
+    // Ensure all dynamic fields defined by the template have at least an empty string value
     const completeCardData: CardData = { ...cardData };
     dynamicFields.forEach(field => {
         if (completeCardData[field.key] === undefined) {
-          completeCardData[field.key] = ''; 
+          completeCardData[field.key] = ''; // Ensure all keys from template are present
         }
     });
 
@@ -106,6 +116,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
     };
     onSingleCardAdded(displayCard);
     
+    // Try to find a 'name' or 'title' field for the toast message
     let cardIdentifier = "Untitled Card";
     const nameFieldKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artist"))?.key || 
                          dynamicFields.find(f => f.key.toLowerCase().includes("title"))?.key;
@@ -113,11 +124,14 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
     if (nameFieldKey && completeCardData[nameFieldKey]) {
         cardIdentifier = String(completeCardData[nameFieldKey]);
     } else if (dynamicFields.length > 0 && completeCardData[dynamicFields[0].key]) {
+        // Fallback to the first field if no typical name field is found
         cardIdentifier = String(completeCardData[dynamicFields[0].key]);
     }
 
 
     toast({ title: "Success", description: `Card "${cardIdentifier}" added to preview.` });
+    // Optionally clear form fields after adding, or keep them for quick variations
+    // setCardData({}); // Uncomment to clear fields
   };
 
 
@@ -134,7 +148,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
             value={selectedTemplateId} 
             onValueChange={(id) => {
               setSelectedTemplateId(id);
-              // No need to reset cardData here if useEffect handles it based on selectedTemplateId change
+              // Let useEffect handle data reset and callback
             }}
           >
             <SelectTrigger id="singleTemplateSelect">
@@ -174,7 +188,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
         )}
         
         {selectedTemplate && dynamicFields.length === 0 && (
-            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{`{{cardName}}`}</code>, <code>{`{{manaCost}}`}</code>). Please edit the template to include them in its section content placeholders.</p>
+            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{`{{cardName}}`}</code>, <code>{`{{manaCost}}`}</code>). Please edit the template to include them in its placeholder strings.</p>
         )}
          {!selectedTemplate && (
             <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
@@ -188,3 +202,5 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
     </Card>
   );
 }
+
+    

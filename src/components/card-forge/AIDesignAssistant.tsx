@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TCGCardTemplate } from '@/types'; 
-import NextImage from 'next/image';
+import NextImage from 'next/image'; // Keep as NextImage to distinguish from lucide-react Image
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
@@ -315,9 +315,9 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <div className="mt-4 space-y-3">
                 <h4 className="font-semibold">Suggested Color Palette:</h4>
                 <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/50">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     {Object.entries(suggestedColors).map(([key, value]) => {
-                      if (!value) return null;
+                      if (!value) return null; // Don't render if AI provided no color for an element
                       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                       return (
                         <div key={key} className="flex items-center justify-between">
@@ -344,4 +344,5 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     </Card>
   );
 }
+
     
