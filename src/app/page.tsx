@@ -17,7 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles, Cog } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles, Cog, Menu as MenuIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -43,6 +44,13 @@ export default function CardForgePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isGeneratingRandomCard, setIsGeneratingRandomCard] = useState(false);
   const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const TABS_CONFIG = [
+    { value: "editor", label: "Template Editor", icon: LayoutDashboard },
+    { value: "generator", label: "Card Generator", icon: PackageOpen },
+    { value: "ai", label: "AI Helper", icon: Wand2 },
+  ];
 
 
   // Effect for migrating older templates stored in localStorage
@@ -292,21 +300,54 @@ export default function CardForgePage() {
     }
   };
 
+  const handleMobileMenuSelect = (tabValue: string) => {
+    setActiveTab(tabValue);
+    setIsMobileMenuOpen(false);
+  };
+
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 mb-6 no-print">
-            <TabsTrigger value="editor" className="flex items-center gap-2">
-              <LayoutDashboard className="h-4 w-4" /> Template Editor
-            </TabsTrigger>
-            <TabsTrigger value="generator" className="flex items-center gap-2">
-              <PackageOpen className="h-4 w-4" /> Card Generator
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="flex items-center gap-2">
-              <Wand2 className="h-4 w-4" /> AI Helper
-            </TabsTrigger>
+          {/* Mobile Menu Button */}
+          <div className="md:hidden mb-4">
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="w-full flex items-center justify-center gap-2">
+                  <MenuIcon className="h-5 w-5" />
+                  Menu
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left">
+                <SheetHeader>
+                  <SheetTitle className="text-lg font-semibold">Navigation</SheetTitle>
+                </SheetHeader>
+                <nav className="mt-6 flex flex-col space-y-2">
+                  {TABS_CONFIG.map(tab => (
+                    <Button
+                      key={tab.value}
+                      variant={activeTab === tab.value ? "secondary" : "ghost"}
+                      className="w-full justify-start"
+                      onClick={() => handleMobileMenuSelect(tab.value)}
+                    >
+                      <tab.icon className="mr-2 h-4 w-4" />
+                      {tab.label}
+                    </Button>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          {/* Desktop TabsList */}
+          <TabsList className="hidden md:grid w-full md:grid-cols-3 mb-6 no-print">
+            {TABS_CONFIG.map(tab => (
+              <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
+                <tab.icon className="h-4 w-4" /> {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="editor">
@@ -423,4 +464,5 @@ export default function CardForgePage() {
     </div>
   );
 }
+    
     
