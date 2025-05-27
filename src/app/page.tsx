@@ -48,22 +48,23 @@ export default function CardForgePage() {
     setTemplates(prevTemplates => {
       return prevTemplates.map(t => {
         const newT = {...t}; 
-        let changed = false;
+        // let changed = false; // Not strictly needed if we always reconstruct sections with new IDs
 
         if (!newT.id) { 
           newT.id = nanoid();
-          changed = true;
+          // changed = true;
         }
         
+        // Ensure sections array exists and all sections have IDs
         if (!newT.sections || !Array.isArray(newT.sections) || newT.sections.length === 0) {
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
           newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: CardSection) => ({...s, id: s.id || nanoid()})); 
           newT.templateType = newT.templateType || defaultTemplateForMigration.templateType;
-          changed = true;
+          // changed = true;
         } else {
           newT.sections = newT.sections.map(s => {
             if (!s.id) {
-              changed = true;
+              // changed = true;
               return {...s, id: nanoid() };
             }
             return s;
@@ -71,24 +72,24 @@ export default function CardForgePage() {
         }
         if (!newT.aspectRatio) { 
             newT.aspectRatio = "63:88";
-            changed = true;
+            // changed = true;
         }
         if (!newT.frameStyle) {
           newT.frameStyle = 'standard';
-          changed = true;
+          // changed = true;
         }
         // Ensure base colors exist, falling back to empty strings if not, so CardPreview doesn't break
         newT.baseBackgroundColor = newT.baseBackgroundColor || '';
         newT.baseTextColor = newT.baseTextColor || '';
         newT.borderColor = newT.borderColor || '';
-        newT.frameColor = newT.frameColor || '';
+        newT.frameColor = newT.frameColor || ''; // Legacy, might be removed later
 
 
         return newT; 
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []); // This effect runs once on mount to initialize/migrate templates from localStorage
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -118,14 +119,12 @@ export default function CardForgePage() {
   const handleBulkCardsGenerated = (cards: DisplayCard[]) => {
     setGeneratedDisplayCards(prev => [...prev, ...cards]);
     if (cards.length > 0) {
-        // setActiveTab("generator"); // Keep current tab, user might be on single card gen
         toast({ title: "Bulk Generation Complete", description: `${cards.length} cards added to preview.` });
     }
   };
 
   const handleSingleCardAdded = (card: DisplayCard) => {
     setGeneratedDisplayCards(prev => [...prev, card]);
-    // setActiveTab("generator"); // Keep current tab
   };
 
   const handleClearGeneratedCards = () => {
@@ -190,6 +189,7 @@ export default function CardForgePage() {
           const jsonString = e.target?.result as string;
           const loadedCards = JSON.parse(jsonString);
           if (Array.isArray(loadedCards) && loadedCards.every(isValidDisplayCard)) {
+            // Ensure loaded cards and their sections have unique IDs
             const processedCards = loadedCards.map(card => ({
               ...card,
               template: {
@@ -209,6 +209,7 @@ export default function CardForgePage() {
         }
       };
       reader.readAsText(file);
+      // Reset file input to allow loading the same file again
       if (fileInputRef.current) { 
         fileInputRef.current.value = "";
       }
@@ -221,11 +222,13 @@ export default function CardForgePage() {
 
   const handleGenerateRandomCard = async () => {
     let selectedTemplateForRandom: TCGCardTemplate | undefined;
+    // Try to get selected template from SingleCardGenerator's select input
     const singleTemplateSelect = document.getElementById('singleTemplateSelect') as HTMLSelectElement | null;
     
     if (singleTemplateSelect?.value) {
       selectedTemplateForRandom = templates.find(t => t.id === singleTemplateSelect.value);
     }
+    // Fallback to the first template if none is actively selected in single generator
     if (!selectedTemplateForRandom && templates.length > 0) {
       selectedTemplateForRandom = templates[0];
     }
@@ -251,6 +254,14 @@ export default function CardForgePage() {
       const aiResult = await generateCardText({ theme: "a completely random fantasy TCG card idea", textType: 'FullConceptIdea' });
       
       const cardData: { [key: string]: string } = {};
+      // Initialize all placeholders with an empty string or a default for artwork
+      Array.from(placeholders).forEach(pKey => {
+        cardData[pKey] = '';
+        if (pKey.toLowerCase().includes('art') && (pKey.toLowerCase().includes('url') || pKey.toLowerCase().includes('image'))) {
+            cardData[pKey] = `https://placehold.co/600x400.png?text=AI+Art`;
+        }
+      });
+      
       const aiLines = aiResult.cardText.split('\n');
       let parsedName = "Random Card";
       let parsedRules = "Random effect.";
@@ -262,16 +273,18 @@ export default function CardForgePage() {
         else if (line.toLowerCase().startsWith("flavor text:")) parsedFlavor = line.substring("flavor text:".length).trim();
       });
       
+      // Map parsed AI text to common placeholders, being flexible with key names
       Array.from(placeholders).forEach(pKey => {
-        if (pKey.toLowerCase().includes('name')) cardData[pKey] = parsedName;
-        else if (pKey.toLowerCase().includes('rules') || pKey.toLowerCase().includes('text') || pKey.toLowerCase().includes('effect')) cardData[pKey] = parsedRules;
-        else if (pKey.toLowerCase().includes('flavor')) cardData[pKey] = parsedFlavor;
-        else if (pKey.toLowerCase().includes('art') && (pKey.toLowerCase().includes('url') || pKey.toLowerCase().includes('image'))) cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(parsedName.substring(0,20))}`;
-        else if (pKey.toLowerCase().includes('cost')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
-        else if (pKey.toLowerCase().includes('power')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
-        else if (pKey.toLowerCase().includes('toughness')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
-        else if (pKey.toLowerCase().includes('type') && !pKey.toLowerCase().includes('sub')) cardData[pKey] = ['Creature', 'Spell', 'Enchantment'][Math.floor(Math.random() * 3)];
-        else cardData[pKey] = "AI Value"; // Generic fallback
+        const pKeyLower = pKey.toLowerCase();
+        if (pKeyLower.includes('name')) cardData[pKey] = parsedName;
+        else if (pKeyLower.includes('rules') || pKeyLower.includes('text') || pKeyLower.includes('effect') && !pKeyLower.includes('flavor')) cardData[pKey] = parsedRules;
+        else if (pKeyLower.includes('flavor')) cardData[pKey] = parsedFlavor;
+        else if (pKeyLower.includes('art') && (pKeyLower.includes('url') || pKeyLower.includes('image'))) cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(parsedName.substring(0,20))}`;
+        else if (pKeyLower.includes('cost')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
+        else if (pKeyLower.includes('power') || pKeyLower.includes('attack')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
+        else if (pKeyLower.includes('toughness') || pKeyLower.includes('health') || pKeyLower.includes('defense')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
+        else if (pKeyLower.includes('type') && !pKeyLower.includes('sub')) cardData[pKey] = ['Creature', 'Spell', 'Enchantment', 'Artifact'][Math.floor(Math.random() * 4)];
+        // else cardData[pKey] = "AI Value"; // Generic fallback, or leave empty if not matched
       });
 
       const randomCard: DisplayCard = {
