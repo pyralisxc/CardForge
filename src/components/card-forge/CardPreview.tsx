@@ -45,7 +45,6 @@ export function CardPreview({
     }
     
     if (!isEditorPreview) {
-      // Remove any un-substituted placeholders only if not in editor preview
       result = result.replace(/{{\s*[\w-]+\s*}}/g, '');
     }
     return result;
@@ -57,14 +56,13 @@ export function CardPreview({
   const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
 
   const cardContainerStyle: React.CSSProperties = {
-    backgroundColor: template.baseBackgroundColor || undefined, // Rely on CSS for default unless overridden
+    backgroundColor: template.baseBackgroundColor || undefined, 
     color: template.baseTextColor || 'hsl(var(--card-foreground))',
     aspectRatio: `${aspectW} / ${aspectH}`,
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
     height: isPrintMode ? '100%' : 'auto',
     boxSizing: 'border-box',
   };
-   // For frame-standard, if baseBackgroundColor is not set, it will use theme's --card
    if (template.frameStyle === 'standard' && !template.baseBackgroundColor) {
     cardContainerStyle.backgroundColor = 'hsl(var(--card))';
    }
@@ -86,12 +84,10 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
-      // In editor preview, only hide if placeholder is truly empty AND it's not art/divider
       return section.contentPlaceholder?.trim() === '' && section.type !== 'Artwork' && section.type !== 'Divider';
     }
     if (hideEmptySections) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false; 
-      // For generated cards, hide if the *processed content* is empty
       return processedContent.trim() === '';
     }
     return false;
@@ -125,7 +121,7 @@ export function CardPreview({
           }
 
           const sectionStyle: React.CSSProperties = {
-            color: section.textColor || template.baseTextColor || undefined, // Fallback to theme via CSS if not set
+            color: section.textColor || template.baseTextColor || undefined, 
             backgroundColor: section.backgroundColor || 'transparent',
             textAlign: section.textAlign || 'left',
             fontStyle: section.fontStyle || 'normal',
@@ -135,7 +131,7 @@ export function CardPreview({
           };
 
           const sectionClasses = cn(
-            section.padding || 'p-0',
+            section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'), // Default p-0 for Artwork
             section.fontSize || 'text-sm',
             section.fontWeight || 'font-normal',
             section.borderWidth === '_none_' ? '' : section.borderWidth,
@@ -205,19 +201,11 @@ export function CardPreview({
           
           let displayContent = sectionContent;
           if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '') {
-             displayContent = section.contentPlaceholder; // Show placeholder if content is empty in editor
+             displayContent = section.contentPlaceholder; 
           }
-          // If content is just the placeholder itself (common in editor preview), show it
           if (isEditorPreview && section.contentPlaceholder && sectionContent === section.contentPlaceholder) {
             displayContent = section.contentPlaceholder;
           }
-
-
-          // This condition was problematic, adjusted shouldHideSection
-          // if (displayContent.trim() === '' && !isEditorPreview && hideEmptySections) {
-          //   return null;
-          // }
-
 
           return (
             <Tag 

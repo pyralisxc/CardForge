@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TCGCardTemplate } from '@/types'; 
-import NextImage from 'next/image'; // Renamed to avoid conflict with Lucide icon
+import NextImage from 'next/image';
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
@@ -318,7 +318,6 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     {Object.entries(suggestedColors).map(([key, value]) => {
                       if (!value) return null;
-                      // Convert camelCase key to Title Case for display
                       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                       return (
                         <div key={key} className="flex items-center justify-between">

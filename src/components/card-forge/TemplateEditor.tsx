@@ -84,12 +84,14 @@ export function TemplateEditor({
         newTemplateToSet.sections = [createDefaultSection('CardName')];
     }
     newTemplateToSet.frameStyle = newTemplateToSet.frameStyle || 'standard';
+    newTemplateToSet.aspectRatio = newTemplateToSet.aspectRatio || "63:88";
 
 
     setCurrentTemplate(newTemplateToSet);
     setActiveAccordionItems(newTemplateToSet.sections.map(s => s.id));
     setAspectRatioInput(newTemplateToSet.aspectRatio || "63:88");
     
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateToEditId, templates, initialTemplate]);
 
 
@@ -98,11 +100,8 @@ export function TemplateEditor({
     const ratioParts = aspectRatioInput.split(':').map(Number);
     if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
       updateCurrentTemplate({ aspectRatio: aspectRatioInput });
-    } else if (!aspectRatioInput && currentTemplate.aspectRatio) { // Handle clearing the input
-      // Do nothing, keep currentTemplate.aspectRatio
-    } else {
-      // Optionally provide feedback if format is invalid, or just don't update
-      // For now, if invalid, it just won't update the currentTemplate.aspectRatio
+    } else if (!aspectRatioInput && currentTemplate.aspectRatio) { 
+      // Do nothing, keep currentTemplate.aspectRatio if input is cleared but a valid one exists
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectRatioInput]);
@@ -118,6 +117,7 @@ export function TemplateEditor({
         name: currentTemplate.name || preset.name, 
         sections: newSections,
         frameStyle: preset.frameStyle || 'standard',
+        aspectRatio: preset.aspectRatio || "63:88",
       };
       setCurrentTemplate(newPresetTemplate);
       setActiveAccordionItems(newSections.map(s => s.id));
@@ -204,11 +204,8 @@ export function TemplateEditor({
   const handleSectionClickFromPreview = (sectionId: string) => {
     setActiveAccordionItems(prev => {
       if (prev.includes(sectionId)) return prev; 
-      // Expand only the clicked section, collapse others.
-      // If you want multi-expand, you'd add to prev instead of replacing.
       return [sectionId]; 
     });
-    // Scroll to the accordion item
     const itemElement = document.getElementById(`accordion-item-${sectionId}`);
     itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
@@ -291,7 +288,7 @@ export function TemplateEditor({
                     <CardTitle className="text-lg">
                         {currentTemplate.id === selectedTemplateToEditId && templates.find(t=>t.id === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: <span className="text-primary">{currentTemplate.name}</span>
                     </CardTitle>
-                    <CardDescription>Define overall style and card sections. Click sections in the preview below to edit.</CardDescription>
+                    <CardDescription>Define overall style and card sections. Click sections in the preview to edit.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div>
@@ -310,29 +307,23 @@ export function TemplateEditor({
                         <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. This defines the card's shape.</p>
                     </div>
 
-                    <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling">
-                        <AccordionItem value="overall-styling">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
-                            <div className="flex items-center gap-2"><Cog className="h-4 w-4" /> Overall Card Styling</div>
-                        </AccordionTrigger>
-                        <AccordionContent className="pt-3 space-y-3">
-                            <div>
-                                <Label htmlFor="templateFrameStyle" className="text-xs">Card Frame Style</Label>
-                                <Select value={currentTemplate.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
-                                    <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
-                                    <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <p className="text-xs text-muted-foreground mt-1">Frame Style selection applies predefined borders and backgrounds. Colors below might be overridden or act as fallbacks.</p>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-                            <div><Label htmlFor="frameColor" className="text-xs">Frame Color (Legacy)</Label><Input id="frameColor" type="color" value={currentTemplate.frameColor || ''} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} /></div>
-                            <div><Label htmlFor="borderColor" className="text-xs">Default Section Border</Label><Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} /></div>
-                            <div><Label htmlFor="baseBgColor" className="text-xs">Base Background</Label><Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} /></div>
-                            <div><Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label><Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} /></div>
-                            </div>
-                        </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
+                    <h4 className="text-sm font-medium pt-2 border-t mt-4">Overall Card Styling</h4>
+                    <div className="space-y-3 pl-1">
+                        <div>
+                            <Label htmlFor="templateFrameStyle" className="text-xs">Card Frame Style</Label>
+                            <Select value={currentTemplate.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
+                                <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
+                                <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">Frame Style selection applies predefined borders and backgrounds. Colors below might be overridden or act as fallbacks.</p>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+                        <div><Label htmlFor="frameColor" className="text-xs">Frame Color (Legacy)</Label><Input id="frameColor" type="color" value={currentTemplate.frameColor || ''} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} /></div>
+                        <div><Label htmlFor="borderColor" className="text-xs">Default Section Border</Label><Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} /></div>
+                        <div><Label htmlFor="baseBgColor" className="text-xs">Base Background</Label><Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} /></div>
+                        <div><Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label><Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} /></div>
+                        </div>
+                    </div>
                 </CardContent>
                 <CardFooter className="p-4 border-t">
                    <Button type="submit" className="w-full sm:w-auto ml-auto">
@@ -390,8 +381,8 @@ export function TemplateEditor({
                             
                             <Accordion type="single" collapsible className="w-full border rounded-md p-2 bg-background/30" defaultValue="styling-options-inner">
                                 <AccordionItem value="styling-options-inner" className="border-none">
-                                <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:text-foreground hover:no-underline py-1.5">
-                                    <div className="flex items-center gap-1.5"><Paintbrush className="h-3.5 w-3.5" /> Styling Options</div>
+                                <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5">
+                                    <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" /> Styling Options</div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 space-y-3">
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
