@@ -7,7 +7,7 @@ export const PAPER_SIZES: PaperSize[] = [
   { name: 'A4 (210x297 mm)', widthMm: 210, heightMm: 297 },
 ];
 
-export const TCG_ASPECT_RATIO = '63:88'; 
+export const TCG_ASPECT_RATIO = '63:88';
 
 export const SECTION_TYPES: CardSectionType[] = [
   'CardName',
@@ -102,7 +102,7 @@ export const FRAME_STYLES: Array<{ label: string; value: string }> = [
 export const createDefaultSection = (type: CardSectionType, id?: string, overrides?: Partial<CardSection>): CardSection => {
   const baseSection: Omit<CardSection, 'type' | 'id' | 'contentPlaceholder'> & { contentPlaceholder: string } = {
     contentPlaceholder: '', // Will be overridden
-    textColor: '', 
+    textColor: '',
     backgroundColor: '',
     fontFamily: 'font-sans',
     fontSize: 'text-sm',
@@ -110,7 +110,7 @@ export const createDefaultSection = (type: CardSectionType, id?: string, overrid
     textAlign: 'left',
     fontStyle: 'normal',
     padding: 'p-1',
-    borderColor: '', 
+    borderColor: '',
     borderWidth: '_none_',
     minHeight: '_auto_',
     flexGrow: 0, // Default to not growing
@@ -142,7 +142,7 @@ export const createDefaultSection = (type: CardSectionType, id?: string, overrid
       specificContentPlaceholder = '{{power}}/{{toughness}}';
       return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: 'hsl(var(--muted)/0.7)', borderWidth: 'border-t', borderColor: 'hsl(var(--border))', ...overrides };
     case 'ArtistCredit':
-      specificContentPlaceholder = 'Illus. {{artistName}} {{{raritySymbol}}}';
+      specificContentPlaceholder = 'Illus. {{artistName}} • {{rarity}}';
       return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5', textAlign: 'left', ...overrides };
     case 'CustomText':
       specificContentPlaceholder = '{{customValue}}';
@@ -158,7 +158,7 @@ export const createDefaultSection = (type: CardSectionType, id?: string, overrid
 
 export const createDefaultRow = (id?: string, columns: CardSection[] = [], alignItems: CardRow['alignItems'] = 'flex-start'): CardRow => {
   return {
-    id: id || nanoid(),
+    id: id || nanoid(), // Use provided ID or generate new one
     columns: columns.map(col => ({ ...col, id: col.id || nanoid() })), // Ensure columns have IDs
     alignItems,
   };
@@ -167,34 +167,40 @@ export const createDefaultRow = (id?: string, columns: CardSection[] = [], align
 
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
-    id: 'default-fantasy-creature-v3',
+    id: 'default-fantasy-creature-v3-stable', // Stable ID
     name: 'Standard Fantasy Creature (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
+    baseBackgroundColor: '',
+    baseTextColor: '',
+    borderColor: '',
     rows: [
-      createDefaultRow('sfc-row-namecost-v3', [
-        createDefaultSection('CardName', 'sfc-name-v3', { flexGrow: 1, textAlign: 'left' }),
-        createDefaultSection('ManaCost', 'sfc-cost-v3', { flexGrow: 0, textAlign: 'right' }),
+      createDefaultRow('sfc-row-namecost-v3-stable', [
+        createDefaultSection('CardName', 'sfc-name-v3-stable', { flexGrow: 1, textAlign: 'left' }),
+        createDefaultSection('ManaCost', 'sfc-cost-v3-stable', { flexGrow: 0, textAlign: 'right' }),
       ], 'center'),
-      createDefaultRow('sfc-row-art-v3', [createDefaultSection('Artwork', 'sfc-art-v3')]),
-      createDefaultRow('sfc-row-type-v3', [createDefaultSection('TypeLine', 'sfc-type-v3')]),
-      createDefaultRow('sfc-row-rules-v3', [createDefaultSection('RulesText', 'sfc-rules-v3')]),
-      createDefaultRow('sfc-row-flavorpt-v3', [
-         createDefaultSection('FlavorText', 'sfc-flavor-v3', {flexGrow: 1}),
-         createDefaultSection('PowerToughness', 'sfc-pt-v3', {flexGrow: 0, textAlign: 'right'})
+      createDefaultRow('sfc-row-art-v3-stable', [createDefaultSection('Artwork', 'sfc-art-v3-stable')]),
+      createDefaultRow('sfc-row-type-v3-stable', [createDefaultSection('TypeLine', 'sfc-type-v3-stable')]),
+      createDefaultRow('sfc-row-rules-v3-stable', [createDefaultSection('RulesText', 'sfc-rules-v3-stable')]),
+      createDefaultRow('sfc-row-flavorpt-v3-stable', [
+         createDefaultSection('FlavorText', 'sfc-flavor-v3-stable', {flexGrow: 1}),
+         createDefaultSection('PowerToughness', 'sfc-pt-v3-stable', {flexGrow: 0, textAlign: 'right'})
       ], 'flex-end'),
-      createDefaultRow('sfc-row-artist-v3', [createDefaultSection('ArtistCredit', 'sfc-artist-v3')]),
+      createDefaultRow('sfc-row-artist-v3-stable', [createDefaultSection('ArtistCredit', 'sfc-artist-v3-stable')]),
     ]
   },
   {
-    id: 'default-basic-custom-v3',
+    id: 'default-basic-custom-v3-stable', // Stable ID
     name: 'Basic Custom Card (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'minimal-dark',
+    baseBackgroundColor: '',
+    baseTextColor: '',
+    borderColor: '',
     rows: [
-      createDefaultRow('bcc-row-name-v3', [createDefaultSection('CardName', 'bcc-name-v3')]),
-      createDefaultRow('bcc-row-art-v3', [createDefaultSection('Artwork', 'bcc-art-v3', {minHeight: 'min-h-[250px]'})]),
-      createDefaultRow('bcc-row-custom-v3', [createDefaultSection('CustomText', 'bcc-custom-v3', {minHeight: 'min-h-[80px]'})]),
+      createDefaultRow('bcc-row-name-v3-stable', [createDefaultSection('CardName', 'bcc-name-v3-stable')]),
+      createDefaultRow('bcc-row-art-v3-stable', [createDefaultSection('Artwork', 'bcc-art-v3-stable', {minHeight: 'min-h-[250px]'})]),
+      createDefaultRow('bcc-row-custom-v3-stable', [createDefaultSection('CustomText', 'bcc-custom-v3-stable', {minHeight: 'min-h-[80px]'})]),
     ]
   }
 ];
@@ -219,3 +225,6 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'effectText', label: 'Effect Text', type: 'textarea' },
   { key: 'rarity', label: 'Rarity', type: 'input', example: 'Common' }, // Added for artist line in default template
 ];
+
+
+    
