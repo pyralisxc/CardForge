@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles } from 'lucide-react';
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles, Cog } from 'lucide-react';
 import { nanoid } from 'nanoid'; 
 
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -219,15 +219,26 @@ export default function CardForgePage() {
     return item && typeof item.template === 'object' && typeof item.data === 'object' && (typeof item.uniqueId === 'string' || typeof item.uniqueId === 'undefined') && Array.isArray(item.template.sections);
   };
 
-  const handleGenerateRandomCard = async (template: TCGCardTemplate | undefined) => {
-    if (!template) {
-      toast({ title: "Template Needed", description: "Please select a template first in the Single Card Generator to generate a random card.", variant: "destructive" });
+  const handleGenerateRandomCard = async () => {
+    let selectedTemplateForRandom: TCGCardTemplate | undefined;
+    const singleTemplateSelect = document.getElementById('singleTemplateSelect') as HTMLSelectElement | null;
+    
+    if (singleTemplateSelect?.value) {
+      selectedTemplateForRandom = templates.find(t => t.id === singleTemplateSelect.value);
+    }
+    if (!selectedTemplateForRandom && templates.length > 0) {
+      selectedTemplateForRandom = templates[0];
+    }
+
+    if (!selectedTemplateForRandom) {
+      toast({ title: "Template Needed", description: "Please create or select a template first to generate a random card.", variant: "destructive" });
       return;
     }
+
     setIsGeneratingRandomCard(true);
     try {
       const placeholders = new Set<string>();
-      template.sections.forEach(section => {
+      selectedTemplateForRandom.sections.forEach(section => {
         extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(key => placeholders.add(key));
       });
 
@@ -237,7 +248,6 @@ export default function CardForgePage() {
         return;
       }
       
-      // For a truly "random" card, the theme can be generic.
       const aiResult = await generateCardText({ theme: "a completely random fantasy TCG card idea", textType: 'FullConceptIdea' });
       
       const cardData: { [key: string]: string } = {};
@@ -265,7 +275,7 @@ export default function CardForgePage() {
       });
 
       const randomCard: DisplayCard = {
-        template: template,
+        template: selectedTemplateForRandom,
         data: cardData,
         uniqueId: nanoid()
       };
@@ -314,7 +324,7 @@ export default function CardForgePage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-xl flex items-center gap-2"><SlidersHorizontal className="h-5 w-5"/>Manage & Preview</CardTitle>
+                        <CardTitle className="text-xl flex items-center gap-2"><Cog className="h-5 w-5"/>Manage & Preview</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
@@ -331,7 +341,7 @@ export default function CardForgePage() {
                         </div>
                          <Button 
                             variant="outline" 
-                            onClick={() => handleGenerateRandomCard(templates.find(t => t.id === (document.getElementById('singleTemplateSelect') as HTMLSelectElement)?.value) || templates[0])}
+                            onClick={handleGenerateRandomCard}
                             disabled={isGeneratingRandomCard || templates.length === 0}
                             className="w-full flex items-center gap-2"
                         >

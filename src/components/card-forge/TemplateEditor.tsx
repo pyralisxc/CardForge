@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save } from 'lucide-react';
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save, Cog } from 'lucide-react';
 import { SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, FRAME_STYLES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -98,8 +98,11 @@ export function TemplateEditor({
     const ratioParts = aspectRatioInput.split(':').map(Number);
     if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
       updateCurrentTemplate({ aspectRatio: aspectRatioInput });
+    } else if (!aspectRatioInput && currentTemplate.aspectRatio) { // Handle clearing the input
+      // Do nothing, keep currentTemplate.aspectRatio
     } else {
       // Optionally provide feedback if format is invalid, or just don't update
+      // For now, if invalid, it just won't update the currentTemplate.aspectRatio
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectRatioInput]);
@@ -201,8 +204,11 @@ export function TemplateEditor({
   const handleSectionClickFromPreview = (sectionId: string) => {
     setActiveAccordionItems(prev => {
       if (prev.includes(sectionId)) return prev; 
+      // Expand only the clicked section, collapse others.
+      // If you want multi-expand, you'd add to prev instead of replacing.
       return [sectionId]; 
     });
+    // Scroll to the accordion item
     const itemElement = document.getElementById(`accordion-item-${sectionId}`);
     itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
@@ -299,7 +305,7 @@ export function TemplateEditor({
                             id="templateAspectRatio" 
                             value={aspectRatioInput} 
                             onChange={(e) => setAspectRatioInput(e.target.value)} 
-                            placeholder="e.g., 63:88" 
+                            placeholder="e.g., 63:88 (Standard TCG)" 
                         />
                         <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. This defines the card's shape.</p>
                     </div>
@@ -307,7 +313,7 @@ export function TemplateEditor({
                     <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling">
                         <AccordionItem value="overall-styling">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline">
-                            <div className="flex items-center gap-2"><Palette className="h-4 w-4" /> Overall Card Styling</div>
+                            <div className="flex items-center gap-2"><Cog className="h-4 w-4" /> Overall Card Styling</div>
                         </AccordionTrigger>
                         <AccordionContent className="pt-3 space-y-3">
                             <div>
@@ -328,15 +334,20 @@ export function TemplateEditor({
                         </AccordionItem>
                     </Accordion>
                 </CardContent>
-                {/* CardFooter moved to specific cards */}
+                <CardFooter className="p-4 border-t">
+                   <Button type="submit" className="w-full sm:w-auto ml-auto">
+                        <Save className="mr-2 h-4 w-4"/>
+                        Save Template Settings
+                    </Button>
+                </CardFooter>
             </Card>
 
             <Card>
                 <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                    <ChevronsUpDown className="h-5 w-5 text-primary" /> Card Sections (Top to Bottom Order)
+                    <ChevronsUpDown className="h-5 w-5 text-primary" /> Card Sections (Ordered Top to Bottom)
                 </CardTitle>
-                <CardDescription>Define each visual layer of your card. Use <code>{`{{placeholder}}`}</code> syntax for dynamic data.</CardDescription>
+                <CardDescription>Define each visual layer of your card. Use <code>{`{{placeholder}}`}</code> syntax for dynamic data fields.</CardDescription>
                 </CardHeader>
                 <CardContent className="max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
                     <Accordion 
@@ -477,7 +488,7 @@ export function TemplateEditor({
                     </Select>
                     <Button type="submit" className="w-full sm:w-auto ml-auto">
                         <Save className="mr-2 h-4 w-4"/>
-                        Save Template
+                        Save Template Sections
                     </Button>
                 </CardFooter>
             </Card>

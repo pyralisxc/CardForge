@@ -86,10 +86,12 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
+      // In editor preview, only hide if placeholder is truly empty AND it's not art/divider
       return section.contentPlaceholder?.trim() === '' && section.type !== 'Artwork' && section.type !== 'Divider';
     }
     if (hideEmptySections) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false; 
+      // For generated cards, hide if the *processed content* is empty
       return processedContent.trim() === '';
     }
     return false;
@@ -203,16 +205,18 @@ export function CardPreview({
           
           let displayContent = sectionContent;
           if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '') {
-             displayContent = section.contentPlaceholder;
+             displayContent = section.contentPlaceholder; // Show placeholder if content is empty in editor
           }
-          if (isEditorPreview && section.contentPlaceholder && sectionContent.startsWith('{{') && sectionContent.endsWith('}}')) {
+          // If content is just the placeholder itself (common in editor preview), show it
+          if (isEditorPreview && section.contentPlaceholder && sectionContent === section.contentPlaceholder) {
             displayContent = section.contentPlaceholder;
           }
 
 
-          if (displayContent.trim() === '' && !isEditorPreview && hideEmptySections) {
-            return null;
-          }
+          // This condition was problematic, adjusted shouldHideSection
+          // if (displayContent.trim() === '' && !isEditorPreview && hideEmptySections) {
+          //   return null;
+          // }
 
 
           return (

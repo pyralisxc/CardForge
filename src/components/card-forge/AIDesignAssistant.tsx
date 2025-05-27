@@ -12,16 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { suggestCardLayout, SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout';
 import { generateCardText, GenerateCardTextInput } from '@/ai/flows/generate-card-text';
 import { generateCardImage, GenerateCardImageInput } from '@/ai/flows/generate-card-image';
-import { suggestTemplateColors, SuggestTemplateColorsInput, SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors'; // New Flow
+import { suggestTemplateColors, SuggestTemplateColorsInput, SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors'; 
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TCGCardTemplate } from '@/types'; 
-import Image from 'next/image';
+import NextImage from 'next/image'; // Renamed to avoid conflict with Lucide icon
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
-  // onApplyColors?: (colors: SuggestTemplateColorsOutput) => void; // Future: callback to apply colors
 }
 
 type TextGenType = GenerateCardTextInput['textType'];
@@ -270,7 +269,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <div className="mt-4 space-y-2">
                 <h4 className="font-semibold">Generated Image:</h4>
                 <div className="border rounded-md p-2 bg-muted/50 flex justify-center items-center max-h-96 overflow-hidden">
-                  <Image 
+                  <NextImage 
                     src={generatedImageDataUri} 
                     alt="AI Generated Card Artwork" 
                     width={300} 
