@@ -11,12 +11,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { suggestCardLayout, SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout';
 import { generateCardText } from '@/ai/flows/generate-card-text';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, TextQuote, Palette } from 'lucide-react';
+import { Sparkles, TextQuote, Palette, Lightbulb, Copy } from 'lucide-react'; // Added Lightbulb, Copy
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TCGCardTemplate } from '@/types'; // Import TCGCardTemplate
+import type { TCGCardTemplate } from '@/types'; 
 
 interface AIDesignAssistantProps {
-  templates: TCGCardTemplate[]; // Pass templates to the assistant
+  templates: TCGCardTemplate[]; 
 }
 
 export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
@@ -24,7 +24,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
   
   const [textContentLayout, setTextContentLayout] = useState<string>('');
   const [cardConceptLayout, setCardConceptLayout] = useState<string>('');
-  const [currentSectionsForLayout, setCurrentSectionsForLayout] = useState<string>(''); // New state for sections info
+  const [currentSectionsForLayout, setCurrentSectionsForLayout] = useState<string>('');
   const [designSuggestion, setDesignSuggestion] = useState<string>('');
   const [isLoadingLayout, setIsLoadingLayout] = useState(false);
 
@@ -35,8 +35,8 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
   const { toast } = useToast();
 
   const handleGetDesignSuggestion = async () => {
-    if (!textContentLayout.trim() && !currentSectionsForLayout.trim()) {
-      toast({ title: "Input Required", description: "Please enter text content or describe sections for layout suggestion.", variant: "destructive" });
+    if (!textContentLayout.trim() && !currentSectionsForLayout.trim() && !cardConceptLayout.trim()) {
+      toast({ title: "Input Required", description: "Please enter text, concept, or sections for layout suggestion.", variant: "destructive" });
       return;
     }
     setIsLoadingLayout(true);
@@ -79,23 +79,15 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     }
   };
 
-  // Helper to get a string representation of current template sections (if any are being edited)
-  // This is a simplified approach. A more robust way would involve letting user pick a template
-  // or directly inputting section details for AI analysis.
-  const getActiveTemplateSectionsInfo = () => {
-    // For now, let's assume user types this manually or we could try to grab it from a selected template in future.
-    // This is a placeholder for a more complex UI interaction.
-    return ""; 
-  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
           <Sparkles className="mr-2 h-5 w-5 text-primary" />
-          AI Helper for TCG Cards
+          AI Helper
         </CardTitle>
-        <CardDescription>Get AI-powered assistance for card text generation and design layout ideas, especially for custom sequential layouts.</CardDescription>
+        <CardDescription>Get AI-powered assistance for card text generation and design layout ideas.</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeAiTab} onValueChange={setActiveAiTab} className="w-full">
@@ -137,12 +129,12 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                <p className="text-xs text-muted-foreground">If using a custom sequential layout, briefly describe the sections and their placeholders for more tailored suggestions.</p>
             </div>
             <Button onClick={handleGetDesignSuggestion} disabled={isLoadingLayout} className="w-full">
-              {isLoadingLayout ? 'Thinking...' : 'Get Design Suggestions'}
+              <Lightbulb className="mr-2 h-4 w-4" /> {isLoadingLayout ? 'Thinking...' : 'Get Design Suggestions'}
             </Button>
             {designSuggestion && (
               <div className="mt-4 space-y-2">
                 <h4 className="font-semibold">Design Suggestion:</h4>
-                <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted">
+                <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/50">
                   <pre className="whitespace-pre-wrap text-sm">{designSuggestion}</pre>
                 </ScrollArea>
               </div>
@@ -161,19 +153,19 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               />
             </div>
             <Button onClick={handleGenerateText} disabled={isLoadingText} className="w-full">
-              {isLoadingText ? 'Generating...' : 'Generate Card Text'}
+              <Sparkles className="mr-2 h-4 w-4" /> {isLoadingText ? 'Generating...' : 'Generate Card Text'}
             </Button>
             {generatedText && (
               <div className="mt-4 space-y-2">
                 <h4 className="font-semibold">Generated Text:</h4>
-                 <ScrollArea className="h-32 w-full rounded-md border p-3 bg-muted">
+                 <ScrollArea className="h-32 w-full rounded-md border p-3 bg-muted/50">
                   <pre className="whitespace-pre-wrap text-sm">{generatedText}</pre>
                 </ScrollArea>
                 <Button variant="outline" size="sm" onClick={() => {
                   navigator.clipboard.writeText(generatedText);
                   toast({title: "Copied!", description: "Generated text copied to clipboard."});
                 }}>
-                  Copy Text
+                  <Copy className="mr-2 h-3 w-3" /> Copy Text
                 </Button>
               </div>
             )}

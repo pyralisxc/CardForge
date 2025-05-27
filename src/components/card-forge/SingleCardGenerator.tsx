@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
-import { PlusSquare } from 'lucide-react';
+import { PlusSquare, FilePlus2 } from 'lucide-react'; // Added FilePlus2
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
@@ -55,17 +55,14 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       
       const newCardData: CardData = {};
       fields.forEach(f => {
-        // Preserve existing data if key matches, otherwise initialize
         newCardData[f.key] = cardData[f.key] || ''; 
-        // Special handling for default artwork URL if the template has an artwork section and the key is 'artworkUrl'
         const artSection = selectedTemplate.sections.find(s => s.type === 'Artwork');
         if (f.key === 'artworkUrl' && artSection && artSection.contentPlaceholder.includes('{{artworkUrl}}') && !newCardData[f.key]) {
-            // Try to get a default URL if placeholder itself is a URL (not ideal, but for compatibility)
             const defaultArtUrlMatch = artSection.contentPlaceholder.match(/^(https?:\/\/[^\s{}]+\.(?:png|jpg|jpeg|gif|svg))/i);
-            if (defaultArtUrlMatch && defaultArtUrlMatch[0] !== artSection.contentPlaceholder) { // i.e. it's not *just* {{artworkUrl}}
+            if (defaultArtUrlMatch && defaultArtUrlMatch[0] !== artSection.contentPlaceholder) {
                  newCardData[f.key] = defaultArtUrlMatch[0];
             } else {
-                 newCardData[f.key] = 'https://placehold.co/300x200.png'; // Fallback
+                 newCardData[f.key] = 'https://placehold.co/300x200.png';
             }
         }
       });
@@ -76,7 +73,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       setCardData({});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateId, templates]); // Rerun when selectedTemplateId or available templates change
+  }, [selectedTemplateId, templates]); 
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
@@ -86,13 +83,6 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
     if (!selectedTemplate) {
       toast({ title: "Error", description: "Please select a TCG template.", variant: "destructive" });
       return;
-    }
-
-    // Basic validation: ensure at least one "name" like field is provided if it exists
-    const nameLikeField = dynamicFields.find(f => f.key.toLowerCase().includes('name'));
-    if (nameLikeField && !cardData[nameLikeField.key]?.toString().trim()) {
-        toast({ title: "Error", description: `${nameLikeField.label} is recommended.`, variant: "warning" });
-        // Not returning error, just a warning.
     }
     
     const completeCardData: CardData = { ...cardData };
@@ -118,18 +108,13 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
     }
 
     toast({ title: "Success", description: `Card "${cardIdentifier}" added to preview.` });
-    
-    // Optionally reset form:
-    // const freshCardData: CardData = {};
-    // dynamicFields.forEach(f => { freshCardData[f.key] = (f.key === 'artworkUrl' /* && some default art condition */) ? 'https://placehold.co/300x200.png' : ''; });
-    // setCardData(freshCardData);
   };
 
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Single Card Entry</CardTitle>
+        <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Single Card Entry</CardTitle>
         <CardDescription>Select a template and fill in data for its placeholders (e.g., {'{{cardName}}'}).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -139,7 +124,6 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
             value={selectedTemplateId} 
             onValueChange={(id) => {
               setSelectedTemplateId(id);
-              // Card data & dynamic fields will be reset by the useEffect hook
             }}
           >
             <SelectTrigger id="singleTemplateSelect">
@@ -163,7 +147,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
                     value={(cardData[field.key] as string) || ''}
                     onChange={(e) => handleInputChange(e, field.key)}
                     placeholder={field.example || `Enter ${field.label.toLowerCase()}...`}
-                    rows={field.key.toLowerCase().includes('rules') || field.key.toLowerCase().includes('text') ? 3 : 2}
+                    rows={field.key.toLowerCase().includes('rules') || field.key.toLowerCase().includes('text') || field.key.toLowerCase().includes('effect') ? 3 : 2}
                   />
                 ) : (
                   <Input

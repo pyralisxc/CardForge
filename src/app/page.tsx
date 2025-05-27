@@ -14,7 +14,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutTemplate } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff } from 'lucide-react'; // Updated icon
 import { nanoid } from 'nanoid'; 
 
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -30,8 +33,11 @@ export default function CardForgePage() {
   const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>(PAPER_SIZES[0]);
   const [activeTab, setActiveTab] = useState<string>("editor");
   const { toast } = useToast();
+  const [hideEmptySections, setHideEmptySections] = useState<boolean>(true);
+
 
   useEffect(() => {
+    // Migration logic for older templates
     setTemplates(prevTemplates => {
       return prevTemplates.map(t => {
         const newT = {...t}; 
@@ -41,15 +47,15 @@ export default function CardForgePage() {
           newT.id = nanoid();
           changed = true;
         }
-
+        
+        // Ensure sections exist and have IDs
         if (!newT.sections || !Array.isArray(newT.sections) || newT.sections.length === 0) {
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)); 
+          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: any) => ({...s, id: s.id || nanoid()})); 
           newT.templateType = newT.templateType || defaultTemplateForMigration.templateType;
           newT.aspectRatio = newT.aspectRatio || defaultTemplateForMigration.aspectRatio;
           changed = true;
         } else {
-          const originalSectionsJSON = JSON.stringify(newT.sections);
           newT.sections = newT.sections.map(s => {
             if (!s.id) {
               changed = true;
@@ -57,9 +63,6 @@ export default function CardForgePage() {
             }
             return s;
           });
-          if (JSON.stringify(newT.sections) !== originalSectionsJSON) {
-            changed = true; 
-          }
         }
         return newT; 
       });
@@ -110,13 +113,6 @@ export default function CardForgePage() {
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
   };
 
-  // This function is not currently used, but kept for potential future use
-  // const selectTemplateForEditing = (template: TCGCardTemplate) => {
-  //   setEditingTemplate(template);
-  //   setActiveTab("editor"); 
-  // };
-
-
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -124,7 +120,7 @@ export default function CardForgePage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6 no-print">
             <TabsTrigger value="editor" className="flex items-center gap-2">
-              <LayoutTemplate className="h-4 w-4" /> Template Editor
+              <LayoutDashboard className="h-4 w-4" /> Template Editor
             </TabsTrigger>
             <TabsTrigger value="generator" className="flex items-center gap-2">
               <PackageOpen className="h-4 w-4" /> Card Generator
@@ -146,33 +142,48 @@ export default function CardForgePage() {
           <TabsContent value="generator">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-1 space-y-6">
-                <h3 className="text-xl font-semibold text-foreground flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Single Card Entry</h3>
                 <SingleCardGenerator templates={templates} onSingleCardAdded={handleSingleCardAdded} />
-                
-                <Separator className="my-6" />
-                
-                <h3 className="text-xl font-semibold text-foreground flex items-center gap-2"><PackageOpen className="h-5 w-5" />Bulk Card Generation</h3>
                 <BulkGenerator templates={templates} onCardsGenerated={handleBulkCardsGenerated} />
                 
-                <Separator className="my-6" />
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-xl flex items-center gap-2"><SlidersHorizontal className="h-5 w-5"/>Print & Preview Options</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
+                        <div className="flex items-center space-x-2 pt-2">
+                            <Switch
+                                id="hide-empty-sections"
+                                checked={hideEmptySections}
+                                onCheckedChange={setHideEmptySections}
+                                aria-label="Toggle visibility of empty sections in card previews"
+                            />
+                            <Label htmlFor="hide-empty-sections" className="flex items-center gap-1 cursor-pointer">
+                                <EyeOff className="h-4 w-4" /> Hide empty sections
+                            </Label>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                            <PrintButton disabled={generatedDisplayCards.length === 0} />
+                            {generatedDisplayCards.length > 0 && (
+                                <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
+                                    <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
+                                </Button>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <h3 className="text-xl font-semibold text-foreground">Print Options</h3>
-                <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <PrintButton disabled={generatedDisplayCards.length === 0} />
-                    {generatedDisplayCards.length > 0 && (
-                        <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
-                            <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
-                        </Button>
-                    )}
-                </div>
               </div>
               <div className="md:col-span-2">
                 <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
                 {generatedDisplayCards.length === 0 ? (
-                  <p className="text-muted-foreground">No cards generated yet. Use the panels on the left to add cards.</p>
+                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8">
+                    <PackageOpen className="h-16 w-16 mb-4" />
+                    <p className="text-lg">No cards generated yet.</p>
+                    <p className="text-sm">Use the panels on the left to add single or bulk cards.</p>
+                  </div>
                 ) : (
-                  <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card shadow-inner">
+                  <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 printable-grid">
                       {generatedDisplayCards.map((cardItem, index) => (
                         <CardPreview
@@ -181,7 +192,8 @@ export default function CardForgePage() {
                           data={cardItem.data}
                           isPrintMode={false} 
                           className="mx-auto"
-                          showSizeInfo={index === 0} // Only show size info for the first card in preview
+                          showSizeInfo={index === 0}
+                          hideEmptySections={hideEmptySections}
                         />
                       ))}
                     </div>
@@ -202,4 +214,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-
