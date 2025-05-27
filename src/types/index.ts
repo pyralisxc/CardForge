@@ -21,37 +21,32 @@ export interface CardSection {
   fontFamily?: string; 
   fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
-  textAlign?: 'left' | 'center' | 'right' | 'justify'; // Added justify
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
   padding?: string; 
   borderColor?: string; 
   borderWidth?: string; 
   minHeight?: string; 
-  flexGrow?: number; // For space distribution within a row: 0 = content size, >0 = proportion of extra space
-  // Optional: Explicit width/basis if needed, e.g., 'w-1/3', 'basis-1/4' (Tailwind or CSS value)
-  // For now, flexGrow should cover most cases.
+  flexGrow?: number;
+  customHeight?: string; // e.g., "150px", "50%", "auto"
+  customWidth?: string;  // e.g., "100%", "200px", "auto"
 }
 
 export interface CardRow {
-  id: string; // Unique ID for the row
-  columns: CardSection[]; // Each item in 'columns' is a CardSection
+  id: string; 
+  columns: CardSection[]; 
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline'; 
-  // Optional: explicit height for the row, or min/max height
 }
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  // templateType: 'CustomSequential'; // This might become less relevant with rows/cols
-
   aspectRatio: string; 
-  frameColor?: string; 
   borderColor?: string; 
   baseBackgroundColor?: string; 
   baseTextColor?: string; 
   frameStyle?: string; 
-  
-  rows: CardRow[]; // Changed from sections: CardSection[]
+  rows: CardRow[];
 }
 
 export interface CardData {

@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Copy } from 'lucide-react';
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Copy } from 'lucide-react';
 import { SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, FRAME_STYLES, ROW_ALIGN_ITEMS, createDefaultRow } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -38,7 +38,6 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
   Divider: Minus,
 };
 
-
 const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate => {
   const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
   const newTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
@@ -46,8 +45,8 @@ const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate =>
   newTemplate.name = name || 'New Custom Template (Row Layout)';
   newTemplate.rows = (newTemplate.rows || []).map(r => ({
     ...r,
-    id: r.id || nanoid(), // Ensure rows in a fresh template get IDs (should already have from constants)
-    columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) // Ensure columns get IDs
+    id: r.id || nanoid(), 
+    columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) 
   }));
   newTemplate.aspectRatio = newTemplate.aspectRatio || "63:88";
   newTemplate.frameStyle = newTemplate.frameStyle || 'standard';
@@ -71,7 +70,7 @@ export function TemplateEditor({
   );
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
 
-  const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>(currentTemplate.rows.map(r => r.id));
+  const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>([]);
   const [activeSectionStylingAccordionItems, setActiveSectionStylingAccordionItems] = useState<string[]>([]);
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || "63:88");
   
@@ -92,15 +91,21 @@ export function TemplateEditor({
     } else {
       newTemplateToSet = getFreshDefaultTemplate();
     }
-
+    
     newTemplateToSet.aspectRatio = newTemplateToSet.aspectRatio || "63:88";
     newTemplateToSet.frameStyle = newTemplateToSet.frameStyle || 'standard';
     newTemplateToSet.baseBackgroundColor = newTemplateToSet.baseBackgroundColor || '';
     newTemplateToSet.baseTextColor = newTemplateToSet.baseTextColor || '';
     newTemplateToSet.borderColor = newTemplateToSet.borderColor || '';
-    newTemplateToSet.rows = newTemplateToSet.rows || [];
+    newTemplateToSet.rows = (newTemplateToSet.rows || []).map(r => ({
+        ...r,
+        columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) 
+      }));
+
 
     setCurrentTemplate(newTemplateToSet);
+    // setActiveRowAccordionItems(newTemplateToSet.rows.map(r => r.id)); // Moved this to specific actions
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateToEditId, initialTemplate, templates]);
 
 
@@ -127,7 +132,6 @@ export function TemplateEditor({
       newPresetTemplate.id = currentTemplate.id; 
       newPresetTemplate.name = currentTemplate.name || preset.name; 
       
-      // Ensure rows and columns have IDs if loading a preset
       newPresetTemplate.rows = (newPresetTemplate.rows || []).map(r => ({
         ...r,
         id: r.id || nanoid(), 
@@ -231,9 +235,11 @@ export function TemplateEditor({
     const newId = nanoid();
     const newDefaultTemplate = getFreshDefaultTemplate(newId);
     setCurrentTemplate(newDefaultTemplate);
-    setSelectedTemplateToEditId(newId);
+    setSelectedTemplateToEditId(newId); // Set this so we are "editing" the new template
     setActiveRowAccordionItems(newDefaultTemplate.rows.map(r => r.id));
+    setActiveSectionStylingAccordionItems([]);
   };
+  
 
   const handleSubmit = (part: 'settings' | 'sections') => {
     let templateToSave = JSON.parse(JSON.stringify(currentTemplate));
@@ -268,15 +274,18 @@ export function TemplateEditor({
     const templateToEdit = templates.find(t => t.id === templateId);
      if (templateToEdit && templateToEdit.rows) {
        setActiveRowAccordionItems((templateToEdit.rows).map(r => r.id));
+       setActiveSectionStylingAccordionItems([]);
     } else {
-       setActiveRowAccordionItems(getFreshDefaultTemplate().rows.map(r => r.id));
+       const newDefault = getFreshDefaultTemplate();
+       setActiveRowAccordionItems(newDefault.rows.map(r => r.id));
+       setActiveSectionStylingAccordionItems([]);
     }
   };
 
   const handleRowClickFromPreview = (rowId: string) => {
     setActiveRowAccordionItems(prev => {
-      if (prev.includes(rowId)) return prev; // Don't close if already open, just ensure it is
-      return [rowId]; // Open only this one
+      if (prev.includes(rowId)) return prev;
+      return [rowId]; 
     });
     setTimeout(() => {
       const itemElement = document.getElementById(`accordion-row-${rowId}`);
@@ -288,13 +297,13 @@ export function TemplateEditor({
     const parentRow = currentTemplate.rows.find(r => r.columns.some(s => s.id === sectionId));
     if(parentRow && !activeRowAccordionItems.includes(parentRow.id)){
         setActiveRowAccordionItems(prevActiveRows => {
-          if (!prevActiveRows.includes(parentRow.id)) return [parentRow.id]; // Open only this parent row
+          if (!prevActiveRows.includes(parentRow.id)) return [parentRow.id]; 
           return prevActiveRows;
         });
     }
      setActiveSectionStylingAccordionItems(prev => {
       if (prev.includes(sectionId)) return prev;
-      return [sectionId]; // Open only this one
+      return [sectionId]; 
     });
      setTimeout(() => {
       const itemElement = document.getElementById(`accordion-section-styling-${sectionId}`);
@@ -395,7 +404,7 @@ export function TemplateEditor({
                             onChange={(e) => setAspectRatioInput(e.target.value)}
                             placeholder="e.g., 63:88 (Standard TCG)"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. This defines the card's shape. Current: {currentTemplate.aspectRatio}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. Current: {currentTemplate.aspectRatio}</p>
                     </div>
 
                     <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling-accordion">
@@ -469,9 +478,9 @@ export function TemplateEditor({
                                     </div>
                                 </AccordionTrigger>
                                 <div className="flex gap-1 ml-2 flex-shrink-0">
-                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveRow(row.id, 'up')}} disabled={rowIndex === 0} aria-label="Move row up"><ArrowUp className="h-4 w-4" /></Button>
-                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveRow(row.id, 'down')}} disabled={rowIndex === currentTemplate.rows.length - 1} aria-label="Move row down"><ArrowDown className="h-4 w-4" /></Button>
-                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeRow(row.id)}} aria-label="Remove row"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveRow(row.id, 'up')}} disabled={rowIndex === 0} aria-label="Move row up" className="h-7 w-7"><ArrowUp className="h-4 w-4" /></Button>
+                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveRow(row.id, 'down')}} disabled={rowIndex === currentTemplate.rows.length - 1} aria-label="Move row down" className="h-7 w-7"><ArrowDown className="h-4 w-4" /></Button>
+                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeRow(row.id)}} aria-label="Remove row" className="h-7 w-7"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </div>
                             </div>
                             <AccordionContent className="p-3 space-y-4 border-t bg-card/30">
@@ -500,13 +509,13 @@ export function TemplateEditor({
                                             <span className="text-sm font-medium">Column {sectionIndex + 1}: {section.type}</span>
                                           </div>
                                           <div className="flex items-center gap-1">
-                                            <Button variant="ghost" size="icon" onClick={() => moveSectionInRow(row.id, section.id, 'left')} disabled={sectionIndex === 0} aria-label="Move section left" className="h-7 w-7">
+                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSectionInRow(row.id, section.id, 'left');}} disabled={sectionIndex === 0} aria-label="Move section left" className="h-7 w-7">
                                                 <ArrowLeft className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => moveSectionInRow(row.id, section.id, 'right')} disabled={sectionIndex === row.columns.length - 1} aria-label="Move section right" className="h-7 w-7">
+                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSectionInRow(row.id, section.id, 'right');}} disabled={sectionIndex === row.columns.length - 1} aria-label="Move section right" className="h-7 w-7">
                                                 <ArrowRight className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => removeSectionFromRow(row.id, section.id)} aria-label="Remove section from row" className="h-7 w-7">
+                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeSectionFromRow(row.id, section.id);}} aria-label="Remove section from row" className="h-7 w-7">
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
                                           </div>
@@ -522,6 +531,7 @@ export function TemplateEditor({
                                         <div>
                                             <Label htmlFor={`contentPlaceholder-${section.id}`} className="text-xs">Content Placeholder (use <code>{`{{fieldName}}`}</code>)</Label>
                                             <Textarea id={`contentPlaceholder-${section.id}`} value={section.contentPlaceholder} onChange={(e) => updateSectionInRow(row.id, section.id, { contentPlaceholder: e.target.value })} rows={(section.type === 'RulesText' || section.type === 'FlavorText') ? 3:1} className="text-sm" />
+                                            {section.type === 'Artwork' && <p className="text-xs text-muted-foreground mt-1">This is where you set the variable name for the artwork URL, e.g., <code>{`{{artworkUrl}}`}</code> or <code>{`{{mainArt}}`}</code>.</p>}
                                         </div>
 
                                         <Accordion type="single" collapsible className="w-full" value={activeSectionStylingAccordionItems.includes(section.id) ? section.id : undefined} onValueChange={(val) => setActiveSectionStylingAccordionItems(val ? [val] : [])}>
@@ -530,6 +540,18 @@ export function TemplateEditor({
                                                 <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" /> Styling Options</div>
                                             </AccordionTrigger>
                                             <AccordionContent className="pt-2 pb-3 px-3 space-y-2 border-t">
+                                                {section.type === 'Artwork' && (
+                                                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                                                    <div>
+                                                      <Label htmlFor={`artworkHeight-${section.id}`} className="text-xs">Artwork Height</Label>
+                                                      <Input id={`artworkHeight-${section.id}`} value={section.customHeight || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { customHeight: e.target.value })} placeholder="e.g., 180px, 50%, auto" className="h-8 text-xs" />
+                                                    </div>
+                                                    <div>
+                                                      <Label htmlFor={`artworkWidth-${section.id}`} className="text-xs">Artwork Width</Label>
+                                                      <Input id={`artworkWidth-${section.id}`} value={section.customWidth || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { customWidth: e.target.value })} placeholder="e.g., 100%, 250px, auto" className="h-8 text-xs" />
+                                                    </div>
+                                                  </div>
+                                                )}
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
                                                   <div><Label htmlFor={`flexGrow-${section.id}`} className="text-xs">Flex Grow (0 for content size)</Label><Input id={`flexGrow-${section.id}`} type="number" min="0" step="0.1" className="h-8 text-xs" value={section.flexGrow || 0} onChange={(e) => updateSectionInRow(row.id, section.id, { flexGrow: parseFloat(e.target.value) || 0 })} /></div>
                                                   <div><Label htmlFor={`fontFamily-${section.id}`} className="text-xs">Font</Label><Select value={section.fontFamily || 'font-sans'} onValueChange={v => updateSectionInRow(row.id, section.id, {fontFamily: v})}><SelectTrigger id={`fontFamily-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger><SelectContent>{AVAILABLE_FONTS.map(f=><SelectItem key={f.value} value={f.value!} className="text-xs"><span className={f.value}>{f.name}</span></SelectItem>)}</SelectContent></Select></div>
@@ -542,7 +564,7 @@ export function TemplateEditor({
                                                   <div><Label htmlFor={`padding-${section.id}`} className="text-xs">Padding</Label><Select value={section.padding || 'p-1'} onValueChange={v => updateSectionInRow(row.id, section.id, {padding: v})}><SelectTrigger id={`padding-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger><SelectContent>{PADDING_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent></Select></div>
                                                   <div><Label htmlFor={`borderColorSec-${section.id}`} className="text-xs">Border Color</Label><Input id={`borderColorSec-${section.id}`} type="color" className="h-8" value={section.borderColor || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { borderColor: e.target.value })} /></div>
                                                   <div><Label htmlFor={`borderWidth-${section.id}`} className="text-xs">Border Width</Label><Select value={section.borderWidth || '_none_'} onValueChange={v => updateSectionInRow(row.id, section.id, {borderWidth: v === '_none_' ? undefined : v})}><SelectTrigger id={`borderWidth-${section.id}`} className="text-xs h-8"><SelectValue placeholder="No border"/></SelectTrigger><SelectContent>{BORDER_WIDTH_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent></Select></div>
-                                                  <div><Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height</Label><Select value={section.minHeight || '_auto_'} onValueChange={v => updateSectionInRow(row.id, section.id, {minHeight: v === '_auto_' ? undefined : v})}><SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger><SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent></Select></div>
+                                                  <div><Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height (Tailwind)</Label><Select value={section.minHeight || '_auto_'} onValueChange={v => updateSectionInRow(row.id, section.id, {minHeight: v === '_auto_' ? undefined : v})}><SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger><SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent></Select></div>
                                                 </div>
                                             </AccordionContent>
                                             </AccordionItem>
@@ -581,7 +603,7 @@ export function TemplateEditor({
                 </CardFooter>
             </Card>
 
-            <div className="mt-6 pt-6 border-t">
+            <div className="mt-6 pt-4 border-t">
                 <h4 className="text-lg font-semibold mb-2 text-center">Live Template Preview</h4>
                 <p className="text-xs text-muted-foreground text-center mb-3">(Click row or section in preview to edit. Placeholders shown.)</p>
                 <div className="mx-auto max-w-xs">
