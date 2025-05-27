@@ -1,23 +1,23 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/card-forge/Header';
 import { TemplateEditor } from '@/components/card-forge/TemplateEditor';
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
 import { CardPreview } from '@/components/card-forge/CardPreview';
+import { EditCardDialog } from '@/components/card-forge/EditCardDialog'; // New
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
 import { PrintButton } from '@/components/card-forge/PrintButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage } from 'lucide-react';
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save } from 'lucide-react';
 import { nanoid } from 'nanoid'; 
 
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -26,7 +26,7 @@ import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection } from '@/typ
 import { useToast } from '@/hooks/use-toast';
 
 export default function CardForgePage() {
-  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV3', DEFAULT_TEMPLATES);
+  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV4', DEFAULT_TEMPLATES);
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
   
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
@@ -34,6 +34,10 @@ export default function CardForgePage() {
   const [activeTab, setActiveTab] = useState<string>("editor");
   const { toast } = useToast();
   const [hideEmptySections, setHideEmptySections] = useState<boolean>(true);
+
+  const [editingCard, setEditingCard] = useState<DisplayCard | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   useEffect(() => {
@@ -51,7 +55,6 @@ export default function CardForgePage() {
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
           newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: CardSection) => ({...s, id: s.id || nanoid()})); 
           newT.templateType = newT.templateType || defaultTemplateForMigration.templateType;
-          newT.aspectRatio = newT.aspectRatio || defaultTemplateForMigration.aspectRatio;
           changed = true;
         } else {
           newT.sections = newT.sections.map(s => {
@@ -62,9 +65,13 @@ export default function CardForgePage() {
             return s;
           });
         }
-        if (!newT.aspectRatio) { // Ensure aspectRatio exists
+        if (!newT.aspectRatio) { 
             newT.aspectRatio = "63:88";
             changed = true;
+        }
+        if (!newT.frameStyle) {
+          newT.frameStyle = 'standard';
+          changed = true;
         }
         return newT; 
       });
@@ -115,6 +122,97 @@ export default function CardForgePage() {
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
   };
 
+  // Card Editing Handlers
+  const handleEditCardRequest = (cardToEdit: DisplayCard) => {
+    setEditingCard(cardToEdit);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEditedCard = (updatedCard: DisplayCard) => {
+    setGeneratedDisplayCards(prev => 
+      prev.map(card => card.uniqueId === updatedCard.uniqueId ? updatedCard : card)
+    );
+    setIsEditDialogOpen(false);
+    setEditingCard(null);
+    toast({ title: "Card Updated", description: "Changes saved." });
+  };
+
+  const handleDuplicateCard = (cardToDuplicate: DisplayCard) => {
+    const newCard: DisplayCard = {
+      ...cardToDuplicate,
+      uniqueId: nanoid(), // Ensure a new unique ID
+    };
+    setGeneratedDisplayCards(prev => [...prev, newCard]);
+    toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
+    // Optionally close dialog or switch to editing the new card
+    setIsEditDialogOpen(false); 
+    setEditingCard(null);
+  };
+
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setEditingCard(null);
+  };
+
+  // Save/Load Card Set Handlers
+  const handleSaveCardSet = () => {
+    if (generatedDisplayCards.length === 0) {
+      toast({ title: "Nothing to save", description: "Generate some cards first.", variant: "default" });
+      return;
+    }
+    const jsonString = JSON.stringify(generatedDisplayCards, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'card-set.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: "Set Saved", description: "Card set downloaded as card-set.json" });
+  };
+
+  const handleLoadCardSet = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const jsonString = e.target?.result as string;
+          const loadedCards = JSON.parse(jsonString);
+          if (Array.isArray(loadedCards) && loadedCards.every(isValidDisplayCard)) {
+            // Ensure sections have IDs for loaded cards
+            const processedCards = loadedCards.map(card => ({
+              ...card,
+              template: {
+                ...card.template,
+                sections: card.template.sections.map((s: CardSection) => ({ ...s, id: s.id || nanoid() }))
+              },
+              uniqueId: card.uniqueId || nanoid() // Ensure uniqueId exists
+            }));
+            setGeneratedDisplayCards(processedCards);
+            toast({ title: "Set Loaded", description: `${processedCards.length} cards loaded successfully.` });
+          } else {
+            toast({ title: "Load Error", description: "Invalid file format. Expected an array of cards.", variant: "destructive" });
+          }
+        } catch (error) {
+          toast({ title: "Load Error", description: "Failed to parse JSON file. Make sure it's a valid card set.", variant: "destructive" });
+          console.error("Error loading card set:", error);
+        }
+      };
+      reader.readAsText(file);
+      if (fileInputRef.current) { // Reset file input
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const isValidDisplayCard = (item: any): item is DisplayCard => {
+    return item && typeof item.template === 'object' && typeof item.data === 'object' && typeof item.uniqueId === 'string' && Array.isArray(item.template.sections);
+  };
+
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -149,11 +247,11 @@ export default function CardForgePage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-xl flex items-center gap-2"><SlidersHorizontal className="h-5 w-5"/>Print & Preview Options</CardTitle>
+                        <CardTitle className="text-xl flex items-center gap-2"><SlidersHorizontal className="h-5 w-5"/>Manage & Preview</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
-                        <div className="flex items-center space-x-2 pt-2">
+                        <div className="flex items-center space-x-2 pt-1">
                             <Switch
                                 id="hide-empty-sections"
                                 checked={hideEmptySections}
@@ -164,7 +262,16 @@ export default function CardForgePage() {
                                 <EyeOff className="h-4 w-4" /> Hide empty sections
                             </Label>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                        <div className="flex flex-col gap-2 pt-2">
+                           <div className="grid grid-cols-2 gap-2">
+                             <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
+                                <FolderDown className="h-4 w-4" /> Save Set
+                             </Button>
+                             <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
+                                <FolderUp className="h-4 w-4" /> Load Set
+                             </Button>
+                             <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
+                           </div>
                             <PrintButton disabled={generatedDisplayCards.length === 0} />
                             {generatedDisplayCards.length > 0 && (
                                 <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
@@ -179,10 +286,10 @@ export default function CardForgePage() {
               <div className="md:col-span-2">
                 <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
                 {generatedDisplayCards.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center">
+                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
                     <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
                     <p className="text-lg font-medium">No cards generated yet.</p>
-                    <p className="text-sm">Use the panels on the left to add single cards or generate them in bulk.</p>
+                    <p className="text-sm">Use the panels on the left to add cards, or load a previously saved set.</p>
                   </div>
                 ) : (
                   <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
@@ -190,12 +297,12 @@ export default function CardForgePage() {
                       {generatedDisplayCards.map((cardItem, index) => (
                         <CardPreview
                           key={cardItem.uniqueId}
-                          template={cardItem.template}
-                          data={cardItem.data}
+                          card={cardItem}
                           isPrintMode={false} 
                           className="mx-auto"
                           showSizeInfo={index === 0}
                           hideEmptySections={hideEmptySections}
+                          onEdit={handleEditCardRequest}
                         />
                       ))}
                     </div>
@@ -210,6 +317,15 @@ export default function CardForgePage() {
           </TabsContent>
         </Tabs>
       </main>
+      {editingCard && (
+        <EditCardDialog
+            isOpen={isEditDialogOpen}
+            card={editingCard}
+            onSave={handleSaveEditedCard}
+            onDuplicate={handleDuplicateCard}
+            onClose={handleCloseEditDialog}
+        />
+      )}
       <footer className="text-center p-4 text-muted-foreground text-sm border-t no-print">
         TCG Card Forge &copy; {new Date().getFullYear()}
       </footer>

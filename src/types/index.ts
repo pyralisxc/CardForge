@@ -34,14 +34,15 @@ export interface CardSection {
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  templateType: 'StandardFantasyTCG' | 'CustomSequential'; // To guide initial setup or behavior
+  templateType: 'CustomSequential'; // Simplified, always custom sequential for now
 
   // Overall card styling
   aspectRatio: string; // e.g., "63:88"
-  frameColor?: string; // Main outer frame/border of the card
+  frameColor?: string; // Main outer frame/border of the card - might be superseded by frameStyle
   borderColor?: string; // Default border color for inner elements if not overridden by section
-  baseBackgroundColor?: string; // Overall card background
+  baseBackgroundColor?: string; // Overall card background - might be superseded by frameStyle
   baseTextColor?: string; // Default text color if not overridden by section
+  frameStyle?: string; // e.g., "standard", "classic-gold"
   
   sections: CardSection[];
 }

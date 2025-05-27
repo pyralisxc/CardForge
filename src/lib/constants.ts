@@ -23,12 +23,12 @@ export const SECTION_TYPES: CardSectionType[] = [
 ];
 
 export const FONT_SIZES: Array<{ label: string; value: CardSection['fontSize'] }> = [
-  { label: 'X-Small (0.75rem / 12px)', value: 'text-xs' },
-  { label: 'Small (0.875rem / 14px)', value: 'text-sm' },
-  { label: 'Medium (1rem / 16px)', value: 'text-base' },
-  { label: 'Large (1.125rem / 18px)', value: 'text-lg' },
-  { label: 'X-Large (1.25rem / 20px)', value: 'text-xl' },
-  { label: 'XX-Large (1.5rem / 24px)', value: 'text-2xl' },
+  { label: 'X-Small (0.75rem)', value: 'text-xs' },
+  { label: 'Small (0.875rem)', value: 'text-sm' },
+  { label: 'Medium (1rem)', value: 'text-base' },
+  { label: 'Large (1.125rem)', value: 'text-lg' },
+  { label: 'X-Large (1.25rem)', value: 'text-xl' },
+  { label: 'XX-Large (1.5rem)', value: 'text-2xl' },
 ];
 
 export const FONT_WEIGHTS: Array<CardSection['fontWeight']> = ['font-normal', 'font-medium', 'font-semibold', 'font-bold'];
@@ -61,7 +61,7 @@ export const PADDING_OPTIONS: Array<{ label: string; value: string }> = [
 ];
 
 export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'None', value: '_none_' }, // Changed from ''
+  { label: 'None', value: '_none_' },
   { label: '1px (All Sides)', value: 'border' },
   { label: '2px (All Sides)', value: 'border-2' },
   { label: '4px (All Sides)', value: 'border-4' },
@@ -80,7 +80,7 @@ export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
 ];
 
 export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'Auto', value: '_auto_' }, // Changed from ''
+  { label: 'Auto', value: '_auto_' },
   { label: 'Extra Small (20px)', value: 'min-h-[20px]' },
   { label: 'Small (40px)', value: 'min-h-[40px]' },
   { label: 'Medium (80px)', value: 'min-h-[80px]' },
@@ -89,10 +89,17 @@ export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'X-Large (240px)', value: 'min-h-[240px]' },
 ];
 
+export const FRAME_STYLES: Array<{ label: string; value: string }> = [
+  { label: 'Standard', value: 'standard' },
+  { label: 'Classic Gold', value: 'classic-gold' },
+  { label: 'Minimal Dark', value: 'minimal-dark' },
+  { label: 'Arcane Purple', value: 'arcane-purple' },
+];
+
 
 export const createDefaultSection = (type: CardSectionType, id?: string): CardSection => {
   const baseSection: Omit<CardSection, 'type' | 'id' | 'contentPlaceholder'> = {
-    textColor: '#000000',
+    textColor: '#000000', // Will be overridden by theme typically
     backgroundColor: '',
     fontFamily: 'font-sans',
     fontSize: 'text-sm',
@@ -100,9 +107,9 @@ export const createDefaultSection = (type: CardSectionType, id?: string): CardSe
     textAlign: 'left',
     fontStyle: 'normal',
     padding: 'p-1',
-    borderColor: '',
+    borderColor: '', // Will be overridden by theme typically
     borderWidth: '',
-    minHeight: '',
+    minHeight: '_auto_',
     flexGrow: false,
   };
 
@@ -110,27 +117,26 @@ export const createDefaultSection = (type: CardSectionType, id?: string): CardSe
 
   switch (type) {
     case 'CardName':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{cardName}}', fontFamily: 'font-cinzel', fontSize: 'text-lg', fontWeight: 'font-bold', padding: 'px-2 pt-1.5 pb-0' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{cardName}}', fontFamily: 'font-cinzel', fontSize: 'text-lg', fontWeight: 'font-bold', padding: 'px-2 pt-1.5 pb-0', textAlign: 'center' };
     case 'ManaCost':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{manaCost}}', fontFamily: 'font-lato', fontSize: 'text-base', textAlign: 'right', padding: 'px-2 pt-1.5 pb-0' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{manaCost}}', fontFamily: 'font-lato', fontSize: 'text-base', fontWeight: 'font-bold', textAlign: 'right', padding: 'px-2 pt-1 pb-0' };
     case 'Artwork':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{artworkUrl}}', backgroundColor: '#CCCCCC', minHeight: 'min-h-[180px]', flexGrow: true, padding: 'p-0', borderWidth: 'border-2' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{artworkUrl}}', backgroundColor: 'hsl(var(--muted))', minHeight: 'min-h-[180px]', flexGrow: true, padding: 'p-0', borderWidth: 'border-2', borderColor: 'hsl(var(--border))' };
     case 'TypeLine':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{cardType}} \u2014 {{subTypes}}', fontFamily: 'font-lato', fontWeight: 'font-semibold', backgroundColor: '#DDDDDD', padding: 'px-2 py-1', borderWidth: 'border-y', borderColor: '#AAAAAA', fontSize: 'text-sm'};
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{cardType}} \u2014 {{subTypes}}', fontFamily: 'font-lato', fontWeight: 'font-semibold', backgroundColor: 'hsl(var(--muted)/0.7)', padding: 'px-2 py-0.5', borderWidth: 'border-y', borderColor: 'hsl(var(--border))', fontSize: 'text-sm', textAlign: 'center'};
     case 'RulesText':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{rulesText}}', fontFamily: 'font-serif', minHeight: 'min-h-[80px]', flexGrow: true, backgroundColor: '#FFFFFF', padding: 'p-2', borderWidth: 'border', borderColor: '#CCCCCC', fontSize: 'text-sm'};
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{rulesText}}', fontFamily: 'font-serif', minHeight: 'min-h-[80px]', flexGrow: true, padding: 'p-2', fontSize: 'text-sm'};
     case 'FlavorText':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '"{{flavorText}}"', fontFamily: 'font-serif', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[40px]', backgroundColor: '#FFFFFF', padding: 'p-2 pt-1', borderWidth: 'border-t', borderColor: '#DDDDDD' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '"{{flavorText}}"', fontFamily: 'font-serif', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[40px]', padding: 'p-2 pt-1', borderWidth: 'border-t', borderColor: 'hsl(var(--border))' };
     case 'PowerToughness':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{power}}/{{toughness}}', fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: '#DDDDDD', borderWidth: 'border-t', borderColor: '#AAAAAA' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{power}}/{{toughness}}', fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: 'hsl(var(--muted)/0.7)', borderWidth: 'border-t', borderColor: 'hsl(var(--border))' };
     case 'ArtistCredit':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: 'Illus. {{artistName}} {{{raritySymbol}}}', fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: 'Illus. {{artistName}} {{{raritySymbol}}}', fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5', textAlign: 'center' };
     case 'CustomText':
       return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{customValue}}', fontFamily: 'font-sans', padding: 'p-1', fontSize: 'text-sm' };
     case 'Divider':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: '#CCCCCC', padding: 'my-1', fontSize: 'text-sm' }; // fontSize is just to satisfy the type, not used
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm' };
     default:
-      // This case should ideally not be reached if all types are handled
       const _exhaustiveCheck: never = type;
       console.warn(`Unhandled section type in createDefaultSection: ${_exhaustiveCheck}`);
       return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{unknown}}', fontSize: 'text-sm' };
@@ -140,38 +146,36 @@ export const createDefaultSection = (type: CardSectionType, id?: string): CardSe
 
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
-    id: 'default-fantasy-creature-v1',
+    id: 'default-fantasy-creature-v2',
     name: 'Standard Fantasy Creature',
     templateType: 'CustomSequential', 
     aspectRatio: TCG_ASPECT_RATIO,
-    frameColor: '#777777', 
-    borderColor: '#444444', 
-    baseBackgroundColor: '#F0F0F0', 
-    baseTextColor: '#1C1C1C', 
+    frameStyle: 'standard',
+    // frameColor: '#777777',  // superseded by frameStyle or theme
+    // borderColor: '#444444', // superseded by frameStyle or theme
+    // baseBackgroundColor: '#F0F0F0', // superseded by frameStyle or theme
+    // baseTextColor: '#1C1C1C', // superseded by frameStyle or theme
     sections: [
-      createDefaultSection('CardName', 'sfc-name-v1'),
-      createDefaultSection('ManaCost', 'sfc-cost-v1'),
-      createDefaultSection('Artwork', 'sfc-art-v1'),
-      createDefaultSection('TypeLine', 'sfc-type-v1'),
-      createDefaultSection('RulesText', 'sfc-rules-v1'),
-      createDefaultSection('FlavorText', 'sfc-flavor-v1'),
-      createDefaultSection('PowerToughness', 'sfc-pt-v1'),
-      createDefaultSection('ArtistCredit', 'sfc-artist-v1'),
+      createDefaultSection('CardName', 'sfc-name-v2'),
+      createDefaultSection('ManaCost', 'sfc-cost-v2'),
+      createDefaultSection('Artwork', 'sfc-art-v2'),
+      createDefaultSection('TypeLine', 'sfc-type-v2'),
+      createDefaultSection('RulesText', 'sfc-rules-v2'),
+      createDefaultSection('FlavorText', 'sfc-flavor-v2'),
+      createDefaultSection('PowerToughness', 'sfc-pt-v2'),
+      createDefaultSection('ArtistCredit', 'sfc-artist-v2'),
     ]
   },
   {
-    id: 'default-basic-custom-v1',
+    id: 'default-basic-custom-v2',
     name: 'Basic Custom Card',
     templateType: 'CustomSequential',
     aspectRatio: TCG_ASPECT_RATIO,
-    frameColor: '#AAAAAA',
-    borderColor: '#777777',
-    baseBackgroundColor: '#FFFFFF',
-    baseTextColor: '#000000',
+    frameStyle: 'minimal-dark',
     sections: [
-      createDefaultSection('CardName', 'bcc-name-v1'),
-      createDefaultSection('Artwork', 'bcc-art-v1'),
-      createDefaultSection('CustomText', 'bcc-custom-v1'),
+      createDefaultSection('CardName', 'bcc-name-v2'),
+      createDefaultSection('Artwork', 'bcc-art-v2'),
+      createDefaultSection('CustomText', 'bcc-custom-v2'),
     ]
   }
 ];
@@ -179,15 +183,14 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
 export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input' | 'textarea'; example?: string }[] = [
   { key: 'cardName', label: 'Card Name', type: 'input', example: 'Goblin Raider' },
   { key: 'manaCost', label: 'Mana Cost', type: 'input', example: '1R' },
-  { key: 'artworkUrl', label: 'Artwork URL', type: 'input', example: 'https://placehold.co/600x400.png or data:image/png;base64,...' },
+  { key: 'artworkUrl', label: 'Artwork URL / Data URI', type: 'input', example: 'https://placehold.co/600x400.png or data:image/...' },
   { key: 'cardType', label: 'Card Type', type: 'input', example: 'Creature' },
   { key: 'subTypes', label: 'Sub-Types', type: 'input', example: 'Goblin Warrior' },
-  { key: 'rulesText', label: 'Rules Text / Abilities', type: 'textarea', example: 'Haste\nWhen this enters, deal 1 damage.' },
+  { key: 'rulesText', label: 'Rules Text / Abilities', type: 'textarea', example: 'Haste\\nWhen this enters, deal 1 damage.' },
   { key: 'flavorText', label: 'Flavor Text', type: 'textarea', example: 'It charges mindlessly.' },
   { key: 'power', label: 'Power', type: 'input', example: '2' },
   { key: 'toughness', label: 'Toughness', type: 'input', example: '1' },
-  { key: 'rarity', label: 'Rarity', type: 'input', example: 'Common' }, // Kept for data definition, symbol used in ArtistCredit
-  { key: 'raritySymbol', label: 'Rarity Symbol (Text)', type: 'input', example: 'C' }, // For the actual symbol in template
+  { key: 'raritySymbol', label: 'Rarity Symbol (Text)', type: 'input', example: 'C' },
   { key: 'artistName', label: 'Artist Name', type: 'input', example: 'AI Artist' },
   { key: 'customValue', label: 'Custom Value', type: 'input', example: 'Some text' },
   { key: 'level', label: 'Level', type: 'input' },
@@ -196,6 +199,3 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'points', label: 'Points', type: 'input' },
   { key: 'effectText', label: 'Effect Text', type: 'textarea' },
 ];
-
-
-    
