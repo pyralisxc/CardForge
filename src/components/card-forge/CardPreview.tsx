@@ -6,18 +6,18 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface CardPreviewProps {
-  card: DisplayCard; 
+  card: DisplayCard;
   className?: string;
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
-  isEditorPreview?: boolean; 
+  isEditorPreview?: boolean;
   hideEmptySections?: boolean;
-  onSectionClick?: (sectionId: string) => void; // Changed from onColumnClick
-  onRowClick?: (rowId: string) => void; // New prop
-  onEdit?: (card: DisplayCard) => void; 
+  onSectionClick?: (sectionId: string) => void;
+  onRowClick?: (rowId: string) => void;
+  onEdit?: (card: DisplayCard) => void;
 }
 
-const PREVIEW_WIDTH_PX = 280; 
+const PREVIEW_WIDTH_PX = 280;
 
 export function CardPreview({
   card,
@@ -26,24 +26,26 @@ export function CardPreview({
   showSizeInfo = false,
   isEditorPreview = false,
   hideEmptySections = true,
-  onSectionClick, // For clicking individual sections (columns)
-  onRowClick,     // For clicking entire rows
+  onSectionClick,
+  onRowClick,
   onEdit,
 }: CardPreviewProps) {
-  const { template, data } = card; 
+  const { template, data } = card;
 
   function replacePlaceholdersLocal(text: string | undefined, dataContext: CardData): string {
     if (text === undefined || text === null) return '';
     let result = String(text);
 
+    // Replace actual data placeholders
     for (const key in dataContext) {
       if (dataContext[key] !== undefined && dataContext[key] !== null) {
-        const escapedKey = key.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+        const escapedKey = key.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"); // Escape regex special characters in key
         const searchRegex = new RegExp(`{{\\s*${escapedKey}\\s*}}`, 'g');
         result = result.replace(searchRegex, String(dataContext[key]));
       }
     }
-    
+
+    // If not in editor preview, remove any remaining unresolved placeholders
     if (!isEditorPreview) {
       result = result.replace(/{{\s*[\w-]+\s*}}/g, '');
     }
@@ -58,7 +60,7 @@ export function CardPreview({
   const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
 
   const cardContainerStyle: React.CSSProperties = {
-    backgroundColor: template.baseBackgroundColor || undefined, 
+    backgroundColor: template.baseBackgroundColor || undefined,
     color: template.baseTextColor || undefined,
     aspectRatio: `${aspectW} / ${aspectH}`,
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
@@ -68,7 +70,7 @@ export function CardPreview({
 
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
-  
+
   let artworkHint = "card art";
   if (template.rows) {
     const typeLineSection = template.rows
@@ -86,15 +88,16 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
-      return section.type !== 'Artwork' && section.type !== 'Divider' && section.contentPlaceholder?.trim() === '';
+      if (section.type === 'Artwork' || section.type === 'Divider') return false;
+      return section.contentPlaceholder?.trim() === '';
     }
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false; 
+      if (section.type === 'Artwork' || section.type === 'Divider') return false;
       return processedContent.trim() === '';
     }
     return false;
   };
-  
+
   const handleCardClick = () => {
     if (onEdit && !isEditorPreview) {
       onEdit(card);
@@ -122,14 +125,13 @@ export function CardPreview({
             }
           };
 
-          // Determine if the entire row should be hidden (if all its columns are hidden)
           const allColumnsInRowHidden = row.columns.every(section => {
-            const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data);
-            return shouldHideSection(section, sectionContent);
+            const sectionContentForHiding = replacePlaceholdersLocal(section.contentPlaceholder, data);
+            return shouldHideSection(section, sectionContentForHiding);
           });
 
           if (allColumnsInRowHidden && hideEmptySections && !isEditorPreview) {
-            return null; // Hide the entire row if all its sections are empty and we are hiding empty sections
+            return null;
           }
 
           return (
@@ -146,9 +148,14 @@ export function CardPreview({
               {row.columns.map((section, sectionIndex) => {
                 const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data);
 
-                if (shouldHideSection(section, sectionContent)) {
-                  return null;
+                if (shouldHideSection(section, sectionContent) && !isEditorPreview) { // Don't hide in editor preview based on content
+                    return null;
                 }
+                if (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider' && section.contentPlaceholder?.trim() === '') {
+                    // For editor preview, if placeholder string itself is empty (except Art/Divider), don't render
+                    return null;
+                }
+
 
                 const sectionStyle: React.CSSProperties = {
                   color: section.textColor || undefined,
@@ -157,61 +164,62 @@ export function CardPreview({
                   fontStyle: section.fontStyle || 'normal',
                   minHeight: section.minHeight === '_auto_' || !section.minHeight ? undefined : section.minHeight,
                   flexGrow: section.flexGrow || 0,
-                  flexShrink: 0, // Prevent shrinking by default, flexGrow controls expansion
-                  flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto', // Allow grow from 0 or take content size
+                  flexShrink: section.flexGrow && section.flexGrow > 0 ? 1 : 0, // Allow growable items to shrink, others not
+                  flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto',
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
+                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined, // Allow flex items to shrink below content size
                 };
+
                 if (section.borderColor) {
                   sectionStyle.borderColor = section.borderColor;
-                } else if (section.borderWidth && section.borderWidth !== '_none_' && template.borderColor) { 
+                } else if (section.borderWidth && section.borderWidth !== '_none_' && template.borderColor) {
                   sectionStyle.borderColor = template.borderColor;
                 } else if (section.borderWidth && section.borderWidth !== '_none_') {
-                  sectionStyle.borderColor = 'hsl(var(--border))'; 
+                  sectionStyle.borderColor = 'hsl(var(--border))';
                 }
-                
+
                 const sectionClasses = cn(
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.borderWidth === '_none_' ? '' : section.borderWidth,
                   section.fontFamily || 'font-sans',
-                  (section.type === 'RulesText' || section.type === 'FlavorText') ? 'whitespace-pre-wrap' : 'whitespace-normal break-words',
+                  (section.type === 'RulesText' || section.type === 'FlavorText') ? 'whitespace-pre-wrap break-words' : 'whitespace-normal break-words',
                   `tcg-section-${section.type.toLowerCase()}`,
-                   // Add column index for more specific targeting if needed: `tcg-col-${sectionIndex}`
                   isEditorPreview && onSectionClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-[-1px] hover:outline-primary/70' : ''
                 );
 
                 const handlePreviewSectionClick = (e: React.MouseEvent) => {
                   if (isEditorPreview && onSectionClick) {
-                    e.stopPropagation(); 
+                    e.stopPropagation();
                     onSectionClick(section.id);
                   }
                 };
 
                 if (section.type === 'Artwork') {
-                  let artworkSrc = sectionContent;
-                  if (isEditorPreview && artworkSrc && artworkSrc.startsWith('{{') && artworkSrc.endsWith('}}')) {
-                    artworkSrc = `https://placehold.co/600x400.png`; 
-                  } else if (!artworkSrc || artworkSrc.trim() === '') {
-                    artworkSrc = `https://placehold.co/600x400.png`;
+                  let artworkDisplaySrc = sectionContent;
+                  if (isEditorPreview) {
+                    artworkDisplaySrc = `https://placehold.co/600x400.png`; // Always use placeholder in editor
+                  } else if (!artworkDisplaySrc || artworkDisplaySrc.trim() === '' || (artworkDisplaySrc.startsWith('{{') && artworkDisplaySrc.endsWith('}}'))) {
+                    artworkDisplaySrc = `https://placehold.co/600x400.png`; // Fallback for actual cards if src is invalid/missing
                   }
-                  
+
                   return (
-                    <div 
-                      key={section.id} 
-                      className={cn(sectionClasses, "relative w-full")} // Artwork often takes full width of its column space
+                    <div
+                      key={section.id}
+                      className={cn(sectionClasses, "relative w-full")}
                       style={sectionStyle}
                       onClick={handlePreviewSectionClick}
                       data-section-id={section.id}
                     >
                       <Image
-                        src={artworkSrc}
+                        src={artworkDisplaySrc}
                         alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data) || "Card artwork"}
                         layout="fill"
                         objectFit="cover"
-                        className="w-full h-full" // Ensure image itself fills the div
+                        className="w-full h-full"
                         data-ai-hint={artworkHint}
-                        priority={sectionIndex === 0 && row.id === template.rows[0]?.id} 
+                        priority={sectionIndex === 0 && row.id === template.rows[0]?.id}
                       />
                     </div>
                   );
@@ -219,30 +227,33 @@ export function CardPreview({
 
                 if (section.type === 'Divider') {
                     return (
-                        <div 
-                          key={section.id} 
-                          className={cn("tcg-section-divider w-full", sectionClasses)} 
+                        <div
+                          key={section.id}
+                          className={cn("tcg-section-divider w-full", sectionClasses)}
                           style={{...sectionStyle, height: section.minHeight === '_auto_' || !section.minHeight ? '1px' : section.minHeight, backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
                           onClick={handlePreviewSectionClick}
                           data-section-id={section.id}
                         ></div>
                     );
                 }
-                
+
                 const Tag = (section.type === 'RulesText' || section.type === 'FlavorText') ? 'pre' : 'div';
-                
+
                 let displayContent = sectionContent;
-                if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '') {
-                   displayContent = section.contentPlaceholder; 
-                }
+                // In editor preview, if the content is the placeholder string itself (after initial replacement), show the placeholder.
+                // This also handles the case where the placeholder in the template is empty initially.
                 if (isEditorPreview && section.contentPlaceholder && sectionContent === section.contentPlaceholder) {
-                  displayContent = section.contentPlaceholder;
+                   displayContent = section.contentPlaceholder;
+                } else if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '' && section.contentPlaceholder.trim() !== '') {
+                    // If content becomes empty but placeholder wasn't, show placeholder
+                    displayContent = section.contentPlaceholder;
                 }
 
+
                 return (
-                  <Tag 
-                    key={section.id} 
-                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'overflow-y-auto' : 'shrink-0')} 
+                  <Tag
+                    key={section.id}
+                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'overflow-y-auto' : 'shrink-0')}
                     style={sectionStyle}
                     onClick={handlePreviewSectionClick}
                     data-section-id={section.id}
@@ -263,3 +274,5 @@ export function CardPreview({
     </div>
   );
 }
+
+    
