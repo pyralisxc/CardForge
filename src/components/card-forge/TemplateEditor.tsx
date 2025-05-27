@@ -139,12 +139,12 @@ export function TemplateEditor({
             </div>
 
             <div>
-              <Label htmlFor="titlePlaceholder">Title Placeholder (use {{variable}} for dynamic text)</Label>
+              <Label htmlFor="titlePlaceholder">Title Placeholder (use {'{{variable}}'} for dynamic text)</Label>
               <Input id="titlePlaceholder" value={titlePlaceholder} onChange={(e) => setTitlePlaceholder(e.target.value)} placeholder="e.g., Happy {{occasion}}!" />
             </div>
 
             <div>
-              <Label htmlFor="bodyPlaceholder">Body Placeholder (use {{variable}} for dynamic text)</Label>
+              <Label htmlFor="bodyPlaceholder">Body Placeholder (use {'{{variable}}'} for dynamic text)</Label>
               <Textarea id="bodyPlaceholder" value={bodyPlaceholder} onChange={(e) => setBodyPlaceholder(e.target.value)} placeholder="e.g., Dear {{name}}, ..." />
             </div>
             
