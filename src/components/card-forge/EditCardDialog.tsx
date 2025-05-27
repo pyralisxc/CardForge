@@ -44,20 +44,17 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     if (card) {
       setEditedData({ ...card.data });
 
-      const allPlaceholderKeys = new Set<string>();
-      card.template.sections.forEach(section => {
-        extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(pKey => allPlaceholderKeys.add(pKey));
-      });
+      const allPlaceholderKeys = extractUniquePlaceholderKeys(card.template);
 
-      const fields: DynamicField[] = Array.from(allPlaceholderKeys).map(key => {
-        const definition = TCG_FIELD_DEFINITIONS.find(def => def.key === key);
-        let exampleText = `e.g., ${toTitleCase(key.replace(/_/g, ' '))}`;
+      const fields: DynamicField[] = allPlaceholderKeys.map(key => {
+        const definition = TCG_FIELD_DEFINITIONS.find(def => def.key.toLowerCase() === key.toLowerCase());
+        let exampleText = `e.g., ${toTitleCase(key)}`;
         if (key.toLowerCase().includes('url') || key.toLowerCase().includes('artwork')) {
           exampleText = 'e.g., https://placehold.co/300x200.png or data:image/...';
         }
         return {
           key,
-          label: definition?.label || toTitleCase(key.replace(/_/g, ' ')),
+          label: definition?.label || toTitleCase(key),
           type: definition?.type === 'textarea' ? 'textarea' : 'input',
           example: definition?.example || exampleText,
         };
@@ -81,15 +78,17 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
   
   const handleDuplicateCard = () => {
     if (card) {
-        // Pass the original card with potentially unsaved edits in editedData
-        // The parent component will handle applying these and creating a new uniqueId
       onDuplicate({ ...card, data: editedData });
     }
   };
 
   if (!card) return null;
 
-  const cardName = String(editedData[dynamicFields.find(f => f.key.toLowerCase().includes("name"))?.key || ''] || 'Card');
+  const cardNameKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artist"))?.key || 
+                      dynamicFields.find(f => f.key.toLowerCase().includes("title"))?.key || 
+                      (dynamicFields.length > 0 ? dynamicFields[0].key : '');
+
+  const cardName = String(editedData[cardNameKey] || 'Card');
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

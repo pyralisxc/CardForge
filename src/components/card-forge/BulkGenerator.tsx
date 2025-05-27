@@ -31,17 +31,12 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
-  const getPlaceholdersFromTemplate = (template: TCGCardTemplate | undefined): string[] => {
-    if (!template) return [];
-    const placeholderSet = new Set<string>();
-    template.sections.forEach(section => {
-      extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(key => placeholderSet.add(key));
-    });
-    return Array.from(placeholderSet);
+  const getPlaceholdersFromSelectedTemplate = (): string[] => {
+    return selectedTemplate ? extractUniquePlaceholderKeys(selectedTemplate) : [];
   };
   
-  const exampleCSVHeaders = getPlaceholdersFromTemplate(selectedTemplate).join(',');
-  const exampleCSVDataLine = getPlaceholdersFromTemplate(selectedTemplate).map(h => {
+  const exampleCSVHeaders = getPlaceholdersFromSelectedTemplate().join(',');
+  const exampleCSVDataLine = getPlaceholdersFromSelectedTemplate().map(h => {
     if (h.toLowerCase().includes('url') || h.toLowerCase().includes('artwork')) return 'https://placehold.co/600x400.png?text=Artwork';
     if (h.toLowerCase().includes('name')) return 'Sample Card';
     if (h.toLowerCase().includes('cost')) return '3';
@@ -91,14 +86,13 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           return;
         }
         
-        const placeholders = getPlaceholdersFromTemplate(selectedTemplate);
+        const placeholders = getPlaceholdersFromSelectedTemplate();
         const primaryTextPlaceholder = placeholders.find(p => p.toLowerCase().includes('rules') || p.toLowerCase().includes('text') || p.toLowerCase().includes('effect')) || placeholders[0] || 'customValue';
         const namePlaceholder = placeholders.find(p => p.toLowerCase().includes('name')) || 'cardName';
         const artworkPlaceholder = placeholders.find(p => p.toLowerCase().includes('art') && (p.toLowerCase().includes('url') || p.toLowerCase().includes('image'))) || 'artworkUrl';
 
 
         for (let i = 0; i < numAiCards; i++) {
-          // Use the "FullConceptIdea" to get a broader set of text from the AI
           const aiResult = await generateCardText({ 
             theme: `A fantasy TCG card with the concept: ${aiTheme}${numAiCards > 1 ? ` (variation ${i+1})` : ''}`,
             textType: 'FullConceptIdea'
@@ -108,13 +102,10 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           placeholders.forEach(pKey => {
             cardData[pKey] = ''; 
             if (pKey === artworkPlaceholder) {
-                // For AI bulk gen, we use a placeholder URL with text query based on theme
-                // The actual AI image generation happens in the AI Helper tab
                 cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme)}`;
             }
           });
 
-          // Attempt to parse the "FullConceptIdea" output
           const lines = aiResult.cardText.split('\\n');
           let parsedName = `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`;
           let parsedRules = "AI generated text.";
@@ -137,13 +128,12 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           if (costPlaceholder) cardData[costPlaceholder] = 'X';
           
           const typePlaceholder = placeholders.find(p => p.toLowerCase().includes('type') && !p.toLowerCase().includes('sub'));
-          if (typePlaceholder) cardData[typePlaceholder] = 'Spell'; // Default, could be parsed from concept if AI output is richer
+          if (typePlaceholder) cardData[typePlaceholder] = 'Spell'; 
           
           const ptPowerPlaceholder = placeholders.find(p => p.toLowerCase().includes('power') && !p.toLowerCase().includes('toughness'));
           const ptToughnessPlaceholder = placeholders.find(p => p.toLowerCase().includes('toughness'));
           if(ptPowerPlaceholder) cardData[ptPowerPlaceholder] = '?';
           if(ptToughnessPlaceholder) cardData[ptToughnessPlaceholder] = '?';
-
 
           generatedCardsData.push(cardData);
         }

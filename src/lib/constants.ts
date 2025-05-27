@@ -1,5 +1,5 @@
 
-import type { PaperSize, TCGCardTemplate, CardSection, CardSectionType } from '@/types';
+import type { PaperSize, TCGCardTemplate, CardSection, CardSectionType, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
 
 export const PAPER_SIZES: PaperSize[] = [
@@ -7,7 +7,7 @@ export const PAPER_SIZES: PaperSize[] = [
   { name: 'A4 (210x297 mm)', widthMm: 210, heightMm: 297 },
 ];
 
-export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
+export const TCG_ASPECT_RATIO = '63:88'; 
 
 export const SECTION_TYPES: CardSectionType[] = [
   'CardName',
@@ -32,8 +32,10 @@ export const FONT_SIZES: Array<{ label: string; value: CardSection['fontSize'] }
 ];
 
 export const FONT_WEIGHTS: Array<CardSection['fontWeight']> = ['font-normal', 'font-medium', 'font-semibold', 'font-bold'];
-export const TEXT_ALIGNS: Array<CardSection['textAlign']> = ['left', 'center', 'right'];
+export const TEXT_ALIGNS: Array<CardSection['textAlign']> = ['left', 'center', 'right', 'justify'];
 export const FONT_STYLES: Array<CardSection['fontStyle']> = ['normal', 'italic'];
+export const ROW_ALIGN_ITEMS: Array<CardRow['alignItems']> = ['flex-start', 'center', 'flex-end', 'stretch', 'baseline'];
+
 
 export const AVAILABLE_FONTS: Array<{name: string, value: string}> = [
     { name: 'Default Sans-Serif', value: 'font-sans' },
@@ -97,9 +99,10 @@ export const FRAME_STYLES: Array<{ label: string; value: string }> = [
 ];
 
 
-export const createDefaultSection = (type: CardSectionType, id?: string): CardSection => {
-  const baseSection: Omit<CardSection, 'type' | 'id' | 'contentPlaceholder'> = {
-    textColor: '#000000', // Will be overridden by theme typically
+export const createDefaultSection = (type: CardSectionType, id?: string, overrides?: Partial<CardSection>): CardSection => {
+  const baseSection: Omit<CardSection, 'type' | 'id' | 'contentPlaceholder'> & { contentPlaceholder: string } = {
+    contentPlaceholder: '', // Will be overridden
+    textColor: '', 
     backgroundColor: '',
     fontFamily: 'font-sans',
     fontSize: 'text-sm',
@@ -107,75 +110,91 @@ export const createDefaultSection = (type: CardSectionType, id?: string): CardSe
     textAlign: 'left',
     fontStyle: 'normal',
     padding: 'p-1',
-    borderColor: '', // Will be overridden by theme typically
-    borderWidth: '',
+    borderColor: '', 
+    borderWidth: '_none_',
     minHeight: '_auto_',
-    flexGrow: false,
+    flexGrow: 0, // Default to not growing
   };
 
   const sectionId = id || nanoid();
+  let specificContentPlaceholder = `{{${type.toLowerCase()}}}`; // Generic placeholder
 
   switch (type) {
     case 'CardName':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{cardName}}', fontFamily: 'font-cinzel', fontSize: 'text-lg', fontWeight: 'font-bold', padding: 'px-2 pt-1.5 pb-0', textAlign: 'center' };
+      specificContentPlaceholder = '{{cardName}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-cinzel', fontSize: 'text-lg', fontWeight: 'font-bold', padding: 'px-2 pt-1 pb-0', textAlign: 'left', flexGrow: 1, ...overrides };
     case 'ManaCost':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{manaCost}}', fontFamily: 'font-lato', fontSize: 'text-base', fontWeight: 'font-bold', textAlign: 'right', padding: 'px-2 pt-1 pb-0' };
+      specificContentPlaceholder = '{{manaCost}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontSize: 'text-base', fontWeight: 'font-bold', textAlign: 'right', padding: 'px-2 pt-1 pb-0', flexGrow: 0, ...overrides };
     case 'Artwork':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{artworkUrl}}', backgroundColor: 'hsl(var(--muted))', minHeight: 'min-h-[180px]', flexGrow: true, padding: 'p-0', borderWidth: 'border-2', borderColor: 'hsl(var(--border))' };
+      specificContentPlaceholder = '{{artworkUrl}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, backgroundColor: 'hsl(var(--muted))', minHeight: 'min-h-[180px]', padding: 'p-0', borderWidth: 'border-b-2', borderColor: 'hsl(var(--border))', flexGrow: 1, ...overrides }; // Artwork usually grows
     case 'TypeLine':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{cardType}} \u2014 {{subTypes}}', fontFamily: 'font-lato', fontWeight: 'font-semibold', backgroundColor: 'hsl(var(--muted)/0.7)', padding: 'px-2 py-0.5', borderWidth: 'border-y', borderColor: 'hsl(var(--border))', fontSize: 'text-sm', textAlign: 'center'};
+      specificContentPlaceholder = '{{cardType}} \u2014 {{subTypes}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontWeight: 'font-semibold', backgroundColor: 'hsl(var(--muted)/0.7)', padding: 'px-2 py-0.5', borderWidth: 'border-y', borderColor: 'hsl(var(--border))', fontSize: 'text-sm', textAlign: 'left', ...overrides };
     case 'RulesText':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{rulesText}}', fontFamily: 'font-serif', minHeight: 'min-h-[80px]', flexGrow: true, padding: 'p-2', fontSize: 'text-sm'};
+      specificContentPlaceholder = '{{rulesText}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-serif', minHeight: 'min-h-[80px]', padding: 'p-2', fontSize: 'text-sm', flexGrow: 1, ...overrides }; // Rules text often grows
     case 'FlavorText':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '"{{flavorText}}"', fontFamily: 'font-serif', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[40px]', padding: 'p-2 pt-1', borderWidth: 'border-t', borderColor: 'hsl(var(--border))' };
+      specificContentPlaceholder = '"{{flavorText}}"';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-serif', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[40px]', padding: 'p-2 pt-1', borderWidth: 'border-t', borderColor: 'hsl(var(--border))', ...overrides };
     case 'PowerToughness':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{power}}/{{toughness}}', fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: 'hsl(var(--muted)/0.7)', borderWidth: 'border-t', borderColor: 'hsl(var(--border))' };
+      specificContentPlaceholder = '{{power}}/{{toughness}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: 'hsl(var(--muted)/0.7)', borderWidth: 'border-t', borderColor: 'hsl(var(--border))', ...overrides };
     case 'ArtistCredit':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: 'Illus. {{artistName}} {{{raritySymbol}}}', fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5', textAlign: 'center' };
+      specificContentPlaceholder = 'Illus. {{artistName}} {{{raritySymbol}}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5', textAlign: 'left', ...overrides };
     case 'CustomText':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{customValue}}', fontFamily: 'font-sans', padding: 'p-1', fontSize: 'text-sm' };
+      specificContentPlaceholder = '{{customValue}}';
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-sans', padding: 'p-1', fontSize: 'text-sm', ...overrides };
     case 'Divider':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', ...overrides };
     default:
       const _exhaustiveCheck: never = type;
       console.warn(`Unhandled section type in createDefaultSection: ${_exhaustiveCheck}`);
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '{{unknown}}', fontSize: 'text-sm' };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontSize: 'text-sm', ...overrides };
   }
+};
+
+export const createDefaultRow = (id?: string, columns: CardSection[] = [], alignItems: CardRow['alignItems'] = 'flex-start'): CardRow => {
+  return {
+    id: id || nanoid(),
+    columns: columns.map(col => ({ ...col, id: col.id || nanoid() })), // Ensure columns have IDs
+    alignItems,
+  };
 };
 
 
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
-    id: 'default-fantasy-creature-v2',
-    name: 'Standard Fantasy Creature',
-    templateType: 'CustomSequential', 
+    id: 'default-fantasy-creature-v3',
+    name: 'Standard Fantasy Creature (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    // frameColor: '#777777',  // superseded by frameStyle or theme
-    // borderColor: '#444444', // superseded by frameStyle or theme
-    // baseBackgroundColor: '#F0F0F0', // superseded by frameStyle or theme
-    // baseTextColor: '#1C1C1C', // superseded by frameStyle or theme
-    sections: [
-      createDefaultSection('CardName', 'sfc-name-v2'),
-      createDefaultSection('ManaCost', 'sfc-cost-v2'),
-      createDefaultSection('Artwork', 'sfc-art-v2'),
-      createDefaultSection('TypeLine', 'sfc-type-v2'),
-      createDefaultSection('RulesText', 'sfc-rules-v2'),
-      createDefaultSection('FlavorText', 'sfc-flavor-v2'),
-      createDefaultSection('PowerToughness', 'sfc-pt-v2'),
-      createDefaultSection('ArtistCredit', 'sfc-artist-v2'),
+    rows: [
+      createDefaultRow('sfc-row-namecost-v3', [
+        createDefaultSection('CardName', 'sfc-name-v3', { flexGrow: 1, textAlign: 'left' }),
+        createDefaultSection('ManaCost', 'sfc-cost-v3', { flexGrow: 0, textAlign: 'right' }),
+      ], 'center'),
+      createDefaultRow('sfc-row-art-v3', [createDefaultSection('Artwork', 'sfc-art-v3')]),
+      createDefaultRow('sfc-row-type-v3', [createDefaultSection('TypeLine', 'sfc-type-v3')]),
+      createDefaultRow('sfc-row-rules-v3', [createDefaultSection('RulesText', 'sfc-rules-v3')]),
+      createDefaultRow('sfc-row-flavorpt-v3', [
+         createDefaultSection('FlavorText', 'sfc-flavor-v3', {flexGrow: 1}),
+         createDefaultSection('PowerToughness', 'sfc-pt-v3', {flexGrow: 0, textAlign: 'right'})
+      ], 'flex-end'),
+      createDefaultRow('sfc-row-artist-v3', [createDefaultSection('ArtistCredit', 'sfc-artist-v3')]),
     ]
   },
   {
-    id: 'default-basic-custom-v2',
-    name: 'Basic Custom Card',
-    templateType: 'CustomSequential',
+    id: 'default-basic-custom-v3',
+    name: 'Basic Custom Card (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'minimal-dark',
-    sections: [
-      createDefaultSection('CardName', 'bcc-name-v2'),
-      createDefaultSection('Artwork', 'bcc-art-v2'),
-      createDefaultSection('CustomText', 'bcc-custom-v2'),
+    rows: [
+      createDefaultRow('bcc-row-name-v3', [createDefaultSection('CardName', 'bcc-name-v3')]),
+      createDefaultRow('bcc-row-art-v3', [createDefaultSection('Artwork', 'bcc-art-v3', {minHeight: 'min-h-[250px]'})]),
+      createDefaultRow('bcc-row-custom-v3', [createDefaultSection('CustomText', 'bcc-custom-v3', {minHeight: 'min-h-[80px]'})]),
     ]
   }
 ];
@@ -198,4 +217,5 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'energyCost', label: 'Energy Cost', type: 'input' },
   { key: 'points', label: 'Points', type: 'input' },
   { key: 'effectText', label: 'Effect Text', type: 'textarea' },
+  { key: 'rarity', label: 'Rarity', type: 'input', example: 'Common' }, // Added for artist line in default template
 ];

@@ -18,19 +18,19 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles, Cog, Menu as MenuIcon } from 'lucide-react';
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles, Cog, Menu as MenuIcon, Rows } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection } from '@/types';
+import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { generateCardText } from '@/ai/flows/generate-card-text';
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
 
 
 export default function CardForgePage() {
-  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV5', DEFAULT_TEMPLATES);
+  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV6', DEFAULT_TEMPLATES);
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
 
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
@@ -61,31 +61,37 @@ export default function CardForgePage() {
         if (!newT.id) {
           newT.id = nanoid();
         }
-        // Migration for older templates that might not have the sections array
-        // or if sections/items within sections are missing IDs.
-        if (!newT.sections || !Array.isArray(newT.sections) || newT.sections.length === 0) {
+        // Migration for new row/column structure
+        if (!newT.rows || !Array.isArray(newT.rows)) {
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: CardSection) => ({...s, id: s.id || nanoid()}));
-          newT.templateType = newT.templateType || defaultTemplateForMigration.templateType;
+          newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
+            ...row,
+            id: row.id || nanoid(),
+            columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()}))
+          }));
+          // @ts-expect-error: remove old sections if migrating
+          delete newT.sections; 
         } else {
-          newT.sections = newT.sections.map(s => ({...s, id: s.id || nanoid() }));
+           newT.rows = newT.rows.map((row: CardRow) => ({
+            ...row,
+            id: row.id || nanoid(),
+            columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()}))
+          }));
         }
         if (!newT.aspectRatio) {
-            newT.aspectRatio = "63:88"; // Default TCG aspect ratio
+            newT.aspectRatio = "63:88"; 
         }
         if (!newT.frameStyle) {
           newT.frameStyle = 'standard';
         }
-        // Ensure base color fields exist, defaulting to empty (which means theme default will apply)
         newT.baseBackgroundColor = newT.baseBackgroundColor || '';
         newT.baseTextColor = newT.baseTextColor || '';
         newT.borderColor = newT.borderColor || '';
-        newT.frameColor = newT.frameColor || ''; // Legacy, might be unused with frameStyle
         return newT;
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+  }, []); 
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -99,7 +105,6 @@ export default function CardForgePage() {
       setTemplates(prevTemplates => [...prevTemplates, template]);
       toast({ title: "Template Saved", description: `"${template.name}" has been saved.` });
     }
-    // If we were editing this template or just added it, keep it as the current editing target.
     if (editingTemplate?.id === template.id || existingIndex === -1) {
         setEditingTemplate(template);
     }
@@ -108,7 +113,7 @@ export default function CardForgePage() {
   const handleDeleteTemplate = (templateId: string) => {
     setTemplates(prevTemplates => prevTemplates.filter(t => t.id !== templateId));
     if (editingTemplate?.id === templateId) {
-      setEditingTemplate(null); // Clear editing template if it was deleted
+      setEditingTemplate(null); 
     }
     toast({ title: "Template Deleted", description: "The template has been removed." });
   };
@@ -146,11 +151,11 @@ export default function CardForgePage() {
   const handleDuplicateCard = (cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
       ...cardToDuplicate,
-      uniqueId: nanoid(), // Ensure the new card has a new unique ID
+      uniqueId: nanoid(), 
     };
     setGeneratedDisplayCards(prev => [...prev, newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
-    setIsEditDialogOpen(false); // Close dialog after duplication
+    setIsEditDialogOpen(false); 
     setEditingCard(null);
   };
 
@@ -184,15 +189,18 @@ export default function CardForgePage() {
       reader.onload = (e) => {
         try {
           const jsonString = e.target?.result as string;
-          const loadedCards = JSON.parse(jsonString);
-          // Basic validation: check if it's an array and items have expected structure
+          const loadedCards = JSON.parse(jsonString) as DisplayCard[];
+          
           if (Array.isArray(loadedCards) && loadedCards.every(isValidDisplayCard)) {
-            // Ensure loaded cards and their sections have unique IDs
             const processedCards = loadedCards.map(card => ({
               ...card,
               template: {
                 ...card.template,
-                sections: card.template.sections.map((s: CardSection) => ({ ...s, id: s.id || nanoid() }))
+                rows: (card.template.rows || []).map((r: CardRow) => ({ 
+                    ...r, 
+                    id: r.id || nanoid(),
+                    columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid() }))
+                }))
               },
               uniqueId: card.uniqueId || nanoid()
             }));
@@ -207,16 +215,14 @@ export default function CardForgePage() {
         }
       };
       reader.readAsText(file);
-      // Reset file input to allow loading the same file again if needed
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
   };
 
-  // Helper function to validate loaded card structure
   const isValidDisplayCard = (item: any): item is DisplayCard => {
-    return item && typeof item.template === 'object' && typeof item.data === 'object' && (typeof item.uniqueId === 'string' || typeof item.uniqueId === 'undefined') && Array.isArray(item.template.sections);
+    return item && typeof item.template === 'object' && Array.isArray(item.template.rows) && typeof item.data === 'object';
   };
 
   const handleGenerateRandomCard = async () => {
@@ -235,12 +241,9 @@ export default function CardForgePage() {
 
     setIsGeneratingRandomCard(true);
     try {
-      const placeholders = new Set<string>();
-      templateForRandom.sections.forEach(section => {
-        extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(key => placeholders.add(key));
-      });
+      const placeholders = extractUniquePlaceholderKeys(templateForRandom);
 
-      if (placeholders.size === 0) {
+      if (placeholders.length === 0) {
         toast({ title: "No Placeholders", description: "Selected template has no placeholders for AI to fill.", variant: "default" });
         setIsGeneratingRandomCard(false);
         return;
@@ -249,16 +252,13 @@ export default function CardForgePage() {
       const aiResult = await generateCardText({ theme: "a completely random fantasy TCG card idea", textType: 'FullConceptIdea' });
 
       const cardData: { [key: string]: string } = {};
-      // Initialize all template placeholders
-      Array.from(placeholders).forEach(pKey => {
-        cardData[pKey] = ''; // Default to empty string
-        // Special handling for artwork URL if placeholder implies it
+      placeholders.forEach(pKey => {
+        cardData[pKey] = ''; 
         if (pKey.toLowerCase().includes('art') && (pKey.toLowerCase().includes('url') || pKey.toLowerCase().includes('image'))) {
             cardData[pKey] = `https://placehold.co/600x400.png?text=AI+Art`;
         }
       });
 
-      // Parse AI result and map to placeholders
       const aiLines = aiResult.cardText.split('\n');
       let parsedName = "Random Card";
       let parsedRules = "Random effect.";
@@ -270,8 +270,7 @@ export default function CardForgePage() {
         else if (line.toLowerCase().startsWith("flavor text:")) parsedFlavor = line.substring("flavor text:".length).trim();
       });
 
-      // Populate cardData based on parsed AI text and random values for common fields
-      Array.from(placeholders).forEach(pKey => {
+      placeholders.forEach(pKey => {
         const pKeyLower = pKey.toLowerCase();
         if (pKeyLower.includes('name')) cardData[pKey] = parsedName;
         else if (pKeyLower.includes('rules') || pKeyLower.includes('text') || pKeyLower.includes('effect') && !pKeyLower.includes('flavor')) cardData[pKey] = parsedRules;
@@ -281,7 +280,6 @@ export default function CardForgePage() {
         else if (pKeyLower.includes('power') || pKeyLower.includes('attack')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
         else if (pKeyLower.includes('toughness') || pKeyLower.includes('health') || pKeyLower.includes('defense')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
         else if (pKeyLower.includes('type') && !pKeyLower.includes('sub')) cardData[pKey] = ['Creature', 'Spell', 'Enchantment', 'Artifact'][Math.floor(Math.random() * 4)];
-        // Any other placeholders would remain as initialized (empty or default art URL)
       });
 
       const randomCard: DisplayCard = {
@@ -311,7 +309,6 @@ export default function CardForgePage() {
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Mobile Menu Button */}
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -341,7 +338,6 @@ export default function CardForgePage() {
             </Sheet>
           </div>
 
-          {/* Desktop TabsList */}
           <TabsList className="hidden md:grid w-full md:grid-cols-3 mb-6 no-print">
             {TABS_CONFIG.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
@@ -464,5 +460,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-    
-    

@@ -9,47 +9,53 @@ export type CardSectionType =
   | 'PowerToughness' 
   | 'ArtistCredit' 
   | 'CustomText'
-  | 'Divider'; // New simple divider type
+  | 'Divider';
 
 export interface CardSection {
-  id: string; // Unique ID for this section instance
+  id: string; 
   type: CardSectionType;
-  contentPlaceholder: string; // e.g., "{{cardName}}", "Effect: {{effectText}}", for Artwork: "{{artworkUrl}}"
+  contentPlaceholder: string; 
   
-  // Optional styling for this specific section
   textColor?: string;
   backgroundColor?: string;
-  fontFamily?: string; // e.g., 'font-serif', 'font-fantasy-cinzel'
+  fontFamily?: string; 
   fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
-  textAlign?: 'left' | 'center' | 'right';
+  textAlign?: 'left' | 'center' | 'right' | 'justify'; // Added justify
   fontStyle?: 'normal' | 'italic';
-  padding?: string; // e.g., "p-1", "px-2 py-1"
-  borderColor?: string; // Optional border for this section
-  borderWidth?: string; // e.g., "border-t-2", "border-b"
-  minHeight?: string; // e.g., "min-h-[100px]" for artwork or text boxes
-  flexGrow?: boolean; // If this section should try to take up remaining space
+  padding?: string; 
+  borderColor?: string; 
+  borderWidth?: string; 
+  minHeight?: string; 
+  flexGrow?: number; // For space distribution within a row: 0 = content size, >0 = proportion of extra space
+  // Optional: Explicit width/basis if needed, e.g., 'w-1/3', 'basis-1/4' (Tailwind or CSS value)
+  // For now, flexGrow should cover most cases.
+}
+
+export interface CardRow {
+  id: string; // Unique ID for the row
+  columns: CardSection[]; // Each item in 'columns' is a CardSection
+  alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline'; 
+  // Optional: explicit height for the row, or min/max height
 }
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  templateType: 'CustomSequential'; // Simplified, always custom sequential for now
+  // templateType: 'CustomSequential'; // This might become less relevant with rows/cols
 
-  // Overall card styling
-  aspectRatio: string; // e.g., "63:88"
-  frameColor?: string; // Main outer frame/border of the card - might be superseded by frameStyle
-  borderColor?: string; // Default border color for inner elements if not overridden by section
-  baseBackgroundColor?: string; // Overall card background - might be superseded by frameStyle
-  baseTextColor?: string; // Default text color if not overridden by section
-  frameStyle?: string; // e.g., "standard", "classic-gold"
+  aspectRatio: string; 
+  frameColor?: string; 
+  borderColor?: string; 
+  baseBackgroundColor?: string; 
+  baseTextColor?: string; 
+  frameStyle?: string; 
   
-  sections: CardSection[];
+  rows: CardRow[]; // Changed from sections: CardSection[]
 }
 
 export interface CardData {
-  // Flexible structure for variable replacement
-  [key: string]: string | number | undefined; // Allow undefined for optional fields
+  [key: string]: string | number | undefined; 
 }
 
 export interface PaperSize {
@@ -63,4 +69,3 @@ export interface DisplayCard {
   data: CardData;
   uniqueId: string;
 }
-
