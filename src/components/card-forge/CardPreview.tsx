@@ -7,17 +7,17 @@ import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
 
 interface CardPreviewProps {
-  card: DisplayCard; // Now takes the full DisplayCard object
+  card: DisplayCard; 
   className?: string;
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
   isEditorPreview?: boolean; 
   hideEmptySections?: boolean;
   onSectionClick?: (sectionId: string) => void;
-  onEdit?: (card: DisplayCard) => void; // For requesting to edit this card
+  onEdit?: (card: DisplayCard) => void; 
 }
 
-const PREVIEW_WIDTH_PX = 280; // Standard preview width on screen
+const PREVIEW_WIDTH_PX = 280; 
 
 export function CardPreview({
   card,
@@ -30,7 +30,7 @@ export function CardPreview({
   onEdit,
 }: CardPreviewProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const { template, data } = card; // Destructure from card prop
+  const { template, data } = card; 
 
   function replacePlaceholdersLocal(text: string | undefined, dataContext: CardData): string {
     if (text === undefined || text === null) return '';
@@ -45,6 +45,7 @@ export function CardPreview({
     }
     
     if (!isEditorPreview) {
+      // Remove any un-substituted placeholders only if not in editor preview
       result = result.replace(/{{\s*[\w-]+\s*}}/g, '');
     }
     return result;
@@ -56,14 +57,18 @@ export function CardPreview({
   const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
 
   const cardContainerStyle: React.CSSProperties = {
-    backgroundColor: template.frameStyle === 'standard' ? (template.baseBackgroundColor || 'hsl(var(--card))') : undefined, // Use theme card bg for standard, otherwise rely on frameStyle CSS
+    backgroundColor: template.baseBackgroundColor || undefined, // Rely on CSS for default unless overridden
     color: template.baseTextColor || 'hsl(var(--card-foreground))',
     aspectRatio: `${aspectW} / ${aspectH}`,
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
     height: isPrintMode ? '100%' : 'auto',
-    // border: `4px solid ${template.frameColor || 'grey'}`, // superseded by frameStyle
     boxSizing: 'border-box',
   };
+   // For frame-standard, if baseBackgroundColor is not set, it will use theme's --card
+   if (template.frameStyle === 'standard' && !template.baseBackgroundColor) {
+    cardContainerStyle.backgroundColor = 'hsl(var(--card))';
+   }
+
 
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
@@ -78,10 +83,10 @@ export function CardPreview({
     else if (typeLineText.includes("land") || typeLineText.includes("location")) artworkHint = "fantasy landscape";
   }
 
+
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
-      // In editor preview, show section if it has placeholder or type is Artwork/Divider
-      return section.contentPlaceholder.trim() === '' && section.type !== 'Artwork' && section.type !== 'Divider';
+      return section.contentPlaceholder?.trim() === '' && section.type !== 'Artwork' && section.type !== 'Divider';
     }
     if (hideEmptySections) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false; 
@@ -113,16 +118,16 @@ export function CardPreview({
         {template.sections?.map((section, index) => {
           const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data);
 
-          if (shouldHideSection(section, sectionContent) && !isEditorPreview) {
+          if (shouldHideSection(section, sectionContent)) {
             return null;
           }
 
           const sectionStyle: React.CSSProperties = {
-            color: section.textColor || template.baseTextColor || 'hsl(var(--foreground))', // Use theme foreground as fallback
+            color: section.textColor || template.baseTextColor || undefined, // Fallback to theme via CSS if not set
             backgroundColor: section.backgroundColor || 'transparent',
             textAlign: section.textAlign || 'left',
             fontStyle: section.fontStyle || 'normal',
-            minHeight: section.minHeight === '_auto_' ? 'auto' : section.minHeight || 'auto',
+            minHeight: section.minHeight === '_auto_' || !section.minHeight ? 'auto' : section.minHeight,
             flexGrow: section.flexGrow ? 1 : 0,
             borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
           };
@@ -144,19 +149,19 @@ export function CardPreview({
           } else if (section.borderWidth && section.borderWidth !== '_none_' && template.borderColor) { 
               sectionStyle.borderColor = template.borderColor;
           } else if (section.borderWidth && section.borderWidth !== '_none_') {
-            sectionStyle.borderColor = 'hsl(var(--border))'; // Fallback to theme border
+            sectionStyle.borderColor = 'hsl(var(--border))'; 
           }
 
 
           const handlePreviewSectionClick = (e: React.MouseEvent) => {
             if (isEditorPreview && onSectionClick) {
-              e.stopPropagation(); // Prevent card click if section click is handled
+              e.stopPropagation(); 
               onSectionClick(section.id);
             }
           };
 
           if (section.type === 'Artwork') {
-            let artworkSrc = sectionContent; // This is already the processed value from data
+            let artworkSrc = sectionContent; 
             if (isEditorPreview && artworkSrc && artworkSrc.startsWith('{{') && artworkSrc.endsWith('}}')) {
               artworkSrc = `https://placehold.co/600x400.png`; 
             } else if (!artworkSrc || artworkSrc.trim() === '') {
@@ -188,20 +193,25 @@ export function CardPreview({
                   <div 
                     key={section.id} 
                     className={cn("tcg-section-divider", sectionClasses)} 
-                    style={{...sectionStyle, height: section.minHeight === '_auto_' ? '1px' : section.minHeight || '1px', backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
+                    style={{...sectionStyle, height: section.minHeight === '_auto_' || !section.minHeight ? '1px' : section.minHeight, backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
                     onClick={handlePreviewSectionClick}
                   ></div>
               );
           }
           
           const Tag = (section.type === 'RulesText' || section.type === 'FlavorText') ? 'pre' : 'div';
-
-          if (sectionContent.trim() === '' && !isEditorPreview && hideEmptySections && section.type !== 'Artwork' && section.type !== 'Divider') {
-            return null;
+          
+          let displayContent = sectionContent;
+          if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '') {
+             displayContent = section.contentPlaceholder;
           }
-          // For editor preview, show if placeholder exists, even if empty string, unless it's Art/Divider
-          if (isEditorPreview && section.contentPlaceholder.trim() === '' && section.type !== 'Artwork' && section.type !== 'Divider') {
-             return null;
+          if (isEditorPreview && section.contentPlaceholder && sectionContent.startsWith('{{') && sectionContent.endsWith('}}')) {
+            displayContent = section.contentPlaceholder;
+          }
+
+
+          if (displayContent.trim() === '' && !isEditorPreview && hideEmptySections) {
+            return null;
           }
 
 
@@ -212,7 +222,7 @@ export function CardPreview({
               style={sectionStyle}
               onClick={handlePreviewSectionClick}
             >
-              {sectionContent || (isEditorPreview && section.contentPlaceholder) /* Show placeholder in editor if content is empty */}
+              {displayContent}
             </Tag>
           );
         })}
@@ -225,3 +235,4 @@ export function CardPreview({
     </div>
   );
 }
+    

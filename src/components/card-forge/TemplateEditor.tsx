@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save } from 'lucide-react'; // Added Save
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save } from 'lucide-react';
 import { SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, FRAME_STYLES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -38,8 +38,6 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
   Divider: Minus,
 };
 
-type DimensionUnit = 'ratio' | 'px' | 'in' | 'cm';
-
 export function TemplateEditor({
   onSaveTemplate,
   templates,
@@ -56,10 +54,8 @@ export function TemplateEditor({
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(initialTemplate || getDefaultTemplate());
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
   const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>([]);
+  const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || "63:88");
 
-  const [dimensionWidth, setDimensionWidth] = useState<string>("63");
-  const [dimensionHeight, setDimensionHeight] = useState<string>("88");
-  const [dimensionUnit, setDimensionUnit] = useState<DimensionUnit>('ratio'); // Default to ratio
 
   useEffect(() => {
     let newTemplateToSet: TCGCardTemplate;
@@ -92,24 +88,21 @@ export function TemplateEditor({
 
     setCurrentTemplate(newTemplateToSet);
     setActiveAccordionItems(newTemplateToSet.sections.map(s => s.id));
-    
-    const [wStr, hStr] = (newTemplateToSet.aspectRatio || "63:88").split(':');
-    setDimensionWidth(wStr);
-    setDimensionHeight(hStr);
-    setDimensionUnit('ratio'); // Always default unit to ratio on load
+    setAspectRatioInput(newTemplateToSet.aspectRatio || "63:88");
     
   }, [selectedTemplateToEditId, templates, initialTemplate]);
 
 
   useEffect(() => {
-    const w = parseFloat(dimensionWidth);
-    const h = parseFloat(dimensionHeight);
-
-    if (!isNaN(w) && w > 0 && !isNaN(h) && h > 0) {
-      updateCurrentTemplate({ aspectRatio: `${w}:${h}` });
+    // Validate aspect ratio format (simple W:H)
+    const ratioParts = aspectRatioInput.split(':').map(Number);
+    if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
+      updateCurrentTemplate({ aspectRatio: aspectRatioInput });
+    } else {
+      // Optionally provide feedback if format is invalid, or just don't update
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimensionWidth, dimensionHeight, dimensionUnit]);
+  }, [aspectRatioInput]);
 
 
   const handleTemplatePresetChange = (presetName: string) => {
@@ -125,12 +118,7 @@ export function TemplateEditor({
       };
       setCurrentTemplate(newPresetTemplate);
       setActiveAccordionItems(newSections.map(s => s.id));
-
-      const [w, h] = (newPresetTemplate.aspectRatio || "63:88").split(':').map(Number);
-      setDimensionWidth(String(w));
-      setDimensionHeight(String(h));
-      setDimensionUnit('ratio');
-
+      setAspectRatioInput(newPresetTemplate.aspectRatio || "63:88");
       toast({ title: "Preset Loaded", description: `"${preset.name}" structure loaded into editor.`});
     }
   };
@@ -185,11 +173,7 @@ export function TemplateEditor({
     setCurrentTemplate(newDefaultTemplate);
     setSelectedTemplateToEditId(newId); 
     setActiveAccordionItems(newSections.map(s => s.id));
-    
-    const [w, h] = (newDefaultTemplate.aspectRatio || "63:88").split(':').map(Number);
-    setDimensionWidth(String(w));
-    setDimensionHeight(String(h));
-    setDimensionUnit('ratio');
+    setAspectRatioInput(newDefaultTemplate.aspectRatio || "63:88");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -202,13 +186,12 @@ export function TemplateEditor({
       toast({ title: "Validation Error", description: 'Custom template must have at least one section.', variant: "destructive" });
       return;
     }
-    const w = parseFloat(dimensionWidth);
-    const h = parseFloat(dimensionHeight);
-    if (isNaN(w) || w <= 0 || isNaN(h) || h <= 0) {
-        toast({ title: "Validation Error", description: 'Card dimensions for aspect ratio must be positive numbers.', variant: "destructive" });
+     const ratioParts = aspectRatioInput.split(':').map(Number);
+    if (!(ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0)) {
+        toast({ title: "Validation Error", description: 'Aspect Ratio must be in W:H format (e.g., 63:88) with positive numbers.', variant: "destructive" });
         return;
     }
-    onSaveTemplate(JSON.parse(JSON.stringify({...currentTemplate, aspectRatio: `${w}:${h}`}))); 
+    onSaveTemplate(JSON.parse(JSON.stringify({...currentTemplate, aspectRatio: aspectRatioInput }))); 
   };
   
   const handleSelectTemplateToEdit = (templateId: string) => {
@@ -299,7 +282,9 @@ export function TemplateEditor({
         <form onSubmit={handleSubmit} className="md:col-span-2 space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>{currentTemplate.id === selectedTemplateToEditId && templates.find(t=>t.id === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: {currentTemplate.name}</CardTitle>
+                    <CardTitle className="text-lg">
+                        {currentTemplate.id === selectedTemplateToEditId && templates.find(t=>t.id === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: <span className="text-primary">{currentTemplate.name}</span>
+                    </CardTitle>
                     <CardDescription>Define overall style and card sections. Click sections in the preview below to edit.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -309,27 +294,14 @@ export function TemplateEditor({
                     </div>
                     
                     <div>
-                        <Label>Card Dimensions (Defines Aspect Ratio)</Label>
-                        <div className="grid grid-cols-3 gap-2 items-end">
-                            <div>
-                                <Label htmlFor="dimensionWidth" className="text-xs">Width</Label>
-                                <Input id="dimensionWidth" type="number" value={dimensionWidth} onChange={(e) => setDimensionWidth(e.target.value)} placeholder="e.g., 63" className="w-full" />
-                            </div>
-                            <div>
-                                <Label htmlFor="dimensionHeight" className="text-xs">Height</Label>
-                                <Input id="dimensionHeight" type="number" value={dimensionHeight} onChange={(e) => setDimensionHeight(e.target.value)} placeholder="e.g., 88" className="w-full" />
-                            </div>
-                            <div>
-                                <Label htmlFor="dimensionUnit" className="text-xs">Unit</Label>
-                                <Select value={dimensionUnit} onValueChange={(v) => setDimensionUnit(v as DimensionUnit)} disabled>
-                                    <SelectTrigger id="dimensionUnit"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="ratio">Ratio</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">Current Aspect Ratio: <strong>{currentTemplate.aspectRatio || "Not set"}</strong>. Standard TCG is 63:88.</p>
+                        <Label htmlFor="templateAspectRatio">Card Aspect Ratio (W:H)</Label>
+                        <Input 
+                            id="templateAspectRatio" 
+                            value={aspectRatioInput} 
+                            onChange={(e) => setAspectRatioInput(e.target.value)} 
+                            placeholder="e.g., 63:88" 
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. This defines the card's shape.</p>
                     </div>
 
                     <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling">
@@ -344,19 +316,19 @@ export function TemplateEditor({
                                     <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
                                     <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
                                 </Select>
+                                <p className="text-xs text-muted-foreground mt-1">Frame Style selection applies predefined borders and backgrounds. Colors below might be overridden or act as fallbacks.</p>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-                            <div><Label htmlFor="frameColor" className="text-xs">Frame Color (Legacy)</Label><Input id="frameColor" type="color" value={currentTemplate.frameColor || '#CCCCCC'} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} /></div>
-                            <div><Label htmlFor="borderColor" className="text-xs">Default Section Border</Label><Input id="borderColor" type="color" value={currentTemplate.borderColor || '#888888'} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} /></div>
-                            <div><Label htmlFor="baseBgColor" className="text-xs">Base Background (Legacy)</Label><Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || '#FFFFFF'} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} /></div>
-                            <div><Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label><Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || '#000000'} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} /></div>
+                            <div><Label htmlFor="frameColor" className="text-xs">Frame Color (Legacy)</Label><Input id="frameColor" type="color" value={currentTemplate.frameColor || ''} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} /></div>
+                            <div><Label htmlFor="borderColor" className="text-xs">Default Section Border</Label><Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} /></div>
+                            <div><Label htmlFor="baseBgColor" className="text-xs">Base Background</Label><Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} /></div>
+                            <div><Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label><Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} /></div>
                             </div>
-                            <p className="text-xs text-muted-foreground">Frame Style selection might override legacy Frame/Background colors.</p>
                         </AccordionContent>
                         </AccordionItem>
                     </Accordion>
                 </CardContent>
-                {/* No CardFooter for this settings card */}
+                {/* CardFooter moved to specific cards */}
             </Card>
 
             <Card>
@@ -378,17 +350,17 @@ export function TemplateEditor({
                         return (
                         <AccordionItem value={section.id} key={section.id} id={`accordion-item-${section.id}`} className="border border-border bg-card/60 rounded-md overflow-hidden last:mb-0">
                             <div className="flex items-center w-full px-2 py-1 hover:bg-muted/30 rounded-t-md">
-                            <AccordionTrigger className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring">
-                                <div className="flex items-center gap-2">
-                                <IconComponent className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium text-sm">{index + 1}. {section.type}</span>
+                                <AccordionTrigger className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring">
+                                    <div className="flex items-center gap-2">
+                                    <IconComponent className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium text-sm">{index + 1}. {section.type}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <div className="flex gap-1 ml-2 flex-shrink-0">
+                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'up')}} disabled={index === 0} aria-label="Move section up"><ArrowUp className="h-4 w-4" /></Button>
+                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'down')}} disabled={index === currentTemplate.sections.length - 1} aria-label="Move section down"><ArrowDown className="h-4 w-4" /></Button>
+                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeSection(section.id)}} aria-label="Remove section"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </div>
-                            </AccordionTrigger>
-                            <div className="flex gap-1 ml-2 flex-shrink-0">
-                                <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'up')}} disabled={index === 0} aria-label="Move section up"><ArrowUp className="h-4 w-4" /></Button>
-                                <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'down')}} disabled={index === currentTemplate.sections.length - 1} aria-label="Move section down"><ArrowDown className="h-4 w-4" /></Button>
-                                <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeSection(section.id)}} aria-label="Remove section"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </div>
                             </div>
                             <AccordionContent className="p-3 space-y-3 border-t bg-card/30">
                             <div>
@@ -405,8 +377,8 @@ export function TemplateEditor({
                                 <p className="text-xs text-muted-foreground mt-1">Placeholders like <code>{`{{cardName}}`}</code>, <code>{`{{artworkUrl}}`}</code> will be replaced by data.</p>
                             </div>
                             
-                            <Accordion type="single" collapsible className="w-full border rounded-md p-2 bg-background/30" defaultValue="styling-options">
-                                <AccordionItem value="styling-options" className="border-none">
+                            <Accordion type="single" collapsible className="w-full border rounded-md p-2 bg-background/30" defaultValue="styling-options-inner">
+                                <AccordionItem value="styling-options-inner" className="border-none">
                                 <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:text-foreground hover:no-underline py-1.5">
                                     <div className="flex items-center gap-1.5"><Paintbrush className="h-3.5 w-3.5" /> Styling Options</div>
                                 </AccordionTrigger>
@@ -447,9 +419,9 @@ export function TemplateEditor({
                                             <SelectContent>{TEXT_ALIGNS.map(s=><SelectItem key={s} value={s!} className="text-xs">{s}</SelectItem>)}</SelectContent>
                                         </Select>
                                     </div>
-                                    <div><Label htmlFor={`textColor-${section.id}`} className="text-xs">Text Color</Label><Input id={`textColor-${section.id}`} type="color" className="h-8" value={section.textColor || currentTemplate.baseTextColor || '#000000'} onChange={(e) => updateSection(section.id, { textColor: e.target.value })} /></div>
+                                    <div><Label htmlFor={`textColor-${section.id}`} className="text-xs">Text Color</Label><Input id={`textColor-${section.id}`} type="color" className="h-8" value={section.textColor || currentTemplate.baseTextColor || ''} onChange={(e) => updateSection(section.id, { textColor: e.target.value })} /></div>
                                     
-                                    <div><Label htmlFor={`bgColor-${section.id}`} className="text-xs">Background</Label><Input id={`bgColor-${section.id}`} type="color" className="h-8" value={section.backgroundColor || ''} onChange={(e) => updateSection(section.id, { backgroundColor: e.target.value === '#000000' && !section.backgroundColor ? '' : e.target.value })} /></div>
+                                    <div><Label htmlFor={`bgColor-${section.id}`} className="text-xs">Background</Label><Input id={`bgColor-${section.id}`} type="color" className="h-8" value={section.backgroundColor || ''} onChange={(e) => updateSection(section.id, { backgroundColor: e.target.value })} /></div>
                                     <div>
                                         <Label htmlFor={`padding-${section.id}`} className="text-xs">Padding</Label>
                                         <Select value={section.padding || 'p-1'} onValueChange={v => updateSection(section.id, {padding: v})}>
@@ -457,7 +429,7 @@ export function TemplateEditor({
                                             <SelectContent>{PADDING_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
                                         </Select>
                                     </div>
-                                    <div><Label htmlFor={`borderColor-${section.id}`} className="text-xs">Border Color</Label><Input id={`borderColor-${section.id}`} type="color" className="h-8" value={section.borderColor || currentTemplate.borderColor || '#888888'} onChange={(e) => updateSection(section.id, { borderColor: e.target.value })} /></div>
+                                    <div><Label htmlFor={`borderColor-${section.id}`} className="text-xs">Border Color</Label><Input id={`borderColor-${section.id}`} type="color" className="h-8" value={section.borderColor || currentTemplate.borderColor || ''} onChange={(e) => updateSection(section.id, { borderColor: e.target.value })} /></div>
                                     <div>
                                         <Label htmlFor={`borderWidth-${section.id}`} className="text-xs">Border Width</Label>
                                         <Select 
@@ -492,9 +464,9 @@ export function TemplateEditor({
                         )})}
                     </Accordion>
                 </CardContent>
-                <CardFooter className="p-4 border-t">
+                <CardFooter className="p-4 border-t flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <Select onValueChange={(value) => { if(value) addSection(value as CardSectionType)}}>
-                    <SelectTrigger className="w-full md:w-auto">
+                    <SelectTrigger className="w-full sm:w-auto">
                         <SelectValue placeholder="Add New Section Type..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -503,7 +475,7 @@ export function TemplateEditor({
                         ))}
                     </SelectContent>
                     </Select>
-                    <Button type="submit" className="w-full md:w-auto ml-auto">
+                    <Button type="submit" className="w-full sm:w-auto ml-auto">
                         <Save className="mr-2 h-4 w-4"/>
                         Save Template
                     </Button>
@@ -528,4 +500,4 @@ export function TemplateEditor({
     </div>
   );
 }
-
+    

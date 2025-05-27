@@ -8,7 +8,7 @@ import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
 import { CardPreview } from '@/components/card-forge/CardPreview';
-import { EditCardDialog } from '@/components/card-forge/EditCardDialog'; // New
+import { EditCardDialog } from '@/components/card-forge/EditCardDialog'; 
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
 import { PrintButton } from '@/components/card-forge/PrintButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,16 +17,19 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save } from 'lucide-react';
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles } from 'lucide-react';
 import { nanoid } from 'nanoid'; 
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { generateCardText } from '@/ai/flows/generate-card-text';
+import { extractUniquePlaceholderKeys } from '@/lib/utils';
+
 
 export default function CardForgePage() {
-  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV4', DEFAULT_TEMPLATES);
+  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV5', DEFAULT_TEMPLATES); // Incremented version for potential migration needs
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
   
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
@@ -38,6 +41,7 @@ export default function CardForgePage() {
   const [editingCard, setEditingCard] = useState<DisplayCard | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isGeneratingRandomCard, setIsGeneratingRandomCard] = useState(false);
 
 
   useEffect(() => {
@@ -73,6 +77,13 @@ export default function CardForgePage() {
           newT.frameStyle = 'standard';
           changed = true;
         }
+        // Ensure base colors exist, falling back to empty strings if not, so CardPreview doesn't break
+        newT.baseBackgroundColor = newT.baseBackgroundColor || '';
+        newT.baseTextColor = newT.baseTextColor || '';
+        newT.borderColor = newT.borderColor || '';
+        newT.frameColor = newT.frameColor || '';
+
+
         return newT; 
       });
     });
@@ -107,14 +118,14 @@ export default function CardForgePage() {
   const handleBulkCardsGenerated = (cards: DisplayCard[]) => {
     setGeneratedDisplayCards(prev => [...prev, ...cards]);
     if (cards.length > 0) {
-        setActiveTab("generator"); 
+        // setActiveTab("generator"); // Keep current tab, user might be on single card gen
         toast({ title: "Bulk Generation Complete", description: `${cards.length} cards added to preview.` });
     }
   };
 
   const handleSingleCardAdded = (card: DisplayCard) => {
     setGeneratedDisplayCards(prev => [...prev, card]);
-    setActiveTab("generator");
+    // setActiveTab("generator"); // Keep current tab
   };
 
   const handleClearGeneratedCards = () => {
@@ -122,7 +133,6 @@ export default function CardForgePage() {
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
   };
 
-  // Card Editing Handlers
   const handleEditCardRequest = (cardToEdit: DisplayCard) => {
     setEditingCard(cardToEdit);
     setIsEditDialogOpen(true);
@@ -140,11 +150,10 @@ export default function CardForgePage() {
   const handleDuplicateCard = (cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
       ...cardToDuplicate,
-      uniqueId: nanoid(), // Ensure a new unique ID
+      uniqueId: nanoid(), 
     };
     setGeneratedDisplayCards(prev => [...prev, newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
-    // Optionally close dialog or switch to editing the new card
     setIsEditDialogOpen(false); 
     setEditingCard(null);
   };
@@ -154,7 +163,6 @@ export default function CardForgePage() {
     setEditingCard(null);
   };
 
-  // Save/Load Card Set Handlers
   const handleSaveCardSet = () => {
     if (generatedDisplayCards.length === 0) {
       toast({ title: "Nothing to save", description: "Generate some cards first.", variant: "default" });
@@ -182,14 +190,13 @@ export default function CardForgePage() {
           const jsonString = e.target?.result as string;
           const loadedCards = JSON.parse(jsonString);
           if (Array.isArray(loadedCards) && loadedCards.every(isValidDisplayCard)) {
-            // Ensure sections have IDs for loaded cards
             const processedCards = loadedCards.map(card => ({
               ...card,
               template: {
                 ...card.template,
                 sections: card.template.sections.map((s: CardSection) => ({ ...s, id: s.id || nanoid() }))
               },
-              uniqueId: card.uniqueId || nanoid() // Ensure uniqueId exists
+              uniqueId: card.uniqueId || nanoid() 
             }));
             setGeneratedDisplayCards(processedCards);
             toast({ title: "Set Loaded", description: `${processedCards.length} cards loaded successfully.` });
@@ -202,16 +209,76 @@ export default function CardForgePage() {
         }
       };
       reader.readAsText(file);
-      if (fileInputRef.current) { // Reset file input
+      if (fileInputRef.current) { 
         fileInputRef.current.value = "";
       }
     }
   };
 
   const isValidDisplayCard = (item: any): item is DisplayCard => {
-    return item && typeof item.template === 'object' && typeof item.data === 'object' && typeof item.uniqueId === 'string' && Array.isArray(item.template.sections);
+    return item && typeof item.template === 'object' && typeof item.data === 'object' && (typeof item.uniqueId === 'string' || typeof item.uniqueId === 'undefined') && Array.isArray(item.template.sections);
   };
 
+  const handleGenerateRandomCard = async (template: TCGCardTemplate | undefined) => {
+    if (!template) {
+      toast({ title: "Template Needed", description: "Please select a template first in the Single Card Generator to generate a random card.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingRandomCard(true);
+    try {
+      const placeholders = new Set<string>();
+      template.sections.forEach(section => {
+        extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(key => placeholders.add(key));
+      });
+
+      if (placeholders.size === 0) {
+        toast({ title: "No Placeholders", description: "Selected template has no placeholders for AI to fill.", variant: "default" });
+        setIsGeneratingRandomCard(false);
+        return;
+      }
+      
+      // For a truly "random" card, the theme can be generic.
+      const aiResult = await generateCardText({ theme: "a completely random fantasy TCG card idea", textType: 'FullConceptIdea' });
+      
+      const cardData: { [key: string]: string } = {};
+      const aiLines = aiResult.cardText.split('\n');
+      let parsedName = "Random Card";
+      let parsedRules = "Random effect.";
+      let parsedFlavor = "";
+
+      aiLines.forEach(line => {
+        if (line.toLowerCase().startsWith("card name:")) parsedName = line.substring("card name:".length).trim();
+        else if (line.toLowerCase().startsWith("rules text:")) parsedRules = line.substring("rules text:".length).trim();
+        else if (line.toLowerCase().startsWith("flavor text:")) parsedFlavor = line.substring("flavor text:".length).trim();
+      });
+      
+      Array.from(placeholders).forEach(pKey => {
+        if (pKey.toLowerCase().includes('name')) cardData[pKey] = parsedName;
+        else if (pKey.toLowerCase().includes('rules') || pKey.toLowerCase().includes('text') || pKey.toLowerCase().includes('effect')) cardData[pKey] = parsedRules;
+        else if (pKey.toLowerCase().includes('flavor')) cardData[pKey] = parsedFlavor;
+        else if (pKey.toLowerCase().includes('art') && (pKey.toLowerCase().includes('url') || pKey.toLowerCase().includes('image'))) cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(parsedName.substring(0,20))}`;
+        else if (pKey.toLowerCase().includes('cost')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
+        else if (pKey.toLowerCase().includes('power')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
+        else if (pKey.toLowerCase().includes('toughness')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
+        else if (pKey.toLowerCase().includes('type') && !pKey.toLowerCase().includes('sub')) cardData[pKey] = ['Creature', 'Spell', 'Enchantment'][Math.floor(Math.random() * 3)];
+        else cardData[pKey] = "AI Value"; // Generic fallback
+      });
+
+      const randomCard: DisplayCard = {
+        template: template,
+        data: cardData,
+        uniqueId: nanoid()
+      };
+      handleSingleCardAdded(randomCard);
+      toast({title: "Random Card Generated", description: `"${parsedName}" added to preview.`})
+
+    } catch (error) {
+      console.error("Error generating random card:", error);
+      toast({ title: "AI Error", description: "Failed to generate random card.", variant: "destructive" });
+    } finally {
+      setIsGeneratingRandomCard(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -262,6 +329,14 @@ export default function CardForgePage() {
                                 <EyeOff className="h-4 w-4" /> Hide empty sections
                             </Label>
                         </div>
+                         <Button 
+                            variant="outline" 
+                            onClick={() => handleGenerateRandomCard(templates.find(t => t.id === (document.getElementById('singleTemplateSelect') as HTMLSelectElement)?.value) || templates[0])}
+                            disabled={isGeneratingRandomCard || templates.length === 0}
+                            className="w-full flex items-center gap-2"
+                        >
+                            <Sparkles className="h-4 w-4" /> {isGeneratingRandomCard ? "Generating..." : "Generate Random Card (AI)"}
+                        </Button>
                         <div className="flex flex-col gap-2 pt-2">
                            <div className="grid grid-cols-2 gap-2">
                              <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
@@ -289,7 +364,7 @@ export default function CardForgePage() {
                   <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
                     <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
                     <p className="text-lg font-medium">No cards generated yet.</p>
-                    <p className="text-sm">Use the panels on the left to add cards, or load a previously saved set.</p>
+                    <p className="text-sm">Use the panels on the left to add cards, load a set, or generate random cards.</p>
                   </div>
                 ) : (
                   <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
@@ -332,3 +407,4 @@ export default function CardForgePage() {
     </div>
   );
 }
+    

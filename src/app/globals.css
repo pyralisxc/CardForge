@@ -123,25 +123,9 @@ body {
     box-shadow: none !important;
     background-color: white !important; /* Ensure card background is white for print if not explicitly set */
   }
-  /* Ensure text within cards is black for print unless card styling overrides it */
-  .card-preview-print, .card-preview-print * {
-    /* color: black !important;  Allow section-specific colors for now */
-  }
-  .card-preview-print .tcg-card-name,
-  .card-preview-print .tcg-mana-cost,
-  .card-preview-print .tcg-type-line,
-  .card-preview-print .tcg-rules-text,
-  .card-preview-print .tcg-flavor-text,
-  .card-preview-print .tcg-pt,
-  .card-preview-print .tcg-artist,
-  .card-preview-print .tcg-rarity {
-    /* color: black !important; */ /* Override themed colors for print - allow section colors */
-  }
-
 
   .printable-grid {
     display: grid;
-    /* Adjust grid to fit TCG cards (e.g., 3x3 on Letter/A4) */
     grid-template-columns: repeat(auto-fill, minmax(63mm, 1fr)); 
     gap: 2mm;
   }
@@ -151,29 +135,29 @@ body {
 .tcg-card-preview {
   border: 4px solid hsl(var(--border)); /* Default border from template */
   background-color: hsl(var(--card)); /* Default card background */
+  color: hsl(var(--card-foreground)); /* Default text color */
 }
 
 .frame-standard .tcg-card-preview {
-  /* Uses default theme colors, border can be overridden by template.frameColor */
-  border-color: hsl(var(--primary)); /* A slightly more prominent border for standard */
+  /* Uses default theme colors from .tcg-card-preview or overridden by template.baseBackgroundColor/Color */
+  /* Specific frame border can be applied if desired, e.g. border-color: hsl(var(--primary)); */
 }
 
 .frame-classic-gold .tcg-card-preview {
-  border: 6px solid transparent; /* Make transparent to allow border-image to show */
+  border: 6px solid transparent; 
   border-image: linear-gradient(to bottom right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C) 1;
-  background-color: #fdf4d8; /* Light parchment/goldish background */
+  background-color: #fDF4D8; /* Light parchment/goldish background */
+  color: #4A3B2A; /* Darker brown text for contrast */
 }
 .frame-classic-gold .tcg-card-preview .tcg-section-cardname,
 .frame-classic-gold .tcg-card-preview .tcg-section-typeline {
-  background-color: rgba(180, 140, 50, 0.1); /* Subtle gold tint for these sections */
+  background-color: rgba(180, 140, 50, 0.1); 
 }
 
 .frame-minimal-dark .tcg-card-preview {
   border: 2px solid #4a4a4a;
   background-color: #282828;
-}
-.frame-minimal-dark .tcg-card-preview, .frame-minimal-dark .tcg-card-preview * {
-  /* color: #c0c0c0; Ensure this doesn't override specific section text colors unless intended */
+  color: #c0c0c0; /* Light grey text for dark minimal */
 }
 .frame-minimal-dark .tcg-card-preview .tcg-section-typeline {
   background-color: #333;
@@ -184,15 +168,21 @@ body {
   border: 5px solid hsl(var(--primary-foreground));
   background: linear-gradient(135deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.5));
   box-shadow: 0 0 15px hsl(var(--primary) / 0.7), inset 0 0 10px hsl(var(--background) / 0.3);
+  color: hsl(var(--primary-foreground)); /* Default text on this frame */
 }
 .frame-arcane-purple .tcg-card-preview .tcg-section-cardname,
 .frame-arcane-purple .tcg-card-preview .tcg-section-typeline {
   background-color: hsl(var(--primary) / 0.3);
-  border-color: hsl(var(--primary-foreground) / 0.5);
-  color: hsl(var(--primary-foreground));
+  border-bottom: 1px solid hsl(var(--primary-foreground) / 0.5);
+  /* color: hsl(var(--primary-foreground)); /* Already set by parent */
 }
-.frame-arcane-purple .tcg-card-preview .tcg-section-rulesstext,
+.frame-arcane-purple .tcg-card-preview .tcg-section-rulesstext, /* Typo here, should be RulesText */
 .frame-arcane-purple .tcg-card-preview .tcg-section-flavortext {
+   background-color: hsl(var(--background) / 0.5);
+   color: hsl(var(--foreground)); /* Different text color for text boxes */
+}
+.frame-arcane-purple .tcg-card-preview .tcg-section-rulestext { /* Corrected Typo */
    background-color: hsl(var(--background) / 0.5);
    color: hsl(var(--foreground));
 }
+    

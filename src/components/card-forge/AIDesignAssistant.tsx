@@ -8,18 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Added Select
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { suggestCardLayout, SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout';
 import { generateCardText, GenerateCardTextInput } from '@/ai/flows/generate-card-text';
-import { generateCardImage, GenerateCardImageInput } from '@/ai/flows/generate-card-image'; // Added Image Flow
+import { generateCardImage, GenerateCardImageInput } from '@/ai/flows/generate-card-image';
+import { suggestTemplateColors, SuggestTemplateColorsInput, SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors'; // New Flow
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, DownloadCloud } from 'lucide-react'; // Added ImageIcon, DownloadCloud
+import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TCGCardTemplate } from '@/types'; 
-import Image from 'next/image'; // For displaying generated image
+import Image from 'next/image';
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
+  // onApplyColors?: (colors: SuggestTemplateColorsOutput) => void; // Future: callback to apply colors
 }
 
 type TextGenType = GenerateCardTextInput['textType'];
@@ -41,6 +43,11 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
   const [imageConcept, setImageConcept] = useState<string>('');
   const [generatedImageDataUri, setGeneratedImageDataUri] = useState<string>('');
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+
+  const [colorTheme, setColorTheme] = useState<string>('');
+  const [suggestedColors, setSuggestedColors] = useState<SuggestTemplateColorsOutput | null>(null);
+  const [isLoadingColors, setIsLoadingColors] = useState(false);
+
 
   const { toast } = useToast();
 
@@ -108,6 +115,26 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     }
   };
 
+  const handleSuggestColors = async () => {
+    if (!colorTheme.trim()) {
+      toast({ title: "Input Required", description: "Please enter a theme for color suggestions.", variant: "destructive" });
+      return;
+    }
+    setIsLoadingColors(true);
+    setSuggestedColors(null);
+    try {
+      const result = await suggestTemplateColors({ theme: colorTheme });
+      setSuggestedColors(result);
+      toast({ title: "Color Palette Suggested", description: "AI has suggested colors for your theme." });
+    } catch (error) {
+      console.error("Error suggesting colors:", error);
+      toast({ title: "Error", description: `Failed to suggest colors: ${(error as Error).message}`, variant: "destructive" });
+    } finally {
+      setIsLoadingColors(false);
+    }
+  };
+
+
   const copyToClipboard = (textToCopy: string, successMessage: string) => {
     navigator.clipboard.writeText(textToCopy)
       .then(() => toast({ title: "Copied!", description: successMessage }))
@@ -124,14 +151,15 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
           <Sparkles className="mr-2 h-5 w-5 text-primary" />
           AI Helper
         </CardTitle>
-        <CardDescription>Get AI-powered assistance for card text, design, and image ideas.</CardDescription>
+        <CardDescription>Get AI-powered assistance for card text, design, image ideas, and color palettes.</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeAiTab} onValueChange={setActiveAiTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4"> {/* Updated to 3 columns */}
-            <TabsTrigger value="designSuggestions" className="flex items-center gap-2"><Palette className="h-4 w-4" />Design Ideas</TabsTrigger>
-            <TabsTrigger value="textGeneration" className="flex items-center gap-2"><TextQuote className="h-4 w-4" />Text Generation</TabsTrigger>
-            <TabsTrigger value="imageGeneration" className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />Image Ideas</TabsTrigger> {/* New Tab */}
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
+            <TabsTrigger value="designSuggestions" className="flex items-center gap-2"><Palette className="h-4 w-4" />Layout</TabsTrigger>
+            <TabsTrigger value="textGeneration" className="flex items-center gap-2"><TextQuote className="h-4 w-4" />Text</TabsTrigger>
+            <TabsTrigger value="imageGeneration" className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />Image</TabsTrigger>
+            <TabsTrigger value="colorSuggestions" className="flex items-center gap-2"><PaintbrushIcon className="h-4 w-4" />Colors</TabsTrigger>
           </TabsList>
 
           <TabsContent value="designSuggestions" className="space-y-4">
@@ -269,8 +297,53 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="colorSuggestions" className="space-y-4">
+            <CardDescription>Get AI-suggested color palettes for your card template based on a theme. You can then manually apply these in the Template Editor.</CardDescription>
+            <div>
+              <Label htmlFor="colorTheme">Theme for Color Palette</Label>
+              <Input
+                id="colorTheme"
+                value={colorTheme}
+                onChange={(e) => setColorTheme(e.target.value)}
+                placeholder="e.g., 'Fiery Volcano', 'Mystic Forest', 'Ancient Tomb'"
+              />
+            </div>
+            <Button onClick={handleSuggestColors} disabled={isLoadingColors} className="w-full">
+              <PaintbrushIcon className="mr-2 h-4 w-4" /> {isLoadingColors ? 'Suggesting Colors...' : 'Suggest Thematic Colors'}
+            </Button>
+            {suggestedColors && (
+              <div className="mt-4 space-y-3">
+                <h4 className="font-semibold">Suggested Color Palette:</h4>
+                <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    {Object.entries(suggestedColors).map(([key, value]) => {
+                      if (!value) return null;
+                      // Convert camelCase key to Title Case for display
+                      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                      return (
+                        <div key={key} className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{label}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono">{value}</span>
+                            <div className="h-4 w-4 rounded border" style={{ backgroundColor: value }}></div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(value, `${label} color copied.`)}>
+                                <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+                <p className="text-xs text-muted-foreground">Use these color codes in the Template Editor's styling options.</p>
+              </div>
+            )}
+          </TabsContent>
+
         </Tabs>
       </CardContent>
     </Card>
   );
 }
+    
