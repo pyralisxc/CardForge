@@ -17,12 +17,12 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff } from 'lucide-react'; // Updated icon
+import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage } from 'lucide-react';
 import { nanoid } from 'nanoid'; 
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard } from '@/types';
+import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CardForgePage() {
@@ -37,7 +37,6 @@ export default function CardForgePage() {
 
 
   useEffect(() => {
-    // Migration logic for older templates
     setTemplates(prevTemplates => {
       return prevTemplates.map(t => {
         const newT = {...t}; 
@@ -48,10 +47,9 @@ export default function CardForgePage() {
           changed = true;
         }
         
-        // Ensure sections exist and have IDs
         if (!newT.sections || !Array.isArray(newT.sections) || newT.sections.length === 0) {
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: any) => ({...s, id: s.id || nanoid()})); 
+          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: CardSection) => ({...s, id: s.id || nanoid()})); 
           newT.templateType = newT.templateType || defaultTemplateForMigration.templateType;
           newT.aspectRatio = newT.aspectRatio || defaultTemplateForMigration.aspectRatio;
           changed = true;
@@ -63,6 +61,10 @@ export default function CardForgePage() {
             }
             return s;
           });
+        }
+        if (!newT.aspectRatio) { // Ensure aspectRatio exists
+            newT.aspectRatio = "63:88";
+            changed = true;
         }
         return newT; 
       });
@@ -118,7 +120,7 @@ export default function CardForgePage() {
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 no-print">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 mb-6 no-print">
             <TabsTrigger value="editor" className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" /> Template Editor
             </TabsTrigger>
@@ -177,10 +179,10 @@ export default function CardForgePage() {
               <div className="md:col-span-2">
                 <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
                 {generatedDisplayCards.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8">
-                    <PackageOpen className="h-16 w-16 mb-4" />
-                    <p className="text-lg">No cards generated yet.</p>
-                    <p className="text-sm">Use the panels on the left to add single or bulk cards.</p>
+                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center">
+                    <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
+                    <p className="text-lg font-medium">No cards generated yet.</p>
+                    <p className="text-sm">Use the panels on the left to add single cards or generate them in bulk.</p>
                   </div>
                 ) : (
                   <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
