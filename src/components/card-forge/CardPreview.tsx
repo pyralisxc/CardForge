@@ -86,11 +86,15 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
+      // In editor preview, only hide if the placeholder itself is truly empty,
+      // but generally show it so users can see all defined sections.
+      // Artwork and Dividers are always shown structurally in editor.
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
       return section.contentPlaceholder?.trim() === '';
     }
+    // For actual card previews (not editor)
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false;
+      if (section.type === 'Artwork' || section.type === 'Divider') return false; // Artwork might have a default, Divider is structural
       return processedContent.trim() === '';
     }
     return false;
@@ -155,12 +159,11 @@ export function CardPreview({
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
                   fontStyle: section.fontStyle || 'normal',
-                  minHeight: section.minHeight === '_auto_' || !section.minHeight ? undefined : section.minHeight,
                   flexGrow: section.flexGrow || 0,
                   flexShrink: section.flexGrow && section.flexGrow > 0 ? 1 : 0, 
-                  flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto',
+                  flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto', // Allow grow/shrink from 0
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
-                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined,
+                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined, // Crucial for text wrapping in flex items
                 };
 
                 if (section.borderColor) {
@@ -175,8 +178,9 @@ export function CardPreview({
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
-                  section.borderWidth === '_none_' ? '' : section.borderWidth,
                   section.fontFamily || 'font-sans',
+                  (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '', // Apply minHeight as a class
+                  section.borderWidth === '_none_' ? '' : section.borderWidth,
                   (section.type === 'RulesText' || section.type === 'FlavorText') ? 'whitespace-pre-wrap break-words' : 'whitespace-normal break-words',
                   `tcg-section-${section.type.toLowerCase()}`,
                   isEditorPreview && onSectionClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-[-1px] hover:outline-primary/70' : ''
@@ -193,24 +197,22 @@ export function CardPreview({
                   let artworkDisplaySrc = sectionContent;
                   
                   if (isEditorPreview) {
-                     // For editor preview, if the content isn't already a direct http/https/data URL,
-                     // assume it's a placeholder string (like {{artworkUrl}}) or empty, and use the default placeholder image.
-                     if (!artworkDisplaySrc.startsWith('http://') && !artworkDisplaySrc.startsWith('https://') && !artworkDisplaySrc.startsWith('data:')) {
+                     if (!artworkDisplaySrc.startsWith('http://') && 
+                         !artworkDisplaySrc.startsWith('https://') && 
+                         !artworkDisplaySrc.startsWith('data:')) {
                        artworkDisplaySrc = `https://placehold.co/600x400.png`;
                      }
                   } else {
-                    // Fallback for actual cards if src is invalid/missing and not in editor preview
                     if (!artworkDisplaySrc || artworkDisplaySrc.trim() === '' || (artworkDisplaySrc.startsWith('{{') && artworkDisplaySrc.endsWith('}}'))) {
                        artworkDisplaySrc = `https://placehold.co/600x400.png`; 
                     }
                   }
 
-
                   return (
                     <div
                       key={section.id}
-                      className={cn(sectionClasses, "relative w-full")}
-                      style={sectionStyle}
+                      className={cn(sectionClasses, "relative w-full")} // w-full is important for layout="fill"
+                      style={sectionStyle} // sectionStyle contains minHeight for Artwork
                       onClick={handlePreviewSectionClick}
                       data-section-id={section.id}
                     >
@@ -219,9 +221,9 @@ export function CardPreview({
                         alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data) || "Card artwork"}
                         layout="fill"
                         objectFit="cover"
-                        className="w-full h-full"
+                        className="w-full h-full" // these might be redundant with layout="fill" but fine
                         data-ai-hint={artworkHint}
-                        priority={rowIndex === 0 && sectionIndex === 0} // Simplified priority logic
+                        priority={rowIndex === 0 && sectionIndex === 0} 
                       />
                     </div>
                   );
@@ -231,8 +233,8 @@ export function CardPreview({
                     return (
                         <div
                           key={section.id}
-                          className={cn("tcg-section-divider w-full", sectionClasses)}
-                          style={{...sectionStyle, height: section.minHeight === '_auto_' || !section.minHeight ? '1px' : section.minHeight, backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
+                          className={cn("tcg-section-divider w-full", sectionClasses)} // sectionClasses includes minHeight if set
+                          style={{...sectionStyle, backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
                           onClick={handlePreviewSectionClick}
                           data-section-id={section.id}
                         ></div>
@@ -245,10 +247,8 @@ export function CardPreview({
                 if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '' && section.contentPlaceholder.trim() !== '') {
                     displayContent = section.contentPlaceholder;
                 } else if (isEditorPreview && section.contentPlaceholder && sectionContent === section.contentPlaceholder) {
-                   // If sectionContent is exactly the placeholder string (e.g. "{{cardName}}"), display it as is in editor.
                    displayContent = section.contentPlaceholder;
                 }
-
 
                 return (
                   <Tag
@@ -274,6 +274,3 @@ export function CardPreview({
     </div>
   );
 }
-
-
-    
