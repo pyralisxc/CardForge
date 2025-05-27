@@ -12,8 +12,8 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput } from 'lucide-react';
-import { TCG_ASPECT_RATIO, SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES } from '@/lib/constants';
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Info, Settings2, Paintbrush, TextCursorInput, Minus } from 'lucide-react';
+import { TCG_ASPECT_RATIO, SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
@@ -27,15 +27,15 @@ interface TemplateEditorProps {
 
 const iconMap: Record<CardSectionType, React.ElementType> = {
   CardName: TextCursorInput,
-  ManaCost: Baseline,
+  ManaCost: Baseline, // Could use a currency icon if available
   Artwork: Paintbrush,
   TypeLine: Type,
-  RulesText: AlignLeft,
+  RulesText: AlignLeft, // Or 'List'
   FlavorText: Italic,
-  PowerToughness: ChevronsUpDown,
-  ArtistCredit: Baseline,
+  PowerToughness: ChevronsUpDown, // Or 'Scaling'
+  ArtistCredit: Baseline, // Or 'UserCircle'
   CustomText: Type,
-  Divider: Baseline, // Consider a specific icon like Minus if available and suitable
+  Divider: Minus,
 };
 
 
@@ -47,7 +47,7 @@ export function TemplateEditor({
 }: TemplateEditorProps) {
   const { toast } = useToast();
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(
-    initialTemplate || PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0] || { 
+    initialTemplate || JSON.parse(JSON.stringify(PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0])) || { 
       id: nanoid(),
       name: 'New Custom Template',
       templateType: 'CustomSequential',
@@ -65,43 +65,43 @@ export function TemplateEditor({
 
   useEffect(() => {
     let newTemplateToSet: TCGCardTemplate;
+    const creaturePreset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
+    
     if (selectedTemplateToEditId) {
       const templateToEdit = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateToEdit) {
-        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); // Deep copy
+        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); 
       } else {
-        const base = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
-        newTemplateToSet = {...JSON.parse(JSON.stringify(base)), id: nanoid(), name: "New Custom Template", sections: base.sections.map(s => ({...s, id: s.id || nanoid()}))};
+        // This case might happen if selectedTemplateToEditId refers to a deleted template
+        newTemplateToSet = {...JSON.parse(JSON.stringify(creaturePreset)), id: nanoid(), name: "New Custom Template (Loaded Default)"};
+        setSelectedTemplateToEditId(newTemplateToSet.id); // Update ID to new one
       }
     } else if (initialTemplate) {
-         newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); // Deep copy
+         newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); 
     } else {
-        const newTemplateBase = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
-        const newSections = newTemplateBase.sections.map(s => ({...s, id: s.id || nanoid() }));
         newTemplateToSet = {
-            id: nanoid(),
+            ...JSON.parse(JSON.stringify(creaturePreset)),
+            id: nanoid(), // Ensure a new ID for a completely new template
             name: 'New Custom Template',
-            templateType: 'CustomSequential',
-            aspectRatio: TCG_ASPECT_RATIO,
-            sections: newSections,
-            frameColor: newTemplateBase.frameColor,
-            borderColor: newTemplateBase.borderColor,
-            baseBackgroundColor: newTemplateBase.baseBackgroundColor,
-            baseTextColor: newTemplateBase.baseTextColor,
         };
     }
+
+    // Ensure all sections have IDs, especially when loading presets
+    newTemplateToSet.sections = newTemplateToSet.sections.map(s => ({...s, id: s.id || nanoid()}));
+
     setCurrentTemplate(newTemplateToSet);
+    // Expand all sections by default when a template is loaded or created
     setActiveAccordionItems(newTemplateToSet.sections.map(s => s.id));
   }, [selectedTemplateToEditId, templates, initialTemplate]);
 
   const handleTemplatePresetChange = (presetName: string) => {
     const preset = PRESET_TEMPLATES.find(t => t.name === presetName);
     if (preset) {
-      const newSections = preset.sections.map(s => ({...s, id: s.id || nanoid() }));
+      const newSections = preset.sections.map(s => ({...s, id: s.id || nanoid() })); // Ensure new section IDs for preset
       setCurrentTemplate({
         ...JSON.parse(JSON.stringify(preset)), 
-        id: currentTemplate.id, 
-        name: currentTemplate.name || preset.name, 
+        id: currentTemplate.id, // Keep current template ID if editing, or it's a new ID
+        name: currentTemplate.name || preset.name, // Keep current name or use preset name
         sections: newSections,
       });
       setActiveAccordionItems(newSections.map(s => s.id));
@@ -146,18 +146,14 @@ export function TemplateEditor({
   const resetFormToNew = () => {
     const newTemplateBase = PRESET_TEMPLATES.find(t => t.name.includes("Basic Custom Card")) || PRESET_TEMPLATES[0];
     const newSections = newTemplateBase.sections.map(s => ({...s, id: s.id || nanoid()}));
+    const newId = nanoid();
     setCurrentTemplate({
-      id: nanoid(),
+      ...JSON.parse(JSON.stringify(newTemplateBase)), // Deep copy preset structure
+      id: newId,
       name: 'New Custom Template',
-      templateType: 'CustomSequential',
-      aspectRatio: TCG_ASPECT_RATIO,
       sections: newSections,
-      frameColor: newTemplateBase?.frameColor ||'#CCCCCC',
-      borderColor: newTemplateBase?.borderColor ||'#888888',
-      baseBackgroundColor: newTemplateBase?.baseBackgroundColor ||'#FFFFFF',
-      baseTextColor: newTemplateBase?.baseTextColor ||'#000000',
     });
-    setSelectedTemplateToEditId(null);
+    setSelectedTemplateToEditId(newId); // Set the ID for the new template being edited
     setActiveAccordionItems(newSections.map(s => s.id));
   };
 
@@ -179,8 +175,12 @@ export function TemplateEditor({
   };
 
   const handleSectionClickFromPreview = (sectionId: string) => {
-    setActiveAccordionItems([sectionId]); // Open only the clicked section
-    // Optionally, scroll to the accordion item
+    setActiveAccordionItems(prev => {
+      // Toggle: if already active, keep others as is. If not, make it the only active one.
+      // Or simply always make it the only active one for focus.
+      // if (prev.includes(sectionId)) return prev.filter(id => id !== sectionId); // This would toggle
+      return [sectionId]; // This focuses by making it the only open one
+    });
     const itemElement = document.getElementById(`accordion-item-${sectionId}`);
     itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
@@ -259,11 +259,11 @@ export function TemplateEditor({
       {currentTemplate && (
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>{selectedTemplateToEditId ? 'Edit Template' : 'Create New Template'}: {currentTemplate.name}</CardTitle>
+            <CardTitle>{currentTemplate.id === selectedTemplateToEditId && templates.find(t=>t.id === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: {currentTemplate.name}</CardTitle>
             <CardDescription>Define overall style and card sections from top to bottom.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[calc(100vh-260px)] pr-4">
+            <ScrollArea className="h-[calc(100vh-300px)] pr-2"> {/* Adjusted height and added pr-2 */}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <section className="space-y-4 p-4 border rounded-md bg-card/30">
                   <h4 className="text-lg font-semibold flex items-center gap-2"><Settings2 className="h-5 w-5 text-primary" />Template Settings</h4>
@@ -276,9 +276,10 @@ export function TemplateEditor({
                     <div>
                       <Label htmlFor="templateType">Template Type</Label>
                       <Select value={currentTemplate.templateType} onValueChange={(v) => updateCurrentTemplate({ templateType: v as TCGCardTemplate['templateType'] })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger id="templateType"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="CustomSequential">Custom Sequential (Build Your Own)</SelectItem>
+                          {/* Future: <SelectItem value="StandardFantasyTCG">Standard Fantasy (Fixed Layout)</SelectItem> */}
                         </SelectContent>
                       </Select>
                     </div>
@@ -343,18 +344,66 @@ export function TemplateEditor({
                           <details className="text-sm mt-2">
                             <summary className="cursor-pointer text-muted-foreground hover:text-foreground flex items-center gap-1"><Palette className="h-4 w-4" /> Styling Options <Info className="inline h-3 w-3" /></summary>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 mt-2 pt-2 border-t">
-                              <div><Label htmlFor={`fontFamily-${section.id}`}>Font Family</Label><Select value={section.fontFamily || 'font-sans'} onValueChange={v => updateSection(section.id, {fontFamily: v})}><SelectTrigger id={`fontFamily-${section.id}`}><SelectValue/></SelectTrigger><SelectContent>{AVAILABLE_FONTS.map(f=><SelectItem key={f.value} value={f.value!}><span className={f.value}>{f.name}</span></SelectItem>)}</SelectContent></Select></div>
-                              <div><Label htmlFor={`fontSize-${section.id}`}>Font Size</Label><Select value={section.fontSize || 'text-sm'} onValueChange={v => updateSection(section.id, {fontSize: v as CardSection['fontSize']})}><SelectTrigger id={`fontSize-${section.id}`}><SelectValue/></SelectTrigger><SelectContent>{FONT_SIZES.map(s=><SelectItem key={s} value={s!}>{s}</SelectItem>)}</SelectContent></Select></div>
-                              <div><Label htmlFor={`fontWeight-${section.id}`}>Font Weight</Label><Select value={section.fontWeight || 'font-normal'} onValueChange={v => updateSection(section.id, {fontWeight: v as CardSection['fontWeight']})}><SelectTrigger id={`fontWeight-${section.id}`}><SelectValue/></SelectTrigger><SelectContent>{FONT_WEIGHTS.map(s=><SelectItem key={s} value={s!}>{s}</SelectItem>)}</SelectContent></Select></div>
-                              <div><Label htmlFor={`fontStyle-${section.id}`}>Font Style</Label><Select value={section.fontStyle || 'normal'} onValueChange={v => updateSection(section.id, {fontStyle: v as CardSection['fontStyle']})}><SelectTrigger id={`fontStyle-${section.id}`}><SelectValue/></SelectTrigger><SelectContent>{FONT_STYLES.map(s=><SelectItem key={s} value={s!}>{s}</SelectItem>)}</SelectContent></Select></div>
-                              <div><Label htmlFor={`textAlign-${section.id}`}>Text Align</Label><Select value={section.textAlign || 'left'} onValueChange={v => updateSection(section.id, {textAlign: v as CardSection['textAlign']})}><SelectTrigger id={`textAlign-${section.id}`}><SelectValue/></SelectTrigger><SelectContent>{TEXT_ALIGNS.map(s=><SelectItem key={s} value={s!}>{s}</SelectItem>)}</SelectContent></Select></div>
+                              <div>
+                                <Label htmlFor={`fontFamily-${section.id}`}>Font Family</Label>
+                                <Select value={section.fontFamily || 'font-sans'} onValueChange={v => updateSection(section.id, {fontFamily: v})}>
+                                    <SelectTrigger id={`fontFamily-${section.id}`}><SelectValue/></SelectTrigger>
+                                    <SelectContent>{AVAILABLE_FONTS.map(f=><SelectItem key={f.value} value={f.value!}><span className={f.value}>{f.name}</span></SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor={`fontSize-${section.id}`}>Font Size</Label>
+                                <Select value={section.fontSize || 'text-sm'} onValueChange={v => updateSection(section.id, {fontSize: v as CardSection['fontSize']})}>
+                                    <SelectTrigger id={`fontSize-${section.id}`}><SelectValue/></SelectTrigger>
+                                    <SelectContent>{FONT_SIZES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor={`fontWeight-${section.id}`}>Font Weight</Label>
+                                <Select value={section.fontWeight || 'font-normal'} onValueChange={v => updateSection(section.id, {fontWeight: v as CardSection['fontWeight']})}>
+                                    <SelectTrigger id={`fontWeight-${section.id}`}><SelectValue/></SelectTrigger>
+                                    <SelectContent>{FONT_WEIGHTS.map(s=><SelectItem key={s} value={s!}>{s}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor={`fontStyle-${section.id}`}>Font Style</Label>
+                                <Select value={section.fontStyle || 'normal'} onValueChange={v => updateSection(section.id, {fontStyle: v as CardSection['fontStyle']})}>
+                                    <SelectTrigger id={`fontStyle-${section.id}`}><SelectValue/></SelectTrigger>
+                                    <SelectContent>{FONT_STYLES.map(s=><SelectItem key={s} value={s!}>{s}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor={`textAlign-${section.id}`}>Text Align</Label>
+                                <Select value={section.textAlign || 'left'} onValueChange={v => updateSection(section.id, {textAlign: v as CardSection['textAlign']})}>
+                                    <SelectTrigger id={`textAlign-${section.id}`}><SelectValue/></SelectTrigger>
+                                    <SelectContent>{TEXT_ALIGNS.map(s=><SelectItem key={s} value={s!}>{s}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
                               <div><Label htmlFor={`textColor-${section.id}`}>Text Color</Label><Input id={`textColor-${section.id}`} type="color" value={section.textColor || currentTemplate.baseTextColor || '#000000'} onChange={(e) => updateSection(section.id, { textColor: e.target.value })} /></div>
                               
-                              <div><Label htmlFor={`bgColor-${section.id}`}>Background</Label><Input id={`bgColor-${section.id}`} type="color" value={section.backgroundColor || ''} onChange={(e) => updateSection(section.id, { backgroundColor: e.target.value })} /></div>
-                              <div><Label htmlFor={`padding-${section.id}`}>Padding</Label><Input id={`padding-${section.id}`} value={section.padding || 'p-1'} placeholder="e.g. p-1" onChange={(e) => updateSection(section.id, { padding: e.target.value })} /></div>
+                              <div><Label htmlFor={`bgColor-${section.id}`}>Background Color</Label><Input id={`bgColor-${section.id}`} type="color" value={section.backgroundColor || ''} onChange={(e) => updateSection(section.id, { backgroundColor: e.target.value === '#000000' ? '' : e.target.value })} /></div>
+                              <div>
+                                <Label htmlFor={`padding-${section.id}`}>Padding</Label>
+                                <Select value={section.padding || 'p-1'} onValueChange={v => updateSection(section.id, {padding: v})}>
+                                    <SelectTrigger id={`padding-${section.id}`}><SelectValue/></SelectTrigger>
+                                    <SelectContent>{PADDING_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
                               <div><Label htmlFor={`borderColor-${section.id}`}>Border Color</Label><Input id={`borderColor-${section.id}`} type="color" value={section.borderColor || currentTemplate.borderColor || '#888888'} onChange={(e) => updateSection(section.id, { borderColor: e.target.value })} /></div>
-                              <div><Label htmlFor={`borderWidth-${section.id}`}>Border Width</Label><Input id={`borderWidth-${section.id}`} value={section.borderWidth || ''} placeholder="e.g. border-t-2" onChange={(e) => updateSection(section.id, { borderWidth: e.target.value })} title="Use Tailwind classes like 'border', 'border-t-2', 'border-x-4'" /></div>
-                              <div><Label htmlFor={`minHeight-${section.id}`}>Min Height</Label><Input id={`minHeight-${section.id}`} value={section.minHeight || ''} placeholder="e.g. min-h-[60px]" onChange={(e) => updateSection(section.id, { minHeight: e.target.value })} /></div>
+                              <div>
+                                <Label htmlFor={`borderWidth-${section.id}`}>Border Width</Label>
+                                <Select value={section.borderWidth || ''} onValueChange={v => updateSection(section.id, {borderWidth: v})}>
+                                    <SelectTrigger id={`borderWidth-${section.id}`}><SelectValue placeholder="No border"/></SelectTrigger>
+                                    <SelectContent>{BORDER_WIDTH_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor={`minHeight-${section.id}`}>Min Height</Label>
+                                <Select value={section.minHeight || ''} onValueChange={v => updateSection(section.id, {minHeight: v})}>
+                                    <SelectTrigger id={`minHeight-${section.id}`}><SelectValue placeholder="Auto"/></SelectTrigger>
+                                    <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
+                                </Select>
+                              </div>
                               
                               <div className="flex items-center col-span-full sm:col-span-1 mt-2">
                                   <input type="checkbox" id={`flexGrow-${section.id}`} checked={!!section.flexGrow} onChange={(e) => updateSection(section.id, { flexGrow: e.target.checked })} className="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary" />
@@ -387,8 +436,8 @@ export function TemplateEditor({
             </ScrollArea>
              <div className="mt-6 pt-6 border-t">
                 <h4 className="text-lg font-semibold mb-2 text-center">Live Template Preview</h4>
-                <p className="text-xs text-muted-foreground text-center mb-3">(Shows placeholders as content)</p>
-                <div className="mx-auto max-w-xs">
+                <p className="text-xs text-muted-foreground text-center mb-3">(Shows placeholders as content. Click section to edit.)</p>
+                <div className="mx-auto max-w-xs"> {/* Constrain width of preview container */}
                   <CardPreview 
                     template={currentTemplate} 
                     data={livePreviewData} 
@@ -405,3 +454,6 @@ export function TemplateEditor({
     </div>
   );
 }
+
+
+    
