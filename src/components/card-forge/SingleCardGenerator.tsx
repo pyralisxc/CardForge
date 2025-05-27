@@ -3,7 +3,8 @@
 
 import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
 import { TCG_FIELD_DEFINITIONS } from '@/lib/constants';
-import { useState, ChangeEvent } from 'react';
+import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
+import { useState, ChangeEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,25 +20,58 @@ interface SingleCardGeneratorProps {
   onSingleCardAdded: (card: DisplayCard) => void;
 }
 
-// Helper to extract placeholder keys from a template string
-function extractPlaceholders(templateString?: string): string[] {
-    if (!templateString) return [];
-    const regex = /{{(.*?)}}/g;
-    const matches = [];
-    let match;
-    while ((match = regex.exec(templateString)) !== null) {
-        matches.push(match[1].trim());
-    }
-    return matches;
+interface DynamicField {
+  key: string;
+  label: string;
+  type: 'input' | 'textarea';
 }
-
 
 export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCardGeneratorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [cardData, setCardData] = useState<CardData>({});
+  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   const { toast } = useToast();
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      const allPlaceholderKeys = new Set<string>();
+      // Iterate over all string properties of the template that might contain placeholders
+      (Object.keys(selectedTemplate) as Array<keyof TCGCardTemplate>).forEach(propKey => {
+        const value = selectedTemplate[propKey];
+        if (typeof value === 'string') {
+          extractUniquePlaceholderKeys(value).forEach(pKey => allPlaceholderKeys.add(pKey));
+        }
+      });
+
+      const fields: DynamicField[] = Array.from(allPlaceholderKeys).map(key => {
+        const definition = TCG_FIELD_DEFINITIONS.find(def => def.key === key);
+        return {
+          key,
+          label: definition?.label || toTitleCase(key),
+          type: definition?.type === 'textarea' ? 'textarea' : 'input',
+        };
+      });
+      setDynamicFields(fields);
+      // Reset card data for the new set of fields, preserving any common data if desired (not done here for simplicity)
+      const newCardData: CardData = {};
+      fields.forEach(f => {
+        // Pre-fill artworkUrl from template if it's a dynamic field and empty in current cardData
+        if (f.key === 'artworkUrl' && selectedTemplate.artworkUrlPlaceholder && !cardData.artworkUrl) {
+            newCardData[f.key] = selectedTemplate.artworkUrlPlaceholder;
+        } else {
+            newCardData[f.key] = cardData[f.key] || '';
+        }
+      });
+      setCardData(newCardData);
+
+    } else {
+      setDynamicFields([]);
+      setCardData({});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
@@ -49,26 +83,23 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
       return;
     }
 
-    // Basic validation: ensure at least a card name is provided if that placeholder exists
-    const cardNameField = TCG_FIELD_DEFINITIONS.find(f => f.key === 'cardName');
-    if (cardNameField && selectedTemplate[cardNameField.placeholderKey] && !cardData[cardNameField.key]) {
+    // Basic validation: ensure at least a card name is provided if 'cardName' is a dynamic field
+    if (dynamicFields.some(f => f.key === 'cardName') && !cardData['cardName']) {
         toast({ title: "Error", description: "Card Name is required.", variant: "destructive" });
         return;
     }
     
-    // Fill any missing data fields with empty strings or default from template if applicable
     const completeCardData: CardData = { ...cardData };
-    TCG_FIELD_DEFINITIONS.forEach(fieldDef => {
-        if (selectedTemplate[fieldDef.placeholderKey] && completeCardData[fieldDef.key] === undefined) {
-            // If artworkUrl is missing and placeholder exists, use template's default artwork placeholder
-            if (fieldDef.key === 'artworkUrl' && selectedTemplate.artworkUrlPlaceholder && !completeCardData.artworkUrl) {
-                completeCardData.artworkUrl = selectedTemplate.artworkUrlPlaceholder;
-            } else {
-                 completeCardData[fieldDef.key] = ''; // Default to empty string for other missing fields
-            }
+    dynamicFields.forEach(field => {
+        if (completeCardData[field.key] === undefined) {
+          // Special handling for artworkUrl: if not provided and template has a default, use it.
+          if (field.key === 'artworkUrl' && selectedTemplate.artworkUrlPlaceholder && !completeCardData.artworkUrl) {
+            completeCardData.artworkUrl = selectedTemplate.artworkUrlPlaceholder;
+          } else {
+            completeCardData[field.key] = ''; // Default to empty string for other missing fields
+          }
         }
     });
-
 
     const displayCard: DisplayCard = {
       template: selectedTemplate,
@@ -77,33 +108,18 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
     };
     onSingleCardAdded(displayCard);
     toast({ title: "Success", description: `TCG card "${completeCardData.cardName || 'Untitled Card'}" added.` });
-    // Optionally reset form fields after adding, or keep them for quick iteration
-    // setCardData({}); // Uncomment to reset form
+    // Optionally reset form:
+    // const freshCardData: CardData = {};
+    // dynamicFields.forEach(f => { freshCardData[f.key] = (f.key === 'artworkUrl' && selectedTemplate.artworkUrlPlaceholder) ? selectedTemplate.artworkUrlPlaceholder : ''; });
+    // setCardData(freshCardData);
   };
-
-  // Determine which fields to show based on the selected template's placeholders
-  const fieldsToShow = selectedTemplate 
-    ? TCG_FIELD_DEFINITIONS.filter(fieldDef => {
-        const placeholderValue = selectedTemplate[fieldDef.placeholderKey];
-        if (typeof placeholderValue === 'string' && placeholderValue.trim() !== '') {
-          // For P/T, check if the placeholder contains either power or toughness related keys
-          if (fieldDef.placeholderKey === 'powerToughnessPlaceholder') {
-            return extractPlaceholders(placeholderValue).some(p => p.toLowerCase().includes(fieldDef.key));
-          }
-          return extractPlaceholders(placeholderValue).includes(fieldDef.key) || 
-                 (fieldDef.key === 'artworkUrl' && placeholderValue.includes("https://placehold.co")) || // Always show artwork if placeholder is a URL
-                 placeholderValue.includes(`{{${fieldDef.key}}}`); // Direct match
-        }
-        return false;
-      })
-    : [];
 
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Single TCG Card Entry</CardTitle>
-        <CardDescription>Select a template and fill in the details for one card.</CardDescription>
+        <CardDescription>Select a template and fill in the details for one card. Placeholders like {'{{variableName}}'} in the template will appear as fields here.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -112,7 +128,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
             value={selectedTemplateId} 
             onValueChange={(id) => {
               setSelectedTemplateId(id);
-              setCardData({}); // Reset card data when template changes
+              // Card data & dynamic fields will be reset by the useEffect hook
             }}
           >
             <SelectTrigger id="singleTemplateSelect">
@@ -124,25 +140,25 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
           </Select>
         </div>
 
-        {selectedTemplate && fieldsToShow.length > 0 && (
+        {selectedTemplate && dynamicFields.length > 0 && (
           <div className="space-y-3 mt-4 border-t pt-4">
-            {fieldsToShow.map(fieldDef => (
-              <div key={fieldDef.key}>
-                <Label htmlFor={`singleCard-${fieldDef.key}`}>{fieldDef.label}</Label>
-                {fieldDef.type === 'textarea' ? (
+            {dynamicFields.map(field => (
+              <div key={field.key}>
+                <Label htmlFor={`singleCard-${field.key}`}>{field.label}</Label>
+                {field.type === 'textarea' ? (
                   <Textarea
-                    id={`singleCard-${fieldDef.key}`}
-                    value={(cardData[fieldDef.key] as string) || ''}
-                    onChange={(e) => handleInputChange(e, fieldDef.key)}
-                    placeholder={`Enter ${fieldDef.label.toLowerCase()}...`}
-                    rows={fieldDef.key === 'rulesText' ? 3 : 2}
+                    id={`singleCard-${field.key}`}
+                    value={(cardData[field.key] as string) || ''}
+                    onChange={(e) => handleInputChange(e, field.key)}
+                    placeholder={`Enter ${field.label.toLowerCase()}...`}
+                    rows={field.key.toLowerCase().includes('rules') || field.key.toLowerCase().includes('text') ? 3 : 2}
                   />
                 ) : (
                   <Input
-                    id={`singleCard-${fieldDef.key}`}
-                    value={(cardData[fieldDef.key] as string) || ''}
-                    onChange={(e) => handleInputChange(e, fieldDef.key)}
-                    placeholder={`Enter ${fieldDef.label.toLowerCase()}...`}
+                    id={`singleCard-${field.key}`}
+                    value={(cardData[field.key] as string) || ''}
+                    onChange={(e) => handleInputChange(e, field.key)}
+                    placeholder={`Enter ${field.label.toLowerCase()}...`}
                   />
                 )}
               </div>
@@ -150,12 +166,12 @@ export function SingleCardGenerator({ templates, onSingleCardAdded }: SingleCard
           </div>
         )}
         
-        {selectedTemplate && fieldsToShow.length === 0 && (
-            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields for single card entry (e.g., `{{cardName}}`, `{{manaCost}}`). Please edit the template to include them.</p>
+        {selectedTemplate && dynamicFields.length === 0 && (
+            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., `{{cardName}}`, `{{manaCost}}`). Please edit the template to include them in its placeholder strings.</p>
         )}
 
 
-        <Button onClick={handleAddCard} disabled={!selectedTemplate || fieldsToShow.length === 0} className="w-full">
+        <Button onClick={handleAddCard} disabled={!selectedTemplate || dynamicFields.length === 0} className="w-full">
           <PlusSquare className="mr-2 h-4 w-4" /> Add Card to Preview List
         </Button>
       </CardContent>

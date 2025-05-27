@@ -1,5 +1,5 @@
 
-import type { PaperSize, TCGCardTemplate } from '@/types';
+import type { PaperSize, TCGCardTemplate, CardData } from '@/types';
 import { nanoid } from 'nanoid';
 
 export const PAPER_SIZES: PaperSize[] = [
@@ -7,7 +7,7 @@ export const PAPER_SIZES: PaperSize[] = [
   { name: 'A4 (210x297 mm)', widthMm: 210, heightMm: 297 },
 ];
 
-export const TCG_ASPECT_RATIO = '63:88';
+export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
 
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
@@ -39,18 +39,18 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
     id: nanoid(),
     name: 'Red Spell Template',
-    cardNamePlaceholder: '{{spellName}}',
+    cardNamePlaceholder: '{{spellName}}', // Note: use 'cardName' for consistency if preferred, or allow any key
     manaCostPlaceholder: '{{manaCost}}',
     artworkUrlPlaceholder: `https://placehold.co/375x275.png`,
     cardTypeLinePlaceholder: 'Instant - {{spellSubType}}',
     rulesTextPlaceholder: '{{spellEffect}}\n{{additionalCost}}',
     flavorTextPlaceholder: '"{{spellQuote}}"',
-    powerToughnessPlaceholder: '', // Spells usually don't have P/T
+    powerToughnessPlaceholder: '', 
     rarityPlaceholder: '{{rarity}}',
     artistCreditPlaceholder: 'Illus. {{artistName}}',
     aspectRatio: TCG_ASPECT_RATIO,
-    frameColor: '#E8B0A0', // Light Red frame
-    borderColor: '#A8605A', // Darker Red for borders
+    frameColor: '#E8B0A0', 
+    borderColor: '#A8605A', 
     baseBackgroundColor: '#F7F0F0',
     baseTextColor: '#1C1C1C',
     nameTextColor: '#610316',
@@ -65,18 +65,18 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
     id: nanoid(),
     name: 'Artifact Template',
-    cardNamePlaceholder: '{{artifactName}}',
+    cardNamePlaceholder: '{{artifactName}}', // Note: use 'cardName' for consistency if preferred
     manaCostPlaceholder: '{{manaCost}}',
     artworkUrlPlaceholder: `https://placehold.co/375x275.png`,
     cardTypeLinePlaceholder: 'Artifact - {{artifactSubType}}',
     rulesTextPlaceholder: '{{staticAbility}}\n{{activatedAbility}}',
     flavorTextPlaceholder: '"{{artifactLore}}"',
-    powerToughnessPlaceholder: '{{power}}/{{toughness}}', // If artifact creature
+    powerToughnessPlaceholder: '{{power}}/{{toughness}}', 
     rarityPlaceholder: '{{rarity}}',
     artistCreditPlaceholder: 'Illus. {{artistName}}',
     aspectRatio: TCG_ASPECT_RATIO,
-    frameColor: '#C0C0C0', // Grey/Silver
-    borderColor: '#808080', // Darker Grey
+    frameColor: '#C0C0C0', 
+    borderColor: '#808080', 
     baseBackgroundColor: '#F5F5F5',
     baseTextColor: '#1C1C1C',
     nameTextColor: '#333333',
@@ -90,20 +90,36 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   }
 ];
 
-// For SingleCardGenerator: defines the order and labels for common TCG fields
-export const TCG_FIELD_DEFINITIONS: { key: keyof CardData; label: string; placeholderKey: keyof TCGCardTemplate, type?: string }[] = [
-  { key: 'cardName', label: 'Card Name', placeholderKey: 'cardNamePlaceholder' },
-  { key: 'manaCost', label: 'Mana Cost', placeholderKey: 'manaCostPlaceholder' },
-  { key: 'artworkUrl', label: 'Artwork URL', placeholderKey: 'artworkUrlPlaceholder' },
-  { key: 'cardType', label: 'Card Type Line (e.g. Creature - Goblin)', placeholderKey: 'cardTypeLinePlaceholder' }, // Combines type and subtype
-  { key: 'rulesText', label: 'Rules Text / Abilities', placeholderKey: 'rulesTextPlaceholder', type: 'textarea' },
-  { key: 'flavorText', label: 'Flavor Text', placeholderKey: 'flavorTextPlaceholder', type: 'textarea' },
-  { key: 'power', label: 'Power', placeholderKey: 'powerToughnessPlaceholder' }, // Assuming P/T is split or handled
-  { key: 'toughness', label: 'Toughness', placeholderKey: 'powerToughnessPlaceholder' },
-  { key: 'rarity', label: 'Rarity (C, U, R, M)', placeholderKey: 'rarityPlaceholder' },
-  { key: 'artistName', label: 'Artist Name', placeholderKey: 'artistCreditPlaceholder' },
-  // Add more specific fields if your placeholders imply them and you want separate inputs
-  // e.g. if cardTypeLinePlaceholder was just '{{type}} - {{subType}}', you could have:
-  // { key: 'type', label: 'Type', placeholderKey: 'typePlaceholder' },
-  // { key: 'subType', label: 'Subtype', placeholderKey: 'subTypePlaceholder' },
+// For SingleCardGenerator: provides hints for labels and input types
+// if a dynamically extracted placeholder key matches one of these.
+// The 'key' should match the placeholder name *inside* {{...}}.
+export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input' | 'textarea' }[] = [
+  { key: 'cardName', label: 'Card Name', type: 'input' },
+  { key: 'spellName', label: 'Spell Name', type: 'input' }, // Example for 'Red Spell Template'
+  { key: 'artifactName', label: 'Artifact Name', type: 'input' }, // Example for 'Artifact Template'
+  { key: 'manaCost', label: 'Mana Cost', type: 'input' },
+  { key: 'artworkUrl', label: 'Artwork URL', type: 'input' },
+  { key: 'cardType', label: 'Card Type Line', type: 'input' }, // General key if user uses {{cardType}}
+  { key: 'subType', label: 'Sub-Type', type: 'input' }, // e.g. Goblin, Warrior, Instant, etc.
+  { key: 'spellSubType', label: 'Spell Sub-Type', type: 'input' },
+  { key: 'artifactSubType', label: 'Artifact Sub-Type', type: 'input' },
+  { key: 'rulesText', label: 'Rules Text / Abilities', type: 'textarea' },
+  { key: 'abilityDescription', label: 'Ability Description', type: 'textarea' },
+  { key: 'triggeredAbility', label: 'Triggered Ability', type: 'textarea' },
+  { key: 'staticAbility', label: 'Static Ability', type: 'textarea' },
+  { key: 'activatedAbility', label: 'Activated Ability', type: 'textarea' },
+  { key: 'spellEffect', label: 'Spell Effect', type: 'textarea' },
+  { key: 'additionalCost', label: 'Additional Cost', type: 'textarea' },
+  { key: 'flavorText', label: 'Flavor Text', type: 'textarea' },
+  { key: 'spellQuote', label: 'Spell Quote', type: 'textarea' },
+  { key: 'artifactLore', label: 'Artifact Lore', type: 'textarea' },
+  { key: 'power', label: 'Power', type: 'input' },
+  { key: 'toughness', label: 'Toughness', type: 'input' },
+  { key: 'rarity', label: 'Rarity (e.g., C, U, R, M)', type: 'input' },
+  { key: 'artistName', label: 'Artist Name', type: 'input' },
+  // Add other common TCG terms that might be used as placeholders
+  { key: 'level', label: 'Level', type: 'input' },
+  { key: 'attribute', label: 'Attribute', type: 'input' },
+  { key: 'energyCost', label: 'Energy Cost', type: 'input' },
+  { key: 'points', label: 'Points', type: 'input' },
 ];
