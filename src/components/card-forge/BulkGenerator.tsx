@@ -1,11 +1,11 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard } from '@/types'; // Changed
+import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
 import { useState, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input'; // Added Input for AI theme and num cards
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { nanoid } from 'nanoid';
 import { Sparkles, Download } from 'lucide-react';
 
 interface BulkGeneratorProps {
-  templates: TCGCardTemplate[]; // Changed
+  templates: TCGCardTemplate[];
   onCardsGenerated: (cards: DisplayCard[]) => void;
 }
 
@@ -23,7 +23,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [generationMethod, setGenerationMethod] = useState<'csv' | 'ai'>('csv');
-  const [aiTheme, setAiTheme] = useState<string>(''); // e.g., "Goblin Warrior", "Fireball Spell"
+  const [aiTheme, setAiTheme] = useState<string>('');
   const [numAiCards, setNumAiCards] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -40,7 +40,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     }
 
     setIsLoading(true);
-    let generatedCards: DisplayCard[] = [];
+    let generatedCardsData: CardData[] = [];
 
     try {
       if (generationMethod === 'csv') {
@@ -62,7 +62,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           headers.forEach((header, index) => {
             cardData[header] = values[index] || '';
           });
-          generatedCards.push({ template, data: cardData, uniqueId: nanoid() });
+          generatedCardsData.push(cardData);
         }
       } else if (generationMethod === 'ai') {
         if (!aiTheme.trim()) {
@@ -71,28 +71,39 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           return;
         }
         for (let i = 0; i < numAiCards; i++) {
-          // The existing generateCardText flow is very generic.
-          // We'll use its output for rules text and the theme for the card name.
-          // A more advanced flow would generate all TCG fields.
-          const aiResult = await generateCardText({ theme: `TCG card ability for: ${aiTheme}` });
+          const aiResult = await generateCardText({ theme: `A fantasy TCG card ability or flavor text for a card concept: ${aiTheme}` });
           
+          // Basic mapping: AI generates rules text, theme is card name.
+          // Other fields will use template defaults or be blank.
           const cardData: CardData = {
-            // Populate some fields based on AI theme and result
-            cardName: aiTheme, // Use theme as card name
-            abilityDescription: aiResult.cardText, // Use AI output for rules text
-            // Other fields will use template defaults or be blank if not in template
-            manaCost: template.manaCostPlaceholder ? '{{manaCost}}' : '', // Default to placeholder if exists
-            subType: template.cardTypeLinePlaceholder?.includes("{{subType}}") ? 'AI Generated' : '',
+            cardName: `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`,
+            rulesText: aiResult.cardText, // Using 'rulesText' as a common key
+            // Attempt to fill other common TCG fields, user can override later
+            manaCost: template.manaCostPlaceholder ? '{{manaCost}}' : '3', // Default example
+            cardType: template.cardTypeLinePlaceholder ? '{{cardType}}' : 'Spell - Arcane', // Default example
             power: template.powerToughnessPlaceholder ? 'X' : '',
             toughness: template.powerToughnessPlaceholder ? 'Y' : '',
-            rarity: template.rarityPlaceholder ? 'C' : '',
-            artistName: template.artistCreditPlaceholder ? 'AI & You' : '',
+            rarity: template.rarityPlaceholder ? 'C' : 'Common',
+            artistName: template.artistCreditPlaceholder ? 'AI & You' : 'AI & You',
+            artworkUrl: template.artworkUrlPlaceholder || `https://placehold.co/375x275.png`,
           };
-          generatedCards.push({ template, data: cardData, uniqueId: nanoid() });
+          // Filter out keys that don't have corresponding placeholders in the template
+          // This is a simple way to avoid sending useless data
+          Object.keys(cardData).forEach(key => {
+            const placeholderKey = (key + 'Placeholder') as keyof TCGCardTemplate;
+            if (placeholderKey.endsWith('Placeholder') && !template[placeholderKey as keyof TCGCardTemplate]) {
+                // If placeholder like 'cardNamePlaceholder' doesn't exist on template, remove the data key
+                // This is a very rough check. Better to align CardData keys with known template placeholder names.
+            }
+          });
+          generatedCardsData.push(cardData);
         }
       }
-      onCardsGenerated(generatedCards);
-      toast({ title: "Success", description: `${generatedCards.length} TCG cards generated.` });
+      
+      const displayCards = generatedCardsData.map(data => ({ template, data, uniqueId: nanoid() }));
+      onCardsGenerated(displayCards);
+      toast({ title: "Success", description: `${displayCards.length} TCG cards generated.` });
+
     } catch (error) {
       console.error("Error generating TCG cards:", error);
       toast({ title: "Error", description: "Failed to generate TCG cards. Check console.", variant: "destructive" });
@@ -105,8 +116,10 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     setBulkDataInput(e.target.value);
   };
 
-  // Updated CSV example for TCG fields
-  const exampleCSV = "cardName,manaCost,subType,abilityDescription,power,toughness,rarity,artistName,flavorText\nGoblin Raider,1R,Goblin Warrior,Haste,2,1,C,AI Artist,\"He raids.\"\nArcane Bolt,U,Sorcery,Deal 2 damage to any target.,,,U,AI Mage,\"Zap!\"";
+  const exampleCSV = `cardName,manaCost,artworkUrl,cardType,rulesText,flavorText,power,toughness,rarity,artistName
+Goblin Raider,1R,https://placehold.co/375x275.png?text=Goblin,Creature - Goblin Warrior,"Haste (This creature can attack and {T} as soon as it comes under your control.)","Goblins are not known for their patience, or their hygiene.",2,1,C,AI The Goblin
+Arcane Blast,2U,https://placehold.co/375x275.png?text=Spell,Instant,"Deal 3 damage to any target. Draw a card.","The air crackled with raw magic.",,,U,AI The Mage
+Ancient Relic,3,https://placehold.co/375x275.png?text=Artifact,Artifact,"{T}: Add one mana of any color.","Its purpose lost to time, its power remains.",,,R,AI The Historian`;
 
   return (
     <Card>
@@ -116,9 +129,9 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <Label htmlFor="templateSelect">Select TCG Template</Label>
+          <Label htmlFor="bulkTemplateSelect">Select TCG Template</Label>
           <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-            <SelectTrigger id="templateSelect">
+            <SelectTrigger id="bulkTemplateSelect">
               <SelectValue placeholder="Choose a TCG template" />
             </SelectTrigger>
             <SelectContent>
@@ -128,9 +141,9 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         </div>
 
         <div>
-          <Label htmlFor="generationMethod">Generation Method</Label>
+          <Label htmlFor="bulkGenerationMethod">Generation Method</Label>
           <Select value={generationMethod} onValueChange={(value) => setGenerationMethod(value as 'csv' | 'ai')}>
-            <SelectTrigger id="generationMethod">
+            <SelectTrigger id="bulkGenerationMethod">
               <SelectValue placeholder="Choose generation method" />
             </SelectTrigger>
             <SelectContent>
@@ -143,18 +156,18 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         {generationMethod === 'csv' && (
           <div>
             <Label htmlFor="bulkData">
-              Card Data (CSV: headers then data lines)
+              Card Data (CSV: headers matching template fields, then data lines)
             </Label>
             <Textarea
               id="bulkData"
               value={bulkDataInput}
               onChange={handleDataInputChange}
               placeholder={exampleCSV}
-              rows={6}
+              rows={8}
               className="font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Ensure CSV headers match placeholders in your selected template (e.g., cardName, manaCost, etc.).
+              Common TCG field names: cardName, manaCost, artworkUrl, cardType, rulesText, flavorText, power, toughness, rarity, artistName. Ensure your CSV headers match the data keys you intend to use.
             </p>
           </div>
         )}
@@ -164,7 +177,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
             <div>
               <Label htmlFor="aiTheme">Card Concept/Theme for AI</Label>
               <Input id="aiTheme" value={aiTheme} onChange={(e) => setAiTheme(e.target.value)} placeholder="e.g., Swift Goblin Scout, Arcane Blast" />
-              <p className="text-xs text-muted-foreground mt-1">AI will generate rules text. Card name will be based on the theme.</p>
+              <p className="text-xs text-muted-foreground mt-1">AI will generate rules/flavor text. Card name will be based on the theme.</p>
             </div>
             <div>
               <Label htmlFor="numAiCards">Number of Cards (AI)</Label>

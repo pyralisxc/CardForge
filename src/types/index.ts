@@ -8,23 +8,35 @@ export interface TCGCardTemplate {
   manaCostPlaceholder?: string; // e.g., "{{manaCost}}" (text like "2UU" or "RRR")
   artworkUrlPlaceholder?: string; // URL for default/placeholder artwork
   cardTypeLinePlaceholder?: string; // e.g., "Creature - {{subType}}" or "Instant"
-  rulesTextPlaceholder?: string;  // e.g., "{{ability1}}\n{{ability2}}"
+  rulesTextPlaceholder?: string;  // e.g., "{{abilityDescription}}\n{{ability2}}"
   flavorTextPlaceholder?: string; // e.g., "{{flavorText}}"
   powerToughnessPlaceholder?: string; // e.g., "{{power}}/{{toughness}}"
   rarityPlaceholder?: string; // e.g., "{{rarity}}" (Could be C, U, R, M or a color indicator)
   artistCreditPlaceholder?: string; // e.g., "Illus. {{artistName}}"
   
   // Basic styling - more complex frames would require more fields or different approach
+  aspectRatio: string; // Should be fixed for TCGs, e.g., "63:88"
   frameColor?: string; // A dominant color for the card frame, e.g., blue, black, green
   borderColor?: string; // Border color around art, text boxes
-  baseBackgroundColor?: string; // Fallback background if no complex frame
-  baseTextColor?: string; // Default text color
-  aspectRatio: string; // Should be fixed for TCGs, e.g., "5:7"
+  
+  baseBackgroundColor?: string; // Fallback background for the card body itself
+  baseTextColor?: string; // Default text color for elements if not overridden
+
+  // More specific color options
+  nameTextColor?: string;
+  costTextColor?: string;
+  typeLineTextColor?: string;
+  rulesTextColor?: string;
+  flavorTextColor?: string;
+  ptTextColor?: string; // Power/Toughness text color
+
+  artBoxBackgroundColor?: string; // Background for the artwork area if image is transparent/smaller
+  textBoxBackgroundColor?: string; // Background for the rules/flavor text area
 }
 
 export interface CardData {
   // Flexible structure for variable replacement
-  // e.g., { cardName: "Goblin Raider", manaCost: "1R", power: "2", toughness: "1", subType: "Goblin Warrior" }
+  // e.g., { cardName: "Goblin Raider", manaCost: "1R", power: "2", toughness: "1", subType: "Goblin Warrior", artworkUrl: "..." }
   [key: string]: string | number;
 }
 
@@ -41,7 +53,7 @@ export interface PaperSize {
 
 // Represents a card to be displayed, combining template and specific data
 export interface DisplayCard {
-  template: TCGCardTemplate; // Changed to TCGCardTemplate
+  template: TCGCardTemplate;
   data: CardData;
   uniqueId: string; // For React keys
 }
