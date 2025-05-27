@@ -65,36 +65,32 @@ export function CardPreview({
     height: isPrintMode ? '100%' : 'auto',
     boxSizing: 'border-box',
   };
-
+  
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
 
-  let artworkHint = "card art";
+  let artworkHintValue = "card art"; // Default hint
   if (template.rows) {
     const typeLineSection = template.rows
       .flatMap(row => row.columns)
       .find(section => section.type === 'TypeLine');
-    if (typeLineSection) {
+    if (typeLineSection && typeLineSection.contentPlaceholder) {
       const typeLineText = replacePlaceholdersLocal(typeLineSection.contentPlaceholder, data).toLowerCase();
-      if (typeLineText.includes("creature")) artworkHint = "fantasy creature";
-      else if (typeLineText.includes("spell") || typeLineText.includes("instant") || typeLineText.includes("sorcery")) artworkHint = "spell effect";
-      else if (typeLineText.includes("item") || typeLineText.includes("artifact") || typeLineText.includes("equipment")) artworkHint = "fantasy item";
-      else if (typeLineText.includes("land") || typeLineText.includes("location")) artworkHint = "fantasy landscape";
+      if (typeLineText.includes("creature")) artworkHintValue = "fantasy creature";
+      else if (typeLineText.includes("spell") || typeLineText.includes("instant") || typeLineText.includes("sorcery")) artworkHintValue = "spell effect";
+      else if (typeLineText.includes("item") || typeLineText.includes("artifact") || typeLineText.includes("equipment")) artworkHintValue = "fantasy item";
+      else if (typeLineText.includes("land") || typeLineText.includes("location")) artworkHintValue = "fantasy landscape";
     }
   }
 
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
-      // In editor preview, only hide if the placeholder itself is truly empty,
-      // but generally show it so users can see all defined sections.
-      // Artwork and Dividers are always shown structurally in editor.
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
       return section.contentPlaceholder?.trim() === '';
     }
-    // For actual card previews (not editor)
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false; // Artwork might have a default, Divider is structural
+      if (section.type === 'Artwork' || section.type === 'Divider') return false; 
       return processedContent.trim() === '';
     }
     return false;
@@ -161,9 +157,9 @@ export function CardPreview({
                   fontStyle: section.fontStyle || 'normal',
                   flexGrow: section.flexGrow || 0,
                   flexShrink: section.flexGrow && section.flexGrow > 0 ? 1 : 0, 
-                  flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto', // Allow grow/shrink from 0
+                  flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto', 
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
-                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined, // Crucial for text wrapping in flex items
+                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined, 
                 };
 
                 if (section.borderColor) {
@@ -179,7 +175,7 @@ export function CardPreview({
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
-                  (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '', // Apply minHeight as a class
+                  (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '',
                   section.borderWidth === '_none_' ? '' : section.borderWidth,
                   (section.type === 'RulesText' || section.type === 'FlavorText') ? 'whitespace-pre-wrap break-words' : 'whitespace-normal break-words',
                   `tcg-section-${section.type.toLowerCase()}`,
@@ -197,22 +193,25 @@ export function CardPreview({
                   let artworkDisplaySrc = sectionContent;
                   
                   if (isEditorPreview) {
-                     if (!artworkDisplaySrc.startsWith('http://') && 
-                         !artworkDisplaySrc.startsWith('https://') && 
-                         !artworkDisplaySrc.startsWith('data:')) {
-                       artworkDisplaySrc = `https://placehold.co/600x400.png`;
-                     }
+                     // For the template editor's live preview, ALWAYS use the placeholder.co image.
+                     artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`;
                   } else {
-                    if (!artworkDisplaySrc || artworkDisplaySrc.trim() === '' || (artworkDisplaySrc.startsWith('{{') && artworkDisplaySrc.endsWith('}}'))) {
-                       artworkDisplaySrc = `https://placehold.co/600x400.png`; 
+                    // For generated cards, if no valid URL, use placeholder.co.
+                    const looksLikePlaceholder = !sectionContent || sectionContent.trim() === '' || (sectionContent.startsWith('{{') && sectionContent.endsWith('}}'));
+                    const isNotHttpOrData = sectionContent && !sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:');
+                    
+                    if (looksLikePlaceholder || isNotHttpOrData ) {
+                      artworkDisplaySrc = `https://placehold.co/600x400.png`;
                     }
                   }
+                  
+                  const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
 
                   return (
                     <div
                       key={section.id}
-                      className={cn(sectionClasses, "relative w-full")} // w-full is important for layout="fill"
-                      style={sectionStyle} // sectionStyle contains minHeight for Artwork
+                      className={cn(sectionClasses, "relative")} // sectionClasses includes minHeight, padding ('p-0' for artwork), and other styles. "relative" for NextImage.
+                      style={sectionStyle} // sectionStyle includes flex properties
                       onClick={handlePreviewSectionClick}
                       data-section-id={section.id}
                     >
@@ -221,9 +220,8 @@ export function CardPreview({
                         alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data) || "Card artwork"}
                         layout="fill"
                         objectFit="cover"
-                        className="w-full h-full" // these might be redundant with layout="fill" but fine
-                        data-ai-hint={artworkHint}
-                        priority={rowIndex === 0 && sectionIndex === 0} 
+                        data-ai-hint={artworkHintValue}
+                        priority={imageIsPriority} 
                       />
                     </div>
                   );
@@ -233,7 +231,7 @@ export function CardPreview({
                     return (
                         <div
                           key={section.id}
-                          className={cn("tcg-section-divider w-full", sectionClasses)} // sectionClasses includes minHeight if set
+                          className={cn("tcg-section-divider w-full", sectionClasses)} 
                           style={{...sectionStyle, backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
                           onClick={handlePreviewSectionClick}
                           data-section-id={section.id}
