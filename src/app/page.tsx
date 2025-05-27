@@ -8,7 +8,7 @@ import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
 import { CardPreview } from '@/components/card-forge/CardPreview';
-import { EditCardDialog } from '@/components/card-forge/EditCardDialog'; 
+import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
 import { PrintButton } from '@/components/card-forge/PrintButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles, Cog } from 'lucide-react';
-import { nanoid } from 'nanoid'; 
+import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
@@ -31,7 +31,7 @@ import { extractUniquePlaceholderKeys } from '@/lib/utils';
 export default function CardForgePage() {
   const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV5', DEFAULT_TEMPLATES);
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
-  
+
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
   const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>(PAPER_SIZES[0]);
   const [activeTab, setActiveTab] = useState<string>("editor");
@@ -47,18 +47,18 @@ export default function CardForgePage() {
   useEffect(() => {
     setTemplates(prevTemplates => {
       return prevTemplates.map(t => {
-        const newT = {...t}; 
-        if (!newT.id) { 
+        const newT = {...t};
+        if (!newT.id) {
           newT.id = nanoid();
         }
         if (!newT.sections || !Array.isArray(newT.sections) || newT.sections.length === 0) {
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: CardSection) => ({...s, id: s.id || nanoid()})); 
+          newT.sections = JSON.parse(JSON.stringify(defaultTemplateForMigration.sections)).map((s: CardSection) => ({...s, id: s.id || nanoid()}));
           newT.templateType = newT.templateType || defaultTemplateForMigration.templateType;
         } else {
           newT.sections = newT.sections.map(s => ({...s, id: s.id || nanoid() }));
         }
-        if (!newT.aspectRatio) { 
+        if (!newT.aspectRatio) {
             newT.aspectRatio = "63:88";
         }
         if (!newT.frameStyle) {
@@ -67,12 +67,12 @@ export default function CardForgePage() {
         newT.baseBackgroundColor = newT.baseBackgroundColor || '';
         newT.baseTextColor = newT.baseTextColor || '';
         newT.borderColor = newT.borderColor || '';
-        newT.frameColor = newT.frameColor || '';
-        return newT; 
+        newT.frameColor = newT.frameColor || ''; // Legacy, might be unused with frameStyle
+        return newT;
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -87,18 +87,18 @@ export default function CardForgePage() {
       toast({ title: "Template Saved", description: `"${template.name}" has been saved.` });
     }
     if (editingTemplate?.id === template.id || existingIndex > -1) {
-        setEditingTemplate(template); 
+        setEditingTemplate(template);
     }
   };
 
   const handleDeleteTemplate = (templateId: string) => {
     setTemplates(prevTemplates => prevTemplates.filter(t => t.id !== templateId));
     if (editingTemplate?.id === templateId) {
-      setEditingTemplate(null); 
+      setEditingTemplate(null);
     }
     toast({ title: "Template Deleted", description: "The template has been removed." });
   };
-  
+
   const handleBulkCardsGenerated = (cards: DisplayCard[]) => {
     setGeneratedDisplayCards(prev => [...prev, ...cards]);
     if (cards.length > 0) {
@@ -121,7 +121,7 @@ export default function CardForgePage() {
   };
 
   const handleSaveEditedCard = (updatedCard: DisplayCard) => {
-    setGeneratedDisplayCards(prev => 
+    setGeneratedDisplayCards(prev =>
       prev.map(card => card.uniqueId === updatedCard.uniqueId ? updatedCard : card)
     );
     setIsEditDialogOpen(false);
@@ -132,11 +132,11 @@ export default function CardForgePage() {
   const handleDuplicateCard = (cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
       ...cardToDuplicate,
-      uniqueId: nanoid(), 
+      uniqueId: nanoid(),
     };
     setGeneratedDisplayCards(prev => [...prev, newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
-    setIsEditDialogOpen(false); 
+    setIsEditDialogOpen(false);
     setEditingCard(null);
   };
 
@@ -178,7 +178,7 @@ export default function CardForgePage() {
                 ...card.template,
                 sections: card.template.sections.map((s: CardSection) => ({ ...s, id: s.id || nanoid() }))
               },
-              uniqueId: card.uniqueId || nanoid() 
+              uniqueId: card.uniqueId || nanoid()
             }));
             setGeneratedDisplayCards(processedCards);
             toast({ title: "Set Loaded", description: `${processedCards.length} cards loaded successfully.` });
@@ -191,7 +191,7 @@ export default function CardForgePage() {
         }
       };
       reader.readAsText(file);
-      if (fileInputRef.current) { 
+      if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
@@ -204,7 +204,7 @@ export default function CardForgePage() {
   const handleGenerateRandomCard = async () => {
     let selectedTemplateForRandom: TCGCardTemplate | undefined;
     const singleTemplateSelect = document.getElementById('singleTemplateSelect') as HTMLSelectElement | null;
-    
+
     if (singleTemplateSelect?.value) {
       selectedTemplateForRandom = templates.find(t => t.id === singleTemplateSelect.value);
     }
@@ -229,9 +229,9 @@ export default function CardForgePage() {
         setIsGeneratingRandomCard(false);
         return;
       }
-      
+
       const aiResult = await generateCardText({ theme: "a completely random fantasy TCG card idea", textType: 'FullConceptIdea' });
-      
+
       const cardData: { [key: string]: string } = {};
       Array.from(placeholders).forEach(pKey => {
         cardData[pKey] = '';
@@ -239,7 +239,7 @@ export default function CardForgePage() {
             cardData[pKey] = `https://placehold.co/600x400.png?text=AI+Art`;
         }
       });
-      
+
       const aiLines = aiResult.cardText.split('\n');
       let parsedName = "Random Card";
       let parsedRules = "Random effect.";
@@ -250,7 +250,7 @@ export default function CardForgePage() {
         else if (line.toLowerCase().startsWith("rules text:")) parsedRules = line.substring("rules text:".length).trim();
         else if (line.toLowerCase().startsWith("flavor text:")) parsedFlavor = line.substring("flavor text:".length).trim();
       });
-      
+
       Array.from(placeholders).forEach(pKey => {
         const pKeyLower = pKey.toLowerCase();
         if (pKeyLower.includes('name')) cardData[pKey] = parsedName;
@@ -284,7 +284,7 @@ export default function CardForgePage() {
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 mb-6 no-print">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6 no-print">
             <TabsTrigger value="editor" className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" /> Template Editor
             </TabsTrigger>
@@ -301,7 +301,7 @@ export default function CardForgePage() {
               onSaveTemplate={handleSaveTemplate}
               templates={templates}
               onDeleteTemplate={handleDeleteTemplate}
-              initialTemplate={editingTemplate} 
+              initialTemplate={editingTemplate}
             />
           </TabsContent>
 
@@ -310,7 +310,7 @@ export default function CardForgePage() {
               <div className="md:col-span-1 space-y-6">
                 <SingleCardGenerator templates={templates} onSingleCardAdded={handleSingleCardAdded} />
                 <BulkGenerator templates={templates} onCardsGenerated={handleBulkCardsGenerated} />
-                
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-xl flex items-center gap-2"><Cog className="h-5 w-5"/>Manage & Preview</CardTitle>
@@ -328,8 +328,8 @@ export default function CardForgePage() {
                                 <EyeOff className="h-4 w-4" /> Hide empty sections
                             </Label>
                         </div>
-                         <Button 
-                            variant="outline" 
+                         <Button
+                            variant="outline"
                             onClick={handleGenerateRandomCard}
                             disabled={isGeneratingRandomCard || templates.length === 0}
                             className="w-full flex items-center gap-2"
@@ -372,7 +372,7 @@ export default function CardForgePage() {
                         <CardPreview
                           key={cardItem.uniqueId}
                           card={cardItem}
-                          isPrintMode={false} 
+                          isPrintMode={false}
                           className="mx-auto"
                           showSizeInfo={index === 0}
                           hideEmptySections={hideEmptySections}
@@ -406,4 +406,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-    

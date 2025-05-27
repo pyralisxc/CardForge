@@ -27,16 +27,34 @@ interface TemplateEditorProps {
 
 const iconMap: Record<CardSectionType, React.ElementType> = {
   CardName: TextCursorInput,
-  ManaCost: Baseline, 
+  ManaCost: Baseline,
   Artwork: FileImage,
   TypeLine: Type,
-  RulesText: AlignLeft, 
+  RulesText: AlignLeft,
   FlavorText: Italic,
-  PowerToughness: ChevronsUpDown, 
-  ArtistCredit: Baseline, 
+  PowerToughness: ChevronsUpDown,
+  ArtistCredit: Baseline,
   CustomText: Type,
   Divider: Minus,
 };
+
+
+const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate => {
+  const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
+  const newTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
+  newTemplate.id = id || nanoid();
+  newTemplate.name = name || 'New Custom Template';
+  newTemplate.templateType = 'CustomSequential';
+  newTemplate.sections = newTemplate.sections.map((s: CardSection) => ({ ...s, id: s.id || nanoid() }));
+  newTemplate.aspectRatio = newTemplate.aspectRatio || "63:88";
+  newTemplate.frameStyle = newTemplate.frameStyle || 'standard';
+  newTemplate.baseBackgroundColor = newTemplate.baseBackgroundColor || '';
+  newTemplate.baseTextColor = newTemplate.baseTextColor || '';
+  newTemplate.borderColor = newTemplate.borderColor || '';
+  newTemplate.frameColor = newTemplate.frameColor || ''; // Legacy
+  return newTemplate;
+};
+
 
 export function TemplateEditor({
   onSaveTemplate,
@@ -45,63 +63,54 @@ export function TemplateEditor({
   initialTemplate,
 }: TemplateEditorProps) {
   const { toast } = useToast();
-  
-  const getDefaultTemplate = () => {
-    const creaturePreset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
-    return JSON.parse(JSON.stringify(creaturePreset));
-  };
 
-  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(initialTemplate || getDefaultTemplate());
+  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() =>
+    initialTemplate ? JSON.parse(JSON.stringify(initialTemplate)) : getFreshDefaultTemplate()
+  );
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
-  const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>([]);
+  const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>(
+     (initialTemplate?.sections || getFreshDefaultTemplate().sections).map(s => s.id)
+  );
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || "63:88");
 
 
   useEffect(() => {
-    let newTemplateToSet: TCGCardTemplate;
-    const defaultTpl = getDefaultTemplate();
-    
     if (selectedTemplateToEditId) {
       const templateToEdit = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateToEdit) {
-        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); 
-      } else {
-        newTemplateToSet = {...defaultTpl, id: nanoid(), name: "New Custom Template (Loaded Default)"};
-        setSelectedTemplateToEditId(newTemplateToSet.id); 
+        const clonedTemplate = JSON.parse(JSON.stringify(templateToEdit)) as TCGCardTemplate;
+        clonedTemplate.sections = (clonedTemplate.sections || []).map(s => ({ ...s, id: s.id || nanoid() }));
+        clonedTemplate.aspectRatio = clonedTemplate.aspectRatio || "63:88";
+        clonedTemplate.frameStyle = clonedTemplate.frameStyle || 'standard';
+        setCurrentTemplate(clonedTemplate);
+        setAspectRatioInput(clonedTemplate.aspectRatio);
+        // setActiveAccordionItems(clonedTemplate.sections.map(s => s.id)); // Removed from here
+      } else if (currentTemplate.id !== selectedTemplateToEditId) {
+        // Selected ID doesn't match any known template, and it's not the current one (could be new)
+        const newDefault = getFreshDefaultTemplate(selectedTemplateToEditId, "New Custom Template");
+        setCurrentTemplate(newDefault);
+        setAspectRatioInput(newDefault.aspectRatio);
+        // setActiveAccordionItems(newDefault.sections.map(s => s.id)); // Removed from here
       }
-    } else if (initialTemplate) {
-         newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); 
-    } else {
-        newTemplateToSet = {
-            ...defaultTpl,
-            id: nanoid(), 
-            name: 'New Custom Template',
-        };
+    } else if (initialTemplate && initialTemplate.id !== currentTemplate.id) {
+      const clonedInitial = JSON.parse(JSON.stringify(initialTemplate)) as TCGCardTemplate;
+      clonedInitial.sections = (clonedInitial.sections || []).map(s => ({ ...s, id: s.id || nanoid() }));
+      clonedInitial.aspectRatio = clonedInitial.aspectRatio || "63:88";
+      clonedInitial.frameStyle = clonedInitial.frameStyle || 'standard';
+      setCurrentTemplate(clonedInitial);
+      setAspectRatioInput(clonedInitial.aspectRatio);
+      // setActiveAccordionItems(clonedInitial.sections.map(s => s.id)); // Removed from here
     }
-
-    newTemplateToSet.sections = (newTemplateToSet.sections || []).map((s: CardSection) => ({...s, id: s.id || nanoid()}));
-    if (newTemplateToSet.sections.length === 0 && newTemplateToSet.templateType === 'CustomSequential') { 
-        newTemplateToSet.sections = [createDefaultSection('CardName')];
-    }
-    newTemplateToSet.frameStyle = newTemplateToSet.frameStyle || 'standard';
-    newTemplateToSet.aspectRatio = newTemplateToSet.aspectRatio || "63:88";
-
-
-    setCurrentTemplate(newTemplateToSet);
-    setActiveAccordionItems(newTemplateToSet.sections.map(s => s.id));
-    setAspectRatioInput(newTemplateToSet.aspectRatio || "63:88");
-    
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateToEditId, templates, initialTemplate]);
 
 
   useEffect(() => {
-    // Validate aspect ratio format (simple W:H)
     const ratioParts = aspectRatioInput.split(':').map(Number);
     if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
-      updateCurrentTemplate({ aspectRatio: aspectRatioInput });
-    } else if (!aspectRatioInput && currentTemplate.aspectRatio) { 
-      // Do nothing, keep currentTemplate.aspectRatio if input is cleared but a valid one exists
+      if (currentTemplate.aspectRatio !== aspectRatioInput) {
+        updateCurrentTemplate({ aspectRatio: aspectRatioInput });
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectRatioInput]);
@@ -110,30 +119,29 @@ export function TemplateEditor({
   const handleTemplatePresetChange = (presetName: string) => {
     const preset = PRESET_TEMPLATES.find(t => t.name === presetName);
     if (preset) {
-      const newSections = preset.sections.map(s => ({...s, id: s.id || nanoid() })); 
-      const newPresetTemplate = {
-        ...JSON.parse(JSON.stringify(preset)), 
-        id: currentTemplate.id, 
-        name: currentTemplate.name || preset.name, 
-        sections: newSections,
-        frameStyle: preset.frameStyle || 'standard',
-        aspectRatio: preset.aspectRatio || "63:88",
-      };
+      const newPresetTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
+      newPresetTemplate.id = currentTemplate.id; // Keep current ID for editing context
+      newPresetTemplate.name = currentTemplate.name || preset.name;
+      newPresetTemplate.sections = (newPresetTemplate.sections || []).map(s => ({...s, id: s.id || nanoid() }));
+      newPresetTemplate.aspectRatio = newPresetTemplate.aspectRatio || "63:88";
+      newPresetTemplate.frameStyle = newPresetTemplate.frameStyle || 'standard';
+
       setCurrentTemplate(newPresetTemplate);
-      setActiveAccordionItems(newSections.map(s => s.id));
-      setAspectRatioInput(newPresetTemplate.aspectRatio || "63:88");
+      setActiveAccordionItems(newPresetTemplate.sections.map(s => s.id));
+      setAspectRatioInput(newPresetTemplate.aspectRatio);
       toast({ title: "Preset Loaded", description: `"${preset.name}" structure loaded into editor.`});
     }
   };
-  
+
   const updateCurrentTemplate = (updates: Partial<TCGCardTemplate>) => {
     setCurrentTemplate(prev => ({ ...prev, ...updates }));
   };
 
   const updateSection = (sectionId: string, updates: Partial<CardSection>) => {
-    updateCurrentTemplate({
-      sections: currentTemplate.sections.map(s => s.id === sectionId ? { ...s, ...updates } : s),
-    });
+    setCurrentTemplate(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => s.id === sectionId ? { ...s, ...updates } : s),
+    }));
   };
 
   const addSection = (type: CardSectionType) => {
@@ -161,50 +169,44 @@ export function TemplateEditor({
   };
 
   const resetFormToNew = () => {
-    const newTemplateBase = PRESET_TEMPLATES.find(t => t.name.includes("Basic Custom Card")) || PRESET_TEMPLATES[0];
-    const newSections = newTemplateBase.sections.map(s => ({...s, id: s.id || nanoid()}));
     const newId = nanoid();
-    const newDefaultTemplate: TCGCardTemplate = {
-      ...JSON.parse(JSON.stringify(newTemplateBase)), 
-      id: newId,
-      name: 'New Custom Template',
-      sections: newSections,
-      templateType: 'CustomSequential',
-      aspectRatio: newTemplateBase.aspectRatio || "63:88",
-      frameStyle: newTemplateBase.frameStyle || 'standard',
-    };
+    const newDefaultTemplate = getFreshDefaultTemplate(newId, 'New Custom Template');
     setCurrentTemplate(newDefaultTemplate);
-    setSelectedTemplateToEditId(newId); 
-    setActiveAccordionItems(newSections.map(s => s.id));
-    setAspectRatioInput(newDefaultTemplate.aspectRatio || "63:88");
+    setSelectedTemplateToEditId(newId);
+    setActiveAccordionItems(newDefaultTemplate.sections.map(s => s.id));
+    setAspectRatioInput(newDefaultTemplate.aspectRatio);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, part: 'settings' | 'sections') => {
     e.preventDefault();
     if (!currentTemplate.name.trim()) {
       toast({ title: "Validation Error", description: 'Template name is required.', variant: "destructive" });
       return;
     }
-    if (currentTemplate.sections.length === 0 && currentTemplate.templateType === 'CustomSequential') {
+    if (part === 'sections' && currentTemplate.sections.length === 0 && currentTemplate.templateType === 'CustomSequential') {
       toast({ title: "Validation Error", description: 'Custom template must have at least one section.', variant: "destructive" });
       return;
     }
-     const ratioParts = aspectRatioInput.split(':').map(Number);
+    const ratioParts = aspectRatioInput.split(':').map(Number);
     if (!(ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0)) {
         toast({ title: "Validation Error", description: 'Aspect Ratio must be in W:H format (e.g., 63:88) with positive numbers.', variant: "destructive" });
         return;
     }
-    onSaveTemplate(JSON.parse(JSON.stringify({...currentTemplate, aspectRatio: aspectRatioInput }))); 
+    onSaveTemplate(JSON.parse(JSON.stringify({...currentTemplate, aspectRatio: aspectRatioInput })));
   };
-  
+
   const handleSelectTemplateToEdit = (templateId: string) => {
     setSelectedTemplateToEditId(templateId);
+     const templateToEdit = templates.find(t => t.id === templateId);
+    if (templateToEdit) {
+       setActiveAccordionItems((templateToEdit.sections || []).map(s => s.id));
+    }
   };
 
   const handleSectionClickFromPreview = (sectionId: string) => {
     setActiveAccordionItems(prev => {
-      if (prev.includes(sectionId)) return prev; 
-      return [sectionId]; 
+      if (prev.includes(sectionId)) return prev.filter(id => id !== sectionId); // Toggle: close if open
+      return [sectionId]; // Open only this one
     });
     const itemElement = document.getElementById(`accordion-item-${sectionId}`);
     itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -215,7 +217,7 @@ export function TemplateEditor({
     if (currentTemplate && currentTemplate.sections) {
         currentTemplate.sections.forEach(section => {
           extractUniquePlaceholderKeys(section.contentPlaceholder).forEach(key => {
-            data[key] = `{{${key}}}`; 
+            data[key] = `{{${key}}}`;
           });
         });
     }
@@ -254,7 +256,7 @@ export function TemplateEditor({
                 <ul className="space-y-2">
                   {templates.map((template) => (
                     <li key={template.id} className="flex justify-between items-center p-2 border rounded-md hover:bg-muted/50 transition-colors">
-                      <span 
+                      <span
                         className={`cursor-pointer flex-grow ${selectedTemplateToEditId === template.id ? 'font-semibold text-primary' : ''}`}
                         onClick={() => handleSelectTemplateToEdit(template.id)}
                         role="button"
@@ -265,7 +267,7 @@ export function TemplateEditor({
                         {template.name}
                       </span>
                       <Button variant="ghost" size="sm" onClick={(e) => {
-                          e.stopPropagation(); 
+                          e.stopPropagation();
                           onDeleteTemplate(template.id);
                           if (selectedTemplateToEditId === template.id) resetFormToNew();
                       }} aria-label={`Delete template ${template.name}`}>
@@ -282,11 +284,11 @@ export function TemplateEditor({
       </Card>
 
       {currentTemplate && (
-        <form onSubmit={handleSubmit} className="md:col-span-2 space-y-6">
+        <form onSubmit={(e) => handleSubmit(e, 'settings')} className="md:col-span-2 space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg">
-                        {currentTemplate.id === selectedTemplateToEditId && templates.find(t=>t.id === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: <span className="text-primary">{currentTemplate.name}</span>
+                        {templates.find(t=>t.id === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: <span className="text-primary">{currentTemplate.name}</span>
                     </CardTitle>
                     <CardDescription>Define overall style and card sections. Click sections in the preview to edit.</CardDescription>
                 </CardHeader>
@@ -295,35 +297,41 @@ export function TemplateEditor({
                         <Label htmlFor="templateName">Template Name</Label>
                         <Input id="templateName" value={currentTemplate.name} onChange={(e) => updateCurrentTemplate({ name: e.target.value })} placeholder="e.g., Red Creature Aggro" required />
                     </div>
-                    
+
                     <div>
                         <Label htmlFor="templateAspectRatio">Card Aspect Ratio (W:H)</Label>
-                        <Input 
-                            id="templateAspectRatio" 
-                            value={aspectRatioInput} 
-                            onChange={(e) => setAspectRatioInput(e.target.value)} 
-                            placeholder="e.g., 63:88 (Standard TCG)" 
+                        <Input
+                            id="templateAspectRatio"
+                            value={aspectRatioInput}
+                            onChange={(e) => setAspectRatioInput(e.target.value)}
+                            placeholder="e.g., 63:88 (Standard TCG)"
                         />
                         <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. This defines the card's shape.</p>
                     </div>
 
-                    <h4 className="text-sm font-medium pt-2 border-t mt-4">Overall Card Styling</h4>
-                    <div className="space-y-3 pl-1">
-                        <div>
-                            <Label htmlFor="templateFrameStyle" className="text-xs">Card Frame Style</Label>
-                            <Select value={currentTemplate.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
-                                <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
-                                <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground mt-1">Frame Style selection applies predefined borders and backgrounds. Colors below might be overridden or act as fallbacks.</p>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-                        <div><Label htmlFor="frameColor" className="text-xs">Frame Color (Legacy)</Label><Input id="frameColor" type="color" value={currentTemplate.frameColor || ''} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} /></div>
-                        <div><Label htmlFor="borderColor" className="text-xs">Default Section Border</Label><Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} /></div>
-                        <div><Label htmlFor="baseBgColor" className="text-xs">Base Background</Label><Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} /></div>
-                        <div><Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label><Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} /></div>
-                        </div>
-                    </div>
+                    <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling">
+                        <AccordionItem value="overall-styling" className="border rounded-md">
+                            <AccordionTrigger className="px-3 py-2 text-sm font-medium hover:no-underline">
+                                <div className="flex items-center gap-2"><Palette className="h-4 w-4" /> Overall Card Styling</div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-3 space-y-3 border-t">
+                                <div>
+                                    <Label htmlFor="templateFrameStyle" className="text-xs">Card Frame Style</Label>
+                                    <Select value={currentTemplate.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
+                                        <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
+                                        <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground mt-1">Frame Style selection applies predefined borders and backgrounds. Colors below might be overridden or act as fallbacks.</p>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-2 gap-x-4 gap-y-3">
+                                    <div><Label htmlFor="baseBgColor" className="text-xs">Base Background</Label><Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} /></div>
+                                    <div><Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label><Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} /></div>
+                                    <div><Label htmlFor="borderColor" className="text-xs">Default Section Border</Label><Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} /></div>
+                                    <div><Label htmlFor="frameColorLegacy" className="text-xs">Legacy Frame Color (May be unused)</Label><Input id="frameColorLegacy" type="color" value={currentTemplate.frameColor || ''} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} /></div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 </CardContent>
                 <CardFooter className="p-4 border-t">
                    <Button type="submit" className="w-full sm:w-auto ml-auto">
@@ -341,8 +349,8 @@ export function TemplateEditor({
                 <CardDescription>Define each visual layer of your card. Use <code>{`{{placeholder}}`}</code> syntax for dynamic data fields.</CardDescription>
                 </CardHeader>
                 <CardContent className="max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
-                    <Accordion 
-                        type="multiple" 
+                    <Accordion
+                        type="multiple"
                         value={activeAccordionItems}
                         onValueChange={setActiveAccordionItems}
                         className="w-full space-y-2"
@@ -375,12 +383,12 @@ export function TemplateEditor({
 
                             <div>
                                 <Label htmlFor={`contentPlaceholder-${section.id}`}>Content Placeholder (use <code>{`{{fieldName}}`}</code>)</Label>
-                                <Textarea id={`contentPlaceholder-${section.id}`} value={section.contentPlaceholder} onChange={(e) => updateSection(section.id, { contentPlaceholder: e.target.value })} rows={section.type === 'RulesText' || section.type === 'FlavorText' ? 3 : 2} />
+                                <Textarea id={`contentPlaceholder-${section.id}`} value={section.contentPlaceholder} onChange={(e) => updateSection(section.id, { contentPlaceholder: e.target.value })} rows={section.type === 'RulesText' || section.type === 'FlavorText' ? 3 : 1} />
                                 <p className="text-xs text-muted-foreground mt-1">Placeholders like <code>{`{{cardName}}`}</code>, <code>{`{{artworkUrl}}`}</code> will be replaced by data.</p>
                             </div>
-                            
-                            <Accordion type="single" collapsible className="w-full border rounded-md p-2 bg-background/30" defaultValue="styling-options-inner">
-                                <AccordionItem value="styling-options-inner" className="border-none">
+
+                            <Accordion type="single" collapsible className="w-full border rounded-md p-2 bg-background/30">
+                                <AccordionItem value={`styling-options-${section.id}`} className="border-none">
                                 <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5">
                                     <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" /> Styling Options</div>
                                 </AccordionTrigger>
@@ -422,7 +430,7 @@ export function TemplateEditor({
                                         </Select>
                                     </div>
                                     <div><Label htmlFor={`textColor-${section.id}`} className="text-xs">Text Color</Label><Input id={`textColor-${section.id}`} type="color" className="h-8" value={section.textColor || currentTemplate.baseTextColor || ''} onChange={(e) => updateSection(section.id, { textColor: e.target.value })} /></div>
-                                    
+
                                     <div><Label htmlFor={`bgColor-${section.id}`} className="text-xs">Background</Label><Input id={`bgColor-${section.id}`} type="color" className="h-8" value={section.backgroundColor || ''} onChange={(e) => updateSection(section.id, { backgroundColor: e.target.value })} /></div>
                                     <div>
                                         <Label htmlFor={`padding-${section.id}`} className="text-xs">Padding</Label>
@@ -434,8 +442,8 @@ export function TemplateEditor({
                                     <div><Label htmlFor={`borderColor-${section.id}`} className="text-xs">Border Color</Label><Input id={`borderColor-${section.id}`} type="color" className="h-8" value={section.borderColor || currentTemplate.borderColor || ''} onChange={(e) => updateSection(section.id, { borderColor: e.target.value })} /></div>
                                     <div>
                                         <Label htmlFor={`borderWidth-${section.id}`} className="text-xs">Border Width</Label>
-                                        <Select 
-                                        value={section.borderWidth || '_none_'} 
+                                        <Select
+                                        value={section.borderWidth || '_none_'}
                                         onValueChange={v => updateSection(section.id, {borderWidth: v === '_none_' ? undefined : v})}
                                         >
                                             <SelectTrigger id={`borderWidth-${section.id}`} className="text-xs h-8"><SelectValue placeholder="No border"/></SelectTrigger>
@@ -444,15 +452,15 @@ export function TemplateEditor({
                                     </div>
                                     <div>
                                         <Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height</Label>
-                                        <Select 
-                                        value={section.minHeight || '_auto_'} 
+                                        <Select
+                                        value={section.minHeight || '_auto_'}
                                         onValueChange={v => updateSection(section.id, {minHeight: v === '_auto_' ? undefined : v})}
                                         >
                                             <SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger>
                                             <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
                                         </Select>
                                     </div>
-                                    
+
                                     <div className="flex items-center col-span-full sm:col-span-1 mt-2">
                                         <input type="checkbox" id={`flexGrow-${section.id}`} checked={!!section.flexGrow} onChange={(e) => updateSection(section.id, { flexGrow: e.target.checked })} className="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary" />
                                         <Label htmlFor={`flexGrow-${section.id}`} className="cursor-pointer text-xs">Flex Grow (expand vertically)</Label>
@@ -477,7 +485,7 @@ export function TemplateEditor({
                         ))}
                     </SelectContent>
                     </Select>
-                    <Button type="submit" className="w-full sm:w-auto ml-auto">
+                    <Button type="button" onClick={(e) => handleSubmit(e, 'sections')} className="w-full sm:w-auto ml-auto">
                         <Save className="mr-2 h-4 w-4"/>
                         Save Template Sections
                     </Button>
@@ -487,12 +495,12 @@ export function TemplateEditor({
             <div className="mt-6 pt-6 border-t">
                 <h4 className="text-lg font-semibold mb-2 text-center">Live Template Preview</h4>
                 <p className="text-xs text-muted-foreground text-center mb-3">(Shows placeholders as content. Click section to edit.)</p>
-                <div className="mx-auto max-w-xs"> 
-                <CardPreview 
+                <div className="mx-auto max-w-xs">
+                <CardPreview
                     card={{template: currentTemplate, data:livePreviewData, uniqueId: 'editor-preview'}}
-                    isPrintMode={false} 
-                    isEditorPreview={true} 
-                    hideEmptySections={false} 
+                    isPrintMode={false}
+                    isEditorPreview={true}
+                    hideEmptySections={false}
                     onSectionClick={handleSectionClickFromPreview}
                 />
                 </div>
@@ -502,4 +510,3 @@ export function TemplateEditor({
     </div>
   );
 }
-    
