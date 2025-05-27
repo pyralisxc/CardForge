@@ -297,7 +297,7 @@ export default function CardForgePage() {
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6 no-print">
+          <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 mb-6 no-print">
             <TabsTrigger value="editor" className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" /> Template Editor
             </TabsTrigger>
@@ -423,5 +423,4 @@ export default function CardForgePage() {
     </div>
   );
 }
-
     
