@@ -51,7 +51,7 @@ const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate =>
   newTemplate.baseBackgroundColor = newTemplate.baseBackgroundColor || '';
   newTemplate.baseTextColor = newTemplate.baseTextColor || '';
   newTemplate.borderColor = newTemplate.borderColor || '';
-  newTemplate.frameColor = newTemplate.frameColor || ''; // Legacy
+  newTemplate.frameColor = newTemplate.frameColor || ''; 
   return newTemplate;
 };
 
@@ -84,13 +84,10 @@ export function TemplateEditor({
         clonedTemplate.frameStyle = clonedTemplate.frameStyle || 'standard';
         setCurrentTemplate(clonedTemplate);
         setAspectRatioInput(clonedTemplate.aspectRatio);
-        // setActiveAccordionItems(clonedTemplate.sections.map(s => s.id)); // Removed from here
       } else if (currentTemplate.id !== selectedTemplateToEditId) {
-        // Selected ID doesn't match any known template, and it's not the current one (could be new)
         const newDefault = getFreshDefaultTemplate(selectedTemplateToEditId, "New Custom Template");
         setCurrentTemplate(newDefault);
         setAspectRatioInput(newDefault.aspectRatio);
-        // setActiveAccordionItems(newDefault.sections.map(s => s.id)); // Removed from here
       }
     } else if (initialTemplate && initialTemplate.id !== currentTemplate.id) {
       const clonedInitial = JSON.parse(JSON.stringify(initialTemplate)) as TCGCardTemplate;
@@ -99,7 +96,6 @@ export function TemplateEditor({
       clonedInitial.frameStyle = clonedInitial.frameStyle || 'standard';
       setCurrentTemplate(clonedInitial);
       setAspectRatioInput(clonedInitial.aspectRatio);
-      // setActiveAccordionItems(clonedInitial.sections.map(s => s.id)); // Removed from here
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateToEditId, templates, initialTemplate]);
@@ -120,7 +116,7 @@ export function TemplateEditor({
     const preset = PRESET_TEMPLATES.find(t => t.name === presetName);
     if (preset) {
       const newPresetTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
-      newPresetTemplate.id = currentTemplate.id; // Keep current ID for editing context
+      newPresetTemplate.id = currentTemplate.id; 
       newPresetTemplate.name = currentTemplate.name || preset.name;
       newPresetTemplate.sections = (newPresetTemplate.sections || []).map(s => ({...s, id: s.id || nanoid() }));
       newPresetTemplate.aspectRatio = newPresetTemplate.aspectRatio || "63:88";
@@ -205,8 +201,8 @@ export function TemplateEditor({
 
   const handleSectionClickFromPreview = (sectionId: string) => {
     setActiveAccordionItems(prev => {
-      if (prev.includes(sectionId)) return prev.filter(id => id !== sectionId); // Toggle: close if open
-      return [sectionId]; // Open only this one
+      if (prev.includes(sectionId)) return prev.filter(id => id !== sectionId); 
+      return [sectionId]; 
     });
     const itemElement = document.getElementById(`accordion-item-${sectionId}`);
     itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -284,7 +280,7 @@ export function TemplateEditor({
       </Card>
 
       {currentTemplate && (
-        <form onSubmit={(e) => handleSubmit(e, 'settings')} className="md:col-span-2 space-y-6">
+        <div className="md:col-span-2 space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg">
@@ -292,53 +288,71 @@ export function TemplateEditor({
                     </CardTitle>
                     <CardDescription>Define overall style and card sections. Click sections in the preview to edit.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <Label htmlFor="templateName">Template Name</Label>
-                        <Input id="templateName" value={currentTemplate.name} onChange={(e) => updateCurrentTemplate({ name: e.target.value })} placeholder="e.g., Red Creature Aggro" required />
-                    </div>
+                <form onSubmit={(e) => handleSubmit(e, 'settings')}>
+                    <CardContent className="space-y-4">
+                        <div>
+                            <Label htmlFor="templateName">Template Name</Label>
+                            <Input id="templateName" value={currentTemplate.name} onChange={(e) => updateCurrentTemplate({ name: e.target.value })} placeholder="e.g., Red Creature Aggro" required />
+                        </div>
 
-                    <div>
-                        <Label htmlFor="templateAspectRatio">Card Aspect Ratio (W:H)</Label>
-                        <Input
-                            id="templateAspectRatio"
-                            value={aspectRatioInput}
-                            onChange={(e) => setAspectRatioInput(e.target.value)}
-                            placeholder="e.g., 63:88 (Standard TCG)"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. This defines the card's shape.</p>
-                    </div>
+                        <div>
+                            <Label htmlFor="templateAspectRatio">Card Aspect Ratio (W:H)</Label>
+                            <Input
+                                id="templateAspectRatio"
+                                value={aspectRatioInput}
+                                onChange={(e) => setAspectRatioInput(e.target.value)}
+                                placeholder="e.g., 63:88 (Standard TCG)"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. Defines card's shape.</p>
+                        </div>
 
-                    <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling">
-                        <AccordionItem value="overall-styling" className="border rounded-md">
-                            <AccordionTrigger className="px-3 py-2 text-sm font-medium hover:no-underline">
-                                <div className="flex items-center gap-2"><Palette className="h-4 w-4" /> Overall Card Styling</div>
-                            </AccordionTrigger>
-                            <AccordionContent className="p-3 space-y-3 border-t">
-                                <div>
-                                    <Label htmlFor="templateFrameStyle" className="text-xs">Card Frame Style</Label>
-                                    <Select value={currentTemplate.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
-                                        <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
-                                        <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <p className="text-xs text-muted-foreground mt-1">Frame Style selection applies predefined borders and backgrounds. Colors below might be overridden or act as fallbacks.</p>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-2 gap-x-4 gap-y-3">
-                                    <div><Label htmlFor="baseBgColor" className="text-xs">Base Background</Label><Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} /></div>
-                                    <div><Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label><Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} /></div>
-                                    <div><Label htmlFor="borderColor" className="text-xs">Default Section Border</Label><Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} /></div>
-                                    <div><Label htmlFor="frameColorLegacy" className="text-xs">Legacy Frame Color (May be unused)</Label><Input id="frameColorLegacy" type="color" value={currentTemplate.frameColor || ''} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} /></div>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                </CardContent>
-                <CardFooter className="p-4 border-t">
-                   <Button type="submit" className="w-full sm:w-auto ml-auto">
-                        <Save className="mr-2 h-4 w-4"/>
-                        Save Template Settings
-                    </Button>
-                </CardFooter>
+                        <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling-accordion">
+                            <AccordionItem value="overall-styling-accordion" className="border rounded-md">
+                                <AccordionTrigger className="px-3 py-2 text-sm font-medium hover:no-underline">
+                                    <div className="flex items-center gap-2"><Palette className="h-4 w-4" /> Overall Card Styling</div>
+                                </AccordionTrigger>
+                                <AccordionContent className="p-3 space-y-3 border-t">
+                                    <div>
+                                        <Label htmlFor="templateFrameStyle" className="text-xs">Card Frame Style</Label>
+                                        <Select value={currentTemplate.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
+                                            <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
+                                            <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground mt-1">Applies predefined borders/backgrounds. Colors below might be overridden or act as fallbacks.</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-2 gap-x-4 gap-y-3">
+                                        <div>
+                                            <Label htmlFor="baseBgColor" className="text-xs">Base Background Color</Label>
+                                            <Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} />
+                                            <p className="text-xs text-muted-foreground mt-0.5">Primarily affects 'Standard' frame, or custom frames not defining their own background.</p>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label>
+                                            <Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} />
+                                            <p className="text-xs text-muted-foreground mt-0.5">Default text color; primarily affects 'Standard' frame.</p>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="borderColor" className="text-xs">Default Section Border Color</Label>
+                                            <Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} />
+                                            <p className="text-xs text-muted-foreground mt-0.5">Fallback border color for individual sections, not the main card outline.</p>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="frameColorLegacy" className="text-xs">Legacy Frame Color</Label>
+                                            <Input id="frameColorLegacy" type="color" value={currentTemplate.frameColor || ''} onChange={(e) => updateCurrentTemplate({ frameColor: e.target.value })} />
+                                            <p className="text-xs text-muted-foreground mt-0.5">(Likely unused if Frame Style is active)</p>
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    </CardContent>
+                    <CardFooter className="p-4 border-t">
+                       <Button type="submit" className="w-full sm:w-auto ml-auto">
+                            <Save className="mr-2 h-4 w-4"/>
+                            Save Template Settings
+                        </Button>
+                    </CardFooter>
+                </form>
             </Card>
 
             <Card>
@@ -348,148 +362,153 @@ export function TemplateEditor({
                 </CardTitle>
                 <CardDescription>Define each visual layer of your card. Use <code>{`{{placeholder}}`}</code> syntax for dynamic data fields.</CardDescription>
                 </CardHeader>
-                <CardContent className="max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
-                    <Accordion
-                        type="multiple"
-                        value={activeAccordionItems}
-                        onValueChange={setActiveAccordionItems}
-                        className="w-full space-y-2"
-                    >
-                        {currentTemplate.sections.map((section, index) => {
-                        const IconComponent = iconMap[section.type] || Type;
-                        return (
-                        <AccordionItem value={section.id} key={section.id} id={`accordion-item-${section.id}`} className="border border-border bg-card/60 rounded-md overflow-hidden last:mb-0">
-                            <div className="flex items-center w-full px-2 py-1 hover:bg-muted/30 rounded-t-md">
-                                <AccordionTrigger className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring">
-                                    <div className="flex items-center gap-2">
-                                    <IconComponent className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium text-sm">{index + 1}. {section.type}</span>
+                <form onSubmit={(e) => handleSubmit(e, 'sections')}>
+                    <CardContent className="max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
+                        <Accordion
+                            type="multiple"
+                            value={activeAccordionItems}
+                            onValueChange={setActiveAccordionItems}
+                            className="w-full space-y-2"
+                        >
+                            {currentTemplate.sections.map((section, index) => {
+                            const IconComponent = iconMap[section.type] || Type;
+                            return (
+                            <AccordionItem value={section.id} key={section.id} id={`accordion-item-${section.id}`} className="border border-border bg-card/60 rounded-md overflow-hidden last:mb-0">
+                                <div className="flex items-center w-full px-2 py-1 hover:bg-muted/30 rounded-t-md">
+                                    <AccordionTrigger className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring">
+                                        <div className="flex items-center gap-2">
+                                        <IconComponent className="h-4 w-4 text-muted-foreground" />
+                                        <span className="font-medium text-sm">{index + 1}. {section.type}</span>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <div className="flex gap-1 ml-2 flex-shrink-0">
+                                        <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'up')}} disabled={index === 0} aria-label="Move section up"><ArrowUp className="h-4 w-4" /></Button>
+                                        <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'down')}} disabled={index === currentTemplate.sections.length - 1} aria-label="Move section down"><ArrowDown className="h-4 w-4" /></Button>
+                                        <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeSection(section.id)}} aria-label="Remove section"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                     </div>
-                                </AccordionTrigger>
-                                <div className="flex gap-1 ml-2 flex-shrink-0">
-                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'up')}} disabled={index === 0} aria-label="Move section up"><ArrowUp className="h-4 w-4" /></Button>
-                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'down')}} disabled={index === currentTemplate.sections.length - 1} aria-label="Move section down"><ArrowDown className="h-4 w-4" /></Button>
-                                    <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeSection(section.id)}} aria-label="Remove section"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </div>
-                            </div>
-                            <AccordionContent className="p-3 space-y-3 border-t bg-card/30">
-                            <div>
-                                <Label htmlFor={`sectionType-${section.id}`}>Section Type</Label>
-                                <Select value={section.type} onValueChange={(v) => updateSection(section.id, { type: v as CardSectionType })}>
-                                <SelectTrigger id={`sectionType-${section.id}`}><SelectValue /></SelectTrigger>
-                                <SelectContent>{SECTION_TYPES.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
+                                <AccordionContent className="p-3 space-y-3 border-t bg-card/30">
+                                <div>
+                                    <Label htmlFor={`sectionType-${section.id}`}>Section Type</Label>
+                                    <Select value={section.type} onValueChange={(v) => updateSection(section.id, { type: v as CardSectionType })}>
+                                    <SelectTrigger id={`sectionType-${section.id}`}><SelectValue /></SelectTrigger>
+                                    <SelectContent>{SECTION_TYPES.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
 
-                            <div>
-                                <Label htmlFor={`contentPlaceholder-${section.id}`}>Content Placeholder (use <code>{`{{fieldName}}`}</code>)</Label>
-                                <Textarea id={`contentPlaceholder-${section.id}`} value={section.contentPlaceholder} onChange={(e) => updateSection(section.id, { contentPlaceholder: e.target.value })} rows={section.type === 'RulesText' || section.type === 'FlavorText' ? 3 : 1} />
-                                <p className="text-xs text-muted-foreground mt-1">Placeholders like <code>{`{{cardName}}`}</code>, <code>{`{{artworkUrl}}`}</code> will be replaced by data.</p>
-                            </div>
+                                <div>
+                                    <Label htmlFor={`contentPlaceholder-${section.id}`}>Content Placeholder (use <code>{`{{fieldName}}`}</code>)</Label>
+                                    <Textarea id={`contentPlaceholder-${section.id}`} value={section.contentPlaceholder} onChange={(e) => updateSection(section.id, { contentPlaceholder: e.target.value })} rows={section.type === 'RulesText' || section.type === 'FlavorText' ? 3 : 1} />
+                                    <p className="text-xs text-muted-foreground mt-1">Placeholders like <code>{`{{cardName}}`}</code>, <code>{`{{artworkUrl}}`}</code> will be replaced by data.</p>
+                                </div>
 
-                            <Accordion type="single" collapsible className="w-full border rounded-md p-2 bg-background/30">
-                                <AccordionItem value={`styling-options-${section.id}`} className="border-none">
-                                <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5">
-                                    <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" /> Styling Options</div>
-                                </AccordionTrigger>
-                                <AccordionContent className="pt-2 space-y-3">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
-                                    <div>
-                                        <Label htmlFor={`fontFamily-${section.id}`} className="text-xs">Font Family</Label>
-                                        <Select value={section.fontFamily || 'font-sans'} onValueChange={v => updateSection(section.id, {fontFamily: v})}>
-                                            <SelectTrigger id={`fontFamily-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
-                                            <SelectContent>{AVAILABLE_FONTS.map(f=><SelectItem key={f.value} value={f.value!} className="text-xs"><span className={f.value}>{f.name}</span></SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor={`fontSize-${section.id}`} className="text-xs">Font Size</Label>
-                                        <Select value={section.fontSize || 'text-sm'} onValueChange={v => updateSection(section.id, {fontSize: v as CardSection['fontSize']})}>
-                                            <SelectTrigger id={`fontSize-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
-                                            <SelectContent>{FONT_SIZES.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor={`fontWeight-${section.id}`} className="text-xs">Font Weight</Label>
-                                        <Select value={section.fontWeight || 'font-normal'} onValueChange={v => updateSection(section.id, {fontWeight: v as CardSection['fontWeight']})}>
-                                            <SelectTrigger id={`fontWeight-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
-                                            <SelectContent>{FONT_WEIGHTS.map(s=><SelectItem key={s} value={s!} className="text-xs">{s}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor={`fontStyle-${section.id}`} className="text-xs">Font Style</Label>
-                                        <Select value={section.fontStyle || 'normal'} onValueChange={v => updateSection(section.id, {fontStyle: v as CardSection['fontStyle']})}>
-                                            <SelectTrigger id={`fontStyle-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
-                                            <SelectContent>{FONT_STYLES.map(s=><SelectItem key={s} value={s!} className="text-xs">{s}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor={`textAlign-${section.id}`} className="text-xs">Text Align</Label>
-                                        <Select value={section.textAlign || 'left'} onValueChange={v => updateSection(section.id, {textAlign: v as CardSection['textAlign']})}>
-                                            <SelectTrigger id={`textAlign-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
-                                            <SelectContent>{TEXT_ALIGNS.map(s=><SelectItem key={s} value={s!} className="text-xs">{s}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div><Label htmlFor={`textColor-${section.id}`} className="text-xs">Text Color</Label><Input id={`textColor-${section.id}`} type="color" className="h-8" value={section.textColor || currentTemplate.baseTextColor || ''} onChange={(e) => updateSection(section.id, { textColor: e.target.value })} /></div>
+                                <Accordion type="single" collapsible className="w-full border rounded-md p-2 bg-background/30" defaultValue={`styling-options-accordion-${section.id}`}>
+                                    <AccordionItem value={`styling-options-accordion-${section.id}`} className="border-none">
+                                    <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5">
+                                        <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" /> Styling Options</div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="pt-2 space-y-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
+                                        <div>
+                                            <Label htmlFor={`fontFamily-${section.id}`} className="text-xs">Font Family</Label>
+                                            <Select value={section.fontFamily || 'font-sans'} onValueChange={v => updateSection(section.id, {fontFamily: v})}>
+                                                <SelectTrigger id={`fontFamily-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
+                                                <SelectContent>{AVAILABLE_FONTS.map(f=><SelectItem key={f.value} value={f.value!} className="text-xs"><span className={f.value}>{f.name}</span></SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor={`fontSize-${section.id}`} className="text-xs">Font Size</Label>
+                                            <Select value={section.fontSize || 'text-sm'} onValueChange={v => updateSection(section.id, {fontSize: v as CardSection['fontSize']})}>
+                                                <SelectTrigger id={`fontSize-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
+                                                <SelectContent>{FONT_SIZES.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor={`fontWeight-${section.id}`} className="text-xs">Font Weight</Label>
+                                            <Select value={section.fontWeight || 'font-normal'} onValueChange={v => updateSection(section.id, {fontWeight: v as CardSection['fontWeight']})}>
+                                                <SelectTrigger id={`fontWeight-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
+                                                <SelectContent>{FONT_WEIGHTS.map(s=><SelectItem key={s} value={s!} className="text-xs">{s}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor={`fontStyle-${section.id}`} className="text-xs">Font Style</Label>
+                                            <Select value={section.fontStyle || 'normal'} onValueChange={v => updateSection(section.id, {fontStyle: v as CardSection['fontStyle']})}>
+                                                <SelectTrigger id={`fontStyle-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
+                                                <SelectContent>{FONT_STYLES.map(s=><SelectItem key={s} value={s!} className="text-xs">{s}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor={`textAlign-${section.id}`} className="text-xs">Text Align</Label>
+                                            <Select value={section.textAlign || 'left'} onValueChange={v => updateSection(section.id, {textAlign: v as CardSection['textAlign']})}>
+                                                <SelectTrigger id={`textAlign-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
+                                                <SelectContent>{TEXT_ALIGNS.map(s=><SelectItem key={s} value={s!} className="text-xs">{s}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div><Label htmlFor={`textColor-${section.id}`} className="text-xs">Text Color</Label><Input id={`textColor-${section.id}`} type="color" className="h-8" value={section.textColor || ''} onChange={(e) => updateSection(section.id, { textColor: e.target.value })} /></div>
 
-                                    <div><Label htmlFor={`bgColor-${section.id}`} className="text-xs">Background</Label><Input id={`bgColor-${section.id}`} type="color" className="h-8" value={section.backgroundColor || ''} onChange={(e) => updateSection(section.id, { backgroundColor: e.target.value })} /></div>
-                                    <div>
-                                        <Label htmlFor={`padding-${section.id}`} className="text-xs">Padding</Label>
-                                        <Select value={section.padding || 'p-1'} onValueChange={v => updateSection(section.id, {padding: v})}>
-                                            <SelectTrigger id={`padding-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
-                                            <SelectContent>{PADDING_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div><Label htmlFor={`borderColor-${section.id}`} className="text-xs">Border Color</Label><Input id={`borderColor-${section.id}`} type="color" className="h-8" value={section.borderColor || currentTemplate.borderColor || ''} onChange={(e) => updateSection(section.id, { borderColor: e.target.value })} /></div>
-                                    <div>
-                                        <Label htmlFor={`borderWidth-${section.id}`} className="text-xs">Border Width</Label>
-                                        <Select
-                                        value={section.borderWidth || '_none_'}
-                                        onValueChange={v => updateSection(section.id, {borderWidth: v === '_none_' ? undefined : v})}
-                                        >
-                                            <SelectTrigger id={`borderWidth-${section.id}`} className="text-xs h-8"><SelectValue placeholder="No border"/></SelectTrigger>
-                                            <SelectContent>{BORDER_WIDTH_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height</Label>
-                                        <Select
-                                        value={section.minHeight || '_auto_'}
-                                        onValueChange={v => updateSection(section.id, {minHeight: v === '_auto_' ? undefined : v})}
-                                        >
-                                            <SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger>
-                                            <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </div>
+                                        <div><Label htmlFor={`bgColor-${section.id}`} className="text-xs">Background</Label><Input id={`bgColor-${section.id}`} type="color" className="h-8" value={section.backgroundColor || ''} onChange={(e) => updateSection(section.id, { backgroundColor: e.target.value })} /></div>
+                                        <div>
+                                            <Label htmlFor={`padding-${section.id}`} className="text-xs">Padding</Label>
+                                            <Select value={section.padding || 'p-1'} onValueChange={v => updateSection(section.id, {padding: v})}>
+                                                <SelectTrigger id={`padding-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
+                                                <SelectContent>{PADDING_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor={`borderColorSec-${section.id}`} className="text-xs">Border Color</Label>
+                                            <Input id={`borderColorSec-${section.id}`} type="color" className="h-8" value={section.borderColor || ''} onChange={(e) => updateSection(section.id, { borderColor: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor={`borderWidth-${section.id}`} className="text-xs">Border Width</Label>
+                                            <Select
+                                            value={section.borderWidth || '_none_'}
+                                            onValueChange={v => updateSection(section.id, {borderWidth: v === '_none_' ? undefined : v})}
+                                            >
+                                                <SelectTrigger id={`borderWidth-${section.id}`} className="text-xs h-8"><SelectValue placeholder="No border"/></SelectTrigger>
+                                                <SelectContent>{BORDER_WIDTH_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height</Label>
+                                            <Select
+                                            value={section.minHeight || '_auto_'}
+                                            onValueChange={v => updateSection(section.id, {minHeight: v === '_auto_' ? undefined : v})}
+                                            >
+                                                <SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger>
+                                                <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value!} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
 
-                                    <div className="flex items-center col-span-full sm:col-span-1 mt-2">
-                                        <input type="checkbox" id={`flexGrow-${section.id}`} checked={!!section.flexGrow} onChange={(e) => updateSection(section.id, { flexGrow: e.target.checked })} className="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary" />
-                                        <Label htmlFor={`flexGrow-${section.id}`} className="cursor-pointer text-xs">Flex Grow (expand vertically)</Label>
-                                    </div>
-                                    </div>
+                                        <div className="flex items-center col-span-full sm:col-span-1 mt-2">
+                                            <input type="checkbox" id={`flexGrow-${section.id}`} checked={!!section.flexGrow} onChange={(e) => updateSection(section.id, { flexGrow: e.target.checked })} className="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary" />
+                                            <Label htmlFor={`flexGrow-${section.id}`} className="cursor-pointer text-xs">Flex Grow (expand vertically)</Label>
+                                        </div>
+                                        </div>
+                                    </AccordionContent>
+                                    </AccordionItem>
+                                </Accordion>
                                 </AccordionContent>
-                                </AccordionItem>
-                            </Accordion>
-                            </AccordionContent>
-                        </AccordionItem>
-                        )})}
-                    </Accordion>
-                </CardContent>
-                <CardFooter className="p-4 border-t flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <Select onValueChange={(value) => { if(value) addSection(value as CardSectionType)}}>
-                    <SelectTrigger className="w-full sm:w-auto">
-                        <SelectValue placeholder="Add New Section Type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {SECTION_TYPES.map(type => (
-                        <SelectItem key={type} value={type}><PlusCircle className="inline mr-2 h-4 w-4"/>Add {type} Section</SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                    <Button type="button" onClick={(e) => handleSubmit(e, 'sections')} className="w-full sm:w-auto ml-auto">
-                        <Save className="mr-2 h-4 w-4"/>
-                        Save Template Sections
-                    </Button>
-                </CardFooter>
+                            </AccordionItem>
+                            )})}
+                        </Accordion>
+                    </CardContent>
+                    <CardFooter className="p-4 border-t flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <Select onValueChange={(value) => { if(value) addSection(value as CardSectionType)}}>
+                        <SelectTrigger className="w-full sm:w-auto">
+                            <SelectValue placeholder="Add New Section Type..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {SECTION_TYPES.map(type => (
+                            <SelectItem key={type} value={type}><PlusCircle className="inline mr-2 h-4 w-4"/>Add {type} Section</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <Button type="submit" className="w-full sm:w-auto ml-auto">
+                            <Save className="mr-2 h-4 w-4"/>
+                            Save Template Sections
+                        </Button>
+                    </CardFooter>
+                </form>
             </Card>
 
             <div className="mt-6 pt-6 border-t">
@@ -505,8 +524,9 @@ export function TemplateEditor({
                 />
                 </div>
             </div>
-        </form>
+        </div>
       )}
     </div>
   );
 }
+

@@ -45,6 +45,7 @@ export function CardPreview({
     }
     
     if (!isEditorPreview) {
+      // Remove any remaining placeholders only if not in editor preview
       result = result.replace(/{{\s*[\w-]+\s*}}/g, '');
     }
     return result;
@@ -57,16 +58,12 @@ export function CardPreview({
 
   const cardContainerStyle: React.CSSProperties = {
     backgroundColor: template.baseBackgroundColor || undefined, 
-    color: template.baseTextColor || 'hsl(var(--card-foreground))',
+    color: template.baseTextColor || undefined,
     aspectRatio: `${aspectW} / ${aspectH}`,
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
     height: isPrintMode ? '100%' : 'auto',
     boxSizing: 'border-box',
   };
-   if (template.frameStyle === 'standard' && !template.baseBackgroundColor) {
-    cardContainerStyle.backgroundColor = 'hsl(var(--card))';
-   }
-
 
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
@@ -84,6 +81,7 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
+      // In editor preview, only hide if the placeholder itself is empty (and not Art/Divider)
       return section.contentPlaceholder?.trim() === '' && section.type !== 'Artwork' && section.type !== 'Divider';
     }
     if (hideEmptySections) {
@@ -121,7 +119,7 @@ export function CardPreview({
           }
 
           const sectionStyle: React.CSSProperties = {
-            color: section.textColor || template.baseTextColor || undefined, 
+            color: section.textColor || undefined, // Fallback to card's base text color (from CSS or inline style)
             backgroundColor: section.backgroundColor || 'transparent',
             textAlign: section.textAlign || 'left',
             fontStyle: section.fontStyle || 'normal',
@@ -131,7 +129,7 @@ export function CardPreview({
           };
 
           const sectionClasses = cn(
-            section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'), // Default p-0 for Artwork
+            section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
             section.fontSize || 'text-sm',
             section.fontWeight || 'font-normal',
             section.borderWidth === '_none_' ? '' : section.borderWidth,
@@ -147,6 +145,7 @@ export function CardPreview({
           } else if (section.borderWidth && section.borderWidth !== '_none_' && template.borderColor) { 
               sectionStyle.borderColor = template.borderColor;
           } else if (section.borderWidth && section.borderWidth !== '_none_') {
+            // Fallback to theme border if no specific border color set for section or template default
             sectionStyle.borderColor = 'hsl(var(--border))'; 
           }
 
@@ -180,7 +179,7 @@ export function CardPreview({
                   objectFit="cover"
                   className="w-full h-full"
                   data-ai-hint={artworkHint}
-                  priority={index === 0}
+                  priority={index === 0} // Ensure index is defined in map
                 />
               </div>
             );
@@ -203,6 +202,7 @@ export function CardPreview({
           if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '') {
              displayContent = section.contentPlaceholder; 
           }
+          // Ensure {{placeholders}} are shown if they are the only content in editor preview
           if (isEditorPreview && section.contentPlaceholder && sectionContent === section.contentPlaceholder) {
             displayContent = section.contentPlaceholder;
           }
