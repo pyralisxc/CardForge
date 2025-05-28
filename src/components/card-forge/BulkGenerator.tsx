@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard, CardSection, AbilityContextSet, ExtractedPlaceholder } from '@/types';
+import type { TCGCardTemplate, CardData, DisplayCard, AbilityContextSet, ExtractedPlaceholder } from '@/types';
 import { useState, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { generateCardText } from '@/ai/flows/generate-card-text';
+import { generateCardFields } from '@/ai/flows/generate-card-fields'; // Changed import
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { Sparkles, Download, PackagePlus } from 'lucide-react'; 
@@ -53,7 +53,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
     return p.defaultValue || 'value';
   }).join(',');
 
-  const exampleCSV = exampleCSVHeaders + '\\n' + exampleCSVDataLine;
+  const exampleCSV = exampleCSVHeaders + '\n' + exampleCSVDataLine;
 
 
   const handleGenerate = async () => {
@@ -72,7 +72,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
           setIsLoading(false);
           return;
         }
-        const lines = bulkDataInput.trim().split('\\n');
+        const lines = bulkDataInput.trim().split('\n'); // Changed to split by actual newline
         if (lines.length < 2) {
           toast({ title: "Error", description: "CSV data must include a header row and at least one data row.", variant: "destructive" });
           setIsLoading(false);
@@ -80,6 +80,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
         }
         const headers = lines[0].split(',').map(h => h.trim());
         for (let i = 1; i < lines.length; i++) {
+          if (lines[i].trim() === '') continue; // Skip empty lines
           const values = lines[i].split(',').map(v => v.trim());
           const cardData: CardData = {};
           headers.forEach((header, index) => {
@@ -95,83 +96,54 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
         }
         
         const currentPlaceholders = getPlaceholdersFromSelectedTemplate().map(p => p.key);
+        if (currentPlaceholders.length === 0) {
+            toast({ title: "Error", description: "Selected template has no placeholders for AI to fill.", variant: "destructive" });
+            setIsLoading(false);
+            return;
+        }
         
-        const findPlaceholder = (keywords: string[], excludeSubstrings?: string[]): string | undefined => {
-            return currentPlaceholders.find(pKey => {
-                const pKeyLower = pKey.toLowerCase();
-                const matchesKeyword = keywords.some(kw => pKeyLower.includes(kw));
-                const notExcluded = excludeSubstrings ? !excludeSubstrings.some(ex => pKeyLower.includes(ex)) : true;
-                return matchesKeyword && notExcluded;
-            });
-        };
-
-        const namePlaceholder = findPlaceholder(['name', 'title'], ['artist']) || currentPlaceholders[0] || 'cardName';
-        const rulesPlaceholder = findPlaceholder(['rules', 'effect', 'text'], ['flavor']) || currentPlaceholders[1] || 'rulesText';
-        const flavorPlaceholder = findPlaceholder(['flavor']);
-        const artworkPlaceholder = findPlaceholder(['art', 'image', 'artworkurl', 'url'], ['artist']);
-        const costPlaceholder = findPlaceholder(['cost', 'mana']);
-        const typePlaceholder = findPlaceholder(['type', 'kind'], ['sub']);
-        const powerPlaceholder = findPlaceholder(['power', 'atk', 'attack'], ['toughness', 'defense', 'hp', 'health']);
-        const toughnessPlaceholder = findPlaceholder(['toughness', 'def', 'defense', 'hp', 'health'], ['power', 'attack']);
-
         const selectedContext = abilityContextSets.find(cs => cs.id === selectedAbilityContextIdForBulk);
 
         for (let i = 0; i < numAiCards; i++) {
-          const aiResult = await generateCardText({ 
-            theme: `A fantasy TCG card with the concept: ${aiTheme}${numAiCards > 1 ? ` (variation ${i+1})` : ''}`,
-            textType: 'FullConceptIdea',
-            abilityContext: selectedContext?.description
-          });
-          
-          const cardData: CardData = {};
-          
-          currentPlaceholders.forEach(pKey => {
-            const placeholderObj = placeholderObjects.find(p => p.key === pKey);
-            cardData[pKey] = placeholderObj?.defaultValue || ''; 
-          });
-
-          
-          if (artworkPlaceholder) {
-            cardData[artworkPlaceholder] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme + " (Art)" + (numAiCards > 1 ? ` ${i+1}` : ''))}`;
+          const themeForThisCard = `${aiTheme}${numAiCards > 1 ? ` (variation ${i+1})` : ''}`;
+          try {
+            const aiResult = await generateCardFields({ 
+              theme: themeForThisCard,
+              placeholderKeys: currentPlaceholders,
+              abilityContext: selectedContext?.description
+            });
+            
+            generatedCardsData.push(aiResult.generatedData);
+          } catch (aiError) {
+            console.error(`AI generation failed for card ${i+1} with theme "${themeForThisCard}":`, aiError);
+            toast({ title: "AI Generation Error", description: `Failed to generate data for card variation ${i+1}. Using fallbacks.`, variant: "default" });
+            // Add a fallback card data object if AI fails for one variation
+            const fallbackData: CardData = {};
+            currentPlaceholders.forEach(key => {
+                const keyLower = key.toLowerCase();
+                if (keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) {
+                    fallbackData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(themeForThisCard + " (Art)")}`;
+                } else if (keyLower.includes("name")) fallbackData[key] = themeForThisCard;
+                else if (keyLower.includes("rules") || (keyLower.includes("text") && !keyLower.includes("flavor")) || keyLower.includes("effect") || keyLower.includes("abilit")) fallbackData[key] = `Default effect for ${themeForThisCard}.`;
+                else if (keyLower.includes("flavor")) fallbackData[key] = `Default flavor for ${themeForThisCard}.`;
+                else fallbackData[key] = `Missing: ${key}`;
+            });
+            generatedCardsData.push(fallbackData);
           }
-
-          
-          const lines = aiResult.cardText.split('\\n');
-          let parsedName = `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`;
-          let parsedRules = "AI generated text.";
-
-          lines.forEach(line => {
-            const [keyPart, ...valueParts] = line.split(':');
-            const value = valueParts.join(':').trim();
-            if (keyPart.toLowerCase().startsWith("card name")) {
-              parsedName = value;
-            } else if (keyPart.toLowerCase().startsWith("rules text")) {
-              parsedRules = value;
-            } else if (keyPart.toLowerCase().startsWith("flavor text") && flavorPlaceholder) {
-              cardData[flavorPlaceholder] = value;
-            }
-          });
-
-          cardData[namePlaceholder] = parsedName;
-          if (rulesPlaceholder) cardData[rulesPlaceholder] = parsedRules;
-          
-          
-          if (costPlaceholder) cardData[costPlaceholder] = String(Math.floor(Math.random() * 5) + 1); 
-          if (typePlaceholder) cardData[typePlaceholder] = ['Creature', 'Spell', 'Enchantment', 'Artifact'][Math.floor(Math.random() * 4)];
-          if (powerPlaceholder) cardData[powerPlaceholder] = String(Math.floor(Math.random() * 5) + 1);
-          if (toughnessPlaceholder) cardData[toughnessPlaceholder] = String(Math.floor(Math.random() * 5) + 1);
-
-          generatedCardsData.push(cardData);
         }
       }
       
       const displayCards = generatedCardsData.map(data => ({ template: selectedTemplate, data, uniqueId: nanoid() }));
       onCardsGenerated(displayCards);
-      toast({ title: "Success", description: `${displayCards.length} TCG cards generated.` });
+      if (displayCards.length > 0) {
+        toast({ title: "Success", description: `${displayCards.length} TCG cards generated.` });
+      } else {
+        toast({ title: "No Cards Generated", description: "No data was processed to generate cards.", variant: "default" });
+      }
 
     } catch (error) {
       console.error("Error generating TCG cards:", error);
-      toast({ title: "Error", description: `Failed to generate TCG cards: ${(error as Error).message}`, variant: "destructive" });
+      toast({ title: "Generation Error", description: `Failed to generate TCG cards: ${(error as Error).message}`, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -214,7 +186,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
           <Label htmlFor="bulkTemplateSelect">Select Template</Label>
           <Select value={selectedTemplateId} onValueChange={(id) => {
             setSelectedTemplateId(id);
-            setSelectedAbilityContextIdForBulk('');
+            setSelectedAbilityContextIdForBulk(''); // Reset context selection on template change
           }}>
             <SelectTrigger id="bulkTemplateSelect">
               <SelectValue placeholder="Choose a template" />
@@ -233,7 +205,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="csv">CSV Data Input</SelectItem>
-              <SelectItem value="ai">AI Text Generation (Experimental)</SelectItem>
+              <SelectItem value="ai">AI Field Generation (Experimental)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -241,19 +213,20 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
         {generationMethod === 'csv' && (
           <div>
             <Label htmlFor="bulkData">
-              Card Data (CSV Format - use '\n' (literal backslash n) for line breaks within a field, not actual newlines in textarea)
+              Card Data (CSV Format - one card per line)
             </Label>
             <Textarea
               id="bulkData"
               value={bulkDataInput}
               onChange={handleDataInputChange}
-              placeholder={selectedTemplate ? exampleCSV.replace(/\\n/g, '\\n') : "Select a template to see example CSV structure."}
+              placeholder={selectedTemplate ? `Example:\n${exampleCSV.replace(/\\n/g, '\n')}` : "Select a template to see example CSV structure."}
               rows={8}
               className="font-mono text-sm"
               disabled={!selectedTemplate}
             />
             {selectedTemplate && <p className="text-xs text-muted-foreground mt-1">
-              Your CSV headers should be: <strong>{exampleCSVHeaders || "No placeholders found in template"}</strong>. Use '\n' (literal backslash n) for line breaks in text.
+              Your CSV headers should be: <strong>{exampleCSVHeaders || "No placeholders found in template"}</strong>.
+              Use double quotes to enclose fields with commas or newlines.
             </p>}
             {!selectedTemplate && <p className="text-xs text-muted-foreground mt-1">Select a template first to see the expected CSV format based on its placeholders.</p>}
           </div>
@@ -264,7 +237,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
             <div>
               <Label htmlFor="aiTheme">Card Concept/Theme for AI</Label>
               <Input id="aiTheme" value={aiTheme} onChange={(e) => setAiTheme(e.target.value)} placeholder="e.g., Swift Goblin Scout, Arcane Blast" />
-              <p className="text-xs text-muted-foreground mt-1">AI will generate text for name, rules, and flavor. Other fields may get generic values. Artwork is a placeholder.</p>
+              <p className="text-xs text-muted-foreground mt-1">AI will attempt to generate thematic values for all placeholders in the selected template.</p>
             </div>
             {abilityContextSets.length > 0 && (
                <div>
@@ -295,11 +268,16 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
             </div>
           </div>
         )}
+         {!selectedTemplate && generationMethod === 'ai' && (
+            <p className="text-sm text-muted-foreground">Please select a template first to use AI generation.</p>
+        )}
         
-        <Button onClick={handleGenerate} disabled={isLoading || !selectedTemplateId} className="w-full">
+        <Button onClick={handleGenerate} disabled={isLoading || !selectedTemplateId || (generationMethod === 'ai' && !aiTheme.trim())} className="w-full">
           {isLoading ? 'Generating...' : (generationMethod === 'ai' ? <> <Sparkles className="mr-2 h-4 w-4" /> Generate with AI</> : <> <Download className="mr-2 h-4 w-4" /> Generate from Data</>)}
         </Button>
       </CardContent>
     </Card>
   );
 }
+
+    
