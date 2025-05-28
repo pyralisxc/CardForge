@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TCGCardTemplate } from '@/types'; 
-import NextImage from 'next/image'; // Keep as NextImage to distinguish from lucide-react Image
+import NextImage from 'next/image';
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
@@ -164,9 +164,9 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
           <TabsContent value="designSuggestions" className="space-y-4">
             <CardDescription>Get AI design suggestions based on card text, concept, or existing section layout.</CardDescription>
             <div>
-              <Label htmlFor="cardTextContentLayout">Primary Card Text (Keywords, Abilities, Names etc.)</Label>
+              <Label htmlFor="aiCardTextContentLayout">Primary Card Text (Keywords, Abilities, Names etc.)</Label>
               <Textarea
-                id="cardTextContentLayout"
+                id="aiCardTextContentLayout"
                 value={textContentLayout}
                 onChange={(e) => setTextContentLayout(e.target.value)}
                 placeholder="e.g., 'Flying, First Strike. When this creature enters, draw a card.' OR describe elements like 'Goblin Warchief // 2RR // Creature - Goblin Warrior'"
@@ -174,18 +174,18 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               />
             </div>
              <div>
-              <Label htmlFor="cardConceptLayout">Card Concept/Theme (Optional)</Label>
+              <Label htmlFor="aiCardConceptLayout">Card Concept/Theme (Optional)</Label>
               <Input
-                id="cardConceptLayout"
+                id="aiCardConceptLayout"
                 value={cardConceptLayout}
                 onChange={(e) => setCardConceptLayout(e.target.value)}
                 placeholder="e.g., Aggressive Fire Creature, Defensive Enchantment, Utility Artifact"
               />
             </div>
              <div>
-              <Label htmlFor="currentSectionsLayout">Current Sections (Optional - Describe your layout)</Label>
+              <Label htmlFor="aiCurrentSectionsLayout">Current Sections (Optional - Describe your layout)</Label>
               <Textarea
-                id="currentSectionsLayout"
+                id="aiCurrentSectionsLayout"
                 value={currentSectionsForLayout}
                 onChange={(e) => setCurrentSectionsForLayout(e.target.value)}
                 placeholder="e.g., 'Top: Name ({{cardName}}), ManaCost ({{cost}}). Middle: Artwork ({{art}}). Bottom: Rules ({{rules}}), P/T ({{pt}})'"
@@ -212,18 +212,18 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
           <TabsContent value="textGeneration" className="space-y-4">
             <CardDescription>Generate rules text, flavor text, or ability ideas for your card.</CardDescription>
             <div>
-              <Label htmlFor="textTheme">Card Theme/Concept for Text</Label>
+              <Label htmlFor="aiTextTheme">Card Theme/Concept for Text</Label>
               <Input
-                id="textTheme"
+                id="aiTextTheme"
                 value={textTheme}
                 onChange={(e) => setTextTheme(e.target.value)}
                 placeholder="e.g., Goblin Archer with Reach, Ancient Spell of Shielding"
               />
             </div>
             <div>
-              <Label htmlFor="textGenTypeSelect">Type of Text to Generate</Label>
+              <Label htmlFor="aiTextGenTypeSelect">Type of Text to Generate</Label>
               <Select value={textGenType} onValueChange={(value) => setTextGenType(value as TextGenType)}>
-                <SelectTrigger id="textGenTypeSelect">
+                <SelectTrigger id="aiTextGenTypeSelect">
                   <SelectValue placeholder="Choose text type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -253,9 +253,9 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
           <TabsContent value="imageGeneration" className="space-y-4">
             <CardDescription>Generate artwork ideas for your card. The AI will provide a Data URI for the image.</CardDescription>
             <div>
-              <Label htmlFor="imageConcept">Card Concept for Image Generation</Label>
+              <Label htmlFor="aiImageConcept">Card Concept for Image Generation</Label>
               <Input
-                id="imageConcept"
+                id="aiImageConcept"
                 value={imageConcept}
                 onChange={(e) => setImageConcept(e.target.value)}
                 placeholder="e.g., 'Ancient stone golem awakening in a ruin', 'Knight facing a fiery dragon'"
@@ -280,6 +280,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                     />
                 </div>
                 <Textarea
+                  id="aiGeneratedImageDataUri"
                   value={generatedImageDataUri}
                   readOnly
                   rows={3}
@@ -300,9 +301,9 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
           <TabsContent value="colorSuggestions" className="space-y-4">
             <CardDescription>Get AI-suggested color palettes for your card template based on a theme. You can then manually apply these in the Template Editor.</CardDescription>
             <div>
-              <Label htmlFor="colorTheme">Theme for Color Palette</Label>
+              <Label htmlFor="aiColorTheme">Theme for Color Palette</Label>
               <Input
-                id="colorTheme"
+                id="aiColorTheme"
                 value={colorTheme}
                 onChange={(e) => setColorTheme(e.target.value)}
                 placeholder="e.g., 'Fiery Volcano', 'Mystic Forest', 'Ancient Tomb'"
@@ -317,7 +318,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                 <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/50">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     {Object.entries(suggestedColors).map(([key, value]) => {
-                      if (!value) return null; // Don't render if AI provided no color for an element
+                      if (!value) return null; 
                       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                       return (
                         <div key={key} className="flex items-center justify-between">
@@ -325,7 +326,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                           <div className="flex items-center gap-2">
                             <span className="font-mono">{value}</span>
                             <div className="h-4 w-4 rounded border" style={{ backgroundColor: value }}></div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(value, `${label} color copied.`)}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(value, `${label} color copied.`)} aria-label={`Copy ${label} color ${value}`}>
                                 <Copy className="h-3 w-3" />
                             </Button>
                           </div>
@@ -344,5 +345,3 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     </Card>
   );
 }
-
-    
