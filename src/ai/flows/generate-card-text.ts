@@ -77,6 +77,8 @@ const generateCardTextFlow = ai.defineFlow(
     const { theme, textType, abilityContext } = input;
     const dynamicPrompt = constructPrompt(textType, theme, abilityContext);
 
+    console.log("[generateCardTextFlow] Prompt being sent to AI:", dynamicPrompt); // Added for debugging
+
     const {output} = await ai.generate({ 
       prompt: dynamicPrompt,
       // Removed config to see if it resolves the internal JSON5 error
@@ -88,4 +90,3 @@ const generateCardTextFlow = ai.defineFlow(
     return { cardText: output?.text || "No text generated." };
   }
 );
-
