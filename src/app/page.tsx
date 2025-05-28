@@ -11,7 +11,7 @@ import { CardPreview } from '@/components/card-forge/CardPreview';
 import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
 import { PrintButton } from '@/components/card-forge/PrintButton';
-import { AbilityContextManager } from '@/components/card-forge/AbilityContextManager'; // New
+import { AbilityContextManager } from '@/components/card-forge/AbilityContextManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -19,13 +19,31 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { PackageOpen, LayoutDashboard, Wand2, Trash2, FolderDown, FolderUp, Cog, Menu as MenuIcon, EyeOff, ScrollText } from 'lucide-react'; // Added ScrollText
+import { PackageOpen, LayoutDashboard, Wand2, Trash2, FolderDown, FolderUp, Cog, Menu as MenuIcon, EyeOff, ScrollText } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, AbilityContextSet } from '@/types'; // Added AbilityContextSet
+import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, AbilityContextSet } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+
+const DEFAULT_ABILITY_CONTEXT_SETS: AbilityContextSet[] = [
+  {
+    id: nanoid(),
+    name: "MTG - Core Mechanics & Keywords",
+    description: "Key Magic: The Gathering concepts: Mana colors (W-White, U-Blue, B-Black, R-Red, G-Green), C-Colorless mana. Tapping permanents for effects. Casting Spells. Turn Structure: Untap, Upkeep, Draw, Main Phase (pre-combat), Combat Phase, Main Phase (post-combat), End Step. The Stack (Last-In, First-Out for spells/abilities). Common Keywords: Flying (can only be blocked by creatures with flying or reach), Haste (can attack/tap the turn it enters), Vigilance (attacks without tapping), First Strike (deals combat damage before creatures without it), Double Strike (deals first strike and regular combat damage), Deathtouch (any amount of damage is lethal), Lifelink (damage dealt also gains you that much life), Trample (excess combat damage dealt to a creature is dealt to defending player/planeswalker), Indestructible (cannot be destroyed by damage or 'destroy' effects), Reach (can block creatures with flying). Players typically start with 20 life. Cards are drawn from a library into a hand."
+  },
+  {
+    id: nanoid(),
+    name: "MTG - Creature Combat Focus",
+    description: "Magic: The Gathering creature combat: Creatures have Power (damage dealt) and Toughness (damage taken to be destroyed). Combat Phase Steps: Beginning of Combat, Declare Attackers, Declare Blockers, Combat Damage (first strike, then regular), End of Combat. Attacking creatures tap unless they have Vigilance. Blockers must be assigned to attacking creatures. Damage is assigned and dealt. If a creature's toughness is reduced to 0 or less, or it takes damage equal to or greater than its toughness from a source with deathtouch, it's destroyed and put into the graveyard. Common combat abilities: Flying, Trample, First Strike, Double Strike, Deathtouch, Reach."
+  },
+  {
+    id: nanoid(),
+    name: "MTG - Spell & Ability Interaction",
+    description: "Magic: The Gathering spell and ability types: Instants (can be cast any time you have priority), Sorceries (cast only during your main phase when the stack is empty), Enchantments (permanents with static or triggered abilities), Artifacts (permanents, often with activated abilities or static effects), Creatures (summoned as spells, then become permanents), Planeswalkers (powerful permanents with loyalty abilities). Lands are not spells. Spells and abilities use The Stack, resolving one by one, last-in, first-out. Players can respond to items on the stack. Common interactions: Countering spells, Destroying permanents, Drawing cards, Discarding cards, Dealing direct damage, Gaining life, Searching libraries (tutoring)."
+  }
+];
 
 
 export default function CardForgePage() {
@@ -45,13 +63,16 @@ export default function CardForgePage() {
   const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [abilityContextSets, setAbilityContextSets] = useLocalStorage<AbilityContextSet[]>('cardForgeAbilityContextsV1', []);
+  const [abilityContextSets, setAbilityContextSets] = useLocalStorage<AbilityContextSet[]>(
+    'cardForgeAbilityContextsV1', 
+    DEFAULT_ABILITY_CONTEXT_SETS
+  );
 
 
   const TABS_CONFIG = [
     { value: "editor", label: "Template Editor", icon: LayoutDashboard },
     { value: "generator", label: "Card Generator", icon: PackageOpen },
-    { value: "contexts", label: "Context Sets", icon: ScrollText }, // New Tab
+    { value: "contexts", label: "Context Sets", icon: ScrollText },
     { value: "ai", label: "AI Helper", icon: Wand2 },
   ];
 
@@ -65,11 +86,11 @@ export default function CardForgePage() {
         if (newT.rows && Array.isArray(newT.rows)) {
           newT.rows = newT.rows.map(r => {
             const newR = {...r}; 
-            newR.id = newR.id || nanoid(); 
+            newR.id = r.id || nanoid(); 
             if (newR.columns && Array.isArray(newR.columns)) {
               newR.columns = newR.columns.map(c => {
                 const newC = {...c}; 
-                newC.id = newC.id || nanoid(); 
+                newC.id = c.id || nanoid(); 
                 return newC;
               });
             } else {
@@ -92,8 +113,6 @@ export default function CardForgePage() {
               { id: nanoid(), columns: [{ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{default}}' }], alignItems: 'flex-start', customHeight: '' }
             ];
           }
-           // @ts-expect-error: remove old sections if migrating
-          if (newT.sections) delete newT.sections;
         }
         newT.aspectRatio = newT.aspectRatio || "63:88";
         newT.frameStyle = newT.frameStyle || 'standard';
@@ -210,8 +229,8 @@ export default function CardForgePage() {
               uniqueId: card.uniqueId || nanoid(),
               template: {
                 ...card.template,
-                id: card.template.id || nanoid(), // Ensure template ID
-                rows: (card.template.rows || []).map((r: CardRow) => ({ // Ensure rows and their columns have IDs
+                id: card.template.id || nanoid(), 
+                rows: (card.template.rows || []).map((r: CardRow) => ({ 
                     ...r,
                     id: r.id || nanoid(),
                     columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid() })),
@@ -281,7 +300,7 @@ export default function CardForgePage() {
             </Sheet>
           </div>
 
-          <TabsList className="hidden md:grid w-full md:grid-cols-4 mb-6 no-print"> {/* Updated to md:grid-cols-4 */}
+          <TabsList className="hidden md:grid w-full md:grid-cols-4 mb-6 no-print">
             {TABS_CONFIG.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
                 <tab.icon className="h-4 w-4" /> {tab.label}
@@ -380,7 +399,7 @@ export default function CardForgePage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="contexts"> {/* New Tab Content */}
+          <TabsContent value="contexts">
             <AbilityContextManager 
               contextSets={abilityContextSets}
               onContextSetsChange={setAbilityContextSets}
@@ -407,3 +426,4 @@ export default function CardForgePage() {
     </div>
   );
 }
+
