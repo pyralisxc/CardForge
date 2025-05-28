@@ -138,11 +138,11 @@ body {
   color: hsl(var(--card-foreground)); /* Default text color from theme */
 }
 
-/* Standard Frame - Relies on template.baseBackgroundColor or theme's --card */
+/* Standard Frame - Default background is white. Template's baseBackgroundColor (via inline style) will override this. */
 .frame-standard .tcg-card-preview {
-  /* If template.baseBackgroundColor is set, it's applied via inline style in CardPreview.
-     Otherwise, it defaults to the .tcg-card-preview's background-color (hsl(var(--card))).
-     Border color can be set via template.borderColor or defaults to .tcg-card-preview's border. */
+  background-color: white; 
+  color: black; /* Default text color for a white background */
+  /* Border color can be set via template.borderColor or defaults to .tcg-card-preview's border. */
 }
 
 .frame-classic-gold .tcg-card-preview {
