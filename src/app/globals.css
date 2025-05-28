@@ -139,46 +139,46 @@ body {
 }
 
 /* Standard Frame - Default background is white. Template's baseBackgroundColor (via inline style) will override this. */
-.frame-standard .tcg-card-preview {
+.tcg-card-preview.frame-standard {
   background-color: white; 
   color: black; /* Default text color for a white background */
   /* Border color can be set via template.borderColor or defaults to .tcg-card-preview's border. */
 }
 
-.frame-classic-gold .tcg-card-preview {
+.tcg-card-preview.frame-classic-gold {
   border: 6px solid transparent; 
   border-image: linear-gradient(to bottom right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C) 1;
   background-color: #fDF4D8; /* Light parchment/goldish background */
   color: #4A3B2A; /* Darker brown text for contrast */
 }
-.frame-classic-gold .tcg-card-preview .tcg-section-cardname,
-.frame-classic-gold .tcg-card-preview .tcg-section-typeline {
+.tcg-card-preview.frame-classic-gold .tcg-section-cardname,
+.tcg-card-preview.frame-classic-gold .tcg-section-typeline {
   background-color: rgba(180, 140, 50, 0.1); 
 }
 
-.frame-minimal-dark .tcg-card-preview {
+.tcg-card-preview.frame-minimal-dark {
   border: 2px solid #4a4a4a;
   background-color: #282828;
   color: #c0c0c0; /* Light grey text for dark minimal */
 }
-.frame-minimal-dark .tcg-card-preview .tcg-section-typeline {
+.tcg-card-preview.frame-minimal-dark .tcg-section-typeline {
   background-color: #333;
 }
 
 
-.frame-arcane-purple .tcg-card-preview {
+.tcg-card-preview.frame-arcane-purple {
   border: 5px solid hsl(var(--primary-foreground));
   background: linear-gradient(135deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.5));
   box-shadow: 0 0 15px hsl(var(--primary) / 0.7), inset 0 0 10px hsl(var(--background) / 0.3);
   color: hsl(var(--primary-foreground)); /* Default text on this frame */
 }
-.frame-arcane-purple .tcg-card-preview .tcg-section-cardname,
-.frame-arcane-purple .tcg-card-preview .tcg-section-typeline {
+.tcg-card-preview.frame-arcane-purple .tcg-section-cardname,
+.tcg-card-preview.frame-arcane-purple .tcg-section-typeline {
   background-color: hsl(var(--primary) / 0.3);
   border-bottom: 1px solid hsl(var(--primary-foreground) / 0.5);
 }
-.frame-arcane-purple .tcg-card-preview .tcg-section-rulestext,
-.frame-arcane-purple .tcg-card-preview .tcg-section-flavortext {
+.tcg-card-preview.frame-arcane-purple .tcg-section-rulestext,
+.tcg-card-preview.frame-arcane-purple .tcg-section-flavortext {
    background-color: hsl(var(--background) / 0.5);
    color: hsl(var(--foreground)); /* Different text color for text boxes */
 }
