@@ -18,8 +18,10 @@ import { extractUniquePlaceholderKeys } from '@/lib/utils';
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
   onCardsGenerated: (cards: DisplayCard[]) => void;
-  abilityContextSets: AbilityContextSet[]; // New prop
+  abilityContextSets: AbilityContextSet[];
 }
+
+const NO_CONTEXT_SELECTED_VALUE = "_NO_CONTEXT_";
 
 export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets }: BulkGeneratorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -29,7 +31,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
   const [numAiCards, setNumAiCards] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [selectedAbilityContextIdForBulk, setSelectedAbilityContextIdForBulk] = useState<string>(''); // New state
+  const [selectedAbilityContextIdForBulk, setSelectedAbilityContextIdForBulk] = useState<string>('');
 
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
@@ -90,7 +92,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
         }
         
         const placeholders = getPlaceholdersFromSelectedTemplate();
-        // Find common placeholder keys (case-insensitive for robustness)
+        
         const findPlaceholder = (keywords: string[], excludeSubstrings?: string[]): string | undefined => {
             return placeholders.find(p => {
                 const pLower = p.toLowerCase();
@@ -119,17 +121,17 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
           });
           
           const cardData: CardData = {};
-          // Initialize all placeholders for the template to empty string
+          
           placeholders.forEach(pKey => {
             cardData[pKey] = ''; 
           });
 
-          // Default artwork if placeholder exists
+          
           if (artworkPlaceholder) {
             cardData[artworkPlaceholder] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme + (numAiCards > 1 ? ` ${i+1}` : ''))}`;
           }
 
-          // Parse AI output (which is expected to be "Card Name: ...\nRules Text: ...\nFlavor Text: ...")
+          
           const lines = aiResult.cardText.split('\\n');
           let parsedName = `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`;
           let parsedRules = "AI generated text.";
@@ -149,8 +151,8 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
           cardData[namePlaceholder] = parsedName;
           if (rulesPlaceholder) cardData[rulesPlaceholder] = parsedRules;
           
-          // Fill other common placeholders with generic or random values
-          if (costPlaceholder) cardData[costPlaceholder] = String(Math.floor(Math.random() * 5) + 1); // Random cost 1-5
+          
+          if (costPlaceholder) cardData[costPlaceholder] = String(Math.floor(Math.random() * 5) + 1); 
           if (typePlaceholder) cardData[typePlaceholder] = ['Creature', 'Spell', 'Enchantment', 'Artifact'][Math.floor(Math.random() * 4)];
           if (powerPlaceholder) cardData[powerPlaceholder] = String(Math.floor(Math.random() * 5) + 1);
           if (toughnessPlaceholder) cardData[toughnessPlaceholder] = String(Math.floor(Math.random() * 5) + 1);
@@ -173,6 +175,14 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
   
   const handleDataInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setBulkDataInput(e.target.value);
+  };
+
+  const handleBulkAbilityContextChange = (value: string) => {
+    if (value === NO_CONTEXT_SELECTED_VALUE) {
+      setSelectedAbilityContextIdForBulk('');
+    } else {
+      setSelectedAbilityContextIdForBulk(value);
+    }
   };
 
   return (
@@ -241,12 +251,15 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
             {abilityContextSets.length > 0 && (
                <div>
                 <Label htmlFor="bulkAbilityContextSelect">Optional: AI Context Set</Label>
-                <Select value={selectedAbilityContextIdForBulk} onValueChange={setSelectedAbilityContextIdForBulk}>
+                <Select 
+                  value={selectedAbilityContextIdForBulk || NO_CONTEXT_SELECTED_VALUE} 
+                  onValueChange={handleBulkAbilityContextChange}
+                >
                   <SelectTrigger id="bulkAbilityContextSelect">
                     <SelectValue placeholder="None (general AI knowledge)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (general AI knowledge)</SelectItem>
+                    <SelectItem value={NO_CONTEXT_SELECTED_VALUE}>None (general AI knowledge)</SelectItem>
                     {abilityContextSets.map(cs => <SelectItem key={cs.id} value={cs.id}>{cs.name}</SelectItem>)}
                   </SelectContent>
                 </Select>

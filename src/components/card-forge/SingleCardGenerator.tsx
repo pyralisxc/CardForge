@@ -20,7 +20,7 @@ interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
   onSingleCardAdded: (card: DisplayCard) => void;
   onTemplateSelectionChange?: (templateId: string) => void;
-  abilityContextSets: AbilityContextSet[]; // New prop
+  abilityContextSets: AbilityContextSet[];
 }
 
 interface DynamicField {
@@ -30,11 +30,13 @@ interface DynamicField {
   example?: string;
 }
 
+const NO_CONTEXT_SELECTED_VALUE = "_NO_CONTEXT_";
+
 export function SingleCardGenerator({ 
   templates, 
   onSingleCardAdded, 
   onTemplateSelectionChange,
-  abilityContextSets // New prop
+  abilityContextSets
 }: SingleCardGeneratorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [cardData, setCardData] = useState<CardData>({});
@@ -43,7 +45,7 @@ export function SingleCardGenerator({
 
   const [aiThemeForFill, setAiThemeForFill] = useState<string>('');
   const [isAiFilling, setIsAiFilling] = useState<boolean>(false);
-  const [selectedAbilityContextId, setSelectedAbilityContextId] = useState<string>(''); // New state
+  const [selectedAbilityContextId, setSelectedAbilityContextId] = useState<string>('');
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
@@ -174,6 +176,14 @@ export function SingleCardGenerator({
     }
   };
 
+  const handleAbilityContextChange = (value: string) => {
+    if (value === NO_CONTEXT_SELECTED_VALUE) {
+      setSelectedAbilityContextId('');
+    } else {
+      setSelectedAbilityContextId(value);
+    }
+  };
+
 
   return (
     <Card>
@@ -216,12 +226,15 @@ export function SingleCardGenerator({
             {abilityContextSets.length > 0 && (
               <div>
                 <Label htmlFor="singleAbilityContextSelect">Optional: AI Context Set</Label>
-                <Select value={selectedAbilityContextId} onValueChange={setSelectedAbilityContextId}>
+                <Select 
+                  value={selectedAbilityContextId || NO_CONTEXT_SELECTED_VALUE} 
+                  onValueChange={handleAbilityContextChange}
+                >
                   <SelectTrigger id="singleAbilityContextSelect">
                     <SelectValue placeholder="None (general AI knowledge)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (general AI knowledge)</SelectItem>
+                    <SelectItem value={NO_CONTEXT_SELECTED_VALUE}>None (general AI knowledge)</SelectItem>
                     {abilityContextSets.map(cs => <SelectItem key={cs.id} value={cs.id}>{cs.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
