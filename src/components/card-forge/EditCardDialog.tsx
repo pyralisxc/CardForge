@@ -3,7 +3,6 @@
 
 import { useState, useEffect, ChangeEvent } from 'react';
 import type { DisplayCard, CardData } from '@/types';
-// TCG_FIELD_DEFINITIONS is no longer strictly needed here for labels if we use placeholder keys
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +18,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Copy, Save } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Copy, Save, Eye } from 'lucide-react';
 
 interface EditCardDialogProps {
   isOpen: boolean;
@@ -31,10 +31,10 @@ interface EditCardDialogProps {
 
 interface DynamicField {
   key: string;
-  label: string; // Will now be like {{key}}
+  label: string; 
   type: 'input' | 'textarea';
-  example?: string; // For placeholder text in input
-  defaultValue?: string; // From template
+  example?: string; 
+  defaultValue?: string; 
 }
 
 export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: EditCardDialogProps) {
@@ -69,7 +69,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
         return {
           key: placeholder.key,
-          label: `{{${placeholder.key}}}`, // Use placeholder key as label
+          label: `{{${placeholder.key}}}`,
           type: isTextarea ? 'textarea' : 'input',
           example: exampleText,
           defaultValue: placeholder.defaultValue,
@@ -89,7 +89,6 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
   const handleSaveChanges = () => {
     if (card) {
-      // Ensure all keys defined by the template are present in editedData, even if empty
       const finalData = { ...editedData };
       dynamicFields.forEach(field => {
         if (finalData[field.key] === undefined) {
@@ -161,6 +160,25 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
             )}
           </div>
         </ScrollArea>
+        
+        <div className="mt-4 border-t pt-3">
+            <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="raw-data-viewer">
+                    <AccordionTrigger className="text-sm font-medium text-muted-foreground hover:text-foreground hover:no-underline py-1.5">
+                        <div className="flex items-center gap-1.5"><Eye className="h-4 w-4" />View Raw Card Data</div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-2">
+                        <Textarea
+                            readOnly
+                            value={JSON.stringify(editedData, null, 2)}
+                            className="font-mono text-xs h-40 bg-muted/30"
+                            aria-label="Raw card data JSON"
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
+        </div>
+
         <DialogFooter className="mt-auto pt-4 border-t">
           <DialogClose asChild>
             <Button type="button" variant="outline">Cancel</Button>
