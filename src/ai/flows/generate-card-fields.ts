@@ -43,6 +43,7 @@ const generateCardFieldsFlow = ai.defineFlow(
   },
   async (input) => {
     const { theme, placeholderKeys, abilityContext } = input;
+    console.log('Generating card fields for theme:', theme, 'Keys:', placeholderKeys);
 
     const placeholderListString = placeholderKeys.map(key => `- ${key}`).join('\n');
     const contextInstruction = abilityContext 
@@ -86,6 +87,7 @@ Return your response as a single, valid JSON object where the keys are the place
     let artworkKey: string | null = null;
 
     const fallbackPlaceholderValues = () => {
+      console.warn(`Using fallback placeholder values for theme "${theme}".`);
       placeholderKeys.forEach(key => {
         const keyLower = key.toLowerCase();
         if (keyLower.includes("name")) generatedData[key] = theme;
@@ -93,107 +95,110 @@ Return your response as a single, valid JSON object where the keys are the place
         else if (keyLower.includes("flavor")) generatedData[key] = `A ${theme} of great renown.`;
         else if (keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) {
             generatedData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme)}`;
-            if (!artworkKey) artworkKey = key; // Keep track of the first art-related key
+            if (!artworkKey) artworkKey = key; 
         }
         else generatedData[key] = "AI suggestion..."; 
       });
     };
 
     if (!textOutput || !textOutput.text) {
-      console.warn(`AI did not return any text output for theme "${theme}". Using basic fallback.`);
+      console.warn(`AI did not return any text output for theme "${theme}".`);
       fallbackPlaceholderValues();
-      return { generatedData };
-    }
-
-    try {
-      let jsonString = textOutput.text;
-      if (jsonString.startsWith("```json")) {
-        jsonString = jsonString.substring(7);
-        if (jsonString.endsWith("```")) {
-          jsonString = jsonString.substring(0, jsonString.length - 3);
-        }
-      }
-      jsonString = jsonString.trim();
-      const parsedJson = JSON.parse(jsonString);
-
-      placeholderKeys.forEach(key => {
-        generatedData[key] = parsedJson[key] || ""; // Use empty string if AI didn't provide
-        const keyLower = key.toLowerCase();
-        if (keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) {
-          if (generatedData[key] && typeof generatedData[key] === 'string' && (generatedData[key] as string).length > 10) { // Heuristic for a description
-            artworkDescription = generatedData[key] as string;
-            artworkKey = key;
+    } else {
+      try {
+        let jsonString = textOutput.text;
+        if (jsonString.startsWith("```json")) {
+          jsonString = jsonString.substring(7);
+          if (jsonString.endsWith("```")) {
+            jsonString = jsonString.substring(0, jsonString.length - 3);
           }
         }
-      });
-      
-    } catch (e) {
-      console.error("Failed to parse AI JSON output for text fields:", textOutput.text, e);
-      fallbackPlaceholderValues();
-      // Even if text gen fails, we still want to return some data
+        jsonString = jsonString.trim();
+        const parsedJson = JSON.parse(jsonString);
+        console.log("Parsed JSON from AI text generation:", parsedJson);
+
+        placeholderKeys.forEach(key => {
+          const keyLower = key.toLowerCase();
+          const isArtKey = keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl");
+
+          if (parsedJson[key] !== undefined) {
+            generatedData[key] = String(parsedJson[key]); // Ensure it's a string
+            if (isArtKey && typeof parsedJson[key] === 'string' && parsedJson[key].trim() !== "") {
+              if (!artworkKey) { // Prioritize the first art-related key that has a description
+                  artworkDescription = parsedJson[key].trim();
+                  artworkKey = key;
+                  console.log(`Found artwork description for key '${key}': "${artworkDescription}"`);
+              }
+            }
+          } else {
+            generatedData[key] = ""; // AI didn't provide, initialize to empty
+             console.log(`AI did not provide value for key '${key}'.`);
+          }
+        });
+        
+      } catch (e) {
+        console.error("Failed to parse AI JSON output for text fields:", textOutput.text, e);
+        fallbackPlaceholderValues();
+      }
     }
 
-    // If an artwork key and description were identified, attempt image generation
-    if (artworkKey && artworkDescription) {
+    // If no artworkDescription was specifically found in the parsed JSON for an art key,
+    // but an art key *exists* in placeholderKeys, identify it so we can try generating an image using the theme.
+    if (!artworkDescription && !artworkKey) {
+        artworkKey = placeholderKeys.find(k => {
+            const kl = k.toLowerCase();
+            return kl.includes("art") || kl.includes("image") || kl.includes("artworkurl");
+        }) || null;
+        if (artworkKey) {
+            console.log(`No specific artwork description found in JSON, but artwork key '${artworkKey}' exists in template. Will use theme for image generation.`);
+        }
+    }
+    
+    // Attempt image generation if an artworkKey has been identified
+    if (artworkKey) {
+      const imageGenConcept = artworkDescription || theme; // Use specific description if available, otherwise general theme
+      console.log(`Attempting image generation for key '${artworkKey}' using concept: "${imageGenConcept}"`);
       try {
-        console.log(`Attempting image generation for concept: "${artworkDescription}"`);
         const {media, text: imageGenText} = await ai.generate({
           model: 'googleai/gemini-2.0-flash-exp',
-          prompt: `You are an AI image generation assistant for a fantasy Trading Card Game. Generate a piece of artwork suitable for a TCG card based on the following detailed concept: "${artworkDescription}". Ensure the style is suitable for TCG card art. Output a brief textual description of the image you generated.`,
+          prompt: `You are an AI image generation assistant for a fantasy Trading Card Game. Generate artwork for a TCG card based on the concept: "${imageGenConcept}". Ensure the style is suitable for TCG card art. Output a brief textual description of the image you generated.`,
           config: {
             responseModalities: ['TEXT', 'IMAGE'],
           },
         });
         
         if (media && media.url) {
-          generatedData[artworkKey] = media.url; // Replace description with Data URI
-          console.log(`Successfully generated image for ${artworkKey}.`);
+          generatedData[artworkKey] = media.url; 
+          console.log(`Successfully generated image for ${artworkKey}. URI starts with: ${media.url.substring(0, 100)}...`);
         } else {
-          console.warn(`AI image generation failed or no media URL returned. Text: ${imageGenText}. Falling back for key: ${artworkKey}`);
-          generatedData[artworkKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Img Fail)")}`;
+          console.warn(`AI image generation failed or no media URL returned for concept "${imageGenConcept}". Text from model: ${imageGenText}. Falling back for key: ${artworkKey}`);
+          generatedData[artworkKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Img Gen Fail)")}`;
         }
       } catch (imgError) {
-        console.error(`Error during AI image generation for ${artworkKey}:`, imgError);
-        generatedData[artworkKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Img Error)")}`;
-      }
-    } else if (artworkKey && !artworkDescription) {
-      // If there's an art key but no description came from the AI text gen, use the theme
-      // This is a fallback path.
-      console.log(`No specific art description, using theme "${theme}" for image generation for key: ${artworkKey}`);
-       try {
-        const {media, text: imageGenText} = await ai.generate({
-          model: 'googleai/gemini-2.0-flash-exp',
-          prompt: `You are an AI image generation assistant for a fantasy Trading Card Game. Generate artwork for a TCG card based on the theme: "${theme}". Ensure the style is suitable for TCG card art. Output a brief textual description of the image generated.`,
-          config: { responseModalities: ['TEXT', 'IMAGE'] },
-        });
-        if (media && media.url) {
-          generatedData[artworkKey] = media.url;
-        } else {
-           console.warn(`AI image generation (theme fallback) failed. Text: ${imageGenText}. Falling back for key: ${artworkKey}`);
-           generatedData[artworkKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Img Fail)")}`;
-        }
-      } catch (imgError) {
-        console.error(`Error during AI image generation (theme fallback) for ${artworkKey}:`, imgError);
-        generatedData[artworkKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Img Error)")}`;
+        console.error(`Error during AI image generation for ${artworkKey} (concept: "${imageGenConcept}"):`, imgError);
+        generatedData[artworkKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Img Gen Error)")}`;
       }
     } else {
-        // Ensure any art key that didn't get processed for image gen still gets a placeholder
-        placeholderKeys.forEach(key => {
-            const keyLower = key.toLowerCase();
-             if ((keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) && !generatedData[key]) {
-                generatedData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme)}`;
-             }
-        });
+        console.log("No artwork key identified in placeholders. Skipping image generation.");
     }
     
-    // Final check to ensure all requested keys have some value
+    // Final check to ensure all requested keys have some value and to fill any art keys missed by specific generation
     placeholderKeys.forEach(key => {
         if (generatedData[key] === undefined || generatedData[key] === "") {
-            // A simple fallback if a key was completely missed after all steps
-            generatedData[key] = `Missing: ${key}`; 
+            const keyLower = key.toLowerCase();
+            if (keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) {
+                 // This key was an art key but didn't get an image or a fallback yet (e.g., if 'artworkKey' was a different art key)
+                generatedData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Art Fallback)")}`;
+                console.log(`Applied final fallback placeholder image for art key '${key}'.`);
+            } else {
+                 generatedData[key] = `Missing: ${key}`; 
+                 console.log(`Key '${key}' was missing a value after all steps. Set to "Missing: ${key}".`);
+            }
         }
     });
 
+    console.log("Final generatedData before returning:", generatedData);
     return { generatedData };
   }
 );
+
