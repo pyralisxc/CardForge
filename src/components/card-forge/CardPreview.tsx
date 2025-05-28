@@ -119,7 +119,7 @@ export function CardPreview({
           
           let rowEffectiveHeight: string | undefined = undefined;
           if (row.customHeight && !isPrintMode) {
-            if(row.customHeight.includes('%') && cardPixelHeight > 0){
+            if(row.customHeight.includes('%') && cardPixelHeight > 0 && isFinite(cardPixelHeight)){
                 const percentageValue = parseFloat(row.customHeight.replace('%',''));
                 if(!isNaN(percentageValue) && isFinite(percentageValue)){
                     rowEffectiveHeight = `${cardPixelHeight * (percentageValue / 100)}px`;
@@ -160,9 +160,9 @@ export function CardPreview({
                   textAlign: section.textAlign || 'left',
                   fontStyle: section.fontStyle || 'normal',
                   flexGrow: section.flexGrow || 0,
-                  flexShrink: section.flexGrow && section.flexGrow > 0 ? 1 : 0, 
-                  flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto', 
-                  minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined,
+                  flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0, 
+                  flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto', 
+                  minWidth: (section.flexGrow && section.flexGrow > 0) ? 0 : undefined,
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,  
@@ -200,7 +200,7 @@ export function CardPreview({
 
                 if (section.type === 'Artwork') {
                     const editorPreviewStyle: React.CSSProperties = {
-                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.customHeight && !section.minHeight.includes('px') ? '180px' : undefined ) || '180px',
+                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.minHeight.includes('px') ? '180px' : undefined ) || '180px',
                       width: section.customWidth || '100%',
                       backgroundColor: 'hsl(var(--muted) / 0.5)',
                       border: '1px dashed hsl(var(--border))',
@@ -213,9 +213,9 @@ export function CardPreview({
                       color: 'hsl(var(--muted-foreground))',
                       boxSizing: 'border-box', 
                       position: 'relative',
-                       ...sectionStyle,
-                       height: section.customHeight || sectionStyle.height || '180px',
-                       width: section.customWidth || sectionStyle.width || '100%',
+                       ...sectionStyle, // Apply general section styles first
+                       height: section.customHeight || sectionStyle.height || '180px', // Then override height if customHeight is set
+                       width: section.customWidth || sectionStyle.width || '100%', // Then override width if customWidth is set
                     };
                      delete editorPreviewStyle.flexGrow; 
                      delete editorPreviewStyle.minWidth;
@@ -229,7 +229,6 @@ export function CardPreview({
                           onClick={handlePreviewSectionClick}
                           data-section-id={section.id}
                         >
-                          <div>Artwork: {section.contentPlaceholder}</div>
                           <div>Size: {editorPreviewStyle.width} x {editorPreviewStyle.height}</div>
                         </div>
                       );
@@ -322,3 +321,4 @@ export function CardPreview({
     </div>
   );
 }
+
