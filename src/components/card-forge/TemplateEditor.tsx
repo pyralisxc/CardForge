@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Copy, Square, SquarePen } from 'lucide-react';
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
 import { SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, FRAME_STYLES, ROW_ALIGN_ITEMS, createDefaultRow } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -34,20 +34,20 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
   FlavorText: Italic,
   PowerToughness: ChevronsUpDown,
   ArtistCredit: Baseline,
-  CustomText: SquarePen, // Changed from Square
+  CustomText: SquarePen,
   Divider: Minus,
 };
 
 const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate => {
-  const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
+  const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard")) || PRESET_TEMPLATES[0];
   const newTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
   newTemplate.id = id || nanoid();
-  newTemplate.name = name || 'New Custom Template (Row Layout)';
+  newTemplate.name = name || 'New Custom Template';
   
-  newTemplate.rows = (newTemplate.rows || []).map(r => ({
+  newTemplate.rows = (newTemplate.rows || []).map((r: CardRow) => ({
     ...r,
-    id: r.id, // Rely on preset IDs being stable
-    columns: (r.columns || []).map(c => ({...c, id: c.id})), // Rely on preset IDs being stable
+    id: r.id, 
+    columns: (r.columns || []).map((c: CardSection) => ({...c, id: c.id})),
     customHeight: r.customHeight || '',
   }));
 
@@ -73,12 +73,6 @@ export function TemplateEditor({
      () => {
       if (initialTemplate) {
         const clonedInitial = JSON.parse(JSON.stringify(initialTemplate)) as TCGCardTemplate;
-        clonedInitial.rows = (clonedInitial.rows || []).map(r => ({
-            ...r, 
-            id: r.id || nanoid(), 
-            columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})),
-            customHeight: r.customHeight || '',
-        }));
         return clonedInitial;
       }
       return getFreshDefaultTemplate();
@@ -98,12 +92,12 @@ export function TemplateEditor({
     if (selectedTemplateToEditId) {
       const templateToEdit = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateToEdit) {
-        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); // Deep clone
+        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); 
       } else {
         newTemplateToSet = getFreshDefaultTemplate(selectedTemplateToEditId, "New Custom Template");
       }
     } else if (initialTemplate) {
-      newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); // Deep clone
+      newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); 
     } else {
       newTemplateToSet = getFreshDefaultTemplate();
     }
@@ -114,10 +108,11 @@ export function TemplateEditor({
     newTemplateToSet.baseTextColor = newTemplateToSet.baseTextColor || '';
     newTemplateToSet.borderColor = newTemplateToSet.borderColor || '';
     newTemplateToSet.legacyFrameColor = newTemplateToSet.legacyFrameColor || '';
-    newTemplateToSet.rows = (newTemplateToSet.rows || []).map(r => ({
+    
+    newTemplateToSet.rows = (newTemplateToSet.rows || []).map((r: CardRow) => ({
         ...r,
-        id: r.id || nanoid(), 
-        columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})),
+        id: r.id,
+        columns: (r.columns || []).map((c: CardSection) => ({...c, id: c.id})),
         customHeight: r.customHeight || '',
       }));
 
@@ -144,10 +139,10 @@ export function TemplateEditor({
       newPresetTemplate.id = currentTemplate.id; 
       newPresetTemplate.name = currentTemplate.name || preset.name; 
       
-      newPresetTemplate.rows = (newPresetTemplate.rows || []).map(r => ({
+      newPresetTemplate.rows = (newPresetTemplate.rows || []).map((r: CardRow) => ({
         ...r,
-        id: r.id || nanoid(), 
-        columns: (r.columns || []).map(c => ({ ...c, id: c.id || nanoid() })),
+        id: r.id,
+        columns: (r.columns || []).map((c: CardSection) => ({ ...c, id: c.id })),
         customHeight: r.customHeight || '',
       }));
       newPresetTemplate.aspectRatio = newPresetTemplate.aspectRatio || "63:88";
@@ -160,6 +155,7 @@ export function TemplateEditor({
       setCurrentTemplate(newPresetTemplate);
       setActiveRowAccordionItems((newPresetTemplate.rows || []).map(r => r.id)); 
       setActiveSectionStylingAccordionItems([]);
+      setAspectRatioInput(newPresetTemplate.aspectRatio || "63:88");
       toast({ title: "Preset Loaded", description: `"${preset.name}" structure loaded into editor.`});
     }
   };
@@ -176,7 +172,7 @@ export function TemplateEditor({
   };
 
   const addRow = () => {
-    const newRow = createDefaultRow(undefined, [createDefaultSection('CustomText')]);
+    const newRow = createDefaultRow(nanoid(), [createDefaultSection('CustomText', nanoid())]);
     updateCurrentTemplate({ rows: [...currentTemplate.rows, newRow] });
     setActiveRowAccordionItems(prev => [...prev, newRow.id]);
   };
@@ -197,7 +193,7 @@ export function TemplateEditor({
   };
 
   const addSectionToRow = (rowId: string, type: CardSectionType) => {
-    const newSection = createDefaultSection(type);
+    const newSection = createDefaultSection(type, nanoid());
     setCurrentTemplate(prev => ({
       ...prev,
       rows: prev.rows.map(r =>
@@ -409,8 +405,9 @@ export function TemplateEditor({
                         <Label htmlFor="templateName">Template Name</Label>
                         <Input id="templateName" value={currentTemplate.name} onChange={(e) => updateCurrentTemplate({ name: e.target.value })} placeholder="e.g., My Awesome TCG Template" required />
                     </div>
-                     <div>
-                        <Label htmlFor="templateAspectRatio" className="text-xs">Card Aspect Ratio (W:H)</Label>
+                    
+                    <div>
+                        <Label htmlFor="templateAspectRatio" className="text-sm">Card Aspect Ratio (W:H)</Label>
                         <Input
                             id="templateAspectRatio"
                             value={aspectRatioInput}
@@ -437,27 +434,58 @@ export function TemplateEditor({
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                                     <div>
                                         <Label htmlFor="baseBgColor" className="text-xs">Base Background Color</Label>
-                                        <Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} disabled={isNonStandardFrame}/>
+                                        <Input
+                                            id="baseBgColor"
+                                            type="color"
+                                            value={currentTemplate.baseBackgroundColor || ''}
+                                            onChange={(e) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })}
+                                            disabled={isNonStandardFrame}
+                                        />
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                            {isNonStandardFrame ? "Overridden by selected Frame Style." : "Applies if 'Standard' frame selected. Leave empty for theme default."}
+                                            {isNonStandardFrame
+                                            ? "Overridden by selected Frame Style."
+                                            : "Applies if 'Standard' frame selected. Leave empty for theme default."}
                                         </p>
                                     </div>
                                     <div>
                                         <Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label>
-                                        <Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })} disabled={isNonStandardFrame}/>
+                                        <Input
+                                            id="baseTextColor"
+                                            type="color"
+                                            value={currentTemplate.baseTextColor || ''}
+                                            onChange={(e) => updateCurrentTemplate({ baseTextColor: e.target.value })}
+                                            disabled={isNonStandardFrame}
+                                        />
                                          <p className="text-xs text-muted-foreground mt-0.5">
-                                            {isNonStandardFrame ? "Overridden by selected Frame Style." : "Applies if 'Standard' frame selected. Leave empty for theme default."}
+                                            {isNonStandardFrame
+                                            ? "Overridden by selected Frame Style."
+                                            : "Applies if 'Standard' frame selected. Leave empty for theme default."}
                                         </p>
                                     </div>
                                     <div>
                                         <Label htmlFor="borderColor" className="text-xs">Default Section Border Color</Label>
-                                        <Input id="borderColor" type="color" value={currentTemplate.borderColor || ''} onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })} />
+                                        <Input
+                                            id="borderColor"
+                                            type="color"
+                                            value={currentTemplate.borderColor || ''}
+                                            onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })}
+                                        />
                                         <p className="text-xs text-muted-foreground mt-0.5">Fallback for section borders if they have width but no specific color. Does not style main card outline.</p>
                                     </div>
                                     <div>
-                                      <Label htmlFor="legacyFrameColor" className="text-xs">Legacy Frame Color (Overridden by Frame Style)</Label>
-                                      <Input id="legacyFrameColor" type="color" value={currentTemplate.legacyFrameColor || ''} onChange={(e) => updateCurrentTemplate({ legacyFrameColor: e.target.value })} />
-                                      <p className="text-xs text-muted-foreground mt-0.5">Old frame color, generally not used if a Frame Style is selected.</p>
+                                        <Label htmlFor="legacyFrameColor" className="text-xs">Legacy Frame Color</Label>
+                                        <Input
+                                            id="legacyFrameColor"
+                                            type="color"
+                                            value={currentTemplate.legacyFrameColor || ''}
+                                            onChange={(e) => updateCurrentTemplate({ legacyFrameColor: e.target.value })}
+                                            disabled={isNonStandardFrame}
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {isNonStandardFrame
+                                            ? "This color is overridden by the selected Frame Style."
+                                            : "Old frame color, typically overridden. Use specific Frame Styles or Base Background Color for 'Standard' frame."}
+                                        </p>
                                     </div>
                                 </div>
                             </AccordionContent>
@@ -644,3 +672,5 @@ export function TemplateEditor({
     </div>
   );
 }
+
+    
