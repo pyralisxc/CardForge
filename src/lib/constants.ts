@@ -7,7 +7,7 @@ export const PAPER_SIZES: PaperSize[] = [
   { name: 'A4 (210x297 mm)', widthMm: 210, heightMm: 297 },
 ];
 
-export const TCG_ASPECT_RATIO = '63:88';
+export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
 
 export const SECTION_TYPES: CardSectionType[] = [
   'CardName',
@@ -36,11 +36,11 @@ export const TEXT_ALIGNS: Array<CardSection['textAlign']> = ['left', 'center', '
 export const FONT_STYLES: Array<CardSection['fontStyle']> = ['normal', 'italic'];
 
 export const ROW_ALIGN_ITEMS: Array<{ label: string; value: CardRow['alignItems'] }> = [
-    { label: 'Align Top', value: 'flex-start' },
-    { label: 'Align Middle', value: 'center' },
-    { label: 'Align Bottom', value: 'flex-end' },
-    { label: 'Stretch to Fill', value: 'stretch' },
-    { label: 'Align Baselines', value: 'baseline' },
+    { label: 'Align Top (flex-start)', value: 'flex-start' },
+    { label: 'Align Middle (center)', value: 'center' },
+    { label: 'Align Bottom (flex-end)', value: 'flex-end' },
+    { label: 'Stretch to Fill (stretch)', value: 'stretch' },
+    { label: 'Align Baselines (baseline)', value: 'baseline' },
   ];
 
 
@@ -124,8 +124,8 @@ export const createDefaultSection = (type: CardSectionType, id?: string, overrid
     borderWidth: '_none_',
     minHeight: '_auto_',
     flexGrow: 0,
-    customHeight: '', // Initialize customHeight to empty for all
-    customWidth: '',  // Initialize customWidth to empty for all
+    customHeight: '', 
+    customWidth: '',  
   };
 
   const sectionId = id || nanoid(); 
@@ -160,7 +160,7 @@ export const createDefaultSection = (type: CardSectionType, id?: string, overrid
       specificContentPlaceholder = '{{customValue}}';
       return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-sans', padding: 'p-1', fontSize: 'text-sm', flexGrow: 1, ...overrides };
     case 'Divider':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', flexGrow: 1, customHeight: '1px', customWidth: 'auto', ...overrides }; // Divider defaults
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', flexGrow: 1, customHeight: '1px', customWidth: 'auto', ...overrides }; 
     default:
       const _exhaustiveCheck: never = type; 
       console.warn(`Unhandled section type in createDefaultSection: ${_exhaustiveCheck}`);
@@ -168,33 +168,34 @@ export const createDefaultSection = (type: CardSectionType, id?: string, overrid
   }
 };
 
-export const createDefaultRow = (id: string | undefined, columns: CardSection[], alignItems: CardRow['alignItems'] = 'flex-start'): CardRow => {
-    let rowId = id;
-    if (!id && columns.length > 0) { // Only warn if creating a default for a preset, not for user actions
-      // console.warn("createDefaultRow was called without a hardcoded ID for a default template. This can lead to hydration issues. Generating one, but this should be fixed in DEFAULT_TEMPLATES definition.");
-      rowId = nanoid(); 
-    } else if (!id) {
-      rowId = nanoid();
-    }
+export const createDefaultRow = (id?: string, columns: CardSection[] = [], alignItems: CardRow['alignItems'] = 'flex-start'): CardRow => {
+    const rowId = id || nanoid();
+    
+    // Ensure columns passed in (especially for defaults) have IDs.
+    // If creating a new row via UI, columns array might be empty initially.
+    const processedColumns = columns.map(col => {
+        if (!col.id && id) { // if row 'id' is provided, it's likely a default template, so column IDs should be stable too
+            console.warn("A column in a default row was created without a hardcoded ID. This might lead to hydration issues. Forcing nanoid(), but please provide a stable ID in DEFAULT_TEMPLATES definition for this column.", col);
+            return { ...col, id: nanoid() };
+        } else if (!col.id) {
+            return { ...col, id: nanoid() }; // For dynamically added columns in UI
+        }
+        return col;
+    });
+
     return {
       id: rowId!, 
-      columns: columns.map(col => {
-          if (!col.id && columns.length > 0) { // Similar warning logic for columns
-              // console.warn("A column in a default row was created without a hardcoded ID. This might lead to hydration issues. Forcing nanoid().", col);
-              return { ...col, id: nanoid() }; 
-          } else if (!col.id) {
-              return { ...col, id: nanoid() };
-          }
-          return col;
-      }),
+      columns: processedColumns,
       alignItems,
+      customHeight: '', // Initialize customHeight for rows
     };
   };
 
 
+// --- DEFAULT TEMPLATES (Using Rows and Columns) ---
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
-    id: 'sfc-v6-stable-id', 
+    id: 'sfc-v6-stable-id', // Standard Fantasy Creature
     name: 'Standard Fantasy Creature (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
@@ -208,7 +209,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
       ], 'center'),
       createDefaultRow('sfc-row2-art-v6-id', [createDefaultSection('Artwork', 'sfc-sec3-art-v6-id', {flexGrow: 1})]),
       createDefaultRow('sfc-row3-type-v6-id', [createDefaultSection('TypeLine', 'sfc-sec4-type-v6-id')]),
-      createDefaultRow('sfc-row4-rules-v6-id', [createDefaultSection('RulesText', 'sfc-sec5-rules-v6-id')]),
+      createDefaultRow('sfc-row4-rules-v6-id', [createDefaultSection('RulesText', 'sfc-sec5-rules-v6-id', {flexGrow: 1})]),
       createDefaultRow('sfc-row5-flavorpt-v6-id', [
          createDefaultSection('FlavorText', 'sfc-sec6-flavor-v6-id', {flexGrow: 1}),
          createDefaultSection('PowerToughness', 'sfc-sec7-pt-v6-id', {flexGrow: 0, textAlign: 'right'})
@@ -217,7 +218,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     ]
   },
   {
-    id: 'bcc-v6-stable-id', 
+    id: 'bcc-v6-stable-id', // Basic Custom Card
     name: 'Basic Custom Card (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'minimal-dark',
@@ -226,8 +227,8 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     borderColor: '',
     rows: [
       createDefaultRow('bcc-row1-name-v6-id', [createDefaultSection('CardName', 'bcc-sec1-name-v6-id')]),
-      createDefaultRow('bcc-row2-art-v6-id', [createDefaultSection('Artwork', 'bcc-sec2-art-v6-id', {customHeight: '250px'})]),
-      createDefaultRow('bcc-row3-custom-v6-id', [createDefaultSection('CustomText', 'bcc-sec3-custom-v6-id', {minHeight: 'min-h-[80px]'})]),
+      createDefaultRow('bcc-row2-art-v6-id', [createDefaultSection('Artwork', 'bcc-sec2-art-v6-id', {customHeight: '250px', flexGrow: 1})]),
+      createDefaultRow('bcc-row3-custom-v6-id', [createDefaultSection('CustomText', 'bcc-sec3-custom-v6-id', {minHeight: 'min-h-[80px]', flexGrow: 1})]),
     ]
   }
 ];

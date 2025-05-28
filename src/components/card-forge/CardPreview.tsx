@@ -86,6 +86,8 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
+      // In editor preview, don't hide based on content, only if placeholder itself is empty.
+      // Artwork and Divider have their own rendering.
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
       return section.contentPlaceholder?.trim() === ''; 
     }
@@ -131,6 +133,12 @@ export function CardPreview({
           if (allColumnsInRowHidden && hideEmptySections && !isEditorPreview) {
             return null;
           }
+          
+          const rowStyle: React.CSSProperties = {
+            alignItems: row.alignItems || 'flex-start',
+            height: row.customHeight || undefined,
+          };
+
 
           return (
             <div
@@ -139,7 +147,7 @@ export function CardPreview({
                 "flex",
                 isEditorPreview && onRowClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-blue-500/70' : ''
               )}
-              style={{ alignItems: row.alignItems || 'flex-start' }}
+              style={rowStyle}
               onClick={handlePreviewRowClick}
               data-row-id={row.id}
             >
@@ -160,8 +168,8 @@ export function CardPreview({
                   flexBasis: section.flexGrow && section.flexGrow > 0 ? '0%' : 'auto', 
                   minWidth: section.flexGrow && section.flexGrow > 0 ? 0 : undefined,
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
-                  height: section.customHeight || undefined,
-                  width: section.customWidth || undefined,
+                  height: section.customHeight || undefined, // Applied from section
+                  width: section.customWidth || undefined,   // Applied from section
                 };
 
                 if (section.borderColor) {
@@ -193,10 +201,8 @@ export function CardPreview({
                 };
 
                 if (section.type === 'Artwork') {
-                  if (isEditorPreview) {
                     const editorPreviewStyle: React.CSSProperties = {
-                      ...sectionStyle, // Includes customHeight/customWidth if set
-                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' ? undefined : '180px'),
+                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' ? undefined : '180px'), // Fallback if customHeight not set
                       width: section.customWidth || '100%',
                       backgroundColor: 'hsl(var(--muted) / 0.5)',
                       border: '1px dashed hsl(var(--border))',
@@ -208,11 +214,17 @@ export function CardPreview({
                       fontSize: '0.75rem', 
                       color: 'hsl(var(--muted-foreground))',
                       boxSizing: 'border-box', 
+                      position: 'relative', // For potential inner elements or if next/image used here
+                       ...sectionStyle, // Apply general section styles too, but dimensions from above take precedence
                     };
+                     delete editorPreviewStyle.flexGrow; // flexGrow not typically needed for the outer box in editor
+                     delete editorPreviewStyle.minWidth;
+
+                    if (isEditorPreview) {
                     return (
                       <div
                         key={section.id}
-                        className={cn(sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')}
+                        className={cn(sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '', section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')} // Add flex-grow class if needed
                         style={editorPreviewStyle}
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
@@ -223,20 +235,34 @@ export function CardPreview({
                     );
                   } else {
                     let artworkDisplaySrc = sectionContent;
-                    const looksLikePlaceholder = !sectionContent || sectionContent.trim() === '' || (sectionContent.startsWith('{{') && sectionContent.endsWith('}}'));
-                    const isNotHttpOrData = sectionContent && !sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:');
+                    const looksLikePlaceholderOrInvalid = !sectionContent || sectionContent.trim() === '' || 
+                                                      (sectionContent.startsWith('{{') && sectionContent.endsWith('}}')) ||
+                                                      (!sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:'));
                     
-                    if (looksLikePlaceholder || isNotHttpOrData ) {
+                    if (looksLikePlaceholderOrInvalid) {
                       artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`;
                     }
                     
                     const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
+                    const imageContainerStyle: React.CSSProperties = {
+                        position: 'relative', // Crucial for next/image layout="fill"
+                        height: section.customHeight || '100%', // Default to 100% of parent if not set
+                        width: section.customWidth || '100%',   // Default to 100% of parent if not set
+                        overflow: 'hidden', // To ensure image respects borders if any
+                        ...sectionStyle, // Apply other base section styles
+                    };
+                     // Remove flex properties from the image container itself, as they apply to its role in the row
+                    delete imageContainerStyle.flexGrow;
+                    delete imageContainerStyle.flexShrink;
+                    delete imageContainerStyle.flexBasis;
+                    delete imageContainerStyle.minWidth;
+
 
                     return (
                       <div
                         key={section.id}
-                        className={cn("relative", sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')} 
-                        style={sectionStyle} // sectionStyle already includes customHeight/Width
+                        className={cn("relative", sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')} // Add flex-grow class
+                        style={imageContainerStyle}
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
                       >

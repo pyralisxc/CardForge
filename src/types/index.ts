@@ -36,6 +36,7 @@ export interface CardRow {
   id: string; 
   columns: CardSection[]; 
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline'; 
+  customHeight?: string; // e.g., "100px", "auto"
 }
 
 export interface TCGCardTemplate {

@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Copy } from 'lucide-react';
+import { Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Palette, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Wand2, PackageOpen, LayoutDashboard, SlidersHorizontal, EyeOff, Save, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Copy, Square } from 'lucide-react';
 import { SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, FRAME_STYLES, ROW_ALIGN_ITEMS, createDefaultRow } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -34,22 +34,21 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
   FlavorText: Italic,
   PowerToughness: ChevronsUpDown,
   ArtistCredit: Baseline,
-  CustomText: Type,
+  CustomText: Square, // Changed from Type for CustomText to avoid repetition
   Divider: Minus,
 };
 
 const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate => {
   const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Fantasy Creature")) || PRESET_TEMPLATES[0];
-  // Deep clone the preset
   const newTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
   newTemplate.id = id || nanoid();
   newTemplate.name = name || 'New Custom Template (Row Layout)';
   
-  // Ensure rows and columns within rows have IDs if they were somehow missed in constants
   newTemplate.rows = (newTemplate.rows || []).map(r => ({
     ...r,
     id: r.id || nanoid(), 
-    columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) 
+    columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})),
+    customHeight: r.customHeight || '',
   }));
 
   newTemplate.aspectRatio = newTemplate.aspectRatio || "63:88";
@@ -73,7 +72,12 @@ export function TemplateEditor({
      () => {
       if (initialTemplate) {
         const clonedInitial = JSON.parse(JSON.stringify(initialTemplate)) as TCGCardTemplate;
-        clonedInitial.rows = (clonedInitial.rows || []).map(r => ({...r, id: r.id || nanoid(), columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) }));
+        clonedInitial.rows = (clonedInitial.rows || []).map(r => ({
+            ...r, 
+            id: r.id || nanoid(), 
+            columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})),
+            customHeight: r.customHeight || '',
+        }));
         return clonedInitial;
       }
       return getFreshDefaultTemplate();
@@ -93,33 +97,29 @@ export function TemplateEditor({
     if (selectedTemplateToEditId) {
       const templateToEdit = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateToEdit) {
-        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); // Deep clone
+        newTemplateToSet = JSON.parse(JSON.stringify(templateToEdit)); 
       } else {
-        // This case might happen if the selected ID is no longer in templates list
-        // or if we are creating a new one implicitly by setting selectedTemplateToEditId
         newTemplateToSet = getFreshDefaultTemplate(selectedTemplateToEditId, "New Custom Template");
       }
     } else if (initialTemplate) {
-      newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); // Deep clone
+      newTemplateToSet = JSON.parse(JSON.stringify(initialTemplate)); 
     } else {
       newTemplateToSet = getFreshDefaultTemplate();
     }
     
-    // Ensure defaults are set if missing after cloning or creation
     newTemplateToSet.aspectRatio = newTemplateToSet.aspectRatio || "63:88";
     newTemplateToSet.frameStyle = newTemplateToSet.frameStyle || 'standard';
     newTemplateToSet.baseBackgroundColor = newTemplateToSet.baseBackgroundColor || '';
     newTemplateToSet.baseTextColor = newTemplateToSet.baseTextColor || '';
     newTemplateToSet.borderColor = newTemplateToSet.borderColor || '';
-    // Critical: Ensure rows and columns have IDs, especially after JSON.parse(stringify)
     newTemplateToSet.rows = (newTemplateToSet.rows || []).map(r => ({
         ...r,
-        id: r.id || nanoid(), // Ensure row has an ID
-        columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})) // Ensure column has an ID
+        id: r.id || nanoid(), 
+        columns: (r.columns || []).map(c => ({...c, id: c.id || nanoid()})),
+        customHeight: r.customHeight || '',
       }));
 
     setCurrentTemplate(newTemplateToSet);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateToEditId, initialTemplate, templates]);
 
 
@@ -149,7 +149,8 @@ export function TemplateEditor({
       newPresetTemplate.rows = (newPresetTemplate.rows || []).map(r => ({
         ...r,
         id: r.id || nanoid(), 
-        columns: (r.columns || []).map(c => ({ ...c, id: c.id || nanoid() }))
+        columns: (r.columns || []).map(c => ({ ...c, id: c.id || nanoid() })),
+        customHeight: r.customHeight || '',
       }));
       newPresetTemplate.aspectRatio = newPresetTemplate.aspectRatio || "63:88";
       newPresetTemplate.frameStyle = newPresetTemplate.frameStyle || 'standard';
@@ -249,35 +250,33 @@ export function TemplateEditor({
     const newId = nanoid();
     const newDefaultTemplate = getFreshDefaultTemplate(newId);
     setCurrentTemplate(newDefaultTemplate);
-    setSelectedTemplateToEditId(newId); // Set this so we are "editing" the new template
+    setSelectedTemplateToEditId(newId); 
     setActiveRowAccordionItems(newDefaultTemplate.rows.map(r => r.id));
     setActiveSectionStylingAccordionItems([]);
   };
   
 
-  const handleSubmit = (part: 'settings' | 'sections') => {
-    let templateToSave = JSON.parse(JSON.stringify(currentTemplate)); // Deep clone for saving
+  const handleSaveCurrentTemplate = () => {
+    let templateToSave = JSON.parse(JSON.stringify(currentTemplate)); 
     
-    if (part === 'settings') {
-      if (!templateToSave.name.trim()) {
-        toast({ title: "Validation Error", description: 'Template name is required.', variant: "destructive" });
+    if (!templateToSave.name.trim()) {
+      toast({ title: "Validation Error", description: 'Template name is required.', variant: "destructive" });
+      return;
+    }
+    const ratioParts = aspectRatioInput.split(':').map(Number);
+    if (!(ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0)) {
+        toast({ title: "Validation Error", description: 'Aspect Ratio must be in W:H format (e.g., 63:88) with positive numbers.', variant: "destructive" });
         return;
-      }
-      const ratioParts = aspectRatioInput.split(':').map(Number);
-      if (!(ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0)) {
-          toast({ title: "Validation Error", description: 'Aspect Ratio must be in W:H format (e.g., 63:88) with positive numbers.', variant: "destructive" });
-          return;
-      }
-      templateToSave.aspectRatio = aspectRatioInput;
-    } else if (part === 'sections') {
-      if (!templateToSave.rows || templateToSave.rows.length === 0) {
-        toast({ title: "Validation Error", description: 'Template must have at least one row.', variant: "destructive" });
-        return;
-      }
-      if (templateToSave.rows.some((row: CardRow) => !row.columns || row.columns.length === 0)) {
-        toast({ title: "Validation Error", description: 'All rows must have at least one section (column).', variant: "destructive" });
-        return;
-      }
+    }
+    templateToSave.aspectRatio = aspectRatioInput;
+
+    if (!templateToSave.rows || templateToSave.rows.length === 0) {
+      toast({ title: "Validation Error", description: 'Template must have at least one row.', variant: "destructive" });
+      return;
+    }
+    if (templateToSave.rows.some((row: CardRow) => !row.columns || row.columns.length === 0)) {
+      toast({ title: "Validation Error", description: 'All rows must have at least one section (column).', variant: "destructive" });
+      return;
     }
     onSaveTemplate(templateToSave);
   };
@@ -298,7 +297,7 @@ export function TemplateEditor({
 
   const handleRowClickFromPreview = (rowId: string) => {
     setActiveRowAccordionItems(prev => {
-      if (prev.includes(rowId)) return prev;
+      if (prev.includes(rowId)) return prev.filter(id => id !== rowId); // Toggle behavior: close if already open
       return [rowId]; 
     });
     setTimeout(() => {
@@ -316,7 +315,7 @@ export function TemplateEditor({
         });
     }
      setActiveSectionStylingAccordionItems(prev => {
-      if (prev.includes(sectionId)) return prev;
+      if (prev.includes(sectionId)) return prev.filter(id => id !== sectionId); // Toggle behavior
       return [sectionId]; 
     });
      setTimeout(() => {
@@ -418,7 +417,7 @@ export function TemplateEditor({
                             onChange={(e) => setAspectRatioInput(e.target.value)}
                             placeholder="e.g., 63:88 (Standard TCG)"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. Current: {currentTemplate.aspectRatio}</p>
+                         <p className="text-xs text-muted-foreground mt-1">Standard TCG is 63:88. Current: {currentTemplate.aspectRatio}</p>
                     </div>
                     
                     <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling-accordion">
@@ -460,10 +459,10 @@ export function TemplateEditor({
                         </AccordionItem>
                     </Accordion>
                 </CardContent>
-                <CardFooter className="p-4 border-t">
-                    <Button type="button" onClick={() => handleSubmit('settings')} className="w-full sm:w-auto ml-auto">
+                 <CardFooter className="p-4 border-t">
+                    <Button type="button" onClick={handleSaveCurrentTemplate} className="w-full sm:w-auto ml-auto">
                         <Save className="mr-2 h-4 w-4"/>
-                        Save Template Settings
+                        Save Template Settings & Structure
                     </Button>
                 </CardFooter>
             </Card>
@@ -498,16 +497,22 @@ export function TemplateEditor({
                                 </div>
                             </div>
                             <AccordionContent className="p-3 space-y-4 border-t bg-card/30">
-                              <div>
-                                <Label htmlFor={`rowAlignItems-${row.id}`} className="text-xs">Row Vertical Alignment (for columns)</Label>
-                                <Select value={row.alignItems || 'flex-start'} onValueChange={v => updateRow(row.id, {alignItems: v as CardRow['alignItems']})}>
-                                    <SelectTrigger id={`rowAlignItems-${row.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                      {ROW_ALIGN_ITEMS.map(item => (
-                                        <SelectItem key={item.value} value={item.value!} className="text-xs">{item.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                </Select>
+                              <div className='grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3'>
+                                <div>
+                                  <Label htmlFor={`rowAlignItems-${row.id}`} className="text-xs">Row Vertical Alignment (for columns)</Label>
+                                  <Select value={row.alignItems || 'flex-start'} onValueChange={v => updateRow(row.id, {alignItems: v as CardRow['alignItems']})}>
+                                      <SelectTrigger id={`rowAlignItems-${row.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
+                                      <SelectContent>
+                                        {ROW_ALIGN_ITEMS.map(item => (
+                                          <SelectItem key={item.value} value={item.value!} className="text-xs">{item.label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor={`rowCustomHeight-${row.id}`} className="text-xs">Row Custom Height (e.g., 50px, auto)</Label>
+                                  <Input id={`rowCustomHeight-${row.id}`} value={row.customHeight || ''} onChange={(e) => updateRow(row.id, { customHeight: e.target.value })} placeholder="e.g., 100px, auto" className="h-8 text-xs" />
+                                </div>
                               </div>
 
                               <h4 className="text-sm font-semibold flex items-center gap-2"><Columns className="h-4 w-4"/>Sections (Columns) in this Row:</h4>
@@ -608,7 +613,7 @@ export function TemplateEditor({
                     <Button type="button" onClick={addRow} variant="outline" className="w-full sm:w-auto">
                         <PlusCircle className="mr-2 h-4 w-4"/> Add New Row
                     </Button>
-                    <Button type="button" onClick={() => handleSubmit('sections')} className="w-full sm:w-auto ml-auto">
+                    <Button type="button" onClick={handleSaveCurrentTemplate} className="w-full sm:w-auto ml-auto">
                         <Save className="mr-2 h-4 w-4"/>
                         Save Template Rows & Sections
                     </Button>
