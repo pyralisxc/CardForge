@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
+import { LayoutDashboard, Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Type, ChevronsUpDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen } from 'lucide-react';
 import { SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, FRAME_STYLES, ROW_ALIGN_ITEMS, createDefaultRow } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -39,15 +39,15 @@ const iconMap: Record<CardSectionType, React.ElementType> = {
 };
 
 const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate => {
-  const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard")) || PRESET_TEMPLATES[0];
-  const newTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
+  const preset = PRESET_TEMPLATES.find(t => t.name.includes("Standard Creature")) || PRESET_TEMPLATES[0];
+  const newTemplate = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate; // Deep clone
   newTemplate.id = id || nanoid();
   newTemplate.name = name || 'New Custom Template';
   
   newTemplate.rows = (newTemplate.rows || []).map((r: CardRow) => ({
     ...r,
     id: r.id, 
-    columns: (r.columns || []).map((c: CardSection) => ({...c, id: c.id})),
+    columns: (r.columns || []).map((c: CardSection) => ({...c, id: c.id})), 
     customHeight: r.customHeight || '',
   }));
 
@@ -56,7 +56,7 @@ const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate =>
   newTemplate.baseBackgroundColor = newTemplate.baseBackgroundColor || '';
   newTemplate.baseTextColor = newTemplate.baseTextColor || '';
   newTemplate.borderColor = newTemplate.borderColor || '';
-  newTemplate.legacyFrameColor = newTemplate.legacyFrameColor || '';
+  newTemplate.legacyFrameColor = newTemplate.legacyFrameColor || ''; 
   return newTemplate;
 };
 
@@ -75,7 +75,7 @@ export function TemplateEditor({
         const clonedInitial = JSON.parse(JSON.stringify(initialTemplate)) as TCGCardTemplate;
         return clonedInitial;
       }
-      return getFreshDefaultTemplate();
+      return getFreshDefaultTemplate(); 
      }
   );
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
@@ -84,8 +84,6 @@ export function TemplateEditor({
   const [activeSectionStylingAccordionItems, setActiveSectionStylingAccordionItems] = useState<string[]>([]);
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || "63:88");
   
-  const isNonStandardFrame = currentTemplate.frameStyle && currentTemplate.frameStyle !== 'standard';
-
   useEffect(() => {
     let newTemplateToSet: TCGCardTemplate;
 
@@ -111,14 +109,14 @@ export function TemplateEditor({
     
     newTemplateToSet.rows = (newTemplateToSet.rows || []).map((r: CardRow) => ({
         ...r,
-        id: r.id,
-        columns: (r.columns || []).map((c: CardSection) => ({...c, id: c.id})),
+        id: r.id, 
+        columns: (r.columns || []).map((c: CardSection) => ({...c, id: c.id})), 
         customHeight: r.customHeight || '',
       }));
 
     setCurrentTemplate(newTemplateToSet);
     setAspectRatioInput(newTemplateToSet.aspectRatio || "63:88");
-  }, [selectedTemplateToEditId, initialTemplate, templates]);
+  }, [selectedTemplateToEditId, initialTemplate, templates]); 
 
 
   useEffect(() => {
@@ -141,8 +139,8 @@ export function TemplateEditor({
       
       newPresetTemplate.rows = (newPresetTemplate.rows || []).map((r: CardRow) => ({
         ...r,
-        id: r.id,
-        columns: (r.columns || []).map((c: CardSection) => ({ ...c, id: c.id })),
+        id: r.id, 
+        columns: (r.columns || []).map((c: CardSection) => ({ ...c, id: c.id })), 
         customHeight: r.customHeight || '',
       }));
       newPresetTemplate.aspectRatio = newPresetTemplate.aspectRatio || "63:88";
@@ -172,7 +170,7 @@ export function TemplateEditor({
   };
 
   const addRow = () => {
-    const newRow = createDefaultRow(nanoid(), [createDefaultSection('CustomText', nanoid())]);
+    const newRow = createDefaultRow(nanoid(), [createDefaultSection(nanoid(), 'CustomText')]);
     updateCurrentTemplate({ rows: [...currentTemplate.rows, newRow] });
     setActiveRowAccordionItems(prev => [...prev, newRow.id]);
   };
@@ -193,7 +191,7 @@ export function TemplateEditor({
   };
 
   const addSectionToRow = (rowId: string, type: CardSectionType) => {
-    const newSection = createDefaultSection(type, nanoid());
+    const newSection = createDefaultSection(nanoid(), type);
     setCurrentTemplate(prev => ({
       ...prev,
       rows: prev.rows.map(r =>
@@ -333,6 +331,8 @@ export function TemplateEditor({
     return data;
   }, [currentTemplate]);
 
+  const isNonStandardFrame = currentTemplate.frameStyle && currentTemplate.frameStyle !== 'standard' && currentTemplate.frameStyle !== 'custom';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <Card className="lg:col-span-1">
@@ -429,7 +429,6 @@ export function TemplateEditor({
                                         <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
                                         <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value!}>{s.label}</SelectItem>)}</SelectContent>
                                     </Select>
-                                    <p className="text-xs text-muted-foreground mt-1">Applies predefined borders/backgrounds. Colors below might be overridden or act as fallbacks.</p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                                     <div>
@@ -442,9 +441,9 @@ export function TemplateEditor({
                                             disabled={isNonStandardFrame}
                                         />
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                            {isNonStandardFrame
-                                            ? "Overridden by selected Frame Style."
-                                            : "Applies if 'Standard' frame selected. Leave empty for theme default."}
+                                          {isNonStandardFrame
+                                            ? `Overridden by Frame Style ('${currentTemplate.frameStyle || "None"}'). Set if planning to switch back.`
+                                            : "Applies to 'Standard' and 'Custom Colors' frames. Leave empty for default."}
                                         </p>
                                     </div>
                                     <div>
@@ -457,9 +456,9 @@ export function TemplateEditor({
                                             disabled={isNonStandardFrame}
                                         />
                                          <p className="text-xs text-muted-foreground mt-0.5">
-                                            {isNonStandardFrame
-                                            ? "Overridden by selected Frame Style."
-                                            : "Applies if 'Standard' frame selected. Leave empty for theme default."}
+                                          {isNonStandardFrame
+                                            ? `Overridden by Frame Style ('${currentTemplate.frameStyle || "None"}'). Set if planning to switch back.`
+                                            : "Applies to 'Standard' and 'Custom Colors' frames. Leave empty for default."}
                                         </p>
                                     </div>
                                     <div>
@@ -470,10 +469,10 @@ export function TemplateEditor({
                                             value={currentTemplate.borderColor || ''}
                                             onChange={(e) => updateCurrentTemplate({ borderColor: e.target.value })}
                                         />
-                                        <p className="text-xs text-muted-foreground mt-0.5">Fallback for section borders if they have width but no specific color. Does not style main card outline.</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">Fallback for section borders. Does not style main card outline.</p>
                                     </div>
                                     <div>
-                                        <Label htmlFor="legacyFrameColor" className="text-xs">Legacy Frame Color</Label>
+                                        <Label htmlFor="legacyFrameColor" className="text-xs">Legacy Frame Color (Use with caution)</Label>
                                         <Input
                                             id="legacyFrameColor"
                                             type="color"
@@ -483,8 +482,8 @@ export function TemplateEditor({
                                         />
                                         <p className="text-xs text-muted-foreground mt-0.5">
                                             {isNonStandardFrame
-                                            ? "This color is overridden by the selected Frame Style."
-                                            : "Old frame color, typically overridden. Use specific Frame Styles or Base Background Color for 'Standard' frame."}
+                                            ? `Overridden by Frame Style ('${currentTemplate.frameStyle || "None"}').`
+                                            : "Older system. Prefer 'Base Background Color' or specific Frame Styles."}
                                         </p>
                                     </div>
                                 </div>
@@ -493,7 +492,7 @@ export function TemplateEditor({
                     </Accordion>
                 </CardContent>
                  <CardFooter className="p-4 border-t">
-                    <Button type="button" onClick={handleSaveCurrentTemplate} className="w-full sm:w-auto ml-auto">
+                    <Button type="button" onClick={handleSaveCurrentTemplate} className="w-full sm:w-auto ml-auto flex items-center">
                         <Save className="mr-2 h-4 w-4"/>
                         Save Template Settings & Structure
                     </Button>
@@ -543,7 +542,7 @@ export function TemplateEditor({
                                   </Select>
                                 </div>
                                 <div>
-                                  <Label htmlFor={`rowCustomHeight-${row.id}`} className="text-xs">Row Custom Height (e.g., 50px, 20%, auto)</Label>
+                                  <Label htmlFor={`rowCustomHeight-${row.id}`} className="text-xs">Row Custom Height (e.g., 100px, 20%, auto)</Label>
                                   <Input id={`rowCustomHeight-${row.id}`} value={row.customHeight || ''} onChange={(e) => updateRow(row.id, { customHeight: e.target.value })} placeholder="e.g., 100px, 20%, auto" className="h-8 text-xs" />
                                 </div>
                               </div>
@@ -592,7 +591,7 @@ export function TemplateEditor({
                                                 <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" />Styling Options</div>
                                             </AccordionTrigger>
                                             <AccordionContent className="pt-2 pb-3 px-3 space-y-2 border-t">
-                                                <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
                                                     <div>
                                                       <Label htmlFor={`customHeight-${section.id}`} className="text-xs">Custom Height</Label>
                                                       <Input id={`customHeight-${section.id}`} value={section.customHeight || ''} onChange={(e) => updateSectionInRow(row.id, section.id, { customHeight: e.target.value })} placeholder="e.g., 180px, 50%, auto" className="h-8 text-xs" />
@@ -643,10 +642,10 @@ export function TemplateEditor({
                     </Accordion>
                 </CardContent>
                 <CardFooter className="p-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <Button type="button" onClick={addRow} variant="outline" className="w-full sm:w-auto">
+                    <Button type="button" onClick={addRow} variant="outline" className="w-full sm:w-auto flex items-center">
                         <PlusCircle className="mr-2 h-4 w-4"/> Add New Row
                     </Button>
-                    <Button type="button" onClick={handleSaveCurrentTemplate} className="w-full sm:w-auto ml-auto">
+                    <Button type="button" onClick={handleSaveCurrentTemplate} className="w-full sm:w-auto ml-auto flex items-center">
                         <Save className="mr-2 h-4 w-4"/>
                         Save Template Structure
                     </Button>
@@ -672,5 +671,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
-    
