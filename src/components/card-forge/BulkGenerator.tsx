@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard, CardSection, AbilityContextSet } from '@/types';
+import type { TCGCardTemplate, CardData, DisplayCard, CardSection, AbilityContextSet, ExtractedPlaceholder } from '@/types';
 import { useState, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,18 +36,20 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
-  const getPlaceholdersFromSelectedTemplate = (): string[] => {
+  const getPlaceholdersFromSelectedTemplate = (): ExtractedPlaceholder[] => {
     return selectedTemplate ? extractUniquePlaceholderKeys(selectedTemplate) : [];
   };
   
-  const exampleCSVHeaders = getPlaceholdersFromSelectedTemplate().join(',');
-  const exampleCSVDataLine = getPlaceholdersFromSelectedTemplate().map(h => {
-    if (h.toLowerCase().includes('url') || h.toLowerCase().includes('artwork')) return 'https://placehold.co/600x400.png?text=Artwork';
-    if (h.toLowerCase().includes('name')) return 'Sample Card';
-    if (h.toLowerCase().includes('cost')) return '3';
-    if (h.toLowerCase().includes('type')) return 'Sample Type';
-    if (h.toLowerCase().includes('text')) return 'Sample effect text.';
-    return 'value';
+  const placeholderObjects = getPlaceholdersFromSelectedTemplate();
+  const exampleCSVHeaders = placeholderObjects.map(p => p.key).join(',');
+  const exampleCSVDataLine = placeholderObjects.map(p => {
+    const keyLower = p.key.toLowerCase();
+    if (keyLower.includes('url') || keyLower.includes('artwork')) return 'https://placehold.co/600x400.png?text=Artwork';
+    if (keyLower.includes('name')) return 'Sample Card';
+    if (keyLower.includes('cost')) return '3';
+    if (keyLower.includes('type')) return 'Sample Type';
+    if (keyLower.includes('text')) return 'Sample effect text.';
+    return p.defaultValue || 'value';
   }).join(',');
 
   const exampleCSV = exampleCSVHeaders + '\\n' + exampleCSVDataLine;
@@ -91,19 +93,19 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
           return;
         }
         
-        const placeholders = getPlaceholdersFromSelectedTemplate();
+        const currentPlaceholders = getPlaceholdersFromSelectedTemplate().map(p => p.key);
         
         const findPlaceholder = (keywords: string[], excludeSubstrings?: string[]): string | undefined => {
-            return placeholders.find(p => {
-                const pLower = p.toLowerCase();
-                const matchesKeyword = keywords.some(kw => pLower.includes(kw));
-                const notExcluded = excludeSubstrings ? !excludeSubstrings.some(ex => pLower.includes(ex)) : true;
+            return currentPlaceholders.find(pKey => {
+                const pKeyLower = pKey.toLowerCase();
+                const matchesKeyword = keywords.some(kw => pKeyLower.includes(kw));
+                const notExcluded = excludeSubstrings ? !excludeSubstrings.some(ex => pKeyLower.includes(ex)) : true;
                 return matchesKeyword && notExcluded;
             });
         };
 
-        const namePlaceholder = findPlaceholder(['name', 'title'], ['artist']) || placeholders[0] || 'cardName';
-        const rulesPlaceholder = findPlaceholder(['rules', 'effect', 'text'], ['flavor']) || placeholders[1] || 'rulesText';
+        const namePlaceholder = findPlaceholder(['name', 'title'], ['artist']) || currentPlaceholders[0] || 'cardName';
+        const rulesPlaceholder = findPlaceholder(['rules', 'effect', 'text'], ['flavor']) || currentPlaceholders[1] || 'rulesText';
         const flavorPlaceholder = findPlaceholder(['flavor']);
         const artworkPlaceholder = findPlaceholder(['art', 'image', 'url'], ['artist']);
         const costPlaceholder = findPlaceholder(['cost', 'mana']);
@@ -122,8 +124,9 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
           
           const cardData: CardData = {};
           
-          placeholders.forEach(pKey => {
-            cardData[pKey] = ''; 
+          currentPlaceholders.forEach(pKey => {
+            const placeholderObj = placeholderObjects.find(p => p.key === pKey);
+            cardData[pKey] = placeholderObj?.defaultValue || ''; 
           });
 
           
@@ -229,13 +232,13 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
               id="bulkData"
               value={bulkDataInput}
               onChange={handleDataInputChange}
-              placeholder={selectedTemplate ? exampleCSV.replace(/\\n/g, '\n') : "Select a template to see example CSV structure."}
+              placeholder={selectedTemplate ? exampleCSV.replace(/\\n/g, '\\n') : "Select a template to see example CSV structure."}
               rows={8}
               className="font-mono text-sm"
               disabled={!selectedTemplate}
             />
             {selectedTemplate && <p className="text-xs text-muted-foreground mt-1">
-              Your CSV headers should be: <strong>{exampleCSVHeaders || "No placeholders found in template"}</strong>. Use '\n' for line breaks in text.
+              Your CSV headers should be: <strong>{exampleCSVHeaders || "No placeholders found in template"}</strong>. Use '\n' (literal backslash n) for line breaks in text.
             </p>}
             {!selectedTemplate && <p className="text-xs text-muted-foreground mt-1">Select a template first to see the expected CSV format based on its placeholders.</p>}
           </div>
@@ -279,3 +282,4 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
     </Card>
   );
 }
+
