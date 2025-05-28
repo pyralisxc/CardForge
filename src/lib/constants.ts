@@ -96,9 +96,9 @@ export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Extra Small (20px)', value: 'min-h-[20px]' },
   { label: 'Small (40px)', value: 'min-h-[40px]' },
   { label: 'Medium (80px)', value: 'min-h-[80px]' },
-  { label: 'Large (120px)', value: 'min-h-[120px]' },
-  { label: 'Artwork Default (180px)', value: 'min-h-[180px]' },
-  { label: 'X-Large (240px)', value: 'min-h-[240px]' },
+  { label: 'Artwork Default (120px)', value: 'min-h-[120px]' }, // Updated label
+  { label: 'X-Large (180px)', value: 'min-h-[180px]' }, // Was Artwork default, now X-Large
+  { label: 'XX-Large (240px)', value: 'min-h-[240px]' }, // Renamed from X-Large
 ];
 
 export const FRAME_STYLES: Array<{ label: string; value: string }> = [
@@ -140,7 +140,7 @@ export const createDefaultSection = (type: CardSectionType, id: string, override
       return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontSize: 'text-base', fontWeight: 'font-bold', textAlign: 'right', padding: 'px-2 pt-1 pb-0', flexGrow: 0, ...overrides };
     case 'Artwork':
       specificContentPlaceholder = '{{artworkUrl:"https://placehold.co/600x400.png?text=Artwork"}}';
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, backgroundColor: 'hsl(var(--muted))', minHeight: 'min-h-[180px]', padding: 'p-0', borderWidth: 'border-b-2', borderColor: 'hsl(var(--border))', flexGrow: 1, customHeight: '180px', customWidth: '100%', ...overrides };
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, backgroundColor: 'hsl(var(--muted))', minHeight: 'min-h-[120px]', padding: 'p-0', borderWidth: 'border-b-2', borderColor: 'hsl(var(--border))', flexGrow: 1, customHeight: '120px', customWidth: '100%', ...overrides };
     case 'TypeLine':
       specificContentPlaceholder = '{{cardType:"Type"}} \u2014 {{subTypes:"Subtype"}}';
       return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontWeight: 'font-semibold', backgroundColor: 'hsl(var(--muted)/0.7)', padding: 'px-2 py-0.5', borderWidth: 'border-y', borderColor: 'hsl(var(--border))', fontSize: 'text-sm', textAlign: 'left', flexGrow: 1, ...overrides };
@@ -160,7 +160,7 @@ export const createDefaultSection = (type: CardSectionType, id: string, override
       specificContentPlaceholder = '{{customValue:"Custom Text"}}';
       return { ...baseSection, id: sectionId, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-sans', padding: 'p-1', fontSize: 'text-sm', flexGrow: 1, ...overrides };
     case 'Divider':
-      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: 'min-h-[1px]', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', flexGrow: 1, customHeight: '1px', customWidth: 'auto', ...overrides }; 
+      return { ...baseSection, id: sectionId, type, contentPlaceholder: '', minHeight: '_auto_', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', flexGrow: 1, customHeight: '1px', customWidth: 'auto', ...overrides }; 
     default:
       const _exhaustiveCheck: never = type; 
       console.warn(`Unhandled section type in createDefaultSection: ${_exhaustiveCheck}`);
@@ -170,9 +170,9 @@ export const createDefaultSection = (type: CardSectionType, id: string, override
 
 export const createDefaultRow = (id: string, columns: CardSection[] = [], alignItems: CardRow['alignItems'] = 'flex-start', customHeight: string = ''): CardRow => {
     const processedColumns = columns.map(col => {
-        if (!col.id) { // All columns passed to createDefaultRow *for default templates* should have hardcoded IDs
+        if (!col.id) { 
             console.warn("A column in a default row was created without a hardcoded ID. Please provide a stable ID in DEFAULT_TEMPLATES definition for this column:", col);
-            return { ...col, id: nanoid() }; // Fallback for safety, but should be avoided for defaults
+            return { ...col, id: nanoid() }; 
         }
         return col;
     });
@@ -196,12 +196,13 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     baseBackgroundColor: '',
     baseTextColor: '',
     borderColor: '',
+    legacyFrameColor: '',
     rows: [
       createDefaultRow('sfc-row1-namecost-v6-id', [
         createDefaultSection('CardName', 'sfc-sec1-name-v6-id', { flexGrow: 1, textAlign: 'left' }),
         createDefaultSection('ManaCost', 'sfc-sec2-cost-v6-id', { flexGrow: 0, textAlign: 'right' }),
       ], 'center'),
-      createDefaultRow('sfc-row2-art-v6-id', [createDefaultSection('Artwork', 'sfc-sec3-art-v6-id', {flexGrow: 1})]),
+      createDefaultRow('sfc-row2-art-v6-id', [createDefaultSection('Artwork', 'sfc-sec3-art-v6-id', {flexGrow: 1, customHeight: '120px'})]),
       createDefaultRow('sfc-row3-type-v6-id', [createDefaultSection('TypeLine', 'sfc-sec4-type-v6-id')]),
       createDefaultRow('sfc-row4-rules-v6-id', [createDefaultSection('RulesText', 'sfc-sec5-rules-v6-id', {flexGrow: 1})]),
       createDefaultRow('sfc-row5-flavorpt-v6-id', [
@@ -216,12 +217,13 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Sorcery',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
+    legacyFrameColor: '',
     rows: [
       createDefaultRow('sorc-r1-namecost-v1', [
         createDefaultSection('CardName', 'sorc-s1-name-v1', { flexGrow: 1, contentPlaceholder: '{{cardName:"Arcane Blast"}}' }),
         createDefaultSection('ManaCost', 'sorc-s2-cost-v1', { flexGrow: 0, contentPlaceholder: '{{manaCost:"1R"}}' }),
       ], 'center'),
-      createDefaultRow('sorc-r2-art-v1', [createDefaultSection('Artwork', 'sorc-s3-art-v1', {customHeight: "220px"})]),
+      createDefaultRow('sorc-r2-art-v1', [createDefaultSection('Artwork', 'sorc-s3-art-v1', {customHeight: "120px"})]),
       createDefaultRow('sorc-r3-type-v1', [createDefaultSection('TypeLine', 'sorc-s4-type-v1', {contentPlaceholder: '{{cardType:"Sorcery"}}'})]),
       createDefaultRow('sorc-r4-rules-v1', [createDefaultSection('RulesText', 'sorc-s5-rules-v1', {flexGrow: 1, contentPlaceholder: '{{rulesText:"Deal 3 damage to any target."}}', customHeight: '80px'})]),
       createDefaultRow('sorc-r5-flavor-v1', [createDefaultSection('FlavorText', 'sorc-s6-flavor-v1', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"Magic unbound."}}"', customHeight: '40px'})]),
@@ -233,12 +235,13 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Instant',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
+    legacyFrameColor: '',
     rows: [
       createDefaultRow('inst-r1-namecost-v1', [
         createDefaultSection('CardName', 'inst-s1-name-v1', { flexGrow: 1, contentPlaceholder: '{{cardName:"Counterspell"}}' }),
         createDefaultSection('ManaCost', 'inst-s2-cost-v1', { flexGrow: 0, contentPlaceholder: '{{manaCost:"UU"}}' }),
       ], 'center'),
-      createDefaultRow('inst-r2-art-v1', [createDefaultSection('Artwork', 'inst-s3-art-v1', {customHeight: "220px"})]),
+      createDefaultRow('inst-r2-art-v1', [createDefaultSection('Artwork', 'inst-s3-art-v1', {customHeight: "120px"})]),
       createDefaultRow('inst-r3-type-v1', [createDefaultSection('TypeLine', 'inst-s4-type-v1', {contentPlaceholder: '{{cardType:"Instant"}}'})]),
       createDefaultRow('inst-r4-rules-v1', [createDefaultSection('RulesText', 'inst-s5-rules-v1', {flexGrow: 1, contentPlaceholder: '{{rulesText:"Counter target spell."}}', customHeight: '80px'})]),
       createDefaultRow('inst-r5-flavor-v1', [createDefaultSection('FlavorText', 'inst-s6-flavor-v1', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"Not this time."}}"', customHeight: '40px'})]),
@@ -250,12 +253,13 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Land',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
+    legacyFrameColor: '',
     rows: [
-      createDefaultRow('land-r1-name-v1', [ // No mana cost for typical lands
+      createDefaultRow('land-r1-name-v1', [ 
         createDefaultSection('CardName', 'land-s1-name-v1', { flexGrow: 1, contentPlaceholder: '{{cardName:"Mystic Sanctuary"}}' }),
-         createDefaultSection('CustomText', 'land-s2-symbol-v1', { flexGrow: 0, contentPlaceholder: '{{landSymbol:""}}', textAlign: 'right' }), // For a potential land symbol
+         createDefaultSection('CustomText', 'land-s2-symbol-v1', { flexGrow: 0, contentPlaceholder: '{{landSymbol:""}}', textAlign: 'right' }), 
       ], 'center'),
-      createDefaultRow('land-r2-art-v1', [createDefaultSection('Artwork', 'land-s3-art-v1', {customHeight: "250px"})]),
+      createDefaultRow('land-r2-art-v1', [createDefaultSection('Artwork', 'land-s3-art-v1', {customHeight: "120px"})]),
       createDefaultRow('land-r3-type-v1', [createDefaultSection('TypeLine', 'land-s4-type-v1', {contentPlaceholder: '{{cardType:"Land"}} \u2014 {{subTypes:"Island"}}'})]),
       createDefaultRow('land-r4-rules-v1', [createDefaultSection('RulesText', 'land-s5-rules-v1', {flexGrow: 1, contentPlaceholder: '{{rulesText:"({T}: Add {U}.)\\nMystic Sanctuary enters the battlefield tapped unless you control three or more other Islands."}}', customHeight: '60px'})]),
       createDefaultRow('land-r5-flavor-v1', [createDefaultSection('FlavorText', 'land-s6-flavor-v1', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"A place of ancient power."}}"', customHeight: '30px'})]),
@@ -267,12 +271,13 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Artifact',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
+    legacyFrameColor: '',
     rows: [
       createDefaultRow('artf-r1-namecost-v1', [
         createDefaultSection('CardName', 'artf-s1-name-v1', { flexGrow: 1, contentPlaceholder: '{{cardName:"Sol Ring"}}' }),
         createDefaultSection('ManaCost', 'artf-s2-cost-v1', { flexGrow: 0, contentPlaceholder: '{{manaCost:"1"}}' }),
       ], 'center'),
-      createDefaultRow('artf-r2-art-v1', [createDefaultSection('Artwork', 'artf-s3-art-v1', {customHeight: "220px"})]),
+      createDefaultRow('artf-r2-art-v1', [createDefaultSection('Artwork', 'artf-s3-art-v1', {customHeight: "120px"})]),
       createDefaultRow('artf-r3-type-v1', [createDefaultSection('TypeLine', 'artf-s4-type-v1', {contentPlaceholder: '{{cardType:"Artifact"}}'})]),
       createDefaultRow('artf-r4-rules-v1', [createDefaultSection('RulesText', 'artf-s5-rules-v1', {flexGrow: 1, contentPlaceholder: '{{rulesText:"{T}: Add {C}{C}."}}', customHeight: '80px'})]),
       createDefaultRow('artf-r5-flavor-v1', [createDefaultSection('FlavorText', 'artf-s6-flavor-v1', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"A source of immense power."}}"', customHeight: '40px'})]),
@@ -284,12 +289,13 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Enchantment',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
+    legacyFrameColor: '',
     rows: [
       createDefaultRow('ench-r1-namecost-v1', [
         createDefaultSection('CardName', 'ench-s1-name-v1', { flexGrow: 1, contentPlaceholder: '{{cardName:"Rhystic Study"}}' }),
         createDefaultSection('ManaCost', 'ench-s2-cost-v1', { flexGrow: 0, contentPlaceholder: '{{manaCost:"2U"}}' }),
       ], 'center'),
-      createDefaultRow('ench-r2-art-v1', [createDefaultSection('Artwork', 'ench-s3-art-v1', {customHeight: "220px"})]),
+      createDefaultRow('ench-r2-art-v1', [createDefaultSection('Artwork', 'ench-s3-art-v1', {customHeight: "120px"})]),
       createDefaultRow('ench-r3-type-v1', [createDefaultSection('TypeLine', 'ench-s4-type-v1', {contentPlaceholder: '{{cardType:"Enchantment"}}'})]),
       createDefaultRow('ench-r4-rules-v1', [createDefaultSection('RulesText', 'ench-s5-rules-v1', {flexGrow: 1, contentPlaceholder: '{{rulesText:"Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."}}', customHeight: '80px'})]),
       createDefaultRow('ench-r5-flavor-v1', [createDefaultSection('FlavorText', 'ench-s6-flavor-v1', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"Knowledge is power."}}"', customHeight: '40px'})]),
@@ -301,12 +307,13 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Planeswalker (Basic)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
+    legacyFrameColor: '',
     rows: [
       createDefaultRow('plns-r1-namecost-v1', [
         createDefaultSection('CardName', 'plns-s1-name-v1', { flexGrow: 1, contentPlaceholder: '{{cardName:"Jace, Mind Sculptor"}}' }),
         createDefaultSection('ManaCost', 'plns-s2-cost-v1', { flexGrow: 0, contentPlaceholder: '{{manaCost:"2UU"}}' }),
       ], 'center'),
-      createDefaultRow('plns-r2-art-v1', [createDefaultSection('Artwork', 'plns-s3-art-v1', {customHeight: "200px"})]),
+      createDefaultRow('plns-r2-art-v1', [createDefaultSection('Artwork', 'plns-s3-art-v1', {customHeight: "120px"})]),
       createDefaultRow('plns-r3-type-v1', [createDefaultSection('TypeLine', 'plns-s4-type-v1', {contentPlaceholder: '{{cardType:"Planeswalker"}} \u2014 {{subTypes:"Jace"}}'})]),
       createDefaultRow('plns-r4-ability1-v1', [
           createDefaultSection('CustomText', 'plns-s5-ability1-v1', { flexGrow: 1, contentPlaceholder: '{{loyaltyCost1:"+2"}}: {{abilityText1:"Look at the top card of target player\'s library. You may put that card on the bottom of that player\'s library."}}', padding: 'px-2 py-1', fontSize: 'text-xs'}),
@@ -337,9 +344,10 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     baseBackgroundColor: '',
     baseTextColor: '',
     borderColor: '',
+    legacyFrameColor: '',
     rows: [
       createDefaultRow('bcc-row1-name-v6-id', [createDefaultSection('CardName', 'bcc-sec1-name-v6-id')]),
-      createDefaultRow('bcc-row2-art-v6-id', [createDefaultSection('Artwork', 'bcc-sec2-art-v6-id', {customHeight: '250px', flexGrow: 1})]),
+      createDefaultRow('bcc-row2-art-v6-id', [createDefaultSection('Artwork', 'bcc-sec2-art-v6-id', {customHeight: '120px', flexGrow: 1})]),
       createDefaultRow('bcc-row3-custom-v6-id', [createDefaultSection('CustomText', 'bcc-sec3-custom-v6-id', {minHeight: 'min-h-[80px]', flexGrow: 1})]),
     ]
   }
@@ -375,6 +383,3 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'loyaltyCost4', label: 'Loyalty Cost 4', type: 'input', example: ''},
   { key: 'abilityText4', label: 'Ability Text 4', type: 'textarea', example: ''},
 ];
-
-
-    
