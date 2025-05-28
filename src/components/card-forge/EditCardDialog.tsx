@@ -2,9 +2,9 @@
 "use client";
 
 import { useState, useEffect, ChangeEvent } from 'react';
-import type { DisplayCard, CardData, TCGCardTemplate, CardSection } from '@/types';
-import { TCG_FIELD_DEFINITIONS } from '@/lib/constants';
-import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
+import type { DisplayCard, CardData } from '@/types';
+// TCG_FIELD_DEFINITIONS is no longer strictly needed here for labels if we use placeholder keys
+import { extractUniquePlaceholderKeys } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -31,10 +31,10 @@ interface EditCardDialogProps {
 
 interface DynamicField {
   key: string;
-  label: string;
+  label: string; // Will now be like {{key}}
   type: 'input' | 'textarea';
-  example?: string;
-  defaultValue?: string;
+  example?: string; // For placeholder text in input
+  defaultValue?: string; // From template
 }
 
 export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: EditCardDialogProps) {
@@ -45,34 +45,38 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     if (card) {
       const allPlaceholderKeys = extractUniquePlaceholderKeys(card.template);
       const currentCardData = { ...card.data };
-      const newEditedData: CardData = {};
+      const newEditedDataState: CardData = {};
 
       const fields: DynamicField[] = allPlaceholderKeys.map(placeholder => {
-        const definition = TCG_FIELD_DEFINITIONS.find(def => def.key.toLowerCase() === placeholder.key.toLowerCase());
-        let exampleText = `e.g., ${toTitleCase(placeholder.key)}`;
+        const isTextarea = placeholder.key.toLowerCase().includes('rules') ||
+                           placeholder.key.toLowerCase().includes('text') ||
+                           placeholder.key.toLowerCase().includes('effect') ||
+                           placeholder.key.toLowerCase().includes('abilit') ||
+                           placeholder.key.toLowerCase().includes('description');
+
+        let exampleText = `e.g., value for ${placeholder.key}`;
         if (placeholder.key.toLowerCase().includes('url') || placeholder.key.toLowerCase().includes('artwork')) {
           exampleText = 'e.g., https://placehold.co/300x200.png or data:image/...';
         }
 
-        // Initialize editedData: use existing card data, or template default, or empty
         if (currentCardData[placeholder.key] !== undefined) {
-          newEditedData[placeholder.key] = currentCardData[placeholder.key];
+          newEditedDataState[placeholder.key] = currentCardData[placeholder.key];
         } else if (placeholder.defaultValue !== undefined) {
-          newEditedData[placeholder.key] = placeholder.defaultValue;
+          newEditedDataState[placeholder.key] = placeholder.defaultValue;
         } else {
-          newEditedData[placeholder.key] = '';
+          newEditedDataState[placeholder.key] = '';
         }
-        
+
         return {
           key: placeholder.key,
-          label: definition?.label || toTitleCase(placeholder.key),
-          type: definition?.type === 'textarea' ? 'textarea' : 'input',
-          example: definition?.example || exampleText,
+          label: `{{${placeholder.key}}}`, // Use placeholder key as label
+          type: isTextarea ? 'textarea' : 'input',
+          example: exampleText,
           defaultValue: placeholder.defaultValue,
         };
       });
       setDynamicFields(fields);
-      setEditedData(newEditedData);
+      setEditedData(newEditedDataState);
     } else {
       setEditedData({});
       setDynamicFields([]);
@@ -85,20 +89,33 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
   const handleSaveChanges = () => {
     if (card) {
-      onSave({ ...card, data: editedData });
+      // Ensure all keys defined by the template are present in editedData, even if empty
+      const finalData = { ...editedData };
+      dynamicFields.forEach(field => {
+        if (finalData[field.key] === undefined) {
+          finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : '';
+        }
+      });
+      onSave({ ...card, data: finalData });
     }
   };
-  
+
   const handleDuplicateCard = () => {
     if (card) {
-      onDuplicate({ ...card, data: editedData }); // Duplicate with current edits
+       const finalData = { ...editedData };
+       dynamicFields.forEach(field => {
+        if (finalData[field.key] === undefined) {
+          finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : '';
+        }
+      });
+      onDuplicate({ ...card, data: finalData });
     }
   };
 
   if (!card) return null;
 
-  const cardNameKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artist"))?.key || 
-                      dynamicFields.find(f => f.key.toLowerCase().includes("title"))?.key || 
+  const cardNameKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artist"))?.key ||
+                      dynamicFields.find(f => f.key.toLowerCase().includes("title"))?.key ||
                       (dynamicFields.length > 0 ? dynamicFields[0].key : '');
 
   const cardName = String(editedData[cardNameKey] || 'Card');
@@ -118,17 +135,14 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
               <div key={field.key}>
                 <Label htmlFor={`editCard-${field.key}`}>
                   {field.label}
-                  {field.defaultValue !== undefined && (editedData[field.key] === field.defaultValue || card.data[field.key] === undefined) && 
-                    <span className="text-xs text-muted-foreground ml-1">(Default: "{field.defaultValue}")</span>
-                  }
                 </Label>
                 {field.type === 'textarea' ? (
                   <Textarea
                     id={`editCard-${field.key}`}
                     value={(editedData[field.key] as string) || ''}
                     onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={field.example || `Enter ${field.label.toLowerCase()}...`}
-                    rows={field.key.toLowerCase().includes('rules') || field.key.toLowerCase().includes('text') || field.key.toLowerCase().includes('effect') ? 3 : 2}
+                    placeholder={field.example || `Enter value for ${field.key}...`}
+                    rows={field.key.toLowerCase().includes('rules') || field.key.toLowerCase().includes('text') || field.key.toLowerCase().includes('effect') || field.key.toLowerCase().includes('abilit') || field.key.toLowerCase().includes('description') ? 3 : 2}
                     className="text-sm"
                   />
                 ) : (
@@ -136,7 +150,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
                     id={`editCard-${field.key}`}
                     value={(editedData[field.key] as string) || ''}
                     onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={field.example || `Enter ${field.label.toLowerCase()}...`}
+                    placeholder={field.example || `Enter value for ${field.key}...`}
                     className="text-sm"
                   />
                 )}
