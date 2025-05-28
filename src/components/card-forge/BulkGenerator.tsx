@@ -42,6 +42,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
   
   const placeholderObjects = getPlaceholdersFromSelectedTemplate();
   const exampleCSVHeaders = placeholderObjects.map(p => p.key).join(',');
+  
   const exampleCSVDataLine = placeholderObjects.map(p => {
     const keyLower = p.key.toLowerCase();
     if (keyLower.includes('url') || keyLower.includes('artwork')) return 'https://placehold.co/600x400.png?text=Artwork';
@@ -107,7 +108,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
         const namePlaceholder = findPlaceholder(['name', 'title'], ['artist']) || currentPlaceholders[0] || 'cardName';
         const rulesPlaceholder = findPlaceholder(['rules', 'effect', 'text'], ['flavor']) || currentPlaceholders[1] || 'rulesText';
         const flavorPlaceholder = findPlaceholder(['flavor']);
-        const artworkPlaceholder = findPlaceholder(['art', 'image', 'url'], ['artist']);
+        const artworkPlaceholder = findPlaceholder(['art', 'image', 'artworkurl', 'url'], ['artist']);
         const costPlaceholder = findPlaceholder(['cost', 'mana']);
         const typePlaceholder = findPlaceholder(['type', 'kind'], ['sub']);
         const powerPlaceholder = findPlaceholder(['power', 'atk', 'attack'], ['toughness', 'defense', 'hp', 'health']);
@@ -131,7 +132,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
 
           
           if (artworkPlaceholder) {
-            cardData[artworkPlaceholder] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme + (numAiCards > 1 ? ` ${i+1}` : ''))}`;
+            cardData[artworkPlaceholder] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme + " (Art)" + (numAiCards > 1 ? ` ${i+1}` : ''))}`;
           }
 
           
@@ -191,16 +192,13 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
   const handleNumAiCardsChange = (e: ChangeEvent<HTMLInputElement>) => {
     const valStr = e.target.value;
     if (valStr === "") {
-      // If user clears input, keep it visually empty for a moment, but ensure state is valid (e.g., 1)
-      // Or, more simply, just reset to 1. Let's reset to 1.
       setNumAiCards(1); 
     } else {
       const num = parseInt(valStr, 10);
       if (isNaN(num)) {
-        // If they type non-numeric, reset to 1.
         setNumAiCards(1);
       } else {
-        setNumAiCards(Math.max(1, num)); // Ensure it's at least 1
+        setNumAiCards(Math.max(1, num));
       }
     }
   };
@@ -290,7 +288,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
               <Input 
                 id="numAiCards" 
                 type="number" 
-                value={numAiCards} // numAiCards state is always a valid number
+                value={numAiCards}
                 onChange={handleNumAiCardsChange} 
                 min="1" 
               />

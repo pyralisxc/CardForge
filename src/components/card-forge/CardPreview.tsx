@@ -2,8 +2,9 @@
 "use client";
 
 import type { DisplayCard, CardSection, CardData, CardRow } from '@/types';
-import NextImage from 'next/image'; // Renamed to avoid conflict with lucide-react Image
-import { cn } from '@/lib/utils';
+import NextImage from 'next/image';
+import { cn, replacePlaceholdersLocal } from '@/lib/utils';
+import { useMemo } from 'react';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -32,35 +33,15 @@ export function CardPreview({
 }: CardPreviewProps) {
   const { template, data } = card;
 
-  function replacePlaceholdersLocal(text: string | undefined, dataContext: CardData): string {
-    if (text === undefined || text === null) return '';
-    let result = String(text);
-
-    for (const key in dataContext) {
-      if (dataContext[key] !== undefined && dataContext[key] !== null) {
-        const escapedKey = key.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-        const searchRegex = new RegExp(`{{\\s*${escapedKey}\\s*}}`, 'g');
-        result = result.replace(searchRegex, String(dataContext[key]));
-      }
-    }
-    // Only remove unmatched placeholders if not in editor preview mode
-    if (!isEditorPreview) {
-      result = result.replace(/{{\s*[\w-]+(?::\s*"[^"]*")?\s*}}/g, ''); // Remove placeholders with or without defaults
-    }
-    return result;
-  }
-
-
   if (!template) return <div className="text-destructive">Error: Template not provided to CardPreview.</div>;
   if (!template.rows) return <div className="text-destructive">Error: Template has no rows defined.</div>;
-
 
   const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
   const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (PREVIEW_WIDTH_PX / aspectW) * aspectH : 390; 
 
   const cardContainerStyle: React.CSSProperties = {
-    backgroundColor: template.baseBackgroundColor || undefined, // Let CSS handle fallback if undefined
-    color: template.baseTextColor || undefined, // Let CSS handle fallback if undefined
+    backgroundColor: template.baseBackgroundColor || undefined,
+    color: template.baseTextColor || undefined,
     aspectRatio: (aspectW > 0 && aspectH > 0) ? `${aspectW} / ${aspectH}` : undefined,
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
     height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`), 
@@ -70,24 +51,27 @@ export function CardPreview({
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
 
-  let artworkHintValue = "card art"; 
-  if (template.rows) {
-    const typeLineSection = template.rows
-      .flatMap(row => row.columns)
-      .find(section => section.type === 'TypeLine');
-    if (typeLineSection && typeLineSection.contentPlaceholder) {
-      const typeLineText = replacePlaceholdersLocal(typeLineSection.contentPlaceholder, data).toLowerCase();
-      if (typeLineText.includes("creature")) artworkHintValue = "fantasy creature";
-      else if (typeLineText.includes("spell") || typeLineText.includes("instant") || typeLineText.includes("sorcery")) artworkHintValue = "spell effect";
-      else if (typeLineText.includes("item") || typeLineText.includes("artifact") || typeLineText.includes("equipment")) artworkHintValue = "fantasy item";
-      else if (typeLineText.includes("land") || typeLineText.includes("location")) artworkHintValue = "fantasy landscape";
+  const artworkHintValue = useMemo(() => {
+    let hint = "card art"; 
+    if (template.rows) {
+      const typeLineSection = template.rows
+        .flatMap(row => row.columns)
+        .find(section => section.type === 'TypeLine');
+      if (typeLineSection && typeLineSection.contentPlaceholder) {
+        const typeLineText = replacePlaceholdersLocal(typeLineSection.contentPlaceholder, data, false).toLowerCase();
+        if (typeLineText.includes("creature")) hint = "fantasy creature";
+        else if (typeLineText.includes("spell") || typeLineText.includes("instant") || typeLineText.includes("sorcery")) hint = "spell effect";
+        else if (typeLineText.includes("item") || typeLineText.includes("artifact") || typeLineText.includes("equipment")) hint = "fantasy item";
+        else if (typeLineText.includes("land") || typeLineText.includes("location")) hint = "fantasy landscape";
+      }
     }
-  }
+    return hint;
+  }, [template, data]);
+
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
-       // In editor preview, show if placeholder itself is non-empty, even if it would resolve to empty with no data
       return section.contentPlaceholder?.trim() === ''; 
     }
     if (hideEmptySections) {
@@ -125,7 +109,7 @@ export function CardPreview({
           };
 
           const allColumnsInRowHidden = row.columns.every(section => {
-            const sectionContentForHiding = replacePlaceholdersLocal(section.contentPlaceholder, data);
+            const sectionContentForHiding = replacePlaceholdersLocal(section.contentPlaceholder, data, false);
             return shouldHideSection(section, sectionContentForHiding);
           });
 
@@ -134,7 +118,7 @@ export function CardPreview({
           }
           
           let rowEffectiveHeight: string | undefined = undefined;
-          if (row.customHeight && !isPrintMode) { // Apply customHeight only if not in print mode (print handles its own sizing)
+          if (row.customHeight && !isPrintMode) {
             if(row.customHeight.includes('%') && cardPixelHeight > 0){
                 const percentageValue = parseFloat(row.customHeight.replace('%',''));
                 if(!isNaN(percentageValue) && isFinite(percentageValue)){
@@ -145,14 +129,12 @@ export function CardPreview({
             }
           }
 
-
           const rowStyle: React.CSSProperties = {
             display: 'flex', 
             alignItems: row.alignItems || 'flex-start',
-            height: rowEffectiveHeight, // May be undefined, letting content dictate height or flexbox stretch
+            height: rowEffectiveHeight,
             flexShrink: 0, 
           };
-
 
           return (
             <div
@@ -166,9 +148,9 @@ export function CardPreview({
               data-row-id={row.id}
             >
               {row.columns.map((section, sectionIndex) => {
-                const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data);
+                const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data, !isEditorPreview);
 
-                if (shouldHideSection(section, sectionContent) && !isEditorPreview) { // Keep section in editor preview
+                if (shouldHideSection(section, sectionContent) && !isEditorPreview) {
                     return null;
                 }
                 
@@ -184,15 +166,10 @@ export function CardPreview({
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,  
-                  position: 'relative', // Important for next/image fill and potential absolute positioning within section
+                  position: 'relative',
+                  overflowY: (section.flexGrow && section.flexGrow > 0 && ['RulesText', 'FlavorText', 'ArtistCredit', 'CustomText'].includes(section.type)) ? 'auto' : undefined,
                 };
                 
-                // Add overflowY for growing text sections
-                if (section.flexGrow && section.flexGrow > 0 && ['RulesText', 'FlavorText', 'ArtistCredit', 'CustomText'].includes(section.type)) {
-                    sectionStyle.overflowY = 'auto';
-                }
-
-
                 if (section.borderColor) {
                   sectionStyle.borderColor = section.borderColor;
                 } else if (section.borderWidth && section.borderWidth !== '_none_' && template.borderColor) {
@@ -202,7 +179,7 @@ export function CardPreview({
                 }
                 
                 const sectionClasses = cn(
-                  'relative', // Already in style, but good for clarity
+                  'relative',
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
@@ -223,7 +200,7 @@ export function CardPreview({
 
                 if (section.type === 'Artwork') {
                     const editorPreviewStyle: React.CSSProperties = {
-                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? undefined : '180px'), // Prioritize customHeight for editor block
+                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.customHeight && !section.minHeight.includes('px') ? '180px' : undefined ) || '180px',
                       width: section.customWidth || '100%',
                       backgroundColor: 'hsl(var(--muted) / 0.5)',
                       border: '1px dashed hsl(var(--border))',
@@ -235,13 +212,13 @@ export function CardPreview({
                       fontSize: '0.75rem', 
                       color: 'hsl(var(--muted-foreground))',
                       boxSizing: 'border-box', 
-                      position: 'relative', // Keep relative for editor block too
-                       ...sectionStyle, // Apply general section styles
-                       height: section.customHeight || sectionStyle.height || '180px', // Re-assert height from customHeight or resolved style
-                       width: section.customWidth || sectionStyle.width || '100%',   // Re-assert width
+                      position: 'relative',
+                       ...sectionStyle,
+                       height: section.customHeight || sectionStyle.height || '180px',
+                       width: section.customWidth || sectionStyle.width || '100%',
                     };
                      delete editorPreviewStyle.flexGrow; 
-                     delete editorPreviewStyle.minWidth; // minWidth not needed for editor placeholder div
+                     delete editorPreviewStyle.minWidth;
 
                     if (isEditorPreview) {
                       return (
@@ -271,27 +248,25 @@ export function CardPreview({
                           position: 'relative', 
                           height: section.customHeight || '100%', 
                           width: section.customWidth || '100%',  
-                          overflow: 'hidden', // Keep overflow hidden for image container
+                          overflow: 'hidden',
                           ...sectionStyle, 
                       };
-                      // Remove flex properties if they were part of sectionStyle, as they apply to the container in its row, not the image itself
                       delete imageContainerStyle.flexGrow;
                       delete imageContainerStyle.flexShrink;
                       delete imageContainerStyle.flexBasis;
                       delete imageContainerStyle.minWidth;
 
-
                       return (
                         <div
                           key={section.id}
-                          className={cn("relative", sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')} // container is flex item
+                          className={cn("relative", sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')}
                           style={imageContainerStyle}
-                          onClick={handlePreviewSectionClick} // click is on container
+                          onClick={handlePreviewSectionClick}
                           data-section-id={section.id}
                         >
                           <NextImage
                             src={artworkDisplaySrc}
-                            alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data) || "Card artwork"}
+                            alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data, false) || "Card artwork"}
                             layout="fill"
                             objectFit="cover"
                             data-ai-hint={artworkHintValue}
@@ -326,7 +301,7 @@ export function CardPreview({
                 return (
                   <Tag
                     key={section.id}
-                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? '' : 'shrink-0', section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '', section.customHeight ? '' : (section.minHeight && section.minHeight !=='_auto_' ? section.minHeight : ''))}
+                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? '' : 'shrink-0', (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '', section.customHeight ? '' : ((section.minHeight && section.minHeight !=='_auto_') ? section.minHeight : ''))}
                     style={sectionStyle}
                     onClick={handlePreviewSectionClick}
                     data-section-id={section.id}
