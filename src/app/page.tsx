@@ -18,15 +18,13 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { PackageOpen, Settings, Wand2, Trash2, FilePlus2, LayoutDashboard, SlidersHorizontal, EyeOff, FileImage, FolderDown, FolderUp, Save, Sparkles, Cog, Menu as MenuIcon, Rows } from 'lucide-react';
+import { PackageOpen, LayoutDashboard, Wand2, Trash2, FolderDown, FolderUp, Cog, Menu as MenuIcon, EyeOff } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { generateCardText } from '@/ai/flows/generate-card-text';
-import { extractUniquePlaceholderKeys } from '@/lib/utils';
 
 
 export default function CardForgePage() {
@@ -42,7 +40,7 @@ export default function CardForgePage() {
   const [editingCard, setEditingCard] = useState<DisplayCard | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isGeneratingRandomCard, setIsGeneratingRandomCard] = useState(false);
+  
   const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -74,21 +72,24 @@ export default function CardForgePage() {
             } else {
               newR.columns = []; // Initialize if missing
             }
+            newR.customHeight = r.customHeight || ''; // Ensure customHeight exists
             return newR;
           });
         } else {
           // Attempt to migrate very old 'sections' based templates
+          // This is a basic migration, might need refinement for complex old structures
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
           if (defaultTemplateForMigration && defaultTemplateForMigration.rows) {
             newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
               ...row,
               id: row.id || nanoid(),
-              columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()}))
+              columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()})),
+              customHeight: row.customHeight || ''
             }));
           } else {
              // Failsafe if default template is somehow malformed
             newT.rows = [
-              { id: nanoid(), columns: [{ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{default}}' }], alignItems: 'flex-start' }
+              { id: nanoid(), columns: [{ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{default}}' }], alignItems: 'flex-start', customHeight: '' }
             ];
           }
            // @ts-expect-error: remove old sections if migrating
@@ -120,14 +121,14 @@ export default function CardForgePage() {
       toast({ title: "Template Saved", description: `"${template.name}" has been saved.` });
     }
     if (editingTemplate?.id === template.id || existingIndex === -1) {
-        setEditingTemplate(template); // Keep the editor in sync if currently editing this or it's new
+        setEditingTemplate(template); 
     }
   };
 
   const handleDeleteTemplate = (templateId: string) => {
     setTemplates(prevTemplates => prevTemplates.filter(t => t.id !== templateId));
     if (editingTemplate?.id === templateId) {
-      setEditingTemplate(null); // Clear editing state if deleted template was being edited
+      setEditingTemplate(null); 
     }
     toast({ title: "Template Deleted", description: "The template has been removed." });
   };
@@ -206,7 +207,6 @@ export default function CardForgePage() {
           const loadedCards = JSON.parse(jsonString) as DisplayCard[];
 
           if (Array.isArray(loadedCards) && loadedCards.every(isValidDisplayCard)) {
-            // Ensure loaded cards and their nested structures have IDs
             const processedCards = loadedCards.map(card => ({
               ...card,
               uniqueId: card.uniqueId || nanoid(),
@@ -216,7 +216,8 @@ export default function CardForgePage() {
                 rows: (card.template.rows || []).map((r: CardRow) => ({
                     ...r,
                     id: r.id || nanoid(),
-                    columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid() }))
+                    columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid() })),
+                    customHeight: r.customHeight || '',
                 }))
               }
             }));
@@ -238,88 +239,9 @@ export default function CardForgePage() {
   };
 
   const isValidDisplayCard = (item: any): item is DisplayCard => {
-    // Basic check, can be more thorough
     return item && typeof item.template === 'object' && Array.isArray(item.template.rows) && typeof item.data === 'object';
   };
 
-  const handleGenerateRandomCard = async () => {
-    if (templates.length === 0) {
-      toast({ title: "No Templates", description: "Please create a template first before generating a random card.", variant: "default" });
-      return;
-    }
-
-    let templateForRandom: TCGCardTemplate | undefined;
-    if (singleCardGeneratorSelectedTemplateId) {
-      templateForRandom = templates.find(t => t.id === singleCardGeneratorSelectedTemplateId);
-    }
-    if (!templateForRandom && templates.length > 0) {
-      templateForRandom = templates[0]; // Fallback to the first template
-    }
-
-    if (!templateForRandom) {
-      // This case should ideally not be reached if templates.length > 0, but as a safeguard:
-      toast({ title: "Template Needed", description: "Could not find a suitable template for random card generation.", variant: "destructive" });
-      return;
-    }
-
-    setIsGeneratingRandomCard(true);
-    try {
-      const placeholders = extractUniquePlaceholderKeys(templateForRandom);
-
-      if (placeholders.length === 0) {
-        toast({ title: "No Placeholders", description: "Selected template has no placeholders for AI to fill.", variant: "default" });
-        setIsGeneratingRandomCard(false);
-        return;
-      }
-
-      const aiResult = await generateCardText({ theme: "a completely random fantasy TCG card idea", textType: 'FullConceptIdea' });
-
-      const cardData: { [key: string]: string } = {};
-      placeholders.forEach(pKey => {
-        cardData[pKey] = ''; // Initialize all placeholders
-        if (pKey.toLowerCase().includes('art') && (pKey.toLowerCase().includes('url') || pKey.toLowerCase().includes('image'))) {
-            cardData[pKey] = `https://placehold.co/600x400.png?text=AI+Art`; // Default art
-        }
-      });
-
-      const aiLines = aiResult.cardText.split('\n');
-      let parsedName = "Random Card";
-      let parsedRules = "Random effect.";
-      let parsedFlavor = "";
-
-      aiLines.forEach(line => {
-        if (line.toLowerCase().startsWith("card name:")) parsedName = line.substring("card name:".length).trim();
-        else if (line.toLowerCase().startsWith("rules text:")) parsedRules = line.substring("rules text:".length).trim();
-        else if (line.toLowerCase().startsWith("flavor text:")) parsedFlavor = line.substring("flavor text:".length).trim();
-      });
-
-      placeholders.forEach(pKey => {
-        const pKeyLower = pKey.toLowerCase();
-        if (pKeyLower.includes('name')) cardData[pKey] = parsedName;
-        else if (pKeyLower.includes('rules') || pKeyLower.includes('text') || pKeyLower.includes('effect') && !pKeyLower.includes('flavor')) cardData[pKey] = parsedRules;
-        else if (pKeyLower.includes('flavor')) cardData[pKey] = parsedFlavor;
-        else if (pKeyLower.includes('art') && (pKeyLower.includes('url') || pKeyLower.includes('image'))) cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(parsedName.substring(0,20))}`;
-        else if (pKeyLower.includes('cost')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
-        else if (pKeyLower.includes('power') || pKeyLower.includes('attack')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
-        else if (pKeyLower.includes('toughness') || pKeyLower.includes('health') || pKeyLower.includes('defense')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
-        else if (pKeyLower.includes('type') && !pKeyLower.includes('sub')) cardData[pKey] = ['Creature', 'Spell', 'Enchantment', 'Artifact'][Math.floor(Math.random() * 4)];
-      });
-
-      const randomCard: DisplayCard = {
-        template: templateForRandom,
-        data: cardData,
-        uniqueId: nanoid()
-      };
-      handleSingleCardAdded(randomCard);
-      toast({title: "Random Card Generated", description: `"${parsedName}" added to preview.`})
-
-    } catch (error) {
-      console.error("Error generating random card:", error);
-      toast({ title: "AI Error", description: "Failed to generate random card.", variant: "destructive" });
-    } finally {
-      setIsGeneratingRandomCard(false);
-    }
-  };
 
   const handleMobileMenuSelect = (tabValue: string) => {
     setActiveTab(tabValue);
@@ -375,6 +297,7 @@ export default function CardForgePage() {
               templates={templates}
               onDeleteTemplate={handleDeleteTemplate}
               initialTemplate={editingTemplate}
+              setInitialTemplate={setEditingTemplate}
             />
           </TabsContent>
 
@@ -405,14 +328,6 @@ export default function CardForgePage() {
                                 <EyeOff className="h-4 w-4" /> Hide empty sections
                             </Label>
                         </div>
-                         <Button
-                            variant="outline"
-                            onClick={handleGenerateRandomCard}
-                            disabled={isGeneratingRandomCard || templates.length === 0}
-                            className="w-full flex items-center gap-2"
-                        >
-                            <Sparkles className="h-4 w-4" /> {isGeneratingRandomCard ? "Generating..." : "Generate Random Card (AI)"}
-                        </Button>
                         <div className="flex flex-col gap-2 pt-2">
                            <div className="grid grid-cols-2 gap-2">
                              <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
@@ -482,5 +397,4 @@ export default function CardForgePage() {
       </footer>
     </div>
   );
-
-    
+}

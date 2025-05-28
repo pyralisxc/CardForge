@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
-import { PlusSquare, FilePlus2 } from 'lucide-react'; 
+import { PlusSquare, FilePlus2, Sparkles } from 'lucide-react'; 
+import { generateCardFields } from '@/ai/flows/generate-card-fields';
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
@@ -33,6 +34,9 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   const { toast } = useToast();
+
+  const [aiThemeForFill, setAiThemeForFill] = useState<string>('');
+  const [isAiFilling, setIsAiFilling] = useState<boolean>(false);
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
@@ -59,15 +63,18 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
       const newCardData: CardData = {};
       fields.forEach(f => {
         newCardData[f.key] = cardData[f.key] || ''; 
-        const artPlaceholder = selectedTemplate.rows
+        // Attempt to pre-fill artwork URL from template's default if the placeholder matches common keys
+        const artPlaceholderSection = selectedTemplate.rows
             .flatMap(r => r.columns)
             .find(s => s.type === 'Artwork' && s.contentPlaceholder.includes(`{{${f.key}}}`));
 
-        if (artPlaceholder && (f.key.toLowerCase().includes('url') || f.key.toLowerCase().includes('artwork')) && !newCardData[f.key]) {
-            const defaultArtUrlMatch = artPlaceholder.contentPlaceholder.match(/^(https?:\/\/[^\s{}]+\.(?:png|jpg|jpeg|gif|svg|webp))/i);
-            if (defaultArtUrlMatch && defaultArtUrlMatch[0] !== artPlaceholder.contentPlaceholder && !defaultArtUrlMatch[0].startsWith('{{')) {
+        if (artPlaceholderSection && (f.key.toLowerCase().includes('url') || f.key.toLowerCase().includes('artwork')) && !newCardData[f.key]) {
+            // Check if the placeholder string itself contains a default URL (a simple heuristic)
+            const defaultArtUrlMatch = artPlaceholderSection.contentPlaceholder.match(/^(https?:\/\/[^\s{}]+\.(?:png|jpg|jpeg|gif|svg|webp))/i);
+            if (defaultArtUrlMatch && defaultArtUrlMatch[0] !== artPlaceholderSection.contentPlaceholder && !defaultArtUrlMatch[0].startsWith('{{')) {
                  newCardData[f.key] = defaultArtUrlMatch[0];
             } else if (f.key.toLowerCase() === 'artworkurl') { 
+                 // Fallback for common placeholder name if no default in string
                  newCardData[f.key] = 'https://placehold.co/600x400.png';
             }
         }
@@ -85,7 +92,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateId, templates]); // `selectedTemplate` derived from templates & selectedTemplateId
+  }, [selectedTemplateId, templates]);
 
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
@@ -125,6 +132,39 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
     toast({ title: "Success", description: `Card "${cardIdentifier}" added to preview.` });
   };
 
+  const handleAiFillFields = async () => {
+    if (!selectedTemplate) {
+      toast({ title: "No Template Selected", description: "Please select a template first.", variant: "default" });
+      return;
+    }
+    if (dynamicFields.length === 0) {
+      toast({ title: "No Placeholders", description: "Selected template has no fields for AI to fill.", variant: "default" });
+      return;
+    }
+    if (!aiThemeForFill.trim()) {
+      toast({ title: "Theme Required", description: "Please enter a card concept or theme for AI.", variant: "default" });
+      return;
+    }
+
+    setIsAiFilling(true);
+    try {
+      const placeholderKeys = dynamicFields.map(f => f.key);
+      const result = await generateCardFields({ theme: aiThemeForFill, placeholderKeys });
+      
+      setCardData(prevData => ({
+        ...prevData,
+        ...result.generatedData
+      }));
+
+      toast({ title: "AI Fill Complete", description: "Card fields populated by AI." });
+    } catch (error) {
+      console.error("Error with AI Fill:", error);
+      toast({ title: "AI Fill Error", description: (error as Error).message || "Failed to get AI suggestions.", variant: "destructive" });
+    } finally {
+      setIsAiFilling(false);
+    }
+  };
+
 
   return (
     <Card>
@@ -139,6 +179,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
             value={selectedTemplateId} 
             onValueChange={(id) => {
               setSelectedTemplateId(id);
+              setAiThemeForFill(''); // Clear AI theme when template changes
             }}
           >
             <SelectTrigger id="singleTemplateSelect">
@@ -149,6 +190,29 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
             </SelectContent>
           </Select>
         </div>
+
+        {selectedTemplate && (
+          <div className="space-y-2 pt-2 border-t mt-2">
+            <Label htmlFor="aiThemeForFill">Card Concept/Theme for AI Fill</Label>
+            <div className="flex gap-2">
+              <Input
+                id="aiThemeForFill"
+                value={aiThemeForFill}
+                onChange={(e) => setAiThemeForFill(e.target.value)}
+                placeholder="e.g., 'Undead Pirate Captain', 'Mystic Healing Potion'"
+                disabled={!selectedTemplate || dynamicFields.length === 0}
+              />
+              <Button
+                onClick={handleAiFillFields}
+                disabled={!selectedTemplate || dynamicFields.length === 0 || !aiThemeForFill.trim() || isAiFilling}
+                variant="outline"
+                className="shrink-0"
+              >
+                <Sparkles className="mr-2 h-4 w-4" /> {isAiFilling ? 'Filling...' : 'AI Fill Fields'}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {selectedTemplate && dynamicFields.length > 0 && (
           <div className="space-y-3 mt-4 border-t pt-4">
@@ -178,12 +242,11 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
         )}
         
         {selectedTemplate && dynamicFields.length === 0 && (
-            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{`{{cardName}}`}</code>, <code>{`{{manaCost}}`}</code>). Please edit the template to include them in its placeholder strings.</p>
+            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{`{{cardName}}`}</code>). Please edit the template to include them.</p>
         )}
          {!selectedTemplate && (
             <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
         )}
-
 
         <Button onClick={handleAddCard} disabled={!selectedTemplate || dynamicFields.length === 0} className="w-full">
           <PlusSquare className="mr-2 h-4 w-4" /> Add Card to Preview List
