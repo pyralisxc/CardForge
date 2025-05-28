@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { useToast } from '@/hooks/use-toast'; // Cannot be used in server component
+// import { useToast } from '@/hooks/use-toast'; // Cannot be used in server component
 
 const GenerateCardFieldsInputSchema = z.object({
   theme: z
@@ -79,32 +79,11 @@ Return your response as a single, valid JSON object where the keys are the place
         }
     });
 
-    if (!output || !output.text) {
-      throw new Error("AI did not return any text.");
-    }
-
     let generatedData: Record<string, string> = {};
-    try {
-      let jsonString = output.text;
-      if (jsonString.startsWith("```json")) {
-        jsonString = jsonString.substring(7);
-        if (jsonString.endsWith("```")) {
-          jsonString = jsonString.substring(0, jsonString.length - 3);
-        }
-      }
-      jsonString = jsonString.trim();
-      generatedData = JSON.parse(jsonString);
 
-      const completeData: Record<string, string> = {};
-      placeholderKeys.forEach(key => {
-        completeData[key] = generatedData[key] || ""; 
-      });
-      return { generatedData: completeData };
-
-    } catch (e) {
-      console.error("Failed to parse AI JSON output:", output.text, e);
-      // Fallback for parsing failure
-      generatedData = {};
+    if (!output || !output.text) {
+      console.warn(`AI did not return any text output for theme "${theme}". Using basic fallback.`);
+      // Fallback for no text output
       placeholderKeys.forEach(key => {
         const keyLower = key.toLowerCase();
         if (keyLower.includes("name")) generatedData[key] = theme;
@@ -112,7 +91,39 @@ Return your response as a single, valid JSON object where the keys are the place
         else if (keyLower.includes("flavor")) generatedData[key] = `A ${theme} of great renown.`;
         else generatedData[key] = "AI suggestion..."; 
       });
-      // We cannot use useToast here as this is a server-side flow.
+      return { generatedData };
+    }
+
+    try {
+      let jsonString = output.text;
+      // Remove markdown code fences if present
+      if (jsonString.startsWith("```json")) {
+        jsonString = jsonString.substring(7);
+        if (jsonString.endsWith("```")) {
+          jsonString = jsonString.substring(0, jsonString.length - 3);
+        }
+      }
+      jsonString = jsonString.trim();
+      const parsedJson = JSON.parse(jsonString);
+
+      // Ensure all requested placeholderKeys are present in the final object, even if AI missed some
+      placeholderKeys.forEach(key => {
+        generatedData[key] = parsedJson[key] || ""; // Use empty string if AI didn't provide a value for a key
+      });
+      
+      return { generatedData };
+
+    } catch (e) {
+      console.error("Failed to parse AI JSON output:", output.text, e);
+      // Fallback for JSON parsing failure
+      generatedData = {}; // Reset in case of partial parsing before error
+      placeholderKeys.forEach(key => {
+        const keyLower = key.toLowerCase();
+        if (keyLower.includes("name")) generatedData[key] = theme;
+        else if (keyLower.includes("rules") || keyLower.includes("text") && !keyLower.includes("flavor")) generatedData[key] = `Effect related to ${theme}.`;
+        else if (keyLower.includes("flavor")) generatedData[key] = `A ${theme} of great renown.`;
+        else generatedData[key] = "AI suggestion..."; 
+      });
       // The calling client component should handle displaying errors or partial success.
       console.warn("AI output wasn't perfect JSON, using basic fallback. Please review fields.");
       return { generatedData };
