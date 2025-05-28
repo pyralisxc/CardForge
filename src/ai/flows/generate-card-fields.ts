@@ -56,13 +56,15 @@ Please provide appropriate string values for the following placeholder keys:
 ${placeholderListString}
 
 Consider the likely meaning of each placeholder key when generating its value. For example:
-- 'cardName' should be a thematic name.
-- 'manaCost' could be a symbolic cost (e.g., "2RR", "3 colorless", "X").
-- 'rulesText' or 'effectText' should be a game mechanic or ability.
-- 'flavorText' should be a short, evocative sentence.
-- 'attackValue', 'power', 'health', 'defense', 'toughness' should be numbers or simple stats (e.g., "3", "X").
-- 'artworkUrl' should be a descriptive phrase for image generation (e.g., "fiery dragon attacking castle").
-- 'cardType', 'subTypes' should be appropriate TCG types (e.g., "Creature - Goblin Warrior", "Spell - Instant").
+- 'cardName', 'title': Should be a thematic name.
+- 'manaCost', 'cost', 'energyCost': Could be a symbolic cost (e.g., "2RR", "3 colorless", "X").
+- 'rulesText', 'effectText', 'abilities', 'description': Should be a game mechanic or ability description.
+- 'flavorText': Should be a short, evocative sentence (1-2 sentences).
+- 'power', 'attack', 'health', 'toughness', 'defense', 'points', 'level', 'attackValue', 'defenseValue': Should be numbers or simple stats (e.g., "3", "X", "Level 4").
+- 'artworkUrl', 'art', 'image': Should be a descriptive phrase for image generation (e.g., "fiery dragon attacking castle", "mystic elf enchantress in a forest"). Do NOT generate an actual URL.
+- 'cardType', 'type', 'subTypes': Should be appropriate TCG types (e.g., "Creature - Goblin Warrior", "Spell - Instant", "Artifact - Equipment").
+- 'rarity': Should be a common TCG rarity (e.g., "Common", "Uncommon", "Rare", "Mythic").
+- 'artistName': Should be a thematic artist name.
 
 Return your response as a single, valid JSON object where the keys are the placeholder names from the list above, and the values are your generated strings for each. For example:
 {
@@ -87,8 +89,9 @@ Return your response as a single, valid JSON object where the keys are the place
       placeholderKeys.forEach(key => {
         const keyLower = key.toLowerCase();
         if (keyLower.includes("name")) generatedData[key] = theme;
-        else if (keyLower.includes("rules") || keyLower.includes("text") && !keyLower.includes("flavor")) generatedData[key] = `Effect related to ${theme}.`;
+        else if (keyLower.includes("rules") || (keyLower.includes("text") && !keyLower.includes("flavor")) || keyLower.includes("effect") || keyLower.includes("abilit")) generatedData[key] = `Effect related to ${theme}.`;
         else if (keyLower.includes("flavor")) generatedData[key] = `A ${theme} of great renown.`;
+        else if (keyLower.includes("art") || keyLower.includes("image")) generatedData[key] = `Artwork concept: ${theme}`;
         else generatedData[key] = "AI suggestion..."; 
       });
       return { generatedData };
@@ -120,8 +123,9 @@ Return your response as a single, valid JSON object where the keys are the place
       placeholderKeys.forEach(key => {
         const keyLower = key.toLowerCase();
         if (keyLower.includes("name")) generatedData[key] = theme;
-        else if (keyLower.includes("rules") || keyLower.includes("text") && !keyLower.includes("flavor")) generatedData[key] = `Effect related to ${theme}.`;
+        else if (keyLower.includes("rules") || (keyLower.includes("text") && !keyLower.includes("flavor")) || keyLower.includes("effect") || keyLower.includes("abilit")) generatedData[key] = `Effect related to ${theme}.`;
         else if (keyLower.includes("flavor")) generatedData[key] = `A ${theme} of great renown.`;
+        else if (keyLower.includes("art") || keyLower.includes("image")) generatedData[key] = `Artwork concept: ${theme}`;
         else generatedData[key] = "AI suggestion..."; 
       });
       // The calling client component should handle displaying errors or partial success.
