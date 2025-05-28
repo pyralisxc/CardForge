@@ -188,6 +188,23 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
     }
   };
 
+  const handleNumAiCardsChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const valStr = e.target.value;
+    if (valStr === "") {
+      // If user clears input, keep it visually empty for a moment, but ensure state is valid (e.g., 1)
+      // Or, more simply, just reset to 1. Let's reset to 1.
+      setNumAiCards(1); 
+    } else {
+      const num = parseInt(valStr, 10);
+      if (isNaN(num)) {
+        // If they type non-numeric, reset to 1.
+        setNumAiCards(1);
+      } else {
+        setNumAiCards(Math.max(1, num)); // Ensure it's at least 1
+      }
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -270,7 +287,13 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
             )}
             <div>
               <Label htmlFor="numAiCards">Number of Cards (AI)</Label>
-              <Input id="numAiCards" type="number" value={numAiCards} onChange={(e) => setNumAiCards(Math.max(1, parseInt(e.target.value,10)))} min="1" />
+              <Input 
+                id="numAiCards" 
+                type="number" 
+                value={numAiCards} // numAiCards state is always a valid number
+                onChange={handleNumAiCardsChange} 
+                min="1" 
+              />
             </div>
           </div>
         )}
@@ -282,4 +305,3 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
     </Card>
   );
 }
-
