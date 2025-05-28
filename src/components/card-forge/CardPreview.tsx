@@ -37,22 +37,22 @@ export function CardPreview({
   if (!template.rows) return <div className="text-destructive">Error: Template has no rows defined.</div>;
 
   const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
-  const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (PREVIEW_WIDTH_PX / aspectW) * aspectH : 390; 
+  const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (PREVIEW_WIDTH_PX / aspectW) * aspectH : 390;
 
   const cardContainerStyle: React.CSSProperties = {
     backgroundColor: template.baseBackgroundColor || undefined,
     color: template.baseTextColor || undefined,
     aspectRatio: (aspectW > 0 && aspectH > 0) ? `${aspectW} / ${aspectH}` : undefined,
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
-    height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`), 
+    height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`),
     boxSizing: 'border-box',
   };
-  
+
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
 
   const artworkHintValue = useMemo(() => {
-    let hint = "card art"; 
+    let hint = "card art";
     if (template.rows) {
       const typeLineSection = template.rows
         .flatMap(row => row.columns)
@@ -72,10 +72,10 @@ export function CardPreview({
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
-      return section.contentPlaceholder?.trim() === ''; 
+      return section.contentPlaceholder?.trim() === '';
     }
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false; 
+      if (section.type === 'Artwork' || section.type === 'Divider') return false;
       return processedContent.trim() === '';
     }
     return false;
@@ -109,38 +109,38 @@ export function CardPreview({
           };
 
           const allColumnsInRowHidden = row.columns.every(section => {
-            const sectionContentForHiding = replacePlaceholdersLocal(section.contentPlaceholder, data, false);
+            const sectionContentForHiding = replacePlaceholdersLocal(section.contentPlaceholder, data, !isEditorPreview);
             return shouldHideSection(section, sectionContentForHiding);
           });
 
           if (allColumnsInRowHidden && hideEmptySections && !isEditorPreview) {
             return null;
           }
-          
+
           let rowEffectiveHeight: string | undefined = undefined;
           if (row.customHeight && !isPrintMode) {
-            if(row.customHeight.includes('%') && cardPixelHeight > 0 && isFinite(cardPixelHeight)){
-                const percentageValue = parseFloat(row.customHeight.replace('%',''));
-                if(!isNaN(percentageValue) && isFinite(percentageValue)){
-                    rowEffectiveHeight = `${cardPixelHeight * (percentageValue / 100)}px`;
-                }
+            if (row.customHeight.includes('%') && cardPixelHeight > 0 && isFinite(cardPixelHeight)) {
+              const percentageValue = parseFloat(row.customHeight.replace('%', ''));
+              if (!isNaN(percentageValue) && isFinite(percentageValue)) {
+                rowEffectiveHeight = `${cardPixelHeight * (percentageValue / 100)}px`;
+              }
             } else if (row.customHeight !== 'auto' && row.customHeight.trim() !== '') {
-                rowEffectiveHeight = row.customHeight;
+              rowEffectiveHeight = row.customHeight;
             }
           }
 
           const rowStyle: React.CSSProperties = {
-            display: 'flex', 
+            display: 'flex',
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
-            flexShrink: 0, 
+            flexShrink: 0,
           };
 
           return (
             <div
               key={row.id}
               className={cn(
-                "flex", 
+                "flex",
                 isEditorPreview && onRowClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-blue-500/70' : ''
               )}
               style={rowStyle}
@@ -151,33 +151,31 @@ export function CardPreview({
                 const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data, !isEditorPreview);
 
                 if (shouldHideSection(section, sectionContent) && !isEditorPreview) {
-                    return null;
+                  return null;
                 }
-                
+
                 const sectionStyle: React.CSSProperties = {
-                  position: 'relative', // Base for all sections
+                  position: 'relative',
                   color: section.textColor || undefined,
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
                   fontStyle: section.fontStyle || 'normal',
                   flexGrow: section.flexGrow || 0,
-                  flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0, 
-                  flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto', 
+                  flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0,
+                  flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto',
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,
+                  overflowWrap: 'break-word',
                 };
                 
-                // Specific styles for text-based sections for robust wrapping and overflow
-                if (section.type !== 'Artwork' && section.type !== 'Divider') {
-                  sectionStyle.overflowWrap = 'break-word';
-                  if (section.flexGrow && section.flexGrow > 0) {
-                    sectionStyle.minWidth = 0; // Allow shrinking/wrapping in horizontal flex
-                    sectionStyle.minHeight = 0; // Allow shrinking/scrolling in vertical flex
-                    sectionStyle.overflowY = 'auto'; // Add scroll if content overflows vertically
-                  }
+                if (section.flexGrow && section.flexGrow > 0 && section.type !== 'Artwork' && section.type !== 'Divider') {
+                    sectionStyle.minWidth = 0;
+                    sectionStyle.minHeight = 0; 
+                    sectionStyle.overflowY = 'auto';
                 }
-                
+
+
                 if (section.borderColor) {
                   sectionStyle.borderColor = section.borderColor;
                 } else if (section.borderWidth && section.borderWidth !== '_none_' && template.borderColor) {
@@ -185,16 +183,16 @@ export function CardPreview({
                 } else if (section.borderWidth && section.borderWidth !== '_none_') {
                   sectionStyle.borderColor = 'hsl(var(--border))';
                 }
-                
+
                 const sectionClasses = cn(
-                  'relative', // Ensure relative positioning for children like NextImage
+                  'relative',
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
                   (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '',
                   section.borderWidth === '_none_' ? '' : section.borderWidth,
-                  (section.type !== 'Artwork' && section.type !== 'Divider') ? 'whitespace-pre-wrap break-words' : '', // Apply to all text sections
+                  (section.type !== 'Artwork' && section.type !== 'Divider') ? 'whitespace-pre-wrap break-words' : '',
                   `tcg-section-${section.type.toLowerCase()}`,
                   isEditorPreview && onSectionClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-[-1px] hover:outline-primary/70' : ''
                 );
@@ -207,108 +205,103 @@ export function CardPreview({
                 };
 
                 if (section.type === 'Artwork') {
-                    let artworkDisplaySrc = sectionContent;
-                    if (isEditorPreview) {
-                        artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`;
-                    } else {
-                        const isInvalidSrc = !sectionContent || sectionContent.trim() === '' || 
-                                           (sectionContent.startsWith('{{') && sectionContent.endsWith('}}')) ||
-                                           (!sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:'));
-                        if (isInvalidSrc) {
-                            artworkDisplaySrc = `https://placehold.co/600x400.png?text=${encodeURIComponent(template.name + ' Art')}`;
-                        }
+                  let artworkDisplaySrc: string;
+                  const editorPreviewStyle: React.CSSProperties = {
+                    ...sectionStyle, // General styles like flexGrow
+                    height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' ? 'auto' : '180px'), // Use customHeight, or minHeight if it's a class, or default
+                    width: section.customWidth || '100%',
+                    backgroundColor: 'hsl(var(--muted) / 0.5)',
+                    border: '1px dashed hsl(var(--border))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    textAlign: 'center',
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))',
+                    boxSizing: 'border-box',
+                  };
+
+                  if (isEditorPreview) {
+                    artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`; // Always use this for editor preview visual
+                    return (
+                      <div
+                        key={section.id}
+                        className={cn(sectionClasses, (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '', section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')}
+                        style={editorPreviewStyle}
+                        onClick={handlePreviewSectionClick}
+                        data-section-id={section.id}
+                      >
+                        <div>Size: {editorPreviewStyle.width} x {editorPreviewStyle.height}</div>
+                      </div>
+                    );
+                  } else {
+                    artworkDisplaySrc = sectionContent; // This is the result of replacePlaceholdersLocal
+                    if (!artworkDisplaySrc ||
+                        (!artworkDisplaySrc.startsWith('http://') &&
+                         !artworkDisplaySrc.startsWith('https://') &&
+                         !artworkDisplaySrc.startsWith('data:'))) {
+                      const cardNameForPlaceholder = replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data, false) || template.name || "Card";
+                      artworkDisplaySrc = `https://placehold.co/600x400.png?text=${encodeURIComponent(cardNameForPlaceholder + ' Art')}`;
                     }
 
-                    const editorPreviewStyle: React.CSSProperties = {
-                        ...sectionStyle,
-                        height: section.customHeight || sectionStyle.height || '180px',
-                        width: section.customWidth || sectionStyle.width || '100%',
-                        backgroundColor: 'hsl(var(--muted) / 0.5)',
-                        border: '1px dashed hsl(var(--border))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexDirection: 'column',
-                        textAlign: 'center',
-                        fontSize: '0.75rem', 
-                        color: 'hsl(var(--muted-foreground))',
-                        boxSizing: 'border-box', 
+                    const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
+                    const imageContainerStyle: React.CSSProperties = {
+                      position: 'relative',
+                      height: section.customHeight || '100%',
+                      width: section.customWidth || '100%',
+                      overflow: 'hidden',
+                      ...sectionStyle,
                     };
-                     delete editorPreviewStyle.flexGrow; 
-                     delete editorPreviewStyle.minWidth; // minWidth is handled differently for text vs images
+                    if(section.customHeight) delete imageContainerStyle.minHeight;
+                    if(section.customWidth && !(section.flexGrow && section.flexGrow > 0)) delete imageContainerStyle.minWidth;
 
-                    if (isEditorPreview) {
-                      return (
-                        <div
-                          key={section.id}
-                          className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')}
-                          style={editorPreviewStyle}
-                          onClick={handlePreviewSectionClick}
-                          data-section-id={section.id}
-                        >
-                          <div>Size: {editorPreviewStyle.width} x {editorPreviewStyle.height}</div>
-                        </div>
-                      );
-                    } else {
-                      const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
-                      const imageContainerStyle: React.CSSProperties = {
-                          position: 'relative', // Crucial for NextImage layout="fill"
-                          height: section.customHeight || '100%', 
-                          width: section.customWidth || '100%',  
-                          overflow: 'hidden',
-                          ...sectionStyle, // Apply general section styles (like flexGrow)
-                      };
-                       // Remove potentially conflicting styles from general sectionStyle if customHeight/Width are set
-                      if(section.customHeight) delete imageContainerStyle.minHeight;
-                      if(section.customWidth && !(section.flexGrow && section.flexGrow > 0)) delete imageContainerStyle.minWidth;
-
-
-                      return (
-                        <div
-                          key={section.id}
-                          className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')} // class for flexGrow on container
-                          style={imageContainerStyle}
-                          onClick={handlePreviewSectionClick}
-                          data-section-id={section.id}
-                        >
-                          <NextImage
-                            src={artworkDisplaySrc}
-                            alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data, false) || "Card artwork"}
-                            layout="fill"
-                            objectFit="cover"
-                            data-ai-hint={artworkHintValue}
-                            priority={imageIsPriority} 
-                          />
-                        </div>
-                      );
-                    }
+                    return (
+                      <div
+                        key={section.id}
+                        className={cn(sectionClasses, (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '', section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')}
+                        style={imageContainerStyle}
+                        onClick={handlePreviewSectionClick}
+                        data-section-id={section.id}
+                      >
+                        <NextImage
+                          src={artworkDisplaySrc}
+                          alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data, false) || "Card artwork"}
+                          layout="fill"
+                          objectFit="cover"
+                          data-ai-hint={artworkHintValue}
+                          priority={imageIsPriority}
+                        />
+                      </div>
+                    );
+                  }
                 }
 
                 if (section.type === 'Divider') {
-                    return (
-                        <div
-                          key={section.id}
-                          className={cn("tcg-section-divider w-full", sectionClasses, (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '')} 
-                          style={{...sectionStyle, height: section.customHeight || '1px', backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
-                          onClick={handlePreviewSectionClick}
-                          data-section-id={section.id}
-                        ></div>
-                    );
+                  return (
+                    <div
+                      key={section.id}
+                      className={cn("tcg-section-divider w-full", sectionClasses, (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '')}
+                      style={{...sectionStyle, height: section.customHeight || '1px', backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
+                      onClick={handlePreviewSectionClick}
+                      data-section-id={section.id}
+                    ></div>
+                  );
                 }
 
                 const Tag = (section.type === 'RulesText' || section.type === 'FlavorText') ? 'pre' : 'div';
-
                 let displayContent = sectionContent;
+
                 if (isEditorPreview && section.contentPlaceholder && sectionContent.trim() === '' && section.contentPlaceholder.trim() !== '') {
-                    displayContent = section.contentPlaceholder;
+                  displayContent = section.contentPlaceholder;
                 } else if (isEditorPreview && section.contentPlaceholder && sectionContent === section.contentPlaceholder) {
-                   displayContent = section.contentPlaceholder;
+                  displayContent = section.contentPlaceholder;
                 }
 
                 return (
                   <Tag
                     key={section.id}
-                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? '' : 'shrink-0', (section.minHeight && section.minHeight !=='_auto_') ? section.minHeight : '', section.customHeight ? '' : ((section.minHeight && section.minHeight !=='_auto_') ? section.minHeight : ''))}
+                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? '' : 'shrink-0')}
                     style={sectionStyle}
                     onClick={handlePreviewSectionClick}
                     data-section-id={section.id}
@@ -329,4 +322,3 @@ export function CardPreview({
     </div>
   );
 }
-
