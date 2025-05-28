@@ -34,6 +34,7 @@ interface DynamicField {
   label: string;
   type: 'input' | 'textarea';
   example?: string;
+  defaultValue?: string;
 }
 
 export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: EditCardDialogProps) {
@@ -42,24 +43,36 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
   useEffect(() => {
     if (card) {
-      setEditedData({ ...card.data });
-
       const allPlaceholderKeys = extractUniquePlaceholderKeys(card.template);
+      const currentCardData = { ...card.data };
+      const newEditedData: CardData = {};
 
-      const fields: DynamicField[] = allPlaceholderKeys.map(key => {
-        const definition = TCG_FIELD_DEFINITIONS.find(def => def.key.toLowerCase() === key.toLowerCase());
-        let exampleText = `e.g., ${toTitleCase(key)}`;
-        if (key.toLowerCase().includes('url') || key.toLowerCase().includes('artwork')) {
+      const fields: DynamicField[] = allPlaceholderKeys.map(placeholder => {
+        const definition = TCG_FIELD_DEFINITIONS.find(def => def.key.toLowerCase() === placeholder.key.toLowerCase());
+        let exampleText = `e.g., ${toTitleCase(placeholder.key)}`;
+        if (placeholder.key.toLowerCase().includes('url') || placeholder.key.toLowerCase().includes('artwork')) {
           exampleText = 'e.g., https://placehold.co/300x200.png or data:image/...';
         }
+
+        // Initialize editedData: use existing card data, or template default, or empty
+        if (currentCardData[placeholder.key] !== undefined) {
+          newEditedData[placeholder.key] = currentCardData[placeholder.key];
+        } else if (placeholder.defaultValue !== undefined) {
+          newEditedData[placeholder.key] = placeholder.defaultValue;
+        } else {
+          newEditedData[placeholder.key] = '';
+        }
+        
         return {
-          key,
-          label: definition?.label || toTitleCase(key),
+          key: placeholder.key,
+          label: definition?.label || toTitleCase(placeholder.key),
           type: definition?.type === 'textarea' ? 'textarea' : 'input',
           example: definition?.example || exampleText,
+          defaultValue: placeholder.defaultValue,
         };
       });
       setDynamicFields(fields);
+      setEditedData(newEditedData);
     } else {
       setEditedData({});
       setDynamicFields([]);
@@ -78,7 +91,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
   
   const handleDuplicateCard = () => {
     if (card) {
-      onDuplicate({ ...card, data: editedData });
+      onDuplicate({ ...card, data: editedData }); // Duplicate with current edits
     }
   };
 
@@ -103,7 +116,12 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
           <div className="space-y-3 py-1">
             {dynamicFields.map(field => (
               <div key={field.key}>
-                <Label htmlFor={`editCard-${field.key}`}>{field.label}</Label>
+                <Label htmlFor={`editCard-${field.key}`}>
+                  {field.label}
+                  {field.defaultValue !== undefined && (editedData[field.key] === field.defaultValue || card.data[field.key] === undefined) && 
+                    <span className="text-xs text-muted-foreground ml-1">(Default: "{field.defaultValue}")</span>
+                  }
+                </Label>
                 {field.type === 'textarea' ? (
                   <Textarea
                     id={`editCard-${field.key}`}
@@ -134,7 +152,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
             <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
           <Button type="button" variant="secondary" onClick={handleDuplicateCard}>
-            <Copy className="mr-2 h-4 w-4" /> Duplicate
+            <Copy className="mr-2 h-4 w-4" /> Duplicate & Close
           </Button>
           <Button type="button" onClick={handleSaveChanges}>
             <Save className="mr-2 h-4 w-4" /> Save Changes
