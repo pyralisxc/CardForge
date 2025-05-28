@@ -38,7 +38,7 @@ body {
     --input: 220 15% 22%; /* Dark Input Background #2F343F */
     --ring: 50 100% 70%; /* Brighter Gold for focus rings */
 
-    --radius: 0.5rem;
+    --radius: 0.5rem; /* Default radius for cards */
 
     /* Chart colors - can be adjusted if charts are used */
     --chart-1: 260 70% 60%; /* Brighter Purple */
@@ -92,7 +92,7 @@ body {
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border; /* Default border color for all elements (can be overridden) */
   }
   body {
     @apply bg-background text-foreground;
@@ -133,7 +133,12 @@ body {
 
 /* Base Frame Styles */
 .tcg-card-preview {
-  border: 4px solid hsl(var(--border)); 
+  /* Default border from theme, will be overridden by inline styles if template sets cardBorder... props */
+  border-width: 4px; /* Default thickness */
+  border-style: solid; /* Default style */
+  border-color: hsl(var(--border)); /* Default color from theme */
+  border-radius: var(--radius); /* Default radius from theme */
+  
   background-color: hsl(var(--card)); 
   color: hsl(var(--card-foreground)); 
 }
@@ -142,14 +147,13 @@ body {
 .tcg-card-preview.frame-standard {
   background-color: white; 
   color: black;
-  border-color: hsl(var(--border)); /* Use theme border for standard */
+  /* Standard frame uses the default border from .tcg-card-preview unless overridden by template's cardBorder... props */
 }
 
-/* Custom Frame - Relies on inline styles from template for background/text, uses theme border */
+/* Custom Frame - Relies on inline styles from template for background/text/border. */
 .tcg-card-preview.frame-custom {
-  /* Intentionally minimal: background and text color come from inline styles set by the template. */
-  /* Uses the default border from .tcg-card-preview or can be overridden by template.borderColor if that feature is added. */
-   border-color: hsl(var(--border));
+  /* Intentionally minimal: background, text color, and border come from inline styles set by the template. */
+  /* If no inline styles for border are set, it falls back to .tcg-card-preview defaults. */
 }
 
 
@@ -158,6 +162,7 @@ body {
   border-image: linear-gradient(to bottom right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C) 1;
   background-color: #fDF4D8; 
   color: #4A3B2A; 
+  border-radius: 0.75rem; /* Example of a different radius for this frame */
 }
 .tcg-card-preview.frame-classic-gold .tcg-section-cardname,
 .tcg-card-preview.frame-classic-gold .tcg-section-typeline {
@@ -168,6 +173,7 @@ body {
   border: 2px solid #4a4a4a;
   background-color: #282828;
   color: #c0c0c0; 
+  border-radius: 0.25rem;
 }
 .tcg-card-preview.frame-minimal-dark .tcg-section-typeline {
   background-color: #333;
@@ -175,10 +181,11 @@ body {
 
 
 .tcg-card-preview.frame-arcane-purple {
-  border: 5px solid hsl(var(--primary-foreground));
+  border: 5px solid hsl(var(--primary-foreground)); /* This frame defines its own border */
   background: linear-gradient(135deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.5));
   box-shadow: 0 0 15px hsl(var(--primary) / 0.7), inset 0 0 10px hsl(var(--background) / 0.3);
   color: hsl(var(--primary-foreground)); 
+  border-radius: 0.6rem;
 }
 .tcg-card-preview.frame-arcane-purple .tcg-section-cardname,
 .tcg-card-preview.frame-arcane-purple .tcg-section-typeline {
@@ -190,4 +197,3 @@ body {
    background-color: hsl(var(--background) / 0.5);
    color: hsl(var(--foreground)); 
 }
-    

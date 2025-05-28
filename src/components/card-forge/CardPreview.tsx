@@ -45,7 +45,7 @@ export function CardPreview({
     height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`),
     boxSizing: 'border-box',
   };
-  
+
   if (template.frameStyle === 'standard' || template.frameStyle === 'custom') {
     if (template.baseBackgroundColor) {
       cardContainerStyle.backgroundColor = template.baseBackgroundColor;
@@ -54,7 +54,17 @@ export function CardPreview({
       cardContainerStyle.color = template.baseTextColor;
     }
   }
-  // For other frame styles, their specific CSS classes will handle background/text color.
+  
+  // Apply new outer border styles from template if they exist
+  if (template.cardBorderColor) cardContainerStyle.borderColor = template.cardBorderColor;
+  if (template.cardBorderWidth) cardContainerStyle.borderWidth = template.cardBorderWidth;
+  if (template.cardBorderStyle && template.cardBorderStyle !== 'none') {
+    cardContainerStyle.borderStyle = template.cardBorderStyle;
+  } else if (template.cardBorderStyle === 'none') {
+    cardContainerStyle.borderStyle = 'none'; // Explicitly no border
+  }
+  if (template.cardBorderRadius) cardContainerStyle.borderRadius = template.cardBorderRadius;
+
 
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
@@ -79,11 +89,10 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
-      // In editor preview, we don't hide based on content to show all sections
-      return false; 
+      return false;
     }
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false; // These have their own visual presence
+      if (section.type === 'Artwork' || section.type === 'Divider') return false;
       return processedContent.trim() === '';
     }
     return false;
@@ -99,7 +108,7 @@ export function CardPreview({
     <div className={cn("flex flex-col items-center group", className)}>
       <div
         className={cn(
-          "tcg-card-preview shadow-lg rounded-lg flex flex-col relative overflow-hidden",
+          "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden", // Removed default rounded-lg, border here as it's controlled by template/inline
           isPrintMode ? "card-preview-print" : "",
           `frame-${template.frameStyle || 'standard'}`,
           onEdit && !isEditorPreview ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : ''
@@ -108,7 +117,7 @@ export function CardPreview({
         data-ai-hint="tcg card custom"
         onClick={handleCardClick}
       >
-        {template.rows.map((row, rowIndex) => {
+        {(template.rows || []).map((row, rowIndex) => {
           const handlePreviewRowClick = (e: React.MouseEvent) => {
             if (isEditorPreview && onRowClick) {
               e.stopPropagation();
@@ -141,7 +150,7 @@ export function CardPreview({
             display: 'flex',
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
-            flexShrink: 0, // Prevent rows from shrinking smaller than their content unless absolutely necessary
+            flexShrink: 0,
           };
 
           return (
@@ -163,7 +172,7 @@ export function CardPreview({
                 }
 
                 const sectionStyle: React.CSSProperties = {
-                  position: 'relative', // Important for absolute positioning of children or pseudo-elements
+                  position: 'relative',
                   color: section.textColor || undefined,
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
@@ -171,42 +180,50 @@ export function CardPreview({
                   flexGrow: section.flexGrow || 0,
                   flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0,
                   flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto',
-                  borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,
                 };
-                
-                // Text handling for all text-based sections
+
                 if (section.type !== 'Artwork' && section.type !== 'Divider') {
                     sectionStyle.overflowWrap = 'break-word';
                 }
 
                 if (section.flexGrow && section.flexGrow > 0) {
-                    sectionStyle.minWidth = 0; // Allows shrinking for text wrapping
-                    if (section.type !== 'Artwork') { // Artwork usually doesn't scroll text
-                        sectionStyle.minHeight = 0; // Allows vertical shrinking for overflowY
+                    sectionStyle.minWidth = 0; 
+                    if (section.type !== 'Artwork') { 
+                        sectionStyle.minHeight = 0; 
                         sectionStyle.overflowY = 'auto';
                     }
                 }
 
-
                 if (section.borderColor) {
                   sectionStyle.borderColor = section.borderColor;
-                } else if (section.borderWidth && section.borderWidth !== '_none_' && template.borderColor) {
-                  sectionStyle.borderColor = template.borderColor;
+                } else if (section.borderWidth && section.borderWidth !== '_none_' && template.defaultSectionBorderColor) {
+                  sectionStyle.borderColor = template.defaultSectionBorderColor;
                 } else if (section.borderWidth && section.borderWidth !== '_none_') {
-                  // Fallback to theme border if no specific border color but width is set
                   sectionStyle.borderColor = 'hsl(var(--border))';
                 }
+                
+                // Apply Tailwind border width classes if a simple border is defined (not overridden by specific section border color)
+                let sectionBorderClass = '';
+                if (section.borderWidth && section.borderWidth !== '_none_' && !section.borderColor) {
+                    sectionBorderClass = section.borderWidth;
+                } else if (section.borderWidth && section.borderWidth !== '_none_' && section.borderColor) {
+                    // If specific border color is set, apply a generic "border" class for Tailwind to apply thickness, color takes over
+                    sectionBorderClass = section.borderWidth; // e.g. "border-2", "border-t"
+                     // We will apply border-style: solid by default if color and width are set, unless section itself defines a style
+                    sectionStyle.borderStyle = sectionStyle.borderStyle || 'solid';
+                }
+
 
                 const sectionClasses = cn(
-                  'relative', // Kept for positioning context
+                  'relative',
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
                   (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '',
-                  section.borderWidth === '_none_' ? '' : section.borderWidth,
+                  sectionBorderClass,
                   (section.type !== 'Artwork' && section.type !== 'Divider') ? 'whitespace-pre-wrap break-words' : '',
                   `tcg-section-${section.type.toLowerCase()}`,
                   isEditorPreview && onSectionClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-[-1px] hover:outline-primary/70' : ''
@@ -220,10 +237,9 @@ export function CardPreview({
                 };
 
                 if (section.type === 'Artwork') {
-                  let artworkDisplaySrc: string;
                   const editorPreviewStyle: React.CSSProperties = {
-                    ...sectionStyle,
-                    height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.minHeight.includes('min-h-0') ? 'auto' : '120px'),
+                    position: 'relative',
+                    height: section.customHeight || (section.minHeight && section.minHeight.includes('px') ? section.minHeight : '120px'), // Fallback needed
                     width: section.customWidth || '100%',
                     backgroundColor: 'hsl(var(--muted) / 0.5)',
                     border: '1px dashed hsl(var(--border))',
@@ -235,10 +251,10 @@ export function CardPreview({
                     fontSize: '0.75rem',
                     color: 'hsl(var(--muted-foreground))',
                     boxSizing: 'border-box',
+                    flexGrow: section.flexGrow || 0,
                   };
                    if (section.flexGrow && section.flexGrow > 0) {
-                    editorPreviewStyle.flexGrow = section.flexGrow;
-                    editorPreviewStyle.minHeight = 0; // allow it to shrink within flex if needed
+                    editorPreviewStyle.minHeight = 0;
                   }
 
 
@@ -251,11 +267,11 @@ export function CardPreview({
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
                       >
-                        <div>Size: {section.customWidth || 'auto'} x {section.customHeight || 'auto'}</div>
+                        <div>Size: {editorPreviewStyle.width} x {editorPreviewStyle.height}</div>
                       </div>
                     );
                   } else {
-                    artworkDisplaySrc = sectionContent; 
+                    let artworkDisplaySrc = sectionContent;
                     if (!artworkDisplaySrc ||
                         (!artworkDisplaySrc.startsWith('http://') &&
                          !artworkDisplaySrc.startsWith('https://') &&
@@ -264,26 +280,24 @@ export function CardPreview({
                       artworkDisplaySrc = `https://placehold.co/600x400.png?text=${encodeURIComponent(cardNameForPlaceholder + ' Art')}`;
                     }
 
-                    const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
-                    
+                    const imageIsPriority = rowIndex === 0 && sectionIndex === 0;
+
                     const imageContainerStyle: React.CSSProperties = {
-                        ...sectionStyle, // Includes flexGrow, borderColor etc from above
-                        position: 'relative', // Crucial for NextImage layout="fill"
-                        height: section.customHeight || '100%', // Use customHeight or try to fill
-                        width: section.customWidth || '100%',  // Use customWidth or try to fill
-                        overflow: 'hidden', // Good practice for image containers
+                        ...sectionStyle,
+                        position: 'relative',
+                        height: section.customHeight || '100%',
+                        width: section.customWidth || '100%',
+                        overflow: 'hidden',
                     };
-                     // If not growing, explicit dimensions should take over minWidth/Height from flex item logic
                     if (!(section.flexGrow && section.flexGrow > 0)) {
                         delete imageContainerStyle.minWidth;
                         delete imageContainerStyle.minHeight;
                     }
 
-
                     return (
                       <div
                         key={section.id}
-                        className={cn(sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')}
+                        className={cn(sectionClasses)}
                         style={imageContainerStyle}
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
@@ -305,19 +319,24 @@ export function CardPreview({
                   const dividerStyle: React.CSSProperties = {
                     ...sectionStyle,
                      height: section.customHeight || '1px',
-                     backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))',
-                     width: section.customWidth || 'auto', // Typically 'auto' or '100%' for dividers
-                     flexGrow: section.flexGrow || 0, // Dividers usually don't grow unless explicitly set
+                     backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.defaultSectionBorderColor || 'hsl(var(--border))',
+                     width: section.customWidth || 'auto',
+                     flexGrow: section.flexGrow || 0,
+                     margin: section.padding?.includes('m') ? undefined : '0.25rem 0.5rem', // Default margin if padding not set
                   };
-                  if (dividerStyle.width === 'auto' && !(section.flexGrow && section.flexGrow > 0)) { // If auto width and not growing, make it full width of its column space if not already
-                     dividerStyle.alignSelf = 'stretch'; // Ensure it stretches if width is auto and not flex-growing
+                  if (section.padding?.includes('m')) { // if padding is like my-1 mx-2, apply it
+                     dividerStyle.margin = undefined; // let padding class handle it
+                  }
+
+                  if (dividerStyle.width === 'auto' && !(section.flexGrow && section.flexGrow > 0)) {
+                     dividerStyle.alignSelf = 'stretch';
                   }
 
 
                   return (
                     <div
                       key={section.id}
-                      className={cn("tcg-section-divider", sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')}
+                      className={cn("tcg-section-divider", sectionClasses)}
                       style={dividerStyle}
                       onClick={handlePreviewSectionClick}
                       data-section-id={section.id}
@@ -358,5 +377,3 @@ export function CardPreview({
     </div>
   );
 }
-
-    

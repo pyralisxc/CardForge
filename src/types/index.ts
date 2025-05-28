@@ -1,57 +1,65 @@
 
-export type CardSectionType = 
-  | 'CardName' 
-  | 'ManaCost' 
-  | 'Artwork' 
-  | 'TypeLine' 
-  | 'RulesText' 
-  | 'FlavorText' 
-  | 'PowerToughness' 
-  | 'ArtistCredit' 
+export type CardSectionType =
+  | 'CardName'
+  | 'ManaCost'
+  | 'Artwork'
+  | 'TypeLine'
+  | 'RulesText'
+  | 'FlavorText'
+  | 'PowerToughness'
+  | 'ArtistCredit'
   | 'CustomText'
   | 'Divider';
 
 export interface CardSection {
-  id: string; 
+  id: string;
   type: CardSectionType;
-  contentPlaceholder: string; 
-  
+  contentPlaceholder: string;
+
   textColor?: string;
   backgroundColor?: string;
-  fontFamily?: string; 
+  fontFamily?: string;
   fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
-  padding?: string; 
-  borderColor?: string; 
-  borderWidth?: string; 
-  minHeight?: string; 
+  padding?: string;
+  borderColor?: string;
+  borderWidth?: string;
+  minHeight?: string;
   flexGrow?: number;
-  customHeight?: string; // e.g., "150px", "50%", "auto"
-  customWidth?: string;  // e.g., "100%", "200px", "auto"
+  customHeight?: string;
+  customWidth?: string;
 }
 
 export interface CardRow {
-  id: string; 
-  columns: CardSection[]; 
-  alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline'; 
-  customHeight?: string; // e.g., "100px", "auto", "20%"
+  id: string;
+  columns: CardSection[];
+  alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
+  customHeight?: string;
 }
+
+export type CardBorderStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  aspectRatio: string; 
-  borderColor?: string; 
-  baseBackgroundColor?: string; 
-  baseTextColor?: string; 
-  frameStyle?: string; 
+  aspectRatio: string;
+  defaultSectionBorderColor?: string; // Renamed from borderColor
+  baseBackgroundColor?: string;
+  baseTextColor?: string;
+  frameStyle?: string;
   rows: CardRow[];
+
+  // New overall card border properties
+  cardBorderColor?: string;
+  cardBorderWidth?: string; // e.g., "4px"
+  cardBorderStyle?: CardBorderStyle;
+  cardBorderRadius?: string; // e.g., "8px", "0.5rem"
 }
 
 export interface CardData {
-  [key: string]: string | number | undefined; 
+  [key: string]: string | number | undefined;
 }
 
 export interface PaperSize {
