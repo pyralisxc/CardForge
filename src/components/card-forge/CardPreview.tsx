@@ -155,6 +155,7 @@ export function CardPreview({
                 }
                 
                 const sectionStyle: React.CSSProperties = {
+                  position: 'relative', // Base for all sections
                   color: section.textColor || undefined,
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
@@ -162,13 +163,20 @@ export function CardPreview({
                   flexGrow: section.flexGrow || 0,
                   flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0, 
                   flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto', 
-                  minWidth: (section.flexGrow && section.flexGrow > 0) ? 0 : undefined,
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   height: section.customHeight || undefined,
-                  width: section.customWidth || undefined,  
-                  position: 'relative',
-                  overflowY: (section.flexGrow && section.flexGrow > 0 && ['RulesText', 'FlavorText', 'ArtistCredit', 'CustomText'].includes(section.type)) ? 'auto' : undefined,
+                  width: section.customWidth || undefined,
                 };
+                
+                // Specific styles for text-based sections for robust wrapping and overflow
+                if (section.type !== 'Artwork' && section.type !== 'Divider') {
+                  sectionStyle.overflowWrap = 'break-word';
+                  if (section.flexGrow && section.flexGrow > 0) {
+                    sectionStyle.minWidth = 0; // Allow shrinking/wrapping in horizontal flex
+                    sectionStyle.minHeight = 0; // Allow shrinking/scrolling in vertical flex
+                    sectionStyle.overflowY = 'auto'; // Add scroll if content overflows vertically
+                  }
+                }
                 
                 if (section.borderColor) {
                   sectionStyle.borderColor = section.borderColor;
@@ -179,14 +187,14 @@ export function CardPreview({
                 }
                 
                 const sectionClasses = cn(
-                  'relative',
+                  'relative', // Ensure relative positioning for children like NextImage
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
                   (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '',
                   section.borderWidth === '_none_' ? '' : section.borderWidth,
-                  (section.type === 'RulesText' || section.type === 'FlavorText') ? 'whitespace-pre-wrap break-words' : 'whitespace-normal break-words',
+                  (section.type !== 'Artwork' && section.type !== 'Divider') ? 'whitespace-pre-wrap break-words' : '', // Apply to all text sections
                   `tcg-section-${section.type.toLowerCase()}`,
                   isEditorPreview && onSectionClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-[-1px] hover:outline-primary/70' : ''
                 );
@@ -199,26 +207,35 @@ export function CardPreview({
                 };
 
                 if (section.type === 'Artwork') {
+                    let artworkDisplaySrc = sectionContent;
+                    if (isEditorPreview) {
+                        artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`;
+                    } else {
+                        const isInvalidSrc = !sectionContent || sectionContent.trim() === '' || 
+                                           (sectionContent.startsWith('{{') && sectionContent.endsWith('}}')) ||
+                                           (!sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:'));
+                        if (isInvalidSrc) {
+                            artworkDisplaySrc = `https://placehold.co/600x400.png?text=${encodeURIComponent(template.name + ' Art')}`;
+                        }
+                    }
+
                     const editorPreviewStyle: React.CSSProperties = {
-                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.minHeight.includes('px') ? '180px' : undefined ) || '180px',
-                      width: section.customWidth || '100%',
-                      backgroundColor: 'hsl(var(--muted) / 0.5)',
-                      border: '1px dashed hsl(var(--border))',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexDirection: 'column',
-                      textAlign: 'center',
-                      fontSize: '0.75rem', 
-                      color: 'hsl(var(--muted-foreground))',
-                      boxSizing: 'border-box', 
-                      position: 'relative',
-                       ...sectionStyle, // Apply general section styles first
-                       height: section.customHeight || sectionStyle.height || '180px', // Then override height if customHeight is set
-                       width: section.customWidth || sectionStyle.width || '100%', // Then override width if customWidth is set
+                        ...sectionStyle,
+                        height: section.customHeight || sectionStyle.height || '180px',
+                        width: section.customWidth || sectionStyle.width || '100%',
+                        backgroundColor: 'hsl(var(--muted) / 0.5)',
+                        border: '1px dashed hsl(var(--border))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'column',
+                        textAlign: 'center',
+                        fontSize: '0.75rem', 
+                        color: 'hsl(var(--muted-foreground))',
+                        boxSizing: 'border-box', 
                     };
                      delete editorPreviewStyle.flexGrow; 
-                     delete editorPreviewStyle.minWidth;
+                     delete editorPreviewStyle.minWidth; // minWidth is handled differently for text vs images
 
                     if (isEditorPreview) {
                       return (
@@ -233,32 +250,23 @@ export function CardPreview({
                         </div>
                       );
                     } else {
-                      let artworkDisplaySrc = sectionContent;
-                      const isInvalidSrc = !sectionContent || sectionContent.trim() === '' || 
-                                                        (sectionContent.startsWith('{{') && sectionContent.endsWith('}}')) ||
-                                                        (!sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:'));
-                      
-                      if (isInvalidSrc) {
-                        artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`;
-                      }
-                    
                       const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
                       const imageContainerStyle: React.CSSProperties = {
-                          position: 'relative', 
+                          position: 'relative', // Crucial for NextImage layout="fill"
                           height: section.customHeight || '100%', 
                           width: section.customWidth || '100%',  
                           overflow: 'hidden',
-                          ...sectionStyle, 
+                          ...sectionStyle, // Apply general section styles (like flexGrow)
                       };
-                      delete imageContainerStyle.flexGrow;
-                      delete imageContainerStyle.flexShrink;
-                      delete imageContainerStyle.flexBasis;
-                      delete imageContainerStyle.minWidth;
+                       // Remove potentially conflicting styles from general sectionStyle if customHeight/Width are set
+                      if(section.customHeight) delete imageContainerStyle.minHeight;
+                      if(section.customWidth && !(section.flexGrow && section.flexGrow > 0)) delete imageContainerStyle.minWidth;
+
 
                       return (
                         <div
                           key={section.id}
-                          className={cn("relative", sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')}
+                          className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')} // class for flexGrow on container
                           style={imageContainerStyle}
                           onClick={handlePreviewSectionClick}
                           data-section-id={section.id}
@@ -280,7 +288,7 @@ export function CardPreview({
                     return (
                         <div
                           key={section.id}
-                          className={cn("tcg-section-divider w-full", sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')} 
+                          className={cn("tcg-section-divider w-full", sectionClasses, (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '')} 
                           style={{...sectionStyle, height: section.customHeight || '1px', backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))'}}
                           onClick={handlePreviewSectionClick}
                           data-section-id={section.id}
@@ -300,7 +308,7 @@ export function CardPreview({
                 return (
                   <Tag
                     key={section.id}
-                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? '' : 'shrink-0', (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '', section.customHeight ? '' : ((section.minHeight && section.minHeight !=='_auto_') ? section.minHeight : ''))}
+                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? '' : 'shrink-0', (section.minHeight && section.minHeight !=='_auto_') ? section.minHeight : '', section.customHeight ? '' : ((section.minHeight && section.minHeight !=='_auto_') ? section.minHeight : ''))}
                     style={sectionStyle}
                     onClick={handlePreviewSectionClick}
                     data-section-id={section.id}
