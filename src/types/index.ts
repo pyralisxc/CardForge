@@ -24,7 +24,7 @@ export interface CardSection {
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
   padding?: string;
-  borderColor?: string;
+  borderColor?: string; // This was the name before defaultSectionBorderColor
   borderWidth?: string;
   minHeight?: string;
   flexGrow?: number;
@@ -39,23 +39,25 @@ export interface CardRow {
   customHeight?: string;
 }
 
-export type CardBorderStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
+// CardBorderStyle type is removed as it was part of the overhaul
+// export type CardBorderStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
   aspectRatio: string;
-  defaultSectionBorderColor?: string; // Renamed from borderColor
+  legacyFrameColor?: string; // Reverted state included this
+  borderColor?: string; // Reverted state: general border color for sections/fallback
   baseBackgroundColor?: string;
   baseTextColor?: string;
   frameStyle?: string;
   rows: CardRow[];
 
-  // New overall card border properties
-  cardBorderColor?: string;
-  cardBorderWidth?: string; // e.g., "4px"
-  cardBorderStyle?: CardBorderStyle;
-  cardBorderRadius?: string; // e.g., "8px", "0.5rem"
+  // The following were added in the overhaul, so they are removed:
+  // cardBorderColor?: string;
+  // cardBorderWidth?: string;
+  // cardBorderStyle?: CardBorderStyle;
+  // cardBorderRadius?: string;
 }
 
 export interface CardData {

@@ -45,7 +45,8 @@ export function CardPreview({
     height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`),
     boxSizing: 'border-box',
   };
-
+  
+  // Apply base colors only for 'standard' or 'custom' frames
   if (template.frameStyle === 'standard' || template.frameStyle === 'custom') {
     if (template.baseBackgroundColor) {
       cardContainerStyle.backgroundColor = template.baseBackgroundColor;
@@ -54,17 +55,7 @@ export function CardPreview({
       cardContainerStyle.color = template.baseTextColor;
     }
   }
-  
-  if (template.cardBorderColor) cardContainerStyle.borderColor = template.cardBorderColor;
-  if (template.cardBorderWidth) cardContainerStyle.borderWidth = template.cardBorderWidth;
-  if (template.cardBorderStyle && template.cardBorderStyle !== 'none') {
-    cardContainerStyle.borderStyle = template.cardBorderStyle;
-  } else if (template.cardBorderStyle === 'none') {
-    // cardContainerStyle.borderStyle = 'none'; // This can be problematic if width is still set
-    cardContainerStyle.borderWidth = '0'; // Better to set width to 0 for no border
-  }
-  if (template.cardBorderRadius) cardContainerStyle.borderRadius = template.cardBorderRadius;
-
+  // Note: Other frame styles ('classic-gold', etc.) will have their background/text colors defined by CSS.
 
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
@@ -89,10 +80,10 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
-      return false; // Never hide sections in editor preview
+      return false; 
     }
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false; // Artwork and Dividers have their own visibility logic
+      if (section.type === 'Artwork' || section.type === 'Divider') return false; 
       return processedContent.trim() === '';
     }
     return false;
@@ -126,14 +117,22 @@ export function CardPreview({
           };
           
           const allColumnsInRowHidden = row.columns.every(col => {
-             const colContent = isEditorPreview ? col.contentPlaceholder : replacePlaceholdersLocal(col.contentPlaceholder, data, true);
-             return shouldHideSection(col, colContent);
+             let colContentForHidingCheck: string;
+             if (isEditorPreview && col.type !== 'Artwork' && col.type !== 'Divider') {
+                colContentForHidingCheck = col.contentPlaceholder;
+             } else if (col.type === 'Artwork') {
+                colContentForHidingCheck = "artwork_placeholder"; // Artwork is never "empty" for hiding
+             } else if (col.type === 'Divider') {
+                colContentForHidingCheck = "divider_placeholder"; // Dividers are never "empty"
+             } else {
+                colContentForHidingCheck = replacePlaceholdersLocal(col.contentPlaceholder, data, true);
+             }
+             return shouldHideSection(col, colContentForHidingCheck);
           });
 
           if (allColumnsInRowHidden && hideEmptySections && !isEditorPreview) {
             return null;
           }
-
 
           let rowEffectiveHeight: string | undefined = undefined;
           if (row.customHeight && !isPrintMode) {
@@ -142,7 +141,7 @@ export function CardPreview({
               if (!isNaN(percentageValue) && isFinite(percentageValue)) {
                 rowEffectiveHeight = `${cardPixelHeight * (percentageValue / 100)}px`;
               }
-            } else if (row.customHeight !== 'auto' && row.customHeight.trim() !== '') {
+            } else if (row.customHeight.trim() !== '' && row.customHeight !== 'auto') {
               rowEffectiveHeight = row.customHeight;
             }
           }
@@ -151,14 +150,14 @@ export function CardPreview({
             display: 'flex',
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
-            flexShrink: 0, // Important for rows to maintain their height
+            flexShrink: 0,
           };
 
           return (
             <div
               key={row.id}
               className={cn(
-                "flex",
+                "flex w-full", // Ensure rows take full width
                 isEditorPreview && onRowClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-blue-500/70' : ''
               )}
               style={rowStyle}
@@ -168,21 +167,18 @@ export function CardPreview({
               {row.columns.map((section, sectionIndex) => {
                 
                 let processedContentForDisplay: string;
-
                 if (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider') {
-                  // For the editor preview of text sections, directly use the contentPlaceholder string
                   processedContentForDisplay = section.contentPlaceholder;
-                } else if (!isEditorPreview) {
-                  // For actual card rendering, replace placeholders with real data
+                } else if (isEditorPreview && (section.type === 'Artwork' || section.type === 'Divider')) {
+                  processedContentForDisplay = section.contentPlaceholder; // For artwork editor placeholder text
+                }
+                 else {
                   processedContentForDisplay = replacePlaceholdersLocal(section.contentPlaceholder, data, true);
-                } else {
-                  // For Artwork/Divider in editor preview, or if somehow reached here
-                  processedContentForDisplay = section.contentPlaceholder; 
                 }
                 
-                // For hiding check, use the same logic as display for consistency in editor mode
-                const contentForHidingCheck = isEditorPreview ? section.contentPlaceholder : processedContentForDisplay;
-
+                const contentForHidingCheck = (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider') 
+                                              ? section.contentPlaceholder 
+                                              : processedContentForDisplay;
 
                 if (shouldHideSection(section, contentForHidingCheck) && !isEditorPreview) {
                   return null;
@@ -199,7 +195,11 @@ export function CardPreview({
                   flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto',
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,
-                  overflowWrap: 'break-word', 
+                  borderColor: section.borderColor || template.borderColor || undefined, // Reverted to template.borderColor
+                  // Explicit text wrapping for all text sections
+                  ...(section.type !== 'Artwork' && section.type !== 'Divider' && {
+                      overflowWrap: 'break-word',
+                  }),
                 };
                 
                 if (section.flexGrow && section.flexGrow > 0) {
@@ -208,14 +208,6 @@ export function CardPreview({
                     if (section.type !== 'Artwork') { 
                         sectionStyle.overflowY = 'auto';
                     }
-                }
-
-                if (section.borderColor) {
-                  sectionStyle.borderColor = section.borderColor;
-                } else if (section.borderWidth && section.borderWidth !== '_none_' && template.defaultSectionBorderColor) {
-                  sectionStyle.borderColor = template.defaultSectionBorderColor;
-                } else if (section.borderWidth && section.borderWidth !== '_none_') {
-                  sectionStyle.borderColor = 'hsl(var(--border))'; 
                 }
                 
                 let sectionBorderClass = '';
@@ -231,7 +223,7 @@ export function CardPreview({
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
-                  (section.minHeight && section.minHeight !== '_auto_') ? section.minHeight : '',
+                  section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '',
                   sectionBorderClass,
                   (section.type !== 'Artwork' && section.type !== 'Divider') ? 'whitespace-pre-wrap break-words' : '',
                   `tcg-section-${section.type.toLowerCase()}`,
@@ -265,12 +257,12 @@ export function CardPreview({
                     return (
                       <div
                         key={section.id}
-                        className={cn(sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')}
+                        className={cn(sectionClasses)}
                         style={editorArtStyle}
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
                       >
-                        <div>Size: {editorArtStyle.width} x {editorArtStyle.height}</div>
+                        <div>Size: {section.customWidth || 'auto'} x {section.customHeight || 'auto'}</div>
                       </div>
                     );
                   } else { 
@@ -291,8 +283,8 @@ export function CardPreview({
                         width: section.customWidth || '100%',   
                         overflow: 'hidden', 
                     };
-                    if (section.customHeight) delete imageContainerStyle.minHeight;
-                    if (section.customWidth) delete imageContainerStyle.minWidth;
+                    if (section.customHeight) delete imageContainerStyle.minHeight; // Prevent conflict with direct height
+                    if (section.customWidth) delete imageContainerStyle.minWidth;  // Prevent conflict with direct width
 
 
                     return (
@@ -320,7 +312,7 @@ export function CardPreview({
                   const dividerStyle: React.CSSProperties = {
                     ...sectionStyle,
                      height: section.customHeight || '1px',
-                     backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.defaultSectionBorderColor || 'hsl(var(--border))',
+                     backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))', // Reverted
                      width: section.customWidth || 'auto', 
                      flexGrow: section.flexGrow || 0, 
                      margin: section.padding?.includes('m') ? undefined : '0.25rem 0.5rem', 
@@ -369,5 +361,3 @@ export function CardPreview({
     </div>
   );
 }
-
-    

@@ -1,5 +1,5 @@
 
-import type { PaperSize, TCGCardTemplate, CardSection, CardSectionType, CardRow, CardBorderStyle } from '@/types';
+import type { PaperSize, TCGCardTemplate, CardSection, CardSectionType, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
 
 export const PAPER_SIZES: PaperSize[] = [
@@ -109,17 +109,11 @@ export const FRAME_STYLES: Array<{ label: string; value: string }> = [
   { label: 'Arcane Purple', value: 'arcane-purple' },
 ];
 
-export const CARD_BORDER_STYLES: Array<{ label: string; value: CardBorderStyle | '_default_'}> = [
-    { label: 'Default (from theme/frame)', value: '_default_'},
-    { label: 'Solid', value: 'solid' },
-    { label: 'Dashed', value: 'dashed' },
-    { label: 'Dotted', value: 'dotted' },
-    { label: 'Double', value: 'double' },
-    { label: 'None', value: 'none' },
-];
+// CARD_BORDER_STYLES is removed as it was part of the overhaul
+// export const CARD_BORDER_STYLES: Array<{ label: string; value: CardBorderStyle | '_default_'}> = [...];
 
 
-export const createDefaultSection = (id: string, type: CardSectionType, overrides?: Partial<CardSection>): CardSection => {
+export const createDefaultSection = (type: CardSectionType, id: string, overrides?: Partial<CardSection>): CardSection => {
   const baseSection: Omit<CardSection, 'type' | 'id' | 'contentPlaceholder'> & { contentPlaceholder: string } = {
     contentPlaceholder: '',
     textColor: '',
@@ -164,34 +158,32 @@ export const createDefaultSection = (id: string, type: CardSectionType, override
       return { ...baseSection, id, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: 'hsl(var(--muted)/0.7)', borderWidth: 'border-t', flexGrow: 0, ...overrides };
     case 'ArtistCredit':
       specificContentPlaceholder = 'Illus. {{artistName:"Artist"}} \u2022 {{rarity:"Common"}}';
-      return { ...baseSection, id, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5', textAlign: 'left', flexGrow: 1, customHeight: 'auto', ...overrides }; // ArtistCredit often grows with flavor text
+      return { ...baseSection, id, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontSize: 'text-xs', padding: 'px-2 pb-1 pt-0.5', textAlign: 'left', flexGrow: 0, customHeight: 'auto', ...overrides }; // ArtistCredit set to flexGrow 0
     case 'CustomText':
       specificContentPlaceholder = '{{customValue:"Custom Text"}}';
       return { ...baseSection, id, type, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-sans', padding: 'p-1', fontSize: 'text-sm', flexGrow: 1, ...overrides };
     case 'Divider':
       return { ...baseSection, id, type, contentPlaceholder: '', minHeight: '_auto_', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', flexGrow: 1, customHeight: '1px', customWidth: 'auto', ...overrides };
     default:
-      const _exhaustiveCheck: never = type;
-      console.warn(`Unhandled section type in createDefaultSection: ${_exhaustiveCheck}`);
+      // const _exhaustiveCheck: never = type; // This line might cause issues if not all types are handled. For safety, remove or ensure all types are handled.
+      console.warn(`Unhandled section type in createDefaultSection: ${type}`);
       return { ...baseSection, id, type, contentPlaceholder: specificContentPlaceholder, fontSize: 'text-sm', ...overrides };
   }
 };
 
 export const createDefaultRow = (id: string, columns: CardSection[] = [], alignItems: CardRow['alignItems'] = 'flex-start', customHeight: string = ''): CardRow => {
     const processedColumns = columns.map(col => {
-        if (!col.id) {
-            // This warning is helpful for development to ensure stable default IDs
-            // console.warn("A column in a default row was created without a hardcoded ID. Please provide a stable ID in DEFAULT_TEMPLATES definition for this column:", col);
-            return { ...col, id: nanoid() }; // Should not happen for DEFAULT_TEMPLATES
+        if (!col.id && id.includes("-v6-id")) { // Only warn for new structure templates if a default section is missing a hardcoded ID
+             console.warn("A column in a default row was created without a hardcoded ID for a V6 template. Please provide a stable ID in DEFAULT_TEMPLATES definition for this column:", col);
         }
-        return col;
+        return { ...col, id: col.id || nanoid() };
     });
 
     return {
       id: id,
       columns: processedColumns,
-      alignItems,
-      customHeight: customHeight || '',
+      alignItems: alignItems,
+      customHeight: customHeight,
     };
   };
 
@@ -204,8 +196,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Standard Creature',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('sfc-row1-namecost-v6-id', [
         createDefaultSection('CardName', 'sfc-sec1-name-v6-id', { flexGrow: 1, textAlign: 'left' }),
@@ -226,8 +217,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Sorcery',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('sorc-r1-namecost-v1-id', [
         createDefaultSection('CardName', 'sorc-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Arcane Blast"}}' }),
@@ -245,8 +235,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Instant',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('inst-r1-namecost-v1-id', [
         createDefaultSection('CardName', 'inst-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Counterspell"}}' }),
@@ -264,8 +253,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Land',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('land-r1-name-v1-id', [
         createDefaultSection('CardName', 'land-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Mystic Sanctuary"}}' }),
@@ -283,8 +271,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Artifact',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('artf-r1-namecost-v1-id', [
         createDefaultSection('CardName', 'artf-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Sol Ring"}}' }),
@@ -302,8 +289,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Enchantment',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('ench-r1-namecost-v1-id', [
         createDefaultSection('CardName', 'ench-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Rhystic Study"}}' }),
@@ -321,8 +307,7 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     name: 'MTG - Planeswalker (Basic)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('plns-r1-namecost-v1-id', [
         createDefaultSection('CardName', 'plns-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Jace, Mind Sculptor"}}' }),
@@ -355,9 +340,8 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     id: 'bcc-v6-stable-id',
     name: 'Basic Custom Card (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
-    frameStyle: 'minimal-dark',
-    baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
-    cardBorderColor: '', cardBorderWidth: '', cardBorderStyle: undefined, cardBorderRadius: '',
+    frameStyle: 'minimal-dark', // Example of a different frame
+    legacyFrameColor: '', borderColor: '', baseBackgroundColor: '', baseTextColor: '',
     rows: [
       createDefaultRow('bcc-row1-name-v6-id', [createDefaultSection('CardName', 'bcc-sec1-name-v6-id')]),
       createDefaultRow('bcc-row2-art-v6-id', [createDefaultSection('Artwork', 'bcc-sec2-art-v6-id', {customHeight: '120px'})]),
@@ -396,4 +380,3 @@ export const TCG_FIELD_DEFINITIONS: { key: string; label: string; type?: 'input'
   { key: 'loyaltyCost4', label: '{{loyaltyCost4}}', type: 'input', example: ''},
   { key: 'abilityText4', label: '{{abilityText4}}', type: 'textarea', example: ''},
 ];
-
