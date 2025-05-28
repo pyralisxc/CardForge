@@ -79,11 +79,18 @@ export default function CardForgePage() {
         } else {
           // Attempt to migrate very old 'sections' based templates
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-          newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
-            ...row,
-            id: row.id || nanoid(),
-            columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()}))
-          }));
+          if (defaultTemplateForMigration && defaultTemplateForMigration.rows) {
+            newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
+              ...row,
+              id: row.id || nanoid(),
+              columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()}))
+            }));
+          } else {
+             // Failsafe if default template is somehow malformed
+            newT.rows = [
+              { id: nanoid(), columns: [{ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{default}}' }], alignItems: 'flex-start' }
+            ];
+          }
            // @ts-expect-error: remove old sections if migrating
           if (newT.sections) delete newT.sections;
         }
@@ -236,16 +243,22 @@ export default function CardForgePage() {
   };
 
   const handleGenerateRandomCard = async () => {
+    if (templates.length === 0) {
+      toast({ title: "No Templates", description: "Please create a template first before generating a random card.", variant: "default" });
+      return;
+    }
+
     let templateForRandom: TCGCardTemplate | undefined;
     if (singleCardGeneratorSelectedTemplateId) {
       templateForRandom = templates.find(t => t.id === singleCardGeneratorSelectedTemplateId);
     }
     if (!templateForRandom && templates.length > 0) {
-      templateForRandom = templates[0];
+      templateForRandom = templates[0]; // Fallback to the first template
     }
 
     if (!templateForRandom) {
-      toast({ title: "Template Needed", description: "Please create or select a template first to generate a random card.", variant: "destructive" });
+      // This case should ideally not be reached if templates.length > 0, but as a safeguard:
+      toast({ title: "Template Needed", description: "Could not find a suitable template for random card generation.", variant: "destructive" });
       return;
     }
 
@@ -285,7 +298,6 @@ export default function CardForgePage() {
         if (pKeyLower.includes('name')) cardData[pKey] = parsedName;
         else if (pKeyLower.includes('rules') || pKeyLower.includes('text') || pKeyLower.includes('effect') && !pKeyLower.includes('flavor')) cardData[pKey] = parsedRules;
         else if (pKeyLower.includes('flavor')) cardData[pKey] = parsedFlavor;
-        // Update artwork placeholder with the generated name
         else if (pKeyLower.includes('art') && (pKeyLower.includes('url') || pKeyLower.includes('image'))) cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(parsedName.substring(0,20))}`;
         else if (pKeyLower.includes('cost')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
         else if (pKeyLower.includes('power') || pKeyLower.includes('attack')) cardData[pKey] = `${Math.floor(Math.random() * 5) + 1}`;
@@ -349,7 +361,7 @@ export default function CardForgePage() {
             </Sheet>
           </div>
 
-          <TabsList className="hidden md:grid w-full md:grid-cols-3 mb-6 no-print">
+          <TabsList className="hidden md:grid w-full grid-cols-1 md:grid-cols-3 mb-6 no-print">
             {TABS_CONFIG.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
                 <tab.icon className="h-4 w-4" /> {tab.label}
@@ -470,4 +482,5 @@ export default function CardForgePage() {
       </footer>
     </div>
   );
-}
+
+    
