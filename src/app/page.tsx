@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -19,12 +18,12 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { PackageOpen, LayoutDashboard, Wand2, Trash2, FolderDown, FolderUp, Cog, Menu as MenuIcon, EyeOff, ScrollText } from 'lucide-react';
+import { PackageOpen, LayoutDashboard, Wand2, Trash2, FolderDown, FolderUp, Cog, Menu as MenuIcon, EyeOff, ScrollText, FilePlus2, Save } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, AbilityContextSet } from '@/types';
+import { DEFAULT_TEMPLATES, PAPER_SIZES, createDefaultSection } from '@/lib/constants';
+import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, AbilityContextSet, CardSectionType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 const DEFAULT_ABILITY_CONTEXT_SETS: AbilityContextSet[] = [
@@ -45,9 +44,10 @@ const DEFAULT_ABILITY_CONTEXT_SETS: AbilityContextSet[] = [
   }
 ];
 
+const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV6';
 
 export default function CardForgePage() {
-  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>('cardForgeTCGTemplatesV6', DEFAULT_TEMPLATES);
+  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, DEFAULT_TEMPLATES);
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
 
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
@@ -65,7 +65,7 @@ export default function CardForgePage() {
 
   const [abilityContextSets, setAbilityContextSets] = useLocalStorage<AbilityContextSet[]>(
     'cardForgeAbilityContextsV1', 
-    [] // Start with empty, then seed with useEffect if needed
+    []
   );
 
 
@@ -76,7 +76,6 @@ export default function CardForgePage() {
     { value: "ai", label: "AI Helper", icon: Wand2 },
   ];
 
-  // Seed default ability context sets if none are found in localStorage or if it's an empty array
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedContextsRaw = window.localStorage.getItem('cardForgeAbilityContextsV1');
@@ -94,72 +93,136 @@ export default function CardForgePage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+  }, []);
 
 
+  // Effect to migrate and validate templates from localStorage
   useEffect(() => {
     setTemplates(prevTemplates => {
+      if (!prevTemplates || prevTemplates.length === 0) {
+        // If localStorage was empty or parsing failed, initialize with fresh defaults
+        return DEFAULT_TEMPLATES.map(t => JSON.parse(JSON.stringify(t))); // Deep clone defaults
+      }
       return prevTemplates.map(t => {
-        const newT = {...t}; 
-        newT.id = newT.id || nanoid(); 
+        // Ensure template itself has an ID
+        const newT: TCGCardTemplate = { ...t, id: t.id || nanoid() };
 
-        if (newT.rows && Array.isArray(newT.rows)) {
-          newT.rows = newT.rows.map(r => {
-            const newR = {...r}; 
-            newR.id = r.id || nanoid(); 
-            if (newR.columns && Array.isArray(newR.columns)) {
-              newR.columns = newR.columns.map(c => {
-                const newC = {...c}; 
-                newC.id = c.id || nanoid(); 
-                return newC;
-              });
-            } else {
-              newR.columns = []; 
-            }
-            newR.customHeight = r.customHeight || ''; 
-            return newR;
-          });
-        } else {
-          // Basic migration for old templates that might have `sections` instead of `rows`
-          // or completely missing row structure.
-          let sectionsToConvert: CardSection[] = [];
-          if ((t as any).sections && Array.isArray((t as any).sections)) {
-            sectionsToConvert = (t as any).sections;
+        // If rows are missing or not an array, attempt to find a matching preset by name
+        // and use its structure. This is a strong reset for malformed top-level structures.
+        if (!Array.isArray(newT.rows) || newT.rows.length === 0) {
+          const preset = DEFAULT_TEMPLATES.find(dt => dt.name === newT.name);
+          if (preset && preset.rows) {
+            console.warn(`Template "${newT.name}" (ID: ${newT.id}) was missing rows. Initializing with preset structure.`);
+            newT.rows = JSON.parse(JSON.stringify(preset.rows)); // Deep clone preset rows
+            // Also copy other key properties from the preset if missing on the loaded template
+            newT.aspectRatio = newT.aspectRatio || preset.aspectRatio;
+            newT.frameStyle = newT.frameStyle || preset.frameStyle;
+            newT.baseBackgroundColor = newT.baseBackgroundColor || preset.baseBackgroundColor;
+            newT.baseTextColor = newT.baseTextColor || preset.baseTextColor;
+            newT.defaultSectionBorderColor = newT.defaultSectionBorderColor || preset.defaultSectionBorderColor;
+            newT.cardBorderColor = newT.cardBorderColor || preset.cardBorderColor;
+            newT.cardBorderWidth = newT.cardBorderWidth || preset.cardBorderWidth;
+            newT.cardBorderStyle = newT.cardBorderStyle || preset.cardBorderStyle;
+            newT.cardBorderRadius = newT.cardBorderRadius || preset.cardBorderRadius;
           } else {
-            // If no rows and no sections, create a very basic structure
-            const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-             if (defaultTemplateForMigration && defaultTemplateForMigration.rows) {
-                newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
-                ...row,
-                id: row.id || nanoid(), // Ensure IDs for preset structure
-                columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()})),
-                customHeight: row.customHeight || ''
-                }));
-             } else { // Absolute fallback
-                sectionsToConvert.push({ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{defaultText}}'});
-             }
-          }
-          
-          if (sectionsToConvert.length > 0 && !newT.rows) { // Only convert if rows weren't set by preset fallback
-            newT.rows = sectionsToConvert.map(section => ({
+            // Absolute fallback if no preset matches: create a single default row/section
+            console.warn(`Template "${newT.name}" (ID: ${newT.id}) was missing rows and no matching preset found. Creating a default row.`);
+            newT.rows = [
+              {
                 id: nanoid(),
-                columns: [{ ...section, id: section.id || nanoid() }],
+                columns: [createDefaultSection('CustomText', nanoid(), { contentPlaceholder: '{{defaultText:"Edit me"}}' })],
                 alignItems: 'flex-start',
                 customHeight: ''
-            }));
+              }
+            ];
           }
-          delete (newT as any).sections; // Remove old sections array if it existed
         }
-        newT.aspectRatio = newT.aspectRatio || "63:88";
-        newT.frameStyle = newT.frameStyle || 'standard';
-        newT.baseBackgroundColor = newT.baseBackgroundColor || '';
-        newT.baseTextColor = newT.baseTextColor || '';
-        newT.borderColor = newT.borderColor || '';
+
+        // Ensure all rows and columns within rows have IDs and valid contentPlaceholders
+        newT.rows = newT.rows.map((r: any) => {
+          const currentRowId = r.id || nanoid();
+          const newR: CardRow = {
+            ...r,
+            id: currentRowId,
+            alignItems: r.alignItems || 'flex-start',
+            customHeight: r.customHeight || '',
+            columns: (r.columns || []).map((c: any) => {
+              const currentColumnId = c.id || nanoid();
+              const columnType = c.type as CardSectionType | undefined;
+              let currentContentPlaceholder = c.contentPlaceholder;
+
+              // If type is missing, try to guess or default
+              if (!columnType) {
+                console.warn(`Column (ID: ${currentColumnId}) in template "${newT.name}" is missing a type. Defaulting to CustomText.`);
+                const freshDefaultSection = createDefaultSection('CustomText', currentColumnId);
+                return { ...freshDefaultSection, ...c, id: currentColumnId, type: 'CustomText' }; // Overwrite with fresh default
+              }
+
+              // Heuristic: Check if placeholder looks like an old ID-based one or is empty/undefined
+              const placeholderLooksLikeOldId = typeof currentContentPlaceholder === 'string' &&
+                                              currentContentPlaceholder.startsWith(`{{${currentColumnId}`) &&
+                                              currentContentPlaceholder.endsWith('}}');
+              const placeholderIsEffectivelyMissing = currentContentPlaceholder === undefined || 
+                                                    currentContentPlaceholder === null || 
+                                                    (typeof currentContentPlaceholder === 'string' && currentContentPlaceholder.trim() === '');
+
+              let sectionToMerge = { ...c };
+
+              if (placeholderIsEffectivelyMissing || placeholderLooksLikeOldId) {
+                // Attempt to find this exact section in the CURRENT DEFAULT_TEMPLATES by ID
+                let presetColumnDefinition: CardSection | undefined;
+                for (const preset of DEFAULT_TEMPLATES) {
+                  if (preset.id === newT.id || preset.name === newT.name) { // Match template
+                    for (const presetRow of preset.rows) {
+                      if (presetRow.id === currentRowId) { // Match row
+                         presetColumnDefinition = presetRow.columns.find(pc => pc.id === currentColumnId && pc.type === columnType);
+                         if (presetColumnDefinition) break;
+                      }
+                    }
+                  }
+                  if (presetColumnDefinition) break;
+                }
+                
+                if (presetColumnDefinition) {
+                  console.warn(`Correcting contentPlaceholder for section ID ${currentColumnId} in template "${newT.name}" using current default.`);
+                  currentContentPlaceholder = presetColumnDefinition.contentPlaceholder;
+                  // For a full reset of this section to its current default state based on ID match:
+                  // sectionToMerge = { ...presetColumnDefinition, ...c, id: currentColumnId, type: columnType };
+                  // For a less aggressive update (only placeholder and missing base styles):
+                  sectionToMerge.contentPlaceholder = currentContentPlaceholder;
+                  // Ensure core defaults are there if missing from stored 'c'
+                  const coreDefaults = createDefaultSection(columnType, currentColumnId);
+                  sectionToMerge.fontFamily = c.fontFamily || coreDefaults.fontFamily;
+                  sectionToMerge.fontSize = c.fontSize || coreDefaults.fontSize;
+                  sectionToMerge.padding = c.padding || coreDefaults.padding;
+                  // etc. for other key style defaults
+                } else {
+                  // If not found in presets by ID (e.g., custom user section or ID changed), 
+                  // but placeholder still looks bad, reset to generic type default.
+                  console.warn(`ContentPlaceholder for section ID ${currentColumnId} in template "${newT.name}" seemed malformed and no preset match by ID. Resetting to type default.`);
+                  const freshDefaultForType = createDefaultSection(columnType, currentColumnId);
+                  currentContentPlaceholder = freshDefaultForType.contentPlaceholder;
+                   // Apply all defaults from freshDefaultForType, then overlay 'c' but keep corrected placeholder
+                  sectionToMerge = { ...freshDefaultForType, ...c };
+                }
+              }
+              
+              return {
+                ...createDefaultSection(columnType, currentColumnId), // Start with full current defaults for the type
+                ...sectionToMerge, // Apply stored values over them
+                id: currentColumnId, // Ensure ID
+                type: columnType,    // Ensure type
+                contentPlaceholder: currentContentPlaceholder, // Apply corrected placeholder last
+              } as CardSection;
+            })
+          };
+          return newR;
+        });
         return newT;
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []); // Run once on mount
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -263,13 +326,13 @@ export default function CardForgePage() {
             const processedCards = loadedCards.map(card => ({
               ...card,
               uniqueId: card.uniqueId || nanoid(),
-              template: {
+              template: { // Ensure template structure is somewhat valid with IDs
                 ...card.template,
                 id: card.template.id || nanoid(), 
                 rows: (card.template.rows || []).map((r: CardRow) => ({ 
                     ...r,
                     id: r.id || nanoid(),
-                    columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid() })),
+                    columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid(), type: s.type || 'CustomText' })), // Ensure type exists
                     customHeight: r.customHeight || '',
                 }))
               }
@@ -356,16 +419,14 @@ export default function CardForgePage() {
           <TabsContent value="generator">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1 space-y-6">
-                <SingleCardGenerator
-                  templates={templates}
-                  onSingleCardAdded={handleSingleCardAdded}
-                  onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
-                  abilityContextSets={abilityContextSets}
-                />
+                 <SingleCardGenerator
+                    templates={templates}
+                    onSingleCardAdded={handleSingleCardAdded}
+                    onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
+                 />
                 <BulkGenerator 
                   templates={templates} 
                   onCardsGenerated={handleBulkCardsGenerated} 
-                  abilityContextSets={abilityContextSets}
                 />
 
                 <Card>
@@ -462,5 +523,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-
-    
