@@ -65,7 +65,7 @@ export default function CardForgePage() {
 
   const [abilityContextSets, setAbilityContextSets] = useLocalStorage<AbilityContextSet[]>(
     'cardForgeAbilityContextsV1', 
-    DEFAULT_ABILITY_CONTEXT_SETS
+    [] // Start with empty, then seed with useEffect if needed
   );
 
 
@@ -75,6 +75,26 @@ export default function CardForgePage() {
     { value: "contexts", label: "Context Sets", icon: ScrollText },
     { value: "ai", label: "AI Helper", icon: Wand2 },
   ];
+
+  // Seed default ability context sets if none are found in localStorage or if it's an empty array
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedContextsRaw = window.localStorage.getItem('cardForgeAbilityContextsV1');
+      let storedContextsParsed: AbilityContextSet[] = [];
+      if (storedContextsRaw) {
+        try {
+          storedContextsParsed = JSON.parse(storedContextsRaw);
+        } catch (e) {
+          console.error("Error parsing ability context sets from localStorage", e);
+        }
+      }
+
+      if (storedContextsParsed.length === 0 && DEFAULT_ABILITY_CONTEXT_SETS.length > 0) {
+        setAbilityContextSets(DEFAULT_ABILITY_CONTEXT_SETS);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
 
 
   useEffect(() => {
@@ -100,19 +120,35 @@ export default function CardForgePage() {
             return newR;
           });
         } else {
-          const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
-          if (defaultTemplateForMigration && defaultTemplateForMigration.rows) {
-            newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
-              ...row,
-              id: row.id || nanoid(),
-              columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()})),
-              customHeight: row.customHeight || ''
-            }));
+          // Basic migration for old templates that might have `sections` instead of `rows`
+          // or completely missing row structure.
+          let sectionsToConvert: CardSection[] = [];
+          if ((t as any).sections && Array.isArray((t as any).sections)) {
+            sectionsToConvert = (t as any).sections;
           } else {
-            newT.rows = [
-              { id: nanoid(), columns: [{ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{default}}' }], alignItems: 'flex-start', customHeight: '' }
-            ];
+            // If no rows and no sections, create a very basic structure
+            const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
+             if (defaultTemplateForMigration && defaultTemplateForMigration.rows) {
+                newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
+                ...row,
+                id: row.id || nanoid(), // Ensure IDs for preset structure
+                columns: (row.columns || []).map((col: CardSection) => ({...col, id: col.id || nanoid()})),
+                customHeight: row.customHeight || ''
+                }));
+             } else { // Absolute fallback
+                sectionsToConvert.push({ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{defaultText}}'});
+             }
           }
+          
+          if (sectionsToConvert.length > 0 && !newT.rows) { // Only convert if rows weren't set by preset fallback
+            newT.rows = sectionsToConvert.map(section => ({
+                id: nanoid(),
+                columns: [{ ...section, id: section.id || nanoid() }],
+                alignItems: 'flex-start',
+                customHeight: ''
+            }));
+          }
+          delete (newT as any).sections; // Remove old sections array if it existed
         }
         newT.aspectRatio = newT.aspectRatio || "63:88";
         newT.frameStyle = newT.frameStyle || 'standard';
@@ -427,3 +463,4 @@ export default function CardForgePage() {
   );
 }
 
+    
