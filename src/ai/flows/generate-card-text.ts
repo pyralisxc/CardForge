@@ -79,11 +79,13 @@ const generateCardTextFlow = ai.defineFlow(
 
     const {output} = await ai.generate({ 
       prompt: dynamicPrompt,
-      config: {
-        temperature: 0.7,
-      }
+      // Removed config to see if it resolves the internal JSON5 error
+      // config: {
+      //   temperature: 0.7,
+      // }
     });
     
     return { cardText: output?.text || "No text generated." };
   }
 );
+
