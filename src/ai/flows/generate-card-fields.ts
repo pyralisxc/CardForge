@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview Generates thematic string values for a list of placeholder keys based on a given theme and optional context.
- * For artwork placeholders, it generates a descriptive phrase suitable for image generation.
+ * For artwork placeholders, it now explicitly sets a placeholder.co URL.
  *
  * - generateCardFields - A function that triggers the field generation flow.
  * - GenerateCardFieldsInput - The input type for the generateCardFields function.
@@ -27,7 +27,7 @@ const GenerateCardFieldsInputSchema = z.object({
 export type GenerateCardFieldsInput = z.infer<typeof GenerateCardFieldsInputSchema>;
 
 const GenerateCardFieldsOutputSchema = z.object({
-    generatedData: z.record(z.string()).describe("An object where keys are the placeholder keys from the input, and values are the AI-generated strings (or a descriptive phrase for artwork) for those fields.")
+    generatedData: z.record(z.string()).describe("An object where keys are the placeholder keys from the input, and values are the AI-generated strings (or a placeholder.co URL for artwork) for those fields.")
 });
 export type GenerateCardFieldsOutput = z.infer<typeof GenerateCardFieldsOutputSchema>;
 
@@ -62,16 +62,16 @@ Consider the likely meaning of each placeholder key when generating its value. F
 - 'rulesText', 'effectText', 'abilities', 'description': Should be a game mechanic or ability description.
 - 'flavorText': Should be a short, evocative sentence (1-2 sentences).
 - 'power', 'attack', 'health', 'toughness', 'defense', 'points', 'level', 'attackValue', 'defenseValue': Should be numbers or simple stats (e.g., "3", "X", "Level 4").
-- 'artworkUrl', 'art', 'image', 'cardArt': For these keys, provide a DETAILED DESCRIPTIVE PHRASE suitable for an image generation AI (e.g., "fiery dragon with scales shimmering red and gold, attacking a dark stone castle keep during a stormy night, lightning in background", "mystic elf enchantress in an ancient, glowing forest, holding a crystal staff, with ethereal wisps of light around her"). Do NOT generate an actual URL or Data URI.
 - 'cardType', 'type', 'subTypes': Should be appropriate TCG types (e.g., "Creature - Goblin Warrior", "Spell - Instant", "Artifact - Equipment").
 - 'rarity': Should be a common TCG rarity (e.g., "Common", "Uncommon", "Rare", "Mythic").
 - 'artistName': Should be a thematic artist name.
+- For any keys related to artwork (e.g., 'artworkUrl', 'art', 'image', 'cardArt'): DO NOT generate a description or any text value. Leave the value empty or return "IGNORE".
 
 Return your response as a single, valid JSON object where the keys are the placeholder names from the list above, and the values are your generated strings for each. For example:
 {
   "cardName": "Generated Name",
   "manaCost": "Generated Cost",
-  "artworkUrl": "Detailed description for an image of Generated Name",
+  "artworkUrl": "", 
   ... and so on for all provided keys
 }`;
 
@@ -85,26 +85,22 @@ Return your response as a single, valid JSON object where the keys are the place
     let generatedData: Record<string, string> = {};
 
     const fallbackPlaceholderValues = () => {
-      console.warn(`Using fallback placeholder values for theme "${theme}".`);
+      console.warn(`AI text generation failed or returned empty. Using fallback placeholder values for theme "${theme}".`);
       placeholderKeys.forEach(key => {
         const keyLower = key.toLowerCase();
         if (keyLower.includes("name")) generatedData[key] = theme;
         else if (keyLower.includes("rules") || (keyLower.includes("text") && !keyLower.includes("flavor")) || keyLower.includes("effect") || keyLower.includes("abilit")) generatedData[key] = `Effect related to ${theme}.`;
         else if (keyLower.includes("flavor")) generatedData[key] = `A ${theme} of great renown.`;
-        else if (keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) {
-            generatedData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme)}`;
-        }
         else generatedData[key] = "AI suggestion..."; 
       });
     };
 
     if (!textOutput || !textOutput.text) {
-      console.warn(`AI did not return any text output for theme "${theme}".`);
+      console.warn(`AI did not return any text output for theme "${theme}". Applying fallbacks.`);
       fallbackPlaceholderValues();
     } else {
       try {
         let jsonString = textOutput.text;
-        // Remove markdown code fences if present
         if (jsonString.startsWith("```json")) {
           jsonString = jsonString.substring(7);
           if (jsonString.endsWith("```")) {
@@ -116,41 +112,36 @@ Return your response as a single, valid JSON object where the keys are the place
         console.log("Parsed JSON from AI text generation:", parsedJson);
 
         placeholderKeys.forEach(key => {
-          if (parsedJson[key] !== undefined) {
+          if (parsedJson[key] !== undefined && String(parsedJson[key]).trim() !== "" && String(parsedJson[key]).toUpperCase() !== "IGNORE") {
             generatedData[key] = String(parsedJson[key]);
           } else {
-            // If AI didn't provide a value for a key, apply a specific fallback.
-            const keyLower = key.toLowerCase();
-            if (keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) {
-              generatedData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent("Art for " + theme)}`;
-              console.log(`AI did not provide value for art key '${key}'. Using placeholder.co.`);
-            } else {
-              generatedData[key] = ""; // Initialize to empty for other missing fields
-              console.log(`AI did not provide value for key '${key}'. Initializing to empty.`);
-            }
+            // Initialize to empty for missing fields from AI, specific fallbacks applied later.
+            generatedData[key] = ""; 
+            console.log(`AI did not provide value for key '${key}' or it was 'IGNORE'. Initializing to empty for now.`);
           }
         });
         
       } catch (e) {
         console.error("Failed to parse AI JSON output for text fields:", textOutput.text, e);
-        fallbackPlaceholderValues();
+        fallbackPlaceholderValues(); // Use broader fallbacks if JSON parsing itself fails
       }
     }
     
-    // Final check to ensure all requested keys have some value.
+    // Ensure all requested keys have some value, applying specific fallbacks for artwork or general ones.
     placeholderKeys.forEach(key => {
-        if (generatedData[key] === undefined || generatedData[key] === "") {
-            const keyLower = key.toLowerCase();
-            if (keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl")) {
-                // This key was an art key but didn't get an AI value or a specific fallback yet.
-                if (!generatedData[key]) { // Check again in case it was set to "" above
-                    generatedData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Art Fallback)")}`;
-                    console.log(`Applied final fallback placeholder image for art key '${key}'.`);
-                }
-            } else {
-                 generatedData[key] = `Missing: ${key}`; 
-                 console.log(`Key '${key}' was missing a value after all steps. Set to "Missing: ${key}".`);
-            }
+        const keyLower = key.toLowerCase();
+        const isArtworkKey = keyLower.includes("art") || keyLower.includes("image") || keyLower.includes("artworkurl");
+
+        if (isArtworkKey) {
+            generatedData[key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(theme + " (Art)")}`;
+            console.log(`Setting artwork key '${key}' to placeholder.co URL.`);
+        } else if (generatedData[key] === undefined || String(generatedData[key]).trim() === "") {
+            // Apply general fallbacks for non-artwork keys if they are still empty.
+            if (keyLower.includes("name")) generatedData[key] = theme;
+            else if (keyLower.includes("rules") || (keyLower.includes("text") && !keyLower.includes("flavor")) || keyLower.includes("effect") || keyLower.includes("abilit")) generatedData[key] = `Default effect for ${theme}.`;
+            else if (keyLower.includes("flavor")) generatedData[key] = `Default flavor text for ${theme}.`;
+            else generatedData[key] = `Missing: ${key}`; 
+            console.log(`Key '${key}' was missing or empty after AI/parsing. Applied default or 'Missing' tag.`);
         }
     });
 
@@ -158,4 +149,3 @@ Return your response as a single, valid JSON object where the keys are the place
     return { generatedData };
   }
 );
-

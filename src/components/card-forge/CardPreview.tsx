@@ -2,7 +2,7 @@
 "use client";
 
 import type { DisplayCard, CardSection, CardData, CardRow } from '@/types';
-import Image from 'next/image';
+import NextImage from 'next/image'; // Renamed to avoid conflict with lucide-react Image
 import { cn } from '@/lib/utils';
 
 interface CardPreviewProps {
@@ -43,9 +43,9 @@ export function CardPreview({
         result = result.replace(searchRegex, String(dataContext[key]));
       }
     }
-
+    // Only remove unmatched placeholders if not in editor preview mode
     if (!isEditorPreview) {
-      result = result.replace(/{{\s*[\w-]+\s*}}/g, '');
+      result = result.replace(/{{\s*[\w-]+(?::\s*"[^"]*")?\s*}}/g, ''); // Remove placeholders with or without defaults
     }
     return result;
   }
@@ -56,14 +56,14 @@ export function CardPreview({
 
 
   const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
-  const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (PREVIEW_WIDTH_PX / aspectW) * aspectH : 390; // Default height if aspect ratio invalid
+  const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (PREVIEW_WIDTH_PX / aspectW) * aspectH : 390; 
 
   const cardContainerStyle: React.CSSProperties = {
-    backgroundColor: template.baseBackgroundColor || undefined,
-    color: template.baseTextColor || undefined,
+    backgroundColor: template.baseBackgroundColor || undefined, // Let CSS handle fallback if undefined
+    color: template.baseTextColor || undefined, // Let CSS handle fallback if undefined
     aspectRatio: (aspectW > 0 && aspectH > 0) ? `${aspectW} / ${aspectH}` : undefined,
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
-    height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`), // Use explicit height if aspect ratio is bad
+    height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`), 
     boxSizing: 'border-box',
   };
   
@@ -84,10 +84,10 @@ export function CardPreview({
     }
   }
 
-
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
       if (section.type === 'Artwork' || section.type === 'Divider') return false;
+       // In editor preview, show if placeholder itself is non-empty, even if it would resolve to empty with no data
       return section.contentPlaceholder?.trim() === ''; 
     }
     if (hideEmptySections) {
@@ -133,22 +133,24 @@ export function CardPreview({
             return null;
           }
           
-          let rowEffectiveHeight: string | undefined = row.customHeight || undefined;
-          if (row.customHeight && row.customHeight.includes('%') && !isPrintMode) {
-            const percentageValue = parseFloat(row.customHeight.replace('%', ''));
-            if (!isNaN(percentageValue) && isFinite(percentageValue) && cardPixelHeight > 0) {
-              rowEffectiveHeight = `${cardPixelHeight * (percentageValue / 100)}px`;
-            } else {
-              console.warn(`Invalid percentage or cardPixelHeight for row height: ${row.customHeight}`);
-              rowEffectiveHeight = undefined; 
+          let rowEffectiveHeight: string | undefined = undefined;
+          if (row.customHeight && !isPrintMode) { // Apply customHeight only if not in print mode (print handles its own sizing)
+            if(row.customHeight.includes('%') && cardPixelHeight > 0){
+                const percentageValue = parseFloat(row.customHeight.replace('%',''));
+                if(!isNaN(percentageValue) && isFinite(percentageValue)){
+                    rowEffectiveHeight = `${cardPixelHeight * (percentageValue / 100)}px`;
+                }
+            } else if (row.customHeight !== 'auto' && row.customHeight.trim() !== '') {
+                rowEffectiveHeight = row.customHeight;
             }
           }
 
+
           const rowStyle: React.CSSProperties = {
-            display: 'flex', // ensures it's a flex container for columns
+            display: 'flex', 
             alignItems: row.alignItems || 'flex-start',
-            height: rowEffectiveHeight,
-            flexShrink: 0, // Prevent rows from shrinking if their content is larger than their calculated height
+            height: rowEffectiveHeight, // May be undefined, letting content dictate height or flexbox stretch
+            flexShrink: 0, 
           };
 
 
@@ -156,7 +158,7 @@ export function CardPreview({
             <div
               key={row.id}
               className={cn(
-                "flex", // Already a flex container from rowStyle, class ensures it's applied
+                "flex", 
                 isEditorPreview && onRowClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-blue-500/70' : ''
               )}
               style={rowStyle}
@@ -166,7 +168,7 @@ export function CardPreview({
               {row.columns.map((section, sectionIndex) => {
                 const sectionContent = replacePlaceholdersLocal(section.contentPlaceholder, data);
 
-                if (shouldHideSection(section, sectionContent)) { 
+                if (shouldHideSection(section, sectionContent) && !isEditorPreview) { // Keep section in editor preview
                     return null;
                 }
                 
@@ -182,8 +184,14 @@ export function CardPreview({
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,  
-                  overflow: 'hidden', // Helps contain content, especially for text
+                  position: 'relative', // Important for next/image fill and potential absolute positioning within section
                 };
+                
+                // Add overflowY for growing text sections
+                if (section.flexGrow && section.flexGrow > 0 && ['RulesText', 'FlavorText', 'ArtistCredit', 'CustomText'].includes(section.type)) {
+                    sectionStyle.overflowY = 'auto';
+                }
+
 
                 if (section.borderColor) {
                   sectionStyle.borderColor = section.borderColor;
@@ -194,7 +202,7 @@ export function CardPreview({
                 }
                 
                 const sectionClasses = cn(
-                  'relative', 
+                  'relative', // Already in style, but good for clarity
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
@@ -215,7 +223,7 @@ export function CardPreview({
 
                 if (section.type === 'Artwork') {
                     const editorPreviewStyle: React.CSSProperties = {
-                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? undefined : '180px'),
+                      height: section.customHeight || (section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? undefined : '180px'), // Prioritize customHeight for editor block
                       width: section.customWidth || '100%',
                       backgroundColor: 'hsl(var(--muted) / 0.5)',
                       border: '1px dashed hsl(var(--border))',
@@ -227,14 +235,13 @@ export function CardPreview({
                       fontSize: '0.75rem', 
                       color: 'hsl(var(--muted-foreground))',
                       boxSizing: 'border-box', 
-                      position: 'relative',
+                      position: 'relative', // Keep relative for editor block too
                        ...sectionStyle, // Apply general section styles
-                       // Explicitly override height and width from sectionStyle if they came from customHeight/Width on the section itself
-                       height: section.customHeight || sectionStyle.height || '180px', // Prioritize section.customHeight
-                       width: section.customWidth || sectionStyle.width || '100%',   // Prioritize section.customWidth
+                       height: section.customHeight || sectionStyle.height || '180px', // Re-assert height from customHeight or resolved style
+                       width: section.customWidth || sectionStyle.width || '100%',   // Re-assert width
                     };
                      delete editorPreviewStyle.flexGrow; 
-                     delete editorPreviewStyle.minWidth;
+                     delete editorPreviewStyle.minWidth; // minWidth not needed for editor placeholder div
 
                     if (isEditorPreview) {
                       return (
@@ -251,11 +258,11 @@ export function CardPreview({
                       );
                     } else {
                       let artworkDisplaySrc = sectionContent;
-                      const looksLikePlaceholderOrInvalid = !sectionContent || sectionContent.trim() === '' || 
+                      const isInvalidSrc = !sectionContent || sectionContent.trim() === '' || 
                                                         (sectionContent.startsWith('{{') && sectionContent.endsWith('}}')) ||
                                                         (!sectionContent.startsWith('http://') && !sectionContent.startsWith('https://') && !sectionContent.startsWith('data:'));
                       
-                      if (looksLikePlaceholderOrInvalid) {
+                      if (isInvalidSrc) {
                         artworkDisplaySrc = `https://placehold.co/600x400.png?text=ART`;
                       }
                     
@@ -264,9 +271,10 @@ export function CardPreview({
                           position: 'relative', 
                           height: section.customHeight || '100%', 
                           width: section.customWidth || '100%',  
-                          overflow: 'hidden',
+                          overflow: 'hidden', // Keep overflow hidden for image container
                           ...sectionStyle, 
                       };
+                      // Remove flex properties if they were part of sectionStyle, as they apply to the container in its row, not the image itself
                       delete imageContainerStyle.flexGrow;
                       delete imageContainerStyle.flexShrink;
                       delete imageContainerStyle.flexBasis;
@@ -276,12 +284,12 @@ export function CardPreview({
                       return (
                         <div
                           key={section.id}
-                          className={cn("relative", sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')}
+                          className={cn("relative", sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'flex-grow' : '')} // container is flex item
                           style={imageContainerStyle}
-                          onClick={handlePreviewSectionClick}
+                          onClick={handlePreviewSectionClick} // click is on container
                           data-section-id={section.id}
                         >
-                          <Image
+                          <NextImage
                             src={artworkDisplaySrc}
                             alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data) || "Card artwork"}
                             layout="fill"
@@ -318,7 +326,7 @@ export function CardPreview({
                 return (
                   <Tag
                     key={section.id}
-                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? 'overflow-y-auto' : 'shrink-0', section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '', section.customHeight ? '' : (section.minHeight && section.minHeight !=='_auto_' ? section.minHeight : ''))}
+                    className={cn(sectionClasses, section.flexGrow && section.flexGrow > 0 ? '' : 'shrink-0', section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '', section.customHeight ? '' : (section.minHeight && section.minHeight !=='_auto_' ? section.minHeight : ''))}
                     style={sectionStyle}
                     onClick={handlePreviewSectionClick}
                     data-section-id={section.id}
@@ -339,6 +347,3 @@ export function CardPreview({
     </div>
   );
 }
-
-
-    
