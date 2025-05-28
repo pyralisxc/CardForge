@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard, CardSection } from '@/types';
+import type { TCGCardTemplate, CardData, DisplayCard, CardSection, AbilityContextSet } from '@/types';
 import { useState, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,9 +18,10 @@ import { extractUniquePlaceholderKeys } from '@/lib/utils';
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
   onCardsGenerated: (cards: DisplayCard[]) => void;
+  abilityContextSets: AbilityContextSet[]; // New prop
 }
 
-export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProps) {
+export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets }: BulkGeneratorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [generationMethod, setGenerationMethod] = useState<'csv' | 'ai'>('csv');
@@ -28,6 +29,8 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
   const [numAiCards, setNumAiCards] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [selectedAbilityContextIdForBulk, setSelectedAbilityContextIdForBulk] = useState<string>(''); // New state
+
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
@@ -87,53 +90,70 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         }
         
         const placeholders = getPlaceholdersFromSelectedTemplate();
-        const primaryTextPlaceholder = placeholders.find(p => p.toLowerCase().includes('rules') || p.toLowerCase().includes('text') || p.toLowerCase().includes('effect')) || placeholders[0] || 'customValue';
-        const namePlaceholder = placeholders.find(p => p.toLowerCase().includes('name')) || 'cardName';
-        const artworkPlaceholder = placeholders.find(p => p.toLowerCase().includes('art') && (p.toLowerCase().includes('url') || p.toLowerCase().includes('image'))) || 'artworkUrl';
+        // Find common placeholder keys (case-insensitive for robustness)
+        const findPlaceholder = (keywords: string[], excludeSubstrings?: string[]): string | undefined => {
+            return placeholders.find(p => {
+                const pLower = p.toLowerCase();
+                const matchesKeyword = keywords.some(kw => pLower.includes(kw));
+                const notExcluded = excludeSubstrings ? !excludeSubstrings.some(ex => pLower.includes(ex)) : true;
+                return matchesKeyword && notExcluded;
+            });
+        };
 
+        const namePlaceholder = findPlaceholder(['name', 'title'], ['artist']) || placeholders[0] || 'cardName';
+        const rulesPlaceholder = findPlaceholder(['rules', 'effect', 'text'], ['flavor']) || placeholders[1] || 'rulesText';
+        const flavorPlaceholder = findPlaceholder(['flavor']);
+        const artworkPlaceholder = findPlaceholder(['art', 'image', 'url'], ['artist']);
+        const costPlaceholder = findPlaceholder(['cost', 'mana']);
+        const typePlaceholder = findPlaceholder(['type', 'kind'], ['sub']);
+        const powerPlaceholder = findPlaceholder(['power', 'atk', 'attack'], ['toughness', 'defense', 'hp', 'health']);
+        const toughnessPlaceholder = findPlaceholder(['toughness', 'def', 'defense', 'hp', 'health'], ['power', 'attack']);
+
+        const selectedContext = abilityContextSets.find(cs => cs.id === selectedAbilityContextIdForBulk);
 
         for (let i = 0; i < numAiCards; i++) {
           const aiResult = await generateCardText({ 
             theme: `A fantasy TCG card with the concept: ${aiTheme}${numAiCards > 1 ? ` (variation ${i+1})` : ''}`,
-            textType: 'FullConceptIdea'
+            textType: 'FullConceptIdea',
+            abilityContext: selectedContext?.description
           });
           
           const cardData: CardData = {};
+          // Initialize all placeholders for the template to empty string
           placeholders.forEach(pKey => {
             cardData[pKey] = ''; 
-            if (pKey === artworkPlaceholder) {
-                cardData[pKey] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme)}`;
-            }
           });
 
+          // Default artwork if placeholder exists
+          if (artworkPlaceholder) {
+            cardData[artworkPlaceholder] = `https://placehold.co/600x400.png?text=${encodeURIComponent(aiTheme + (numAiCards > 1 ? ` ${i+1}` : ''))}`;
+          }
+
+          // Parse AI output (which is expected to be "Card Name: ...\nRules Text: ...\nFlavor Text: ...")
           const lines = aiResult.cardText.split('\\n');
           let parsedName = `${aiTheme}${numAiCards > 1 ? ` #${i+1}` : ''}`;
           let parsedRules = "AI generated text.";
 
           lines.forEach(line => {
-            if (line.toLowerCase().startsWith("card name:")) {
-              parsedName = line.substring("card name:".length).trim();
-            } else if (line.toLowerCase().startsWith("rules text:")) {
-              parsedRules = line.substring("rules text:".length).trim();
-            } else if (line.toLowerCase().startsWith("flavor text:")) {
-              const flavorPlaceholder = placeholders.find(p => p.toLowerCase().includes('flavor'));
-              if (flavorPlaceholder) cardData[flavorPlaceholder] = line.substring("flavor text:".length).trim();
+            const [keyPart, ...valueParts] = line.split(':');
+            const value = valueParts.join(':').trim();
+            if (keyPart.toLowerCase().startsWith("card name")) {
+              parsedName = value;
+            } else if (keyPart.toLowerCase().startsWith("rules text")) {
+              parsedRules = value;
+            } else if (keyPart.toLowerCase().startsWith("flavor text") && flavorPlaceholder) {
+              cardData[flavorPlaceholder] = value;
             }
           });
 
           cardData[namePlaceholder] = parsedName;
-          cardData[primaryTextPlaceholder] = parsedRules;
+          if (rulesPlaceholder) cardData[rulesPlaceholder] = parsedRules;
           
-          const costPlaceholder = placeholders.find(p => p.toLowerCase().includes('cost'));
-          if (costPlaceholder) cardData[costPlaceholder] = 'X';
-          
-          const typePlaceholder = placeholders.find(p => p.toLowerCase().includes('type') && !p.toLowerCase().includes('sub'));
-          if (typePlaceholder) cardData[typePlaceholder] = 'Spell'; 
-          
-          const ptPowerPlaceholder = placeholders.find(p => p.toLowerCase().includes('power') && !p.toLowerCase().includes('toughness'));
-          const ptToughnessPlaceholder = placeholders.find(p => p.toLowerCase().includes('toughness'));
-          if(ptPowerPlaceholder) cardData[ptPowerPlaceholder] = '?';
-          if(ptToughnessPlaceholder) cardData[ptToughnessPlaceholder] = '?';
+          // Fill other common placeholders with generic or random values
+          if (costPlaceholder) cardData[costPlaceholder] = String(Math.floor(Math.random() * 5) + 1); // Random cost 1-5
+          if (typePlaceholder) cardData[typePlaceholder] = ['Creature', 'Spell', 'Enchantment', 'Artifact'][Math.floor(Math.random() * 4)];
+          if (powerPlaceholder) cardData[powerPlaceholder] = String(Math.floor(Math.random() * 5) + 1);
+          if (toughnessPlaceholder) cardData[toughnessPlaceholder] = String(Math.floor(Math.random() * 5) + 1);
 
           generatedCardsData.push(cardData);
         }
@@ -164,7 +184,10 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       <CardContent className="space-y-6">
         <div>
           <Label htmlFor="bulkTemplateSelect">Select Template</Label>
-          <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+          <Select value={selectedTemplateId} onValueChange={(id) => {
+            setSelectedTemplateId(id);
+            setSelectedAbilityContextIdForBulk('');
+          }}>
             <SelectTrigger id="bulkTemplateSelect">
               <SelectValue placeholder="Choose a template" />
             </SelectTrigger>
@@ -190,7 +213,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         {generationMethod === 'csv' && (
           <div>
             <Label htmlFor="bulkData">
-              Card Data (CSV Format - use newline '\n' for line breaks within data, not actual newlines in textarea)
+              Card Data (CSV Format - use '\n' (literal backslash n) for line breaks within a field, not actual newlines in textarea)
             </Label>
             <Textarea
               id="bulkData"
@@ -208,13 +231,27 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           </div>
         )}
 
-        {generationMethod === 'ai' && (
+        {generationMethod === 'ai' && selectedTemplate && (
           <div className="space-y-4">
             <div>
               <Label htmlFor="aiTheme">Card Concept/Theme for AI</Label>
               <Input id="aiTheme" value={aiTheme} onChange={(e) => setAiTheme(e.target.value)} placeholder="e.g., Swift Goblin Scout, Arcane Blast" />
               <p className="text-xs text-muted-foreground mt-1">AI will generate text for name, rules, and flavor. Other fields may get generic values. Artwork is a placeholder.</p>
             </div>
+            {abilityContextSets.length > 0 && (
+               <div>
+                <Label htmlFor="bulkAbilityContextSelect">Optional: AI Context Set</Label>
+                <Select value={selectedAbilityContextIdForBulk} onValueChange={setSelectedAbilityContextIdForBulk}>
+                  <SelectTrigger id="bulkAbilityContextSelect">
+                    <SelectValue placeholder="None (general AI knowledge)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None (general AI knowledge)</SelectItem>
+                    {abilityContextSets.map(cs => <SelectItem key={cs.id} value={cs.id}>{cs.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label htmlFor="numAiCards">Number of Cards (AI)</Label>
               <Input id="numAiCards" type="number" value={numAiCards} onChange={(e) => setNumAiCards(Math.max(1, parseInt(e.target.value,10)))} min="1" />

@@ -36,7 +36,7 @@ export interface CardRow {
   id: string; 
   columns: CardSection[]; 
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline'; 
-  customHeight?: string; // e.g., "100px", "auto"
+  customHeight?: string; // e.g., "100px", "auto", "20%"
 }
 
 export interface TCGCardTemplate {
@@ -64,4 +64,10 @@ export interface DisplayCard {
   template: TCGCardTemplate;
   data: CardData;
   uniqueId: string;
+}
+
+export interface AbilityContextSet {
+  id: string;
+  name: string;
+  description: string;
 }

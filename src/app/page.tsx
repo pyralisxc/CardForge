@@ -11,6 +11,7 @@ import { CardPreview } from '@/components/card-forge/CardPreview';
 import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
 import { PrintButton } from '@/components/card-forge/PrintButton';
+import { AbilityContextManager } from '@/components/card-forge/AbilityContextManager'; // New
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -18,12 +19,12 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { PackageOpen, LayoutDashboard, Wand2, Trash2, FolderDown, FolderUp, Cog, Menu as MenuIcon, EyeOff } from 'lucide-react';
+import { PackageOpen, LayoutDashboard, Wand2, Trash2, FolderDown, FolderUp, Cog, Menu as MenuIcon, EyeOff, ScrollText } from 'lucide-react'; // Added ScrollText
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { DEFAULT_TEMPLATES, PAPER_SIZES } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow } from '@/types';
+import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, AbilityContextSet } from '@/types'; // Added AbilityContextSet
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -44,40 +45,40 @@ export default function CardForgePage() {
   const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const [abilityContextSets, setAbilityContextSets] = useLocalStorage<AbilityContextSet[]>('cardForgeAbilityContextsV1', []);
+
+
   const TABS_CONFIG = [
     { value: "editor", label: "Template Editor", icon: LayoutDashboard },
     { value: "generator", label: "Card Generator", icon: PackageOpen },
+    { value: "contexts", label: "Context Sets", icon: ScrollText }, // New Tab
     { value: "ai", label: "AI Helper", icon: Wand2 },
   ];
 
 
-  // Effect for migrating older templates stored in localStorage and ensuring IDs
   useEffect(() => {
     setTemplates(prevTemplates => {
       return prevTemplates.map(t => {
-        const newT = {...t}; // Shallow copy template
-        newT.id = newT.id || nanoid(); // Ensure template has an ID
+        const newT = {...t}; 
+        newT.id = newT.id || nanoid(); 
 
-        // Ensure rows and columns have IDs
         if (newT.rows && Array.isArray(newT.rows)) {
           newT.rows = newT.rows.map(r => {
-            const newR = {...r}; // Shallow copy row
-            newR.id = newR.id || nanoid(); // Ensure row has an ID
+            const newR = {...r}; 
+            newR.id = newR.id || nanoid(); 
             if (newR.columns && Array.isArray(newR.columns)) {
               newR.columns = newR.columns.map(c => {
-                const newC = {...c}; // Shallow copy column
-                newC.id = newC.id || nanoid(); // Ensure column has an ID
+                const newC = {...c}; 
+                newC.id = newC.id || nanoid(); 
                 return newC;
               });
             } else {
-              newR.columns = []; // Initialize if missing
+              newR.columns = []; 
             }
-            newR.customHeight = r.customHeight || ''; // Ensure customHeight exists
+            newR.customHeight = r.customHeight || ''; 
             return newR;
           });
         } else {
-          // Attempt to migrate very old 'sections' based templates
-          // This is a basic migration, might need refinement for complex old structures
           const defaultTemplateForMigration = DEFAULT_TEMPLATES.find(dt => dt.name.includes("Standard")) || DEFAULT_TEMPLATES[0];
           if (defaultTemplateForMigration && defaultTemplateForMigration.rows) {
             newT.rows = JSON.parse(JSON.stringify(defaultTemplateForMigration.rows)).map((row: CardRow) => ({
@@ -87,7 +88,6 @@ export default function CardForgePage() {
               customHeight: row.customHeight || ''
             }));
           } else {
-             // Failsafe if default template is somehow malformed
             newT.rows = [
               { id: nanoid(), columns: [{ id: nanoid(), type: 'CustomText', contentPlaceholder: '{{default}}' }], alignItems: 'flex-start', customHeight: '' }
             ];
@@ -95,8 +95,6 @@ export default function CardForgePage() {
            // @ts-expect-error: remove old sections if migrating
           if (newT.sections) delete newT.sections;
         }
-
-        // Ensure other defaults
         newT.aspectRatio = newT.aspectRatio || "63:88";
         newT.frameStyle = newT.frameStyle || 'standard';
         newT.baseBackgroundColor = newT.baseBackgroundColor || '';
@@ -106,7 +104,7 @@ export default function CardForgePage() {
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+  }, []); 
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -212,8 +210,8 @@ export default function CardForgePage() {
               uniqueId: card.uniqueId || nanoid(),
               template: {
                 ...card.template,
-                id: card.template.id || nanoid(),
-                rows: (card.template.rows || []).map((r: CardRow) => ({
+                id: card.template.id || nanoid(), // Ensure template ID
+                rows: (card.template.rows || []).map((r: CardRow) => ({ // Ensure rows and their columns have IDs
                     ...r,
                     id: r.id || nanoid(),
                     columns: (r.columns || []).map((s: CardSection) => ({ ...s, id: s.id || nanoid() })),
@@ -283,7 +281,7 @@ export default function CardForgePage() {
             </Sheet>
           </div>
 
-          <TabsList className="hidden md:grid w-full grid-cols-1 md:grid-cols-3 mb-6 no-print">
+          <TabsList className="hidden md:grid w-full md:grid-cols-4 mb-6 no-print"> {/* Updated to md:grid-cols-4 */}
             {TABS_CONFIG.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
                 <tab.icon className="h-4 w-4" /> {tab.label}
@@ -297,7 +295,6 @@ export default function CardForgePage() {
               templates={templates}
               onDeleteTemplate={handleDeleteTemplate}
               initialTemplate={editingTemplate}
-              setInitialTemplate={setEditingTemplate}
             />
           </TabsContent>
 
@@ -308,8 +305,13 @@ export default function CardForgePage() {
                   templates={templates}
                   onSingleCardAdded={handleSingleCardAdded}
                   onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
+                  abilityContextSets={abilityContextSets}
                 />
-                <BulkGenerator templates={templates} onCardsGenerated={handleBulkCardsGenerated} />
+                <BulkGenerator 
+                  templates={templates} 
+                  onCardsGenerated={handleBulkCardsGenerated} 
+                  abilityContextSets={abilityContextSets}
+                />
 
                 <Card>
                     <CardHeader>
@@ -376,6 +378,13 @@ export default function CardForgePage() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="contexts"> {/* New Tab Content */}
+            <AbilityContextManager 
+              contextSets={abilityContextSets}
+              onContextSetsChange={setAbilityContextSets}
+            />
           </TabsContent>
 
           <TabsContent value="ai">

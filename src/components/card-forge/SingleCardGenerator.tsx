@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard, CardSection } from '@/types';
+import type { TCGCardTemplate, CardData, DisplayCard, CardSection, AbilityContextSet } from '@/types';
 import { TCG_FIELD_DEFINITIONS } from '@/lib/constants';
 import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
 import { useState, ChangeEvent, useEffect } from 'react';
@@ -20,6 +20,7 @@ interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
   onSingleCardAdded: (card: DisplayCard) => void;
   onTemplateSelectionChange?: (templateId: string) => void;
+  abilityContextSets: AbilityContextSet[]; // New prop
 }
 
 interface DynamicField {
@@ -29,7 +30,12 @@ interface DynamicField {
   example?: string;
 }
 
-export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSelectionChange }: SingleCardGeneratorProps) {
+export function SingleCardGenerator({ 
+  templates, 
+  onSingleCardAdded, 
+  onTemplateSelectionChange,
+  abilityContextSets // New prop
+}: SingleCardGeneratorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
@@ -37,6 +43,7 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
 
   const [aiThemeForFill, setAiThemeForFill] = useState<string>('');
   const [isAiFilling, setIsAiFilling] = useState<boolean>(false);
+  const [selectedAbilityContextId, setSelectedAbilityContextId] = useState<string>(''); // New state
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
@@ -63,18 +70,15 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
       const newCardData: CardData = {};
       fields.forEach(f => {
         newCardData[f.key] = cardData[f.key] || ''; 
-        // Attempt to pre-fill artwork URL from template's default if the placeholder matches common keys
         const artPlaceholderSection = selectedTemplate.rows
             .flatMap(r => r.columns)
             .find(s => s.type === 'Artwork' && s.contentPlaceholder.includes(`{{${f.key}}}`));
 
         if (artPlaceholderSection && (f.key.toLowerCase().includes('url') || f.key.toLowerCase().includes('artwork')) && !newCardData[f.key]) {
-            // Check if the placeholder string itself contains a default URL (a simple heuristic)
             const defaultArtUrlMatch = artPlaceholderSection.contentPlaceholder.match(/^(https?:\/\/[^\s{}]+\.(?:png|jpg|jpeg|gif|svg|webp))/i);
             if (defaultArtUrlMatch && defaultArtUrlMatch[0] !== artPlaceholderSection.contentPlaceholder && !defaultArtUrlMatch[0].startsWith('{{')) {
                  newCardData[f.key] = defaultArtUrlMatch[0];
             } else if (f.key.toLowerCase() === 'artworkurl') { 
-                 // Fallback for common placeholder name if no default in string
                  newCardData[f.key] = 'https://placehold.co/600x400.png';
             }
         }
@@ -149,7 +153,12 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
     setIsAiFilling(true);
     try {
       const placeholderKeys = dynamicFields.map(f => f.key);
-      const result = await generateCardFields({ theme: aiThemeForFill, placeholderKeys });
+      const selectedContext = abilityContextSets.find(cs => cs.id === selectedAbilityContextId);
+      const result = await generateCardFields({ 
+        theme: aiThemeForFill, 
+        placeholderKeys,
+        abilityContext: selectedContext?.description 
+      });
       
       setCardData(prevData => ({
         ...prevData,
@@ -179,7 +188,8 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
             value={selectedTemplateId} 
             onValueChange={(id) => {
               setSelectedTemplateId(id);
-              setAiThemeForFill(''); // Clear AI theme when template changes
+              setAiThemeForFill(''); 
+              setSelectedAbilityContextId('');
             }}
           >
             <SelectTrigger id="singleTemplateSelect">
@@ -192,9 +202,9 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
         </div>
 
         {selectedTemplate && (
-          <div className="space-y-2 pt-2 border-t mt-2">
-            <Label htmlFor="aiThemeForFill">Card Concept/Theme for AI Fill</Label>
-            <div className="flex gap-2">
+          <div className="space-y-3 pt-3 border-t mt-3">
+            <div>
+              <Label htmlFor="aiThemeForFill">Card Concept/Theme for AI Fill</Label>
               <Input
                 id="aiThemeForFill"
                 value={aiThemeForFill}
@@ -202,15 +212,29 @@ export function SingleCardGenerator({ templates, onSingleCardAdded, onTemplateSe
                 placeholder="e.g., 'Undead Pirate Captain', 'Mystic Healing Potion'"
                 disabled={!selectedTemplate || dynamicFields.length === 0}
               />
-              <Button
-                onClick={handleAiFillFields}
-                disabled={!selectedTemplate || dynamicFields.length === 0 || !aiThemeForFill.trim() || isAiFilling}
-                variant="outline"
-                className="shrink-0"
-              >
-                <Sparkles className="mr-2 h-4 w-4" /> {isAiFilling ? 'Filling...' : 'AI Fill Fields'}
-              </Button>
             </div>
+            {abilityContextSets.length > 0 && (
+              <div>
+                <Label htmlFor="singleAbilityContextSelect">Optional: AI Context Set</Label>
+                <Select value={selectedAbilityContextId} onValueChange={setSelectedAbilityContextId}>
+                  <SelectTrigger id="singleAbilityContextSelect">
+                    <SelectValue placeholder="None (general AI knowledge)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None (general AI knowledge)</SelectItem>
+                    {abilityContextSets.map(cs => <SelectItem key={cs.id} value={cs.id}>{cs.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button
+              onClick={handleAiFillFields}
+              disabled={!selectedTemplate || dynamicFields.length === 0 || !aiThemeForFill.trim() || isAiFilling}
+              variant="outline"
+              className="w-full flex items-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" /> {isAiFilling ? 'Filling...' : 'AI Fill Fields'}
+            </Button>
           </div>
         )}
 
