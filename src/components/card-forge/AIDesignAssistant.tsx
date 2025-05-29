@@ -1,6 +1,7 @@
 
 "use client";
 
+import type { ChangeEvent } from 'react'; // Explicit type import
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,23 +10,26 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { suggestCardLayout, SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout';
-import { generateCardText, GenerateCardTextInput } from '@/ai/flows/generate-card-text';
-import { generateCardImage, GenerateCardImageInput } from '@/ai/flows/generate-card-image';
-import { suggestTemplateColors, SuggestTemplateColorsInput, SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors'; 
+import { suggestCardLayout, type SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout'; // Use type import
+import { generateCardText, type GenerateCardTextInput } from '@/ai/flows/generate-card-text'; // Use type import
+import { generateCardImage, type GenerateCardImageInput } from '@/ai/flows/generate-card-image'; // Use type import
+import { suggestTemplateColors, type SuggestTemplateColorsInput, type SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors'; // Use type import
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TCGCardTemplate } from '@/types'; 
+import type { TCGCardTemplate, AbilityContextSet } from '@/types'; 
 import NextImage from 'next/image';
+
+const NO_CONTEXT_SELECTED_VALUE = "_NO_CONTEXT_";
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
+  abilityContextSets: AbilityContextSet[];
 }
 
 type TextGenType = GenerateCardTextInput['textType'];
 
-export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
+export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAssistantProps) {
   const [activeAiTab, setActiveAiTab] = useState("designSuggestions");
   
   const [textContentLayout, setTextContentLayout] = useState<string>('');
@@ -38,6 +42,8 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
   const [textGenType, setTextGenType] = useState<TextGenType>('RulesText');
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isLoadingText, setIsLoadingText] = useState(false);
+  const [selectedContextIdForText, setSelectedContextIdForText] = useState<string>('');
+
 
   const [imageConcept, setImageConcept] = useState<string>('');
   const [generatedImageDataUri, setGeneratedImageDataUri] = useState<string>('');
@@ -84,7 +90,13 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     setIsLoadingText(true);
     setGeneratedText('');
     try {
-      const result = await generateCardText({ theme: textTheme, textType: textGenType });
+      const contextSet = abilityContextSets.find(cs => cs.id === selectedContextIdForText);
+      const input: GenerateCardTextInput = {
+         theme: textTheme, 
+         textType: textGenType,
+         abilityContext: contextSet ? contextSet.description : undefined
+      };
+      const result = await generateCardText(input);
       setGeneratedText(result.cardText);
       toast({ title: "Text Ready", description: "AI generated text is available." });
     } catch (error) {
@@ -125,14 +137,13 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
       const result = await suggestTemplateColors({ theme: colorTheme });
       setSuggestedColors(result);
       toast({ title: "Color Palette Suggested", description: "AI has suggested colors for your theme." });
-    } catch (error) {
+    } catch (error) { // Added opening brace
       console.error("Error suggesting colors:", error);
       toast({ title: "Error", description: `Failed to suggest colors: ${(error as Error).message}`, variant: "destructive" });
-    } finally {
+    } finally { // Added closing brace
       setIsLoadingColors(false);
     }
   };
-
 
   const copyToClipboard = (textToCopy: string, successMessage: string) => {
     navigator.clipboard.writeText(textToCopy)
@@ -142,6 +153,11 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
         toast({ title: "Copy Failed", description: "Could not copy text to clipboard.", variant: "destructive" });
       });
   };
+
+  const handleTextContextChange = (value: string) => {
+    setSelectedContextIdForText(value === NO_CONTEXT_SELECTED_VALUE ? '' : value);
+  };
+
 
   return (
     <Card>
@@ -154,7 +170,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
       </CardHeader>
       <CardContent>
         <Tabs value={activeAiTab} onValueChange={setActiveAiTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-4">
             <TabsTrigger value="designSuggestions" className="flex items-center gap-2"><Palette className="h-4 w-4" />Layout</TabsTrigger>
             <TabsTrigger value="textGeneration" className="flex items-center gap-2"><TextQuote className="h-4 w-4" />Text</TabsTrigger>
             <TabsTrigger value="imageGeneration" className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />Image</TabsTrigger>
@@ -168,7 +184,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <Textarea
                 id="aiCardTextContentLayout"
                 value={textContentLayout}
-                onChange={(e) => setTextContentLayout(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setTextContentLayout(e.target.value)}
                 placeholder="e.g., 'Flying, First Strike. When this creature enters, draw a card.' OR describe elements like 'Goblin Warchief // 2RR // Creature - Goblin Warrior'"
                 rows={3}
               />
@@ -178,7 +194,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <Input
                 id="aiCardConceptLayout"
                 value={cardConceptLayout}
-                onChange={(e) => setCardConceptLayout(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCardConceptLayout(e.target.value)}
                 placeholder="e.g., Aggressive Fire Creature, Defensive Enchantment, Utility Artifact"
               />
             </div>
@@ -187,7 +203,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <Textarea
                 id="aiCurrentSectionsLayout"
                 value={currentSectionsForLayout}
-                onChange={(e) => setCurrentSectionsForLayout(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCurrentSectionsForLayout(e.target.value)}
                 placeholder="e.g., 'Top: Name ({{cardName}}), ManaCost ({{cost}}). Middle: Artwork ({{art}}). Bottom: Rules ({{rules}}), P/T ({{pt}})'"
                 rows={3}
               />
@@ -216,7 +232,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <Input
                 id="aiTextTheme"
                 value={textTheme}
-                onChange={(e) => setTextTheme(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setTextTheme(e.target.value)}
                 placeholder="e.g., Goblin Archer with Reach, Ancient Spell of Shielding"
               />
             </div>
@@ -234,6 +250,22 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                 </SelectContent>
               </Select>
             </div>
+            {abilityContextSets.length > 0 && (
+                <div>
+                    <Label htmlFor="aiTextContextSelect">Optional: AI Context Set</Label>
+                    <Select value={selectedContextIdForText || NO_CONTEXT_SELECTED_VALUE} onValueChange={handleTextContextChange}>
+                        <SelectTrigger id="aiTextContextSelect">
+                            <SelectValue placeholder="None (general AI knowledge)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={NO_CONTEXT_SELECTED_VALUE}>None (general AI knowledge)</SelectItem>
+                            {abilityContextSets.map(cs => (
+                                <SelectItem key={cs.id} value={cs.id}>{cs.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
             <Button onClick={handleGenerateText} disabled={isLoadingText} className="w-full">
               <Sparkles className="mr-2 h-4 w-4" /> {isLoadingText ? 'Generating...' : 'Generate Card Text'}
             </Button>
@@ -257,7 +289,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <Input
                 id="aiImageConcept"
                 value={imageConcept}
-                onChange={(e) => setImageConcept(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setImageConcept(e.target.value)}
                 placeholder="e.g., 'Ancient stone golem awakening in a ruin', 'Knight facing a fiery dragon'"
               />
                <p className="text-xs text-muted-foreground mt-1">Describe the desired artwork. Be descriptive for best results.</p>
@@ -305,7 +337,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
               <Input
                 id="aiColorTheme"
                 value={colorTheme}
-                onChange={(e) => setColorTheme(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setColorTheme(e.target.value)}
                 placeholder="e.g., 'Fiery Volcano', 'Mystic Forest', 'Ancient Tomb'"
               />
             </div>
@@ -319,14 +351,14 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     {Object.entries(suggestedColors).map(([key, value]) => {
                       if (!value) return null; 
-                      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                      const labelText = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                       return (
                         <div key={key} className="flex items-center justify-between">
-                          <span className="text-muted-foreground">{label}:</span>
+                          <span className="text-muted-foreground">{labelText}:</span>
                           <div className="flex items-center gap-2">
                             <span className="font-mono">{value}</span>
                             <div className="h-4 w-4 rounded border" style={{ backgroundColor: value }}></div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(value, `${label} color copied.`)} aria-label={`Copy ${label} color ${value}`}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(value, `${labelText} color copied.`)} aria-label={`Copy ${labelText} color ${value}`}>
                                 <Copy className="h-3 w-3" />
                             </Button>
                           </div>
@@ -345,3 +377,5 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     </Card>
   );
 }
+
+    
