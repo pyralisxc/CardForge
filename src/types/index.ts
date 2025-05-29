@@ -25,29 +25,33 @@ export interface CardSection {
   fontStyle?: 'normal' | 'italic';
   padding?: string;
   borderColor?: string;
-  borderWidth?: string; // Tailwind class e.g. border-2, border-t
-  minHeight?: string; // Tailwind class e.g. min-h-[120px]
+  borderWidth?: string; 
+  minHeight?: string; 
   flexGrow?: number;
-  customHeight?: string; // e.g., "150px", "auto", "50%"
-  customWidth?: string; // e.g., "100%", "200px", "auto"
+  customHeight?: string; 
+  customWidth?: string; 
 }
 
 export interface CardRow {
   id: string;
   columns: CardSection[];
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string; // e.g., "100px", "20%", "auto"
+  customHeight?: string; 
 }
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  aspectRatio: string; // e.g., "63:88"
-  legacyFrameColor?: string | undefined; // For older template compatibility or specific user override
-  defaultSectionBorderColor?: string; // Fallback border color for sections
+  aspectRatio: string; 
+  defaultSectionBorderColor?: string; 
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  frameStyle?: string; // e.g., "standard", "classic-gold"
+  frameStyle?: string; 
+  // New specific border properties
+  cardBorderColor?: string;
+  cardBorderWidth?: string; // e.g. "2px"
+  cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
+  cardBorderRadius?: string; // e.g. "8px"
   rows: CardRow[];
 }
 
@@ -77,3 +81,5 @@ export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
 }
+
+    
