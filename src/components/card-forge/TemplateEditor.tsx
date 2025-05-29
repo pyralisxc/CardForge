@@ -12,21 +12,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"; // Added DialogClose
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { 
-  LayoutDashboard, Trash2, PlusCircle, ArrowUp, ArrowDown, Type, ChevronsUpDown, AlignLeft, Italic, Baseline, 
-  Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Cog, Frame, Rows, Columns, 
-  GripVertical, Save, SquarePen, Palette, EyeOff, Edit2, XCircle, ArrowLeft, ArrowRight, Eye
+  LayoutDashboard, Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
+  Settings, Cog, Frame, Rows, Save, SquarePen, Eye
 } from 'lucide-react';
 import { 
-  SECTION_TYPES, ICON_MAP, FRAME_STYLES, ROW_ALIGN_ITEMS, 
   createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, createDefaultRow,
+  FRAME_STYLES, ROW_ALIGN_ITEMS, ICON_MAP
 } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
-import { cn } from '@/lib/utils';
 import { ColumnEditor } from './ColumnEditor';
 import { nanoid } from 'nanoid';
+import { cn } from "@/lib/utils";
+import { extractUniquePlaceholderKeys } from '@/lib/utils'; // Added import
 
 interface TemplateEditorProps {
   onSaveTemplate: (template: TCGCardTemplate) => void;
@@ -52,20 +52,21 @@ const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate =>
   const newTemplateName = name || "New Unsaved Template";
 
   const newRows = (newTemplateBase.rows || []).map((rowPreset: CardRow) => {
-    const newRowId = rowPreset.id; 
+    const newRowId = rowPreset.id || nanoid(); 
     const baseRow = createDefaultRow(newRowId, [], rowPreset.alignItems, rowPreset.customHeight);
     return {
       ...baseRow,
       ...rowPreset,
       id: newRowId,
       columns: (rowPreset.columns || []).map((colPreset: CardSection) => {
-        const newColId = colPreset.id; 
-        const baseCol = createDefaultSection(colPreset.type || 'CustomText', newColId);
+        const newColId = colPreset.id || nanoid();
+        const colType = colPreset.type || 'CustomText';
+        const baseCol = createDefaultSection(colType, newColId);
         return {
           ...baseCol,
           ...colPreset,
           id: newColId,
-          type: colPreset.type || 'CustomText'
+          type: colType
         };
       }),
     };
@@ -113,69 +114,86 @@ export function TemplateEditor({
     let source: 'initial' | 'selected' | 'new' = 'new';
 
     if (initialTemplate && (!selectedTemplateToEditId || selectedTemplateToEditId !== initialTemplate.id)) {
-        templateToProcess = initialTemplate;
+      templateToProcess = initialTemplate;
+      if (selectedTemplateToEditId !== initialTemplate.id) {
         setSelectedTemplateToEditId(initialTemplate.id); 
-        source = 'initial';
+      }
+      source = 'initial';
     } else if (selectedTemplateToEditId) {
-        const foundTemplate = templates.find(t => t.id === selectedTemplateToEditId);
-        if (foundTemplate) {
-            templateToProcess = foundTemplate;
-            source = 'selected';
-        } else {
-            templateToProcess = getFreshDefaultTemplate(selectedTemplateToEditId);
-            source = 'new';
-        }
+      const foundTemplate = templates.find(t => t.id === selectedTemplateToEditId);
+      if (foundTemplate) {
+        templateToProcess = foundTemplate;
+        source = 'selected';
+      } else {
+        // If ID exists but template not found (e.g., deleted), create a new one with this ID
+        templateToProcess = getFreshDefaultTemplate(selectedTemplateToEditId);
+        source = 'new'; 
+      }
     } else {
-        templateToProcess = getFreshDefaultTemplate();
-        source = 'new';
+      templateToProcess = getFreshDefaultTemplate();
+      source = 'new';
     }
     
-    if (!templateToProcess) { // Should not happen with the logic above, but as a safeguard
+    if (!templateToProcess) { // Safeguard
         templateToProcess = getFreshDefaultTemplate(selectedTemplateToEditId || undefined);
         source = 'new'; 
     }
 
-    const baseTemplateForCloning = JSON.parse(JSON.stringify(templateToProcess));
+    // Deep clone and reconstruct the templateToProcess
+    const baseTemplateForCloning: TCGCardTemplate = JSON.parse(JSON.stringify(templateToProcess));
 
-    const reconstructedRows = (baseTemplateForCloning.rows || []).map((r_loaded: CardRow) => {
-        const rowId = r_loaded.id; 
-        const baseRow = createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight); // Use ID
-        const newR: CardRow = {
-            ...baseRow, 
-            ...r_loaded, 
-            id: rowId,    
-            columns: (r_loaded.columns || []).map((c_loaded: CardSection) => {
-                const sectionId = c_loaded.id; 
-                const sectionType = (c_loaded.type as CardSectionType | undefined) || 'CustomText';
-                const baseSection = createDefaultSection(sectionType, sectionId); 
-                return {
-                    ...baseSection, 
-                    ...c_loaded,    
-                    id: sectionId,  
-                    type: sectionType 
-                };
-            })
+    const reconstructedRows = (baseTemplateForCloning.rows || []).map((r_loaded: Partial<CardRow>) => {
+      const rowId = r_loaded.id!; // ID must be present due to upstream processing
+      const baseRow = createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight); // Use ID
+      
+      const reconstructedColumns = (r_loaded.columns || []).map((c_loaded: Partial<CardSection>) => {
+        const sectionId = c_loaded.id!; // ID must be present
+        const sectionType = (c_loaded.type as CardSectionType | undefined) || 'CustomText';
+        const baseSection = createDefaultSection(sectionType, sectionId); 
+        return {
+          ...baseSection, 
+          ...c_loaded,    
+          id: sectionId,  
+          type: sectionType 
         };
-        return newR;
+      });
+      
+      return {
+        ...baseRow, 
+        ...r_loaded, 
+        id: rowId,    
+        columns: reconstructedColumns
+      };
     });
     
     const newTemplateToSet: TCGCardTemplate = {
-      ...getFreshDefaultTemplate(baseTemplateForCloning.id, baseTemplateForCloning.name), 
-      ...baseTemplateForCloning, 
+      ...getFreshDefaultTemplate(baseTemplateForCloning.id, baseTemplateForCloning.name), // Start with all defaults
+      ...baseTemplateForCloning, // Overlay with loaded data
       id: baseTemplateForCloning.id, 
       name: baseTemplateForCloning.name, 
       rows: reconstructedRows,
+      // Ensure these are not undefined if baseTemplateForCloning didn't have them
+      aspectRatio: baseTemplateForCloning.aspectRatio || "63:88",
+      frameStyle: baseTemplateForCloning.frameStyle || 'standard',
+      baseBackgroundColor: baseTemplateForCloning.baseBackgroundColor || '',
+      baseTextColor: baseTemplateForCloning.baseTextColor || '',
+      defaultSectionBorderColor: baseTemplateForCloning.defaultSectionBorderColor || '',
+      cardBorderColor: baseTemplateForCloning.cardBorderColor || '',
+      cardBorderWidth: baseTemplateForCloning.cardBorderWidth || '',
+      cardBorderStyle: baseTemplateForCloning.cardBorderStyle || 'solid',
+      cardBorderRadius: baseTemplateForCloning.cardBorderRadius || '',
     };
 
     setCurrentTemplate(newTemplateToSet);
     setAspectRatioInput(newTemplateToSet.aspectRatio || "63:88");
     
-    if (source === 'new' || source === 'initial' || source === 'selected') {
+    if (source === 'new' || (source === 'initial' && currentTemplate.id !== newTemplateToSet.id) || (source === 'selected'  && currentTemplate.id !== newTemplateToSet.id)) {
         setActiveRowAccordionItems(newTemplateToSet.rows.map(r => r.id));
     }
     setActiveStylingAccordion(null); 
     
-  }, [initialTemplate, selectedTemplateToEditId, templates]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTemplate, selectedTemplateToEditId, templates]); // templates is needed if we select from the list
 
 
   const updateCurrentTemplate = (updates: Partial<TCGCardTemplate>) => {
@@ -189,6 +207,8 @@ export function TemplateEditor({
         if (currentTemplate.aspectRatio !== newAspectRatio) {
             updateCurrentTemplate({ aspectRatio: newAspectRatio });
         }
+    } else if (!aspectRatioInput.trim() && currentTemplate.aspectRatio !== "63:88") {
+        updateCurrentTemplate({ aspectRatio: "63:88" }); // Default if input is cleared
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectRatioInput]); 
@@ -336,20 +356,21 @@ export function TemplateEditor({
       
       const newPresetTemplateBase = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
       const newRows = (newPresetTemplateBase.rows || []).map((rowPreset: CardRow) => {
-        const newRowId = rowPreset.id;
+        const newRowId = rowPreset.id || nanoid();
         const baseRow = createDefaultRow(newRowId, [], rowPreset.alignItems, rowPreset.customHeight);
         return {
           ...baseRow,
           ...rowPreset,
           id: newRowId,
           columns: (rowPreset.columns || []).map((colPreset: CardSection) => {
-            const newColId = colPreset.id; 
-            const baseCol = createDefaultSection(colPreset.type || 'CustomText', newColId);
+            const newColId = colPreset.id || nanoid(); 
+            const colType = colPreset.type || 'CustomText';
+            const baseCol = createDefaultSection(colType, newColId);
             return {
               ...baseCol,
               ...colPreset,
               id: newColId,
-              type: colPreset.type || 'CustomText'
+              type: colType
             };
           }),
         };
@@ -402,6 +423,7 @@ export function TemplateEditor({
         });
     }
     return data;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTemplate]); 
 
   const isNonStandardFrame = currentTemplate.frameStyle && currentTemplate.frameStyle !== 'standard' && currentTemplate.frameStyle !== 'custom';
@@ -474,7 +496,7 @@ export function TemplateEditor({
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Edit2 className="h-5 w-5" />
-                        {(templates.find(t=>t.id === currentTemplate.id) && selectedTemplateToEditId === currentTemplate.id && currentTemplate.name !== "New Unsaved Template") ? 'Edit Template' : 'Create New Template'}: <span className="text-primary">{currentTemplate.name || "Untitled"}</span>
+                        {(templates.find(t=>t.id === currentTemplate.id) && selectedTemplateToEditId === currentTemplate.id) ? 'Edit Template' : 'Create New Template'}: <span className="text-primary">{currentTemplate.name || "Untitled"}</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -669,7 +691,7 @@ export function TemplateEditor({
                             <CardPreview
                                 card={{ template: currentTemplate, data: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
                                 isPrintMode={false}
-                                isEditorPreview={false}
+                                isEditorPreview={false} /* Render like a real card for dialog */
                                 hideEmptySections={false}
                                 className="mx-auto"
                                 targetWidthPx={400}
