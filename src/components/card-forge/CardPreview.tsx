@@ -19,6 +19,7 @@ interface CardPreviewProps {
 }
 
 const PREVIEW_WIDTH_PX = 280; // Width of the preview card on screen
+const PLACEHOLDER_REGEX = /{{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*}}/g;
 
 export function CardPreview({
   card,
@@ -44,10 +45,6 @@ export function CardPreview({
     width: isPrintMode ? '100%' : `${PREVIEW_WIDTH_PX}px`,
     height: isPrintMode ? '100%' : (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`),
     boxSizing: 'border-box',
-    borderColor: template.cardBorderColor || undefined,
-    borderWidth: template.cardBorderWidth || undefined,
-    borderStyle: template.cardBorderStyle === 'none' ? undefined : template.cardBorderStyle || undefined,
-    borderRadius: template.cardBorderRadius || undefined,
   };
   
   if (template.frameStyle === 'standard' || template.frameStyle === 'custom') {
@@ -58,6 +55,7 @@ export function CardPreview({
       cardContainerStyle.color = template.baseTextColor;
     }
   }
+
 
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
@@ -119,7 +117,7 @@ export function CardPreview({
           const allColumnsInRowHidden = row.columns.every(col => {
              let colContentForHidingCheck: string;
              if (isEditorPreview && col.type !== 'Artwork' && col.type !== 'Divider') {
-                colContentForHidingCheck = col.contentPlaceholder;
+                colContentForHidingCheck = col.contentPlaceholder.replace(PLACEHOLDER_REGEX, '$1');
              } else if (col.type === 'Artwork') {
                 colContentForHidingCheck = "artwork_placeholder"; 
              } else if (col.type === 'Divider') {
@@ -168,15 +166,15 @@ export function CardPreview({
                 
                 let processedContentForDisplay: string;
                 if (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider') {
-                  processedContentForDisplay = section.contentPlaceholder;
+                  processedContentForDisplay = section.contentPlaceholder.replace(PLACEHOLDER_REGEX, '$1');
                 } else if (isEditorPreview && (section.type === 'Artwork' || section.type === 'Divider')) {
-                  processedContentForDisplay = section.contentPlaceholder;
+                  processedContentForDisplay = section.contentPlaceholder; 
                 } else {
                   processedContentForDisplay = replacePlaceholdersLocal(section.contentPlaceholder, data, true);
                 }
                 
                 const contentForHidingCheck = (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider') 
-                                              ? section.contentPlaceholder
+                                              ? section.contentPlaceholder.replace(PLACEHOLDER_REGEX, '$1')
                                               : processedContentForDisplay;
 
                 if (shouldHideSection(section, contentForHidingCheck) && !isEditorPreview) {
@@ -189,30 +187,22 @@ export function CardPreview({
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
                   fontStyle: section.fontStyle || 'normal',
-                  flexGrow: section.flexGrow || 0,
-                  flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0,
-                  flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto',
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,
                   borderColor: section.borderColor || template.defaultSectionBorderColor || undefined,
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
-                  overflowWrap: (section.type !== 'Artwork' && section.type !== 'Divider') ? 'break-word' : undefined,
+                  overflowWrap: 'break-word', // Apply to all text sections by default
+                  flexGrow: section.flexGrow || 0,
+                  flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0,
+                  flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto',
                 };
                 
-                if (isEditorPreview && section.type !== 'Divider') { // Add subtle border to all non-divider sections in editor preview
+                if (isEditorPreview && section.type !== 'Divider') {
                   sectionStyle.borderLeft = sectionStyle.borderLeft || '1px solid hsla(var(--foreground-rgb), 0.1)';
                   sectionStyle.borderRight = sectionStyle.borderRight || '1px solid hsla(var(--foreground-rgb), 0.1)';
-                  if (sectionIndex === 0 && row.columns.length === 1) { // Only section in row
-                     // Covered by left/right
-                  } else if (sectionIndex === 0) { // First section in multi-section row
-                     // Covered by left
-                  } else { // Subsequent sections in multi-section row
-                     // Already has left border from previous section's right or its own left
-                  }
                 }
-
-
-                if (section.flexGrow && section.flexGrow > 0 && section.type !== 'Artwork') {
+                
+                if (section.flexGrow && section.flexGrow > 0 && section.type !== 'Artwork' && section.type !== 'Divider') {
                     sectionStyle.minWidth = 0; 
                     sectionStyle.minHeight = 0; 
                     sectionStyle.overflowY = 'auto'; 
@@ -230,7 +220,7 @@ export function CardPreview({
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
-                  section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '',
+                  section.minHeight && section.minHeight !== '_auto_' && section.type !== 'Artwork' ? section.minHeight : '', // minHeight class only if not artwork
                   sectionBorderClass,
                   (section.type !== 'Artwork' && section.type !== 'Divider') ? 'whitespace-pre-wrap break-words' : '',
                   `tcg-section-${section.type.toLowerCase()}`,
@@ -247,11 +237,11 @@ export function CardPreview({
                 if (section.type === 'Artwork') {
                   if (isEditorPreview) {
                     const editorArtStyle: React.CSSProperties = {
-                      ...sectionStyle,
+                      ...sectionStyle, // Includes potential customHeight/Width from here
                       height: section.customHeight || (section.minHeight && section.minHeight.includes('px') ? section.minHeight : '120px'), 
                       width: section.customWidth || '100%',
                       backgroundColor: 'hsl(var(--muted) / 0.5)',
-                      borderTop: '1px dashed hsl(var(--border))', // Keep dashed border distinct
+                      borderTop: '1px dashed hsl(var(--border))', 
                       borderBottom: '1px dashed hsl(var(--border))',
                       borderLeft: '1px dashed hsl(var(--border))',
                       borderRight: '1px dashed hsl(var(--border))',
@@ -272,7 +262,7 @@ export function CardPreview({
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
                       >
-                        <div>Size: {section.customWidth || 'auto'} x {section.customHeight || 'auto'}</div>
+                        <div>Size: {editorArtStyle.width} x {editorArtStyle.height}</div>
                       </div>
                     );
                   } else { 
@@ -285,9 +275,9 @@ export function CardPreview({
                       artworkDisplaySrc = `https://placehold.co/600x400.png?text=${encodeURIComponent(cardNameForPlaceholder + ' Art')}`;
                     }
 
-                    const imageIsPriority = rowIndex === 0 && sectionIndex === 0 && typeof rowIndex === 'number' && typeof sectionIndex === 'number';
+                    const imageIsPriority = typeof rowIndex === 'number' && typeof sectionIndex === 'number' && rowIndex === 0 && sectionIndex === 0;
                     const imageContainerStyle: React.CSSProperties = {
-                        ...sectionStyle,
+                        ...sectionStyle, // Includes customHeight/Width from here
                         position: 'relative', 
                         height: section.customHeight || '100%', 
                         width: section.customWidth || '100%',  
@@ -300,7 +290,7 @@ export function CardPreview({
                     return (
                       <div
                         key={section.id}
-                        className={cn(sectionClasses)} 
+                        className={cn(sectionClasses, section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '')} // Re-add minHeight class if no customHeight
                         style={imageContainerStyle} 
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
@@ -320,7 +310,7 @@ export function CardPreview({
 
                 if (section.type === 'Divider') {
                   const dividerStyle: React.CSSProperties = {
-                    ...sectionStyle,
+                    ...sectionStyle, // Includes customHeight/Width from here
                      height: section.customHeight || '1px', 
                      backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.defaultSectionBorderColor || 'hsl(var(--border))',
                      width: section.customWidth || 'auto', 
@@ -371,3 +361,5 @@ export function CardPreview({
     </div>
   );
 }
+
+
