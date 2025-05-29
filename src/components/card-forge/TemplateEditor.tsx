@@ -12,16 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { 
-  LayoutDashboard, Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Type as TypeIcon, 
-  ChevronsUpDown, AlignLeft as RulesIcon, Italic as FlavorIcon, Baseline, Settings2, Paintbrush, 
-  TextCursorInput, Minus, FileImage, Cog, Frame, Rows, Columns, GripVertical, // Added GripVertical
-  Save, SquarePen, Eye, Edit2, XCircle 
-} from 'lucide-react'; 
-import { 
-  SECTION_TYPES, FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, createDefaultSection, 
-  DEFAULT_TEMPLATES as PRESET_TEMPLATES, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, 
-  FRAME_STYLES, ROW_ALIGN_ITEMS, createDefaultRow, ICON_MAP
+import {
+  LayoutDashboard, Trash2, PlusCircle, ArrowUp, ArrowDown, Columns,
+  Cog, Frame, Rows, GripVertical, Save, Eye, Edit2, XCircle
+} from 'lucide-react';
+import {
+  createDefaultSection, DEFAULT_TEMPLATES as PRESET_TEMPLATES, FRAME_STYLES,
+  createDefaultRow, ICON_MAP, ROW_ALIGN_ITEMS, CARD_BORDER_STYLES
 } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -39,38 +36,33 @@ interface TemplateEditorProps {
 
 export const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemplate => {
   const preset = PRESET_TEMPLATES.find(t => t.id === 'sfc-v6-stable-id') || PRESET_TEMPLATES[0];
-  
-  // Deep clone the preset to avoid modifying the original constant
-  const newTemplateBase = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate; 
-  
+  const newTemplateBase = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
+
   const newTemplateId = id || nanoid();
   const newTemplateName = name || "New Unsaved Template";
 
   const newRows = (newTemplateBase.rows || []).map((rowPreset: CardRow) => {
-    const newRowId = nanoid(); // Fresh ID for the row instance
+    const newRowId = rowPreset.id || nanoid();
     const newColumns = (rowPreset.columns || []).map((colPreset: CardSection) => {
-      const newColId = nanoid(); // Fresh ID for the column instance
+      const newColId = colPreset.id || nanoid();
       const colType = colPreset.type || 'CustomText';
-      // Create a base default section with the new ID
-      const baseCol = createDefaultSection(colType, newColId); 
+      const baseCol = createDefaultSection(colType, newColId); // Use ID here
       return {
-        ...baseCol, // Spread base defaults
-        ...colPreset, // Overlay with preset properties
-        id: newColId, // Ensure new ID
-        type: colType, // Ensure type
+        ...baseCol,
+        ...colPreset,
+        id: newColId,
+        type: colType,
       };
     });
-    // Create a base default row with the new ID and reconstructed columns
     const baseRow = createDefaultRow(newRowId, newColumns, rowPreset.alignItems, rowPreset.customHeight);
     return {
-      ...baseRow, // Spread base defaults
-      ...rowPreset, // Overlay with preset row properties
-      id: newRowId, // Ensure new ID
+      ...baseRow,
+      ...rowPreset,
+      id: newRowId,
       columns: newColumns,
     };
   });
 
-  // Ensure all top-level properties are initialized
   return {
     id: newTemplateId,
     name: newTemplateName,
@@ -78,8 +70,8 @@ export const getFreshDefaultTemplate = (id?: string, name?: string): TCGCardTemp
     frameStyle: newTemplateBase.frameStyle || 'standard',
     baseBackgroundColor: newTemplateBase.baseBackgroundColor || '',
     baseTextColor: newTemplateBase.baseTextColor || '',
-    legacyFrameColor: newTemplateBase.legacyFrameColor || '', // Kept for older structure compatibility during migration
-    defaultSectionBorderColor: newTemplateBase.defaultSectionBorderColor || '', // Updated name
+    legacyFrameColor: newTemplateBase.legacyFrameColor || '',
+    defaultSectionBorderColor: newTemplateBase.defaultSectionBorderColor || '',
     cardBorderColor: newTemplateBase.cardBorderColor || '',
     cardBorderWidth: newTemplateBase.cardBorderWidth || '',
     cardBorderStyle: newTemplateBase.cardBorderStyle || '_default_',
@@ -97,43 +89,17 @@ export function TemplateEditor({
 }: TemplateEditorProps) {
   const { toast } = useToast();
 
-  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => {
-    if (initialTemplate) {
-      const initialCloned = JSON.parse(JSON.stringify(initialTemplate)) as TCGCardTemplate;
-      const baseForClone = getFreshDefaultTemplate(initialCloned.id, initialCloned.name);
-      let newTemplate = { ...baseForClone, ...initialCloned };
-
-      // Ensure rows and columns are also fully hydrated with defaults
-      newTemplate.rows = (initialCloned.rows || []).map(r_loaded => {
-        const rowId = r_loaded.id || nanoid();
-        const baseRow = createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight);
-        let newR: CardRow = { ...baseRow, ...r_loaded, id: rowId };
-        newR.columns = (r_loaded.columns || []).map(c_loaded => {
-            const sectionId = c_loaded.id || nanoid();
-            const sectionType = c_loaded.type || 'CustomText';
-            const fullDefaultSection = createDefaultSection(sectionType, sectionId);
-            return { ...fullDefaultSection, ...c_loaded, id: sectionId, type: sectionType };
-        });
-        return newR;
-      });
-      return newTemplate;
-    }
-    return getFreshDefaultTemplate();
-  });
-
-
+  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => getFreshDefaultTemplate());
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(null);
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || "63:88");
-
   const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>([]);
   const [activeStylingAccordion, setActiveStylingAccordion] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
-  
+
   const onToggleStylingAccordion = useCallback((sectionId: string) => {
     setActiveStylingAccordion(prev => prev === sectionId ? null : sectionId);
   }, []);
 
-  // Effect to handle template initialization from props or new creation
   useEffect(() => {
     let templateToProcess: TCGCardTemplate | undefined | null = null;
     let source: 'initial' | 'selected' | 'new' = 'new';
@@ -150,27 +116,15 @@ export function TemplateEditor({
 
     if (templateToProcess) {
         const freshBase = getFreshDefaultTemplate(templateToProcess.id, templateToProcess.name);
-        newTemplateToSet = { ...freshBase, ...templateToProcess }; // Loaded data overrides fresh base
+        newTemplateToSet = { ...freshBase, ...templateToProcess };
 
         newTemplateToSet.rows = (templateToProcess.rows || []).map((r_loaded: CardRow) => {
-            const rowId = r_loaded.id; // MUST use existing ID from loaded data
-            // If r_loaded.id is undefined here, it's an upstream issue (localStorage migration or DEFAULT_TEMPLATES)
-            // TemplateEditor should trust props have IDs for existing structures.
-            if (!rowId) {
-                console.error("Row is missing ID in TemplateEditor useEffect:", r_loaded);
-                // This should ideally not happen. We create a temp row to avoid crashes.
-                // But the root cause (missing ID from props) needs to be addressed.
-                return createDefaultRow(nanoid(), [createDefaultSection('CustomText', nanoid())]);
-            }
+            const rowId = r_loaded.id; 
             const baseRow = createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight);
             
             const reconstructedColumns = (r_loaded.columns || []).map((c_loaded: CardSection) => {
-                const sectionId = c_loaded.id; // MUST use existing ID
+                const sectionId = c_loaded.id;
                 const sectionType = c_loaded.type || 'CustomText';
-                if (!sectionId) {
-                    console.error("Section is missing ID in TemplateEditor useEffect:", c_loaded);
-                    return createDefaultSection(sectionType, nanoid());
-                }
                 const fullDefaultStructure = createDefaultSection(sectionType, sectionId);
                 return { 
                   ...fullDefaultStructure,
@@ -188,32 +142,26 @@ export function TemplateEditor({
             };
         });
     } else {
-        newTemplateToSet = getFreshDefaultTemplate(selectedTemplateToEditId || undefined); // keep ID if selection was attempted
+        newTemplateToSet = getFreshDefaultTemplate(selectedTemplateToEditId || undefined);
         source = 'new';
     }
         
-    // Only set state if the new template is actually different, or if it's a new source
-    // Comparing stringified versions is a common way to check for deep object changes,
-    // though for very large objects it could have performance implications.
-    // Here, it helps prevent re-renders if the "new" template is identical to the current one.
     if (JSON.stringify(currentTemplate) !== JSON.stringify(newTemplateToSet)) {
         setCurrentTemplate(newTemplateToSet);
         setAspectRatioInput(newTemplateToSet.aspectRatio || "63:88");
-        if (source === 'new' || (currentTemplate && currentTemplate.id !== newTemplateToSet.id)) {
+        if (source !== 'selected' || currentTemplate.id !== newTemplateToSet.id) {
              setActiveRowAccordionItems((newTemplateToSet.rows || []).map(r => r.id));
              setActiveStylingAccordion(null);
         }
     }
-  }, [initialTemplate, selectedTemplateToEditId, templates]); // Removed currentTemplate from dependency to avoid loops
+  }, [initialTemplate, selectedTemplateToEditId, templates]);
 
 
-  // Effect to set initial selected template ID if initialTemplate is provided
   useEffect(() => {
     if (initialTemplate && !selectedTemplateToEditId) {
       setSelectedTemplateToEditId(initialTemplate.id);
     }
   }, [initialTemplate, selectedTemplateToEditId]);
-
 
   const updateCurrentTemplate = (updates: Partial<TCGCardTemplate>) => {
     setCurrentTemplate(prev => ({ ...prev, ...updates }));
@@ -228,7 +176,7 @@ export function TemplateEditor({
         }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspectRatioInput]); 
+  }, [aspectRatioInput]);
 
   const updateRow = (rowId: string, updates: Partial<CardRow>) => {
     setCurrentTemplate(prev => ({
@@ -240,7 +188,7 @@ export function TemplateEditor({
   const addRow = () => {
     const newRowId = nanoid();
     const newSectionInRowId = nanoid();
-    const newRow = createDefaultRow(newRowId, [createDefaultSection('CustomText', newSectionInRowId)]); 
+    const newRow = createDefaultRow(newRowId, [createDefaultSection('CustomText', newSectionInRowId)]);
     setCurrentTemplate(prev => ({ ...prev, rows: [...(prev.rows || []), newRow] }));
     setActiveRowAccordionItems(prevActive => [...prevActive, newRowId]);
   };
@@ -255,17 +203,17 @@ export function TemplateEditor({
         const rows = [...(prev.rows || [])];
         const index = rows.findIndex(r => r.id === rowId);
         if (index === -1) return prev;
-        
+
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
         if (targetIndex < 0 || targetIndex >= rows.length) return prev;
-        
+
         [rows[index], rows[targetIndex]] = [rows[targetIndex], rows[index]];
         return { ...prev, rows };
     });
   };
 
   const addSectionToRow = (rowId: string, type: CardSectionType) => {
-    const newSectionId = nanoid(); 
+    const newSectionId = nanoid();
     const newSection = createDefaultSection(type, newSectionId);
     setCurrentTemplate(prev => ({
       ...prev,
@@ -273,7 +221,7 @@ export function TemplateEditor({
         r.id === rowId ? { ...r, columns: [...(r.columns || []), newSection] } : r
       )
     }));
-    setActiveStylingAccordion(newSectionId); 
+    setActiveStylingAccordion(newSectionId);
   };
 
   const removeSectionFromRow = (rowId: string, sectionId: string) => {
@@ -321,18 +269,17 @@ export function TemplateEditor({
   };
 
   const resetFormToNew = () => {
-    const newId = nanoid(); 
-    const newDefaultTemplate = getFreshDefaultTemplate(newId, "New Unsaved Template"); 
+    const newDefaultTemplate = getFreshDefaultTemplate();
     setCurrentTemplate(newDefaultTemplate);
-    setSelectedTemplateToEditId(newId); // Also ensure this is set to the new template's ID
+    setSelectedTemplateToEditId(newDefaultTemplate.id); // Important to track the new ID
     setAspectRatioInput(newDefaultTemplate.aspectRatio || "63:88");
     setActiveRowAccordionItems((newDefaultTemplate.rows || []).map(r => r.id));
     setActiveStylingAccordion(null);
     toast({title: "Form Reset", description: "Ready to create a new template."});
   };
 
-  const handleSubmit = (part: 'settings' | 'sections') => { 
-    let templateToSave = JSON.parse(JSON.stringify(currentTemplate)); // Deep clone for saving
+  const handleSubmit = () => { // Combined save
+    let templateToSave = JSON.parse(JSON.stringify(currentTemplate));
 
     if (!templateToSave.name.trim()) {
       toast({ title: "Validation Error", description: 'Template name is required.', variant: "destructive" });
@@ -343,16 +290,14 @@ export function TemplateEditor({
         toast({ title: "Validation Error", description: 'Aspect Ratio must be in W:H format (e.g., 63:88) with positive numbers.', variant: "destructive" });
         return;
     }
-    
-    if (part === 'sections') { // Specific validation for sections
-      if (!templateToSave.rows || templateToSave.rows.length === 0) {
-        toast({ title: "Validation Error", description: 'Template structure must have at least one row.', variant: "destructive" });
-        return;
-      }
-      if (templateToSave.rows.some((row: CardRow) => !row.columns || row.columns.length === 0)) {
-        toast({ title: "Validation Error", description: 'All rows in the structure must have at least one section (column).', variant: "destructive" });
-        return;
-      }
+
+    if (!templateToSave.rows || templateToSave.rows.length === 0) {
+      toast({ title: "Validation Error", description: 'Template structure must have at least one row.', variant: "destructive" });
+      return;
+    }
+    if (templateToSave.rows.some((row: CardRow) => !row.columns || row.columns.length === 0)) {
+      toast({ title: "Validation Error", description: 'All rows in the structure must have at least one section (column).', variant: "destructive" });
+      return;
     }
     onSaveTemplate(templateToSave);
   };
@@ -361,52 +306,54 @@ export function TemplateEditor({
     setSelectedTemplateToEditId(templateId);
     const selectedTpl = templates.find(t => t.id === templateId);
     if (selectedTpl) {
-        setActiveRowAccordionItems((selectedTpl.rows || []).map(r => r.id));
+        setActiveRowAccordionItems((selectedTpl.rows || []).map(r => r.id)); // Expand all rows of selected template
     }
-    setActiveStylingAccordion(null);
+    setActiveStylingAccordion(null); // Close any open section styling
   };
-  
+
   const handleTemplatePresetChange = (presetName: string) => {
     const preset = PRESET_TEMPLATES.find(t => t.name === presetName);
     if (preset) {
-      const baseId = (currentTemplate.id && currentTemplate.name !== "New Unsaved Template") ? currentTemplate.id : nanoid();
-      const baseName = (currentTemplate.name && currentTemplate.name !== "New Unsaved Template") ? currentTemplate.name : preset.name;
-      
+      // Use current ID and Name if they are "real", otherwise use preset's name and generate new ID for the structure
+      const isEditingExistingUnsaved = currentTemplate.name !== "New Unsaved Template";
+      const baseId = isEditingExistingUnsaved ? currentTemplate.id : nanoid();
+      const baseName = isEditingExistingUnsaved ? currentTemplate.name : preset.name;
+
       const newPresetTemplateBase = JSON.parse(JSON.stringify(preset)) as TCGCardTemplate;
 
       const newRows = (newPresetTemplateBase.rows || []).map((rowPreset: CardRow) => {
-        const newRowId = nanoid();
+        const newRowId = nanoid(); // Always generate new IDs for rows/sections from preset
         const newColumns = (rowPreset.columns || []).map((colPreset: CardSection) => {
-          const newColId = nanoid(); 
+          const newColId = nanoid();
           const colType = colPreset.type || 'CustomText';
-          const baseCol = createDefaultSection(colType, newColId); 
+          const baseCol = createDefaultSection(colType, newColId);
           return {
             ...baseCol,
-            ...colPreset,
-            id: newColId, 
+            ...colPreset, // Overlay preset section data
+            id: newColId,  // Ensure new ID
             type: colType
           };
         });
         const baseRow = createDefaultRow(newRowId, newColumns, rowPreset.alignItems, rowPreset.customHeight);
         return {
           ...baseRow,
-          ...rowPreset,
-          id: newRowId, 
+          ...rowPreset, // Overlay preset row data
+          id: newRowId,   // Ensure new ID
           columns: newColumns,
         };
       });
-      
+
       const newPresetTemplate: TCGCardTemplate = {
-        ...getFreshDefaultTemplate(baseId, baseName), 
-        ...newPresetTemplateBase, 
-        id: baseId, 
-        name: baseName, 
-        rows: newRows,
+        ...getFreshDefaultTemplate(baseId, baseName), // Get all default top-level props for this ID/Name
+        ...newPresetTemplateBase,                   // Overlay with preset's top-level props (like aspectRatio, frameStyle)
+        id: baseId,                                 // Re-assert intended ID
+        name: baseName,                             // Re-assert intended Name
+        rows: newRows,                              // Use the newly constructed rows with new IDs
       };
-      
+
       setCurrentTemplate(newPresetTemplate);
       setAspectRatioInput(newPresetTemplate.aspectRatio || "63:88");
-      setActiveRowAccordionItems((newPresetTemplate.rows || []).map(r => r.id));
+      setActiveRowAccordionItems((newPresetTemplate.rows || []).map(r => r.id)); // Expand all new rows
       setActiveStylingAccordion(null);
       toast({ title: "Preset Loaded", description: `"${preset.name}" structure loaded into current editor.`});
     }
@@ -414,10 +361,10 @@ export function TemplateEditor({
 
   const handleRowClickFromPreview = (rowId: string) => {
     setActiveRowAccordionItems(prev => {
-      if (prev.includes(rowId)) return prev; // Don't toggle off, just ensure it's open
-      return [rowId]; 
+      if (prev.includes(rowId) && prev.length === 1) return prev; // If it's the only one open, keep it open
+      return [rowId]; // Otherwise, open only this one
     });
-    setActiveStylingAccordion(null); 
+    setActiveStylingAccordion(null);
     setTimeout(() => {
       const itemElement = document.getElementById(`accordion-row-${rowId}`);
       itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -427,9 +374,9 @@ export function TemplateEditor({
   const handleSectionClickFromPreview = (sectionId: string) => {
     const parentRow = (currentTemplate.rows || []).find(r => (r.columns || []).some(s => s.id === sectionId));
     if(parentRow && !activeRowAccordionItems.includes(parentRow.id)){
-        setActiveRowAccordionItems(prev => [parentRow.id]); 
+        setActiveRowAccordionItems([parentRow.id]); // Open parent row if not already
     }
-    onToggleStylingAccordion(sectionId); 
+    onToggleStylingAccordion(sectionId); // Toggle the specific section's styling accordion
      setTimeout(() => {
       const itemElement = document.getElementById(`accordion-section-styling-${sectionId}`);
       itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -440,14 +387,14 @@ export function TemplateEditor({
     const data: { [key: string]: string } = {};
     if (currentTemplate && currentTemplate.rows) {
         extractUniquePlaceholderKeys(currentTemplate).forEach(placeholder => {
-            data[placeholder.key] = placeholder.defaultValue !== undefined ? placeholder.defaultValue : `{{${placeholder.key}}}`;
+            data[placeholder.key] = placeholder.key; // For editor preview, show {{key}}
         });
     }
     return data;
-  }, [currentTemplate]); 
+  }, [currentTemplate]);
 
-  const isStrictlyNonCustomizableFrame = currentTemplate.frameStyle && currentTemplate.frameStyle !== 'standard' && currentTemplate.frameStyle !== 'custom';
-  
+  const isNonCustomizableFrame = currentTemplate.frameStyle && currentTemplate.frameStyle !== 'standard' && currentTemplate.frameStyle !== 'custom';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <Card className="lg:col-span-1">
@@ -534,8 +481,8 @@ export function TemplateEditor({
                         />
                          <p className="text-xs text-muted-foreground mt-1">Effective: {currentTemplate.aspectRatio || "Not set"}. Standard TCG is 63:88.</p>
                     </div>
-                    
-                    <Accordion type="single" collapsible className="w-full">
+
+                    <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling-accordion-item">
                         <AccordionItem value="overall-styling-accordion-item" id="overall-styling-accordion-item" className="border rounded-md">
                             <AccordionTrigger className="px-3 py-2 text-sm font-medium hover:no-underline">
                                 <div className="flex items-center gap-2"><Cog className="h-4 w-4" /> Overall Card Styling</div>
@@ -551,26 +498,60 @@ export function TemplateEditor({
                                     </div>
                                     <div>
                                         <Label htmlFor="baseBgColor" className="text-xs">Base Background Color</Label>
-                                        <Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} disabled={isStrictlyNonCustomizableFrame} />
+                                        <Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })} disabled={isNonCustomizableFrame} />
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                          {(currentTemplate.frameStyle === 'standard' || currentTemplate.frameStyle === 'custom') 
-                                            ? "Applies to 'Standard' and 'Custom Colors' frames. Leave empty for theme default." 
+                                          {(currentTemplate.frameStyle === 'standard' || currentTemplate.frameStyle === 'custom')
+                                            ? "Applies to 'Standard' and 'Custom Colors' frames. Leave empty for theme default."
                                             : `Overridden by Frame Style ('${currentTemplate.frameStyle || 'none'}'). Set this if you plan to switch back.`}
                                         </p>
                                     </div>
                                     <div>
                                         <Label htmlFor="baseTextColor" className="text-xs">Base Text Color</Label>
-                                        <Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ baseTextColor: e.target.value })} disabled={isStrictlyNonCustomizableFrame} />
+                                        <Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ baseTextColor: e.target.value })} disabled={isNonCustomizableFrame} />
                                          <p className="text-xs text-muted-foreground mt-0.5">
-                                           {(currentTemplate.frameStyle === 'standard' || currentTemplate.frameStyle === 'custom') 
-                                            ? "Applies to 'Standard' and 'Custom Colors' frames. Leave empty for theme default." 
+                                           {(currentTemplate.frameStyle === 'standard' || currentTemplate.frameStyle === 'custom')
+                                            ? "Applies to 'Standard' and 'Custom Colors' frames. Leave empty for theme default."
                                             : `Overridden by Frame Style ('${currentTemplate.frameStyle || 'none'}'). Set this if you plan to switch back.`}
                                         </p>
                                     </div>
-                                     <div>
+                                    <div>
+                                        <Label htmlFor="legacyFrameColor" className="text-xs">Legacy Frame Color (Outer Border)</Label>
+                                        <Input id="legacyFrameColor" type="color" value={currentTemplate.legacyFrameColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ legacyFrameColor: e.target.value })} disabled={isNonCustomizableFrame} />
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          {(currentTemplate.frameStyle === 'standard' || currentTemplate.frameStyle === 'custom')
+                                            ? "Sets card border for 'Standard' and 'Custom'. Ignored by other frames."
+                                            : `Overridden by Frame Style ('${currentTemplate.frameStyle || 'none'}'). Use for 'Standard' or 'Custom'.`}
+                                        </p>
+                                    </div>
+                                    <div>
                                         <Label htmlFor="defaultSectionBorderColor" className="text-xs">Default Section Border Color</Label>
                                         <Input id="defaultSectionBorderColor" type="color" value={currentTemplate.defaultSectionBorderColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ defaultSectionBorderColor: e.target.value })} />
                                         <p className="text-xs text-muted-foreground mt-0.5">Fallback for section borders if they have a width but no specific color.</p>
+                                    </div>
+                                     <div>
+                                        <Label htmlFor="cardBorderColor" className="text-xs">Card Outer Border Color</Label>
+                                        <Input id="cardBorderColor" type="color" value={currentTemplate.cardBorderColor || ''} onChange={(e) => updateCurrentTemplate({ cardBorderColor: e.target.value })} />
+                                         <p className="text-xs text-muted-foreground mt-0.5">May be overridden by some specific Frame Styles.</p>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="cardBorderWidth" className="text-xs">Card Outer Border Width</Label>
+                                        <Input id="cardBorderWidth" value={currentTemplate.cardBorderWidth || ''} onChange={(e) => updateCurrentTemplate({ cardBorderWidth: e.target.value })} placeholder="e.g., 4px, 0" />
+                                         <p className="text-xs text-muted-foreground mt-0.5">May be overridden by some specific Frame Styles.</p>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="cardBorderStyle" className="text-xs">Card Outer Border Style</Label>
+                                        <Select value={currentTemplate.cardBorderStyle || '_default_'} onValueChange={v => updateCurrentTemplate({ cardBorderStyle: v === '_default_' ? undefined : v as TCGCardTemplate['cardBorderStyle'] })}>
+                                            <SelectTrigger id="cardBorderStyle"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {CARD_BORDER_STYLES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                         <p className="text-xs text-muted-foreground mt-0.5">May be overridden by some specific Frame Styles.</p>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="cardBorderRadius" className="text-xs">Card Corner Radius</Label>
+                                        <Input id="cardBorderRadius" value={currentTemplate.cardBorderRadius || ''} onChange={(e) => updateCurrentTemplate({ cardBorderRadius: e.target.value })} placeholder="e.g., 8px, 0.5rem" />
+                                         <p className="text-xs text-muted-foreground mt-0.5">May be overridden by some specific Frame Styles.</p>
                                     </div>
                                 </div>
                             </AccordionContent>
@@ -578,9 +559,9 @@ export function TemplateEditor({
                     </Accordion>
                 </CardContent>
                  <CardFooter className="p-4 border-t flex justify-end">
-                    <Button type="button" onClick={() => handleSubmit('settings')} className="flex items-center gap-2">
+                    <Button type="button" onClick={handleSubmit} className="flex items-center gap-2">
                         <Save className="h-4 w-4"/>
-                        Save Template Settings
+                        Save Template Settings & Structure
                     </Button>
                 </CardFooter>
             </Card>
@@ -590,9 +571,9 @@ export function TemplateEditor({
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Rows className="h-5 w-5 text-primary" /> Card Rows &amp; Sections (Columns)
                 </CardTitle>
-                <CardDescription>Define rows, then add sections (columns) to each row. Use <code>{`{{placeholder}}`}</code> or <code>{`{{placeholder:"default"}}`}</code> for dynamic data.</CardDescription>
+                <CardDescription>Define rows, then add sections (columns) to each row. Use <code>{"{{placeholder}}"}</code> or <code>{"{{placeholder:\"default\"}}"}</code> for dynamic data.</CardDescription>
                 </CardHeader>
-                <CardContent className="pr-0"> 
+                <CardContent className="pr-0">
                     <ScrollArea className="h-[60vh] w-full">
                         <Accordion
                             type="multiple"
@@ -675,9 +656,9 @@ export function TemplateEditor({
                     <Button type="button" onClick={addRow} variant="outline" className="w-full sm:w-auto flex items-center gap-2">
                         <PlusCircle className="h-4 w-4"/> Add New Row
                     </Button>
-                     <Button type="button" onClick={() => handleSubmit('sections')} className="w-full sm:w-auto ml-auto flex items-center gap-2">
+                     <Button type="button" onClick={handleSubmit} className="w-full sm:w-auto ml-auto flex items-center gap-2">
                         <Save className="h-4 w-4"/>
-                        Save Template Structure
+                        Save Template Structure & Settings
                     </Button>
                 </CardFooter>
             </Card>
@@ -685,7 +666,7 @@ export function TemplateEditor({
             <div className="mt-6 mb-6 pt-4 border-t">
                 <h4 className="text-lg font-semibold mb-2 text-center">Live Template Preview</h4>
                 <p className="text-xs text-muted-foreground text-center mb-3">(Click row or section in preview to focus. Shows placeholder keys.)</p>
-                <div className="mx-auto max-w-xs flex justify-center"> 
+                <div className="mx-auto max-w-xs flex justify-center">
                     <CardPreview
                         card={{template: currentTemplate, data:livePreviewData, uniqueId: 'editor-preview'}}
                         isPrintMode={false}
@@ -707,11 +688,11 @@ export function TemplateEditor({
                         <DialogHeader>
                             <DialogTitle>Full Size Template Preview: {currentTemplate.name || "Untitled"}</DialogTitle>
                         </DialogHeader>
-                        <div className="flex justify-center p-4 my-auto"> 
+                        <div className="flex justify-center p-4 my-auto">
                             <CardPreview
                                 card={{ template: currentTemplate, data: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
                                 isPrintMode={false}
-                                isEditorPreview={true} 
+                                isEditorPreview={true}
                                 hideEmptySections={false}
                                 className="mx-auto"
                                 targetWidthPx={400}
@@ -728,5 +709,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
-    

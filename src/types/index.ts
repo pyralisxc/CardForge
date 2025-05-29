@@ -24,34 +24,37 @@ export interface CardSection {
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
   padding?: string;
-  borderColor?: string;
-  borderWidth?: string; 
-  minHeight?: string; 
+  borderColor?: string; // This was the name at the target revert point
+  borderWidth?: string;
+  minHeight?: string;
   flexGrow?: number;
-  customHeight?: string; 
-  customWidth?: string; 
+  customHeight?: string;
+  customWidth?: string;
 }
 
 export interface CardRow {
   id: string;
   columns: CardSection[];
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string; 
+  customHeight?: string;
 }
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  aspectRatio: string; 
-  defaultSectionBorderColor?: string; 
+  aspectRatio: string;
+  frameStyle?: string;
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  frameStyle?: string; 
-  // New specific border properties
+  legacyFrameColor?: string; // This was string | undefined
+  defaultSectionBorderColor?: string; // This was borderColor
+
+  // Properties from "Overall Card Styling" overhaul ARE present in this target state
   cardBorderColor?: string;
-  cardBorderWidth?: string; // e.g. "2px"
+  cardBorderWidth?: string;
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
-  cardBorderRadius?: string; // e.g. "8px"
+  cardBorderRadius?: string;
+
   rows: CardRow[];
 }
 
@@ -81,5 +84,3 @@ export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
 }
-
-    

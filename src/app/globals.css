@@ -46,7 +46,7 @@ body {
     --chart-3: 0 60% 55%; /* Crimson */
     --chart-4: 120 40% 50%; /* Forest Green */
     --chart-5: 30 70% 50%; /* Deep Orange */
-    
+
     /* Sidebar specific colors */
     --sidebar-background: 220 15% 10%; /* Even Darker Sidebar #14171C */
     --sidebar-foreground: 220 10% 75%; /* Slightly Dimmer Text #B9BBC0 */
@@ -60,7 +60,7 @@ body {
 
   .dark {
     /* Using the same variables as :root for a consistent dark theme */
-    --background: 220 15% 12%; 
+    --background: 220 15% 12%;
     --foreground: 220 10% 85%;
 
     --card: 220 15% 20%;
@@ -92,7 +92,7 @@ body {
 
 @layer base {
   * {
-    @apply border-border; 
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
@@ -104,8 +104,8 @@ body {
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    background-color: white !important; 
-    color: black !important; 
+    background-color: white !important;
+    color: black !important;
   }
   .no-print {
     display: none !important;
@@ -115,65 +115,62 @@ body {
     background-color: white !important;
   }
   .card-preview-print {
-    width: 63mm !important; 
-    height: 88mm !important; 
-    border: 1px dashed #333 !important; 
+    width: 63mm !important;
+    height: 88mm !important;
+    border: 1px dashed #333 !important;
     page-break-inside: avoid !important;
-    margin: 2mm !important; 
+    margin: 2mm !important;
     box-shadow: none !important;
-    background-color: white !important; 
+    background-color: white !important;
   }
 
   .printable-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(63mm, 1fr)); 
+    grid-template-columns: repeat(auto-fill, minmax(63mm, 1fr));
     gap: 2mm;
   }
 }
 
 /* Base Frame Styles */
 .tcg-card-preview {
-  border-width: 4px; 
-  border-style: solid; 
-  border-color: hsl(var(--border)); 
-  border-radius: var(--radius);
-  background-color: hsl(var(--card)); 
-  color: hsl(var(--card-foreground)); 
+  border-width: 4px; /* Default width, can be overridden by template.cardBorderWidth */
+  border-style: solid; /* Default style, can be overridden by template.cardBorderStyle */
+  border-color: hsl(var(--border)); /* Default color, can be overridden by template.cardBorderColor */
+  border-radius: var(--radius); /* Default radius, can be overridden by template.cardBorderRadius */
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
 }
 
-/* Standard Frame - This will be the default if no specific frame style is chosen or if 'standard' is selected */
+/* Standard Frame - background can be overridden by template.baseBackgroundColor */
 .tcg-card-preview.frame-standard {
-  background-color: white; 
-  color: black;
-  border-color: #A9A9A9; /* Default light grey border for standard */
-  border-width: 4px;
-  border-style: solid;
-  border-radius: var(--radius);
+  background-color: white; /* Default white background */
+  color: black; /* Default black text */
+  /* Border properties will be set by .tcg-card-preview or inline template styles */
 }
 
-/* Custom Frame - Relies on inline styles from template for background/text/border. */
+/* Custom Frame - relies on inline styles from template for background/text/border. */
 .tcg-card-preview.frame-custom {
   /* Intentionally minimal: background, text color, and border come from inline styles set by the template. */
-  /* If no inline styles for border are set, it falls back to .tcg-card-preview general theme border. */
+  /* If no inline styles are set, it falls back to .tcg-card-preview general theme styles. */
 }
 
 
 .tcg-card-preview.frame-classic-gold {
-  border: 6px solid transparent; 
+  border: 6px solid transparent;
   border-image: linear-gradient(to bottom right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C) 1;
-  background-color: #fDF4D8; 
-  color: #4A3B2A; 
-  border-radius: 0.75rem; 
+  background-color: #fDF4D8;
+  color: #4A3B2A;
+  border-radius: 0.75rem;
 }
 .tcg-card-preview.frame-classic-gold .tcg-section-cardname,
 .tcg-card-preview.frame-classic-gold .tcg-section-typeline {
-  background-color: rgba(180, 140, 50, 0.1); 
+  background-color: rgba(180, 140, 50, 0.1);
 }
 
 .tcg-card-preview.frame-minimal-dark {
   border: 2px solid #4a4a4a;
   background-color: #282828;
-  color: #c0c0c0; 
+  color: #c0c0c0;
   border-radius: 0.25rem;
 }
 .tcg-card-preview.frame-minimal-dark .tcg-section-typeline {
@@ -182,10 +179,10 @@ body {
 
 
 .tcg-card-preview.frame-arcane-purple {
-  border: 5px solid hsl(var(--primary-foreground)); 
+  border: 5px solid hsl(var(--primary-foreground));
   background: linear-gradient(135deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.5));
   box-shadow: 0 0 15px hsl(var(--primary) / 0.7), inset 0 0 10px hsl(var(--background) / 0.3);
-  color: hsl(var(--primary-foreground)); 
+  color: hsl(var(--primary-foreground));
   border-radius: 0.6rem;
 }
 .tcg-card-preview.frame-arcane-purple .tcg-section-cardname,
@@ -196,5 +193,5 @@ body {
 .tcg-card-preview.frame-arcane-purple .tcg-section-rulestext,
 .tcg-card-preview.frame-arcane-purple .tcg-section-flavortext {
    background-color: hsl(var(--background) / 0.5);
-   color: hsl(var(--foreground)); 
+   color: hsl(var(--foreground));
 }
