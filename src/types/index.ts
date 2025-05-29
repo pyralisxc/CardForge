@@ -24,40 +24,31 @@ export interface CardSection {
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
   padding?: string;
-  borderColor?: string; // This was the name before defaultSectionBorderColor
-  borderWidth?: string;
-  minHeight?: string;
+  borderColor?: string;
+  borderWidth?: string; // Tailwind class e.g. border-2, border-t
+  minHeight?: string; // Tailwind class e.g. min-h-[120px]
   flexGrow?: number;
-  customHeight?: string;
-  customWidth?: string;
+  customHeight?: string; // e.g., "150px", "auto", "50%"
+  customWidth?: string; // e.g., "100%", "200px", "auto"
 }
 
 export interface CardRow {
   id: string;
   columns: CardSection[];
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string;
+  customHeight?: string; // e.g., "100px", "20%", "auto"
 }
-
-// CardBorderStyle type is removed as it was part of the overhaul
-// export type CardBorderStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  aspectRatio: string;
-  legacyFrameColor?: string; // Reverted state included this
-  borderColor?: string; // Reverted state: general border color for sections/fallback
+  aspectRatio: string; // e.g., "63:88"
+  legacyFrameColor?: string | undefined; // For older template compatibility or specific user override
+  defaultSectionBorderColor?: string; // Fallback border color for sections
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  frameStyle?: string;
+  frameStyle?: string; // e.g., "standard", "classic-gold"
   rows: CardRow[];
-
-  // The following were added in the overhaul, so they are removed:
-  // cardBorderColor?: string;
-  // cardBorderWidth?: string;
-  // cardBorderStyle?: CardBorderStyle;
-  // cardBorderRadius?: string;
 }
 
 export interface CardData {
@@ -80,4 +71,9 @@ export interface AbilityContextSet {
   id: string;
   name: string;
   description: string;
+}
+
+export interface ExtractedPlaceholder {
+  key: string;
+  defaultValue?: string;
 }

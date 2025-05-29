@@ -18,7 +18,7 @@ interface CardPreviewProps {
   onEdit?: (card: DisplayCard) => void;
 }
 
-const PREVIEW_WIDTH_PX = 280;
+const PREVIEW_WIDTH_PX = 280; // Width of the preview card on screen
 
 export function CardPreview({
   card,
@@ -37,7 +37,7 @@ export function CardPreview({
   if (!template.rows) return <div className="text-destructive">Error: Template has no rows defined.</div>;
 
   const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
-  const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (PREVIEW_WIDTH_PX / aspectW) * aspectH : 390;
+  const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (PREVIEW_WIDTH_PX / aspectW) * aspectH : 390; // Approx height for 63:88 at 280px width
 
   const cardContainerStyle: React.CSSProperties = {
     aspectRatio: (aspectW > 0 && aspectH > 0) ? `${aspectW} / ${aspectH}` : undefined,
@@ -80,10 +80,11 @@ export function CardPreview({
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) {
+      // In editor preview, don't hide sections based on content, only by explicit settings if we add them later.
       return false; 
     }
     if (hideEmptySections) {
-      if (section.type === 'Artwork' || section.type === 'Divider') return false; 
+      if (section.type === 'Artwork' || section.type === 'Divider') return false; // Never hide artwork or dividers based on content
       return processedContent.trim() === '';
     }
     return false;
@@ -119,6 +120,7 @@ export function CardPreview({
           const allColumnsInRowHidden = row.columns.every(col => {
              let colContentForHidingCheck: string;
              if (isEditorPreview && col.type !== 'Artwork' && col.type !== 'Divider') {
+                // For editor, check the raw placeholder to decide if it's "empty" for hiding purposes
                 colContentForHidingCheck = col.contentPlaceholder;
              } else if (col.type === 'Artwork') {
                 colContentForHidingCheck = "artwork_placeholder"; // Artwork is never "empty" for hiding
@@ -134,8 +136,9 @@ export function CardPreview({
             return null;
           }
 
+          // Calculate effective row height, considering percentages relative to card height
           let rowEffectiveHeight: string | undefined = undefined;
-          if (row.customHeight && !isPrintMode) {
+          if (row.customHeight && !isPrintMode) { // Percentages don't make sense in fixed-size print mode as easily
             if (row.customHeight.includes('%') && cardPixelHeight > 0 && isFinite(cardPixelHeight)) {
               const percentageValue = parseFloat(row.customHeight.replace('%', ''));
               if (!isNaN(percentageValue) && isFinite(percentageValue)) {
@@ -149,8 +152,8 @@ export function CardPreview({
           const rowStyle: React.CSSProperties = {
             display: 'flex',
             alignItems: row.alignItems || 'flex-start',
-            height: rowEffectiveHeight,
-            flexShrink: 0,
+            height: rowEffectiveHeight, // Apply calculated or direct height
+            flexShrink: 0, // Prevent rows from shrinking if content overflows card
           };
 
           return (
@@ -168,16 +171,19 @@ export function CardPreview({
                 
                 let processedContentForDisplay: string;
                 if (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider') {
-                  processedContentForDisplay = section.contentPlaceholder;
+                  processedContentForDisplay = section.contentPlaceholder; // Show raw placeholder in editor
                 } else if (isEditorPreview && (section.type === 'Artwork' || section.type === 'Divider')) {
-                  processedContentForDisplay = section.contentPlaceholder; // For artwork editor placeholder text
+                  // For artwork/divider editor placeholders, they are handled differently below
+                  processedContentForDisplay = section.contentPlaceholder; // Keep for artwork editor box text
                 }
                  else {
+                  // For actual card preview (not editor)
                   processedContentForDisplay = replacePlaceholdersLocal(section.contentPlaceholder, data, true);
                 }
                 
+                // Decide if section should be hidden (for non-editor previews)
                 const contentForHidingCheck = (isEditorPreview && section.type !== 'Artwork' && section.type !== 'Divider') 
-                                              ? section.contentPlaceholder 
+                                              ? section.contentPlaceholder // In editor, check raw placeholder
                                               : processedContentForDisplay;
 
                 if (shouldHideSection(section, contentForHidingCheck) && !isEditorPreview) {
@@ -185,45 +191,48 @@ export function CardPreview({
                 }
 
                 const sectionStyle: React.CSSProperties = {
-                  position: 'relative', 
+                  position: 'relative', // Crucial for child absolute positioning (like NextImage)
                   color: section.textColor || undefined,
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
                   fontStyle: section.fontStyle || 'normal',
                   flexGrow: section.flexGrow || 0,
-                  flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0,
-                  flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto',
-                  height: section.customHeight || undefined,
-                  width: section.customWidth || undefined,
-                  borderColor: section.borderColor || template.borderColor || undefined, // Reverted to template.borderColor
-                  // Explicit text wrapping for all text sections
+                  flexShrink: (section.flexGrow && section.flexGrow > 0) ? 1 : 0, // Growable items can shrink
+                  flexBasis: (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto', // Basis for growable items
+                  height: section.customHeight || undefined, // Explicit height
+                  width: section.customWidth || undefined,   // Explicit width
+                  borderColor: section.borderColor || template.defaultSectionBorderColor || undefined,
+                  borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined, // Apply border style only if width is set
+                  // Explicit text wrapping for all text sections, critical for AI content
                   ...(section.type !== 'Artwork' && section.type !== 'Divider' && {
                       overflowWrap: 'break-word',
                   }),
                 };
                 
+                // For items that grow, allow them to shrink and scroll if necessary
                 if (section.flexGrow && section.flexGrow > 0) {
-                    sectionStyle.minWidth = 0; 
-                    sectionStyle.minHeight = 0; 
-                    if (section.type !== 'Artwork') { 
-                        sectionStyle.overflowY = 'auto';
+                    sectionStyle.minWidth = 0; // Allows item to shrink below content width
+                    sectionStyle.minHeight = 0; // Allows item to shrink below content height for overflowY
+                    if (section.type !== 'Artwork') { // Artwork manages its own overflow via NextImage
+                        sectionStyle.overflowY = 'auto'; // Enable vertical scroll if content overflows
                     }
                 }
                 
+                // Apply Tailwind border width classes
                 let sectionBorderClass = '';
                 if (section.borderWidth && section.borderWidth !== '_none_') {
-                    sectionBorderClass = section.borderWidth; 
-                    sectionStyle.borderStyle = sectionStyle.borderStyle || 'solid'; 
+                    sectionBorderClass = section.borderWidth; // e.g., "border", "border-t-2"
+                    // sectionStyle.borderStyle is set above
                 }
 
 
                 const sectionClasses = cn(
-                  'relative', 
+                  'relative', // Ensure relative positioning for children like NextImage
                   section.padding || (section.type === 'Artwork' ? 'p-0' : 'p-1'),
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
-                  section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '',
+                  section.minHeight && section.minHeight !== '_auto_' ? section.minHeight : '', // Tailwind min-height
                   sectionBorderClass,
                   (section.type !== 'Artwork' && section.type !== 'Divider') ? 'whitespace-pre-wrap break-words' : '',
                   `tcg-section-${section.type.toLowerCase()}`,
@@ -240,7 +249,7 @@ export function CardPreview({
                 if (section.type === 'Artwork') {
                   if (isEditorPreview) {
                     const editorArtStyle: React.CSSProperties = {
-                      ...sectionStyle, 
+                      ...sectionStyle, // Apply base section styles (like flexGrow)
                       height: section.customHeight || (section.minHeight && section.minHeight.includes('px') ? section.minHeight : '120px'), 
                       width: section.customWidth || '100%',
                       backgroundColor: 'hsl(var(--muted) / 0.5)',
@@ -252,21 +261,24 @@ export function CardPreview({
                       textAlign: 'center',
                       fontSize: '0.75rem',
                       color: 'hsl(var(--muted-foreground))',
-                      boxSizing: 'border-box',
+                      boxSizing: 'border-box', // Ensure padding/border are included in width/height
                     };
                     return (
                       <div
                         key={section.id}
-                        className={cn(sectionClasses)}
-                        style={editorArtStyle}
+                        className={cn(sectionClasses)} // Apply general classes
+                        style={editorArtStyle} // Specific styles for editor artwork box
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
                       >
+                        {/* Removed "Artwork: {{placeholder}}" text */}
                         <div>Size: {section.customWidth || 'auto'} x {section.customHeight || 'auto'}</div>
                       </div>
                     );
                   } else { 
+                    // Actual card render for Artwork
                     let artworkDisplaySrc = replacePlaceholdersLocal(section.contentPlaceholder, data, true);
+                    // Fallback for artwork if not a valid URL or placeholder still
                     if (!artworkDisplaySrc || 
                         (!artworkDisplaySrc.startsWith('http://') && 
                          !artworkDisplaySrc.startsWith('https://') && 
@@ -276,12 +288,13 @@ export function CardPreview({
                     }
 
                     const imageIsPriority = rowIndex === 0 && sectionIndex === 0;
+                    // Container for NextImage, needs to be relative and have dimensions
                     const imageContainerStyle: React.CSSProperties = {
-                        ...sectionStyle,
-                        position: 'relative', 
-                        height: section.customHeight || '100%', 
-                        width: section.customWidth || '100%',   
-                        overflow: 'hidden', 
+                        ...sectionStyle, // Inherit flex, padding, border from sectionStyle
+                        position: 'relative', // Crucial for NextImage layout="fill"
+                        height: section.customHeight || '100%', // Use custom height or fill row
+                        width: section.customWidth || '100%',   // Use custom width or fill column space
+                        overflow: 'hidden', // To clip the image if objectFit is 'cover'
                     };
                     if (section.customHeight) delete imageContainerStyle.minHeight; // Prevent conflict with direct height
                     if (section.customWidth) delete imageContainerStyle.minWidth;  // Prevent conflict with direct width
@@ -290,8 +303,8 @@ export function CardPreview({
                     return (
                       <div
                         key={section.id}
-                        className={cn(sectionClasses)}
-                        style={imageContainerStyle}
+                        className={cn(sectionClasses)} // Apply padding, borders from sectionClasses
+                        style={imageContainerStyle} // Apply dimensions and relative positioning
                         onClick={handlePreviewSectionClick}
                         data-section-id={section.id}
                       >
@@ -299,7 +312,7 @@ export function CardPreview({
                           src={artworkDisplaySrc}
                           alt={replacePlaceholdersLocal(template.rows.flatMap(r => r.columns).find(s=>s.type === 'CardName')?.contentPlaceholder, data, false) || "Card artwork"}
                           layout="fill"
-                          objectFit="cover"
+                          objectFit="cover" // Or "contain" depending on desired behavior
                           data-ai-hint={artworkHintValue}
                           priority={imageIsPriority}
                         />
@@ -310,24 +323,26 @@ export function CardPreview({
 
                 if (section.type === 'Divider') {
                   const dividerStyle: React.CSSProperties = {
-                    ...sectionStyle,
-                     height: section.customHeight || '1px',
-                     backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.borderColor || 'hsl(var(--border))', // Reverted
-                     width: section.customWidth || 'auto', 
-                     flexGrow: section.flexGrow || 0, 
-                     margin: section.padding?.includes('m') ? undefined : '0.25rem 0.5rem', 
+                    ...sectionStyle, // Inherit flex, padding etc.
+                     height: section.customHeight || '1px', // Use custom height or default
+                     backgroundColor: section.backgroundColor || sectionStyle.borderColor || template.defaultSectionBorderColor || 'hsl(var(--border))',
+                     width: section.customWidth || 'auto', // Use custom width or auto
+                     flexGrow: section.flexGrow || 0, // Dividers usually don't grow
+                     margin: section.padding?.includes('m') ? undefined : '0.25rem 0.5rem', // Use padding for margins or default
                   };
-                   if (section.padding?.includes('m')) { 
+                   if (section.padding?.includes('m')) { // If padding has margin utils, clear direct margin
                      dividerStyle.margin = undefined; 
                   }
                   if (dividerStyle.width === 'auto' && !(section.flexGrow && section.flexGrow > 0)) {
+                     // If width is auto and not growing, make it stretch if not already filling (e.g. for horizontal dividers)
+                     // This might need adjustment based on row direction (if we ever add vertical rows)
                      dividerStyle.alignSelf = 'stretch'; 
                   }
 
                   return (
                     <div
                       key={section.id}
-                      className={cn("tcg-section-divider", sectionClasses)}
+                      className={cn("tcg-section-divider", sectionClasses)} // Apply padding from sectionClasses
                       style={dividerStyle}
                       onClick={handlePreviewSectionClick}
                       data-section-id={section.id}
@@ -335,6 +350,7 @@ export function CardPreview({
                   );
                 }
                 
+                // For other text-based sections
                 const Tag = (section.type === 'RulesText' || section.type === 'FlavorText') ? 'pre' : 'div';
                 
                 return (
