@@ -8,8 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, Trash2, Type, TextCursorInput, FileImage, AlignLeft, Italic, ChevronsUpDown, Baseline, SquarePen, Minus } from 'lucide-react';
-import { SECTION_TYPES } from '@/lib/constants';
+import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react'; // Removed unused icons
+import { SECTION_TYPES, ICON_MAP } from '@/lib/constants'; // Import ICON_MAP
 import { SectionStylingForm } from './SectionStylingForm';
 
 interface ColumnEditorProps {
@@ -25,19 +25,6 @@ interface ColumnEditorProps {
   onMoveSectionInRow: (rowId: string, sectionId: string, direction: 'left' | 'right') => void;
 }
 
-const iconMap: Record<CardSectionType, React.ElementType> = {
-  CardName: TextCursorInput,
-  ManaCost: Baseline,
-  Artwork: FileImage,
-  TypeLine: Type,
-  RulesText: AlignLeft,
-  FlavorText: Italic,
-  PowerToughness: ChevronsUpDown,
-  ArtistCredit: Baseline,
-  CustomText: SquarePen,
-  Divider: Minus,
-};
-
 const ColumnEditorMemoized = ({
   section,
   sectionIndex,
@@ -50,7 +37,7 @@ const ColumnEditorMemoized = ({
   onRemoveSectionFromRow,
   onMoveSectionInRow,
 }: ColumnEditorProps) => {
-  const IconComponent = iconMap[section.type] || Type;
+  const IconComponent = ICON_MAP[section.type] || SECTION_TYPES[0]; // Fallback to first type's icon if not found
 
   return (
     <Card key={section.id} className="bg-background/50 p-0 overflow-hidden">

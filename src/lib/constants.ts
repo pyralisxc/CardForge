@@ -1,7 +1,8 @@
 
 import type { PaperSize, TCGCardTemplate, CardSection, CardSectionType, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
-import { PackageOpen, LayoutDashboard, Wand2, ScrollText } from 'lucide-react';
+import type { ElementType } from 'react'; // Added for iconMap
+import { PackageOpen, LayoutDashboard, Wand2, ScrollText, TextCursorInput, FileImage, Type, AlignLeft, Italic, ChevronsUpDown, Baseline, SquarePen, Minus } from 'lucide-react';
 
 
 export const PAPER_SIZES: PaperSize[] = [
@@ -23,6 +24,19 @@ export const SECTION_TYPES: CardSectionType[] = [
   'CustomText',
   'Divider'
 ];
+
+export const ICON_MAP: Record<CardSectionType, ElementType> = {
+  CardName: TextCursorInput,
+  ManaCost: Baseline,
+  Artwork: FileImage,
+  TypeLine: Type,
+  RulesText: AlignLeft,
+  FlavorText: Italic,
+  PowerToughness: ChevronsUpDown,
+  ArtistCredit: Baseline,
+  CustomText: SquarePen,
+  Divider: Minus,
+};
 
 export const FONT_SIZES: Array<{ label: string; value: CardSection['fontSize'] }> = [
   { label: 'X-Small (0.75rem)', value: 'text-xs' },
@@ -153,7 +167,7 @@ export const createDefaultSection = (type: CardSectionType, id: string, override
       return { ...baseSection, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-serif', minHeight: 'min-h-[80px]', padding: 'p-2', fontSize: 'text-sm', flexGrow: 1, ...overrides };
     case 'FlavorText':
       specificContentPlaceholder = '"{{flavorText:"An evocative quote or description."}}"';
-      return { ...baseSection, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-serif', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[40px]', padding: 'p-2 pt-1', borderWidth: 'border-t', flexGrow: 1, customHeight: '', ...overrides }; // Removed default customHeight 40px
+      return { ...baseSection, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-serif', fontStyle: 'italic', fontSize: 'text-xs', minHeight: 'min-h-[40px]', padding: 'p-2 pt-1', borderWidth: 'border-t', flexGrow: 1, customHeight: '', ...overrides };
     case 'PowerToughness':
       specificContentPlaceholder = '{{power:"X"}}/{{toughness:"Y"}}'; // Also for loyalty: '{{loyalty:"L"}}'
       return { ...baseSection, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-lato', fontWeight: 'font-bold', fontSize: 'text-lg', textAlign: 'right', padding: 'px-2 py-1', backgroundColor: 'hsl(var(--muted)/0.7)', borderWidth: 'border-t', flexGrow: 0, ...overrides };
@@ -164,22 +178,24 @@ export const createDefaultSection = (type: CardSectionType, id: string, override
       specificContentPlaceholder = '{{customValue:"Custom Text"}}';
       return { ...baseSection, contentPlaceholder: specificContentPlaceholder, fontFamily: 'font-sans', padding: 'p-1', fontSize: 'text-sm', flexGrow: 1, ...overrides };
     case 'Divider':
-      return { ...baseSection, contentPlaceholder: '', minHeight: '_auto_', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', flexGrow: 0, customHeight: '1px', customWidth: 'auto', ...overrides }; // Divider flexGrow to 0
+      return { ...baseSection, contentPlaceholder: '', minHeight: '_auto_', backgroundColor: 'hsl(var(--border))', padding: 'my-1 mx-2', fontSize: 'text-sm', flexGrow: 0, customHeight: '1px', customWidth: 'auto', ...overrides };
     default:
       return { ...baseSection, contentPlaceholder: specificContentPlaceholder, fontSize: 'text-sm', ...overrides };
   }
 };
 
 export const createDefaultRow = (id: string, columns: CardSection[] = [], alignItems: CardRow['alignItems'] = 'flex-start', customHeight: string = ''): CardRow => {
+    // For default templates, columns should come with their IDs hardcoded.
+    // For dynamically added rows, nanoid() will be used if column IDs are missing when adding.
     const processedColumns = columns.map(col => {
-        if (!col.id && id.includes("-v6-id")) { 
+        if (!col.id && id.includes("-v6-id")) { // A heuristic to warn if default preset columns are missing IDs
              console.warn("A column in a default row was created without a hardcoded ID for a V6 template. Please provide a stable ID in DEFAULT_TEMPLATES definition for this column:", col);
         }
         return { ...col, id: col.id || nanoid() };
     });
 
     return {
-      id: id,
+      id: id, // ID must be provided when calling for DEFAULT_TEMPLATES
       columns: processedColumns,
       alignItems: alignItems,
       customHeight: customHeight,
@@ -189,24 +205,32 @@ export const createDefaultRow = (id: string, columns: CardSection[] = [], alignI
 
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
   {
-    id: 'sfc-v6-stable-id',
+    id: 'sfc-v6-stable-id', // Standard Fantasy Creature
     name: 'MTG - Standard Creature',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'standard',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('sfc-row1-namecost-v6-id', [
-        createDefaultSection('CardName', 'sfc-sec1-name-v6-id', { flexGrow: 1, textAlign: 'left' }),
-        createDefaultSection('ManaCost', 'sfc-sec2-cost-v6-id', { flexGrow: 0, textAlign: 'right' }),
-      ], 'center'),
-      createDefaultRow('sfc-row2-art-v6-id', [createDefaultSection('Artwork', 'sfc-sec3-art-v6-id', {customHeight: '120px'})]),
-      createDefaultRow('sfc-row3-type-v6-id', [createDefaultSection('TypeLine', 'sfc-sec4-type-v6-id')]),
-      createDefaultRow('sfc-row4-rules-v6-id', [createDefaultSection('RulesText', 'sfc-sec5-rules-v6-id', {flexGrow: 1})]),
-      createDefaultRow('sfc-row5-flavorpt-v6-id', [
-         createDefaultSection('FlavorText', 'sfc-sec6-flavor-v6-id', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"Its roar is its battle cry."}}"'}),
-         createDefaultSection('PowerToughness', 'sfc-sec7-pt-v6-id', {flexGrow: 0, textAlign: 'right'})
-      ], 'flex-end'),
-      createDefaultRow('sfc-row6-artist-v6-id', [createDefaultSection('ArtistCredit', 'sfc-sec8-artist-v6-id', { flexGrow: 0, customHeight: 'auto' })]),
+      { id: 'sfc-row1-namecost-v6-id', alignItems: 'center', customHeight: '', columns: [
+          { ...createDefaultSection('CardName', 'sfc-sec1-name-v6-id'), flexGrow: 1, textAlign: 'left' },
+          { ...createDefaultSection('ManaCost', 'sfc-sec2-cost-v6-id'), flexGrow: 0, textAlign: 'right' },
+      ]},
+      { id: 'sfc-row2-art-v6-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork', 'sfc-sec3-art-v6-id'), customHeight: '120px' }
+      ]},
+      { id: 'sfc-row3-type-v6-id', alignItems: 'flex-start', customHeight: '', columns: [
+          createDefaultSection('TypeLine', 'sfc-sec4-type-v6-id')
+      ]},
+      { id: 'sfc-row4-rules-v6-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('RulesText', 'sfc-sec5-rules-v6-id'), flexGrow: 1 }
+      ]},
+      { id: 'sfc-row5-flavorpt-v6-id', alignItems: 'flex-end', customHeight: '', columns: [
+         { ...createDefaultSection('FlavorText', 'sfc-sec6-flavor-v6-id'), flexGrow: 1, contentPlaceholder: '"{{flavorText:"Its roar is its battle cry."}}"' },
+         { ...createDefaultSection('PowerToughness', 'sfc-sec7-pt-v6-id'), flexGrow: 0, textAlign: 'right' }
+      ]},
+      { id: 'sfc-row6-artist-v6-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('ArtistCredit', 'sfc-sec8-artist-v6-id'), flexGrow: 0, customHeight: 'auto' }
+      ]},
     ]
   },
   {
@@ -216,15 +240,25 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     frameStyle: 'standard',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('sorc-r1-namecost-v1-id', [
-        createDefaultSection('CardName', 'sorc-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Arcane Blast"}}' }),
-        createDefaultSection('ManaCost', 'sorc-s2-cost-v1-id', { flexGrow: 0, contentPlaceholder: '{{manaCost:"1R"}}' }),
-      ], 'center'),
-      createDefaultRow('sorc-r2-art-v1-id', [createDefaultSection('Artwork','sorc-s3-art-v1-id',{customHeight: "120px"})]),
-      createDefaultRow('sorc-r3-type-v1-id', [createDefaultSection('TypeLine', 'sorc-s4-type-v1-id', {contentPlaceholder: '{{cardType:"Sorcery"}}'})]),
-      createDefaultRow('sorc-r4-rules-v1-id', [createDefaultSection('RulesText', 'sorc-s5-rules-v1-id', {flexGrow: 1, contentPlaceholder: '{{rulesText:"Deal 3 damage to any target."}}', customHeight: '80px'})]),
-      createDefaultRow('sorc-r5-flavor-v1-id', [createDefaultSection('FlavorText', 'sorc-s6-flavor-v1-id', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"Magic unbound."}}"', customHeight: ''})]), // Was 40px
-      createDefaultRow('sorc-r6-artist-v1-id', [createDefaultSection('ArtistCredit', 'sorc-s7-artist-v1-id', { flexGrow: 0, customHeight: 'auto' })]),
+      { id: 'sorc-r1-namecost-v1-id', alignItems: 'center', customHeight: '', columns: [
+        { ...createDefaultSection('CardName', 'sorc-s1-name-v1-id'), flexGrow: 1, contentPlaceholder: '{{cardName:"Arcane Blast"}}' },
+        { ...createDefaultSection('ManaCost', 'sorc-s2-cost-v1-id'), flexGrow: 0, contentPlaceholder: '{{manaCost:"1R"}}' },
+      ]},
+      { id: 'sorc-r2-art-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork','sorc-s3-art-v1-id'), customHeight: "120px" }
+      ]},
+      { id: 'sorc-r3-type-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('TypeLine', 'sorc-s4-type-v1-id'), contentPlaceholder: '{{cardType:"Sorcery"}}' }
+      ]},
+      { id: 'sorc-r4-rules-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('RulesText', 'sorc-s5-rules-v1-id'), flexGrow: 1, contentPlaceholder: '{{rulesText:"Deal 3 damage to any target."}}', customHeight: '80px' }
+      ]},
+      { id: 'sorc-r5-flavor-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('FlavorText', 'sorc-s6-flavor-v1-id'), flexGrow: 1, contentPlaceholder: '"{{flavorText:"Magic unbound."}}"', customHeight: '' }
+      ]},
+      { id: 'sorc-r6-artist-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('ArtistCredit', 'sorc-s7-artist-v1-id'), flexGrow: 0, customHeight: 'auto' }
+      ]},
     ]
   },
   {
@@ -234,15 +268,25 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     frameStyle: 'standard',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('inst-r1-namecost-v1-id', [
-        createDefaultSection('CardName', 'inst-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Counterspell"}}' }),
-        createDefaultSection('ManaCost', 'inst-s2-cost-v1-id', { flexGrow: 0, contentPlaceholder: '{{manaCost:"UU"}}' }),
-      ], 'center'),
-      createDefaultRow('inst-r2-art-v1-id', [createDefaultSection('Artwork','inst-s3-art-v1-id',{customHeight: "120px"})]),
-      createDefaultRow('inst-r3-type-v1-id', [createDefaultSection('TypeLine', 'inst-s4-type-v1-id', {contentPlaceholder: '{{cardType:"Instant"}}'})]),
-      createDefaultRow('inst-r4-rules-v1-id', [createDefaultSection('RulesText', 'inst-s5-rules-v1-id', {flexGrow: 1, contentPlaceholder: '{{rulesText:"Counter target spell."}}', customHeight: '80px'})]),
-      createDefaultRow('inst-r5-flavor-v1-id', [createDefaultSection('FlavorText', 'inst-s6-flavor-v1-id', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"Not this time."}}"', customHeight: ''})]), // Was 40px
-      createDefaultRow('inst-r6-artist-v1-id', [createDefaultSection('ArtistCredit', 'inst-s7-artist-v1-id', { flexGrow: 0, customHeight: 'auto' })]),
+      { id: 'inst-r1-namecost-v1-id', alignItems: 'center', customHeight: '', columns: [
+        { ...createDefaultSection('CardName', 'inst-s1-name-v1-id'), flexGrow: 1, contentPlaceholder: '{{cardName:"Counterspell"}}' },
+        { ...createDefaultSection('ManaCost', 'inst-s2-cost-v1-id'), flexGrow: 0, contentPlaceholder: '{{manaCost:"UU"}}' },
+      ]},
+      { id: 'inst-r2-art-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork','inst-s3-art-v1-id'), customHeight: "120px" }
+      ]},
+      { id: 'inst-r3-type-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('TypeLine', 'inst-s4-type-v1-id'), contentPlaceholder: '{{cardType:"Instant"}}' }
+      ]},
+      { id: 'inst-r4-rules-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('RulesText', 'inst-s5-rules-v1-id'), flexGrow: 1, contentPlaceholder: '{{rulesText:"Counter target spell."}}', customHeight: '80px' }
+      ]},
+      { id: 'inst-r5-flavor-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('FlavorText', 'inst-s6-flavor-v1-id'), flexGrow: 1, contentPlaceholder: '"{{flavorText:"Not this time."}}"', customHeight: '' }
+      ]},
+      { id: 'inst-r6-artist-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('ArtistCredit', 'inst-s7-artist-v1-id'), flexGrow: 0, customHeight: 'auto' }
+      ]},
     ]
   },
   {
@@ -252,15 +296,25 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     frameStyle: 'standard',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('land-r1-name-v1-id', [
-        createDefaultSection('CardName', 'land-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Mystic Sanctuary"}}' }),
-         createDefaultSection('CustomText', 'land-s2-symbol-v1-id', { flexGrow: 0, contentPlaceholder: '{{landSymbol:""}}', textAlign: 'right' }),
-      ], 'center'),
-      createDefaultRow('land-r2-art-v1-id', [createDefaultSection('Artwork','land-s3-art-v1-id',{customHeight: "120px"})]),
-      createDefaultRow('land-r3-type-v1-id', [createDefaultSection('TypeLine', 'land-s4-type-v1-id', {contentPlaceholder: '{{cardType:"Land"}} \u2014 {{subTypes:"Island"}}'})]),
-      createDefaultRow('land-r4-rules-v1-id', [createDefaultSection('RulesText', 'land-s5-rules-v1-id', {flexGrow: 1, contentPlaceholder: '{{rulesText:"({T}: Add {U}.)\\nMystic Sanctuary enters the battlefield tapped unless you control three or more other Islands."}}', customHeight: '60px'})]),
-      createDefaultRow('land-r5-flavor-v1-id', [createDefaultSection('FlavorText', 'land-s6-flavor-v1-id', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"A place of ancient power."}}"', customHeight: ''})]), // Was 30px
-      createDefaultRow('land-r6-artist-v1-id', [createDefaultSection('ArtistCredit', 'land-s7-artist-v1-id', { flexGrow: 0, customHeight: 'auto' })]),
+      { id: 'land-r1-name-v1-id', alignItems: 'center', customHeight: '', columns: [
+        { ...createDefaultSection('CardName', 'land-s1-name-v1-id'), flexGrow: 1, contentPlaceholder: '{{cardName:"Mystic Sanctuary"}}' },
+        { ...createDefaultSection('CustomText', 'land-s2-symbol-v1-id'), flexGrow: 0, contentPlaceholder: '{{landSymbol:""}}', textAlign: 'right' },
+      ]},
+      { id: 'land-r2-art-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork','land-s3-art-v1-id'), customHeight: "120px" }
+      ]},
+      { id: 'land-r3-type-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('TypeLine', 'land-s4-type-v1-id'), contentPlaceholder: '{{cardType:"Land"}} \u2014 {{subTypes:"Island"}}' }
+      ]},
+      { id: 'land-r4-rules-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('RulesText', 'land-s5-rules-v1-id'), flexGrow: 1, contentPlaceholder: '{{rulesText:"({T}: Add {U}.)\\nMystic Sanctuary enters the battlefield tapped unless you control three or more other Islands."}}', customHeight: '60px' }
+      ]},
+      { id: 'land-r5-flavor-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('FlavorText', 'land-s6-flavor-v1-id'), flexGrow: 1, contentPlaceholder: '"{{flavorText:"A place of ancient power."}}"', customHeight: '' }
+      ]},
+      { id: 'land-r6-artist-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('ArtistCredit', 'land-s7-artist-v1-id'), flexGrow: 0, customHeight: 'auto' }
+      ]},
     ]
   },
   {
@@ -270,15 +324,25 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     frameStyle: 'standard',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('artf-r1-namecost-v1-id', [
-        createDefaultSection('CardName', 'artf-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Sol Ring"}}' }),
-        createDefaultSection('ManaCost', 'artf-s2-cost-v1-id', { flexGrow: 0, contentPlaceholder: '{{manaCost:"1"}}' }),
-      ], 'center'),
-      createDefaultRow('artf-r2-art-v1-id', [createDefaultSection('Artwork','artf-s3-art-v1-id',{customHeight: "120px"})]),
-      createDefaultRow('artf-r3-type-v1-id', [createDefaultSection('TypeLine', 'artf-s4-type-v1-id', {contentPlaceholder: '{{cardType:"Artifact"}}'})]),
-      createDefaultRow('artf-r4-rules-v1-id', [createDefaultSection('RulesText', 'artf-s5-rules-v1-id', {flexGrow: 1, contentPlaceholder: '{{rulesText:"{T}: Add {C}{C}."}}', customHeight: '80px'})]),
-      createDefaultRow('artf-r5-flavor-v1-id', [createDefaultSection('FlavorText', 'artf-s6-flavor-v1-id', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"A source of immense power."}}"', customHeight: ''})]), // Was 40px
-      createDefaultRow('artf-r6-artist-v1-id', [createDefaultSection('ArtistCredit', 'artf-s7-artist-v1-id', { flexGrow: 0, customHeight: 'auto' })]),
+      { id: 'artf-r1-namecost-v1-id', alignItems: 'center', customHeight: '', columns: [
+        { ...createDefaultSection('CardName', 'artf-s1-name-v1-id'), flexGrow: 1, contentPlaceholder: '{{cardName:"Sol Ring"}}' },
+        { ...createDefaultSection('ManaCost', 'artf-s2-cost-v1-id'), flexGrow: 0, contentPlaceholder: '{{manaCost:"1"}}' },
+      ]},
+      { id: 'artf-r2-art-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork','artf-s3-art-v1-id'), customHeight: "120px" }
+      ]},
+      { id: 'artf-r3-type-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('TypeLine', 'artf-s4-type-v1-id'), contentPlaceholder: '{{cardType:"Artifact"}}' }
+      ]},
+      { id: 'artf-r4-rules-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('RulesText', 'artf-s5-rules-v1-id'), flexGrow: 1, contentPlaceholder: '{{rulesText:"{T}: Add {C}{C}."}}', customHeight: '80px' }
+      ]},
+      { id: 'artf-r5-flavor-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('FlavorText', 'artf-s6-flavor-v1-id'), flexGrow: 1, contentPlaceholder: '"{{flavorText:"A source of immense power."}}"', customHeight: '' }
+      ]},
+      { id: 'artf-r6-artist-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('ArtistCredit', 'artf-s7-artist-v1-id'), flexGrow: 0, customHeight: 'auto' }
+      ]},
     ]
   },
   {
@@ -288,15 +352,25 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     frameStyle: 'standard',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('ench-r1-namecost-v1-id', [
-        createDefaultSection('CardName', 'ench-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Rhystic Study"}}' }),
-        createDefaultSection('ManaCost', 'ench-s2-cost-v1-id', { flexGrow: 0, contentPlaceholder: '{{manaCost:"2U"}}' }),
-      ], 'center'),
-      createDefaultRow('ench-r2-art-v1-id', [createDefaultSection('Artwork','ench-s3-art-v1-id',{customHeight: "120px"})]),
-      createDefaultRow('ench-r3-type-v1-id', [createDefaultSection('TypeLine', 'ench-s4-type-v1-id', {contentPlaceholder: '{{cardType:"Enchantment"}}'})]),
-      createDefaultRow('ench-r4-rules-v1-id', [createDefaultSection('RulesText', 'ench-s5-rules-v1-id', {flexGrow: 1, contentPlaceholder: '{{rulesText:"Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."}}', customHeight: '80px'})]),
-      createDefaultRow('ench-r5-flavor-v1-id', [createDefaultSection('FlavorText', 'ench-s6-flavor-v1-id', {flexGrow: 1, contentPlaceholder: '"{{flavorText:"Knowledge is power."}}"', customHeight: ''})]), // Was 40px
-      createDefaultRow('ench-r6-artist-v1-id', [createDefaultSection('ArtistCredit', 'ench-s7-artist-v1-id', { flexGrow: 0, customHeight: 'auto' })]),
+      { id: 'ench-r1-namecost-v1-id', alignItems: 'center', customHeight: '', columns: [
+        { ...createDefaultSection('CardName', 'ench-s1-name-v1-id'), flexGrow: 1, contentPlaceholder: '{{cardName:"Rhystic Study"}}' },
+        { ...createDefaultSection('ManaCost', 'ench-s2-cost-v1-id'), flexGrow: 0, contentPlaceholder: '{{manaCost:"2U"}}' },
+      ]},
+      { id: 'ench-r2-art-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork','ench-s3-art-v1-id'), customHeight: "120px" }
+      ]},
+      { id: 'ench-r3-type-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('TypeLine', 'ench-s4-type-v1-id'), contentPlaceholder: '{{cardType:"Enchantment"}}' }
+      ]},
+      { id: 'ench-r4-rules-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('RulesText', 'ench-s5-rules-v1-id'), flexGrow: 1, contentPlaceholder: '{{rulesText:"Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."}}', customHeight: '80px' }
+      ]},
+      { id: 'ench-r5-flavor-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('FlavorText', 'ench-s6-flavor-v1-id'), flexGrow: 1, contentPlaceholder: '"{{flavorText:"Knowledge is power."}}"', customHeight: '' }
+      ]},
+      { id: 'ench-r6-artist-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('ArtistCredit', 'ench-s7-artist-v1-id'), flexGrow: 0, customHeight: 'auto' }
+      ]},
     ]
   },
   {
@@ -306,43 +380,59 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [
     frameStyle: 'standard',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('plns-r1-namecost-v1-id', [
-        createDefaultSection('CardName', 'plns-s1-name-v1-id', { flexGrow: 1, contentPlaceholder: '{{cardName:"Jace, Mind Sculptor"}}' }),
-        createDefaultSection('ManaCost', 'plns-s2-cost-v1-id', { flexGrow: 0, contentPlaceholder: '{{manaCost:"2UU"}}' }),
-      ], 'center'),
-      createDefaultRow('plns-r2-art-v1-id', [createDefaultSection('Artwork','plns-s3-art-v1-id',{customHeight: "120px"})]),
-      createDefaultRow('plns-r3-type-v1-id', [createDefaultSection('TypeLine', 'plns-s4-type-v1-id', {contentPlaceholder: '{{cardType:"Planeswalker"}} \u2014 {{subTypes:"Jace"}}'})]),
-      createDefaultRow('plns-r4-ability1-v1-id', [
-          createDefaultSection('CustomText', 'plns-s5-ability1-v1-id', { flexGrow: 1, contentPlaceholder: '{{loyaltyCost1:"+2"}}: {{abilityText1:"Look at the top card of target player\'s library. You may put that card on the bottom of that player\'s library."}}', padding: 'px-2 py-1', fontSize: 'text-xs'}),
-      ]),
-      createDefaultRow('plns-r5-divider1-v1-id', [createDefaultSection('Divider', 'plns-s6-divider1-v1-id', {padding: 'my-0.5 mx-2'})]),
-      createDefaultRow('plns-r6-ability2-v1-id', [
-          createDefaultSection('CustomText', 'plns-s7-ability2-v1-id', { flexGrow: 1, contentPlaceholder: '{{loyaltyCost2:"0"}}: {{abilityText2:"Draw three cards, then put two cards from your hand on top of your library in any order."}}', padding: 'px-2 py-1', fontSize: 'text-xs'}),
-      ]),
-      createDefaultRow('plns-r7-divider2-v1-id', [createDefaultSection('Divider', 'plns-s8-divider2-v1-id', {padding: 'my-0.5 mx-2'})]),
-      createDefaultRow('plns-r8-ability3-v1-id', [
-          createDefaultSection('CustomText', 'plns-s9-ability3-v1-id', { flexGrow: 1, contentPlaceholder: '{{loyaltyCost3:"-1"}}: {{abilityText3:"Return target creature to its owner\'s hand."}}', padding: 'px-2 py-1', fontSize: 'text-xs'}),
-      ]),
-      createDefaultRow('plns-r9-divider3-v1-id', [createDefaultSection('Divider', 'plns-s10-divider3-v1-id', {padding: 'my-0.5 mx-2'})]),
-       createDefaultRow('plns-r10-ability4-v1-id', [
-          createDefaultSection('CustomText', 'plns-s11-ability4-v1-id', { flexGrow: 1, contentPlaceholder: '{{loyaltyCost4:"-12"}}: {{abilityText4:"Exile all cards from target player\'s library, then that player shuffles their hand into their library."}}', padding: 'px-2 py-1', fontSize: 'text-xs'}),
-      ]),
-      createDefaultRow('plns-r11-loyalty-artist-v1-id', [
-        createDefaultSection('ArtistCredit', 'plns-s12-artist-v1-id', {flexGrow: 1, customHeight: 'auto', contentPlaceholder: 'Illus. {{artistName:"Jason Chan"}} \u2022 {{rarity:"Mythic"}}'}),
-        createDefaultSection('PowerToughness', 'plns-s13-loyalty-v1-id', { flexGrow: 0, contentPlaceholder: '{{loyalty:"3"}}', textAlign: 'right', padding: 'p-1', borderWidth: 'border-t-0 border-l-2 border-b-2'}),
-      ], 'flex-end'),
+      { id: 'plns-r1-namecost-v1-id', alignItems: 'center', customHeight: '', columns: [
+        { ...createDefaultSection('CardName', 'plns-s1-name-v1-id'), flexGrow: 1, contentPlaceholder: '{{cardName:"Jace, Mind Sculptor"}}' },
+        { ...createDefaultSection('ManaCost', 'plns-s2-cost-v1-id'), flexGrow: 0, contentPlaceholder: '{{manaCost:"2UU"}}' },
+      ]},
+      { id: 'plns-r2-art-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork','plns-s3-art-v1-id'), customHeight: "120px" }
+      ]},
+      { id: 'plns-r3-type-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('TypeLine', 'plns-s4-type-v1-id'), contentPlaceholder: '{{cardType:"Planeswalker"}} \u2014 {{subTypes:"Jace"}}' }
+      ]},
+      { id: 'plns-r4-ability1-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('CustomText', 'plns-s5-ability1-v1-id'), flexGrow: 1, contentPlaceholder: '{{loyaltyCost1:"+2"}}: {{abilityText1:"Look at the top card of target player\'s library. You may put that card on the bottom of that player\'s library."}}', padding: 'px-2 py-1', fontSize: 'text-xs'},
+      ]},
+      { id: 'plns-r5-divider1-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Divider', 'plns-s6-divider1-v1-id'), padding: 'my-0.5 mx-2'}
+      ]},
+      { id: 'plns-r6-ability2-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('CustomText', 'plns-s7-ability2-v1-id'), flexGrow: 1, contentPlaceholder: '{{loyaltyCost2:"0"}}: {{abilityText2:"Draw three cards, then put two cards from your hand on top of your library in any order."}}', padding: 'px-2 py-1', fontSize: 'text-xs'},
+      ]},
+      { id: 'plns-r7-divider2-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Divider', 'plns-s8-divider2-v1-id'), padding: 'my-0.5 mx-2'}
+      ]},
+      { id: 'plns-r8-ability3-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('CustomText', 'plns-s9-ability3-v1-id'), flexGrow: 1, contentPlaceholder: '{{loyaltyCost3:"-1"}}: {{abilityText3:"Return target creature to its owner\'s hand."}}', padding: 'px-2 py-1', fontSize: 'text-xs'},
+      ]},
+      { id: 'plns-r9-divider3-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Divider', 'plns-s10-divider3-v1-id'), padding: 'my-0.5 mx-2'}
+      ]},
+       { id: 'plns-r10-ability4-v1-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('CustomText', 'plns-s11-ability4-v1-id'), flexGrow: 1, contentPlaceholder: '{{loyaltyCost4:"-12"}}: {{abilityText4:"Exile all cards from target player\'s library, then that player shuffles their hand into their library."}}', padding: 'px-2 py-1', fontSize: 'text-xs'},
+      ]},
+      { id: 'plns-r11-loyalty-artist-v1-id', alignItems: 'flex-end', customHeight: '', columns: [
+        { ...createDefaultSection('ArtistCredit', 'plns-s12-artist-v1-id'), flexGrow: 1, customHeight: 'auto', contentPlaceholder: 'Illus. {{artistName:"Jason Chan"}} \u2022 {{rarity:"Mythic"}}'},
+        { ...createDefaultSection('PowerToughness', 'plns-s13-loyalty-v1-id'), flexGrow: 0, contentPlaceholder: '{{loyalty:"3"}}', textAlign: 'right', padding: 'p-1', borderWidth: 'border-t-0 border-l-2 border-b-2'},
+      ]},
     ]
   },
   {
-    id: 'bcc-v6-stable-id',
+    id: 'bcc-v6-stable-id', // Basic Custom Card
     name: 'Basic Custom Card (Row Layout)',
     aspectRatio: TCG_ASPECT_RATIO,
     frameStyle: 'minimal-dark',
     baseBackgroundColor: '', baseTextColor: '', defaultSectionBorderColor: '',
     rows: [
-      createDefaultRow('bcc-row1-name-v6-id', [createDefaultSection('CardName', 'bcc-sec1-name-v6-id')]),
-      createDefaultRow('bcc-row2-art-v6-id', [createDefaultSection('Artwork', 'bcc-sec2-art-v6-id', {customHeight: '120px'})]),
-      createDefaultRow('bcc-row3-custom-v6-id', [createDefaultSection('CustomText', 'bcc-sec3-custom-v6-id', {minHeight: 'min-h-[80px]', flexGrow: 1})]),
+      { id: 'bcc-row1-name-v6-id', alignItems: 'flex-start', customHeight: '', columns: [
+          createDefaultSection('CardName', 'bcc-sec1-name-v6-id')
+      ]},
+      { id: 'bcc-row2-art-v6-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('Artwork', 'bcc-sec2-art-v6-id'), customHeight: '120px' }
+      ]},
+      { id: 'bcc-row3-custom-v6-id', alignItems: 'flex-start', customHeight: '', columns: [
+          { ...createDefaultSection('CustomText', 'bcc-sec3-custom-v6-id'), minHeight: 'min-h-[80px]', flexGrow: 1 }
+      ]},
     ]
   }
 ];

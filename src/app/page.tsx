@@ -46,11 +46,12 @@ const DEFAULT_ABILITY_CONTEXT_SETS: AbilityContextSet[] = [
   }
 ];
 
-const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV6'; // Key bump for potentially incompatible structure changes
+const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV6';
 
 export default function CardForgePage() {
+  const [mounted, setMounted] = useState(false);
   const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, DEFAULT_TEMPLATES);
-  const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null); // Used to pass to TemplateEditor if a specific one should be open
+  const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
 
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
   const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>(PAPER_SIZES[0]);
@@ -67,12 +68,13 @@ export default function CardForgePage() {
 
   const [abilityContextSets, setAbilityContextSets] = useLocalStorage<AbilityContextSet[]>(
     'cardForgeAbilityContextsV1', 
-    [] // Start with empty, then seed in useEffect
+    []
   );
 
-  // Effect to seed default ability context sets if localStorage is empty or uninitialized
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && mounted) { // Only run on client after mount
       const storedContextsRaw = window.localStorage.getItem('cardForgeAbilityContextsV1');
       let shouldSeedDefaults = true;
       if (storedContextsRaw) {
@@ -90,82 +92,69 @@ export default function CardForgePage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+  }, [mounted]); // Re-run if `setAbilityContextSets` identity changes (unlikely)
 
 
   // Effect to migrate and validate templates from localStorage.
   useEffect(() => {
+    if (!mounted) return; // Only run on client after mount
+
     setTemplates(prevTemplates => {
-      if (!Array.isArray(prevTemplates) || prevTemplates.length === 0) {
-        return DEFAULT_TEMPLATES.map(t => JSON.parse(JSON.stringify(t))); // Deep clone defaults
+      if (!Array.isArray(prevTemplates)) { // Basic sanity check
+        return DEFAULT_TEMPLATES.map(t => JSON.parse(JSON.stringify(t)));
       }
 
       return prevTemplates.map(t_loaded => {
-        // Start with a deep clone of the loaded template to avoid mutating the original from localStorage directly
-        let newT: TCGCardTemplate = JSON.parse(JSON.stringify(t_loaded));
-        newT.id = newT.id || nanoid();
+        let newT: TCGCardTemplate = { ...t_loaded }; // Start with a shallow copy
 
-        // Ensure core properties always exist
+        // Ensure core properties and IDs always exist
+        newT.id = newT.id || nanoid();
         newT.name = newT.name || 'Untitled Loaded Template';
         newT.aspectRatio = newT.aspectRatio || TCG_ASPECT_RATIO;
         newT.frameStyle = newT.frameStyle || 'standard';
         newT.baseBackgroundColor = newT.baseBackgroundColor || '';
         newT.baseTextColor = newT.baseTextColor || '';
-        newT.defaultSectionBorderColor = newT.defaultSectionBorderColor || newT.borderColor || ''; // Handle old borderColor
-        newT.legacyFrameColor = newT.legacyFrameColor || '';
-
+        newT.defaultSectionBorderColor = newT.defaultSectionBorderColor || '';
+        
+        // For very old templates that had `sections` instead of `rows`
+        if ((t_loaded as any).sections && !t_loaded.rows) {
+          console.warn(`Migrating old template format for "${newT.name}"`);
+          newT.rows = ((t_loaded as any).sections as CardSection[]).map(oldSection => 
+            createDefaultRow(nanoid(), [oldSection])
+          );
+        }
 
         if (!Array.isArray(newT.rows) || newT.rows.length === 0) {
-            const presetMatchByName = DEFAULT_TEMPLATES.find(dt => dt.name === newT.name && dt.id === newT.id); // Check ID too for original presets
+            const presetMatchByName = DEFAULT_TEMPLATES.find(dt => dt.name === newT.name);
             if (presetMatchByName) {
                 console.warn(`Template "${newT.name}" (ID: ${newT.id}) was missing rows or structurally outdated. Re-initializing with current preset structure.`);
-                const clonedPreset = JSON.parse(JSON.stringify(presetMatchByName)) as TCGCardTemplate;
-                // Overwrite all structural and core properties from the current preset
-                newT = { ...newT, ...clonedPreset, id: newT.id, name: newT.name }; // Preserve original ID and Name if possible
+                const clonedPreset = JSON.parse(JSON.stringify(presetMatchByName));
+                newT = { ...clonedPreset, id: newT.id, name: newT.name }; // Overwrite structure, keep ID/name
             } else {
-                 console.warn(`Template "${newT.name}" (ID: ${newT.id}) was missing rows and no matching preset found. Initializing with a default row.`);
+                 console.warn(`Template "${newT.name}" (ID: ${newT.id}) was missing rows and no matching preset found. Initializing with a single default row.`);
                 newT.rows = [createDefaultRow(nanoid(), [createDefaultSection('CustomText', nanoid())])];
             }
         } else {
             newT.rows = newT.rows.map((r_loaded: any) => {
                 const rowId = r_loaded.id || nanoid();
-                const baseRow = createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight);
-                let newR: CardRow = { ...baseRow, ...r_loaded, id: rowId };
+                const newR: CardRow = { ...createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight), ...r_loaded, id: rowId };
                 
-                if (!Array.isArray(newR.columns)) {
+                if (!Array.isArray(newR.columns) || newR.columns.length === 0) {
                     newR.columns = [createDefaultSection('CustomText', nanoid())];
                 } else {
                     newR.columns = newR.columns.map((c_loaded: any) => {
                         const sectionId = c_loaded.id || nanoid();
                         const sectionType = (c_loaded.type as CardSectionType | undefined) || 'CustomText';
-                        
-                        let baseSectionForDefaults = createDefaultSection(sectionType, sectionId);
-                        let newC: CardSection = { ...baseSectionForDefaults, ...c_loaded, id: sectionId, type: sectionType };
+                        let newC: CardSection = { ...createDefaultSection(sectionType, sectionId), ...c_loaded, id: sectionId, type: sectionType };
 
                         // Correct contentPlaceholder if it's missing or looks like an old ID-based one
-                        const placeholderLooksLikeOldId = typeof newC.contentPlaceholder === 'string' && 
-                                                          (newC.contentPlaceholder.startsWith(`{{${sectionId}}`) || newC.contentPlaceholder === `{{${newC.type.toLowerCase()}${sectionId}}}`);
-                        const placeholderIsEffectivelyMissing = newC.contentPlaceholder === undefined || newC.contentPlaceholder === null || (typeof newC.contentPlaceholder === 'string' && newC.contentPlaceholder.trim() === '');
-                        
-                        if (placeholderIsEffectivelyMissing || placeholderLooksLikeOldId) {
-                            const matchingDefaultTemplateSection = DEFAULT_TEMPLATES
-                                .flatMap(dt => dt.rows.flatMap(dr => dr.columns))
-                                .find(ds => ds.id === sectionId && ds.type === sectionType);
+                        const placeholderIsEffectivelyMissing = newC.contentPlaceholder === undefined || newC.contentPlaceholder === null || String(newC.contentPlaceholder).trim() === '';
+                        const placeholderLooksLikeOldId = typeof newC.contentPlaceholder === 'string' && (newC.contentPlaceholder.startsWith(`{{${sectionId}}`) || newC.contentPlaceholder === `{{${newC.type?.toLowerCase() || 'customtext'}${sectionId}}}`);
 
-                            if (matchingDefaultTemplateSection && matchingDefaultTemplateSection.contentPlaceholder) {
-                                newC.contentPlaceholder = matchingDefaultTemplateSection.contentPlaceholder;
-                                // Selectively apply other core defaults if missing in loaded section
-                                (Object.keys(baseSectionForDefaults) as Array<keyof CardSection>).forEach(key => {
-                                    if (newC[key] === undefined && baseSectionForDefaults[key] !== undefined) {
-                                        (newC as any)[key] = baseSectionForDefaults[key];
-                                    }
-                                });
-                            } else {
-                                newC.contentPlaceholder = baseSectionForDefaults.contentPlaceholder;
-                            }
+                        if (placeholderIsEffectivelyMissing || placeholderLooksLikeOldId) {
+                            const defaultSectionForType = createDefaultSection(sectionType, sectionId);
+                            newC.contentPlaceholder = defaultSectionForType.contentPlaceholder;
                         }
-                        // Final merge to ensure all default fields are present from current createDefaultSection logic
-                        newC = { ...createDefaultSection(newC.type, newC.id), ...newC };
                         return newC;
                     });
                 }
@@ -176,7 +165,7 @@ export default function CardForgePage() {
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mounted]); // Ensure setTemplates is stable, depends on mounted to run client-side
 
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
@@ -293,20 +282,20 @@ export default function CardForgePage() {
 
           if (Array.isArray(loadedItems) && loadedItems.every(isValidDisplayCard)) {
             const processedCards = loadedItems.map(card => {
+              // Ensure IDs for template, rows, and columns on load
               let newTemplate: TCGCardTemplate = { ...card.template, id: card.template.id || nanoid() };
               newTemplate.name = newTemplate.name || 'Untitled Loaded Template';
               newTemplate.aspectRatio = newTemplate.aspectRatio || TCG_ASPECT_RATIO;
               newTemplate.frameStyle = newTemplate.frameStyle || 'standard';
               newTemplate.baseBackgroundColor = newTemplate.baseBackgroundColor || '';
               newTemplate.baseTextColor = newTemplate.baseTextColor || '';
-              newTemplate.defaultSectionBorderColor = newTemplate.defaultSectionBorderColor || card.template.borderColor || '';
-              newTemplate.legacyFrameColor = newTemplate.legacyFrameColor || '';
+              newTemplate.defaultSectionBorderColor = newTemplate.defaultSectionBorderColor || '';
 
-              newTemplate.rows = (newTemplate.rows || []).map(r_loaded => {
+              newTemplate.rows = (newTemplate.rows || []).map((r_loaded: CardRow) => {
                 const rowId = r_loaded.id || nanoid();
                 const baseRow = createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight);
                 const newRow: CardRow = { ...baseRow, ...r_loaded, id: rowId };
-                newRow.columns = (newRow.columns || []).map(c_loaded => {
+                newRow.columns = (newRow.columns || []).map((c_loaded: CardSection) => {
                   const sectionId = c_loaded.id || nanoid();
                   const sectionType = (c_loaded.type as CardSectionType | undefined) || 'CustomText';
                   const baseSection = createDefaultSection(sectionType, sectionId);
@@ -339,12 +328,13 @@ export default function CardForgePage() {
     setIsMobileMenuOpen(false);
   };
 
+  // Effect to ensure single card generator has a template selected if templates exist
   useEffect(() => {
-    if (!singleCardGeneratorSelectedTemplateId && templates.length > 0) {
+    if (mounted && !singleCardGeneratorSelectedTemplateId && templates.length > 0) {
       setSingleCardGeneratorSelectedTemplateId(templates[0].id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, singleCardGeneratorSelectedTemplateId]); // Ensure it runs if templates load after initial check
+  }, [templates, singleCardGeneratorSelectedTemplateId, mounted]); 
 
 
   return (
@@ -390,103 +380,113 @@ export default function CardForgePage() {
           </TabsList>
 
           <TabsContent value="editor">
-            <TemplateEditor
-              onSaveTemplate={handleSaveTemplate}
-              templates={templates}
-              onDeleteTemplate={handleDeleteTemplate}
-              initialTemplate={editingTemplate}
-            />
+            {!mounted ? <p>Loading templates...</p> : (
+              <TemplateEditor
+                onSaveTemplate={handleSaveTemplate}
+                templates={templates}
+                onDeleteTemplate={handleDeleteTemplate}
+                initialTemplate={editingTemplate}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="generator">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1 space-y-6">
-                 <SingleCardGenerator
-                    templates={templates}
-                    onSingleCardAdded={handleSingleCardAdded}
-                    onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
-                 />
-                <BulkGenerator 
-                  templates={templates} 
-                  onCardsGenerated={handleBulkCardsGenerated}
-                />
+            {!mounted ? <p>Loading...</p> : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1 space-y-6">
+                   <SingleCardGenerator
+                      templates={templates}
+                      onSingleCardAdded={handleSingleCardAdded}
+                      abilityContextSets={abilityContextSets}
+                      onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
+                   />
+                  <BulkGenerator 
+                    templates={templates} 
+                    onCardsGenerated={handleBulkCardsGenerated}
+                    abilityContextSets={abilityContextSets}
+                  />
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-xl flex items-center gap-2"><Cog className="h-5 w-5"/>Manage & Preview</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
-                        <div className="flex items-center space-x-2 pt-1">
-                            <Switch
-                                id="hide-empty-sections"
-                                checked={hideEmptySections}
-                                onCheckedChange={setHideEmptySections}
-                                aria-label="Toggle visibility of empty sections in card previews"
-                            />
-                            <Label htmlFor="hide-empty-sections" className="flex items-center gap-1 cursor-pointer">
-                                <EyeOff className="h-4 w-4" /> Hide empty sections
-                            </Label>
-                        </div>
-                        <div className="flex flex-col gap-2 pt-2">
-                           <div className="grid grid-cols-2 gap-2">
-                             <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
-                                <FolderDown className="h-4 w-4" /> Save Set
-                             </Button>
-                             <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
-                                <FolderUp className="h-4 w-4" /> Load Set
-                             </Button>
-                             <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
-                           </div>
-                            <PrintButton disabled={generatedDisplayCards.length === 0} />
-                            {generatedDisplayCards.length > 0 && (
-                                <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
-                                    <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                  <Card>
+                      <CardHeader>
+                          <CardTitle className="text-xl flex items-center gap-2"><Cog className="h-5 w-5"/>Manage & Preview</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                          <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
+                          <div className="flex items-center space-x-2 pt-1">
+                              <Switch
+                                  id="hide-empty-sections"
+                                  checked={hideEmptySections}
+                                  onCheckedChange={setHideEmptySections}
+                                  aria-label="Toggle visibility of empty sections in card previews"
+                              />
+                              <Label htmlFor="hide-empty-sections" className="flex items-center gap-1 cursor-pointer">
+                                  <EyeOff className="h-4 w-4" /> Hide empty sections
+                              </Label>
+                          </div>
+                          <div className="flex flex-col gap-2 pt-2">
+                             <div className="grid grid-cols-2 gap-2">
+                               <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
+                                  <FolderDown className="h-4 w-4" /> Save Set
+                               </Button>
+                               <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
+                                  <FolderUp className="h-4 w-4" /> Load Set
+                               </Button>
+                               <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
+                             </div>
+                              <PrintButton disabled={generatedDisplayCards.length === 0} />
+                              {generatedDisplayCards.length > 0 && (
+                                  <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
+                                      <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
+                                  </Button>
+                              )}
+                          </div>
+                      </CardContent>
+                  </Card>
 
-              </div>
-              <div className="lg:col-span-2">
-                <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
-                {generatedDisplayCards.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
-                     <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
-                    <p className="text-lg font-medium">No cards generated yet.</p>
-                    <p className="text-sm">Use the panels on the left to add cards, load a set, or use the "Card Generator" tab.</p>
-                  </div>
-                ) : (
-                  <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 printable-grid">
-                      {generatedDisplayCards.map((cardItem, index) => (
-                        <CardPreview
-                          key={cardItem.uniqueId}
-                          card={cardItem}
-                          isPrintMode={false}
-                          className="mx-auto"
-                          showSizeInfo={index === 0}
-                          hideEmptySections={hideEmptySections}
-                          onEdit={handleEditCardRequest}
-                        />
-                      ))}
+                </div>
+                <div className="lg:col-span-2">
+                  <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
+                  {generatedDisplayCards.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
+                       <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
+                      <p className="text-lg font-medium">No cards generated yet.</p>
+                      <p className="text-sm">Use the panels on the left to add cards or load a set.</p>
                     </div>
-                  </ScrollArea>
-                )}
+                  ) : (
+                    <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 printable-grid">
+                        {generatedDisplayCards.map((cardItem, index) => (
+                          <CardPreview
+                            key={cardItem.uniqueId}
+                            card={cardItem}
+                            isPrintMode={false}
+                            className="mx-auto"
+                            showSizeInfo={index === 0}
+                            hideEmptySections={hideEmptySections}
+                            onEdit={handleEditCardRequest}
+                          />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </TabsContent>
 
           <TabsContent value="contexts">
-            <AbilityContextManager 
-              contextSets={abilityContextSets}
-              onContextSetsChange={setAbilityContextSets}
-            />
+             {!mounted ? <p>Loading...</p> : (
+                <AbilityContextManager 
+                  contextSets={abilityContextSets}
+                  onContextSetsChange={setAbilityContextSets}
+                />
+             )}
           </TabsContent>
 
           <TabsContent value="ai">
-            <AIDesignAssistant templates={templates} abilityContextSets={abilityContextSets} />
+             {!mounted ? <p>Loading...</p> : (
+                <AIDesignAssistant templates={templates} abilityContextSets={abilityContextSets} />
+             )}
           </TabsContent>
         </Tabs>
       </main>
@@ -505,5 +505,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-
-    
