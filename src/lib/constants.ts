@@ -6,6 +6,8 @@ import {
   LayoutDashboard, Edit2, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen, Palette, EyeOff, Eye,
   PlusCircle, ScrollText, Wand2, PackageOpen, Menu as MenuIcon, TextQuote, Image as ImageIconLucide, Lightbulb, Copy as CopyIcon, FolderDown, FolderUp, Trash2
 } from 'lucide-react';
+import type { ElementType } from 'react';
+
 
 export const PAPER_SIZES: PaperSize[] = [
   { name: 'US Letter (8.5x11 in)', widthMm: 215.9, heightMm: 279.4 },
@@ -61,12 +63,8 @@ export const FRAME_STYLES: Array<{ label: string; value: string }> = [
   { label: 'Arcane Purple', value: 'arcane-purple' },
 ];
 
-export const CARD_BORDER_STYLES: Array<{ label: string; value: TCGCardTemplate['cardBorderStyle'] }> = [
-  { label: 'Default (from theme/frame)', value: '_default_' },
-  { label: 'Solid', value: 'solid' }, { label: 'Dashed', value: 'dashed' },
-  { label: 'Dotted', value: 'dotted' }, { label: 'Double', value: 'double' },
-  { label: 'None', value: 'none' },
-];
+// Removed CARD_BORDER_STYLES as this logic was reverted.
+// If we re-add granular outer border style selection, it would go here.
 
 export const createDefaultSection = (id: string): CardSection => {
   return {
@@ -82,22 +80,23 @@ export const createDefaultSection = (id: string): CardSection => {
     fontStyle: 'normal',
     padding: 'p-1',
     borderColor: '',
-    borderWidth: '_none_',
-    minHeight: '_auto_',
+    borderWidth: '_none_', // Default to no border via this special value
+    minHeight: '_auto_',   // Default to auto min-height
     flexGrow: 0,
     customHeight: '',
     customWidth: '',
   };
 };
 
-export const createDefaultRow = (id: string, columns?: CardSection[], alignItems: CardRow['alignItems'] = 'flex-start', customHeight: string = ''): CardRow => {
+export const createDefaultRow = (id: string, columns?: CardSection[], alignItems?: CardRow['alignItems'], customHeight?: string): CardRow => {
   return {
     id: id || nanoid(),
     columns: columns && columns.length > 0 ? columns : [createDefaultSection(nanoid())],
-    alignItems: alignItems,
-    customHeight: customHeight,
+    alignItems: alignItems || 'flex-start',
+    customHeight: customHeight || '',
   };
 };
+
 
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [];
 
@@ -110,19 +109,7 @@ export const TABS_CONFIG = [
 ];
 
 export const ICON_MAP: Record<string, ElementType> = {
-  CardName: TextCursorInput,
-  ManaCost: Ratio, // Placeholder, consider specific mana symbols or generic cost icon
-  Artwork: FileImage,
-  TypeLine: Baseline,
-  RulesText: AlignLeft,
-  FlavorText: Italic,
-  PowerToughness: Ruler, // Or a sword/shield icon
-  ArtistCredit: SquarePen,
-  SetSymbol: Minus, // Placeholder, needs specific set symbol logic
-  CollectorInfo: ChevronsUpDown, // Placeholder
-  CustomText: Type,
-  Divider: Minus,
-  LoyaltyCost: Settings2, // For planeswalkers
-  AbilityText: AlignLeft, // For planeswalker abilities
+  // This map was used when sections had types. It's currently unused due to generic sections.
+  // If re-introducing section-type specific icons in the editor, this would be the place.
   Default: SquarePen,
 };

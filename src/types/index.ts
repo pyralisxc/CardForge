@@ -1,9 +1,8 @@
 
 export interface CardSection {
   id: string;
-  // type: CardSectionType; // Removed
   contentPlaceholder: string;
-  backgroundImageUrl?: string;
+  backgroundImageUrl?: string; // New for section-specific backgrounds
 
   textColor?: string;
   backgroundColor?: string;
@@ -14,38 +13,35 @@ export interface CardSection {
   fontStyle?: 'normal' | 'italic';
   padding?: string;
   borderColor?: string;
-  borderWidth?: string;
-  minHeight?: string;
-  flexGrow?: number;
-  customHeight?: string;
-  customWidth?: string;
+  borderWidth?: string; // Tailwind classes like 'border', 'border-2', 'border-t-2' or '_none_'
+  minHeight?: string; // Tailwind class like 'min-h-[120px]' or '_auto_'
+  flexGrow?: number; // For flex distribution within a row
+  customHeight?: string; // e.g., "150px", "auto", "40%"
+  customWidth?: string; // e.g., "100%", "200px", "auto"
 }
-
-// CardSectionType alias removed
 
 export interface CardRow {
   id: string;
   columns: CardSection[];
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string;
+  customHeight?: string; // e.g., "100px", "20%", "auto"
 }
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  aspectRatio: string;
-  frameStyle?: string;
+  aspectRatio: string; // e.g., "63:88"
+  frameStyle?: string; // e.g., "standard", "classic-gold"
 
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  defaultSectionBorderColor?: string; // Renamed from borderColor for clarity
+  defaultSectionBorderColor?: string; // Fallback border color for sections
 
-  // Properties for explicit card border control - were part of a reverted feature, re-evaluating if needed
+  // Specific outer card border controls
   cardBorderColor?: string;
-  cardBorderWidth?: string;
+  cardBorderWidth?: string; // e.g., "4px"
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
-  cardBorderRadius?: string;
-  // legacyFrameColor?: string | undefined; // This was part of the revert
+  cardBorderRadius?: string; // e.g., "8px", "0.5rem"
 
   rows: CardRow[];
 }
