@@ -2,8 +2,8 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import { useState, useEffect, useRef } from 'react';
-import type { DisplayCard, CardData, ExtractedPlaceholder } from '@/types';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { DisplayCard, CardData, ExtractedPlaceholder, TCGCardTemplate } from '@/types';
 import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Copy, Save, Eye, Upload } from 'lucide-react'; // Added Upload
+import { Copy, Save, Eye, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -34,7 +34,7 @@ interface EditCardDialogProps {
 
 interface DynamicField {
   key: string;
-  label: string;
+  label: string; // Will be {{key}}
   type: 'input' | 'textarea';
   isImageKey: boolean;
   defaultValue?: string;
@@ -48,12 +48,12 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
   useEffect(() => {
     if (card) {
-      const allPlaceholderKeys = extractUniquePlaceholderKeys(card.template);
+      const allPlaceholderKeys = extractUniquePlaceholderKeys(card.template as TCGCardTemplate); // Cast for safety
       const currentCardData = { ...card.data };
       const newEditedDataState: CardData = {};
 
       const fields: DynamicField[] = allPlaceholderKeys.map(placeholder => {
-         const isImageSectionKey = card.template.rows.some(row =>
+         const isImageSectionKey = (card.template as TCGCardTemplate).rows.some(row =>
             row.columns.some(col =>
                 col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
             )
@@ -79,7 +79,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
         return {
           key: placeholder.key,
-          label: `{{${placeholder.key}}}`,
+          label: `{{${placeholder.key}}}`, // Label is the placeholder key itself
           type: isTextarea ? 'textarea' : 'input',
           isImageKey: isImageSectionKey,
           defaultValue: placeholder.defaultValue,
@@ -93,42 +93,42 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     }
   }, [card]);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setEditedData(prev => ({ ...prev, [fieldKey]: e.target.value }));
-  };
+  }, []);
 
-  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
+  const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUri = e.target?.result as string;
         setEditedData(prev => ({ ...prev, [fieldKey]: dataUri }));
-        toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI.` });
+        toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI for ${fieldKey}.` });
       };
       reader.onerror = () => {
         toast({ title: "Error", description: "Failed to read image file.", variant: "destructive" });
       };
       reader.readAsDataURL(file);
     }
-    if (event.target) {
+    if (event.target) { // Reset file input to allow re-uploading the same file
       event.target.value = "";
     }
-  };
+  }, [toast]);
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = useCallback(() => {
     if (card) {
       const finalData = { ...editedData };
-      dynamicFields.forEach(field => {
+      dynamicFields.forEach(field => { // Ensure all fields from template are present
         if (finalData[field.key] === undefined) {
           finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : (field.isImageKey ? `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`: '');
         }
       });
       onSave({ ...card, data: finalData });
     }
-  };
+  }, [card, editedData, dynamicFields, onSave]);
 
-  const handleDuplicateCard = () => {
+  const handleDuplicateThisCard = useCallback(() => {
     if (card) {
        const finalData = { ...editedData };
        dynamicFields.forEach(field => {
@@ -136,26 +136,26 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
           finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : (field.isImageKey ? `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`: '');
         }
       });
-      onDuplicate({ ...card, data: finalData });
-       toast({ title: "Card Duplicated", description: "A copy has been added to the preview list."}); // Toast on duplicate
+      onDuplicate({ ...card, data: finalData }); // Pass the current state of editedData
     }
-  };
+  }, [card, editedData, dynamicFields, onDuplicate]);
 
   if (!card) return null;
 
-  const cardNameKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImageKey)?.key ||
-                      dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImageKey)?.key ||
-                      (dynamicFields.length > 0 && !dynamicFields[0].isImageKey ? dynamicFields[0].key : '');
+  // Try to find a meaningful name for the dialog title
+  const cardIdentifier = 
+    String(editedData[dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImageKey)?.key || ''] || 
+           editedData[dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImageKey)?.key || ''] || 
+           `Card ${card.uniqueId.substring(0,5)}`);
 
-  const cardName = String(editedData[cardNameKey] || 'Card');
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Edit: {cardName}</DialogTitle>
+          <DialogTitle>Edit: {cardIdentifier}</DialogTitle>
           <DialogDescription>
-            Modify the data for this card. Template: {card.template.name}
+            Modify the data for this card. Template: {card.template.id || "Selected Template"} {/* Display ID if name is missing */}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-grow pr-6 -mr-6 mb-4">
@@ -192,6 +192,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
                         size="sm"
                         onClick={() => fileInputRefs.current[field.key]?.click()}
                         className="shrink-0"
+                        aria-label={`Upload image for ${field.label}`}
                       >
                         <Upload className="mr-2 h-4 w-4" /> Upload
                       </Button>
@@ -236,7 +237,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
           <DialogClose asChild>
             <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
-          <Button type="button" variant="secondary" onClick={handleDuplicateCard}>
+          <Button type="button" variant="secondary" onClick={handleDuplicateThisCard}>
             <Copy className="mr-2 h-4 w-4" /> Duplicate & Close
           </Button>
           <Button type="button" onClick={handleSaveChanges}>
