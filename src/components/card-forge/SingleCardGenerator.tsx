@@ -19,12 +19,12 @@ interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
   onSingleCardAdded: (card: DisplayCard) => void;
   onTemplateSelectionChange?: (templateId: string | null) => void;
-  selectedTemplateIdProp?: string | null; // New prop to control selection from parent
+  selectedTemplateIdProp?: string | null; 
 }
 
 interface DynamicField {
   key: string;
-  label: string; // Will be {{key}}
+  label: string; 
   type: 'input' | 'textarea';
   isImageKey: boolean;
   defaultValue?: string;
@@ -36,18 +36,17 @@ export function SingleCardGenerator({
   onTemplateSelectionChange,
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(selectedTemplateIdProp || '');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(selectedTemplateIdProp || (templates[0]?.id || ''));
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Effect to sync internal selectedTemplateId if prop changes
   useEffect(() => {
     if (selectedTemplateIdProp !== undefined) {
-      setSelectedTemplateId(selectedTemplateIdProp || '');
+      setSelectedTemplateId(selectedTemplateIdProp || (templates[0]?.id || ''));
     }
-  }, [selectedTemplateIdProp]);
+  }, [selectedTemplateIdProp, templates]);
 
 
   useEffect(() => {
@@ -71,11 +70,11 @@ export function SingleCardGenerator({
             placeholder.key.toLowerCase().includes('description')
         );
 
-        let initialValue: string | number | undefined = cardData[placeholder.key];
+        let initialValue: string | number | undefined = cardData[placeholder.key]; // Keep existing data if user was typing
         if (initialValue === undefined && placeholder.defaultValue !== undefined) {
           initialValue = placeholder.defaultValue;
         }
-
+        
         if (isImageSectionKey && (initialValue === undefined || String(initialValue).trim() === '' || String(initialValue).trim() === `{{${placeholder.key}}}`)) {
            initialValue = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(placeholder.key))}`;
         }
@@ -94,14 +93,27 @@ export function SingleCardGenerator({
       });
 
       setDynamicFields(fields);
-      setCardData(newCardDataState);
+      // Only update cardData if the keys have changed or it's an initial setup for this template
+      // This helps preserve user input if they are just tabbing through fields of the same template
+      if (Object.keys(cardData).join(',') !== Object.keys(newCardDataState).join(',')) {
+          setCardData(newCardDataState);
+      } else { // If keys are the same, ensure defaults are applied for any empty initial values
+          const updatedWithDefaults = {...newCardDataState};
+          Object.keys(newCardDataState).forEach(key => {
+              if (String(updatedWithDefaults[key]).trim() === '' && fields.find(f=>f.key === key)?.defaultValue) {
+                  updatedWithDefaults[key] = fields.find(f=>f.key === key)!.defaultValue;
+              }
+          });
+          setCardData(updatedWithDefaults);
+      }
+
 
     } else {
       setDynamicFields([]);
       setCardData({});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateId, templates]); // cardData removed from deps to prevent loop on its own update
+  }, [selectedTemplateId, templates]); // Removed cardData from deps to prevent reset on its own update
 
 
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
@@ -112,8 +124,8 @@ export function SingleCardGenerator({
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
+      reader.onload = (eRead) => {
+        const dataUri = eRead.target?.result as string;
         setCardData(prev => ({ ...prev, [fieldKey]: dataUri }));
         toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI for ${fieldKey}.` });
       };
@@ -122,7 +134,7 @@ export function SingleCardGenerator({
       };
       reader.readAsDataURL(file);
     }
-    if (event.target) {
+    if (event.target) { 
       event.target.value = ""; 
     }
   }, [toast]);
@@ -155,9 +167,9 @@ export function SingleCardGenerator({
     };
     onSingleCardAdded(displayCard);
 
-    const cardIdentifier = String(completeCardData[dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImageKey)?.key || ''] || 
-                           completeCardData[dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImageKey)?.key || ''] || 
-                           `Card ${displayCard.uniqueId.substring(0,5)}`);
+    const nameFieldKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImageKey)?.key;
+    const titleFieldKey = dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImageKey)?.key;
+    const cardIdentifier = String(nameFieldKey ? completeCardData[nameFieldKey] : (titleFieldKey ? completeCardData[titleFieldKey] : `Card ${displayCard.uniqueId.substring(0,5)}`));
                            
     toast({ title: "Success", description: `Card "${cardIdentifier}" added to preview.` });
   }, [selectedTemplateId, templates, cardData, dynamicFields, onSingleCardAdded, toast]);
@@ -189,7 +201,7 @@ export function SingleCardGenerator({
             </SelectTrigger>
             <SelectContent>
               {templates.length > 0 ? (
-                templates.map(t => <SelectItem key={t.id || 'new'} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'New'}`}</SelectItem>) 
+                templates.map(t => <SelectItem key={t.id || 'new-template-option'} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>) 
               ) : (
                 <SelectItem value="no-templates" disabled>No templates available. Create one first.</SelectItem>
               )}
@@ -219,7 +231,7 @@ export function SingleCardGenerator({
                       id={`singleCard-${field.key}`}
                       value={(cardData[field.key] as string) || ''}
                       onChange={(e) => handleInputChange(e, field.key)}
-                      placeholder={field.isImageKey ? `URL for ${field.key} or Upload. Data URIs also accepted.` : `Enter value for ${field.key}...`}
+                      placeholder={field.isImageKey ? `URL or Data URI for ${field.key}` : `Enter value for ${field.key}...`}
                       className={field.isImageKey ? "flex-grow" : ""}
                     />
                   )}
@@ -252,7 +264,7 @@ export function SingleCardGenerator({
         )}
 
         {selectedTemplateId && dynamicFields.length === 0 && (
-            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{'{{cardName}}'}</code>). Please edit the template to include them.</p>
+            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{'{{someKey}}'}</code>). Please edit the template to include them.</p>
         )}
          {!selectedTemplateId && (
             <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
@@ -265,3 +277,4 @@ export function SingleCardGenerator({
     </Card>
   );
 }
+

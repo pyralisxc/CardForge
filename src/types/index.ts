@@ -1,11 +1,13 @@
 
 export interface CardSection {
   id: string;
-  sectionContentType: 'placeholder' | 'image'; // New: Explicit type
-  contentPlaceholder: string; // For 'placeholder' type, it's the template string. For 'image' type, it's the data key for the URL.
+  sectionContentType: 'placeholder' | 'image'; 
+  contentPlaceholder: string; 
   backgroundImageUrl?: string;
+  imageWidthPx?: string;  
+  imageHeightPx?: string; 
 
-  // Styling for the section's container div
+  // Styling
   textColor?: string;
   backgroundColor?: string;
   fontFamily?: string;
@@ -13,29 +15,25 @@ export interface CardSection {
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
-  padding?: string; // Tailwind padding class e.g. p-1, p-2
+  padding?: string; 
   borderColor?: string;
-  borderWidth?: string; // Tailwind border width class e.g., border, border-2, border-t-2. '_none_' for no border.
-  minHeight?: string; // Tailwind min-height class e.g., min-h-[40px]
-  flexGrow?: number; // Flex grow factor for this section within its row
-  customHeight?: string; // e.g., "50px", "10%", "auto"
-  customWidth?: string; // e.g., "100px", "33.33%", "auto"
-
-  // Specific to sectionContentType: 'image'
-  imageWidthPx?: string;  // e.g., "100" (parsed as px)
-  imageHeightPx?: string; // e.g., "150" (parsed as px)
+  borderWidth?: string; 
+  minHeight?: string; 
+  flexGrow?: number; 
+  customHeight?: string; 
+  customWidth?: string; 
 }
 
 export interface CardRow {
   id: string;
   columns: CardSection[];
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string; // e.g., "50px", "20%", "auto"
+  customHeight?: string; 
 }
 
 export interface TCGCardTemplate {
-  id: string | null; // Null for a new, unsaved template
-  name?: string; // Temporarily optional
+  id: string | null; 
+  name: string; // No longer optional, getFreshDefaultTemplate will always provide one
   aspectRatio: string;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
@@ -72,3 +70,11 @@ export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
 }
+
+// No longer needed as context sets feature is removed
+// export interface AbilityContextSet {
+//   id: string;
+//   name: string;
+//   description: string; 
+// }
+
