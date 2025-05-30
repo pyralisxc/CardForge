@@ -54,8 +54,8 @@ const ColumnEditorMemoized = ({
   };
 
   const contentPlaceholderLabel = section.sectionContentType === 'image'
-    ? "Image URL Key (e.g., artworkUrl, iconKey)"
-    : "Content Placeholder (e.g., {{fieldName}} or {{fieldName:\"Default Text\"}})";
+    ? "Image URL Key (e.g., artworkUrl)"
+    : "Content Placeholder (e.g. {{title:\"Default Title\"}} or Your static text {{variable}})";
 
   return (
     <Card key={section.id} className="bg-background/50 p-0 overflow-hidden column-editor-card" data-section-id={section.id}>
