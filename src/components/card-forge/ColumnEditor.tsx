@@ -2,7 +2,7 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import React from 'react';
+import React from 'react'; // Explicitly import React for React.memo
 import type { CardSection } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,7 +38,7 @@ const ColumnEditorMemoized = ({
   onUpdateSectionInRow,
   onRemoveSectionFromRow,
   onMoveSectionInRow,
-}: ColumnEditorProps) => {
+}: ColumnEditorProps) => { // Opening brace for component body
 
   const handleContentPlaceholderChange = (e: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     onUpdateSectionInRow(rowId, section.id, { contentPlaceholder: e.target.value });
@@ -55,7 +55,7 @@ const ColumnEditorMemoized = ({
 
   const contentPlaceholderLabel = section.sectionContentType === 'image'
     ? "Image URL Key (e.g., artworkUrl)"
-    : "Content Placeholder (e.g. {{title:\"Default Title\"}} or Your static text {{variable}})";
+    : "Content Placeholder (e.g. {{title}} or Your static text {{variable}})";
 
   return (
     <Card key={section.id} className="bg-background/50 p-0 overflow-hidden column-editor-card" data-section-id={section.id}>
@@ -107,7 +107,7 @@ const ColumnEditorMemoized = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SECTION_CONTENT_TYPES.map(typeInfo => ( 
+              {(SECTION_CONTENT_TYPES || []).map(typeInfo => (
                 <SelectItem key={typeInfo.value} value={typeInfo.value} className="text-xs">
                   {typeInfo.value === 'image' ? <FileImage className="inline mr-2 h-3 w-3"/> : <TextCursorInput className="inline mr-2 h-3 w-3"/>}
                   {typeInfo.label}
@@ -136,7 +136,7 @@ const ColumnEditorMemoized = ({
               onChange={handleContentPlaceholderChange}
               rows={(section.contentPlaceholder || '').toLowerCase().includes('rules') || (section.contentPlaceholder || '').toLowerCase().includes('description') ? 3 : 1}
               className="text-sm font-mono"
-              placeholder="e.g. {{title:\"Default Title\"}} or Your static text {{variable}}"
+              placeholder="e.g. {{title}} or Your static text {{variable}}"
             />
           )}
           {section.sectionContentType === 'image' && (
@@ -157,7 +157,7 @@ const ColumnEditorMemoized = ({
               <Label htmlFor={`imageWidth-${section.id}`} className="text-xs">Image Width (px)</Label>
               <Input
                 id={`imageWidth-${section.id}`}
-                type="text" 
+                type="text"
                 value={section.imageWidthPx || ''}
                 onChange={(e) => handleImageDimensionChange(e, 'width')}
                 placeholder="e.g., 100"
@@ -168,7 +168,7 @@ const ColumnEditorMemoized = ({
               <Label htmlFor={`imageHeight-${section.id}`} className="text-xs">Image Height (px)</Label>
               <Input
                 id={`imageHeight-${section.id}`}
-                type="text" 
+                type="text"
                 value={section.imageHeightPx || ''}
                 onChange={(e) => handleImageDimensionChange(e, 'height')}
                 placeholder="e.g., 150"
@@ -188,7 +188,6 @@ const ColumnEditorMemoized = ({
       </CardContent>
     </Card>
   );
-};
+}; // This is the closing brace for the ColumnEditorMemoized component's body
 
 export const ColumnEditor = React.memo(ColumnEditorMemoized);
-    
