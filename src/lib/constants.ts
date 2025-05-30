@@ -1,17 +1,18 @@
 
-import type { PaperSize, TCGCardTemplate, CardSection, CardRow, CardSectionType } from '@/types';
-import type { ElementType } from 'react';
-import {
-  LayoutDashboard, Trash2, PlusCircle, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Type, ChevronsUpDown, AlignLeft, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen, Palette, EyeOff, Eye, Edit2, XCircle, PackageOpen, ScrollText, Wand2, Sparkles, FilePlus2, PackagePlus, Download, Menu as MenuIcon, TextQuote, Image as ImageIconLucide, Lightbulb, Copy as CopyIcon
-} from 'lucide-react'; // Added MenuIcon, TextQuote, ImageIconLucide, Lightbulb, CopyIcon
+import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
+import {
+  Type, ChevronsUpDown, AlignLeft, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage,
+  LayoutDashboard, Edit2, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen, Palette, EyeOff, Eye,
+  PlusCircle, ScrollText, Wand2, PackageOpen, Menu as MenuIcon, TextQuote, Image as ImageIconLucide, Lightbulb, Copy as CopyIcon, FolderDown, FolderUp, Trash2
+} from 'lucide-react';
 
 export const PAPER_SIZES: PaperSize[] = [
   { name: 'US Letter (8.5x11 in)', widthMm: 215.9, heightMm: 279.4 },
   { name: 'A4 (210x297 mm)', widthMm: 210, heightMm: 297 },
 ];
 
-export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
+export const TCG_ASPECT_RATIO = '63:88';
 
 export const FONT_SIZES: Array<{ label: string; value: CardSection['fontSize'] }> = [
   { label: 'X-Small (0.75rem)', value: 'text-xs' }, { label: 'Small (0.875rem)', value: 'text-sm' },
@@ -68,8 +69,8 @@ export const CARD_BORDER_STYLES: Array<{ label: string; value: TCGCardTemplate['
 ];
 
 export const createDefaultSection = (id: string): CardSection => {
-  const baseSection: CardSection = {
-    id: id || nanoid(), // Ensure ID if not provided (though for dynamic adds, TemplateEditor should provide it)
+  return {
+    id: id || nanoid(),
     contentPlaceholder: '{{new_field}}',
     backgroundImageUrl: '',
     textColor: '',
@@ -81,26 +82,23 @@ export const createDefaultSection = (id: string): CardSection => {
     fontStyle: 'normal',
     padding: 'p-1',
     borderColor: '',
-    borderWidth: '_none_', // Default to no border class
-    minHeight: '_auto_', // Default to auto min-height
+    borderWidth: '_none_',
+    minHeight: '_auto_',
     flexGrow: 0,
     customHeight: '',
     customWidth: '',
   };
-  return { ...baseSection };
 };
 
-export const createDefaultRow = (id: string, columns: CardSection[] = [], alignItems: CardRow['alignItems'] = 'flex-start', customHeight: string = ''): CardRow => {
+export const createDefaultRow = (id: string, columns?: CardSection[], alignItems: CardRow['alignItems'] = 'flex-start', customHeight: string = ''): CardRow => {
   return {
     id: id || nanoid(),
-    columns: columns.length > 0 ? columns : [createDefaultSection(nanoid())],
+    columns: columns && columns.length > 0 ? columns : [createDefaultSection(nanoid())],
     alignItems: alignItems,
     customHeight: customHeight,
   };
 };
 
-// All default templates are removed. Users will start with a blank slate
-// or rely on `getFreshDefaultTemplate` in TemplateEditor.tsx if the templates list is empty.
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [];
 
 
@@ -110,3 +108,21 @@ export const TABS_CONFIG = [
   { value: "contexts", label: "Context Sets", icon: ScrollText },
   { value: "ai", label: "AI Helper", icon: Wand2 },
 ];
+
+export const ICON_MAP: Record<string, ElementType> = {
+  CardName: TextCursorInput,
+  ManaCost: Ratio, // Placeholder, consider specific mana symbols or generic cost icon
+  Artwork: FileImage,
+  TypeLine: Baseline,
+  RulesText: AlignLeft,
+  FlavorText: Italic,
+  PowerToughness: Ruler, // Or a sword/shield icon
+  ArtistCredit: SquarePen,
+  SetSymbol: Minus, // Placeholder, needs specific set symbol logic
+  CollectorInfo: ChevronsUpDown, // Placeholder
+  CustomText: Type,
+  Divider: Minus,
+  LoyaltyCost: Settings2, // For planeswalkers
+  AbilityText: AlignLeft, // For planeswalker abilities
+  Default: SquarePen,
+};

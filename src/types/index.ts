@@ -1,12 +1,11 @@
 
 export interface CardSection {
   id: string;
-  contentPlaceholder: string; // User defines this, e.g., "{{cardName}}", "{{rulesText}}", "{{artworkUrl}}"
-  backgroundImageUrl?: string; // For section background image, can be a URL or placeholder like "{{bgImage}}"
+  contentPlaceholder: string;
+  backgroundImageUrl?: string;
 
-  // Existing styling properties
   textColor?: string;
-  backgroundColor?: string; // For section foreground/content background
+  backgroundColor?: string;
   fontFamily?: string;
   fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
@@ -14,41 +13,40 @@ export interface CardSection {
   fontStyle?: 'normal' | 'italic';
   padding?: string;
   borderColor?: string;
-  borderWidth?: string; // Tailwind class, e.g., 'border', 'border-2', or '_none_'
-  minHeight?: string; // Tailwind class, e.g., 'min-h-[40px]' or '_auto_'
+  borderWidth?: string;
+  minHeight?: string;
   flexGrow?: number;
-  customHeight?: string; // e.g., "150px", "50%", "auto"
-  customWidth?: string; // e.g., "100%", "200px", "auto"
+  customHeight?: string;
+  customWidth?: string;
 }
 
 export interface CardRow {
   id: string;
   columns: CardSection[];
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string; // e.g., "100px", "20%", "auto"
+  customHeight?: string;
 }
 
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  aspectRatio: string; // e.g., "63:88"
-  frameStyle?: string; // e.g., 'standard', 'classic-gold'
+  aspectRatio: string;
+  frameStyle?: string;
 
-  // Overall card styling
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  defaultSectionBorderColor?: string;
+  defaultSectionBorderColor?: string; // Renamed from borderColor
 
   cardBorderColor?: string;
-  cardBorderWidth?: string; // e.g., "4px"
+  cardBorderWidth?: string;
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
-  cardBorderRadius?: string; // e.g., "8px"
+  cardBorderRadius?: string;
 
   rows: CardRow[];
 }
 
 export interface CardData {
-  [key: string]: string | number | undefined; // Can store resolved values for placeholders
+  [key: string]: string | number | undefined;
 }
 
 export interface PaperSize {
