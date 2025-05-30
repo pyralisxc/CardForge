@@ -131,7 +131,7 @@ const ColumnEditorMemoized = ({
               id={`contentPlaceholder-${section.id}`}
               value={section.contentPlaceholder || ''}
               onChange={handleContentPlaceholderChange}
-              rows={2}
+              rows={section.contentPlaceholder && section.contentPlaceholder.toLowerCase().includes('rules') ? 3 : 1}
               className="text-sm font-mono"
               placeholder="e.g. {{title:\"Default Title\"}} or Your static text {{variable}}"
             />
