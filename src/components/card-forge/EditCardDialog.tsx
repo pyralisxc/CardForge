@@ -2,8 +2,8 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import { useState, useEffect } from 'react';
-import type { DisplayCard, CardData, ExtractedPlaceholder, CardSection } from '@/types';
+import { useState, useEffect, useRef } from 'react';
+import type { DisplayCard, CardData, ExtractedPlaceholder } from '@/types';
 import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Copy, Save, Eye } from 'lucide-react';
+import { Copy, Save, Eye, Upload } from 'lucide-react'; // Added Upload
+import { useToast } from '@/hooks/use-toast';
+
 
 interface EditCardDialogProps {
   isOpen: boolean;
@@ -32,15 +34,17 @@ interface EditCardDialogProps {
 
 interface DynamicField {
   key: string;
-  label: string; 
+  label: string;
   type: 'input' | 'textarea';
   isImageKey: boolean;
-  defaultValue?: string; 
+  defaultValue?: string;
 }
 
 export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: EditCardDialogProps) {
   const [editedData, setEditedData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const { toast } = useToast();
 
   useEffect(() => {
     if (card) {
@@ -49,8 +53,8 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
       const newEditedDataState: CardData = {};
 
       const fields: DynamicField[] = allPlaceholderKeys.map(placeholder => {
-         const isImageSectionKey = card.template.rows.some(row => 
-            row.columns.some(col => 
+         const isImageSectionKey = card.template.rows.some(row =>
+            row.columns.some(col =>
                 col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
             )
         );
@@ -61,7 +65,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
             placeholder.key.toLowerCase().includes('abilit') ||
             placeholder.key.toLowerCase().includes('description')
         );
-        
+
         if (currentCardData[placeholder.key] !== undefined) {
           newEditedDataState[placeholder.key] = currentCardData[placeholder.key];
         } else if (placeholder.defaultValue !== undefined) {
@@ -75,7 +79,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
         return {
           key: placeholder.key,
-          label: `${toTitleCase(placeholder.key)}${isImageSectionKey ? ' (Image URL)' : ''}`,
+          label: `{{${placeholder.key}}}`,
           type: isTextarea ? 'textarea' : 'input',
           isImageKey: isImageSectionKey,
           defaultValue: placeholder.defaultValue,
@@ -91,6 +95,25 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setEditedData(prev => ({ ...prev, [fieldKey]: e.target.value }));
+  };
+
+  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUri = e.target?.result as string;
+        setEditedData(prev => ({ ...prev, [fieldKey]: dataUri }));
+        toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI.` });
+      };
+      reader.onerror = () => {
+        toast({ title: "Error", description: "Failed to read image file.", variant: "destructive" });
+      };
+      reader.readAsDataURL(file);
+    }
+    if (event.target) {
+      event.target.value = "";
+    }
   };
 
   const handleSaveChanges = () => {
@@ -114,6 +137,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
         }
       });
       onDuplicate({ ...card, data: finalData });
+       toast({ title: "Card Duplicated", description: "A copy has been added to the preview list."}); // Toast on duplicate
     }
   };
 
@@ -122,7 +146,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
   const cardNameKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImageKey)?.key ||
                       dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImageKey)?.key ||
                       (dynamicFields.length > 0 && !dynamicFields[0].isImageKey ? dynamicFields[0].key : '');
-                      
+
   const cardName = String(editedData[cardNameKey] || 'Card');
 
   return (
@@ -139,27 +163,49 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
             {dynamicFields.map(field => (
               <div key={field.key}>
                 <Label htmlFor={`editCard-${field.key}`}>
-                  {field.label}
-                  {field.defaultValue !== undefined && <span className="text-xs text-muted-foreground ml-1">(Default: "{field.defaultValue}")</span>}
+                  {field.label} {field.isImageKey ? '(Image URL or Upload)' : ''}
                 </Label>
-                {field.type === 'textarea' ? (
-                  <Textarea
-                    id={`editCard-${field.key}`}
-                    value={(editedData[field.key] as string) || ''}
-                    onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={`Enter value for ${field.key}...`}
-                    rows={3}
-                    className="text-sm"
-                  />
-                ) : (
-                  <Input
-                    id={`editCard-${field.key}`}
-                    value={(editedData[field.key] as string) || ''}
-                    onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={field.isImageKey ? `URL for ${field.key}` : `Enter value for ${field.key}...`}
-                    className="text-sm"
-                  />
-                )}
+                <div className={field.isImageKey ? "flex items-center gap-2" : ""}>
+                  {field.type === 'textarea' ? (
+                    <Textarea
+                      id={`editCard-${field.key}`}
+                      value={(editedData[field.key] as string) || ''}
+                      onChange={(e) => handleInputChange(e, field.key)}
+                      placeholder={`Enter value for ${field.key}...`}
+                      rows={3}
+                      className="text-sm"
+                    />
+                  ) : (
+                    <Input
+                      id={`editCard-${field.key}`}
+                      value={(editedData[field.key] as string) || ''}
+                      onChange={(e) => handleInputChange(e, field.key)}
+                      placeholder={field.isImageKey ? `URL for ${field.key} or Upload` : `Enter value for ${field.key}...`}
+                      className={`text-sm ${field.isImageKey ? "flex-grow" : ""}`}
+                    />
+                  )}
+                  {field.isImageKey && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRefs.current[field.key]?.click()}
+                        className="shrink-0"
+                      >
+                        <Upload className="mr-2 h-4 w-4" /> Upload
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={el => fileInputRefs.current[field.key] = el}
+                        onChange={(e) => handleImageUpload(e, field.key)}
+                        style={{ display: 'none' }}
+                        id={`editCard-file-${field.key}`}
+                      />
+                    </>
+                  )}
+                </div>
               </div>
             ))}
             {dynamicFields.length === 0 && (
@@ -167,7 +213,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
             )}
           </div>
         </ScrollArea>
-        
+
         <div className="mt-4 border-t pt-3">
             <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="raw-data-viewer">

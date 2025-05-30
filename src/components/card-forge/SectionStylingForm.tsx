@@ -2,13 +2,17 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import React from 'react';
+import React, { useRef } from 'react'; // Added useRef
 import type { CardSection } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Paintbrush } from 'lucide-react';
+import { Paintbrush, Upload } from 'lucide-react'; // Added Upload
+import { Button } from '@/components/ui/button'; // Added Button
+import { useToast } from '@/hooks/use-toast'; // Added useToast
+
+
 import { FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS } from '@/lib/constants';
 
 interface SectionStylingFormProps {
@@ -26,10 +30,32 @@ const SectionStylingFormMemoized = ({
   activeStylingAccordion,
   onToggleStylingAccordion,
 }: SectionStylingFormProps) => {
+  const fileInputRefBg = useRef<HTMLInputElement | null>(null);
+  const { toast } = useToast();
 
   const handleUpdate = (updates: Partial<CardSection>) => {
     onUpdateSectionInRow(rowId, section.id, updates);
   };
+
+  const handleBgImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUri = e.target?.result as string;
+        handleUpdate({ backgroundImageUrl: dataUri });
+        toast({ title: "Image Uploaded", description: `Background image "${file.name}" loaded.` });
+      };
+      reader.onerror = () => {
+        toast({ title: "Error", description: "Failed to read background image file.", variant: "destructive" });
+      };
+      reader.readAsDataURL(file);
+    }
+    if (event.target) {
+      event.target.value = "";
+    }
+  };
+
 
   return (
     <Accordion
@@ -49,15 +75,35 @@ const SectionStylingFormMemoized = ({
               <Label htmlFor={`contentBgColor-${section.id}`} className="text-xs">Background Color (Section)</Label>
               <Input id={`contentBgColor-${section.id}`} type="color" className="h-8 w-full" value={section.backgroundColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ backgroundColor: e.target.value })} />
             </div>
-             <div>
-              <Label htmlFor={`backgroundImageUrlSec-${section.id}`} className="text-xs">Background Image URL (or placeholder)</Label>
-              <Input
-                id={`backgroundImageUrlSec-${section.id}`}
-                value={section.backgroundImageUrl || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ backgroundImageUrl: e.target.value })}
-                placeholder="e.g., https://.../bg.png or {{bgKey}}"
-                className="h-8 text-xs"
-              />
+             <div className="space-y-1">
+              <Label htmlFor={`backgroundImageUrlSec-${section.id}`} className="text-xs">Background Image URL (or placeholder/upload)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id={`backgroundImageUrlSec-${section.id}`}
+                  value={section.backgroundImageUrl || ''}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ backgroundImageUrl: e.target.value })}
+                  placeholder="e.g., https://.../bg.png or {{bgKey}}"
+                  className="h-8 text-xs flex-grow"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => fileInputRefBg.current?.click()}
+                  aria-label="Upload background image"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRefBg}
+                  onChange={handleBgImageUpload}
+                  style={{ display: 'none' }}
+                  id={`backgroundImageUrlSec-file-${section.id}`}
+                />
+              </div>
             </div>
              <div>
               <Label htmlFor={`customHeight-${section.id}`} className="text-xs">Custom Height (Container)</Label>
