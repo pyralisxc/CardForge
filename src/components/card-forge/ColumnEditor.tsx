@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2, FileImage, TextCursorInput } from 'lucide-react';
 import { SectionStylingForm } from './SectionStylingForm';
 import { SECTION_CONTENT_TYPES } from '@/lib/constants';
 
@@ -46,10 +46,13 @@ const ColumnEditorMemoized = ({
 
   const handleImageDimensionChange = (e: ChangeEvent<HTMLInputElement>, dimension: 'width' | 'height') => {
     const value = e.target.value;
-    if (dimension === 'width') {
-      onUpdateSectionInRow(rowId, section.id, { imageWidthPx: value });
-    } else {
-      onUpdateSectionInRow(rowId, section.id, { imageHeightPx: value });
+    // Basic validation: allow empty string or numbers (optionally with "px" or "%")
+    if (value === '' || /^\d*\.?\d*(px|%)?$/.test(value)) {
+      if (dimension === 'width') {
+        onUpdateSectionInRow(rowId, section.id, { imageWidthPx: value });
+      } else {
+        onUpdateSectionInRow(rowId, section.id, { imageHeightPx: value });
+      }
     }
   };
 
@@ -108,7 +111,10 @@ const ColumnEditorMemoized = ({
             </SelectTrigger>
             <SelectContent>
               {SECTION_CONTENT_TYPES.map(type => (
-                <SelectItem key={type.value} value={type.value} className="text-xs">{type.label}</SelectItem>
+                <SelectItem key={type.value} value={type.value} className="text-xs">
+                  {type.value === 'image' ? <FileImage className="inline mr-2 h-3 w-3"/> : <TextCursorInput className="inline mr-2 h-3 w-3"/>}
+                  {type.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -154,7 +160,7 @@ const ColumnEditorMemoized = ({
               <Label htmlFor={`imageWidth-${section.id}`} className="text-xs">Image Width (px)</Label>
               <Input
                 id={`imageWidth-${section.id}`}
-                type="text"
+                type="text" // Using text for flexibility like "100px" or "100"
                 value={section.imageWidthPx || ''}
                 onChange={(e) => handleImageDimensionChange(e, 'width')}
                 placeholder="e.g., 100"
@@ -165,7 +171,7 @@ const ColumnEditorMemoized = ({
               <Label htmlFor={`imageHeight-${section.id}`} className="text-xs">Image Height (px)</Label>
               <Input
                 id={`imageHeight-${section.id}`}
-                type="text"
+                type="text" // Using text for flexibility like "150px" or "150"
                 value={section.imageHeightPx || ''}
                 onChange={(e) => handleImageDimensionChange(e, 'height')}
                 placeholder="e.g., 150"
