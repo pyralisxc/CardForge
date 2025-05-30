@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -6,10 +5,10 @@ import type { CardSection } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-// Select for section type removed
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, Trash2, SquarePen } from 'lucide-react';
 import { SectionStylingForm } from './SectionStylingForm';
+// ICON_MAP import removed
 
 interface ColumnEditorProps {
   section: CardSection;
@@ -36,7 +35,7 @@ const ColumnEditorMemoized = ({
   onRemoveSectionFromRow,
   onMoveSectionInRow,
 }: ColumnEditorProps) => {
-  const IconComponent = SquarePen; // Generic icon now
+  const IconComponent = SquarePen; // Generic icon as section types are removed
 
   return (
     <Card key={section.id} className="bg-background/50 p-0 overflow-hidden column-editor-card" data-section-id={section.id}>
@@ -81,7 +80,7 @@ const ColumnEditorMemoized = ({
         </div>
       </CardHeader>
       <CardContent className="p-3 space-y-3">
-        {/* Section Type Select removed */}
+        {/* Section Type Select removed as section types are generic now */}
         <div>
           <Label htmlFor={`contentPlaceholder-${section.id}`} className="text-xs">
             Content Placeholder (e.g., <code>{`{{fieldName}}`}</code> or <code>{`{{fieldName:"Default"}}`}</code>)
@@ -90,7 +89,7 @@ const ColumnEditorMemoized = ({
             id={`contentPlaceholder-${section.id}`}
             value={section.contentPlaceholder}
             onChange={(e) => onUpdateSectionInRow(rowId, section.id, { contentPlaceholder: e.target.value })}
-            rows={2} // Generic row count
+            rows={2}
             className="text-sm font-mono"
           />
           <p className="text-xs text-muted-foreground mt-1">

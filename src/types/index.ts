@@ -1,6 +1,7 @@
 
 export interface CardSection {
   id: string;
+  // type: CardSectionType; // Removed
   contentPlaceholder: string;
   backgroundImageUrl?: string;
 
@@ -20,6 +21,8 @@ export interface CardSection {
   customWidth?: string;
 }
 
+// CardSectionType alias removed
+
 export interface CardRow {
   id: string;
   columns: CardSection[];
@@ -35,12 +38,14 @@ export interface TCGCardTemplate {
 
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  defaultSectionBorderColor?: string; // Renamed from borderColor
+  defaultSectionBorderColor?: string; // Renamed from borderColor for clarity
 
+  // Properties for explicit card border control - were part of a reverted feature, re-evaluating if needed
   cardBorderColor?: string;
   cardBorderWidth?: string;
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
   cardBorderRadius?: string;
+  // legacyFrameColor?: string | undefined; // This was part of the revert
 
   rows: CardRow[];
 }
