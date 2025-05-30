@@ -1,8 +1,8 @@
 
 export interface CardSection {
   id: string;
-  sectionContentType: 'placeholder' | 'image'; // New: Explicitly define content type
-  contentPlaceholder: string; // For 'placeholder': "Text with {{key}}". For 'image': "imageKeyName"
+  sectionContentType: 'placeholder' | 'image';
+  contentPlaceholder: string;
   backgroundImageUrl?: string;
 
   // Styling for the section's container div
@@ -13,25 +13,24 @@ export interface CardSection {
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
-  padding?: string; // Tailwind class e.g. 'p-1', 'p-0'
+  padding?: string;
   borderColor?: string;
-  borderWidth?: string; // Tailwind class e.g. 'border', 'border-2', or '_none_'
-  minHeight?: string; // Tailwind class e.g. 'min-h-[120px]' or '_auto_'
+  borderWidth?: string;
+  minHeight?: string;
   flexGrow?: number;
-  customHeight?: string; // e.g., "150px", "50%", "auto" - for the section container
-  customWidth?: string; // e.g., "100%", "200px", "auto" - for the section container
+  customHeight?: string;
+  customWidth?: string;
 
   // Specific to sectionContentType: 'image'
-  imageWidthPx?: string; // e.g., "100" (will be treated as px)
-  imageHeightPx?: string; // e.g., "150" (will be treated as px)
-  // objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down'; // Future: for image sections
+  imageWidthPx?: string;
+  imageHeightPx?: string;
 }
 
 export interface CardRow {
   id: string;
   columns: CardSection[];
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string; // e.g., "100px", "20%", "auto"
+  customHeight?: string;
 }
 
 export interface TCGCardTemplate {
@@ -39,17 +38,17 @@ export interface TCGCardTemplate {
   name: string;
   aspectRatio: string;
   frameStyle?: string;
+  cardBackgroundImageUrl?: string; // New: Background image for the entire card
 
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  defaultSectionBorderColor?: string;
+  defaultSectionBorderColor?: string; // Fallback for section borders
 
+  // Specific controls for the card's outer border
   cardBorderColor?: string;
   cardBorderWidth?: string;
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
   cardBorderRadius?: string;
-
-  rows: CardRow[];
 }
 
 export interface CardData {

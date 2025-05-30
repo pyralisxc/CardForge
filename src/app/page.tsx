@@ -19,27 +19,18 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Wand2, Cog } from 'lucide-react'; // Removed ScrollText
+import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Wand2, Cog } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { PAPER_SIZES, createDefaultRow, createDefaultSection, DEFAULT_TEMPLATES } from '@/lib/constants';
+import { PAPER_SIZES, createDefaultRow, createDefaultSection, TABS_CONFIG } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
-
-const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV9-genericSections'; // Updated for new structure
-
-export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
-  { value: "editor", label: "Template Editor", icon: Cog },
-  { value: "generator", label: "Card Generator", icon: PackageOpen },
-  { value: "ai", label: "AI Helper", icon: Wand2 },
-];
-
+const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV9-genericSections';
 
 export default function CardForgePage() {
   const [mounted, setMounted] = useState(false);
-  // Initialize with an empty array, defaults will be handled by getFreshDefaultTemplate if needed
   const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, []);
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
 
@@ -56,11 +47,8 @@ export default function CardForgePage() {
   const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-
   useEffect(() => { setMounted(true); }, []);
 
-
-  // Process templates from localStorage to ensure they conform to the latest structure
   useEffect(() => {
     if (!mounted) return;
 
@@ -69,34 +57,36 @@ export default function CardForgePage() {
         console.warn("Templates from localStorage was not an array. Initializing to empty array.");
         return [];
       }
-      // If localStorage is empty and we used to have defaults, this ensures it starts empty now.
-      if (prevTemplates.length === 0 && DEFAULT_TEMPLATES.length > 0) {
-        // This block is unlikely to run now that DEFAULT_TEMPLATES is empty, but good for safety
+      if (prevTemplates.length === 0) { // If localStorage is empty, ensure it starts empty.
         return [];
       }
-      if (prevTemplates.length === 0 && DEFAULT_TEMPLATES.length === 0) {
-        return []; // Start truly empty if no saved templates and no coded defaults
-      }
 
+      // Process loaded templates to ensure they conform to the latest structure
       return prevTemplates.map(t_loaded => {
-        // Create a base structure with all current properties initialized
-        let newT: TCGCardTemplate = { ...getFreshDefaultTemplate(t_loaded.id || nanoid(), t_loaded.name || "Untitled Loaded Template"), ...t_loaded };
-        newT.id = newT.id || nanoid(); // Ensure top-level ID
+        let newT: TCGCardTemplate = { ...getFreshDefaultTemplate(t_loaded.id, t_loaded.name), ...t_loaded };
+        newT.id = newT.id || nanoid();
         newT.name = newT.name || "Untitled Loaded Template";
+        newT.cardBackgroundImageUrl = newT.cardBackgroundImageUrl || ''; // Ensure new prop
 
         newT.rows = (newT.rows || []).map((r_loaded: Partial<CardRow>) => {
           const rowId = r_loaded.id || nanoid();
-          // Merge loaded row with a full default row structure
-          const newR: CardRow = { ...createDefaultRow(rowId), ...r_loaded, id: rowId };
+          const baseRow = createDefaultRow(rowId);
+          const newR: CardRow = { ...baseRow, ...r_loaded, id: rowId };
 
           newR.columns = (newR.columns || []).map((c_loaded: Partial<CardSection>) => {
             const sectionId = c_loaded.id || nanoid();
-            // Merge loaded section with a full default section structure
-            const newC: CardSection = { ...createDefaultSection(sectionId), ...c_loaded, id: sectionId };
+            const baseCol = createDefaultSection(sectionId); // Creates a generic section
+             let newC: CardSection = { ...baseCol, ...c_loaded, id: sectionId };
 
-            // Placeholder correction (simplified)
-            if (!newC.contentPlaceholder || (newC.contentPlaceholder.startsWith('{{') && newC.contentPlaceholder.endsWith('}}') && newC.contentPlaceholder.includes(newC.id))) {
-              newC.contentPlaceholder = createDefaultSection(sectionId).contentPlaceholder;
+            // Ensure contentPlaceholder if it's somehow missing
+            if (newC.contentPlaceholder === undefined || newC.contentPlaceholder === null) {
+              newC.contentPlaceholder = baseCol.contentPlaceholder;
+            }
+            if (newC.sectionContentType === undefined) {
+              newC.sectionContentType = 'placeholder';
+            }
+             if (newC.backgroundImageUrl === undefined) {
+              newC.backgroundImageUrl = '';
             }
             return newC;
           });
@@ -112,8 +102,7 @@ export default function CardForgePage() {
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
-
+  }, [mounted]); // Removed setTemplates from deps, it's the setter
 
   const handleSaveTemplate = (template: TCGCardTemplate) => {
     setTemplates(prevTemplates => {
@@ -229,11 +218,12 @@ export default function CardForgePage() {
 
           if (Array.isArray(loadedItems) && loadedItems.every(isValidDisplayCard)) {
             const processedCards = loadedItems.map(card => {
-              // Ensure loaded templates also conform to the latest structure
               const baseTemplate = getFreshDefaultTemplate(card.template.id || nanoid(), card.template.name || 'Untitled Loaded Template');
               let hydratedTemplate: TCGCardTemplate = { ...baseTemplate, ...card.template };
               hydratedTemplate.id = hydratedTemplate.id || baseTemplate.id;
               hydratedTemplate.name = hydratedTemplate.name || baseTemplate.name;
+              hydratedTemplate.cardBackgroundImageUrl = hydratedTemplate.cardBackgroundImageUrl || '';
+
 
               hydratedTemplate.rows = (card.template.rows || []).map((r_loaded: any) => {
                 const rowId = r_loaded.id || nanoid();
@@ -242,7 +232,10 @@ export default function CardForgePage() {
                 newR.columns = (r_loaded.columns || []).map((c_loaded: any) => {
                   const sectionId = c_loaded.id || nanoid();
                   const baseCol = createDefaultSection(sectionId);
-                  return { ...baseCol, ...c_loaded, id: sectionId };
+                  let newC: CardSection = { ...baseCol, ...c_loaded, id: sectionId };
+                  newC.sectionContentType = newC.sectionContentType || 'placeholder';
+                  newC.backgroundImageUrl = newC.backgroundImageUrl || '';
+                  return newC;
                 });
                 if (newR.columns.length === 0) newR.columns = [createDefaultSection(nanoid())];
                 return newR;
