@@ -58,7 +58,7 @@ export function CardPreview({
   if (template.cardBorderColor) cardContainerStyle.borderColor = template.cardBorderColor;
   if (template.cardBorderWidth) cardContainerStyle.borderWidth = template.cardBorderWidth;
   if (template.cardBorderStyle && template.cardBorderStyle !== '_default_' && template.cardBorderStyle !== 'none') {
-    cardContainerStyle.borderStyle = template.cardBorderStyle;
+    cardContainerStyle.borderStyle = template.cardBorderStyle as React.CSSProperties['borderStyle'];
   } else if (template.cardBorderStyle === 'none') {
      cardContainerStyle.borderStyle = 'none';
      cardContainerStyle.borderWidth = '0';
@@ -69,17 +69,21 @@ export function CardPreview({
   const cardStandardWidthInches = (63 / 25.4).toFixed(1);
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
 
-  const artworkHintValue = useMemo(() => { // General hint, as specific types are gone
+  const artworkHintValue = useMemo(() => {
+    // Try to find a 'TypeLine' or similar section for a hint
+    const typeLineSection = template.rows?.flatMap(r => r.columns).find(s => (s.contentPlaceholder || '').toLowerCase().includes('type'));
+    if (typeLineSection && data) {
+        const resolvedTypeLine = replacePlaceholdersLocal(typeLineSection.contentPlaceholder, data, true);
+        if (resolvedTypeLine.trim()) return resolvedTypeLine.trim().split('—')[0].trim().toLowerCase(); // Get first part of type
+    }
     return "card art";
-  }, []);
+  }, [template, data]);
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) return false; // Always show all sections in editor preview
     if (hideEmptySections) {
-      // Hide if content is empty, unless it's an image section with a background or a divider
       const hasContent = processedContent.trim() !== '';
-      const hasBgImage = !!section.backgroundImageUrl; // Check if it has a background image config
-      // Don't hide if it has content OR a background image (as it's visually present)
+      const hasBgImage = !!section.backgroundImageUrl;
       return !hasContent && !hasBgImage;
     }
     return false;
@@ -112,20 +116,6 @@ export function CardPreview({
             }
           };
 
-          const allColumnsInRowEffectivelyHidden = row.columns.every(col => {
-             let colContentForHidingCheck: string;
-             if (isEditorPreview) {
-                colContentForHidingCheck = col.contentPlaceholder.replace(PLACEHOLDER_REGEX_EDITOR_PREVIEW_KEY_EXTRACT, '$1');
-             } else {
-                colContentForHidingCheck = replacePlaceholdersLocal(col.contentPlaceholder, data, true);
-             }
-             return shouldHideSection(col, colContentForHidingCheck);
-          });
-
-          if (allColumnsInRowEffectivelyHidden && hideEmptySections && !isEditorPreview) {
-            return null;
-          }
-
           let rowEffectiveHeight: string | undefined = row.customHeight || undefined;
           if (row.customHeight && row.customHeight.includes('%') && !isPrintMode && cardPixelHeight > 0 && isFinite(cardPixelHeight)) {
             const percentageValue = parseFloat(row.customHeight.replace('%', ''));
@@ -138,8 +128,19 @@ export function CardPreview({
             display: 'flex',
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
-            flexShrink: 0, // Prevent rows from shrinking if card content overflows
+            flexShrink: 0,
           };
+
+          const allColumnsInRowEffectivelyHidden = row.columns.every(col => {
+            const colContent = isEditorPreview
+              ? col.contentPlaceholder
+              : replacePlaceholdersLocal(col.contentPlaceholder, data, true);
+            return shouldHideSection(col, colContent);
+          });
+
+          if (allColumnsInRowEffectivelyHidden && !isEditorPreview) {
+            return null;
+          }
 
           return (
             <div
@@ -154,21 +155,18 @@ export function CardPreview({
             >
               {row.columns.map((section, sectionIndex) => {
                 let processedContentForDisplay: string;
-                if (isEditorPreview) {
-                  // Show just the key part of the placeholder in editor preview
-                  processedContentForDisplay = section.contentPlaceholder.replace(PLACEHOLDER_REGEX_EDITOR_PREVIEW_KEY_EXTRACT, (match, key) => key);
-                } else {
-                  processedContentForDisplay = replacePlaceholdersLocal(section.contentPlaceholder, data, true);
-                }
-                
-                const contentForHidingCheck = processedContentForDisplay;
+                 if (isEditorPreview) {
+                    processedContentForDisplay = (section.contentPlaceholder || '').replace(PLACEHOLDER_REGEX_EDITOR_PREVIEW_KEY_EXTRACT, (match, key) => key);
+                 } else {
+                    processedContentForDisplay = replacePlaceholdersLocal(section.contentPlaceholder, data, true);
+                 }
 
-                if (shouldHideSection(section, contentForHidingCheck) && !isEditorPreview) {
+                if (shouldHideSection(section, processedContentForDisplay) && !isEditorPreview) {
                   return null;
                 }
-                
+
                 const sectionStyle: React.CSSProperties = {
-                  position: 'relative',
+                  position: 'relative', // Needed for absolute positioning of children or NextImage fill
                   color: section.textColor || undefined,
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
@@ -176,55 +174,56 @@ export function CardPreview({
                   borderColor: section.borderColor || template.defaultSectionBorderColor || undefined,
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   overflowWrap: 'break-word',
+                  wordBreak: 'break-word', // Added for aggressive breaking
                 };
 
                 if (section.customHeight) sectionStyle.height = section.customHeight;
-                
                 if (section.customWidth) {
                     sectionStyle.width = section.customWidth;
                     sectionStyle.flexBasis = section.customWidth;
-                    sectionStyle.flexShrink = 0; 
+                    sectionStyle.flexShrink = 0;
                 } else {
                     sectionStyle.flexBasis = (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto';
                     sectionStyle.flexShrink = (section.flexGrow && section.flexGrow > 0) ? 1 : 0;
                 }
                 if (section.flexGrow && section.flexGrow > 0) {
-                    sectionStyle.minWidth = 0; 
-                    sectionStyle.minHeight = 0;
-                    sectionStyle.overflowY = 'auto';
+                    sectionStyle.minWidth = 0;
+                    sectionStyle.minHeight = 0; // Allow shrinking below content height for overflow-y
+                    sectionStyle.overflowY = 'auto'; // Allow vertical scroll for growing text areas
                 }
 
                 let sectionBorderClass = '';
                 if (section.borderWidth && section.borderWidth !== '_none_') {
                     sectionBorderClass = section.borderWidth;
                 }
-                
-                let resolvedBackgroundImageUrl = '';
+
+                let resolvedBgImageUrl = '';
                 if (section.backgroundImageUrl) {
-                    resolvedBackgroundImageUrl = isEditorPreview 
-                        ? (section.backgroundImageUrl.startsWith('{{') ? 'url(https://placehold.co/100x100/eee/ccc?text=BG)' : `url(${section.backgroundImageUrl})`)
-                        : `url(${replacePlaceholdersLocal(section.backgroundImageUrl, data, false)})`;
-                    if (resolvedBackgroundImageUrl.includes('{{')) { // If still a placeholder after replacement
-                        resolvedBackgroundImageUrl = 'url(https://placehold.co/100x100/eee/ccc?text=BG)';
+                    resolvedBgImageUrl = replacePlaceholdersLocal(section.backgroundImageUrl, data, isEditorPreview);
+                    if (resolvedBgImageUrl && !resolvedBgImageUrl.startsWith('http') && !resolvedBgImageUrl.startsWith('data:')) {
+                         // If it's still a placeholder or invalid, don't use
+                         resolvedBgImageUrl = '';
                     }
-                     sectionStyle.backgroundImage = resolvedBackgroundImageUrl;
-                     sectionStyle.backgroundSize = 'cover'; // Common default
-                     sectionStyle.backgroundPosition = 'center'; // Common default
+                    if (resolvedBgImageUrl) {
+                        sectionStyle.backgroundImage = `url(${resolvedBgImageUrl})`;
+                        sectionStyle.backgroundSize = 'cover';
+                        sectionStyle.backgroundPosition = 'center';
+                    }
                 }
 
-
                 const sectionClasses = cn(
-                  'relative',
+                  'relative', // Ensure relative for NextImage fill or other absolute positioning
                   section.padding || 'p-1',
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
-                  (section.minHeight && section.minHeight !== '_auto_' && !section.customHeight) ? section.minHeight : '',
+                  section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? section.minHeight : '',
                   sectionBorderClass,
-                  'whitespace-pre-wrap break-words', // Apply to all text-based sections
+                  'whitespace-pre-wrap', // Apply to all text-based sections for newlines
+                  // 'break-words', // Handled by inline style for more aggressive breaking
                   isEditorPreview && onSectionClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-[-1px] hover:outline-primary/70' : '',
-                  isEditorPreview && 'border-l border-r border-foreground/10', // Subtle persistent border in editor
-                  !section.customWidth && ((section.flexGrow && section.flexGrow > 0) || ['CardName', 'TypeLine', 'RulesText', 'FlavorText', 'CustomText'].includes(section.contentPlaceholder)) ? 'w-full' : ''
+                  isEditorPreview && 'border-l border-r border-foreground/10',
+                  !section.customWidth && ((section.flexGrow && section.flexGrow > 0)) ? 'w-full' : '' // Simplified w-full logic
                 );
 
                 const handlePreviewSectionClick = (e: React.MouseEvent) => {
@@ -234,69 +233,60 @@ export function CardPreview({
                   }
                 };
 
-                // --- New Image Handling Logic ---
+                // --- Image Handling Logic ---
                 let isResolvedAsImage = false;
                 let imageSrc = '';
-                if (!isEditorPreview) {
-                    const resolvedContent = replacePlaceholdersLocal(section.contentPlaceholder, data, false);
-                    if (resolvedContent && (resolvedContent.startsWith('http://') || resolvedContent.startsWith('https://') || resolvedContent.startsWith('data:image/'))) {
-                        isResolvedAsImage = true;
-                        imageSrc = resolvedContent;
-                    } else if (resolvedContent && resolvedContent.trim() !== '' && (section.contentPlaceholder.toLowerCase().includes('art') || section.contentPlaceholder.toLowerCase().includes('image'))) {
-                        // Fallback to placeholder if it's an art field but not a valid URL
-                        imageSrc = `https://placehold.co/600x400.png?text=${encodeURIComponent(template.name + " Art")}`;
-                        isResolvedAsImage = true;
-                    }
-                } else { // Editor Preview: special handling for potential image sections
-                    if (section.contentPlaceholder.toLowerCase().includes('art') || section.contentPlaceholder.toLowerCase().includes('image')) {
-                        // Render a grey box for artwork placeholders in editor
-                        return (
-                            <div
-                                key={section.id}
-                                className={cn(sectionClasses, "flex items-center justify-center bg-muted/50 border-dashed border-border")}
-                                style={{
-                                    ...sectionStyle,
-                                    height: section.customHeight || '120px', // Default height for art in editor
-                                    width: section.customWidth || '100%',
-                                }}
-                                onClick={handlePreviewSectionClick}
-                                data-section-id={section.id}
-                            >
-                                <div className="text-center text-muted-foreground text-xs p-1">
-                                    <div>{section.contentPlaceholder.replace(PLACEHOLDER_REGEX_EDITOR_PREVIEW_KEY_EXTRACT, (match, key) => key)}</div>
-                                    <div>(Image Area)</div>
-                                    <div>{section.customWidth || '100%'} x {section.customHeight || '120px'}</div>
-                                </div>
-                            </div>
-                        );
-                    }
+                const resolvedContentForImageCheck = replacePlaceholdersLocal(section.contentPlaceholder, data, false);
+
+                if (resolvedContentForImageCheck && (resolvedContentForImageCheck.startsWith('http://') || resolvedContentForImageCheck.startsWith('https://') || resolvedContentForImageCheck.startsWith('data:image/'))) {
+                    isResolvedAsImage = true;
+                    imageSrc = resolvedContentForImageCheck;
                 }
-                
+
+                if (isEditorPreview && section.contentPlaceholder.toLowerCase().includes('art')) { // Simplified editor preview for "art" placeholders
+                    return (
+                        <div
+                            key={section.id}
+                            className={cn(sectionClasses, "flex items-center justify-center bg-muted/50 border-dashed border-border")}
+                            style={{
+                                ...sectionStyle,
+                                height: section.customHeight || '120px',
+                                width: section.customWidth || '100%',
+                            }}
+                            onClick={handlePreviewSectionClick}
+                            data-section-id={section.id}
+                        >
+                            <div className="text-center text-muted-foreground text-xs p-1">
+                                <div>{processedContentForDisplay}</div>
+                                <div>Size: {section.customWidth || 'auto'} x {section.customHeight || 'auto'}</div>
+                            </div>
+                        </div>
+                    );
+                }
+
                 if (isResolvedAsImage && imageSrc) {
                     const imageContainerStyle: React.CSSProperties = {
-                        ...sectionStyle, // Inherit text styles for alt or if image fails, and background
-                        position: 'relative', // For NextImage layout="fill"
+                        ...sectionStyle,
+                        position: 'relative',
                         overflow: 'hidden',
-                        // Explicitly use customHeight/Width if set, otherwise let flexbox or minHeight decide
-                        height: section.customHeight || sectionStyle.height || (section.minHeight && section.minHeight !== '_auto_' ? undefined : 'auto'), // Let Tailwind minHeight work if customHeight is not set
-                        width: section.customWidth || sectionStyle.width || '100%', // Default to full width if not specified
+                        height: section.customHeight || sectionStyle.height || 'auto',
+                        width: section.customWidth || sectionStyle.width || '100%',
+                        padding: section.padding || 'p-0', // Default to no padding for image containers
                     };
-                     // Remove minHeight class if customHeight is set to avoid conflict
-                    const finalSectionClasses = section.customHeight ? sectionClasses.replace(/min-h-\[[^\]]+\]/g, '') : sectionClasses;
 
                     return (
                         <div
                             key={section.id}
-                            className={cn(finalSectionClasses, section.padding || 'p-0')} // Ensure padding is p-0 for images unless specified
+                            className={cn(sectionClasses, section.padding || 'p-0')}
                             style={imageContainerStyle}
                             onClick={handlePreviewSectionClick}
                             data-section-id={section.id}
                         >
                             <NextImage
                                 src={imageSrc}
-                                alt={replacePlaceholdersLocal(section.contentPlaceholder, data, false) || "Card section image"}
+                                alt={processedContentForDisplay || "Card section image"}
                                 layout="fill"
-                                objectFit="cover" // Or "contain", could be a prop
+                                objectFit="cover"
                                 data-ai-hint={artworkHintValue}
                                 priority={rowIndex === 0 && sectionIndex === 0}
                             />
@@ -308,10 +298,8 @@ export function CardPreview({
                     );
                 }
 
-                // Default: Render as text (either actual text or placeholder key in editor)
-                // Apply background image to this div if specified, and text on top
+                // Default: Render as text
                 const Tag = (processedContentForDisplay.includes('\n') && !isEditorPreview) ? 'pre' : 'div';
-
                 return (
                   <Tag
                     key={section.id}

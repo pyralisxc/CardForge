@@ -15,23 +15,21 @@ import { generateCardText, type GenerateCardTextInput } from '@/ai/flows/generat
 import { generateCardImage, type GenerateCardImageInput } from '@/ai/flows/generate-card-image';
 import { suggestTemplateColors, type SuggestTemplateColorsInput, type SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIconLucide, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
+import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIconLucide, Paintbrush as PaintbrushIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TCGCardTemplate } from '@/types'; // Removed AbilityContextSet
+import type { TCGCardTemplate } from '@/types';
 import NextImage from 'next/image';
 
-// const NO_CONTEXT_SELECTED_VALUE = "_NO_CONTEXT_"; // Removed
 
 interface AIDesignAssistantProps {
-  templates: TCGCardTemplate[]; 
-  // abilityContextSets prop removed
+  templates: TCGCardTemplate[];
 }
 
 type TextGenType = NonNullable<GenerateCardTextInput['textType']>;
 
-export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // abilityContextSets removed from props
+export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
   const [activeAiTab, setActiveAiTab] = useState("designSuggestions");
-  
+
   const [textContentLayout, setTextContentLayout] = useState<string>('');
   const [cardConceptLayout, setCardConceptLayout] = useState<string>('');
   const [currentSectionsForLayout, setCurrentSectionsForLayout] = useState<string>('');
@@ -42,7 +40,6 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
   const [textGenType, setTextGenType] = useState<TextGenType>('RulesText');
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isLoadingText, setIsLoadingText] = useState(false);
-  // selectedContextIdForText removed
 
   const [imageConcept, setImageConcept] = useState<string>('');
   const [generatedImageDataUri, setGeneratedImageDataUri] = useState<string>('');
@@ -62,8 +59,8 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
     setIsLoadingLayout(true);
     setDesignSuggestion('');
     try {
-      const input: SuggestCardLayoutInput = { 
-        textContent: textContentLayout, 
+      const input: SuggestCardLayoutInput = {
+        textContent: textContentLayout,
         cardConcept: cardConceptLayout,
       };
       if (currentSectionsForLayout.trim()) {
@@ -88,11 +85,9 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
     setIsLoadingText(true);
     setGeneratedText('');
     try {
-      // const contextSet = abilityContextSets.find(cs => cs.id === selectedContextIdForText); // Removed
       const input: GenerateCardTextInput = {
-         theme: textTheme, 
+         theme: textTheme,
          textType: textGenType,
-         // abilityContext: contextSet ? contextSet.description : undefined // Removed
       };
       const result = await generateCardText(input);
       setGeneratedText(result.cardText);
@@ -138,7 +133,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
     } catch (error) {
       console.error("Error suggesting colors:", error);
       toast({ title: "Error", description: `Failed to suggest colors: ${(error as Error).message}`, variant: "destructive" });
-    } finally { 
+    } finally {
       setIsLoadingColors(false);
     }
   };
@@ -151,8 +146,6 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
         toast({ title: "Copy Failed", description: "Could not copy text to clipboard.", variant: "destructive" });
       });
   };
-
-  // handleTextContextChange removed
 
   return (
     <Card>
@@ -245,7 +238,6 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
                 </SelectContent>
               </Select>
             </div>
-            {/* Ability Context Select Removed */}
             <Button onClick={handleGenerateText} disabled={isLoadingText} className="w-full">
               <Sparkles className="mr-2 h-4 w-4" /> {isLoadingText ? 'Generating...' : 'Generate Card Text'}
             </Button>
@@ -281,11 +273,11 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
               <div className="mt-4 space-y-2">
                 <h4 className="font-semibold">Generated Image:</h4>
                 <div className="border rounded-md p-2 bg-muted/50 flex justify-center items-center max-h-96 overflow-hidden">
-                  <NextImage 
-                    src={generatedImageDataUri} 
-                    alt="AI Generated Card Artwork" 
-                    width={300} 
-                    height={400} 
+                  <NextImage
+                    src={generatedImageDataUri}
+                    alt="AI Generated Card Artwork"
+                    width={300}
+                    height={400}
                     className="rounded"
                     style={{ objectFit: 'contain', width: 'auto', height: 'auto', maxHeight: '360px' }}
                     data-ai-hint="generated card art"
@@ -330,7 +322,7 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // ab
                 <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/50">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     {Object.entries(suggestedColors).map(([key, value]) => {
-                      if (!value) return null; 
+                      if (!value) return null;
                       const labelText = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                       return (
                         <div key={key} className="flex items-center justify-between">

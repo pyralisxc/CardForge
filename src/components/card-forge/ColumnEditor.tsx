@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, Trash2, SquarePen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react'; // Removed SquarePen, ICON_MAP usage
 import { SectionStylingForm } from './SectionStylingForm';
-import { ICON_MAP } from '@/lib/constants';
+// Removed import { ICON_MAP } from '@/lib/constants';
 
 interface ColumnEditorProps {
   section: CardSection;
@@ -36,13 +36,13 @@ const ColumnEditorMemoized = ({
   onRemoveSectionFromRow,
   onMoveSectionInRow,
 }: ColumnEditorProps) => {
-  const IconComponent = ICON_MAP['Default'] || SquarePen; // Use default if specific type icon not found
+  // const IconComponent = ICON_MAP['Default'] || SquarePen; // Section type icon removed
 
   return (
     <Card key={section.id} className="bg-background/50 p-0 overflow-hidden column-editor-card" data-section-id={section.id}>
       <CardHeader className="flex flex-row items-center justify-between p-2 border-b bg-muted/20">
         <div className="flex items-center gap-2">
-          <IconComponent className="h-4 w-4 text-muted-foreground" />
+          {/* <IconComponent className="h-4 w-4 text-muted-foreground" /> // Icon removed */}
           <span className="text-sm font-medium">Column {sectionIndex + 1}</span>
         </div>
         <div className="flex items-center gap-1">
@@ -87,13 +87,13 @@ const ColumnEditorMemoized = ({
           </Label>
           <Textarea
             id={`contentPlaceholder-${section.id}`}
-            value={section.contentPlaceholder}
+            value={section.contentPlaceholder || ''}
             onChange={(e) => onUpdateSectionInRow(rowId, section.id, { contentPlaceholder: e.target.value })}
             rows={2}
             className="text-sm font-mono"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Define the data variable. If its resolved value is an image URL, it will be shown as an image.
+            Defines the section's content. If its resolved value is an image URL, it will be shown as an image.
           </p>
         </div>
         <SectionStylingForm

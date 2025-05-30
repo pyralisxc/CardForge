@@ -1,14 +1,10 @@
 
 import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
-import {
-  LayoutDashboard, Edit2, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen, Palette, EyeOff, Eye,
-  PlusCircle, ScrollText, Wand2, PackageOpen, Menu as MenuIcon, TextQuote, Image as ImageIconLucide, Lightbulb, Copy as CopyIcon, FolderDown, FolderUp, Trash2, Type, ChevronsUpDown, AlignLeft, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings
-} from 'lucide-react';
-import type { ElementType } from 'react';
+import { ElementType } from 'react';
+import { SquarePen } from 'lucide-react'; // Keep a default icon
 
-
-export const PAPER_SIZES: PaperSize[] = [
+export const PAPER_SIZES: Array<{ name: string; widthMm: number; heightMm: number }> = [
   { name: 'US Letter (8.5x11 in)', widthMm: 215.9, heightMm: 279.4 },
   { name: 'A4 (210x297 mm)', widthMm: 210, heightMm: 297 },
 ];
@@ -50,6 +46,20 @@ export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Left (1px)', value: 'border-l' }, { label: 'Right (1px)', value: 'border-r' },
 ];
 
+export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: 'Auto', value: '_auto_' }, { label: 'Small (40px)', value: 'min-h-[40px]' },
+  { label: 'Medium (80px)', value: 'min-h-[80px]' }, { label: 'Default Artwork (120px)', value: 'min-h-[120px]' },
+  { label: 'Large (180px)', value: 'min-h-[180px]' },
+];
+
+export const FRAME_STYLES: Array<{ label: string; value: string }> = [
+  { label: 'Standard', value: 'standard' },
+  { label: "Custom Colors", value: "custom" },
+  { label: 'Classic Gold', value: 'classic-gold' },
+  { label: 'Minimal Dark', value: 'minimal-dark' },
+  { label: 'Arcane Purple', value: 'arcane-purple' },
+];
+
 export const CARD_BORDER_STYLES: Array<{ label: string; value: TCGCardTemplate['cardBorderStyle'] | '_default_' }> = [
   { label: 'Default (from Frame/Theme)', value: '_default_' },
   { label: 'Solid', value: 'solid' },
@@ -59,24 +69,11 @@ export const CARD_BORDER_STYLES: Array<{ label: string; value: TCGCardTemplate['
   { label: 'None', value: 'none' },
 ];
 
-export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'Auto', value: '_auto_' }, { label: 'Small (40px)', value: 'min-h-[40px]' },
-  { label: 'Medium (80px)', value: 'min-h-[80px]' }, { label: 'Artwork Default (120px)', value: 'min-h-[120px]' },
-  { label: 'X-Large (180px)', value: 'min-h-[180px]' },
-];
-
-export const FRAME_STYLES: Array<{ label: string; value: string }> = [
-  { label: 'Standard', value: 'standard' }, 
-  { label: "Custom Colors", value: "custom" },
-  { label: 'Classic Gold', value: 'classic-gold' }, 
-  { label: 'Minimal Dark', value: 'minimal-dark' },
-  { label: 'Arcane Purple', value: 'arcane-purple' },
-];
 
 export const createDefaultSection = (id: string): CardSection => {
-  const baseSection: CardSection = {
+  return {
     id: id || nanoid(),
-    contentPlaceholder: '{{new_field}}',
+    contentPlaceholder: '{{new_field:"Default Text"}}',
     backgroundImageUrl: '',
     textColor: '',
     backgroundColor: '',
@@ -93,7 +90,6 @@ export const createDefaultSection = (id: string): CardSection => {
     customHeight: '',
     customWidth: '',
   };
-  return baseSection;
 };
 
 export const createDefaultRow = (id: string, columns?: CardSection[], alignItems?: CardRow['alignItems'], customHeight?: string): CardRow => {
@@ -105,17 +101,13 @@ export const createDefaultRow = (id: string, columns?: CardSection[], alignItems
   };
 };
 
-
+// Start with no default templates as per user request.
+// Users will create their own from scratch.
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [];
-
-
-export const TABS_CONFIG = [
-  { value: "editor", label: "Template Editor", icon: Cog },
-  { value: "generator", label: "Card Generator", icon: PackageOpen },
-  // { value: "contexts", label: "Context Sets", icon: ScrollText }, // Removed
-  { value: "ai", label: "AI Helper", icon: Wand2 },
-];
 
 export const ICON_MAP: Record<string, ElementType> = {
   Default: SquarePen,
 };
+
+// TABS_CONFIG now defined in app/page.tsx or a dedicated ui-constants.ts if preferred
+// Keeping it simple here for now

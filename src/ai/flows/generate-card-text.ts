@@ -20,7 +20,6 @@ const GenerateCardTextInputSchema = z.object({
     .optional()
     .default('RulesText')
     .describe("The specific type of text to generate. 'FullConceptIdea' might generate a name, simple rules, and flavor."),
-  // abilityContext removed
 });
 export type GenerateCardTextInput = z.infer<typeof GenerateCardTextInputSchema>;
 
@@ -33,7 +32,7 @@ export async function generateCardText(input: GenerateCardTextInput): Promise<Ge
   return generateCardTextFlow(input);
 }
 
-const constructPrompt = (textType: GenerateCardTextInput['textType'], theme: string) => { // abilityContext parameter removed
+const constructPrompt = (textType: GenerateCardTextInput['textType'], theme: string) => {
   let taskDescription = "";
   switch (textType) {
     case 'CardName':
@@ -57,7 +56,6 @@ Flavor Text: [Generated Flavor]`;
       taskDescription = `Generate compelling and thematic rules text or ability description for a fantasy TCG card based on the concept: "${theme}". The text should be concise, functional, and suitable for a fantasy TCG. Focus on one primary ability or effect. Output only the rules text.`;
       break;
   }
-  // contextInstruction removed
   return `You are a creative writing assistant specializing in fantasy Trading Card Games (TCGs) like Magic: The Gathering or Hearthstone. ${taskDescription}`;
 };
 
@@ -68,15 +66,15 @@ const generateCardTextFlow = ai.defineFlow(
     outputSchema: GenerateCardTextOutputSchema,
   },
   async (input) => {
-    const { theme, textType } = input; // abilityContext removed
-    const dynamicPrompt = constructPrompt(textType, theme); // abilityContext argument removed
+    const { theme, textType } = input;
+    const dynamicPrompt = constructPrompt(textType, theme);
 
     console.log("[generateCardTextFlow] Prompt being sent to AI:", dynamicPrompt);
 
-    const {output} = await ai.generate({ 
+    const {output} = await ai.generate({
       prompt: dynamicPrompt,
     });
-    
+
     return { cardText: output?.text || "No text generated." };
   }
 );
