@@ -1,6 +1,7 @@
 
 "use client";
 
+import type { ChangeEvent } from 'react';
 import React from 'react';
 import type { CardSection } from '@/types';
 import { Input } from '@/components/ui/input';
@@ -46,25 +47,25 @@ const SectionStylingFormMemoized = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
             <div>
               <Label htmlFor={`contentBgColor-${section.id}`} className="text-xs">Background Color (Section)</Label>
-              <Input id={`contentBgColor-${section.id}`} type="color" className="h-8 w-full" value={section.backgroundColor || ''} onChange={(e) => handleUpdate({ backgroundColor: e.target.value })} />
+              <Input id={`contentBgColor-${section.id}`} type="color" className="h-8 w-full" value={section.backgroundColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ backgroundColor: e.target.value })} />
             </div>
-            <div>
+             <div>
               <Label htmlFor={`backgroundImageUrlSec-${section.id}`} className="text-xs">Background Image URL (or placeholder)</Label>
               <Input
                 id={`backgroundImageUrlSec-${section.id}`}
                 value={section.backgroundImageUrl || ''}
-                onChange={(e) => handleUpdate({ backgroundImageUrl: e.target.value })}
-                placeholder="e.g., https://.../bg.png or {{bgImage}}"
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ backgroundImageUrl: e.target.value })}
+                placeholder="e.g., https://.../bg.png or {{bgKey}}"
                 className="h-8 text-xs"
               />
             </div>
              <div>
-              <Label htmlFor={`customHeight-${section.id}`} className="text-xs">Custom Height</Label>
-              <Input id={`customHeight-${section.id}`} value={section.customHeight || ''} onChange={(e) => handleUpdate({ customHeight: e.target.value })} placeholder="e.g., 180px, 50%, auto" className="h-8 text-xs" />
+              <Label htmlFor={`customHeight-${section.id}`} className="text-xs">Custom Height (Container)</Label>
+              <Input id={`customHeight-${section.id}`} value={section.customHeight || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ customHeight: e.target.value })} placeholder="e.g., 180px, 50%, auto" className="h-8 text-xs" />
             </div>
             <div>
-              <Label htmlFor={`customWidth-${section.id}`} className="text-xs">Custom Width</Label>
-              <Input id={`customWidth-${section.id}`} value={section.customWidth || ''} onChange={(e) => handleUpdate({ customWidth: e.target.value })} placeholder="e.g., 100%, 250px, auto" className="h-8 text-xs" />
+              <Label htmlFor={`customWidth-${section.id}`} className="text-xs">Custom Width (Container)</Label>
+              <Input id={`customWidth-${section.id}`} value={section.customWidth || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ customWidth: e.target.value })} placeholder="e.g., 100%, 250px, auto" className="h-8 text-xs" />
             </div>
             <div>
               <Label htmlFor={`fontFamily-${section.id}`} className="text-xs">Font</Label>
@@ -103,28 +104,28 @@ const SectionStylingFormMemoized = ({
             </div>
             <div>
               <Label htmlFor={`textColor-${section.id}`} className="text-xs">Text Color</Label>
-              <Input id={`textColor-${section.id}`} type="color" className="h-8 w-full" value={section.textColor || ''} onChange={(e) => handleUpdate({ textColor: e.target.value })} />
+              <Input id={`textColor-${section.id}`} type="color" className="h-8 w-full" value={section.textColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ textColor: e.target.value })} />
             </div>
             <div>
-              <Label htmlFor={`padding-${section.id}`} className="text-xs">Padding</Label>
+              <Label htmlFor={`padding-${section.id}`} className="text-xs">Padding (Container)</Label>
               <Select value={section.padding || 'p-1'} onValueChange={v => handleUpdate({padding: v})}>
                 <SelectTrigger id={`padding-${section.id}`} className="text-xs h-8"><SelectValue/></SelectTrigger>
                 <SelectContent>{PADDING_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor={`borderColorSec-${section.id}`} className="text-xs">Border Color</Label>
-              <Input id={`borderColorSec-${section.id}`} type="color" className="h-8 w-full" value={section.borderColor || ''} onChange={(e) => handleUpdate({ borderColor: e.target.value })} />
+              <Label htmlFor={`borderColorSec-${section.id}`} className="text-xs">Border Color (Container)</Label>
+              <Input id={`borderColorSec-${section.id}`} type="color" className="h-8 w-full" value={section.borderColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ borderColor: e.target.value })} />
             </div>
             <div>
-              <Label htmlFor={`borderWidth-${section.id}`} className="text-xs">Border Width</Label>
+              <Label htmlFor={`borderWidth-${section.id}`} className="text-xs">Border Width (Container)</Label>
               <Select value={section.borderWidth || '_none_'} onValueChange={v => handleUpdate({borderWidth: v === '_none_' ? undefined : v})}>
                 <SelectTrigger id={`borderWidth-${section.id}`} className="text-xs h-8"><SelectValue placeholder="No border"/></SelectTrigger>
                 <SelectContent>{BORDER_WIDTH_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height (Tailwind)</Label>
+              <Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height (Container)</Label>
               <Select value={section.minHeight || '_auto_'} onValueChange={v => handleUpdate({minHeight: v === '_auto_' ? undefined : v})}>
                 <SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger>
                 <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
@@ -132,7 +133,7 @@ const SectionStylingFormMemoized = ({
             </div>
             <div className="flex items-center space-x-2 sm:col-span-2">
               <Label htmlFor={`flexGrow-${section.id}`} className="text-xs cursor-pointer flex-grow">Flex Grow (expand to fill row space)</Label>
-              <Input type="number" id={`flexGrow-${section.id}`} value={section.flexGrow || 0} onChange={(e) => handleUpdate({ flexGrow: parseInt(e.target.value,10) || 0 })} min="0" className="h-8 text-xs w-16" />
+              <Input type="number" id={`flexGrow-${section.id}`} value={section.flexGrow || 0} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ flexGrow: parseInt(e.target.value,10) || 0 })} min="0" className="h-8 text-xs w-16" />
             </div>
           </div>
         </AccordionContent>

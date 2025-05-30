@@ -1,8 +1,9 @@
 
+import type { ElementType } from 'react';
 import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
-import { ElementType } from 'react';
-import { SquarePen } from 'lucide-react'; // Keep a default icon
+import { LayoutDashboard, Trash2, PlusCircle, Rows, Palette, TextCursorInput, Type, Image as ImageIcon, Minus, SquarePen, Settings, Cog, Frame, AlignLeft, Italic, Baseline, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Columns, FileImage, Sparkles, PackageOpen, Wand2, MenuIcon, EyeOff, FolderDown, FolderUp, ScrollText, Paintbrush } from 'lucide-react';
+
 
 export const PAPER_SIZES: Array<{ name: string; widthMm: number; heightMm: number }> = [
   { name: 'US Letter (8.5x11 in)', widthMm: 215.9, heightMm: 279.4 },
@@ -69,10 +70,16 @@ export const CARD_BORDER_STYLES: Array<{ label: string; value: TCGCardTemplate['
   { label: 'None', value: 'none' },
 ];
 
+export const SECTION_CONTENT_TYPES: Array<{label: string, value: CardSection['sectionContentType']}> = [
+  { label: 'Text Placeholder', value: 'placeholder' },
+  { label: 'Dedicated Image', value: 'image' },
+];
+
 
 export const createDefaultSection = (id: string): CardSection => {
-  return {
-    id: id || nanoid(),
+  const baseSection: CardSection = {
+    id: id,
+    sectionContentType: 'placeholder',
     contentPlaceholder: '{{new_field:"Default Text"}}',
     backgroundImageUrl: '',
     textColor: '',
@@ -89,25 +96,30 @@ export const createDefaultSection = (id: string): CardSection => {
     flexGrow: 0,
     customHeight: '',
     customWidth: '',
+    imageWidthPx: '100', // Default for image type, can be overridden
+    imageHeightPx: '100', // Default for image type, can be overridden
   };
+  return baseSection;
 };
 
 export const createDefaultRow = (id: string, columns?: CardSection[], alignItems?: CardRow['alignItems'], customHeight?: string): CardRow => {
   return {
-    id: id || nanoid(),
+    id: id,
     columns: columns && columns.length > 0 ? columns : [createDefaultSection(nanoid())],
     alignItems: alignItems || 'flex-start',
     customHeight: customHeight || '',
   };
 };
 
-// Start with no default templates as per user request.
-// Users will create their own from scratch.
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [];
 
+
 export const ICON_MAP: Record<string, ElementType> = {
-  Default: SquarePen,
+  LayoutDashboard, Trash2, PlusCircle, Rows, Palette, TextCursorInput, Type, Image: ImageIcon, Minus, Default: SquarePen, Settings, Cog, Frame, AlignLeft, Italic, Baseline, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Columns, FileImage, Sparkles, PackageOpen, Wand2, MenuIcon, EyeOff, FolderDown, FolderUp, ScrollText, Paintbrush
 };
 
-// TABS_CONFIG now defined in app/page.tsx or a dedicated ui-constants.ts if preferred
-// Keeping it simple here for now
+export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
+  { value: "editor", label: "Template Editor", icon: Cog },
+  { value: "generator", label: "Card Generator", icon: PackageOpen },
+  { value: "ai", label: "AI Helper", icon: Wand2 },
+];

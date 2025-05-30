@@ -1,9 +1,10 @@
 
 "use client";
 
-import { useState, useEffect, ChangeEvent } from 'react';
-import type { DisplayCard, CardData } from '@/types';
-import { extractUniquePlaceholderKeys } from '@/lib/utils';
+import type { ChangeEvent } from 'react';
+import { useState, useEffect } from 'react';
+import type { DisplayCard, CardData, ExtractedPlaceholder, CardSection } from '@/types';
+import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -33,7 +34,7 @@ interface DynamicField {
   key: string;
   label: string; 
   type: 'input' | 'textarea';
-  example?: string; 
+  isImageKey: boolean;
   defaultValue?: string; 
 }
 
@@ -48,30 +49,35 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
       const newEditedDataState: CardData = {};
 
       const fields: DynamicField[] = allPlaceholderKeys.map(placeholder => {
-        const isTextarea = placeholder.key.toLowerCase().includes('rules') ||
-                           placeholder.key.toLowerCase().includes('text') ||
-                           placeholder.key.toLowerCase().includes('effect') ||
-                           placeholder.key.toLowerCase().includes('abilit') ||
-                           placeholder.key.toLowerCase().includes('description');
-
-        let exampleText = `e.g., value for ${placeholder.key}`;
-        if (placeholder.key.toLowerCase().includes('url') || placeholder.key.toLowerCase().includes('artwork')) {
-          exampleText = 'e.g., https://placehold.co/300x200.png or data:image/...';
-        }
-
+         const isImageSectionKey = card.template.rows.some(row => 
+            row.columns.some(col => 
+                col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
+            )
+        );
+        const isTextarea = !isImageSectionKey && (
+            placeholder.key.toLowerCase().includes('rules') ||
+            placeholder.key.toLowerCase().includes('text') ||
+            placeholder.key.toLowerCase().includes('effect') ||
+            placeholder.key.toLowerCase().includes('abilit') ||
+            placeholder.key.toLowerCase().includes('description')
+        );
+        
         if (currentCardData[placeholder.key] !== undefined) {
           newEditedDataState[placeholder.key] = currentCardData[placeholder.key];
         } else if (placeholder.defaultValue !== undefined) {
           newEditedDataState[placeholder.key] = placeholder.defaultValue;
-        } else {
+        } else if (isImageSectionKey) {
+           newEditedDataState[placeholder.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(placeholder.key))}`;
+        }
+        else {
           newEditedDataState[placeholder.key] = '';
         }
 
         return {
           key: placeholder.key,
-          label: `{{${placeholder.key}}}`,
+          label: `${toTitleCase(placeholder.key)}${isImageSectionKey ? ' (Image URL)' : ''}`,
           type: isTextarea ? 'textarea' : 'input',
-          example: exampleText,
+          isImageKey: isImageSectionKey,
           defaultValue: placeholder.defaultValue,
         };
       });
@@ -92,7 +98,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
       const finalData = { ...editedData };
       dynamicFields.forEach(field => {
         if (finalData[field.key] === undefined) {
-          finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : '';
+          finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : (field.isImageKey ? `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`: '');
         }
       });
       onSave({ ...card, data: finalData });
@@ -104,7 +110,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
        const finalData = { ...editedData };
        dynamicFields.forEach(field => {
         if (finalData[field.key] === undefined) {
-          finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : '';
+          finalData[field.key] = field.defaultValue !== undefined ? field.defaultValue : (field.isImageKey ? `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`: '');
         }
       });
       onDuplicate({ ...card, data: finalData });
@@ -113,10 +119,10 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
 
   if (!card) return null;
 
-  const cardNameKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artist"))?.key ||
-                      dynamicFields.find(f => f.key.toLowerCase().includes("title"))?.key ||
-                      (dynamicFields.length > 0 ? dynamicFields[0].key : '');
-
+  const cardNameKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImageKey)?.key ||
+                      dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImageKey)?.key ||
+                      (dynamicFields.length > 0 && !dynamicFields[0].isImageKey ? dynamicFields[0].key : '');
+                      
   const cardName = String(editedData[cardNameKey] || 'Card');
 
   return (
@@ -134,14 +140,15 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
               <div key={field.key}>
                 <Label htmlFor={`editCard-${field.key}`}>
                   {field.label}
+                  {field.defaultValue !== undefined && <span className="text-xs text-muted-foreground ml-1">(Default: "{field.defaultValue}")</span>}
                 </Label>
                 {field.type === 'textarea' ? (
                   <Textarea
                     id={`editCard-${field.key}`}
                     value={(editedData[field.key] as string) || ''}
                     onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={field.example || `Enter value for ${field.key}...`}
-                    rows={field.key.toLowerCase().includes('rules') || field.key.toLowerCase().includes('text') || field.key.toLowerCase().includes('effect') || field.key.toLowerCase().includes('abilit') || field.key.toLowerCase().includes('description') ? 3 : 2}
+                    placeholder={`Enter value for ${field.key}...`}
+                    rows={3}
                     className="text-sm"
                   />
                 ) : (
@@ -149,7 +156,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
                     id={`editCard-${field.key}`}
                     value={(editedData[field.key] as string) || ''}
                     onChange={(e) => handleInputChange(e, field.key)}
-                    placeholder={field.example || `Enter value for ${field.key}...`}
+                    placeholder={field.isImageKey ? `URL for ${field.key}` : `Enter value for ${field.key}...`}
                     className="text-sm"
                   />
                 )}

@@ -1,23 +1,30 @@
 
 export interface CardSection {
   id: string;
-  contentPlaceholder: string; // Can be text or a placeholder for an image URL
-  backgroundImageUrl?: string; // Placeholder or direct URL for background image
+  sectionContentType: 'placeholder' | 'image'; // New: Explicitly define content type
+  contentPlaceholder: string; // For 'placeholder': "Text with {{key}}". For 'image': "imageKeyName"
+  backgroundImageUrl?: string;
 
+  // Styling for the section's container div
   textColor?: string;
-  backgroundColor?: string; // Background color of the section itself
+  backgroundColor?: string;
   fontFamily?: string;
   fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
-  padding?: string;
+  padding?: string; // Tailwind class e.g. 'p-1', 'p-0'
   borderColor?: string;
-  borderWidth?: string; // Tailwind class e.g. 'border', 'border-2', 'border-t-2', or '_none_'
+  borderWidth?: string; // Tailwind class e.g. 'border', 'border-2', or '_none_'
   minHeight?: string; // Tailwind class e.g. 'min-h-[120px]' or '_auto_'
-  flexGrow?: number; // 0 or 1 (or more for advanced flex)
-  customHeight?: string; // e.g., "150px", "50%", "auto"
-  customWidth?: string; // e.g., "100%", "200px", "auto"
+  flexGrow?: number;
+  customHeight?: string; // e.g., "150px", "50%", "auto" - for the section container
+  customWidth?: string; // e.g., "100%", "200px", "auto" - for the section container
+
+  // Specific to sectionContentType: 'image'
+  imageWidthPx?: string; // e.g., "100" (will be treated as px)
+  imageHeightPx?: string; // e.g., "150" (will be treated as px)
+  // objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down'; // Future: for image sections
 }
 
 export interface CardRow {
@@ -30,18 +37,17 @@ export interface CardRow {
 export interface TCGCardTemplate {
   id: string;
   name: string;
-  aspectRatio: string; // e.g., "63:88"
-  frameStyle?: string; // e.g., "standard", "classic-gold"
+  aspectRatio: string;
+  frameStyle?: string;
 
-  baseBackgroundColor?: string; // Overall card background if frameStyle allows
-  baseTextColor?: string; // Overall card text color if frameStyle allows
-  defaultSectionBorderColor?: string; // Fallback border color for sections
+  baseBackgroundColor?: string;
+  baseTextColor?: string;
+  defaultSectionBorderColor?: string;
 
-  // Explicit outer border controls
   cardBorderColor?: string;
-  cardBorderWidth?: string; // e.g., "4px"
+  cardBorderWidth?: string;
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
-  cardBorderRadius?: string; // e.g., "8px", "0.5rem"
+  cardBorderRadius?: string;
 
   rows: CardRow[];
 }
