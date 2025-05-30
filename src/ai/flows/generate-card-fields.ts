@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Generates thematic string values for a list of placeholder keys based on a given theme and optional context.
+ * @fileOverview Generates thematic string values for a list of placeholder keys based on a given theme.
  * For artwork placeholders, it now explicitly sets a placeholder.co URL.
  *
  * - generateCardFields - A function that triggers the field generation flow.
@@ -10,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z}from 'genkit';
 
 const GenerateCardFieldsInputSchema = z.object({
   theme: z
@@ -19,10 +19,7 @@ const GenerateCardFieldsInputSchema = z.object({
   placeholderKeys: z
     .array(z.string())
     .describe('An array of placeholder keys for which values need to be generated (e.g., ["cardName", "manaCost", "rulesText", "attackValue", "flavorText", "artworkUrl"]).'),
-  abilityContext: z
-    .string()
-    .optional()
-    .describe('Optional: A block of text describing game rules, specific abilities, or lore to guide the generation.')
+  // abilityContext removed
 });
 export type GenerateCardFieldsInput = z.infer<typeof GenerateCardFieldsInputSchema>;
 
@@ -42,17 +39,15 @@ const generateCardFieldsFlow = ai.defineFlow(
     outputSchema: GenerateCardFieldsOutputSchema,
   },
   async (input) => {
-    const { theme, placeholderKeys, abilityContext } = input;
+    const { theme, placeholderKeys } = input; // abilityContext removed
     console.log('Generating card fields for theme:', theme, 'Keys:', placeholderKeys);
 
     const placeholderListString = placeholderKeys.map(key => `- ${key}`).join('\n');
-    const contextInstruction = abilityContext 
-      ? `Consider the following game rules, specific abilities, or lore context when generating values:\n${abilityContext}\n\n` 
-      : '';
+    // contextInstruction removed
 
     const textGenPrompt = `You are a creative AI assistant specializing in fantasy Trading Card Games (TCGs).
 Your task is to generate thematic content for a TCG card based on the theme: "${theme}".
-${contextInstruction}
+
 Please provide appropriate string values for the following placeholder keys:
 ${placeholderListString}
 
@@ -160,6 +155,3 @@ Return your response as a single, valid JSON object where the keys are the place
     return { generatedData };
   }
 );
-
-
-    

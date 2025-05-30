@@ -12,7 +12,7 @@ import { CardPreview } from '@/components/card-forge/CardPreview';
 import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
 import { PrintButton } from '@/components/card-forge/PrintButton';
-import { AbilityContextManager } from '@/components/card-forge/AbilityContextManager';
+// import { AbilityContextManager } from '@/components/card-forge/AbilityContextManager'; // Removed
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -20,34 +20,16 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen } from 'lucide-react'; // Removed Cog
+import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { PAPER_SIZES, TABS_CONFIG, createDefaultRow, createDefaultSection } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, AbilityContextSet } from '@/types';
+import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow } from '@/types'; // Removed AbilityContextSet
 import { useToast } from '@/hooks/use-toast';
 
-
-const DEFAULT_ABILITY_CONTEXT_SETS: AbilityContextSet[] = [
-  {
-    id: nanoid(),
-    name: "MTG - Core Mechanics & Keywords",
-    description: "Key Magic: The Gathering concepts: Mana colors (W-White, U-Blue, B-Black, R-Red, G-Green), C-Colorless mana. Tapping permanents for effects. Casting Spells. Turn Structure: Untap, Upkeep, Draw, Main Phase (pre-combat), Combat Phase, Main Phase (post-combat), End Step. The Stack (Last-In, First-Out for spells/abilities). Common Keywords: Flying (can only be blocked by creatures with flying or reach), Haste (can attack/tap the turn it enters), Vigilance (attacks without tapping), First Strike (deals combat damage before creatures without it), Double Strike (deals first strike and regular combat damage), Deathtouch (any amount of damage is lethal), Lifelink (damage dealt also gains you that much life), Trample (excess combat damage dealt to a creature is dealt to defending player/planeswalker), Indestructible (cannot be destroyed by damage or 'destroy' effects), Reach (can block creatures with flying). Players typically start with 20 life. Cards are drawn from a library into a hand."
-  },
-  {
-    id: nanoid(),
-    name: "MTG - Creature Combat Focus",
-    description: "Magic: The Gathering creature combat: Creatures have Power (damage dealt) and Toughness (damage taken to be destroyed). Combat Phase Steps: Beginning of Combat, Declare Attackers, Declare Blockers, Combat Damage (first strike, then regular), End of Combat. Attacking creatures tap unless they have Vigilance. Blockers must be assigned to attacking creatures. Damage is assigned and dealt. If a creature's toughness is reduced to 0 or less, or it takes damage equal to or greater than its toughness from a source with deathtouch, it's destroyed and put into the graveyard. Common combat abilities: Flying, Trample, First Strike, Double Strike, Deathtouch, Reach."
-  },
-  {
-    id: nanoid(),
-    name: "MTG - Spell & Ability Interaction",
-    description: "Magic: The Gathering spell and ability types: Instants (can be cast any time you have priority), Sorceries (cast only during your main phase when the stack is empty), Enchantments (permanents with static or triggered abilities), Artifacts (permanents, often with activated abilities or static effects), Creatures (summoned as spells, then become permanents), Planeswalkers (powerful permanents with loyalty abilities). Lands are not spells. Spells and abilities use The Stack, resolving one by one, last-in, first-out. Players can respond to items on the stack. Common interactions: Countering spells, Destroying permanents, Drawing cards, Discarding cards, Dealing direct damage, Gaining life, Searching libraries (tutoring)."
-  }
-];
-
-// Incremented key for robust migration
+// This key ensures that if we make breaking changes to the template structure,
+// users will get the new defaults instead of trying to load incompatible old data.
 const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV8';
 
 export default function CardForgePage() {
@@ -68,34 +50,9 @@ export default function CardForgePage() {
   const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [abilityContextSets, setAbilityContextSets] = useLocalStorage<AbilityContextSet[]>(
-    'cardForgeAbilityContextsV1',
-    []
-  );
+  // AbilityContextSets state and related logic removed
 
   useEffect(() => { setMounted(true); }, []);
-
-  // Seed default ability contexts if none exist in localStorage
-  useEffect(() => {
-    if (mounted) {
-      const storedContextsRaw = window.localStorage.getItem('cardForgeAbilityContextsV1');
-      let shouldSeedDefaults = true;
-      if (storedContextsRaw) {
-        try {
-          const storedContextsParsed = JSON.parse(storedContextsRaw);
-          if (Array.isArray(storedContextsParsed) && storedContextsParsed.length > 0) {
-            shouldSeedDefaults = false;
-          }
-        } catch (e) {
-          console.error("Error parsing ability context sets from localStorage", e);
-        }
-      }
-      if (shouldSeedDefaults && DEFAULT_ABILITY_CONTEXT_SETS.length > 0) {
-        setAbilityContextSets(DEFAULT_ABILITY_CONTEXT_SETS);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
 
 
   // Process templates from localStorage to ensure they conform to the latest structure
@@ -107,40 +64,51 @@ export default function CardForgePage() {
         console.warn("Templates from localStorage was not an array. Initializing to empty array.");
         return [];
       }
+      if (prevTemplates.length === 0 && DEFAULT_TEMPLATES.length > 0) {
+        // If localStorage is empty but we have coded defaults, use them.
+        // This also helps ensure new users get the defaults.
+        // Cloning to ensure new IDs if constants use function calls internally (though they shouldn't anymore)
+        return JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
+      }
 
       return prevTemplates.map(t_loaded => {
-        // Start with a fully initialized default template structure using loaded ID and name
-        const baseTemplate = getFreshDefaultTemplate(t_loaded.id || nanoid(), t_loaded.name || "Untitled Loaded Template");
-        let newT: TCGCardTemplate = { ...baseTemplate, ...t_loaded };
-        newT.id = newT.id || baseTemplate.id; // Ensure ID is present
-        newT.name = newT.name || baseTemplate.name; // Ensure name is present
+        // Create a complete base template using the ID and name from the loaded template.
+        // This ensures any new properties added to TCGCardTemplate type are present.
+        let newT: TCGCardTemplate = { ...getFreshDefaultTemplate(t_loaded.id, t_loaded.name), ...t_loaded };
+        newT.id = newT.id || nanoid(); // Ensure ID
+        newT.name = newT.name || "Untitled Loaded Template"; // Ensure name
 
-        // Ensure rows and columns are present and have IDs, merging with defaults
-        newT.rows = (t_loaded.rows || []).map((r_loaded: any) => {
-          const baseRow = createDefaultRow(r_loaded.id || nanoid(), [], r_loaded.alignItems, r_loaded.customHeight);
-          const newR: CardRow = { ...baseRow, ...r_loaded, id: baseRow.id };
+        // Ensure rows and columns structure, merging with defaults
+        newT.rows = (newT.rows || []).map((r_loaded: CardRow) => {
+          const rowId = r_loaded.id || nanoid();
+          const baseRow = createDefaultRow(rowId); // Get a fully initialized default row structure
+          const newR: CardRow = { ...baseRow, ...r_loaded, id: rowId }; // Merge loaded row onto default
 
-          newR.columns = (r_loaded.columns || []).map((c_loaded: any) => {
-            const baseCol = createDefaultSection(c_loaded.id || nanoid());
-            // Ensure contentPlaceholder exists, defaulting if necessary.
-            const contentPlaceholder = c_loaded.contentPlaceholder !== undefined ? c_loaded.contentPlaceholder : baseCol.contentPlaceholder;
+          newR.columns = (newR.columns || []).map((c_loaded: CardSection) => {
+            const sectionId = c_loaded.id || nanoid();
+            const baseCol = createDefaultSection(sectionId); // Get a fully initialized default section
             
-            // Check for old ID-based placeholders and reset them
-            let finalContentPlaceholder = contentPlaceholder;
-            if (typeof contentPlaceholder === 'string' && contentPlaceholder.startsWith(`{{${baseCol.id}}}`)) {
-                finalContentPlaceholder = createDefaultSection(baseCol.id).contentPlaceholder;
+            let finalContentPlaceholder = c_loaded.contentPlaceholder;
+            // Check for old ID-based placeholders (common after major refactors) and reset to default if found
+            if (typeof finalContentPlaceholder === 'string' && finalContentPlaceholder.startsWith(`{{${sectionId}}}`)) {
+                finalContentPlaceholder = baseCol.contentPlaceholder; // Use fresh default placeholder
             }
-
-
+            
             return { 
               ...baseCol, 
               ...c_loaded, 
-              id: baseCol.id,
-              contentPlaceholder: finalContentPlaceholder
+              id: sectionId,
+              contentPlaceholder: finalContentPlaceholder === undefined ? baseCol.contentPlaceholder : finalContentPlaceholder
             };
           });
+          if (newR.columns.length === 0) { // Ensure every row has at least one column
+            newR.columns = [createDefaultSection(nanoid())];
+          }
           return newR;
         });
+         if (newT.rows.length === 0) { // Ensure every template has at least one row
+            newT.rows = [createDefaultRow(nanoid(), [createDefaultSection(nanoid())])];
+         }
         return newT;
       });
     });
@@ -162,10 +130,8 @@ export default function CardForgePage() {
     });
     toast({ title: "Template Saved", description: `"${template.name}" has been saved/updated.` });
 
-    // Ensure the editor is updated if the saved template was the one being edited
-    // or if it's a brand new template.
     if (!editingTemplate || editingTemplate.id === template.id || !templates.find(t => t.id === template.id)) {
-        setEditingTemplate(template); // Pass the saved template back to editor if it's the current one or new
+        setEditingTemplate(template);
     }
   };
 
@@ -212,8 +178,8 @@ export default function CardForgePage() {
 
   const handleDuplicateCard = (cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
-      ...JSON.parse(JSON.stringify(cardToDuplicate)), // Deep clone
-      uniqueId: nanoid(), // New unique ID
+      ...JSON.parse(JSON.stringify(cardToDuplicate)), 
+      uniqueId: nanoid(), 
     };
     setGeneratedDisplayCards(prev => [...prev, newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
@@ -344,7 +310,7 @@ export default function CardForgePage() {
             </Sheet>
           </div>
 
-          <TabsList className="hidden md:grid w-full md:grid-cols-4 mb-6 no-print">
+          <TabsList className="hidden md:grid w-full md:grid-cols-3 mb-6 no-print">
             {TABS_CONFIG.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
                 <tab.icon className="mr-2 h-4 w-4" /> {tab.label}
@@ -371,17 +337,17 @@ export default function CardForgePage() {
                       templates={templates}
                       onSingleCardAdded={handleSingleCardAdded}
                       onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
-                      abilityContextSets={abilityContextSets}
+                      // abilityContextSets prop removed
                    />
                   <BulkGenerator
                     templates={templates}
                     onCardsGenerated={handleBulkCardsGenerated}
-                    abilityContextSets={abilityContextSets}
+                    // abilityContextSets prop removed
                   />
 
                   <Card>
                       <CardHeader>
-                          <CardTitle className="text-xl flex items-center gap-2"> Manage & Preview</CardTitle> {/* Removed Cog for now */}
+                          <CardTitle className="text-xl flex items-center gap-2"> Manage & Preview</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                           <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
@@ -447,18 +413,11 @@ export default function CardForgePage() {
             )}
           </TabsContent>
 
-          <TabsContent value="contexts">
-             {!mounted ? <p>Loading...</p> : (
-                <AbilityContextManager
-                  contextSets={abilityContextSets}
-                  onContextSetsChange={setAbilityContextSets}
-                />
-             )}
-          </TabsContent>
+          {/* Context Sets Tab Content Removed */}
 
           <TabsContent value="ai">
              {!mounted ? <p>Loading AI Helper...</p> : (
-                <AIDesignAssistant templates={templates} abilityContextSets={abilityContextSets} />
+                <AIDesignAssistant templates={templates} /> // abilityContextSets prop removed
              )}
           </TabsContent>
         </Tabs>

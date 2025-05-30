@@ -2,9 +2,8 @@
 import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
 import {
-  Type, ChevronsUpDown, AlignLeft, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage,
   LayoutDashboard, Edit2, Cog, Frame, Rows, Columns, GripVertical, AlignVerticalSpaceAround, Save, SquarePen, Palette, EyeOff, Eye,
-  PlusCircle, ScrollText, Wand2, PackageOpen, Menu as MenuIcon, TextQuote, Image as ImageIconLucide, Lightbulb, Copy as CopyIcon, FolderDown, FolderUp, Trash2
+  PlusCircle, ScrollText, Wand2, PackageOpen, Menu as MenuIcon, TextQuote, Image as ImageIconLucide, Lightbulb, Copy as CopyIcon, FolderDown, FolderUp, Trash2, Type, ChevronsUpDown, AlignLeft, Italic, Baseline, Settings2, Paintbrush, TextCursorInput, Minus, Ratio, Ruler, FileImage, Settings
 } from 'lucide-react';
 import type { ElementType } from 'react';
 
@@ -14,7 +13,7 @@ export const PAPER_SIZES: PaperSize[] = [
   { name: 'A4 (210x297 mm)', widthMm: 210, heightMm: 297 },
 ];
 
-export const TCG_ASPECT_RATIO = '63:88';
+export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
 
 export const FONT_SIZES: Array<{ label: string; value: CardSection['fontSize'] }> = [
   { label: 'X-Small (0.75rem)', value: 'text-xs' }, { label: 'Small (0.875rem)', value: 'text-sm' },
@@ -51,6 +50,15 @@ export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Left (1px)', value: 'border-l' }, { label: 'Right (1px)', value: 'border-r' },
 ];
 
+export const CARD_BORDER_STYLES: Array<{ label: string; value: TCGCardTemplate['cardBorderStyle'] | '_default_' }> = [
+  { label: 'Default (from Frame/Theme)', value: '_default_' },
+  { label: 'Solid', value: 'solid' },
+  { label: 'Dashed', value: 'dashed' },
+  { label: 'Dotted', value: 'dotted' },
+  { label: 'Double', value: 'double' },
+  { label: 'None', value: 'none' },
+];
+
 export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Auto', value: '_auto_' }, { label: 'Small (40px)', value: 'min-h-[40px]' },
   { label: 'Medium (80px)', value: 'min-h-[80px]' }, { label: 'Artwork Default (120px)', value: 'min-h-[120px]' },
@@ -58,16 +66,15 @@ export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
 ];
 
 export const FRAME_STYLES: Array<{ label: string; value: string }> = [
-  { label: 'Standard', value: 'standard' }, { label: "Custom Colors", value: "custom" },
-  { label: 'Classic Gold', value: 'classic-gold' }, { label: 'Minimal Dark', value: 'minimal-dark' },
+  { label: 'Standard', value: 'standard' }, 
+  { label: "Custom Colors", value: "custom" },
+  { label: 'Classic Gold', value: 'classic-gold' }, 
+  { label: 'Minimal Dark', value: 'minimal-dark' },
   { label: 'Arcane Purple', value: 'arcane-purple' },
 ];
 
-// Removed CARD_BORDER_STYLES as this logic was reverted.
-// If we re-add granular outer border style selection, it would go here.
-
 export const createDefaultSection = (id: string): CardSection => {
-  return {
+  const baseSection: CardSection = {
     id: id || nanoid(),
     contentPlaceholder: '{{new_field}}',
     backgroundImageUrl: '',
@@ -80,12 +87,13 @@ export const createDefaultSection = (id: string): CardSection => {
     fontStyle: 'normal',
     padding: 'p-1',
     borderColor: '',
-    borderWidth: '_none_', // Default to no border via this special value
-    minHeight: '_auto_',   // Default to auto min-height
+    borderWidth: '_none_',
+    minHeight: '_auto_',
     flexGrow: 0,
     customHeight: '',
     customWidth: '',
   };
+  return baseSection;
 };
 
 export const createDefaultRow = (id: string, columns?: CardSection[], alignItems?: CardRow['alignItems'], customHeight?: string): CardRow => {
@@ -104,12 +112,10 @@ export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [];
 export const TABS_CONFIG = [
   { value: "editor", label: "Template Editor", icon: Cog },
   { value: "generator", label: "Card Generator", icon: PackageOpen },
-  { value: "contexts", label: "Context Sets", icon: ScrollText },
+  // { value: "contexts", label: "Context Sets", icon: ScrollText }, // Removed
   { value: "ai", label: "AI Helper", icon: Wand2 },
 ];
 
 export const ICON_MAP: Record<string, ElementType> = {
-  // This map was used when sections had types. It's currently unused due to generic sections.
-  // If re-introducing section-type specific icons in the editor, this would be the place.
   Default: SquarePen,
 };

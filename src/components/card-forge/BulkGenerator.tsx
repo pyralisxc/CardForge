@@ -1,38 +1,29 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard, AbilityContextSet, ExtractedPlaceholder } from '@/types';
-import { useState, ChangeEvent } from 'react';
+import type { TCGCardTemplate, CardData, DisplayCard, ExtractedPlaceholder } from '@/types'; // Removed AbilityContextSet
+import { useState, type ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-// import { Input } from '@/components/ui/input'; // No longer needed for AI theme/num
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-// import { generateCardFields } from '@/ai/flows/generate-card-fields'; // AI flow import removed
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
-import { Download, PackagePlus } from 'lucide-react'; // Sparkles icon removed
+import { Download, PackagePlus } from 'lucide-react';
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
   onCardsGenerated: (cards: DisplayCard[]) => void;
-  abilityContextSets: AbilityContextSet[]; // Kept for potential future re-integration, not used now
+  // abilityContextSets prop removed
 }
 
-// const NO_CONTEXT_SELECTED_VALUE = "_NO_CONTEXT_"; // No longer needed
-
-export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets }: BulkGeneratorProps) {
+export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
-  // const [generationMethod, setGenerationMethod] = useState<'csv' | 'ai'>('csv'); // Only CSV now
-  // const [aiTheme, setAiTheme] = useState<string>(''); // Removed
-  // const [numAiCards, setNumAiCards] = useState<number>(1); // Removed
-  const [isLoading, setIsLoading] = useState(false); // Might still be useful for slow CSV processing if implemented
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  // const [selectedAbilityContextIdForBulk, setSelectedAbilityContextIdForBulk] = useState<string>(''); // Removed
-
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
@@ -66,7 +57,6 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
     let generatedCardsData: CardData[] = [];
 
     try {
-      // Only CSV method now
       if (!bulkDataInput.trim()) {
         toast({ title: "Error", description: "Please provide CSV data for card generation.", variant: "destructive" });
         setIsLoading(false);
@@ -113,7 +103,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Bulk Card Generation</CardTitle>
-        <CardDescription>Generate multiple cards from a template using CSV data.</CardDescription>
+        <CardDescription>Generate multiple cards from a template using CSV data. Each card on a new line.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
@@ -129,12 +119,10 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
             </SelectContent>
           </Select>
         </div>
-
-        {/* Generation method select removed - defaults to CSV */}
         
         <div>
           <Label htmlFor="bulkData">
-            Card Data (CSV Format - one card per line, headers matching template placeholders)
+            Card Data (CSV Format)
           </Label>
           <Textarea
             id="bulkData"
@@ -147,7 +135,7 @@ export function BulkGenerator({ templates, onCardsGenerated, abilityContextSets 
           />
           {selectedTemplate && <p className="text-xs text-muted-foreground mt-1">
             Your CSV headers should be: <strong>{exampleCSVHeaders || "No placeholders found in template"}</strong>.
-            Ensure data order matches header order. Use double quotes to enclose fields with commas if necessary.
+            Ensure data order matches header order.
           </p>}
           {!selectedTemplate && <p className="text-xs text-muted-foreground mt-1">Select a template first to see the expected CSV format based on its placeholders.</p>}
         </div>

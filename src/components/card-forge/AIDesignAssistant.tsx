@@ -17,19 +17,19 @@ import { suggestTemplateColors, type SuggestTemplateColorsInput, type SuggestTem
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIconLucide, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TCGCardTemplate, AbilityContextSet } from '@/types'; 
+import type { TCGCardTemplate } from '@/types'; // Removed AbilityContextSet
 import NextImage from 'next/image';
 
-const NO_CONTEXT_SELECTED_VALUE = "_NO_CONTEXT_";
+// const NO_CONTEXT_SELECTED_VALUE = "_NO_CONTEXT_"; // Removed
 
 interface AIDesignAssistantProps {
   templates: TCGCardTemplate[]; 
-  abilityContextSets: AbilityContextSet[];
+  // abilityContextSets prop removed
 }
 
-type TextGenType = NonNullable<GenerateCardTextInput['textType']>; // Ensure it's not undefined
+type TextGenType = NonNullable<GenerateCardTextInput['textType']>;
 
-export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAssistantProps) {
+export function AIDesignAssistant({ templates }: AIDesignAssistantProps) { // abilityContextSets removed from props
   const [activeAiTab, setActiveAiTab] = useState("designSuggestions");
   
   const [textContentLayout, setTextContentLayout] = useState<string>('');
@@ -42,8 +42,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
   const [textGenType, setTextGenType] = useState<TextGenType>('RulesText');
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isLoadingText, setIsLoadingText] = useState(false);
-  const [selectedContextIdForText, setSelectedContextIdForText] = useState<string>(NO_CONTEXT_SELECTED_VALUE);
-
+  // selectedContextIdForText removed
 
   const [imageConcept, setImageConcept] = useState<string>('');
   const [generatedImageDataUri, setGeneratedImageDataUri] = useState<string>('');
@@ -52,7 +51,6 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
   const [colorTheme, setColorTheme] = useState<string>('');
   const [suggestedColors, setSuggestedColors] = useState<SuggestTemplateColorsOutput | null>(null);
   const [isLoadingColors, setIsLoadingColors] = useState(false);
-
 
   const { toast } = useToast();
 
@@ -90,11 +88,11 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
     setIsLoadingText(true);
     setGeneratedText('');
     try {
-      const contextSet = abilityContextSets.find(cs => cs.id === selectedContextIdForText);
+      // const contextSet = abilityContextSets.find(cs => cs.id === selectedContextIdForText); // Removed
       const input: GenerateCardTextInput = {
          theme: textTheme, 
          textType: textGenType,
-         abilityContext: contextSet ? contextSet.description : undefined
+         // abilityContext: contextSet ? contextSet.description : undefined // Removed
       };
       const result = await generateCardText(input);
       setGeneratedText(result.cardText);
@@ -154,10 +152,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
       });
   };
 
-  const handleTextContextChange = (value: string) => {
-    setSelectedContextIdForText(value); // No longer need to check for NO_CONTEXT_SELECTED_VALUE before setting
-  };
-
+  // handleTextContextChange removed
 
   return (
     <Card>
@@ -219,7 +214,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                   <pre className="whitespace-pre-wrap text-sm">{designSuggestion}</pre>
                 </ScrollArea>
                  <Button variant="outline" size="sm" onClick={() => copyToClipboard(designSuggestion, "Design suggestion copied.")}>
-                  <CopyIcon className="mr-2 h-3 w-3" /> Copy Suggestion
+                  <Copy className="mr-2 h-3 w-3" /> Copy Suggestion
                 </Button>
               </div>
             )}
@@ -250,22 +245,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                 </SelectContent>
               </Select>
             </div>
-            {abilityContextSets.length > 0 && (
-                <div>
-                    <Label htmlFor="aiTextContextSelect">Optional: AI Context Set</Label>
-                    <Select value={selectedContextIdForText} onValueChange={handleTextContextChange}>
-                        <SelectTrigger id="aiTextContextSelect">
-                            <SelectValue placeholder="None (general AI knowledge)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value={NO_CONTEXT_SELECTED_VALUE}>None (general AI knowledge)</SelectItem>
-                            {abilityContextSets.map(cs => (
-                                <SelectItem key={cs.id} value={cs.id}>{cs.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
+            {/* Ability Context Select Removed */}
             <Button onClick={handleGenerateText} disabled={isLoadingText} className="w-full">
               <Sparkles className="mr-2 h-4 w-4" /> {isLoadingText ? 'Generating...' : 'Generate Card Text'}
             </Button>
@@ -276,7 +256,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                   <pre className="whitespace-pre-wrap text-sm">{generatedText}</pre>
                 </ScrollArea>
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(generatedText, "Generated text copied.")}>
-                  <CopyIcon className="mr-2 h-3 w-3" /> Copy Text
+                  <Copy className="mr-2 h-3 w-3" /> Copy Text
                 </Button>
               </div>
             )}
@@ -320,7 +300,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                   aria-label="Generated Image Data URI"
                 />
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(generatedImageDataUri, "Image Data URI copied.")}>
-                  <CopyIcon className="mr-2 h-3 w-3" /> Copy Data URI
+                  <Copy className="mr-2 h-3 w-3" /> Copy Data URI
                 </Button>
                 <p className="text-xs text-muted-foreground">
                   Copy this Data URI and paste it into a section's Content Placeholder (e.g., <code>{"{{artworkUrl}}"}</code>) in the Single or Bulk Card Generator.
@@ -359,7 +339,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                             <span className="font-mono">{value}</span>
                             <div className="h-4 w-4 rounded border" style={{ backgroundColor: value }}></div>
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(value, `${labelText} color copied.`)} aria-label={`Copy ${labelText} color ${value}`}>
-                                <CopyIcon className="h-3 w-3" />
+                                <Copy className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>

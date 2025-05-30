@@ -20,10 +20,7 @@ const GenerateCardTextInputSchema = z.object({
     .optional()
     .default('RulesText')
     .describe("The specific type of text to generate. 'FullConceptIdea' might generate a name, simple rules, and flavor."),
-  abilityContext: z
-    .string()
-    .optional()
-    .describe('Optional: A block of text describing game rules, specific abilities, or lore to guide the generation.')
+  // abilityContext removed
 });
 export type GenerateCardTextInput = z.infer<typeof GenerateCardTextInputSchema>;
 
@@ -36,7 +33,7 @@ export async function generateCardText(input: GenerateCardTextInput): Promise<Ge
   return generateCardTextFlow(input);
 }
 
-const constructPrompt = (textType: GenerateCardTextInput['textType'], theme: string, abilityContext?: string) => {
+const constructPrompt = (textType: GenerateCardTextInput['textType'], theme: string) => { // abilityContext parameter removed
   let taskDescription = "";
   switch (textType) {
     case 'CardName':
@@ -60,11 +57,8 @@ Flavor Text: [Generated Flavor]`;
       taskDescription = `Generate compelling and thematic rules text or ability description for a fantasy TCG card based on the concept: "${theme}". The text should be concise, functional, and suitable for a fantasy TCG. Focus on one primary ability or effect. Output only the rules text.`;
       break;
   }
-  const contextInstruction = abilityContext 
-    ? `\n\nUse the following game rules, specific abilities, or lore context to inform your generation:\n${abilityContext}\n` 
-    : '';
-
-  return `You are a creative writing assistant specializing in fantasy Trading Card Games (TCGs) like Magic: The Gathering or Hearthstone. ${contextInstruction}${taskDescription}`;
+  // contextInstruction removed
+  return `You are a creative writing assistant specializing in fantasy Trading Card Games (TCGs) like Magic: The Gathering or Hearthstone. ${taskDescription}`;
 };
 
 const generateCardTextFlow = ai.defineFlow(
@@ -74,14 +68,13 @@ const generateCardTextFlow = ai.defineFlow(
     outputSchema: GenerateCardTextOutputSchema,
   },
   async (input) => {
-    const { theme, textType, abilityContext } = input;
-    const dynamicPrompt = constructPrompt(textType, theme, abilityContext);
+    const { theme, textType } = input; // abilityContext removed
+    const dynamicPrompt = constructPrompt(textType, theme); // abilityContext argument removed
 
     console.log("[generateCardTextFlow] Prompt being sent to AI:", dynamicPrompt);
 
     const {output} = await ai.generate({ 
       prompt: dynamicPrompt,
-      // Config removed previously for debugging a JSON5 error, defaults will be used
     });
     
     return { cardText: output?.text || "No text generated." };

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -8,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, Trash2, SquarePen } from 'lucide-react';
 import { SectionStylingForm } from './SectionStylingForm';
-// ICON_MAP import removed
+import { ICON_MAP } from '@/lib/constants';
 
 interface ColumnEditorProps {
   section: CardSection;
@@ -35,7 +36,7 @@ const ColumnEditorMemoized = ({
   onRemoveSectionFromRow,
   onMoveSectionInRow,
 }: ColumnEditorProps) => {
-  const IconComponent = SquarePen; // Generic icon as section types are removed
+  const IconComponent = ICON_MAP['Default'] || SquarePen; // Use default if specific type icon not found
 
   return (
     <Card key={section.id} className="bg-background/50 p-0 overflow-hidden column-editor-card" data-section-id={section.id}>
@@ -80,7 +81,6 @@ const ColumnEditorMemoized = ({
         </div>
       </CardHeader>
       <CardContent className="p-3 space-y-3">
-        {/* Section Type Select removed as section types are generic now */}
         <div>
           <Label htmlFor={`contentPlaceholder-${section.id}`} className="text-xs">
             Content Placeholder (e.g., <code>{`{{fieldName}}`}</code> or <code>{`{{fieldName:"Default"}}`}</code>)
