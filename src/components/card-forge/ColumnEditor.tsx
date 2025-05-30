@@ -124,21 +124,21 @@ const ColumnEditorMemoized = ({
               value={section.contentPlaceholder || ''}
               onChange={handleContentPlaceholderChange}
               className="text-sm font-mono h-8"
-              placeholder="e.g., artworkUrl"
+              placeholder="e.g., artworkUrl (this is the key)"
             />
           ) : (
             <Textarea
               id={`contentPlaceholder-${section.id}`}
               value={section.contentPlaceholder || ''}
               onChange={handleContentPlaceholderChange}
-              rows={section.contentPlaceholder && section.contentPlaceholder.toLowerCase().includes('rules') ? 3 : 1}
+              rows={(section.contentPlaceholder || '').toLowerCase().includes('rules') || (section.contentPlaceholder || '').toLowerCase().includes('description') ? 3 : 1}
               className="text-sm font-mono"
               placeholder="e.g. {{title:\"Default Title\"}} or Your static text {{variable}}"
             />
           )}
           {section.sectionContentType === 'image' && (
             <p className="text-xs text-muted-foreground mt-1">
-              This key will be used to fetch the image URL from card data.
+              This key name (e.g., "artworkUrl") will be used to find the image URL in your card's data.
             </p>
           )}
            {section.sectionContentType === 'placeholder' && (
