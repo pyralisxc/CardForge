@@ -44,6 +44,17 @@ const SectionStylingFormMemoized = ({
         </AccordionTrigger>
         <AccordionContent className="pt-2 pb-3 px-3 space-y-2 border-t">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
+            {/* Background Image URL input */}
+            <div className="sm:col-span-2">
+              <Label htmlFor={`backgroundImageUrl-${section.id}`} className="text-xs">Background Image URL (or placeholder)</Label>
+              <Input 
+                id={`backgroundImageUrl-${section.id}`} 
+                value={section.backgroundImageUrl || ''} 
+                onChange={(e) => handleUpdate({ backgroundImageUrl: e.target.value })} 
+                placeholder="e.g., https://.../bg.png or {{bgImage}}" 
+                className="h-8 text-xs" 
+              />
+            </div>
             <div>
               <Label htmlFor={`customHeight-${section.id}`} className="text-xs">Custom Height</Label>
               <Input id={`customHeight-${section.id}`} value={section.customHeight || ''} onChange={(e) => handleUpdate({ customHeight: e.target.value })} placeholder="e.g., 180px, 50%, auto" className="h-8 text-xs" />
@@ -92,7 +103,7 @@ const SectionStylingFormMemoized = ({
               <Input id={`textColor-${section.id}`} type="color" className="h-8 w-full" value={section.textColor || ''} onChange={(e) => handleUpdate({ textColor: e.target.value })} />
             </div>
             <div>
-              <Label htmlFor={`bgColor-${section.id}`} className="text-xs">Background Color</Label>
+              <Label htmlFor={`bgColor-${section.id}`} className="text-xs">Content Background Color</Label>
               <Input id={`bgColor-${section.id}`} type="color" className="h-8 w-full" value={section.backgroundColor || ''} onChange={(e) => handleUpdate({ backgroundColor: e.target.value })} />
             </div>
             <div>
@@ -120,9 +131,9 @@ const SectionStylingFormMemoized = ({
                 <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="flex items-center space-x-2">
-              <Input type="checkbox" id={`flexGrow-${section.id}`} checked={!!section.flexGrow && section.flexGrow > 0} onChange={(e) => handleUpdate({ flexGrow: e.target.checked ? 1 : 0 })} className="mr-2 h-4 w-4 accent-primary" />
-              <Label htmlFor={`flexGrow-${section.id}`} className="text-xs cursor-pointer">Flex Grow (expand in row)</Label>
+            <div className="flex items-center space-x-2 sm:col-span-2">
+              <Input type="checkbox" id={`flexGrow-${section.id}`} checked={!!section.flexGrow && section.flexGrow > 0} onChange={(e) => handleUpdate({ flexGrow: e.target.checked ? 1 : 0 })} className="mr-1 h-4 w-4 accent-primary" />
+              <Label htmlFor={`flexGrow-${section.id}`} className="text-xs cursor-pointer">Flex Grow (expand to fill available space in row)</Label>
             </div>
           </div>
         </AccordionContent>

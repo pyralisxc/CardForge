@@ -10,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z}from 'genkit';
 
 const GenerateCardTextInputSchema = z.object({
   theme: z
@@ -77,14 +77,11 @@ const generateCardTextFlow = ai.defineFlow(
     const { theme, textType, abilityContext } = input;
     const dynamicPrompt = constructPrompt(textType, theme, abilityContext);
 
-    console.log("[generateCardTextFlow] Prompt being sent to AI:", dynamicPrompt); // Added for debugging
+    console.log("[generateCardTextFlow] Prompt being sent to AI:", dynamicPrompt);
 
     const {output} = await ai.generate({ 
       prompt: dynamicPrompt,
-      // Removed config to see if it resolves the internal JSON5 error
-      // config: {
-      //   temperature: 0.7,
-      // }
+      // Config removed previously for debugging a JSON5 error, defaults will be used
     });
     
     return { cardText: output?.text || "No text generated." };

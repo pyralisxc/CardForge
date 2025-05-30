@@ -2,14 +2,13 @@
 "use client";
 
 import React from 'react';
-import type { CardSection, CardSectionType } from '@/types';
+import type { CardSection } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// Select for section type removed
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react'; // Removed unused icons
-import { SECTION_TYPES, ICON_MAP } from '@/lib/constants'; // Import ICON_MAP
+import { ArrowLeft, ArrowRight, Trash2, SquarePen } from 'lucide-react';
 import { SectionStylingForm } from './SectionStylingForm';
 
 interface ColumnEditorProps {
@@ -37,14 +36,14 @@ const ColumnEditorMemoized = ({
   onRemoveSectionFromRow,
   onMoveSectionInRow,
 }: ColumnEditorProps) => {
-  const IconComponent = ICON_MAP[section.type] || SECTION_TYPES[0]; // Fallback to first type's icon if not found
+  const IconComponent = SquarePen; // Generic icon now
 
   return (
-    <Card key={section.id} className="bg-background/50 p-0 overflow-hidden">
+    <Card key={section.id} className="bg-background/50 p-0 overflow-hidden column-editor-card" data-section-id={section.id}>
       <CardHeader className="flex flex-row items-center justify-between p-2 border-b bg-muted/20">
         <div className="flex items-center gap-2">
           <IconComponent className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Column {sectionIndex + 1}: {section.type}</span>
+          <span className="text-sm font-medium">Column {sectionIndex + 1}</span>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -82,13 +81,7 @@ const ColumnEditorMemoized = ({
         </div>
       </CardHeader>
       <CardContent className="p-3 space-y-3">
-        <div>
-          <Label htmlFor={`sectionType-${section.id}`} className="text-xs">Section Type</Label>
-          <Select value={section.type} onValueChange={(v) => onUpdateSectionInRow(rowId, section.id, { type: v as CardSectionType })}>
-            <SelectTrigger id={`sectionType-${section.id}`} className="text-xs h-8"><SelectValue /></SelectTrigger>
-            <SelectContent>{SECTION_TYPES.map(st => <SelectItem key={st} value={st} className="text-xs">{st}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
+        {/* Section Type Select removed */}
         <div>
           <Label htmlFor={`contentPlaceholder-${section.id}`} className="text-xs">
             Content Placeholder (e.g., <code>{`{{fieldName}}`}</code> or <code>{`{{fieldName:"Default"}}`}</code>)
@@ -97,14 +90,12 @@ const ColumnEditorMemoized = ({
             id={`contentPlaceholder-${section.id}`}
             value={section.contentPlaceholder}
             onChange={(e) => onUpdateSectionInRow(rowId, section.id, { contentPlaceholder: e.target.value })}
-            rows={(section.type === 'RulesText' || section.type === 'FlavorText') ? 3 : 1}
+            rows={2} // Generic row count
             className="text-sm font-mono"
           />
-          {section.type === 'Artwork' && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Variable for image URL, e.g., <code>{`{{artworkUrl}}`}</code>. Set dimensions in Styling Options.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground mt-1">
+            Define the data variable. If its resolved value is an image URL, it will be shown as an image.
+          </p>
         </div>
         <SectionStylingForm
           section={section}

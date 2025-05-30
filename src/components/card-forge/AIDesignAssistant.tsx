@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { ChangeEvent } from 'react'; // Explicit type import
+import type { ChangeEvent } from 'react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,12 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { suggestCardLayout, type SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout'; // Use type import
-import { generateCardText, type GenerateCardTextInput } from '@/ai/flows/generate-card-text'; // Use type import
-import { generateCardImage, type GenerateCardImageInput } from '@/ai/flows/generate-card-image'; // Use type import
-import { suggestTemplateColors, type SuggestTemplateColorsInput, type SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors'; // Use type import
+import { suggestCardLayout, type SuggestCardLayoutInput } from '@/ai/flows/suggest-card-layout';
+import { generateCardText, type GenerateCardTextInput } from '@/ai/flows/generate-card-text';
+import { generateCardImage, type GenerateCardImageInput } from '@/ai/flows/generate-card-image';
+import { suggestTemplateColors, type SuggestTemplateColorsInput, type SuggestTemplateColorsOutput } from '@/ai/flows/suggest-template-colors';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIcon, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
+import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIconLucide, Paintbrush as PaintbrushIcon } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TCGCardTemplate, AbilityContextSet } from '@/types'; 
 import NextImage from 'next/image';
@@ -27,7 +27,7 @@ interface AIDesignAssistantProps {
   abilityContextSets: AbilityContextSet[];
 }
 
-type TextGenType = GenerateCardTextInput['textType'];
+type TextGenType = NonNullable<GenerateCardTextInput['textType']>; // Ensure it's not undefined
 
 export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAssistantProps) {
   const [activeAiTab, setActiveAiTab] = useState("designSuggestions");
@@ -42,7 +42,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
   const [textGenType, setTextGenType] = useState<TextGenType>('RulesText');
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isLoadingText, setIsLoadingText] = useState(false);
-  const [selectedContextIdForText, setSelectedContextIdForText] = useState<string>('');
+  const [selectedContextIdForText, setSelectedContextIdForText] = useState<string>(NO_CONTEXT_SELECTED_VALUE);
 
 
   const [imageConcept, setImageConcept] = useState<string>('');
@@ -137,10 +137,10 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
       const result = await suggestTemplateColors({ theme: colorTheme });
       setSuggestedColors(result);
       toast({ title: "Color Palette Suggested", description: "AI has suggested colors for your theme." });
-    } catch (error) { // Added opening brace
+    } catch (error) {
       console.error("Error suggesting colors:", error);
       toast({ title: "Error", description: `Failed to suggest colors: ${(error as Error).message}`, variant: "destructive" });
-    } finally { // Added closing brace
+    } finally { 
       setIsLoadingColors(false);
     }
   };
@@ -155,7 +155,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
   };
 
   const handleTextContextChange = (value: string) => {
-    setSelectedContextIdForText(value === NO_CONTEXT_SELECTED_VALUE ? '' : value);
+    setSelectedContextIdForText(value); // No longer need to check for NO_CONTEXT_SELECTED_VALUE before setting
   };
 
 
@@ -173,7 +173,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
           <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-4">
             <TabsTrigger value="designSuggestions" className="flex items-center gap-2"><Palette className="h-4 w-4" />Layout</TabsTrigger>
             <TabsTrigger value="textGeneration" className="flex items-center gap-2"><TextQuote className="h-4 w-4" />Text</TabsTrigger>
-            <TabsTrigger value="imageGeneration" className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />Image</TabsTrigger>
+            <TabsTrigger value="imageGeneration" className="flex items-center gap-2"><ImageIconLucide className="h-4 w-4" />Image</TabsTrigger>
             <TabsTrigger value="colorSuggestions" className="flex items-center gap-2"><PaintbrushIcon className="h-4 w-4" />Colors</TabsTrigger>
           </TabsList>
 
@@ -219,7 +219,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                   <pre className="whitespace-pre-wrap text-sm">{designSuggestion}</pre>
                 </ScrollArea>
                  <Button variant="outline" size="sm" onClick={() => copyToClipboard(designSuggestion, "Design suggestion copied.")}>
-                  <Copy className="mr-2 h-3 w-3" /> Copy Suggestion
+                  <CopyIcon className="mr-2 h-3 w-3" /> Copy Suggestion
                 </Button>
               </div>
             )}
@@ -253,7 +253,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
             {abilityContextSets.length > 0 && (
                 <div>
                     <Label htmlFor="aiTextContextSelect">Optional: AI Context Set</Label>
-                    <Select value={selectedContextIdForText || NO_CONTEXT_SELECTED_VALUE} onValueChange={handleTextContextChange}>
+                    <Select value={selectedContextIdForText} onValueChange={handleTextContextChange}>
                         <SelectTrigger id="aiTextContextSelect">
                             <SelectValue placeholder="None (general AI knowledge)" />
                         </SelectTrigger>
@@ -276,7 +276,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                   <pre className="whitespace-pre-wrap text-sm">{generatedText}</pre>
                 </ScrollArea>
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(generatedText, "Generated text copied.")}>
-                  <Copy className="mr-2 h-3 w-3" /> Copy Text
+                  <CopyIcon className="mr-2 h-3 w-3" /> Copy Text
                 </Button>
               </div>
             )}
@@ -295,7 +295,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                <p className="text-xs text-muted-foreground mt-1">Describe the desired artwork. Be descriptive for best results.</p>
             </div>
             <Button onClick={handleGenerateImage} disabled={isLoadingImage} className="w-full">
-              <ImageIcon className="mr-2 h-4 w-4" /> {isLoadingImage ? 'Generating Image...' : 'Generate Image Idea'}
+              <ImageIconLucide className="mr-2 h-4 w-4" /> {isLoadingImage ? 'Generating Image...' : 'Generate Image Idea'}
             </Button>
             {generatedImageDataUri && (
               <div className="mt-4 space-y-2">
@@ -320,10 +320,10 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                   aria-label="Generated Image Data URI"
                 />
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(generatedImageDataUri, "Image Data URI copied.")}>
-                  <Copy className="mr-2 h-3 w-3" /> Copy Data URI
+                  <CopyIcon className="mr-2 h-3 w-3" /> Copy Data URI
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Copy this Data URI and paste it into the 'Artwork URL' field in the Single or Bulk Card Generator.
+                  Copy this Data URI and paste it into a section's Content Placeholder (e.g., <code>{"{{artworkUrl}}"}</code>) in the Single or Bulk Card Generator.
                   Note: Generated images can be large and may impact performance if many are used.
                 </p>
               </div>
@@ -359,7 +359,7 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
                             <span className="font-mono">{value}</span>
                             <div className="h-4 w-4 rounded border" style={{ backgroundColor: value }}></div>
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(value, `${labelText} color copied.`)} aria-label={`Copy ${labelText} color ${value}`}>
-                                <Copy className="h-3 w-3" />
+                                <CopyIcon className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
@@ -377,5 +377,3 @@ export function AIDesignAssistant({ templates, abilityContextSets }: AIDesignAss
     </Card>
   );
 }
-
-    
