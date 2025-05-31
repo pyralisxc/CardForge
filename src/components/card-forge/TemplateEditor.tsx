@@ -741,7 +741,7 @@ export function TemplateEditor({
                         </CardHeader>
                     </AccordionTrigger>
                     <AccordionContent>
-                        <CardContent className="p-2 pt-3 sm:p-3 sm:pt-4">
+                        <CardContent className="px-1 py-2 sm:px-3 sm:py-3">
                             <ScrollArea className="h-[60vh] w-full">
                                 <Accordion
                                     type="multiple"
@@ -767,7 +767,7 @@ export function TemplateEditor({
                                                 <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeRow(row.id)}} aria-label="Remove row" className="h-7 w-7"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </div>
                                         </div>
-                                        <AccordionContent className="p-2 sm:p-3 space-y-4 border-t bg-background/70">
+                                        <AccordionContent className="px-1 py-2 sm:px-2 sm:py-3 space-y-4 border-t bg-background/70">
                                         <div className='grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3'>
                                             <div>
                                                 <Label htmlFor={`rowAlignItems-${row.id}`}>Row Vertical Alignment (columns)</Label>
