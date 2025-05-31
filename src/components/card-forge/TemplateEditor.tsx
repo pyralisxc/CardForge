@@ -741,7 +741,7 @@ export function TemplateEditor({
                         </CardHeader>
                     </AccordionTrigger>
                     <AccordionContent>
-                        <CardContent className="pr-0 pt-4">
+                        <CardContent className="p-2 pt-3 sm:p-3 sm:pt-4">
                             <ScrollArea className="h-[60vh] w-full">
                                 <Accordion
                                     type="multiple"
@@ -892,3 +892,4 @@ export function TemplateEditor({
     </div>
   );
 }
+
