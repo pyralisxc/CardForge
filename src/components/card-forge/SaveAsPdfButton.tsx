@@ -8,15 +8,7 @@ import type { DisplayCard, PaperSize } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface SaveAsPdfButtonProps {
-  generatedDisplayCards: DisplayCard[];
-  selectedPaperSize: PaperSize;
-  pdfMarginMm: number;
-  pdfCardSpacingMm: number;
-  pdfIncludeCutLines: boolean;
-  disabled?: boolean;
-}
+import { TCG_ASPECT_RATIO } from '@/lib/constants'; // Import default aspect ratio
 
 export function SaveAsPdfButton({
   generatedDisplayCards,
@@ -44,31 +36,35 @@ export function SaveAsPdfButton({
         format: [selectedPaperSize.widthMm, selectedPaperSize.heightMm],
       });
 
-      const cardWidthMm = 63;
-      const cardHeightMm = 88;
+      // Standard TCG card width for printing. Height will be derived from aspect ratio.
+      const standardPrintCardWidthMm = 63;
 
       const effectivePrintableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
       const effectivePrintableHeightMm = selectedPaperSize.heightMm - 2 * pdfMarginMm;
 
-      const cardsPerRow = Math.max(1, Math.floor((effectivePrintableWidthMm + pdfCardSpacingMm) / (cardWidthMm + pdfCardSpacingMm)));
-      const rowsPerPage = Math.max(1, Math.floor((effectivePrintableHeightMm + pdfCardSpacingMm) / (cardHeightMm + pdfCardSpacingMm)));
-      const cardsPerPage = cardsPerRow * rowsPerPage;
-
-
-      if (cardsPerPage === 0 || cardWidthMm > effectivePrintableWidthMm || cardHeightMm > effectivePrintableHeightMm) {
+      // Initial calculation based on default card size to see if ANY card can fit.
+      // This will be refined per card later.
+      const initialApproxCardHeightMm = (standardPrintCardWidthMm / parseInt(TCG_ASPECT_RATIO.split(':')[0])) * parseInt(TCG_ASPECT_RATIO.split(':')[1]);
+      
+      const cardsPerRowInitially = Math.max(1, Math.floor((effectivePrintableWidthMm + pdfCardSpacingMm) / (standardPrintCardWidthMm + pdfCardSpacingMm)));
+      const rowsPerPageInitially = Math.max(1, Math.floor((effectivePrintableHeightMm + pdfCardSpacingMm) / (initialApproxCardHeightMm + pdfCardSpacingMm)));
+      
+      if (cardsPerRowInitially === 0 || rowsPerPageInitially === 0 || standardPrintCardWidthMm > effectivePrintableWidthMm || initialApproxCardHeightMm > effectivePrintableHeightMm) {
         toast({
           title: "Layout Error",
-          description: `Paper size or margins too small for cards. Card: ${cardWidthMm}x${cardHeightMm}mm, Printable: ${effectivePrintableWidthMm.toFixed(1)}x${effectivePrintableHeightMm.toFixed(1)}mm (with ${pdfMarginMm}mm margins). Spacing: ${pdfCardSpacingMm}mm.`,
+          description: `Paper size or margins too small for cards. Standard Width: ${standardPrintCardWidthMm}mm, Approx Height: ${initialApproxCardHeightMm.toFixed(1)}mm. Printable Area: ${effectivePrintableWidthMm.toFixed(1)}x${effectivePrintableHeightMm.toFixed(1)}mm (with ${pdfMarginMm}mm margins). Spacing: ${pdfCardSpacingMm}mm.`,
           variant: "destructive",
-          duration: 7000,
+          duration: 8000,
         });
         setIsLoadingPdf(false);
         return;
       }
 
+
       let cardCountOnCurrentPage = 0;
       let currentX = pdfMarginMm;
       let currentY = pdfMarginMm;
+      let pageNumber = 1;
 
       for (let i = 0; i < generatedDisplayCards.length; i++) {
         const cardItem = generatedDisplayCards[i];
@@ -84,28 +80,50 @@ export function SaveAsPdfButton({
             });
             continue;
         }
+
+        // Determine actual card dimensions for print based on aspect ratio
+        const aspectRatioString = cardItem.template.aspectRatio || TCG_ASPECT_RATIO;
+        const ratioParts = aspectRatioString.split(':').map(Number);
+        let cardWidthMm = standardPrintCardWidthMm;
+        let cardHeightMm;
+
+        if (ratioParts.length === 2 && ratioParts[0] > 0 && ratioParts[1] > 0) {
+          cardHeightMm = (standardPrintCardWidthMm / ratioParts[0]) * ratioParts[1];
+        } else {
+          // Fallback to default TCG proportions if aspect ratio is invalid
+          cardHeightMm = (standardPrintCardWidthMm / 63) * 88;
+        }
         
+        // Recalculate cards per row and rows per page if current card's height makes a difference
+        // This is a simplification; true heterogeneous layout is much harder.
+        // For now, we assume all cards on a page can fit based on the current card's dimensions.
+        const cardsPerRow = Math.max(1, Math.floor((effectivePrintableWidthMm + pdfCardSpacingMm) / (cardWidthMm + pdfCardSpacingMm)));
+        const rowsPerPage = Math.max(1, Math.floor((effectivePrintableHeightMm + pdfCardSpacingMm) / (cardHeightMm + pdfCardSpacingMm)));
+        const cardsPerPage = cardsPerRow * rowsPerPage;
+
         if (cardCountOnCurrentPage > 0 && cardCountOnCurrentPage % cardsPerPage === 0) {
           pdf.addPage();
+          pageNumber++;
           cardCountOnCurrentPage = 0;
           currentX = pdfMarginMm;
           currentY = pdfMarginMm;
-        } else if (cardCountOnCurrentPage > 0 && cardCountOnCurrentPage % cardsPerRow === 0) {
-          currentX = pdfMarginMm;
+        } else if (currentX + cardWidthMm > selectedPaperSize.widthMm - pdfMarginMm) { // Check if card fits in current row
+          currentX = pdfMarginMm; // Move to next row
           currentY += cardHeightMm + pdfCardSpacingMm;
-           if (currentY + cardHeightMm > selectedPaperSize.heightMm - pdfMarginMm) {
+           if (currentY + cardHeightMm > selectedPaperSize.heightMm - pdfMarginMm) { // Check if card fits on current page
              pdf.addPage();
+             pageNumber++;
              cardCountOnCurrentPage = 0;
              currentX = pdfMarginMm;
              currentY = pdfMarginMm;
            }
         }
-
+        
         const canvas = await html2canvas(cardElement, {
-          scale: 2,
+          scale: 3, // Increased scale for better PDF quality
           useCORS: true,
           logging: false,
-          backgroundColor: null,
+          backgroundColor: null, // Ensure transparency is handled if card backgrounds are transparent
           ignoreElements: (element) => {
             return element.getAttribute('data-html2canvas-ignore') === 'true';
           },
@@ -117,15 +135,31 @@ export function SaveAsPdfButton({
         if (pdfIncludeCutLines) {
           pdf.setDrawColor(180, 180, 180); 
           pdf.setLineWidth(0.1);
-          pdf.rect(currentX, currentY, cardWidthMm, cardHeightMm);
+          // Draw slightly outset cut lines if spacing is 0, or around the card if spacing > 0
+          const cutOffset = pdfCardSpacingMm > 0 ? 0 : -0.5; // small outset if no spacing
+          const cutLength = 3; // length of the cut marks in mm
+
+          // Top-left
+          pdf.line(currentX + cutOffset - cutLength, currentY + cutOffset, currentX + cutOffset, currentY + cutOffset);
+          pdf.line(currentX + cutOffset, currentY + cutOffset - cutLength, currentX + cutOffset, currentY + cutOffset);
+          // Top-right
+          pdf.line(currentX + cardWidthMm - cutOffset + cutLength, currentY + cutOffset, currentX + cardWidthMm - cutOffset, currentY + cutOffset);
+          pdf.line(currentX + cardWidthMm - cutOffset, currentY + cutOffset - cutLength, currentX + cardWidthMm - cutOffset, currentY + cutOffset);
+          // Bottom-left
+          pdf.line(currentX + cutOffset - cutLength, currentY + cardHeightMm - cutOffset, currentX + cutOffset, currentY + cardHeightMm - cutOffset);
+          pdf.line(currentX + cutOffset, currentY + cardHeightMm - cutOffset + cutLength, currentX + cutOffset, currentY + cardHeightMm - cutOffset);
+          // Bottom-right
+          pdf.line(currentX + cardWidthMm - cutOffset + cutLength, currentY + cardHeightMm - cutOffset, currentX + cardWidthMm - cutOffset, currentY + cardHeightMm - cutOffset);
+          pdf.line(currentX + cardWidthMm - cutOffset, currentY + cardHeightMm - cutOffset + cutLength, currentX + cardWidthMm - cutOffset, currentY + cardHeightMm - cutOffset);
+
+          // If no spacing, also draw the box for clarity of card edge, otherwise assume spacing provides visual separation.
+          if (pdfCardSpacingMm === 0) {
+             pdf.rect(currentX, currentY, cardWidthMm, cardHeightMm);
+          }
         }
         
         cardCountOnCurrentPage++;
-        if (i < generatedDisplayCards.length - 1) { 
-            if (cardCountOnCurrentPage % cardsPerRow !== 0) { 
-                 currentX += cardWidthMm + pdfCardSpacingMm;
-            }
-        }
+        currentX += cardWidthMm + pdfCardSpacingMm;
       }
       pdf.save('tcg-cards.pdf');
       toast({ title: "PDF Saved", description: "tcg-cards.pdf has been downloaded." });
