@@ -17,17 +17,16 @@ import { suggestTemplateColors, type SuggestTemplateColorsInput, type SuggestTem
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, TextQuote, Palette, Lightbulb, Copy, Image as ImageIconLucide, Paintbrush as PaintbrushIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TCGCardTemplate } from '@/types';
 import NextImage from 'next/image';
 
 
 interface AIDesignAssistantProps {
-  templates: TCGCardTemplate[];
+  // templates: TCGCardTemplate[]; // This prop is not used
 }
 
 type TextGenType = NonNullable<GenerateCardTextInput['textType']>;
 
-export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
+export function AIDesignAssistant({ }: AIDesignAssistantProps) {
   const [activeAiTab, setActiveAiTab] = useState("designSuggestions");
 
   const [textContentLayout, setTextContentLayout] = useState<string>('');
@@ -349,3 +348,5 @@ export function AIDesignAssistant({ templates }: AIDesignAssistantProps) {
     </Card>
   );
 }
+
+    

@@ -2,7 +2,7 @@
 import type { ElementType } from 'react';
 import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
-import { LayoutDashboard, Trash2, PlusCircle, Rows, Palette, TextCursorInput, Type, Image as ImageIcon, Minus, SquarePen, Settings, Cog, Frame, AlignLeft, Italic, Baseline, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Columns, FileImage, Sparkles, PackageOpen, Wand2, MenuIcon, EyeOff, FolderDown, FolderUp, ScrollText, Paintbrush } from 'lucide-react';
+import { Cog, PackageOpen, Wand2 } from 'lucide-react';
 
 
 export const PAPER_SIZES: Array<{ name: string; widthMm: number; heightMm: number }> = [
@@ -132,12 +132,10 @@ export const createDefaultRow = (id: string, columns?: CardSection[], alignItems
 export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [];
 
 
-export const ICON_MAP: Record<string, ElementType> = {
-  LayoutDashboard, Trash2, PlusCircle, Rows, Palette, TextCursorInput, Type, Image: ImageIcon, Minus, Default: SquarePen, Settings, Cog, Frame, AlignLeft, Italic, Baseline, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Columns, FileImage, Sparkles, PackageOpen, Wand2, MenuIcon, EyeOff, FolderDown, FolderUp, ScrollText, Paintbrush
-};
-
 export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
   { value: "editor", label: "Template Editor", icon: Cog },
   { value: "generator", label: "Card Generator", icon: PackageOpen },
   { value: "ai", label: "AI Helper", icon: Wand2 },
 ];
+
+    
