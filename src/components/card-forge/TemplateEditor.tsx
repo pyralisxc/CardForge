@@ -31,22 +31,21 @@ import { cn } from "@/lib/utils";
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
 
 
-// Helper function to create a new template object with a fresh structure and IDs
 export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): TCGCardTemplate => {
   let newTemplateId: string | null;
   let newTemplateName: string;
 
-  if (id === null) { // Explicitly for the "New Unsaved Template" initial state, or reset.
-    newTemplateId = null; // Will get a new ID on first save.
-    newTemplateName = nameProp || `Template ${nanoid(8)}`; // Auto-generate unique name.
-  } else if (id && nameProp && nameProp !== "New Unsaved Template") { // Loading/copying an existing template by ID with its name.
+  if (id === null) {
+    newTemplateId = null; 
+    newTemplateName = nameProp || `Template ${nanoid(8)}`;
+  } else if (id && nameProp && nameProp !== "New Unsaved Template") {
     newTemplateId = id;
     newTemplateName = nameProp;
-  } else if (id) { // Existing template by ID, but nameProp was missing or was "New Unsaved Template" (should be rare for existing).
+  } else if (id) {
     newTemplateId = id;
     newTemplateName = `Template ${String(id).substring(0, 8)}`;
-  } else { // For a brand new template that is not the initial "New Unsaved Template" state (e.g., if id was undefined).
-    newTemplateId = nanoid(); // Assign a new ID immediately.
+  } else {
+    newTemplateId = nanoid();
     newTemplateName = nameProp || `Template ${newTemplateId.substring(0, 8)}`;
   }
   
@@ -95,42 +94,24 @@ export function TemplateEditor({
 }: TemplateEditorProps) {
   const { toast } = useToast();
 
-  // --- Memoized Reconstruction Helpers ---
   const reconstructSection = useCallback((sectionData: Partial<CardSection>, sectionIdOverride?: string): CardSection => {
     const id = sectionIdOverride || sectionData.id || nanoid();
     const baseSection = createDefaultSection(id);
-    
-    const newSection: CardSection = {
-      ...baseSection,
-      ...sectionData,
-      id: id,
-    };
-    return newSection;
+    return { ...baseSection, ...sectionData, id };
   }, []);
 
   const reconstructRow = useCallback((rowData: Partial<CardRow>, rowIdOverride?: string): CardRow => {
     const id = rowIdOverride || rowData.id || nanoid();
     const baseRow = createDefaultRow(id);
-    
-    let newRow: CardRow = {
-      ...baseRow,
-      ...rowData,
-      id: id,
-    };
-
-    newRow.columns = (rowData.columns || []).map(c_loaded => 
-        reconstructSection(c_loaded, c_loaded.id)
-    );
-    
-    if (newRow.columns.length === 0) {
-      newRow.columns = [reconstructSection({}, nanoid())];
-    }
+    let newRow: CardRow = { ...baseRow, ...rowData, id };
+    newRow.columns = (rowData.columns || []).map(c => reconstructSection(c, c.id));
+    if (newRow.columns.length === 0) newRow.columns = [reconstructSection({})];
     return newRow;
   }, [reconstructSection]);
   
   const reconstructTemplate = useCallback((templateData: Partial<TCGCardTemplate>): TCGCardTemplate => {
     const anId = templateData.id !== undefined ? templateData.id : (templateData.name === "New Unsaved Template" && templateData.id === undefined ? null : nanoid());
-    const baseTemplate = getFreshDefaultTemplate(anId, templateData.name); 
+    const baseTemplate = getFreshDefaultTemplate(anId); 
 
     const newTemplate: TCGCardTemplate = {
       ...baseTemplate,
@@ -139,10 +120,7 @@ export function TemplateEditor({
       name: templateData.name !== undefined ? templateData.name : baseTemplate.name,
     };
 
-    newTemplate.rows = (templateData.rows || []).map(r_loaded => 
-      reconstructRow({ ...createDefaultRow(r_loaded.id || nanoid()), ...r_loaded })
-    );
-    
+    newTemplate.rows = (templateData.rows || []).map(r => reconstructRow({ ...createDefaultRow(r.id || nanoid()), ...r }));
     if (newTemplate.rows.length === 0 && baseTemplate.rows.length > 0) {
        newTemplate.rows = [...baseTemplate.rows.map(r => reconstructRow(r, r.id))];
     } else if (newTemplate.rows.length === 0) {
@@ -152,25 +130,19 @@ export function TemplateEditor({
   }, [reconstructRow]);
 
 
-  // --- State Variables ---
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => 
     reconstructTemplate(initialTemplate || getFreshDefaultTemplate(null, "New Unsaved Template"))
   );
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
-  const [aspectRatioInput, setAspectRatioInput] = useState<string>(
-    (initialTemplate?.aspectRatio || getFreshDefaultTemplate(null).aspectRatio) || TCG_ASPECT_RATIO
-  );
-  const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>(
-     (initialTemplate?.rows || getFreshDefaultTemplate(null).rows || []).map(r => r.id).filter(Boolean) as string[]
-  );
+  const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
+  const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>([]);
   const [activeStylingAccordion, setActiveStylingAccordion] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const cardBgImageInputRef = useRef<HTMLInputElement | null>(null);
 
-
   const resetFormToNew = useCallback(() => {
-    const newFreshTemplate = reconstructTemplate(getFreshDefaultTemplate(null));
-    setCurrentTemplate(newFreshTemplate);
+    const newFreshTemplate = getFreshDefaultTemplate(null); // Will get a unique name like "Template XXXXXXXX"
+    setCurrentTemplate(reconstructTemplate(newFreshTemplate));
     setSelectedTemplateToEditId(null);
     setAspectRatioInput(newFreshTemplate.aspectRatio || TCG_ASPECT_RATIO);
     setActiveRowAccordionItems((newFreshTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]);
@@ -178,49 +150,33 @@ export function TemplateEditor({
     toast({ title: "Form Reset", description: `Ready to create "${newFreshTemplate.name}".` });
   }, [toast, reconstructTemplate, TCG_ASPECT_RATIO]);
 
-
-  // Effect to sync currentTemplate with props (initialTemplate or selected from templates list)
    useEffect(() => {
-    let templateToProcess: Partial<TCGCardTemplate>;
-    let newSelectedIdToSet: string | null = selectedTemplateToEditId;
-
+    let templateToLoad: Partial<TCGCardTemplate>;
     if (initialTemplate && (!selectedTemplateToEditId || selectedTemplateToEditId !== initialTemplate.id)) {
-        templateToProcess = initialTemplate;
-        newSelectedIdToSet = initialTemplate.id;
+        templateToLoad = initialTemplate;
     } else if (selectedTemplateToEditId) {
         const found = templates.find(t => t.id === selectedTemplateToEditId);
         if (found) {
-            templateToProcess = found;
-        } else { // Selected ID not found in templates list, reset
+            templateToLoad = found;
+        } else {
             resetFormToNew();
             return; 
         }
-    } else { // No selection, no initial template, ensure "New Unsaved Template" state
-      templateToProcess = getFreshDefaultTemplate(null, "New Unsaved Template");
-      newSelectedIdToSet = null; // Ensure selected ID is also null
+    } else {
+      templateToLoad = getFreshDefaultTemplate(null, "New Unsaved Template");
     }
     
-    const reconstructed = reconstructTemplate(templateToProcess);
+    const reconstructed = reconstructTemplate(templateToLoad);
     if (JSON.stringify(currentTemplate) !== JSON.stringify(reconstructed)) {
         setCurrentTemplate(reconstructed);
     }
-    
-    // Sync selectedTemplateToEditId if it has changed
-    if (selectedTemplateToEditId !== newSelectedIdToSet) {
-      setSelectedTemplateToEditId(newSelectedIdToSet);
-    }
+  }, [initialTemplate, selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, currentTemplate]);
 
-  }, [initialTemplate, selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, currentTemplate]); // Added currentTemplate to ensure comparison works
-
-  // Effect to update UI elements derived from currentTemplate
   useEffect(() => {
     setAspectRatioInput(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
-    // Only change active accordion if template ID changes or it's explicitly a new unsaved state
-     if (!activeRowAccordionItems.length || (currentTemplate.rows && activeRowAccordionItems.join(',') !== currentTemplate.rows.map(r => r.id).join(','))) {
-       setActiveRowAccordionItems((currentTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]);
-     }
-    // setActiveStylingAccordion(null); // This was causing styling accordion to close on any interaction.
-  }, [currentTemplate, TCG_ASPECT_RATIO, activeRowAccordionItems]);
+    setActiveRowAccordionItems((currentTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]);
+    setActiveStylingAccordion(null); 
+  }, [currentTemplate, TCG_ASPECT_RATIO]);
 
 
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
@@ -232,22 +188,14 @@ export function TemplateEditor({
 
 
   const updateRow = useCallback((rowId: string, updates: Partial<CardRow>) => {
-    setCurrentTemplate(prev => {
-      const newRows = (prev.rows || []).map(r => r.id === rowId ? reconstructRow({ ...r, ...updates }, r.id) : r);
-      return reconstructTemplate({ ...prev, rows: newRows });
-    });
+    setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: (prev.rows || []).map(r => r.id === rowId ? reconstructRow({ ...r, ...updates }, r.id) : r) }));
   }, [reconstructTemplate, reconstructRow]);
 
   const addRow = useCallback(() => {
     const newRowId = nanoid();
-    const newRow = createDefaultRow(newRowId); 
-    setCurrentTemplate(prev => {
-      const currentRows = prev.rows || [];
-      const newTemplateState = reconstructTemplate({ ...prev, rows: [...currentRows, newRow] });
-      return newTemplateState;
-    });
+    setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: [...(prev.rows || []), createDefaultRow(newRowId)] }));
     setActiveRowAccordionItems(prevActive => [...prevActive, newRowId]);
-  }, [reconstructTemplate, setActiveRowAccordionItems]);
+  }, [reconstructTemplate]);
 
   const removeRow = useCallback((rowId: string) => {
     setCurrentTemplate(prev => {
@@ -261,17 +209,15 @@ export function TemplateEditor({
       }
       return reconstructTemplate({ ...prev, rows: newRows });
     });
-  }, [reconstructTemplate, setActiveRowAccordionItems]);
+  }, [reconstructTemplate]);
 
   const moveRow = useCallback((rowId: string, direction: 'up' | 'down') => {
     setCurrentTemplate(prev => {
         const rows = [...(prev.rows || [])];
         const index = rows.findIndex(r => r.id === rowId);
         if (index === -1) return prev;
-
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
         if (targetIndex < 0 || targetIndex >= rows.length) return prev;
-
         [rows[index], rows[targetIndex]] = [rows[targetIndex], rows[index]];
         return reconstructTemplate({ ...prev, rows });
     });
@@ -279,77 +225,43 @@ export function TemplateEditor({
 
   const addSectionToRow = useCallback((rowId: string) => {
     const newSectionId = nanoid();
-    const newSection = createDefaultSection(newSectionId);
-    setCurrentTemplate(prev => {
-      const newRows = (prev.rows || []).map(r =>
-        r.id === rowId ? reconstructRow({ ...r, columns: [...(r.columns || []), newSection] }, r.id) : r
-      );
-      return reconstructTemplate({ ...prev, rows: newRows });
-    });
+    setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: (prev.rows || []).map(r => r.id === rowId ? reconstructRow({ ...r, columns: [...(r.columns || []), createDefaultSection(newSectionId)] }, r.id) : r) }));
     setActiveStylingAccordion(newSectionId); 
-    if (!activeRowAccordionItems.includes(rowId)) { 
-        setActiveRowAccordionItems(prevActive => [...prevActive, rowId]);
-    }
-  }, [reconstructTemplate, reconstructRow, activeRowAccordionItems, setActiveRowAccordionItems]);
+    if (!activeRowAccordionItems.includes(rowId)) setActiveRowAccordionItems(prevActive => [...prevActive, rowId]);
+  }, [reconstructTemplate, reconstructRow, activeRowAccordionItems]);
 
 
   const removeSectionFromRow = useCallback((rowId: string, sectionId: string) => {
-    setCurrentTemplate(prev => {
-      const newRows = (prev.rows || []).map(r => {
-        if (r.id === rowId) {
-          let updatedColumns = (r.columns || []).filter(s => s.id !== sectionId);
-          if (updatedColumns.length === 0) {
-            updatedColumns.push(createDefaultSection(nanoid())); 
-          }
-          return reconstructRow({ ...r, columns: updatedColumns }, r.id);
-        }
-        return r;
-      });
-      return reconstructTemplate({ ...prev, rows: newRows });
-    });
-    if (activeStylingAccordion === sectionId) { 
-        setActiveStylingAccordion(null);
-    }
+    setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: (prev.rows || []).map(r => r.id === rowId ? reconstructRow({ ...r, columns: (r.columns || []).filter(s => s.id !== sectionId).length > 0 ? (r.columns || []).filter(s => s.id !== sectionId) : [createDefaultSection(nanoid())] }, r.id) : r) }));
+    if (activeStylingAccordion === sectionId) setActiveStylingAccordion(null);
   }, [reconstructTemplate, reconstructRow, activeStylingAccordion]);
 
   const onUpdateSectionInRow = useCallback((rowId: string, sectionId: string, updates: Partial<CardSection>) => {
-    setCurrentTemplate(prev => {
-      const newRows = (prev.rows || []).map(r =>
-        r.id === rowId
-        ? reconstructRow({
-            ...r,
-            columns: (r.columns || []).map(s => s.id === sectionId ? reconstructSection({ ...s, ...updates }, s.id) : s)
-          }, r.id)
-        : r
-      );
-      return reconstructTemplate({ ...prev, rows: newRows });
-    });
+    setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: (prev.rows || []).map(r => r.id === rowId ? reconstructRow({ ...r, columns: (r.columns || []).map(s => s.id === sectionId ? reconstructSection({ ...s, ...updates }, s.id) : s) }, r.id) : r) }));
   }, [reconstructTemplate, reconstructRow, reconstructSection]);
 
   const moveSectionInRow = useCallback((rowId: string, sectionId: string, direction: 'left' | 'right') => {
-    setCurrentTemplate(prev => {
-      const newRows = (prev.rows || []).map(r => {
-        if (r.id === rowId) {
-          const sectionIndex = (r.columns || []).findIndex(s => s.id === sectionId);
-          if (sectionIndex === -1) return r;
-
-          const newColumns = [...(r.columns || [])];
-          const targetIndex = direction === 'left' ? sectionIndex - 1 : sectionIndex + 1;
-
-          if (targetIndex >= 0 && targetIndex < newColumns.length) {
-            [newColumns[sectionIndex], newColumns[targetIndex]] = [newColumns[targetIndex], newColumns[sectionIndex]];
-          }
-          return reconstructRow({ ...r, columns: newColumns }, r.id);
-        }
-        return r;
-      });
-      return reconstructTemplate({ ...prev, rows: newRows });
-    });
+    setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: (prev.rows || []).map(r => {
+      if (r.id === rowId) {
+        const cols = [...(r.columns || [])];
+        const idx = cols.findIndex(s => s.id === sectionId);
+        if (idx === -1) return r;
+        const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+        if (targetIdx >= 0 && targetIdx < cols.length) [cols[idx], cols[targetIdx]] = [cols[targetIdx], cols[idx]];
+        return reconstructRow({ ...r, columns: cols }, r.id);
+      }
+      return r;
+    })}));
   }, [reconstructTemplate, reconstructRow]);
 
   const handleSubmit = useCallback(() => {
     let templateToSave = { ...currentTemplate };
     
+    if (!templateToSave.name?.trim()) {
+      toast({ title: "Validation Error", description: "Template name cannot be empty.", variant: "destructive" });
+      return;
+    }
+
     const ratioPartsVal = String(templateToSave.aspectRatio || '').split(':').map(Number);
     if (!(ratioPartsVal.length === 2 && !isNaN(ratioPartsVal[0]) && ratioPartsVal[0] > 0 && !isNaN(ratioPartsVal[1]) && ratioPartsVal[1] > 0)) {
         toast({ title: "Validation Error", description: 'Aspect Ratio must be in W:H format (e.g., 63:88) with positive numbers.', variant: "destructive" });
@@ -364,17 +276,15 @@ export function TemplateEditor({
         return;
       }
 
-    if (templateToSave.id === null) { // This is a "New Unsaved Template"
-      templateToSave.id = nanoid(); // Assign a new ID
-      // Name is already auto-generated by getFreshDefaultTemplate
-    } else { // This is an existing template being saved
-      const existingTemplateWithSameName = templates.find(t => t.name === templateToSave.name && t.id !== templateToSave.id);
-      if (existingTemplateWithSameName) {
-          toast({ title: "Save Error", description: `A different template with the name "${templateToSave.name}" already exists. Please choose a unique name if this is a new template, or ensure you are editing the correct one.`, variant: "destructive" });
-          return;
-      }
+    if (templateToSave.id === null) { 
+      templateToSave.id = nanoid();
     }
-
+    
+    const existingTemplateWithSameName = templates.find(t => t.name === templateToSave.name && t.id !== templateToSave.id);
+    if (existingTemplateWithSameName) {
+        toast({ title: "Save Error", description: `A different template with the name "${templateToSave.name}" already exists. Please choose a unique name.`, variant: "destructive" });
+        return;
+    }
 
     const finalTemplateToSave = reconstructTemplate(templateToSave); 
     onSaveTemplate(finalTemplateToSave);
@@ -382,21 +292,19 @@ export function TemplateEditor({
     if (selectedTemplateToEditId !== finalTemplateToSave.id) { 
       setSelectedTemplateToEditId(finalTemplateToSave.id!);
     }
-    // Do not resetFormToNew() here, user might want to continue editing
   }, [currentTemplate, templates, onSaveTemplate, toast, reconstructTemplate, selectedTemplateToEditId]);
 
 
   const handleSelectTemplateToEdit = useCallback((templateId: string | null) => {
-    if (templateId === null) { // User explicitly wants to create a new one via button
+    if (templateId === null) { 
         resetFormToNew();
     } else {
         const found = templates.find(t => t.id === templateId);
         if (found) {
-            const reconstructed = reconstructTemplate(found);
-            setCurrentTemplate(reconstructed);
-            setSelectedTemplateToEditId(templateId); // Ensure this is set
+            setCurrentTemplate(reconstructTemplate(found));
+            setSelectedTemplateToEditId(templateId);
         } else {
-            resetFormToNew(); // Fallback if ID not found
+            resetFormToNew();
         }
     }
   }, [templates, resetFormToNew, reconstructTemplate]);
@@ -409,11 +317,9 @@ export function TemplateEditor({
 
   const livePreviewData = useMemo(() => {
     const data: { [key: string]: string } = {};
-    if (currentTemplate && currentTemplate.rows) {
-        extractUniquePlaceholderKeys(currentTemplate).forEach(placeholder => {
-            data[placeholder.key] = placeholder.defaultValue !== undefined ? placeholder.defaultValue : `{{${placeholder.key}}}`;
-        });
-    }
+    extractUniquePlaceholderKeys(currentTemplate).forEach(p => {
+      data[p.key] = p.defaultValue !== undefined ? p.defaultValue : `{{${p.key}}}`;
+    });
     return data;
   }, [currentTemplate]);
 
@@ -427,42 +333,25 @@ export function TemplateEditor({
       if(prev.includes(rowId)) return prev.filter(id => id !== rowId);
       return [...prev, rowId];
     });
-    // setActiveStylingAccordion(null); // Don't close section styling when row is toggled
-    setTimeout(() => {
-      const itemElement = document.getElementById(`accordion-row-${rowId}`);
-      itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    },0);
+    setTimeout(() => document.getElementById(`accordion-row-${rowId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }),0);
   }, [activeRowAccordionItems]);
 
   const handleSectionClickFromPreview = useCallback((sectionId: string) => {
     const parentRow = (currentTemplate.rows || []).find(r => (r.columns || []).some(s => s.id === sectionId));
-    if(parentRow && !activeRowAccordionItems.includes(parentRow.id)){
-        setActiveRowAccordionItems(prevActive => [...prevActive, parentRow.id]);
-    }
+    if(parentRow && !activeRowAccordionItems.includes(parentRow.id)) setActiveRowAccordionItems(prevActive => [...prevActive, parentRow.id]);
     onToggleStylingAccordion(sectionId);
-     setTimeout(() => {
-      const sectionEditorElement = document.querySelector(`.column-editor-card[data-section-id="${sectionId}"]`);
-      sectionEditorElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 0);
+    setTimeout(() => document.querySelector(`.column-editor-card[data-section-id="${sectionId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
   }, [currentTemplate.rows, activeRowAccordionItems, onToggleStylingAccordion]);
 
   const handleCardBgImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
-        updateCurrentTemplate({ cardBackgroundImageUrl: dataUri });
-        toast({ title: "Image Uploaded", description: `Card background image "${file.name}" loaded.` });
-      };
-      reader.onerror = () => {
-        toast({ title: "Error", description: "Failed to read background image file.", variant: "destructive" });
-      };
+      reader.onload = (e) => updateCurrentTemplate({ cardBackgroundImageUrl: e.target?.result as string });
       reader.readAsDataURL(file);
+      toast({ title: "Image Uploaded", description: `Card background image "${file.name}" loaded.` });
     }
-    if (event.target) { 
-      event.target.value = "";
-    }
+    if (event.target) event.target.value = "";
   }, [updateCurrentTemplate, toast]);
   
   return (
@@ -519,10 +408,23 @@ export function TemplateEditor({
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Edit2 className="h-5 w-5" />
-                        Template Editor: <span className="text-primary">{currentTemplate.name || "Untitled Template"}</span>
+                        Template Editor
                     </CardTitle>
+                     <CardDescription>
+                        Currently editing: <span className="text-primary font-medium">{currentTemplate.name || "Untitled Template"}</span>
+                        {currentTemplate.id && <span className="text-xs text-muted-foreground ml-2">(ID: {currentTemplate.id.substring(0,8)})</span>}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div>
+                        <Label htmlFor="templateName">Template Name</Label>
+                        <Input
+                            id="templateName"
+                            value={currentTemplate.name || ''}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ name: e.target.value })}
+                            placeholder="Enter a unique name for your template"
+                        />
+                    </div>
                     <div>
                         <Label htmlFor="templateAspectRatio">Aspect Ratio (W:H)</Label>
                          <Input 
