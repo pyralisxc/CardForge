@@ -2,17 +2,18 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import React from 'react'; // Explicitly import React for React.memo
+import React from 'react'; 
 import type { CardSection } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Trash2, FileImage, TextCursorInput } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2, FileImage, TextCursorInput, GripVertical, ChevronDown } from 'lucide-react';
 import { SectionStylingForm } from './SectionStylingForm';
 import { SECTION_CONTENT_TYPES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface ColumnEditorProps {
   section: CardSection;
@@ -25,6 +26,8 @@ interface ColumnEditorProps {
   onUpdateSectionInRow: (rowId: string, sectionId: string, updates: Partial<CardSection>) => void;
   onRemoveSectionFromRow: (rowId: string, sectionId: string) => void;
   onMoveSectionInRow: (rowId: string, sectionId: string, direction: 'left' | 'right') => void;
+  isColumnAccordionOpen: boolean;
+  onToggleColumnAccordion: () => void;
 }
 
 const ColumnEditorMemoized = ({
@@ -38,7 +41,9 @@ const ColumnEditorMemoized = ({
   onUpdateSectionInRow,
   onRemoveSectionFromRow,
   onMoveSectionInRow,
-}: ColumnEditorProps) => { // Opening brace for component body
+  isColumnAccordionOpen,
+  onToggleColumnAccordion,
+}: ColumnEditorProps) => {
 
   const handleContentPlaceholderChange = (e: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     onUpdateSectionInRow(rowId, section.id, { contentPlaceholder: e.target.value });
@@ -56,12 +61,38 @@ const ColumnEditorMemoized = ({
   const contentPlaceholderLabel = section.sectionContentType === 'image'
     ? "Image URL Key (e.g., artworkUrl)"
     : "Content Placeholder (e.g. {{title}} or Your static text {{variable}})";
+  
+  let displayPlaceholder = section.contentPlaceholder || '';
+  if (section.sectionContentType === 'placeholder' && displayPlaceholder.length > 25) {
+      displayPlaceholder = displayPlaceholder.substring(0, 22) + '...';
+  }
+  const placeholderInfo = section.sectionContentType === 'image'
+      ? `Image: (${section.imageWidthPx || 'auto'} x ${section.imageHeightPx || 'auto'})`
+      : `"${displayPlaceholder}"`;
 
   return (
-    <Card key={section.id} className="bg-background/50 p-0 overflow-hidden column-editor-card" data-section-id={section.id}>
-      <CardHeader className="flex flex-row items-center justify-between p-2 border-b bg-muted/20">
-        <span className="text-sm font-medium">Column {sectionIndex + 1}</span>
-        <div className="flex items-center gap-1">
+    <AccordionItem value={section.id} key={section.id} className="border border-border bg-muted/20 rounded-md overflow-hidden column-editor-card" data-section-id={section.id}>
+      <div className={cn(
+          "flex items-center w-full px-2 py-1 hover:bg-muted/40 rounded-t-md focus-within:ring-1 focus-within:ring-ring",
+           isColumnAccordionOpen ? "border-b" : ""
+        )}
+      >
+        <AccordionTrigger
+          onClick={onToggleColumnAccordion}
+          aria-label={`Toggle Column ${sectionIndex + 1} details`}
+          className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring text-sm font-medium"
+        >
+          <div className="flex items-center gap-2">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <span className="truncate flex-1 mr-2">
+              Column {sectionIndex + 1}: <span className="text-muted-foreground text-xs">{placeholderInfo}</span>
+            </span>
+          </div>
+        </AccordionTrigger>
+         {/* Keep ChevronDown, Radix AccordionTrigger expects a child chevron for its own state management */}
+        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground group-data-[state=open]:rotate-180", !isColumnAccordionOpen && "rotate-0")} />
+
+        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
           <Button
             type="button"
             variant="ghost"
@@ -95,8 +126,8 @@ const ColumnEditorMemoized = ({
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="p-3 space-y-3">
+      </div>
+      <AccordionContent className="p-3 space-y-3 bg-background/50">
         <div>
           <Label htmlFor={`sectionContentType-${section.id}`} className="text-xs">Section Content Type</Label>
           <Select
@@ -185,9 +216,9 @@ const ColumnEditorMemoized = ({
           activeStylingAccordion={activeStylingAccordion}
           onToggleStylingAccordion={onToggleStylingAccordion}
         />
-      </CardContent>
-    </Card>
+      </AccordionContent>
+    </AccordionItem>
   );
-}; // This is the closing brace for the ColumnEditorMemoized component's body
+}; 
 
 export const ColumnEditor = React.memo(ColumnEditorMemoized);

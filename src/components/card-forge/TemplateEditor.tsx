@@ -37,7 +37,7 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
 
   if (id === null) { // Truly new, unsaved template
     newTemplateId = null;
-    newTemplateName = nameProp && nameProp !== "New Unsaved Template" ? nameProp : `Template ${nanoid(8)}`;
+    newTemplateName = `Template ${nanoid(8)}`;
   } else if (id && nameProp && nameProp !== "New Unsaved Template") { // Loading existing with a specific name
     newTemplateId = id;
     newTemplateName = nameProp;
@@ -46,8 +46,12 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
     newTemplateName = `Template ${String(id).substring(0, 8)}`; // Default to ID-based name if nameProp is not suitable
   } else { // Fallback: Should ideally not be hit if id is null is handled above, but as safety for new templates
     newTemplateId = nanoid();
-    newTemplateName = nameProp && nameProp !== "New Unsaved Template" ? nameProp : `Template ${newTemplateId.substring(0, 8)}`;
+    newTemplateName = `Template ${newTemplateId.substring(0, 8)}`;
   }
+   if (nameProp && nameProp !== "New Unsaved Template" && nameProp !== newTemplateName && id === null) {
+    newTemplateName = nameProp; // User is creating a new template AND has already typed a name for it
+  }
+
 
   const defaultRowId1 = id === null ? 'unsaved-default-row-1-v9-stable-id' : nanoid();
   const defaultSectionId1 = id === null ? 'unsaved-default-sec-1-v9-stable-id' : nanoid();
@@ -102,27 +106,27 @@ export function TemplateEditor({
     const baseRow = baseTemplateRows.find(br => br.id === rowId) || createDefaultRow(rowId);
   
     const newRow: CardRow = {
-      ...createDefaultRow(rowId), // Start with a fresh default row structure for this ID
-      ...baseRow,                 // Overlay defaults from the base template's version of this row
-      ...rowData,                 // Overlay specific data for this row from templateData
-      id: rowId,                  // Ensure ID
+      ...createDefaultRow(rowId), 
+      ...baseRow,                 
+      ...rowData,                 
+      id: rowId,                  
     };
   
     newRow.columns = (rowData.columns || baseRow.columns || []).map(colData => {
       const colId = colData.id || nanoid();
       const baseCol = (baseRow.columns || []).find(bc => bc.id === colId) || createDefaultSection(colId);
       
-      return {
-        ...createDefaultSection(colId), // Default section structure for this ID
-        ...baseCol,                     // Base template's version of this column
-        ...colData,                     // Specific data for this column from templateData (most important)
-        id: colId,                      // Ensure ID
-        // Explicitly re-assert key properties if they involve complex fallbacks or undefined vs. empty string distinctions
+      const reconstructedSection: CardSection = {
+        ...createDefaultSection(colId),   
+        ...baseCol,               
+        ...colData,       
+        id: colId,                        
         sectionContentType: colData.sectionContentType || baseCol.sectionContentType || createDefaultSection(colId).sectionContentType,
-        contentPlaceholder: colData.contentPlaceholder !== undefined ? colData.contentPlaceholder : (baseCol.contentPlaceholder !== undefined ? baseCol.contentPlaceholder : createDefaultSection(colId).contentPlaceholder),
-        backgroundImageUrl: colData.backgroundImageUrl !== undefined ? colData.backgroundImageUrl : baseCol.backgroundImageUrl,
-        imageWidthPx: colData.imageWidthPx !== undefined ? colData.imageWidthPx : baseCol.imageWidthPx,
-        imageHeightPx: colData.imageHeightPx !== undefined ? colData.imageHeightPx : baseCol.imageHeightPx,
+        contentPlaceholder: colData.contentPlaceholder !== undefined 
+                            ? colData.contentPlaceholder 
+                            : (baseCol.contentPlaceholder !== undefined 
+                                ? baseCol.contentPlaceholder 
+                                : createDefaultSection(colId).contentPlaceholder),
         textColor: colData.textColor !== undefined ? colData.textColor : baseCol.textColor,
         backgroundColor: colData.backgroundColor !== undefined ? colData.backgroundColor : baseCol.backgroundColor,
         fontFamily: colData.fontFamily !== undefined ? colData.fontFamily : baseCol.fontFamily,
@@ -138,7 +142,11 @@ export function TemplateEditor({
         flexGrow: colData.flexGrow !== undefined ? colData.flexGrow : baseCol.flexGrow,
         customHeight: colData.customHeight !== undefined ? colData.customHeight : baseCol.customHeight,
         customWidth: colData.customWidth !== undefined ? colData.customWidth : baseCol.customWidth,
+        imageWidthPx: colData.imageWidthPx !== undefined ? colData.imageWidthPx : baseCol.imageWidthPx,
+        imageHeightPx: colData.imageHeightPx !== undefined ? colData.imageHeightPx : baseCol.imageHeightPx,
+        backgroundImageUrl: colData.backgroundImageUrl !== undefined ? colData.backgroundImageUrl : baseCol.backgroundImageUrl,
       };
+      return reconstructedSection;
     });
   
     if (newRow.columns.length === 0) {
@@ -157,7 +165,6 @@ export function TemplateEditor({
       ...templateData,  
       id: anId,         
       name: templateData.name !== undefined ? templateData.name : baseTemplate.name,
-      // Ensure other top-level properties are correctly prioritized
       aspectRatio: templateData.aspectRatio !== undefined ? templateData.aspectRatio : baseTemplate.aspectRatio,
       frameStyle: templateData.frameStyle !== undefined ? templateData.frameStyle : baseTemplate.frameStyle,
       cardBackgroundImageUrl: templateData.cardBackgroundImageUrl !== undefined ? templateData.cardBackgroundImageUrl : baseTemplate.cardBackgroundImageUrl,
@@ -168,7 +175,7 @@ export function TemplateEditor({
       cardBorderWidth: templateData.cardBorderWidth !== undefined ? templateData.cardBorderWidth : baseTemplate.cardBorderWidth,
       cardBorderStyle: templateData.cardBorderStyle !== undefined ? templateData.cardBorderStyle : baseTemplate.cardBorderStyle,
       cardBorderRadius: templateData.cardBorderRadius !== undefined ? templateData.cardBorderRadius : baseTemplate.cardBorderRadius,
-      rows: [], // Will be populated below
+      rows: [], 
     };
 
     newTemplate.rows = (templateData.rows || baseTemplate.rows || []).map(r_data => 
@@ -189,6 +196,7 @@ export function TemplateEditor({
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
   const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>([]);
+  const [activeColumnAccordionItems, setActiveColumnAccordionItems] = useState<string[]>([]);
   const [activeStylingAccordion, setActiveStylingAccordion] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const cardBgImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -199,6 +207,7 @@ export function TemplateEditor({
     setSelectedTemplateToEditId(null); 
     setAspectRatioInput(newFreshTemplate.aspectRatio || TCG_ASPECT_RATIO);
     setActiveRowAccordionItems((newFreshTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]);
+    setActiveColumnAccordionItems([]);
     setActiveStylingAccordion(null);
     toast({ title: "Form Reset", description: `Ready to create a new template: "${newFreshTemplate.name}"` });
   }, [toast, reconstructTemplate, memoizedGetFreshDefaultTemplate]);
@@ -218,7 +227,7 @@ export function TemplateEditor({
          templateToLoad = initialTemplate;
     }
     else { 
-      templateToLoad = memoizedGetFreshDefaultTemplate(null, currentTemplate.name); // Pass current name if it's a new template being edited
+      templateToLoad = memoizedGetFreshDefaultTemplate(null, currentTemplate.name); 
     }
 
     const reconstructed = reconstructTemplate(templateToLoad);
@@ -281,7 +290,8 @@ export function TemplateEditor({
   const addSectionToRow = useCallback((rowId: string) => {
     const newSectionId = nanoid();
     setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: (prev.rows || []).map(r => r.id === rowId ? { ...r, columns: [...(r.columns || []), createDefaultSection(newSectionId)] } : r) }));
-    setActiveStylingAccordion(newSectionId);
+    setActiveStylingAccordion(newSectionId); // Open styling for new section
+    setActiveColumnAccordionItems(prevActive => [...prevActive, newSectionId]); // Open new column
     if (!activeRowAccordionItems.includes(rowId)) setActiveRowAccordionItems(prevActive => [...prevActive, rowId]);
   }, [reconstructTemplate, activeRowAccordionItems]);
 
@@ -289,6 +299,7 @@ export function TemplateEditor({
   const removeSectionFromRow = useCallback((rowId: string, sectionId: string) => {
     setCurrentTemplate(prev => reconstructTemplate({ ...prev, rows: (prev.rows || []).map(r => r.id === rowId ? { ...r, columns: (r.columns || []).filter(s => s.id !== sectionId).length > 0 ? (r.columns || []).filter(s => s.id !== sectionId) : [createDefaultSection(nanoid())] } : r) }));
     if (activeStylingAccordion === sectionId) setActiveStylingAccordion(null);
+    setActiveColumnAccordionItems(prevActive => prevActive.filter(id => id !== sectionId));
   }, [reconstructTemplate, activeStylingAccordion]);
 
   const onUpdateSectionInRow = useCallback((rowId: string, sectionId: string, updates: Partial<CardSection>) => {
@@ -383,6 +394,13 @@ export function TemplateEditor({
     setActiveStylingAccordion(prev => prev === sectionId ? null : sectionId);
   }, []);
 
+  const onToggleColumnAccordion = useCallback((sectionId: string) => {
+    setActiveColumnAccordionItems(prev =>
+      prev.includes(sectionId) ? prev.filter(id => id !== sectionId) : [...prev, sectionId]
+    );
+  }, []);
+
+
   const handleRowClickFromPreview = useCallback((rowId: string) => {
     setActiveRowAccordionItems(prev => {
       if (prev.includes(rowId) && prev.length === 1 && activeRowAccordionItems.length === 1) return prev;
@@ -395,9 +413,9 @@ export function TemplateEditor({
   const handleSectionClickFromPreview = useCallback((sectionId: string) => {
     const parentRow = (currentTemplate.rows || []).find(r => (r.columns || []).some(s => s.id === sectionId));
     if(parentRow && !activeRowAccordionItems.includes(parentRow.id)) setActiveRowAccordionItems(prevActive => [...prevActive, parentRow.id]);
-    onToggleStylingAccordion(sectionId);
+    onToggleColumnAccordion(sectionId);
     setTimeout(() => document.querySelector(`.column-editor-card[data-section-id="${sectionId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
-  }, [currentTemplate.rows, activeRowAccordionItems, onToggleStylingAccordion]);
+  }, [currentTemplate.rows, activeRowAccordionItems, onToggleColumnAccordion]);
 
   const handleCardBgImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -472,12 +490,12 @@ export function TemplateEditor({
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div>
+                     <div>
                         <Label htmlFor="templateName">Template Name</Label>
                         <Input
                             id="templateName"
-                            value={currentTemplate.name || ''}
-                             onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                            value={currentTemplate.name || ''} 
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                 updateCurrentTemplate({ name: e.target.value });
                             }}
                             placeholder="Enter a unique name for your template"
@@ -691,21 +709,30 @@ export function TemplateEditor({
                                 </h4>
                                 {(row.columns || []).length === 0 && <p className="text-xs text-muted-foreground">No sections (columns) in this row yet. Add one below.</p>}
                                 <div className="space-y-3">
-                                    {(row.columns || []).map((section, sectionIndex) => (
-                                        <ColumnEditor
-                                            key={section.id}
-                                            section={section}
-                                            sectionIndex={sectionIndex}
-                                            rowId={row.id}
-                                            isFirstColumn={sectionIndex === 0}
-                                            isLastColumn={(row.columns || []).length -1 === sectionIndex}
-                                            activeStylingAccordion={activeStylingAccordion}
-                                            onToggleStylingAccordion={onToggleStylingAccordion}
-                                            onUpdateSectionInRow={onUpdateSectionInRow}
-                                            onRemoveSectionFromRow={removeSectionFromRow}
-                                            onMoveSectionInRow={moveSectionInRow}
-                                        />
-                                    ))}
+                                    <Accordion
+                                        type="multiple"
+                                        value={activeColumnAccordionItems}
+                                        onValueChange={setActiveColumnAccordionItems}
+                                        className="w-full space-y-2"
+                                    >
+                                        {(row.columns || []).map((section, sectionIndex) => (
+                                            <ColumnEditor
+                                                key={section.id}
+                                                section={section}
+                                                sectionIndex={sectionIndex}
+                                                rowId={row.id}
+                                                isFirstColumn={sectionIndex === 0}
+                                                isLastColumn={(row.columns || []).length -1 === sectionIndex}
+                                                activeStylingAccordion={activeStylingAccordion}
+                                                onToggleStylingAccordion={onToggleStylingAccordion}
+                                                onUpdateSectionInRow={onUpdateSectionInRow}
+                                                onRemoveSectionFromRow={removeSectionFromRow}
+                                                onMoveSectionInRow={moveSectionInRow}
+                                                isColumnAccordionOpen={activeColumnAccordionItems.includes(section.id)}
+                                                onToggleColumnAccordion={() => onToggleColumnAccordion(section.id)}
+                                            />
+                                        ))}
+                                    </Accordion>
                                 </div>
                                 <div className="mt-3">
                                       <Button onClick={() => addSectionToRow(row.id)} variant="outline" size="sm" className="flex items-center gap-2">
@@ -771,4 +798,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
