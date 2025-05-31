@@ -91,7 +91,7 @@ const SectionStylingFormMemoized = ({
         <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5 px-2 sm:px-3">
           <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" />Styling Options</div>
         </AccordionTrigger>
-        <AccordionContent className="pt-2 pb-3 px-2 sm:px-3 space-y-2 border-t">
+        <AccordionContent className="p-px sm:p-2 space-y-2 border-t">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
             <div>
               <Label htmlFor={`contentBgColor-${section.id}`} className="text-xs">Background Color (Section)</Label>
