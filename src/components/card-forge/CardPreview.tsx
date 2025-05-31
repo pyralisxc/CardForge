@@ -229,6 +229,7 @@ export function CardPreview({
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
+                  section.borderRadius || 'rounded-none',
                   section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? section.minHeight : '',
                   sectionBorderClass,
                   section.sectionContentType !== 'image' ? 'whitespace-pre-wrap break-words' : '',

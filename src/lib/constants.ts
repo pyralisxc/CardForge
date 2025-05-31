@@ -47,6 +47,15 @@ export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Left (1px)', value: 'border-l' }, { label: 'Right (1px)', value: 'border-r' },
 ];
 
+export const BORDER_RADIUS_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: 'None', value: 'rounded-none' },
+  { label: 'Small', value: 'rounded-sm' },
+  { label: 'Medium', value: 'rounded-md' },
+  { label: 'Large', value: 'rounded-lg' },
+  { label: 'X-Large', value: 'rounded-xl' },
+  { label: 'Full', value: 'rounded-full' },
+];
+
 export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Auto', value: '_auto_' }, { label: 'Small (40px)', value: 'min-h-[40px]' },
   { label: 'Medium (80px)', value: 'min-h-[80px]' }, { label: 'Default Artwork (120px)', value: 'min-h-[120px]' },
@@ -92,6 +101,7 @@ export const createDefaultSection = (id: string, overrides: Partial<CardSection>
     padding: 'p-1',
     borderColor: '',
     borderWidth: '_none_',
+    borderRadius: 'rounded-none',
     minHeight: '_auto_',
     flexGrow: 0,
     customHeight: '',

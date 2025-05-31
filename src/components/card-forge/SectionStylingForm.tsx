@@ -8,12 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Paintbrush, Upload } from 'lucide-react'; 
+import { Paintbrush, Upload, RotateCcw } from 'lucide-react'; 
 import { Button } from '@/components/ui/button'; 
 import { useToast } from '@/hooks/use-toast'; 
+import { createDefaultSection } from '@/lib/constants';
 
 
-import { FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS } from '@/lib/constants';
+import { FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, BORDER_RADIUS_OPTIONS } from '@/lib/constants';
 
 interface SectionStylingFormProps {
   section: CardSection;
@@ -54,6 +55,28 @@ const SectionStylingFormMemoized = ({
     if (event.target) {
       event.target.value = "";
     }
+  };
+
+  const handleResetStyling = () => {
+    const defaultStyling = createDefaultSection(section.id);
+    const stylingUpdates: Partial<CardSection> = {
+      textColor: defaultStyling.textColor,
+      backgroundColor: defaultStyling.backgroundColor,
+      fontFamily: defaultStyling.fontFamily,
+      fontSize: defaultStyling.fontSize,
+      fontWeight: defaultStyling.fontWeight,
+      textAlign: defaultStyling.textAlign,
+      fontStyle: defaultStyling.fontStyle,
+      padding: defaultStyling.padding,
+      borderColor: defaultStyling.borderColor,
+      borderWidth: defaultStyling.borderWidth,
+      borderRadius: defaultStyling.borderRadius,
+      minHeight: defaultStyling.minHeight,
+      backgroundImageUrl: defaultStyling.backgroundImageUrl, // Reset background image URL as well
+      // Explicitly NOT resetting: id, sectionContentType, contentPlaceholder, flexGrow, customHeight, customWidth, imageWidthPx, imageHeightPx
+    };
+    handleUpdate(stylingUpdates);
+    toast({ title: "Styling Reset", description: `Styling for column reset to defaults.` });
   };
 
 
@@ -171,6 +194,13 @@ const SectionStylingFormMemoized = ({
               </Select>
             </div>
             <div>
+              <Label htmlFor={`borderRadius-${section.id}`} className="text-xs">Border Radius (Container)</Label>
+              <Select value={section.borderRadius || 'rounded-none'} onValueChange={v => handleUpdate({borderRadius: v === 'rounded-none' ? undefined : v})}>
+                <SelectTrigger id={`borderRadius-${section.id}`} className="text-xs h-8"><SelectValue placeholder="None"/></SelectTrigger>
+                <SelectContent>{BORDER_RADIUS_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height (Container)</Label>
               <Select value={section.minHeight || '_auto_'} onValueChange={v => handleUpdate({minHeight: v === '_auto_' ? undefined : v})}>
                 <SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger>
@@ -181,6 +211,17 @@ const SectionStylingFormMemoized = ({
               <Label htmlFor={`flexGrow-${section.id}`} className="text-xs cursor-pointer flex-grow">Flex Grow (expand to fill row space)</Label>
               <Input type="number" id={`flexGrow-${section.id}`} value={section.flexGrow || 0} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ flexGrow: parseInt(e.target.value,10) || 0 })} min="0" className="h-8 text-xs w-16" />
             </div>
+          </div>
+          <div className="mt-3 pt-3 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResetStyling}
+              className="w-full flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" /> Reset Styling to Defaults
+            </Button>
           </div>
         </AccordionContent>
       </AccordionItem>

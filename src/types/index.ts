@@ -18,6 +18,7 @@ export interface CardSection {
   padding?: string; 
   borderColor?: string;
   borderWidth?: string; 
+  borderRadius?: string; // Added
   minHeight?: string; 
   flexGrow?: number; 
   customHeight?: string; 

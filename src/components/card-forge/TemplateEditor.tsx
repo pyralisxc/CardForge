@@ -35,20 +35,20 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
   let newTemplateId: string | null;
   let newTemplateName: string;
 
-  if (id === null) {
+  if (id === null) { // Truly new, unsaved template
     newTemplateId = null;
     newTemplateName = nameProp && nameProp !== "New Unsaved Template" ? nameProp : `Template ${nanoid(8)}`;
-  } else if (id && nameProp && nameProp !== "New Unsaved Template") {
+  } else if (id && nameProp && nameProp !== "New Unsaved Template") { // Loading existing with a specific name
     newTemplateId = id;
     newTemplateName = nameProp;
-  } else if (id) {
+  } else if (id) { // Loading existing, nameProp might be undefined or "New Unsaved Template" (which we ignore)
     newTemplateId = id;
-    newTemplateName = nameProp || `Template ${String(id).substring(0, 8)}`;
-  } else {
+    newTemplateName = `Template ${String(id).substring(0, 8)}`; // Default to ID-based name if nameProp is not suitable
+  } else { // Fallback: Should ideally not be hit if id is null is handled above, but as safety for new templates
     newTemplateId = nanoid();
-    newTemplateName = nameProp || `Template ${newTemplateId.substring(0, 8)}`;
+    newTemplateName = nameProp && nameProp !== "New Unsaved Template" ? nameProp : `Template ${newTemplateId.substring(0, 8)}`;
   }
-  
+
   const defaultRowId1 = id === null ? 'unsaved-default-row-1-v9-stable-id' : nanoid();
   const defaultSectionId1 = id === null ? 'unsaved-default-sec-1-v9-stable-id' : nanoid();
   const defaultRowId2 = id === null ? 'unsaved-default-row-2-v9-stable-id' : nanoid();
@@ -70,7 +70,7 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
     cardBackgroundImageUrl: '',
     rows: [
       createDefaultRow(defaultRowId1, [
-        createDefaultSection(defaultSectionId1, { contentPlaceholder: `{{cardName:"${newTemplateName}"}}`, flexGrow: 1, sectionContentType: 'placeholder', textAlign:'center', fontSize:'text-lg', fontWeight: 'font-bold' }),
+        createDefaultSection(defaultSectionId1, { contentPlaceholder: `{{cardName}}`, flexGrow: 1, sectionContentType: 'placeholder', textAlign:'center', fontSize:'text-lg', fontWeight: 'font-bold' }),
       ]),
       createDefaultRow(defaultRowId2, [
         createDefaultSection(defaultSectionId2, { contentPlaceholder: '{{artworkUrl}}', sectionContentType:'image', flexGrow:1, customHeight: '200px', imageWidthPx: '260', imageHeightPx:'180' }),
@@ -97,6 +97,56 @@ export function TemplateEditor({
   
   const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
 
+  const reconstructRow = useCallback((rowData: Partial<CardRow>, baseTemplateRows: CardRow[]): CardRow => {
+    const rowId = rowData.id || nanoid();
+    const baseRow = baseTemplateRows.find(br => br.id === rowId) || createDefaultRow(rowId);
+  
+    const newRow: CardRow = {
+      ...createDefaultRow(rowId), // Start with a fresh default row structure for this ID
+      ...baseRow,                 // Overlay defaults from the base template's version of this row
+      ...rowData,                 // Overlay specific data for this row from templateData
+      id: rowId,                  // Ensure ID
+    };
+  
+    newRow.columns = (rowData.columns || baseRow.columns || []).map(colData => {
+      const colId = colData.id || nanoid();
+      const baseCol = (baseRow.columns || []).find(bc => bc.id === colId) || createDefaultSection(colId);
+      
+      return {
+        ...createDefaultSection(colId), // Default section structure for this ID
+        ...baseCol,                     // Base template's version of this column
+        ...colData,                     // Specific data for this column from templateData (most important)
+        id: colId,                      // Ensure ID
+        // Explicitly re-assert key properties if they involve complex fallbacks or undefined vs. empty string distinctions
+        sectionContentType: colData.sectionContentType || baseCol.sectionContentType || createDefaultSection(colId).sectionContentType,
+        contentPlaceholder: colData.contentPlaceholder !== undefined ? colData.contentPlaceholder : (baseCol.contentPlaceholder !== undefined ? baseCol.contentPlaceholder : createDefaultSection(colId).contentPlaceholder),
+        backgroundImageUrl: colData.backgroundImageUrl !== undefined ? colData.backgroundImageUrl : baseCol.backgroundImageUrl,
+        imageWidthPx: colData.imageWidthPx !== undefined ? colData.imageWidthPx : baseCol.imageWidthPx,
+        imageHeightPx: colData.imageHeightPx !== undefined ? colData.imageHeightPx : baseCol.imageHeightPx,
+        textColor: colData.textColor !== undefined ? colData.textColor : baseCol.textColor,
+        backgroundColor: colData.backgroundColor !== undefined ? colData.backgroundColor : baseCol.backgroundColor,
+        fontFamily: colData.fontFamily !== undefined ? colData.fontFamily : baseCol.fontFamily,
+        fontSize: colData.fontSize !== undefined ? colData.fontSize : baseCol.fontSize,
+        fontWeight: colData.fontWeight !== undefined ? colData.fontWeight : baseCol.fontWeight,
+        textAlign: colData.textAlign !== undefined ? colData.textAlign : baseCol.textAlign,
+        fontStyle: colData.fontStyle !== undefined ? colData.fontStyle : baseCol.fontStyle,
+        padding: colData.padding !== undefined ? colData.padding : baseCol.padding,
+        borderColor: colData.borderColor !== undefined ? colData.borderColor : baseCol.borderColor,
+        borderWidth: colData.borderWidth !== undefined ? colData.borderWidth : baseCol.borderWidth,
+        borderRadius: colData.borderRadius !== undefined ? colData.borderRadius : baseCol.borderRadius,
+        minHeight: colData.minHeight !== undefined ? colData.minHeight : baseCol.minHeight,
+        flexGrow: colData.flexGrow !== undefined ? colData.flexGrow : baseCol.flexGrow,
+        customHeight: colData.customHeight !== undefined ? colData.customHeight : baseCol.customHeight,
+        customWidth: colData.customWidth !== undefined ? colData.customWidth : baseCol.customWidth,
+      };
+    });
+  
+    if (newRow.columns.length === 0) {
+      newRow.columns = [createDefaultSection(nanoid())];
+    }
+    return newRow;
+  }, []);
+
 
   const reconstructTemplate = useCallback((templateData: Partial<TCGCardTemplate>): TCGCardTemplate => {
     const anId = templateData.id !== undefined ? templateData.id : (templateData.name === "New Unsaved Template" && templateData.id === undefined ? null : nanoid());
@@ -107,67 +157,29 @@ export function TemplateEditor({
       ...templateData,  
       id: anId,         
       name: templateData.name !== undefined ? templateData.name : baseTemplate.name,
+      // Ensure other top-level properties are correctly prioritized
+      aspectRatio: templateData.aspectRatio !== undefined ? templateData.aspectRatio : baseTemplate.aspectRatio,
+      frameStyle: templateData.frameStyle !== undefined ? templateData.frameStyle : baseTemplate.frameStyle,
+      cardBackgroundImageUrl: templateData.cardBackgroundImageUrl !== undefined ? templateData.cardBackgroundImageUrl : baseTemplate.cardBackgroundImageUrl,
+      baseBackgroundColor: templateData.baseBackgroundColor !== undefined ? templateData.baseBackgroundColor : baseTemplate.baseBackgroundColor,
+      baseTextColor: templateData.baseTextColor !== undefined ? templateData.baseTextColor : baseTemplate.baseTextColor,
+      defaultSectionBorderColor: templateData.defaultSectionBorderColor !== undefined ? templateData.defaultSectionBorderColor : baseTemplate.defaultSectionBorderColor,
+      cardBorderColor: templateData.cardBorderColor !== undefined ? templateData.cardBorderColor : baseTemplate.cardBorderColor,
+      cardBorderWidth: templateData.cardBorderWidth !== undefined ? templateData.cardBorderWidth : baseTemplate.cardBorderWidth,
+      cardBorderStyle: templateData.cardBorderStyle !== undefined ? templateData.cardBorderStyle : baseTemplate.cardBorderStyle,
+      cardBorderRadius: templateData.cardBorderRadius !== undefined ? templateData.cardBorderRadius : baseTemplate.cardBorderRadius,
+      rows: [], // Will be populated below
     };
 
-    newTemplate.rows = (templateData.rows || []).map(currentRowDataFromState => {
-        const rowId = currentRowDataFromState.id || nanoid();
-        const baseTemplateRow = baseTemplate.rows.find(br => br.id === rowId) || createDefaultRow(rowId);
-
-        const reconstructedRow: CardRow = {
-            ...createDefaultRow(rowId),
-            ...baseTemplateRow,
-            ...currentRowDataFromState,
-            id: rowId,
-        };
-
-        reconstructedRow.columns = (currentRowDataFromState.columns || []).map(currentSectionDataFromState => {
-            const sectionId = currentSectionDataFromState.id || nanoid();
-            const baseTemplateSection = (baseTemplateRow.columns || []).find(bs => bs.id === sectionId) || createDefaultSection(sectionId);
-
-            const reconstructedSection: CardSection = {
-                ...createDefaultSection(sectionId),
-                ...baseTemplateSection,
-                ...currentSectionDataFromState,
-                id: sectionId,
-
-                sectionContentType: currentSectionDataFromState.sectionContentType || baseTemplateSection.sectionContentType || createDefaultSection(sectionId).sectionContentType,
-                contentPlaceholder: currentSectionDataFromState.contentPlaceholder !== undefined 
-                                    ? currentSectionDataFromState.contentPlaceholder 
-                                    : (baseTemplateSection.contentPlaceholder !== undefined 
-                                        ? baseTemplateSection.contentPlaceholder 
-                                        : createDefaultSection(sectionId).contentPlaceholder),
-                textColor: currentSectionDataFromState.textColor !== undefined ? currentSectionDataFromState.textColor : baseTemplateSection.textColor,
-                backgroundColor: currentSectionDataFromState.backgroundColor !== undefined ? currentSectionDataFromState.backgroundColor : baseTemplateSection.backgroundColor,
-                fontFamily: currentSectionDataFromState.fontFamily !== undefined ? currentSectionDataFromState.fontFamily : baseTemplateSection.fontFamily,
-                fontSize: currentSectionDataFromState.fontSize !== undefined ? currentSectionDataFromState.fontSize : baseTemplateSection.fontSize,
-                fontWeight: currentSectionDataFromState.fontWeight !== undefined ? currentSectionDataFromState.fontWeight : baseTemplateSection.fontWeight,
-                textAlign: currentSectionDataFromState.textAlign !== undefined ? currentSectionDataFromState.textAlign : baseTemplateSection.textAlign,
-                fontStyle: currentSectionDataFromState.fontStyle !== undefined ? currentSectionDataFromState.fontStyle : baseTemplateSection.fontStyle,
-                padding: currentSectionDataFromState.padding !== undefined ? currentSectionDataFromState.padding : baseTemplateSection.padding,
-                borderColor: currentSectionDataFromState.borderColor !== undefined ? currentSectionDataFromState.borderColor : baseTemplateSection.borderColor,
-                borderWidth: currentSectionDataFromState.borderWidth !== undefined ? currentSectionDataFromState.borderWidth : baseTemplateSection.borderWidth,
-                minHeight: currentSectionDataFromState.minHeight !== undefined ? currentSectionDataFromState.minHeight : baseTemplateSection.minHeight,
-                flexGrow: currentSectionDataFromState.flexGrow !== undefined ? currentSectionDataFromState.flexGrow : baseTemplateSection.flexGrow,
-                customHeight: currentSectionDataFromState.customHeight !== undefined ? currentSectionDataFromState.customHeight : baseTemplateSection.customHeight,
-                customWidth: currentSectionDataFromState.customWidth !== undefined ? currentSectionDataFromState.customWidth : baseTemplateSection.customWidth,
-                imageWidthPx: currentSectionDataFromState.imageWidthPx !== undefined ? currentSectionDataFromState.imageWidthPx : baseTemplateSection.imageWidthPx,
-                imageHeightPx: currentSectionDataFromState.imageHeightPx !== undefined ? currentSectionDataFromState.imageHeightPx : baseTemplateSection.imageHeightPx,
-                backgroundImageUrl: currentSectionDataFromState.backgroundImageUrl !== undefined ? currentSectionDataFromState.backgroundImageUrl : baseTemplateSection.backgroundImageUrl,
-            };
-            return reconstructedSection;
-        });
-
-        if (reconstructedRow.columns.length === 0) {
-            reconstructedRow.columns = [createDefaultSection(nanoid())];
-        }
-        return reconstructedRow;
-    });
+    newTemplate.rows = (templateData.rows || baseTemplate.rows || []).map(r_data => 
+      reconstructRow(r_data, baseTemplate.rows)
+    );
 
     if (newTemplate.rows.length === 0) {
-        newTemplate.rows = [createDefaultRow(nanoid(), [createDefaultSection(nanoid())])];
+      newTemplate.rows = [createDefaultRow(nanoid(), [createDefaultSection(nanoid())])];
     }
     return newTemplate;
-  }, [memoizedGetFreshDefaultTemplate]);
+  }, [memoizedGetFreshDefaultTemplate, reconstructRow]);
 
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() =>
@@ -206,7 +218,7 @@ export function TemplateEditor({
          templateToLoad = initialTemplate;
     }
     else { 
-      templateToLoad = memoizedGetFreshDefaultTemplate(null);
+      templateToLoad = memoizedGetFreshDefaultTemplate(null, currentTemplate.name); // Pass current name if it's a new template being edited
     }
 
     const reconstructed = reconstructTemplate(templateToLoad);
