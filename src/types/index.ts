@@ -18,6 +18,7 @@ export interface CardSection {
   padding?: string; 
   borderColor?: string;
   borderWidth?: string; 
+  borderRadius?: string; // Added border radius
   minHeight?: string; 
   flexGrow?: number; 
   customHeight?: string; 
@@ -33,7 +34,7 @@ export interface CardRow {
 
 export interface TCGCardTemplate {
   id: string | null; 
-  name: string; // No longer optional, getFreshDefaultTemplate will always provide one
+  name: string; 
   aspectRatio: string;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
@@ -70,11 +71,3 @@ export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
 }
-
-// No longer needed as context sets feature is removed
-// export interface AbilityContextSet {
-//   id: string;
-//   name: string;
-//   description: string; 
-// }
-

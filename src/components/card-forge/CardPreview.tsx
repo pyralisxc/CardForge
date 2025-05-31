@@ -57,8 +57,8 @@ export function CardPreview({
     const resolvedCardBgUrl = replacePlaceholdersLocal(template.cardBackgroundImageUrl, data, isEditorPreview);
     if (resolvedCardBgUrl && (resolvedCardBgUrl.startsWith('http') || resolvedCardBgUrl.startsWith('data:'))) {
         cardContainerStyle.backgroundImage = `url(${resolvedCardBgUrl})`;
-        cardContainerStyle.backgroundSize = 'cover'; // Default, can be made configurable
-        cardContainerStyle.backgroundPosition = 'center'; // Default
+        cardContainerStyle.backgroundSize = 'cover'; 
+        cardContainerStyle.backgroundPosition = 'center'; 
     }
   }
 
@@ -77,9 +77,9 @@ export function CardPreview({
   const cardStandardHeightInches = (88 / 25.4).toFixed(1);
 
   const artworkHintValue = useMemo(() => {
-    let nameValue = 'card art'; // Default hint
+    let nameValue = 'card art'; 
     if (data) {
-      // Try to find a common 'name' or 'title' placeholder in the data
+      
       const nameKeys = ['cardName', 'title', 'name'];
       for (const key of nameKeys) {
         if (data[key] && typeof data[key] === 'string' && (data[key] as string).trim()) {
@@ -88,11 +88,11 @@ export function CardPreview({
         }
       }
     }
-    return nameValue.substring(0, 50); // Limit length
+    return nameValue.substring(0, 50); 
   }, [data]);
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
-    if (isEditorPreview) return false; // Never hide sections in the template editor's live preview
+    if (isEditorPreview) return false; 
     if (hideEmptySections) {
       if (section.sectionContentType === 'image') {
         const imageKey = section.contentPlaceholder;
@@ -187,6 +187,7 @@ export function CardPreview({
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,
                   overflowWrap: 'break-word',
+                  // borderRadius is applied via cn below if it's a Tailwind class
                 };
                 
                 if (section.backgroundImageUrl) {
@@ -229,6 +230,7 @@ export function CardPreview({
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
+                  section.borderRadius || 'rounded-none', // Apply border radius class
                   section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? section.minHeight : '',
                   sectionBorderClass,
                   section.sectionContentType !== 'image' ? 'whitespace-pre-wrap break-words' : '',
@@ -292,7 +294,7 @@ export function CardPreview({
                     return (
                         <div
                             key={section.id}
-                            className={cn(sectionClasses, section.padding || 'p-0')}
+                            className={cn(sectionClasses, section.padding || 'p-0')} // Image container usually doesn't need padding itself
                             style={{
                                 ...sectionStyle,
                                 width: section.imageWidthPx ? `${displayWidth}px` : (section.customWidth || '100%'),

@@ -2,18 +2,18 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import React, { useRef } from 'react'; // Added useRef
+import React, { useRef } from 'react'; 
 import type { CardSection } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Paintbrush, Upload } from 'lucide-react'; // Added Upload
-import { Button } from '@/components/ui/button'; // Added Button
-import { useToast } from '@/hooks/use-toast'; // Added useToast
+import { Paintbrush, Upload } from 'lucide-react'; 
+import { Button } from '@/components/ui/button'; 
+import { useToast } from '@/hooks/use-toast'; 
 
 
-import { FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS } from '@/lib/constants';
+import { FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, BORDER_RADIUS_OPTIONS } from '@/lib/constants';
 
 interface SectionStylingFormProps {
   section: CardSection;
@@ -168,6 +168,13 @@ const SectionStylingFormMemoized = ({
               <Select value={section.borderWidth || '_none_'} onValueChange={v => handleUpdate({borderWidth: v === '_none_' ? undefined : v})}>
                 <SelectTrigger id={`borderWidth-${section.id}`} className="text-xs h-8"><SelectValue placeholder="No border"/></SelectTrigger>
                 <SelectContent>{BORDER_WIDTH_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor={`borderRadius-${section.id}`} className="text-xs">Border Radius (Container)</Label>
+              <Select value={section.borderRadius || 'rounded-none'} onValueChange={v => handleUpdate({borderRadius: (v === '_custom_' || v === 'rounded-none' ? undefined : v) })}>
+                <SelectTrigger id={`borderRadius-${section.id}`} className="text-xs h-8"><SelectValue placeholder="None"/></SelectTrigger>
+                <SelectContent>{BORDER_RADIUS_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>

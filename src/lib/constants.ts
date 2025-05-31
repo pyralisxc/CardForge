@@ -47,6 +47,17 @@ export const BORDER_WIDTH_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Left (1px)', value: 'border-l' }, { label: 'Right (1px)', value: 'border-r' },
 ];
 
+export const BORDER_RADIUS_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: 'None', value: 'rounded-none' },
+  { label: 'Small', value: 'rounded-sm' },
+  { label: 'Medium', value: 'rounded-md' },
+  { label: 'Large', value: 'rounded-lg' },
+  { label: 'X-Large', value: 'rounded-xl' },
+  { label: 'Full (Pill/Circle)', value: 'rounded-full' },
+  { label: 'Custom (direct CSS)', value: '_custom_' }, // For direct CSS input if needed later
+];
+
+
 export const MIN_HEIGHT_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'Auto', value: '_auto_' }, { label: 'Small (40px)', value: 'min-h-[40px]' },
   { label: 'Medium (80px)', value: 'min-h-[80px]' }, { label: 'Default Artwork (120px)', value: 'min-h-[120px]' },
@@ -76,7 +87,7 @@ export const SECTION_CONTENT_TYPES: Array<{label: string, value: CardSection['se
 ];
 
 
-export const createDefaultSection = (id: string): CardSection => {
+export const createDefaultSection = (id: string, overrides: Partial<CardSection> = {}): CardSection => {
   const baseSection: CardSection = {
     id: id,
     sectionContentType: 'placeholder',
@@ -92,12 +103,14 @@ export const createDefaultSection = (id: string): CardSection => {
     padding: 'p-1',
     borderColor: '',
     borderWidth: '_none_',
+    borderRadius: 'rounded-none', // Default border radius
     minHeight: '_auto_',
     flexGrow: 0,
     customHeight: '',
     customWidth: '',
-    imageWidthPx: '100', // Default for image type, can be overridden
-    imageHeightPx: '100', // Default for image type, can be overridden
+    imageWidthPx: '100', 
+    imageHeightPx: '100', 
+    ...overrides,
   };
   return baseSection;
 };
