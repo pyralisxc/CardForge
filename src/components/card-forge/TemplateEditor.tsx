@@ -747,7 +747,7 @@ export function TemplateEditor({
                                     type="multiple"
                                     value={activeRowAccordionItems}
                                     onValueChange={setActiveRowAccordionItems}
-                                    className="w-full space-y-2 pr-2"
+                                    className="w-full space-y-2"
                                 >
                                     {(currentTemplate.rows || []).map((row, rowIndex) => (
                                     <AccordionItem value={row.id} key={row.id} id={`accordion-row-${row.id}`} className="border border-border bg-card/60 rounded-md overflow-hidden last:mb-0">
