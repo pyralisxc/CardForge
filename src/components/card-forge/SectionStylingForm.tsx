@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast'; 
 
 
-import { FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS, BORDER_RADIUS_OPTIONS } from '@/lib/constants';
+import { FONT_SIZES, FONT_WEIGHTS, TEXT_ALIGNS, FONT_STYLES, AVAILABLE_FONTS, PADDING_OPTIONS, BORDER_WIDTH_OPTIONS, MIN_HEIGHT_OPTIONS } from '@/lib/constants';
 
 interface SectionStylingFormProps {
   section: CardSection;
@@ -171,13 +171,6 @@ const SectionStylingFormMemoized = ({
               </Select>
             </div>
             <div>
-              <Label htmlFor={`borderRadius-${section.id}`} className="text-xs">Border Radius (Container)</Label>
-              <Select value={section.borderRadius || 'rounded-none'} onValueChange={v => handleUpdate({borderRadius: (v === '_custom_' || v === 'rounded-none' ? undefined : v) })}>
-                <SelectTrigger id={`borderRadius-${section.id}`} className="text-xs h-8"><SelectValue placeholder="None"/></SelectTrigger>
-                <SelectContent>{BORDER_RADIUS_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label htmlFor={`minHeight-${section.id}`} className="text-xs">Min Height (Container)</Label>
               <Select value={section.minHeight || '_auto_'} onValueChange={v => handleUpdate({minHeight: v === '_auto_' ? undefined : v})}>
                 <SelectTrigger id={`minHeight-${section.id}`} className="text-xs h-8"><SelectValue placeholder="Auto"/></SelectTrigger>
@@ -196,3 +189,4 @@ const SectionStylingFormMemoized = ({
 };
 
 export const SectionStylingForm = React.memo(SectionStylingFormMemoized);
+

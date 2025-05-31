@@ -18,7 +18,6 @@ export interface CardSection {
   padding?: string; 
   borderColor?: string;
   borderWidth?: string; 
-  borderRadius?: string; // Added border radius
   minHeight?: string; 
   flexGrow?: number; 
   customHeight?: string; 
@@ -71,3 +70,4 @@ export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
 }
+

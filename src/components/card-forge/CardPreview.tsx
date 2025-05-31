@@ -187,7 +187,6 @@ export function CardPreview({
                   height: section.customHeight || undefined,
                   width: section.customWidth || undefined,
                   overflowWrap: 'break-word',
-                  // borderRadius is applied via cn below if it's a Tailwind class
                 };
                 
                 if (section.backgroundImageUrl) {
@@ -230,7 +229,6 @@ export function CardPreview({
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
-                  section.borderRadius || 'rounded-none', // Apply border radius class
                   section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? section.minHeight : '',
                   sectionBorderClass,
                   section.sectionContentType !== 'image' ? 'whitespace-pre-wrap break-words' : '',
@@ -347,3 +345,4 @@ export function CardPreview({
     </div>
   );
 }
+
