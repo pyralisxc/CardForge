@@ -5,6 +5,7 @@ import type { DisplayCard, CardSection, CardData, CardRow } from '@/types';
 import NextImage from 'next/image';
 import { cn, replacePlaceholdersLocal } from '@/lib/utils';
 import { useMemo } from 'react';
+import { TCG_ASPECT_RATIO } from '@/lib/constants';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -20,6 +21,8 @@ interface CardPreviewProps {
 }
 
 const PREVIEW_WIDTH_PX = 280; // Default preview width in editor
+const STANDARD_TCG_WIDTH_MM = 63;
+const MM_TO_INCHES = 1 / 25.4;
 
 export function CardPreview({
   card,
@@ -38,7 +41,7 @@ export function CardPreview({
   if (!template) return <div className="text-destructive">Error: Template not provided.</div>;
 
   const effectiveWidthPx = targetWidthPx || PREVIEW_WIDTH_PX;
-  const [aspectW, aspectH] = (template.aspectRatio || "63:88").split(':').map(Number);
+  const [aspectW, aspectH] = (template.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
   const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (effectiveWidthPx / aspectW) * aspectH : (effectiveWidthPx / (63 / 88));
 
   const cardContainerStyle: React.CSSProperties = {
@@ -72,8 +75,22 @@ export function CardPreview({
   }
   if (template.cardBorderRadius) cardContainerStyle.borderRadius = template.cardBorderRadius;
 
-  const cardStandardWidthInches = (63 / 25.4).toFixed(1);
-  const cardStandardHeightInches = (88 / 25.4).toFixed(1);
+  const calculatedPrintSize = useMemo(() => {
+    if (!showSizeInfo) return '';
+    const [ratioW, ratioH] = (template.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
+    if (isNaN(ratioW) || isNaN(ratioH) || ratioW <= 0 || ratioH <= 0) {
+        // Fallback to default TCG dimensions if ratio is invalid
+        const defaultWidthIn = (STANDARD_TCG_WIDTH_MM * MM_TO_INCHES).toFixed(1);
+        const defaultHeightIn = (88 * MM_TO_INCHES).toFixed(1); // Standard 88mm height
+        return `Approx. Print Size: ${defaultWidthIn}in x ${defaultHeightIn}in`;
+    }
+
+    const calculatedHeightMm = (STANDARD_TCG_WIDTH_MM / ratioW) * ratioH;
+    const widthInches = (STANDARD_TCG_WIDTH_MM * MM_TO_INCHES).toFixed(1);
+    const heightInches = (calculatedHeightMm * MM_TO_INCHES).toFixed(1);
+    return `Approx. Print Size: ${widthInches}in x ${heightInches}in`;
+  }, [template.aspectRatio, showSizeInfo]);
+
 
   const artworkHintValue = useMemo(() => {
     let nameValue = 'card art'; 
@@ -343,9 +360,11 @@ export function CardPreview({
       </div>
       {showSizeInfo && !isPrintMode && (
         <div className="text-xs text-muted-foreground mt-1" data-html2canvas-ignore="true">
-          Approx. Print Size: {cardStandardWidthInches}in x {cardStandardHeightInches}in
+          {calculatedPrintSize}
         </div>
       )}
     </div>
   );
 }
+
+  
