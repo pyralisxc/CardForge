@@ -11,7 +11,7 @@ import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
-import { PrintButton } from '@/components/card-forge/PrintButton';
+import { SaveAsPdfButton } from '@/components/card-forge/SaveAsPdfButton'; // Updated import
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -63,19 +63,17 @@ export default function CardForgePage() {
             }
         } catch (e) {
             console.warn("Failed to parse templates from localStorage. Starting fresh.", e);
-             initialTemplatesToLoad = []; // Start fresh if parsing fails
+             initialTemplatesToLoad = []; 
         }
     }
     
-    // If localStorage is empty (or was invalid), and DEFAULT_TEMPLATES is empty, we ensure templates state is also empty.
     if (initialTemplatesToLoad.length === 0 && DEFAULT_TEMPLATES.length === 0) {
-        if (templates.length > 0) { // Only update if current state is not already empty
+        if (templates.length > 0) { 
             setTemplates([]);
         }
         return;
     }
     
-    // If localStorage is empty but we have coded defaults (which we don't currently, but for future proofing)
     if (initialTemplatesToLoad.length === 0 && DEFAULT_TEMPLATES.length > 0) {
       initialTemplatesToLoad = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
     }
@@ -85,7 +83,7 @@ export default function CardForgePage() {
         const baseTemplate = getFreshDefaultTemplate(t_loaded.id, t_loaded.name);
         let newT: TCGCardTemplate = { ...baseTemplate, ...t_loaded };
         newT.id = newT.id || baseTemplate.id || nanoid();
-        newT.name = newT.name || baseTemplate.name; // Ensure name, getFreshDefaultTemplate will provide one if t_loaded.name is null
+        newT.name = newT.name || baseTemplate.name; 
 
         newT.rows = (t_loaded.rows || []).map((r_loaded: Partial<CardRow>) => {
             const rowId = r_loaded.id || nanoid();
@@ -102,6 +100,7 @@ export default function CardForgePage() {
                 newC.backgroundImageUrl = newC.backgroundImageUrl === undefined ? baseCol.backgroundImageUrl : newC.backgroundImageUrl;
                 newC.imageWidthPx = newC.imageWidthPx === undefined ? baseCol.imageWidthPx : newC.imageWidthPx;
                 newC.imageHeightPx = newC.imageHeightPx === undefined ? baseCol.imageHeightPx : newC.imageHeightPx;
+                newC.borderRadius = newC.borderRadius === undefined ? baseCol.borderRadius : newC.borderRadius;
                 return newC;
             });
              if (newR.columns.length === 0) {
@@ -253,6 +252,7 @@ export default function CardForgePage() {
                   newC.backgroundImageUrl = newC.backgroundImageUrl === undefined ? baseCol.backgroundImageUrl : newC.backgroundImageUrl;
                   newC.imageWidthPx = newC.imageWidthPx === undefined ? baseCol.imageWidthPx : newC.imageWidthPx;
                   newC.imageHeightPx = newC.imageHeightPx === undefined ? baseCol.imageHeightPx : newC.imageHeightPx;
+                  newC.borderRadius = newC.borderRadius === undefined ? baseCol.borderRadius : newC.borderRadius;
                   return newC;
                 });
                  if (newR.columns.length === 0) newR.columns = [createDefaultSection(nanoid())];
@@ -363,7 +363,7 @@ export default function CardForgePage() {
 
                   <Card>
                       <CardHeader>
-                          <CardTitle className="text-xl flex items-center gap-2"> Manage & Preview</CardTitle>
+                          <CardTitle className="text-xl flex items-center gap-2"> Manage & Export</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                           <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
@@ -388,7 +388,11 @@ export default function CardForgePage() {
                                </Button>
                                <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
                              </div>
-                              <PrintButton disabled={generatedDisplayCards.length === 0} />
+                              <SaveAsPdfButton 
+                                generatedDisplayCards={generatedDisplayCards}
+                                selectedPaperSize={selectedPaperSize}
+                                disabled={generatedDisplayCards.length === 0} 
+                              />
                               {generatedDisplayCards.length > 0 && (
                                   <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
                                       <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
@@ -408,13 +412,13 @@ export default function CardForgePage() {
                       <p className="text-sm">Use the panels on the left to add cards or load a set.</p>
                     </div>
                   ) : (
-                    <ScrollArea id="printable-cards-area" className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 printable-grid">
+                    <ScrollArea className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
                         {generatedDisplayCards.map((cardItem, index) => (
                           <CardPreview
                             key={cardItem.uniqueId}
                             card={cardItem}
-                            isPrintMode={false}
+                            isPrintMode={false} // isPrintMode might be deprecated
                             className="mx-auto"
                             showSizeInfo={index === 0}
                             hideEmptySections={hideEmptySections}
