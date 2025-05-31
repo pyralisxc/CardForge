@@ -3,12 +3,12 @@
 
 import type { DisplayCard, CardSection, CardData, CardRow } from '@/types';
 import NextImage from 'next/image';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils';
+import { cn, replacePlaceholdersLocal, simplifyRatio, gcd } from '@/lib/utils'; // Added simplifyRatio, gcd
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 
 interface CardPreviewProps {
-  card: DisplayCard;
+  card: DisplayCard; // Updated to expect the new DisplayCard structure
   className?: string;
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
@@ -18,9 +18,10 @@ interface CardPreviewProps {
   onRowClick?: (rowId: string) => void;
   onEdit?: (card: DisplayCard) => void;
   targetWidthPx?: number;
+  forceRenderSide?: 'front' | 'back'; // For PDF generator to explicitly render back
 }
 
-const PREVIEW_WIDTH_PX = 280; // Default preview width in editor
+const PREVIEW_WIDTH_PX = 280; 
 const STANDARD_TCG_WIDTH_MM = 63;
 const MM_TO_INCHES = 1 / 25.4;
 
@@ -35,13 +36,39 @@ export function CardPreview({
   onRowClick,
   onEdit,
   targetWidthPx,
+  forceRenderSide = 'front',
 }: CardPreviewProps) {
-  const { template, data } = card;
+  
+  const templateToRender = (forceRenderSide === 'back' && card.backTemplate) ? card.backTemplate : card.frontTemplate;
+  const dataToRender = (forceRenderSide === 'back' && card.backData) ? card.backData : card.frontData;
 
-  if (!template) return <div className="text-destructive">Error: Template not provided.</div>;
+  if (!templateToRender) { // If forcing back and no back template, render nothing or a placeholder
+    if (forceRenderSide === 'back') {
+        // Optionally render a blank card or specific "no back" visual for PDF
+        const [aspectW, aspectH] = (card.frontTemplate.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
+        const effectiveWidth = targetWidthPx || PREVIEW_WIDTH_PX;
+        const cardPixelHeightFallback = (effectiveWidth / aspectW) * aspectH;
+        return (
+            <div 
+                className={cn("flex items-center justify-center bg-muted text-muted-foreground", className)}
+                style={{
+                    width: `${effectiveWidth}px`,
+                    height: `${cardPixelHeightFallback}px`,
+                    aspectRatio: `${aspectW}/${aspectH}`,
+                    border: '1px dashed hsl(var(--border))',
+                    borderRadius: card.frontTemplate.cardBorderRadius || 'var(--radius)',
+                }}
+            >
+                No Back
+            </div>
+        );
+    }
+    return <div className="text-destructive">Error: Template not provided for rendering.</div>;
+  }
+
 
   const effectiveWidthPx = targetWidthPx || PREVIEW_WIDTH_PX;
-  const [aspectW, aspectH] = (template.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
+  const [aspectW, aspectH] = (templateToRender.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
   const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (effectiveWidthPx / aspectW) * aspectH : (effectiveWidthPx / (63 / 88));
 
   const cardContainerStyle: React.CSSProperties = {
@@ -51,13 +78,13 @@ export function CardPreview({
     boxSizing: 'border-box',
   };
 
-  if (template.frameStyle === 'standard' || template.frameStyle === 'custom') {
-    if (template.baseBackgroundColor) cardContainerStyle.backgroundColor = template.baseBackgroundColor;
-    if (template.baseTextColor) cardContainerStyle.color = template.baseTextColor;
+  if (templateToRender.frameStyle === 'standard' || templateToRender.frameStyle === 'custom') {
+    if (templateToRender.baseBackgroundColor) cardContainerStyle.backgroundColor = templateToRender.baseBackgroundColor;
+    if (templateToRender.baseTextColor) cardContainerStyle.color = templateToRender.baseTextColor;
   }
   
-  if (template.cardBackgroundImageUrl) {
-    const resolvedCardBgUrl = replacePlaceholdersLocal(template.cardBackgroundImageUrl, data, isEditorPreview);
+  if (templateToRender.cardBackgroundImageUrl) {
+    const resolvedCardBgUrl = replacePlaceholdersLocal(templateToRender.cardBackgroundImageUrl, dataToRender, isEditorPreview);
     if (resolvedCardBgUrl && (resolvedCardBgUrl.startsWith('http') || resolvedCardBgUrl.startsWith('data:'))) {
         cardContainerStyle.backgroundImage = `url(${resolvedCardBgUrl})`;
         cardContainerStyle.backgroundSize = 'cover'; 
@@ -65,23 +92,22 @@ export function CardPreview({
     }
   }
 
-  if (template.cardBorderColor) cardContainerStyle.borderColor = template.cardBorderColor;
-  if (template.cardBorderWidth) cardContainerStyle.borderWidth = template.cardBorderWidth;
-  if (template.cardBorderStyle && template.cardBorderStyle !== '_default_' && template.cardBorderStyle !== 'none') {
-    cardContainerStyle.borderStyle = template.cardBorderStyle as React.CSSProperties['borderStyle'];
-  } else if (template.cardBorderStyle === 'none') {
+  if (templateToRender.cardBorderColor) cardContainerStyle.borderColor = templateToRender.cardBorderColor;
+  if (templateToRender.cardBorderWidth) cardContainerStyle.borderWidth = templateToRender.cardBorderWidth;
+  if (templateToRender.cardBorderStyle && templateToRender.cardBorderStyle !== '_default_' && templateToRender.cardBorderStyle !== 'none') {
+    cardContainerStyle.borderStyle = templateToRender.cardBorderStyle as React.CSSProperties['borderStyle'];
+  } else if (templateToRender.cardBorderStyle === 'none') {
      cardContainerStyle.borderStyle = 'none';
      cardContainerStyle.borderWidth = '0';
   }
-  if (template.cardBorderRadius) cardContainerStyle.borderRadius = template.cardBorderRadius;
+  if (templateToRender.cardBorderRadius) cardContainerStyle.borderRadius = templateToRender.cardBorderRadius;
 
   const calculatedPrintSize = useMemo(() => {
     if (!showSizeInfo) return '';
-    const [ratioW, ratioH] = (template.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
+    const [ratioW, ratioH] = (templateToRender.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
     if (isNaN(ratioW) || isNaN(ratioH) || ratioW <= 0 || ratioH <= 0) {
-        // Fallback to default TCG dimensions if ratio is invalid
         const defaultWidthIn = (STANDARD_TCG_WIDTH_MM * MM_TO_INCHES).toFixed(1);
-        const defaultHeightIn = (88 * MM_TO_INCHES).toFixed(1); // Standard 88mm height
+        const defaultHeightIn = (88 * MM_TO_INCHES).toFixed(1); 
         return `Approx. Print Size: ${defaultWidthIn}in x ${defaultHeightIn}in`;
     }
 
@@ -89,33 +115,33 @@ export function CardPreview({
     const widthInches = (STANDARD_TCG_WIDTH_MM * MM_TO_INCHES).toFixed(1);
     const heightInches = (calculatedHeightMm * MM_TO_INCHES).toFixed(1);
     return `Approx. Print Size: ${widthInches}in x ${heightInches}in`;
-  }, [template.aspectRatio, showSizeInfo]);
+  }, [templateToRender.aspectRatio, showSizeInfo]);
 
 
   const artworkHintValue = useMemo(() => {
     let nameValue = 'card art'; 
-    if (data) {
+    if (dataToRender) {
       const nameKeys = ['cardName', 'title', 'name'];
       for (const key of nameKeys) {
-        if (data[key] && typeof data[key] === 'string' && (data[key] as string).trim()) {
-          nameValue = (data[key] as string).trim().toLowerCase();
+        if (dataToRender[key] && typeof dataToRender[key] === 'string' && (dataToRender[key] as string).trim()) {
+          nameValue = (dataToRender[key] as string).trim().toLowerCase();
           break;
         }
       }
     }
     return nameValue.substring(0, 50); 
-  }, [data]);
+  }, [dataToRender]);
 
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
     if (isEditorPreview) return false; 
     if (hideEmptySections) {
       if (section.sectionContentType === 'image') {
         const imageKey = section.contentPlaceholder;
-        const imageUrl = data && imageKey ? (data[imageKey] as string || '') : '';
+        const imageUrl = dataToRender && imageKey ? (dataToRender[imageKey] as string || '') : '';
         return !imageUrl || !(imageUrl.startsWith('http') || imageUrl.startsWith('data:'));
       }
       const hasTextContent = processedContent.trim() !== '';
-      const resolvedBgUrl = section.backgroundImageUrl ? replacePlaceholdersLocal(section.backgroundImageUrl, data, false) : '';
+      const resolvedBgUrl = section.backgroundImageUrl ? replacePlaceholdersLocal(section.backgroundImageUrl, dataToRender, false) : '';
       const hasValidBgImage = !!resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'));
       return !hasTextContent && !hasValidBgImage;
     }
@@ -123,27 +149,31 @@ export function CardPreview({
   };
   
   const handleCardClick = () => {
-    if (onEdit && !isEditorPreview) {
+    if (onEdit && !isEditorPreview && forceRenderSide === 'front') { // Only allow edit on front preview
       onEdit(card);
     }
   };
 
+  // Use a unique ID for the preview element, incorporating the side if forced
+  const elementIdSuffix = forceRenderSide === 'back' ? `${card.uniqueId}-back` : card.uniqueId;
+
+
   return (
     <div 
-      id={`card-preview-${card.uniqueId}`}
+      id={`card-preview-${elementIdSuffix}`} // Use uniqueId from original card prop
       className={cn("flex flex-col items-center group", className)}
     >
       <div
         className={cn(
           "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden",
-          onEdit && !isEditorPreview ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
-          `frame-${template.frameStyle || 'standard'}`
+          onEdit && !isEditorPreview && forceRenderSide === 'front' ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
+          `frame-${templateToRender.frameStyle || 'standard'}`
         )}
         style={cardContainerStyle}
         data-ai-hint="tcg card custom"
         onClick={handleCardClick}
       >
-        {(template.rows || []).map((row, rowIndex) => {
+        {(templateToRender.rows || []).map((row, rowIndex) => {
           const handlePreviewRowClick = (e: React.MouseEvent) => {
             if (isEditorPreview && onRowClick) {
               e.stopPropagation();
@@ -170,9 +200,9 @@ export function CardPreview({
             let colContent = '';
             if (col.sectionContentType === 'image') {
                 const imageKey = col.contentPlaceholder;
-                colContent = data && imageKey ? (data[imageKey] as string || '') : '';
+                colContent = dataToRender && imageKey ? (dataToRender[imageKey] as string || '') : '';
             } else {
-                colContent = replacePlaceholdersLocal(col.contentPlaceholder, data, true);
+                colContent = replacePlaceholdersLocal(col.contentPlaceholder, dataToRender, true);
             }
             return shouldHideSection(col, colContent);
           });
@@ -199,7 +229,7 @@ export function CardPreview({
                   backgroundColor: section.backgroundColor || 'transparent',
                   textAlign: section.textAlign || 'left',
                   fontStyle: section.fontStyle || 'normal',
-                  borderColor: section.borderColor || template.defaultSectionBorderColor || undefined,
+                  borderColor: section.borderColor || templateToRender.defaultSectionBorderColor || undefined,
                   borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
                   borderRadius: section.borderRadius || undefined,
                   height: section.customHeight || undefined,
@@ -208,7 +238,7 @@ export function CardPreview({
                 };
                 
                 if (section.backgroundImageUrl) {
-                    const resolvedBgUrl = replacePlaceholdersLocal(section.backgroundImageUrl, data, isEditorPreview);
+                    const resolvedBgUrl = replacePlaceholdersLocal(section.backgroundImageUrl, dataToRender, isEditorPreview);
                     if (resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'))) {
                         sectionStyle.backgroundImage = `url(${resolvedBgUrl})`;
                         sectionStyle.backgroundSize = 'cover';
@@ -264,7 +294,7 @@ export function CardPreview({
                 
                 let processedContentForDisplay = isEditorPreview && section.sectionContentType === 'placeholder'
                     ? section.contentPlaceholder.replace(/\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g, (match, key) => key)
-                    : replacePlaceholdersLocal(section.contentPlaceholder, data, true);
+                    : replacePlaceholdersLocal(section.contentPlaceholder, dataToRender, true);
 
                 if (shouldHideSection(section, processedContentForDisplay) && !isEditorPreview && section.sectionContentType !== 'image') {
                   return null;
@@ -297,11 +327,13 @@ export function CardPreview({
                         );
                     }
 
-                    let imageUrl = data && imageKey ? (data[imageKey] as string || '') : '';
+                    let imageUrl = dataToRender && imageKey ? (dataToRender[imageKey] as string || '') : '';
                     const isValidUrl = imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'));
 
                     if (!isValidUrl) {
-                         imageUrl = `https://placehold.co/${displayWidth || 600}x${displayHeight || 400}.png?text=${encodeURIComponent(artworkHintValue || "Artwork")}`;
+                         // Use a placeholder that indicates front or back if appropriate
+                        const placeholderText = forceRenderSide === 'back' ? "Back Art" : (artworkHintValue || "Artwork");
+                        imageUrl = `https://placehold.co/${displayWidth || 600}x${displayHeight || 400}.png?text=${encodeURIComponent(placeholderText)}`;
                     }
                     
                     if (shouldHideSection(section, imageUrl) && !isEditorPreview) {
@@ -324,7 +356,7 @@ export function CardPreview({
                         >
                             <NextImage
                                 src={imageUrl}
-                                alt={`Image for ${section.contentPlaceholder}`}
+                                alt={`Image for ${section.contentPlaceholder} (${forceRenderSide})`}
                                 width={displayWidth > 0 ? displayWidth : 300}
                                 height={displayHeight > 0 ? displayHeight : 200}
                                 style={{ 
@@ -333,8 +365,8 @@ export function CardPreview({
                                   height: '100%',
                                   borderRadius: section.borderRadius || undefined,
                                 }}
-                                data-ai-hint={artworkHintValue}
-                                priority={rowIndex === 0 && sectionIndex === 0}
+                                data-ai-hint={`${artworkHintValue} ${forceRenderSide}`}
+                                priority={rowIndex === 0 && sectionIndex === 0 && forceRenderSide === 'front'}
                             />
                         </div>
                     );
@@ -358,7 +390,7 @@ export function CardPreview({
           );
         })}
       </div>
-      {showSizeInfo && !isPrintMode && (
+      {showSizeInfo && !isPrintMode && forceRenderSide === 'front' && (
         <div className="text-xs text-muted-foreground mt-1" data-html2canvas-ignore="true">
           {calculatedPrintSize}
         </div>
@@ -366,5 +398,3 @@ export function CardPreview({
     </div>
   );
 }
-
-  

@@ -11,14 +11,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
-import { PlusSquare, FilePlus2, Upload } from 'lucide-react';
+import { PlusSquare, FilePlus2, Upload, Layers } from 'lucide-react';
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
   onSingleCardAdded: (card: DisplayCard) => void;
-  onTemplateSelectionChange?: (templateId: string | null) => void;
+  onTemplateSelectionChange?: (templateId: string | null) => void; // For front template
   selectedTemplateIdProp?: string | null; 
 }
 
@@ -36,250 +37,338 @@ export function SingleCardGenerator({
   onTemplateSelectionChange,
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(selectedTemplateIdProp || templates[0]?.id || null);
-  const [cardData, setCardData] = useState<CardData>({});
-  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
+  const [selectedFrontTemplateId, setSelectedFrontTemplateId] = useState<string | null>(selectedTemplateIdProp || templates[0]?.id || null);
+  const [selectedBackTemplateId, setSelectedBackTemplateId] = useState<string | null>(null);
+  
+  const [frontCardData, setFrontCardData] = useState<CardData>({});
+  const [backCardData, setBackCardData] = useState<CardData>({});
+  
+  const [frontDynamicFields, setFrontDynamicFields] = useState<DynamicField[]>([]);
+  const [backDynamicFields, setBackDynamicFields] = useState<DynamicField[]>([]);
+
   const { toast } = useToast();
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const frontFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const backFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     if (selectedTemplateIdProp !== undefined) {
-      setSelectedTemplateId(selectedTemplateIdProp || templates[0]?.id || null);
+      setSelectedFrontTemplateId(selectedTemplateIdProp || templates[0]?.id || null);
     }
   }, [selectedTemplateIdProp, templates]);
 
+  const generateDynamicFields = (template: TCGCardTemplate | undefined, currentData: CardData): [DynamicField[], CardData] => {
+    if (!template) return [[], {}];
+    
+    const extractedPlaceholders = extractUniquePlaceholderKeys(template);
+    const newCardDataState: CardData = {};
+    const fields: DynamicField[] = extractedPlaceholders.map(placeholder => {
+      const isImageSectionKey = template.rows.some(row =>
+          (row.columns || []).some(col =>
+              col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
+          )
+      );
+      const isTextarea = !isImageSectionKey && (
+          placeholder.key.toLowerCase().includes('rules') ||
+          placeholder.key.toLowerCase().includes('text') ||
+          placeholder.key.toLowerCase().includes('effect') ||
+          placeholder.key.toLowerCase().includes('abilit') ||
+          placeholder.key.toLowerCase().includes('description')
+      );
+
+      let initialValue: string | number | undefined = currentData[placeholder.key];
+      if (initialValue === undefined && placeholder.defaultValue !== undefined) {
+        initialValue = placeholder.defaultValue;
+      }
+      if (isImageSectionKey && (initialValue === undefined || String(initialValue).trim() === '' || String(initialValue).trim() === `{{${placeholder.key}}}`)) {
+         initialValue = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(placeholder.key))}`;
+      }
+      if (initialValue === undefined) {
+        initialValue = '';
+      }
+      newCardDataState[placeholder.key] = initialValue;
+
+      return {
+        key: placeholder.key,
+        label: `{{${placeholder.key}}}`,
+        type: isTextarea ? 'textarea' : 'input',
+        isImageKey: isImageSectionKey,
+        defaultValue: placeholder.defaultValue,
+      };
+    });
+    return [fields, newCardDataState];
+  };
 
   useEffect(() => {
-    const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
-    if (selectedTemplate) {
-      const extractedPlaceholders = extractUniquePlaceholderKeys(selectedTemplate);
-      const newCardDataState: CardData = {};
-
-      const fields: DynamicField[] = extractedPlaceholders.map(placeholder => {
-        const isImageSectionKey = selectedTemplate.rows.some(row =>
-            (row.columns || []).some(col =>
-                col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
-            )
-        );
-
-        const isTextarea = !isImageSectionKey && (
-            placeholder.key.toLowerCase().includes('rules') ||
-            placeholder.key.toLowerCase().includes('text') ||
-            placeholder.key.toLowerCase().includes('effect') ||
-            placeholder.key.toLowerCase().includes('abilit') ||
-            placeholder.key.toLowerCase().includes('description')
-        );
-
-        let initialValue: string | number | undefined = cardData[placeholder.key]; // Keep existing data if user was typing
-        if (initialValue === undefined && placeholder.defaultValue !== undefined) {
-          initialValue = placeholder.defaultValue;
-        }
-        
-        if (isImageSectionKey && (initialValue === undefined || String(initialValue).trim() === '' || String(initialValue).trim() === `{{${placeholder.key}}}`)) {
-           initialValue = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(placeholder.key))}`;
-        }
-        if (initialValue === undefined) {
-          initialValue = '';
-        }
-        newCardDataState[placeholder.key] = initialValue;
-
-        return {
-          key: placeholder.key,
-          label: `{{${placeholder.key}}}`,
-          type: isTextarea ? 'textarea' : 'input',
-          isImageKey: isImageSectionKey,
-          defaultValue: placeholder.defaultValue,
-        };
-      });
-
-      setDynamicFields(fields);
-      // Only update cardData if the keys have changed or it's an initial setup for this template
-      // This helps preserve user input if they are just tabbing through fields of the same template
-      if (Object.keys(cardData).join(',') !== Object.keys(newCardDataState).join(',')) {
-          setCardData(newCardDataState);
-      } else { // If keys are the same, ensure defaults are applied for any empty initial values
-          const updatedWithDefaults = {...newCardDataState};
-          Object.keys(newCardDataState).forEach(key => {
-              if (String(updatedWithDefaults[key]).trim() === '' && fields.find(f=>f.key === key)?.defaultValue) {
-                  updatedWithDefaults[key] = fields.find(f=>f.key === key)!.defaultValue!;
-              }
-          });
-          setCardData(updatedWithDefaults);
-      }
-
-
+    const frontTemplate = templates.find(t => t.id === selectedFrontTemplateId);
+    const [newFrontFields, newFrontData] = generateDynamicFields(frontTemplate, frontCardData);
+    setFrontDynamicFields(newFrontFields);
+    if (Object.keys(frontCardData).join(',') !== Object.keys(newFrontData).join(',')) {
+        setFrontCardData(newFrontData);
     } else {
-      setDynamicFields([]);
-      setCardData({});
+        const updatedWithDefaults = {...newFrontData};
+        Object.keys(newFrontData).forEach(key => {
+            if (String(updatedWithDefaults[key]).trim() === '' && newFrontFields.find(f=>f.key === key)?.defaultValue) {
+                updatedWithDefaults[key] = newFrontFields.find(f=>f.key === key)!.defaultValue!;
+            }
+        });
+        setFrontCardData(updatedWithDefaults);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateId, templates]); // Removed cardData from deps to prevent reset on its own update
+  }, [selectedFrontTemplateId, templates]); // Only re-run for front if front template changes
 
+  useEffect(() => {
+    const backTemplate = templates.find(t => t.id === selectedBackTemplateId);
+    const [newBackFields, newBackData] = generateDynamicFields(backTemplate, backCardData);
+    setBackDynamicFields(newBackFields);
+     if (Object.keys(backCardData).join(',') !== Object.keys(newBackData).join(',')) {
+        setBackCardData(newBackData);
+    } else {
+        const updatedWithDefaults = {...newBackData};
+        Object.keys(newBackData).forEach(key => {
+            if (String(updatedWithDefaults[key]).trim() === '' && newBackFields.find(f=>f.key === key)?.defaultValue) {
+                updatedWithDefaults[key] = newBackFields.find(f=>f.key === key)!.defaultValue!;
+            }
+        });
+        setBackCardData(updatedWithDefaults);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBackTemplateId, templates]); // Only re-run for back if back template changes
 
-  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
-    setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string, side: 'front' | 'back') => {
+    const setter = side === 'front' ? setFrontCardData : setBackCardData;
+    setter(prev => ({ ...prev, [fieldKey]: e.target.value }));
   }, []);
 
-  const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
+  const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string, side: 'front' | 'back') => {
     const file = event.target.files?.[0];
+    const setter = side === 'front' ? setFrontCardData : setBackCardData;
+    const refs = side === 'front' ? frontFileInputRefs : backFileInputRefs;
+
     if (file) {
       const reader = new FileReader();
       reader.onload = (eRead) => {
         const dataUri = eRead.target?.result as string;
-        setCardData(prev => ({ ...prev, [fieldKey]: dataUri }));
-        toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI for ${fieldKey}.` });
+        setter(prev => ({ ...prev, [fieldKey]: dataUri }));
+        toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI for ${fieldKey} (${side}).` });
       };
       reader.onerror = () => {
-        toast({ title: "Error", description: "Failed to read image file.", variant: "destructive" });
+        toast({ title: "Error", description: `Failed to read image file for ${side}.`, variant: "destructive" });
       };
       reader.readAsDataURL(file);
     }
-    if (event.target) { 
-      event.target.value = ""; 
+    if (refs.current[fieldKey]) { 
+      refs.current[fieldKey]!.value = ""; 
     }
   }, [toast]);
 
   const handleAddCard = useCallback(() => {
-    const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
-    if (!selectedTemplate) {
-      toast({ title: "Error", description: "Please select a TCG template.", variant: "destructive" });
+    const frontTemplate = templates.find(t => t.id === selectedFrontTemplateId);
+    if (!frontTemplate) {
+      toast({ title: "Front Template Required", description: "Please select a TCG template for the card front.", variant: "destructive" });
       return;
     }
 
-    const completeCardData: CardData = { ...cardData };
-    dynamicFields.forEach(field => {
-        const currentValue = String(completeCardData[field.key] || '').trim();
+    const finalFrontData: CardData = { ...frontCardData };
+    frontDynamicFields.forEach(field => {
+        const currentValue = String(finalFrontData[field.key] || '').trim();
         if (currentValue === '' || currentValue === `{{${field.key}}}`) { 
-          if (field.defaultValue !== undefined) {
-            completeCardData[field.key] = field.defaultValue;
-          } else if (field.isImageKey) {
-            completeCardData[field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
-          } else {
-            completeCardData[field.key] = ''; 
-          }
+          if (field.defaultValue !== undefined) finalFrontData[field.key] = field.defaultValue;
+          else if (field.isImageKey) finalFrontData[field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
+          else finalFrontData[field.key] = ''; 
         }
     });
+    
+    let backTemplate: TCGCardTemplate | null = null;
+    let finalBackData: CardData | null = null;
+
+    if (selectedBackTemplateId) {
+        backTemplate = templates.find(t => t.id === selectedBackTemplateId) || null;
+        if (backTemplate) {
+            finalBackData = { ...backCardData };
+            backDynamicFields.forEach(field => {
+                const currentValue = String(finalBackData![field.key] || '').trim();
+                 if (currentValue === '' || currentValue === `{{${field.key}}}`) {
+                    if (field.defaultValue !== undefined) finalBackData![field.key] = field.defaultValue;
+                    else if (field.isImageKey) finalBackData![field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
+                    else finalBackData![field.key] = '';
+                }
+            });
+        }
+    }
 
     const displayCard: DisplayCard = {
-      template: selectedTemplate,
-      data: completeCardData,
+      frontTemplate: frontTemplate,
+      frontData: finalFrontData,
+      backTemplate: backTemplate,
+      backData: finalBackData,
       uniqueId: nanoid(),
     };
     onSingleCardAdded(displayCard);
-
-    const nameFieldKey = dynamicFields.find(f => f.key.toLowerCase().includes("name") && !f.key.toLowerCase().includes("artistname") && !f.isImageKey)?.key;
-    const titleFieldKey = dynamicFields.find(f => f.key.toLowerCase().includes("title") && !f.isImageKey)?.key;
-    const cardIdentifier = String(nameFieldKey ? completeCardData[nameFieldKey] : (titleFieldKey ? completeCardData[titleFieldKey] : `Card ${displayCard.uniqueId.substring(0,5)}`));
                            
-    toast({ title: "Success", description: `Card "${cardIdentifier}" added to preview.` });
-  }, [selectedTemplateId, templates, cardData, dynamicFields, onSingleCardAdded, toast]);
+    toast({ title: "Success", description: `Card added to preview list.` });
+  }, [selectedFrontTemplateId, selectedBackTemplateId, templates, frontCardData, backCardData, frontDynamicFields, backDynamicFields, onSingleCardAdded, toast]);
 
-  const handleTemplateSelectChange = useCallback((id: string | null) => {
-    setSelectedTemplateId(id);
-    setCardData({}); 
+  const handleFrontTemplateSelectChange = useCallback((id: string | null) => {
+    setSelectedFrontTemplateId(id);
+    setFrontCardData({}); 
     if (onTemplateSelectionChange) {
       onTemplateSelectionChange(id);
     }
   }, [onTemplateSelectionChange]);
 
+  const handleBackTemplateSelectChange = useCallback((id: string | null) => {
+    setSelectedBackTemplateId(id);
+    setBackCardData({});
+  }, []);
+
+  const renderFieldsForSide = (
+    fields: DynamicField[], 
+    data: CardData, 
+    side: 'front' | 'back', 
+    fileRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
+  ) => {
+    if (fields.length === 0) {
+      return <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields.</p>;
+    }
+    return fields.map(field => (
+      <div key={`${side}-${field.key}`}>
+        <Label htmlFor={`singleCard-${side}-${field.key}`}>
+          {field.label} {field.isImageKey ? '(Image URL or Upload)' : ''}
+        </Label>
+        <div className={field.isImageKey ? "flex items-center gap-2" : ""}>
+          {field.type === 'textarea' ? (
+            <Textarea
+              id={`singleCard-${side}-${field.key}`}
+              value={(data[field.key] as string) || ''}
+              onChange={(e) => handleInputChange(e, field.key, side)}
+              placeholder={`Enter value for ${field.key}...`}
+              rows={3}
+            />
+          ) : (
+            <Input
+              id={`singleCard-${side}-${field.key}`}
+              value={(data[field.key] as string) || ''}
+              onChange={(e) => handleInputChange(e, field.key, side)}
+              placeholder={field.isImageKey ? `URL or Data URI for ${field.key}` : `Enter value for ${field.key}...`}
+              className={field.isImageKey ? "flex-grow" : ""}
+            />
+          )}
+          {field.isImageKey && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileRefs.current[field.key]?.click()}
+                className="shrink-0"
+                aria-label={`Upload image for ${field.label}`}
+              >
+                <Upload className="mr-2 h-4 w-4" /> Upload
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                ref={el => fileRefs.current[field.key] = el}
+                onChange={(e) => handleImageUpload(e, field.key, side)}
+                style={{ display: 'none' }}
+                id={`singleCard-file-${side}-${field.key}`}
+              />
+            </>
+          )}
+        </div>
+      </div>
+    ));
+  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Single Card Entry</CardTitle>
-        <CardDescription>Select a template and fill in data for its placeholders.</CardDescription>
+        <CardDescription>Select template(s) and fill in data for its placeholders.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label htmlFor="singleTemplateSelect">Select Template</Label>
+          <Label htmlFor="singleFrontTemplateSelect">Select Front Template*</Label>
           <Select
-            value={selectedTemplateId ?? undefined} // Pass undefined if null for placeholder to show
-            onValueChange={handleTemplateSelectChange}
+            value={selectedFrontTemplateId ?? undefined}
+            onValueChange={handleFrontTemplateSelectChange}
             disabled={templates.length === 0}
           >
-            <SelectTrigger id="singleTemplateSelect">
-              <SelectValue placeholder="Choose a template" />
+            <SelectTrigger id="singleFrontTemplateSelect">
+              <SelectValue placeholder="Choose front template (Required)" />
             </SelectTrigger>
             <SelectContent>
               {templates.length > 0 ? (
-                templates.map(t => <SelectItem key={t.id || 'new-template-option'} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>) 
+                templates.map(t => <SelectItem key={`front-${t.id || 'new-template-option'}`} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>) 
               ) : (
-                <SelectItem value="no-templates" disabled>No templates available. Create one first.</SelectItem>
+                <SelectItem value="no-templates-front" disabled>No templates available.</SelectItem>
               )}
             </SelectContent>
           </Select>
         </div>
 
-        {selectedTemplateId && dynamicFields.length > 0 && (
-          <div className="space-y-3 mt-4 border-t pt-4">
-            <p className="text-sm text-muted-foreground">Enter data for template: <strong className="text-foreground">{templates.find(t=>t.id === selectedTemplateId)?.name || `Template ${selectedTemplateId.substring(0,5)}`}</strong></p>
-            {dynamicFields.map(field => (
-              <div key={field.key}>
-                <Label htmlFor={`singleCard-${field.key}`}>
-                  {field.label} {field.isImageKey ? '(Image URL or Upload)' : ''}
-                </Label>
-                <div className={field.isImageKey ? "flex items-center gap-2" : ""}>
-                  {field.type === 'textarea' ? (
-                    <Textarea
-                      id={`singleCard-${field.key}`}
-                      value={(cardData[field.key] as string) || ''}
-                      onChange={(e) => handleInputChange(e, field.key)}
-                      placeholder={`Enter value for ${field.key}...`}
-                      rows={3}
-                    />
-                  ) : (
-                    <Input
-                      id={`singleCard-${field.key}`}
-                      value={(cardData[field.key] as string) || ''}
-                      onChange={(e) => handleInputChange(e, field.key)}
-                      placeholder={field.isImageKey ? `URL or Data URI for ${field.key}` : `Enter value for ${field.key}...`}
-                      className={field.isImageKey ? "flex-grow" : ""}
-                    />
-                  )}
-                  {field.isImageKey && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fileInputRefs.current[field.key]?.click()}
-                        className="shrink-0"
-                        aria-label={`Upload image for ${field.label}`}
-                      >
-                        <Upload className="mr-2 h-4 w-4" /> Upload
-                      </Button>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        ref={el => fileInputRefs.current[field.key] = el}
-                        onChange={(e) => handleImageUpload(e, field.key)}
-                        style={{ display: 'none' }}
-                        id={`singleCard-file-${field.key}`}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div>
+          <Label htmlFor="singleBackTemplateSelect">Select Back Template (Optional)</Label>
+          <Select
+            value={selectedBackTemplateId ?? undefined}
+            onValueChange={handleBackTemplateSelectChange}
+            disabled={templates.length === 0}
+          >
+            <SelectTrigger id="singleBackTemplateSelect">
+              <SelectValue placeholder="Choose back template (Optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No Back Template</SelectItem>
+              {templates.map(t => <SelectItem key={`back-${t.id || 'new-template-option-back'}`} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
 
-        {selectedTemplateId && dynamicFields.length === 0 && (
-            <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{'{{someKey}}'}</code>). Please edit the template to include them.</p>
+        {selectedFrontTemplateId && (
+          <Accordion type="multiple" defaultValue={['front-data-item']} className="w-full">
+            <AccordionItem value="front-data-item">
+              <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4" /> Front Card Data
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-3 pt-3 border-t">
+                {frontDynamicFields.length > 0 ? 
+                  renderFieldsForSide(frontDynamicFields, frontCardData, 'front', frontFileInputRefs) :
+                  <p className="text-sm text-muted-foreground">Selected front template has no placeholder fields.</p>
+                }
+              </AccordionContent>
+            </AccordionItem>
+
+            {selectedBackTemplateId && templates.find(t => t.id === selectedBackTemplateId) && (
+              <AccordionItem value="back-data-item" className="mt-3">
+                <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
+                   <div className="flex items-center gap-2">
+                     <Layers className="h-4 w-4" /> Back Card Data
+                   </div>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3 pt-3 border-t">
+                  {backDynamicFields.length > 0 ?
+                    renderFieldsForSide(backDynamicFields, backCardData, 'back', backFileInputRefs) :
+                    <p className="text-sm text-muted-foreground">Selected back template has no placeholder fields.</p>
+                  }
+                </AccordionContent>
+              </AccordionItem>
+            )}
+          </Accordion>
         )}
-         {!selectedTemplateId && templates.length > 0 && ( // Only show this if templates exist but none selected
-            <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
+        
+         {!selectedFrontTemplateId && templates.length > 0 && (
+            <p className="text-sm text-muted-foreground">Select a front template above to start entering card data.</p>
         )}
-         {templates.length === 0 && ( // Show this if no templates exist at all
+         {templates.length === 0 && (
             <p className="text-sm text-muted-foreground">No templates available. Please create one in the "Template Editor" tab first.</p>
         )}
 
-
-        <Button onClick={handleAddCard} disabled={!selectedTemplateId || dynamicFields.length === 0} className="w-full">
+        <Button onClick={handleAddCard} disabled={!selectedFrontTemplateId} className="w-full">
           <PlusSquare className="mr-2 h-4 w-4" /> Add Card to Preview List
         </Button>
       </CardContent>
     </Card>
   );
 }
-

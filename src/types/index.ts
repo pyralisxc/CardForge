@@ -18,7 +18,7 @@ export interface CardSection {
   padding?: string; 
   borderColor?: string;
   borderWidth?: string; 
-  borderRadius?: string; // Added
+  borderRadius?: string; 
   minHeight?: string; 
   flexGrow?: number; 
   customHeight?: string; 
@@ -62,8 +62,10 @@ export interface PaperSize {
 }
 
 export interface DisplayCard {
-  template: TCGCardTemplate;
-  data: CardData;
+  frontTemplate: TCGCardTemplate;
+  frontData: CardData;
+  backTemplate?: TCGCardTemplate | null;
+  backData?: CardData | null;
   uniqueId: string;
 }
 
@@ -71,3 +73,4 @@ export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
 }
+
