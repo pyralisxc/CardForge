@@ -42,7 +42,7 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
   };
 
   template.rows.forEach(row => {
-    row.columns.forEach(section => {
+    (row.columns || []).forEach(section => {
       if (section.sectionContentType === 'image') {
         if (section.contentPlaceholder && !placeholderMap.has(section.contentPlaceholder)) {
           placeholderMap.set(section.contentPlaceholder, { key: section.contentPlaceholder });
@@ -51,8 +51,13 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
         processStringForPlaceholders(section.contentPlaceholder);
       }
       processStringForPlaceholders(section.backgroundImageUrl); // Always check backgroundImageUrl
+      processStringForPlaceholders(section.customHeight);
+      processStringForPlaceholders(section.customWidth);
     });
+    processStringForPlaceholders(row.customHeight);
   });
+  processStringForPlaceholders(template.cardBackgroundImageUrl);
+
   return Array.from(placeholderMap.values());
 }
 
@@ -111,4 +116,42 @@ export function replacePlaceholdersLocal(text: string | undefined, dataContext: 
   });
 
   return result;
+}
+
+/**
+ * Calculates the greatest common divisor (GCD) of two numbers.
+ * @param a First number.
+ * @param b Second number.
+ * @returns The GCD of a and b.
+ */
+export function gcd(a: number, b: number): number {
+  if (b === 0) {
+    return a;
+  }
+  return gcd(b, a % b);
+}
+
+/**
+ * Simplifies a width and height into a "W:H" ratio string.
+ * Handles potential floating-point inputs by scaling them to integers.
+ * @param w Width.
+ * @param h Height.
+ * @returns Simplified ratio string e.g., "16:9".
+ */
+export function simplifyRatio(w: number, h: number): string {
+  if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
+    return TCG_ASPECT_RATIO; // Default or indicate error
+  }
+
+  // Determine a multiplier to convert potential floats to integers
+  // This handles up to 4 decimal places, common for user inputs like inches (e.g., 2.125)
+  const PRECISION_MULTIPLIER = 10000;
+  const intW = Math.round(w * PRECISION_MULTIPLIER);
+  const intH = Math.round(h * PRECISION_MULTIPLIER);
+
+  const commonDivisor = gcd(intW, intH);
+  const simplifiedW = intW / commonDivisor;
+  const simplifiedH = intH / commonDivisor;
+
+  return `${simplifiedW}:${simplifiedH}`;
 }

@@ -84,6 +84,13 @@ export const SECTION_CONTENT_TYPES: Array<{label: string, value: CardSection['se
   { label: 'Dedicated Image', value: 'image' },
 ];
 
+export const DIMENSION_UNITS: Array<{ label: string; value: string }> = [
+  { label: 'Millimeters (mm)', value: 'mm' },
+  { label: 'Inches (in)', value: 'in' },
+  { label: 'Centimeters (cm)', value: 'cm' },
+  { label: 'Pixels (px)', value: 'px' },
+];
+
 
 export const createDefaultSection = (id: string, overrides: Partial<CardSection> = {}): CardSection => {
   const baseSection: CardSection = {
@@ -134,4 +141,3 @@ export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementTyp
   { value: "generator", label: "Card Generator", icon: PackageOpen },
   { value: "ai", label: "AI Helper", icon: Wand2 },
 ];
-

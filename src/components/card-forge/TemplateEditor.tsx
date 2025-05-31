@@ -2,7 +2,7 @@
 "use client";
 
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import {
-  LayoutDashboard, Trash2, PlusCircle, Rows, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, Cog, Frame, FileImage, Settings, ChevronDown
+  LayoutDashboard, Trash2, PlusCircle, Rows, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, Settings, Frame, FileImage
 } from 'lucide-react';
 import {
   TCG_ASPECT_RATIO,
@@ -22,13 +22,13 @@ import {
   createDefaultRow,
   createDefaultSection,
   CARD_BORDER_STYLES,
+  DIMENSION_UNITS,
 } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
 import { ColumnEditor } from './ColumnEditor';
 import { nanoid } from 'nanoid';
-import { cn } from "@/lib/utils";
-import { extractUniquePlaceholderKeys } from '@/lib/utils';
+import { cn, extractUniquePlaceholderKeys, simplifyRatio } from "@/lib/utils";
 
 
 export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): TCGCardTemplate => {
@@ -193,14 +193,19 @@ export function TemplateEditor({
 
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => {
-    if (initialTemplate && initialTemplate.id !== null) {
-      return reconstructTemplate(initialTemplate);
-    }
-    return reconstructTemplate(memoizedGetFreshDefaultTemplate(null, initialTemplate?.name));
+     const templateToLoad = initialTemplate && initialTemplate.id !== null 
+        ? initialTemplate 
+        : memoizedGetFreshDefaultTemplate(null, initialTemplate?.name);
+    return reconstructTemplate(templateToLoad);
   });
   
-  const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialTemplate?.id || null);
+  const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(() => initialTemplate?.id || null);
+  
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
+  const [customWidthValue, setCustomWidthValue] = useState<string>('');
+  const [customHeightValue, setCustomHeightValue] = useState<string>('');
+  const [customUnit, setCustomUnit] = useState<string>('mm');
+
   const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>(
      (currentTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]
   );
@@ -217,35 +222,33 @@ export function TemplateEditor({
     setCurrentTemplate(reconstructTemplate(newFreshTemplate));
     setSelectedTemplateToEditId(null); 
     setAspectRatioInput(newFreshTemplate.aspectRatio || TCG_ASPECT_RATIO);
+    setCustomWidthValue('');
+    setCustomHeightValue('');
+    setCustomUnit('mm');
     setActiveRowAccordionItems((newFreshTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]);
     setActiveColumnAccordionItems([]);
     setActiveStylingAccordion(null);
     setIsSettingsCardOpen(true);
     setIsRowsAndSectionsCardOpen(true);
-    toast({ title: "Form Reset", description: `Ready to create a new template: "${newFreshTemplate.name}"` });
+    // toast({ title: "Form Reset", description: `Ready to create a new template: "${newFreshTemplate.name}"` });
   }, [toast, reconstructTemplate, memoizedGetFreshDefaultTemplate]);
 
+
  useEffect(() => {
-    if (selectedTemplateToEditId) {
-      const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
-      if (templateFromList) {
-        if (currentTemplate.id !== templateFromList.id || JSON.stringify(currentTemplate) !== JSON.stringify(reconstructTemplate(templateFromList))) {
-          const reconstructed = reconstructTemplate(templateFromList);
-          setCurrentTemplate(reconstructed);
-          setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(Boolean) as string[]);
-          setActiveColumnAccordionItems([]); 
-          setActiveStylingAccordion(null);
-        }
-      } else if (currentTemplate.id !== null) { 
+    const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
+    if (selectedTemplateToEditId && templateFromList) {
+        const reconstructed = reconstructTemplate(templateFromList);
+        setCurrentTemplate(reconstructed);
+        // Resetting accordions when a different template is loaded for a cleaner editing slate
+        setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(Boolean) as string[]);
+        setActiveColumnAccordionItems([]);
+        setActiveStylingAccordion(null);
+    } else if (!selectedTemplateToEditId && (currentTemplate.id !== null || initialTemplate?.id !== null)) {
+        // This means we explicitly switched to "Create New", or initial state was for a new one
         resetFormToNew();
-      }
-    } else { 
-      if (currentTemplate.id !== null) { 
-        resetFormToNew();
-      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateToEditId, templates]); 
+    // If selectedTemplateToEditId is null and currentTemplate.id is also null, it's already a new template form.
+}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, initialTemplate]);
   
   useEffect(() => {
     if (currentTemplate.aspectRatio !== aspectRatioInput) {
@@ -392,6 +395,10 @@ export function TemplateEditor({
 
   const handleSelectTemplateToEdit = useCallback((templateId: string | null) => {
      setSelectedTemplateToEditId(templateId);
+     // Clear custom dimension inputs when changing template or creating new
+     setCustomWidthValue('');
+     setCustomHeightValue('');
+     setCustomUnit('mm');
   }, []);
 
 
@@ -448,6 +455,26 @@ export function TemplateEditor({
     }
     if (event.target) event.target.value = "";
   }, [updateCurrentTemplate, toast]);
+
+  const handleApplyCustomDimensions = useCallback(() => {
+    const widthNum = parseFloat(customWidthValue);
+    const heightNum = parseFloat(customHeightValue);
+
+    if (isNaN(widthNum) || widthNum <= 0 || isNaN(heightNum) || heightNum <= 0) {
+      toast({
+        title: "Invalid Dimensions",
+        description: "Please enter positive numbers for width and height.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const simplified = simplifyRatio(widthNum, heightNum);
+    updateCurrentTemplate({ aspectRatio: simplified });
+    setAspectRatioInput(simplified); // Update the direct ratio input field as well
+    toast({ title: "Aspect Ratio Updated", description: `Ratio set to ${simplified} based on custom dimensions.` });
+  }, [customWidthValue, customHeightValue, updateCurrentTemplate, toast]);
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -520,7 +547,6 @@ export function TemplateEditor({
                             {currentTemplate.id && <span className="text-xs text-muted-foreground ml-2">(ID: {typeof currentTemplate.id === 'string' ? currentTemplate.id.substring(0,8) : 'New'})</span>}
                         </CardDescription>
                       </div>
-                      {/* ChevronDown removed from here, Radix will add its own if not hidden by AccordionTrigger's class */}
                     </CardHeader>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -536,26 +562,54 @@ export function TemplateEditor({
                                 placeholder="Enter a unique name for your template"
                             />
                         </div>
-                        <div>
-                            <Label htmlFor="templateAspectRatio">Aspect Ratio (W:H)</Label>
-                            <Input
-                                id="templateAspectRatio"
-                                value={aspectRatioInput}
-                                onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                                    const newRatio = e.target.value;
-                                    setAspectRatioInput(newRatio);
-                                    const ratioParts = newRatio.split(':').map(Number);
-                                    if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
-                                        updateCurrentTemplate({ aspectRatio: newRatio });
-                                    } else if (newRatio.trim() === '') { 
-                                        updateCurrentTemplate({ aspectRatio: TCG_ASPECT_RATIO });
-                                    }
-                                }}
-                                placeholder={`e.g., ${TCG_ASPECT_RATIO} (Standard TCG)`}
-                            />
+                        
+                        <div className="space-y-3 border p-3 rounded-md bg-muted/20">
+                            <h4 className="text-sm font-medium">Define Aspect Ratio</h4>
+                            <div className="space-y-2">
+                                <Label htmlFor="templateAspectRatio">Current Ratio (W:H) - Editable</Label>
+                                <Input
+                                    id="templateAspectRatio"
+                                    value={aspectRatioInput}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                        const newRatio = e.target.value;
+                                        setAspectRatioInput(newRatio);
+                                        const ratioParts = newRatio.split(':').map(Number);
+                                        if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
+                                            updateCurrentTemplate({ aspectRatio: newRatio });
+                                        } else if (newRatio.trim() === '') { 
+                                            updateCurrentTemplate({ aspectRatio: TCG_ASPECT_RATIO });
+                                        }
+                                    }}
+                                    placeholder={`e.g., ${TCG_ASPECT_RATIO} (Standard TCG)`}
+                                />
+                            </div>
+                            <div className="space-y-2 pt-2 border-t">
+                                <Label className="text-xs text-muted-foreground">Or, Set Ratio by Dimensions:</Label>
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-2 items-end">
+                                    <div>
+                                        <Label htmlFor="customWidth" className="text-xs">Width</Label>
+                                        <Input id="customWidth" type="number" value={customWidthValue} onChange={e => setCustomWidthValue(e.target.value)} placeholder="e.g., 63" className="h-8"/>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="customHeight" className="text-xs">Height</Label>
+                                        <Input id="customHeight" type="number" value={customHeightValue} onChange={e => setCustomHeightValue(e.target.value)} placeholder="e.g., 88" className="h-8"/>
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <Label htmlFor="customUnit" className="text-xs">Unit</Label>
+                                        <Select value={customUnit} onValueChange={setCustomUnit}>
+                                            <SelectTrigger id="customUnit" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {DIMENSION_UNITS.map(u => <SelectItem key={u.value} value={u.value} className="text-xs">{u.label}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button onClick={handleApplyCustomDimensions} size="sm" className="col-span-2 sm:col-span-1 h-8 text-xs">Apply Dimensions to Ratio</Button>
+                                </div>
+                            </div>
                         </div>
 
-                        <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling-accordion-item">
+
+                        <Accordion type="single" collapsible className="w-full">
                             <AccordionItem value="overall-styling-accordion-item" id="overall-styling-accordion-item" className="border rounded-md">
                                 <AccordionTrigger className="px-3 py-2 text-sm font-semibold hover:no-underline [&>.lucide-chevron-down]:hidden">
                                     <div className="flex items-center gap-2"><Settings className="h-4 w-4" /> Overall Card Styling</div>
@@ -700,7 +754,6 @@ export function TemplateEditor({
                                 </CardTitle>
                                 <CardDescription className="mt-1">Define rows, then add sections (columns) to each row.</CardDescription>
                             </div>
-                            {/* ChevronDown removed from here */}
                         </CardHeader>
                     </AccordionTrigger>
                     <AccordionContent>
@@ -774,7 +827,6 @@ export function TemplateEditor({
                                                         onUpdateSectionInRow={onUpdateSectionInRow}
                                                         onRemoveSectionFromRow={removeSectionFromRow}
                                                         onMoveSectionInRow={moveSectionInRow}
-                                                        isColumnAccordionOpen={activeColumnAccordionItems.includes(section.id)}
                                                         onToggleColumnAccordion={() => onToggleColumnAccordion(section.id)}
                                                     />
                                                 ))}
