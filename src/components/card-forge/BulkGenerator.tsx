@@ -22,7 +22,7 @@ interface BulkGeneratorProps {
 type SupportedFileType = 'csv'; // Add 'json' etc. later
 
 export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProps) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFileType, setSelectedFileType] = useState<SupportedFileType>('csv');
@@ -182,12 +182,20 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="bulkTemplateSelect">1. Select Template</Label>
-            <Select value={selectedTemplateId} onValueChange={(id) => setSelectedTemplateId(id)}>
+            <Select 
+              value={selectedTemplateId} 
+              onValueChange={(id) => setSelectedTemplateId(id)}
+              disabled={templates.length === 0}
+            >
               <SelectTrigger id="bulkTemplateSelect">
                 <SelectValue placeholder="Choose a template" />
               </SelectTrigger>
               <SelectContent>
-                {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                {templates.length > 0 ? (
+                  templates.map(t => <SelectItem key={t.id || 'bulk-no-id'} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5)}`}</SelectItem>)
+                ) : (
+                  <SelectItem value="no-bulk-templates" disabled>No templates available</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>

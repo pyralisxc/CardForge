@@ -36,7 +36,7 @@ export function SingleCardGenerator({
   onTemplateSelectionChange,
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(selectedTemplateIdProp || (templates[0]?.id || ''));
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(selectedTemplateIdProp || templates[0]?.id || null);
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   const { toast } = useToast();
@@ -44,7 +44,7 @@ export function SingleCardGenerator({
 
   useEffect(() => {
     if (selectedTemplateIdProp !== undefined) {
-      setSelectedTemplateId(selectedTemplateIdProp || (templates[0]?.id || ''));
+      setSelectedTemplateId(selectedTemplateIdProp || templates[0]?.id || null);
     }
   }, [selectedTemplateIdProp, templates]);
 
@@ -101,7 +101,7 @@ export function SingleCardGenerator({
           const updatedWithDefaults = {...newCardDataState};
           Object.keys(newCardDataState).forEach(key => {
               if (String(updatedWithDefaults[key]).trim() === '' && fields.find(f=>f.key === key)?.defaultValue) {
-                  updatedWithDefaults[key] = fields.find(f=>f.key === key)!.defaultValue;
+                  updatedWithDefaults[key] = fields.find(f=>f.key === key)!.defaultValue!;
               }
           });
           setCardData(updatedWithDefaults);
@@ -174,7 +174,7 @@ export function SingleCardGenerator({
     toast({ title: "Success", description: `Card "${cardIdentifier}" added to preview.` });
   }, [selectedTemplateId, templates, cardData, dynamicFields, onSingleCardAdded, toast]);
 
-  const handleTemplateSelectChange = useCallback((id: string) => {
+  const handleTemplateSelectChange = useCallback((id: string | null) => {
     setSelectedTemplateId(id);
     setCardData({}); 
     if (onTemplateSelectionChange) {
@@ -193,8 +193,9 @@ export function SingleCardGenerator({
         <div>
           <Label htmlFor="singleTemplateSelect">Select Template</Label>
           <Select
-            value={selectedTemplateId}
+            value={selectedTemplateId ?? undefined} // Pass undefined if null for placeholder to show
             onValueChange={handleTemplateSelectChange}
+            disabled={templates.length === 0}
           >
             <SelectTrigger id="singleTemplateSelect">
               <SelectValue placeholder="Choose a template" />
@@ -266,9 +267,13 @@ export function SingleCardGenerator({
         {selectedTemplateId && dynamicFields.length === 0 && (
             <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields (e.g., <code>{'{{someKey}}'}</code>). Please edit the template to include them.</p>
         )}
-         {!selectedTemplateId && (
+         {!selectedTemplateId && templates.length > 0 && ( // Only show this if templates exist but none selected
             <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
         )}
+         {templates.length === 0 && ( // Show this if no templates exist at all
+            <p className="text-sm text-muted-foreground">No templates available. Please create one in the "Template Editor" tab first.</p>
+        )}
+
 
         <Button onClick={handleAddCard} disabled={!selectedTemplateId || dynamicFields.length === 0} className="w-full">
           <PlusSquare className="mr-2 h-4 w-4" /> Add Card to Preview List
