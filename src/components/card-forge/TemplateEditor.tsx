@@ -229,23 +229,23 @@ export function TemplateEditor({
     if (selectedTemplateToEditId) {
       const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateFromList) {
-        if (currentTemplate.id !== templateFromList.id || JSON.stringify(currentTemplate) !== JSON.stringify(templateFromList)) {
+        if (currentTemplate.id !== templateFromList.id || JSON.stringify(currentTemplate) !== JSON.stringify(reconstructTemplate(templateFromList))) {
           const reconstructed = reconstructTemplate(templateFromList);
           setCurrentTemplate(reconstructed);
           setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(Boolean) as string[]);
           setActiveColumnAccordionItems([]); 
           setActiveStylingAccordion(null);
         }
-      } else if (currentTemplate.id !== null) { // Template ID existed but now it's not in the list, so reset
+      } else if (currentTemplate.id !== null) { 
         resetFormToNew();
       }
-    } else { // selectedTemplateToEditId is null (new template mode)
+    } else { 
       if (currentTemplate.id !== null) { 
         resetFormToNew();
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplateToEditId, templates]); // Do not add currentTemplate here, it will cause loops
+  }, [selectedTemplateToEditId, templates]); 
   
   useEffect(() => {
     if (currentTemplate.aspectRatio !== aspectRatioInput) {
@@ -508,7 +508,7 @@ export function TemplateEditor({
             >
               <AccordionItem value="editor-settings-card" className="border-none">
                 <Card>
-                  <AccordionTrigger className="hover:no-underline p-0">
+                  <AccordionTrigger className="hover:no-underline p-0 [&>.lucide-chevron-down]:hidden">
                     <CardHeader className="flex flex-row items-center justify-between w-full hover:bg-muted/20 rounded-t-lg cursor-pointer px-2 py-3 sm:px-4 sm:py-3">
                       <div>
                         <CardTitle className="text-lg flex items-center gap-2">
@@ -520,12 +520,7 @@ export function TemplateEditor({
                             {currentTemplate.id && <span className="text-xs text-muted-foreground ml-2">(ID: {typeof currentTemplate.id === 'string' ? currentTemplate.id.substring(0,8) : 'New'})</span>}
                         </CardDescription>
                       </div>
-                      <ChevronDown
-                        className={cn(
-                          "h-5 w-5 text-muted-foreground transition-transform duration-200",
-                          isSettingsCardOpen ? "rotate-180" : ""
-                        )}
-                      />
+                      {/* ChevronDown removed from here, Radix will add its own if not hidden by AccordionTrigger's class */}
                     </CardHeader>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -562,7 +557,7 @@ export function TemplateEditor({
 
                         <Accordion type="single" collapsible className="w-full" defaultValue="overall-styling-accordion-item">
                             <AccordionItem value="overall-styling-accordion-item" id="overall-styling-accordion-item" className="border rounded-md">
-                                <AccordionTrigger className="px-3 py-2 text-sm font-semibold hover:no-underline">
+                                <AccordionTrigger className="px-3 py-2 text-sm font-semibold hover:no-underline [&>.lucide-chevron-down]:hidden">
                                     <div className="flex items-center gap-2"><Settings className="h-4 w-4" /> Overall Card Styling</div>
                                 </AccordionTrigger>
                                 <AccordionContent className="p-3 space-y-3 border-t">
@@ -697,7 +692,7 @@ export function TemplateEditor({
             >
               <AccordionItem value="rows-sections-card" className="border-none">
                 <Card>
-                    <AccordionTrigger className="hover:no-underline p-0">
+                    <AccordionTrigger className="hover:no-underline p-0 [&>.lucide-chevron-down]:hidden">
                         <CardHeader className="flex flex-row items-center justify-between w-full hover:bg-muted/20 rounded-t-lg cursor-pointer px-2 py-3 sm:px-4 sm:py-3">
                             <div>
                                 <CardTitle className="text-lg flex items-center gap-2">
@@ -705,12 +700,7 @@ export function TemplateEditor({
                                 </CardTitle>
                                 <CardDescription className="mt-1">Define rows, then add sections (columns) to each row.</CardDescription>
                             </div>
-                            <ChevronDown
-                                className={cn(
-                                "h-5 w-5 text-muted-foreground transition-transform duration-200",
-                                isRowsAndSectionsCardOpen ? "rotate-180" : ""
-                                )}
-                            />
+                            {/* ChevronDown removed from here */}
                         </CardHeader>
                     </AccordionTrigger>
                     <AccordionContent>
@@ -727,11 +717,11 @@ export function TemplateEditor({
                                     <div className="flex items-center w-full px-2 py-1 hover:bg-muted/30 rounded-t-md focus-within:ring-1 focus-within:ring-ring">
                                             <AccordionTrigger
                                                 aria-label={`Toggle Row ${rowIndex + 1} details`}
-                                                className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring text-sm font-medium"
+                                                className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring text-sm font-medium [&>.lucide-chevron-down]:hidden"
                                             >
                                                 <div className="flex items-center gap-2">
                                                     <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                                    <span className="truncate flex-1">Row {rowIndex + 1} ({(row.columns || []).length} Column(s))</span>
+                                                    <span className="truncate flex-1">{`Row ${rowIndex + 1} (${(row.columns || []).length} Column(s))`}</span>
                                                 </div>
                                             </AccordionTrigger>
                                             <div className="flex gap-1 ml-2 flex-shrink-0">
@@ -865,4 +855,3 @@ export function TemplateEditor({
     </div>
   );
 }
-

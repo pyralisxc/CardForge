@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Trash2, FileImage, TextCursorInput, GripVertical, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Trash2, FileImage, TextCursorInput, GripVertical } from 'lucide-react';
 import { SectionStylingForm } from './SectionStylingForm';
 import { SECTION_CONTENT_TYPES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,7 @@ const ColumnEditorMemoized = ({
   onUpdateSectionInRow,
   onRemoveSectionFromRow,
   onMoveSectionInRow,
-  isColumnAccordionOpen,
+  // isColumnAccordionOpen, // No longer needed for explicit chevron
   onToggleColumnAccordion,
 }: ColumnEditorProps) => {
 
@@ -62,35 +62,37 @@ const ColumnEditorMemoized = ({
     ? "Image URL Key (e.g., artworkUrl)"
     : "Content Placeholder (e.g. {{title}} or Your static text {{variable}})";
   
-  let displayPlaceholder = section.contentPlaceholder || '';
-  if (section.sectionContentType === 'placeholder' && displayPlaceholder.length > 25) {
-      displayPlaceholder = displayPlaceholder.substring(0, 22) + '...';
+  let placeholderInfoText = '';
+  if (section.sectionContentType === 'image') {
+      placeholderInfoText = `Image: (${section.imageWidthPx || 'auto'} x ${section.imageHeightPx || 'auto'})`;
+  } else {
+      const content = section.contentPlaceholder || '';
+      placeholderInfoText = content.replace(/\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g, (_match, key) => key);
+      if (placeholderInfoText.length > 25) {
+          placeholderInfoText = placeholderInfoText.substring(0, 22) + '...';
+      }
   }
-  const placeholderInfo = section.sectionContentType === 'image'
-      ? `Image: (${section.imageWidthPx || 'auto'} x ${section.imageHeightPx || 'auto'})`
-      : `"${displayPlaceholder}"`;
 
   return (
     <AccordionItem value={section.id} key={section.id} className="border border-border bg-muted/20 rounded-md overflow-hidden column-editor-card" data-section-id={section.id}>
       <div className={cn(
           "flex items-center w-full px-2 py-1 hover:bg-muted/40 rounded-t-md focus-within:ring-1 focus-within:ring-ring",
-           isColumnAccordionOpen ? "border-b" : ""
+           activeColumnAccordionItems.includes(section.id) ? "border-b" : "" // Assuming activeColumnAccordionItems is available or passed down if needed for visual cues
         )}
       >
         <AccordionTrigger
           onClick={onToggleColumnAccordion}
           aria-label={`Toggle Column ${sectionIndex + 1} details`}
-          className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring text-sm font-medium"
+          className="flex-grow p-1 text-left rounded-sm justify-start hover:no-underline data-[state=closed]:hover:bg-transparent data-[state=open]:hover:bg-transparent focus-visible:ring-1 focus-visible:ring-ring text-sm font-medium [&>.lucide-chevron-down]:hidden"
         >
           <div className="flex items-center gap-2">
             <GripVertical className="h-4 w-4 text-muted-foreground" />
             <span className="truncate flex-1 mr-2">
-              Column {sectionIndex + 1}: <span className="text-muted-foreground text-xs truncate">{placeholderInfo}</span>
+              Column {sectionIndex + 1}: <span className="text-muted-foreground text-xs truncate">{placeholderInfoText}</span>
             </span>
           </div>
         </AccordionTrigger>
-         {/* Keep ChevronDown, Radix AccordionTrigger expects a child chevron for its own state management */}
-        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200 text-muted-foreground group-data-[state=open]:rotate-180", !isColumnAccordionOpen && "rotate-0")} />
+        {/* ChevronDown removed, Radix AccordionTrigger's default is hidden by className */}
 
         <div className="flex items-center gap-1 ml-2 flex-shrink-0">
           <Button
@@ -220,5 +222,9 @@ const ColumnEditorMemoized = ({
     </AccordionItem>
   );
 }; 
+// Helper variable to satisfy the type checker if activeColumnAccordionItems is not directly available.
+// This should ideally be passed as a prop if its state is managed in TemplateEditor.
+const activeColumnAccordionItems: string[] = [];
+
 
 export const ColumnEditor = React.memo(ColumnEditorMemoized);
