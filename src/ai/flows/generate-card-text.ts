@@ -69,8 +69,6 @@ const generateCardTextFlow = ai.defineFlow(
     const { theme, textType } = input;
     const dynamicPrompt = constructPrompt(textType, theme);
 
-    console.log("[generateCardTextFlow] Prompt being sent to AI:", dynamicPrompt);
-
     const {output} = await ai.generate({
       prompt: dynamicPrompt,
     });
@@ -78,3 +76,4 @@ const generateCardTextFlow = ai.defineFlow(
     return { cardText: output?.text || "No text generated." };
   }
 );
+

@@ -2,7 +2,7 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import React, { useRef } from 'react'; 
+import { useRef, memo } from 'react'; 
 import type { CardSection } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -88,7 +88,7 @@ const SectionStylingFormMemoized = ({
       onValueChange={() => onToggleStylingAccordion(section.id)}
     >
       <AccordionItem value={section.id} id={`accordion-section-styling-${section.id}`} className="border rounded-md p-0 mt-2">
-        <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5 px-2 sm:px-3">
+        <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5 px-2 sm:px-3 [&>.lucide-chevron-down]:hidden">
           <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" />Styling Options</div>
         </AccordionTrigger>
         <AccordionContent className="p-px sm:p-2 space-y-2 border-t">
@@ -228,4 +228,5 @@ const SectionStylingFormMemoized = ({
   );
 };
 
-export const SectionStylingForm = React.memo(SectionStylingFormMemoized);
+export const SectionStylingForm = memo(SectionStylingFormMemoized);
+

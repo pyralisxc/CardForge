@@ -2,7 +2,7 @@
 "use client";
 
 import type { ChangeEvent } from 'react';
-import React from 'react'; 
+import { memo } from 'react'; 
 import type { CardSection } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,7 +26,6 @@ interface ColumnEditorProps {
   onUpdateSectionInRow: (rowId: string, sectionId: string, updates: Partial<CardSection>) => void;
   onRemoveSectionFromRow: (rowId: string, sectionId: string) => void;
   onMoveSectionInRow: (rowId: string, sectionId: string, direction: 'left' | 'right') => void;
-  isColumnAccordionOpen: boolean;
   onToggleColumnAccordion: () => void;
 }
 
@@ -41,7 +40,6 @@ const ColumnEditorMemoized = ({
   onUpdateSectionInRow,
   onRemoveSectionFromRow,
   onMoveSectionInRow,
-  // isColumnAccordionOpen, // No longer needed for explicit chevron
   onToggleColumnAccordion,
 }: ColumnEditorProps) => {
 
@@ -67,17 +65,29 @@ const ColumnEditorMemoized = ({
       placeholderInfoText = `Image: (${section.imageWidthPx || 'auto'} x ${section.imageHeightPx || 'auto'})`;
   } else {
       const content = section.contentPlaceholder || '';
-      placeholderInfoText = content.replace(/\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g, (_match, key) => key);
+      // Strip {{key:"Default"}} or {{key}} to just key or "Default"
+      const matchWithDefault = content.match(/\{\{\s*[\w-]+\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}\}/);
+      const matchWithoutDefault = content.match(/\{\{\s*([\w-]+)\s*\}\}/);
+
+      if (matchWithDefault) {
+          placeholderInfoText = matchWithDefault[1].replace(/\\"/g, '"');
+      } else if (matchWithoutDefault) {
+          placeholderInfoText = matchWithoutDefault[1];
+      } else {
+          placeholderInfoText = content; // Static text
+      }
+      
       if (placeholderInfoText.length > 25) {
           placeholderInfoText = placeholderInfoText.substring(0, 22) + '...';
       }
   }
 
+
   return (
     <AccordionItem value={section.id} key={section.id} className="border border-border bg-muted/20 rounded-md overflow-hidden column-editor-card" data-section-id={section.id}>
       <div className={cn(
           "flex items-center w-full px-2 py-1 hover:bg-muted/40 rounded-t-md focus-within:ring-1 focus-within:ring-ring",
-           activeColumnAccordionItems.includes(section.id) ? "border-b" : "" // Assuming activeColumnAccordionItems is available or passed down if needed for visual cues
+          // activeColumnAccordionItems.includes(section.id) ? "border-b" : "" // This was using a non-existent const
         )}
       >
         <AccordionTrigger
@@ -92,7 +102,6 @@ const ColumnEditorMemoized = ({
             </span>
           </div>
         </AccordionTrigger>
-        {/* ChevronDown removed, Radix AccordionTrigger's default is hidden by className */}
 
         <div className="flex items-center gap-1 ml-2 flex-shrink-0">
           <Button
@@ -221,10 +230,7 @@ const ColumnEditorMemoized = ({
       </AccordionContent>
     </AccordionItem>
   );
-}; 
-// Helper variable to satisfy the type checker if activeColumnAccordionItems is not directly available.
-// This should ideally be passed as a prop if its state is managed in TemplateEditor.
-const activeColumnAccordionItems: string[] = [];
+};
 
+export const ColumnEditor = memo(ColumnEditorMemoized);
 
-export const ColumnEditor = React.memo(ColumnEditorMemoized);

@@ -61,7 +61,7 @@ Output a brief textual description of the image you generated.`,
       throw new Error(`Image generation failed: ${failureReason}`);
     }
     
-    // console.log("Generated text description from model:", text); // For debugging what text comes with the image
     return { imageDataUri: media.url };
   }
 );
+
