@@ -49,7 +49,7 @@ export default function CardForgePage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // PDF Print Options State
-  const [pdfMarginMm, setPdfMarginMm] = useState<number>(10);
+  const [pdfMarginMm, setPdfMarginMm] = useState<number>(5); // Default margin changed to 5mm
   const [pdfCardSpacingMm, setPdfCardSpacingMm] = useState<number>(0);
   const [pdfIncludeCutLines, setPdfIncludeCutLines] = useState<boolean>(false);
 
@@ -503,3 +503,4 @@ export default function CardForgePage() {
     </div>
   );
 }
+
