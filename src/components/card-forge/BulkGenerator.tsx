@@ -14,6 +14,8 @@ import { nanoid } from 'nanoid';
 import { Download, PackagePlus, UploadCloud, FileText } from 'lucide-react';
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
 
+const NO_BACK_TEMPLATE_VALUE = "no-back-template";
+
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
   onCardsGenerated: (cards: DisplayCard[]) => void;
@@ -23,7 +25,7 @@ type SupportedFileType = 'csv';
 
 export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProps) {
   const [selectedFrontTemplateId, setSelectedFrontTemplateId] = useState<string>(templates[0]?.id || '');
-  const [selectedBackTemplateId, setSelectedBackTemplateId] = useState<string>(''); // Empty string for "No Back Template"
+  const [selectedBackTemplateId, setSelectedBackTemplateId] = useState<string | null>(null); // Changed initial to null
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFileType] = useState<SupportedFileType>('csv'); // CSV is the only supported type for now
@@ -31,7 +33,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedFrontTemplate = useMemo(() => templates.find(t => t.id === selectedFrontTemplateId), [templates, selectedFrontTemplateId]);
-  const selectedBackTemplate = useMemo(() => templates.find(t => t.id === selectedBackTemplateId), [templates, selectedBackTemplateId]);
+  const selectedBackTemplate = useMemo(() => selectedBackTemplateId ? templates.find(t => t.id === selectedBackTemplateId) : null, [templates, selectedBackTemplateId]);
 
   const getCombinedPlaceholders = useCallback((): ExtractedPlaceholder[] => {
     const combined = new Map<string, ExtractedPlaceholder>();
@@ -42,18 +44,17 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     }
     if (selectedBackTemplate) {
       extractUniquePlaceholderKeys(selectedBackTemplate).forEach(p => {
-        // Potentially prefix back keys if they might clash, or if user needs to distinguish
         combined.set(`back_${p.key}`, { key: `back_${p.key}`, defaultValue: p.defaultValue });
       });
     }
     return Array.from(combined.values());
   }, [selectedFrontTemplate, selectedBackTemplate]);
-  
+
   const placeholderObjects = getCombinedPlaceholders();
-  
+
   const generateExampleCSV = useCallback(() => {
     if (!selectedFrontTemplate) return "Select a front template first.";
-    
+
     const headers = placeholderObjects.map(p => p.key).join(',');
     const exampleDataLine = placeholderObjects.map(p => {
       const keyLower = p.key.toLowerCase();
@@ -75,7 +76,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       toast({ title: "Front Template Required", description: "Please select a TCG template for the card front.", variant: "destructive" });
       return;
     }
-    
+
     setIsLoading(true);
     let generatedCards: DisplayCard[] = [];
 
@@ -93,7 +94,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         return;
       }
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"(.*)"$/, '$1'));
-      
+
       for (let i = 1; i < lines.length; i++) {
         if (lines[i].trim() === '') continue;
         const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'));
@@ -111,14 +112,12 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           } else if (key.startsWith('back_')) {
             backData[key.substring(5)] = value;
           } else {
-            // If not prefixed, assume it's for the front, or could be ignored if strict prefixing is desired
-            // For now, let's assume unprefixed might apply to front if no front_ prefix exists for that key
             if (!(`front_${key}` in rawRowData)) {
               frontData[key] = value;
             }
           }
         });
-        
+
         const displayCard: DisplayCard = {
             frontTemplate: selectedFrontTemplate,
             frontData: frontData,
@@ -128,7 +127,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         };
         generatedCards.push(displayCard);
       }
-      
+
       onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
         toast({ title: "Success", description: `${generatedCards.length} TCG cards generated.` });
@@ -143,7 +142,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       setIsLoading(false);
     }
   };
-  
+
   const handleDataInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setBulkDataInput(e.target.value);
   };
@@ -188,7 +187,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     link.setAttribute("href", url);
     const safeFrontTemplateName = selectedFrontTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0,20);
     const safeBackTemplateName = selectedBackTemplate ? selectedBackTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0,15) : "";
-    const fileName = selectedBackTemplate ? `template_front_${safeFrontTemplateName}_back_${safeBackTemplateName}.csv` : `template_front_${safeFrontTemplateName}.csv`;
+    const fileName = selectedBackTemplateId ? `template_front_${safeFrontTemplateName}_back_${safeBackTemplateName}.csv` : `template_front_${safeFrontTemplateName}.csv`;
     link.setAttribute("download", fileName);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
@@ -208,8 +207,8 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="bulkFrontTemplateSelect">1. Select Front Template*</Label>
-            <Select 
-              value={selectedFrontTemplateId} 
+            <Select
+              value={selectedFrontTemplateId}
               onValueChange={(id) => setSelectedFrontTemplateId(id)}
               disabled={templates.length === 0}
             >
@@ -227,26 +226,26 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           </div>
           <div>
             <Label htmlFor="bulkBackTemplateSelect">2. Select Back Template (Optional)</Label>
-            <Select 
-              value={selectedBackTemplateId} 
-              onValueChange={(id) => setSelectedBackTemplateId(id)}
+            <Select
+              value={selectedBackTemplateId ?? NO_BACK_TEMPLATE_VALUE}
+              onValueChange={(id) => setSelectedBackTemplateId(id === NO_BACK_TEMPLATE_VALUE ? null : id)}
               disabled={templates.length === 0}
             >
               <SelectTrigger id="bulkBackTemplateSelect">
                 <SelectValue placeholder="Choose back template (Optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Back Template</SelectItem>
+                <SelectItem value={NO_BACK_TEMPLATE_VALUE}>No Back Template</SelectItem>
                 {templates.map(t => <SelectItem key={`back-bulk-${t.id || 'bulk-no-id-back'}`} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5)}`}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-2">
-            <Button 
-                onClick={() => fileInputRef.current?.click()} 
-                variant="outline" 
+            <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="outline"
                 disabled={!selectedFrontTemplateId}
                 className="w-full sm:w-auto flex-grow sm:flex-grow-0"
             >
@@ -260,8 +259,8 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
                 style={{ display: 'none' }}
                 id="bulk-file-upload-csv"
             />
-            <Button 
-                onClick={handleDownloadTemplateCSV} 
+            <Button
+                onClick={handleDownloadTemplateCSV}
                 variant="outline"
                 disabled={!selectedFrontTemplateId}
                 className="w-full sm:w-auto flex-grow sm:flex-grow-0"
@@ -284,12 +283,12 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
             disabled={!selectedFrontTemplateId}
           />
           {selectedFrontTemplate && <p className="text-xs text-muted-foreground mt-1">
-            Your CSV headers should be: <strong>{placeholderObjects.map(p => p.key).join(',') || "No placeholders found in selected template(s)"}</strong>. 
+            Your CSV headers should be: <strong>{placeholderObjects.map(p => p.key).join(',') || "No placeholders found in selected template(s)"}</strong>.
             Prefix front template fields with "front_" and back template fields with "back_".
           </p>}
            {!selectedFrontTemplateId && <p className="text-xs text-muted-foreground mt-1">Select a front template first.</p>}
         </div>
-        
+
         <Button onClick={handleGenerate} disabled={isLoading || !selectedFrontTemplateId || !bulkDataInput.trim()} className="w-full">
           {isLoading ? 'Generating...' : <> <Download className="mr-2 h-4 w-4" /> Generate Cards from Data</>}
         </Button>
