@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 interface CardPreviewProps {
   card: DisplayCard;
   className?: string;
-  isPrintMode?: boolean; // This prop might become less relevant with direct PDF generation
+  isPrintMode?: boolean;
   showSizeInfo?: boolean;
   isEditorPreview?: boolean;
   hideEmptySections?: boolean;
@@ -24,7 +24,7 @@ const PREVIEW_WIDTH_PX = 280; // Default preview width in editor
 export function CardPreview({
   card,
   className,
-  isPrintMode = false, // Kept for now, but direct PDF might make it vestigial
+  isPrintMode = false,
   showSizeInfo = false,
   isEditorPreview = false,
   hideEmptySections = true,
@@ -43,7 +43,7 @@ export function CardPreview({
 
   const cardContainerStyle: React.CSSProperties = {
     aspectRatio: (aspectW > 0 && aspectH > 0) ? `${aspectW} / ${aspectH}` : undefined,
-    width: `${effectiveWidthPx}px`, // Use effectiveWidthPx for on-screen display
+    width: `${effectiveWidthPx}px`,
     height: (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`),
     boxSizing: 'border-box',
   };
@@ -113,14 +113,12 @@ export function CardPreview({
 
   return (
     <div 
-      id={`card-preview-${card.uniqueId}`} // Unique ID for html2canvas targeting
+      id={`card-preview-${card.uniqueId}`}
       className={cn("flex flex-col items-center group", className)}
     >
       <div
         className={cn(
           "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden",
-          // isPrintMode specific class might be removed or repurposed later if window.print() is fully deprecated
-          // `frame-${template.frameStyle || 'standard'}`, // This class still applies for general frame styling
           onEdit && !isEditorPreview ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
           `frame-${template.frameStyle || 'standard'}`
         )}
@@ -232,7 +230,6 @@ export function CardPreview({
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
                   section.fontFamily || 'font-sans',
-                  // section.borderRadius || 'rounded-none', // borderRadius is now handled by inline style
                   section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? section.minHeight : '',
                   sectionBorderClass,
                   section.sectionContentType !== 'image' ? 'whitespace-pre-wrap break-words' : '',
@@ -297,7 +294,7 @@ export function CardPreview({
                     return (
                         <div
                             key={section.id}
-                            className={cn(sectionClasses, section.padding || 'p-0')} // Image container usually doesn't need padding itself
+                            className={cn(sectionClasses, section.padding || 'p-0')}
                             style={{
                                 ...sectionStyle,
                                 width: section.imageWidthPx ? `${displayWidth}px` : (section.customWidth || '100%'),
@@ -317,7 +314,7 @@ export function CardPreview({
                                   objectFit: 'contain', 
                                   width: '100%', 
                                   height: '100%',
-                                  borderRadius: section.borderRadius || undefined, // Apply to image if container has it
+                                  borderRadius: section.borderRadius || undefined,
                                 }}
                                 data-ai-hint={artworkHintValue}
                                 priority={rowIndex === 0 && sectionIndex === 0}
@@ -325,7 +322,7 @@ export function CardPreview({
                         </div>
                     );
 
-                } else { // sectionContentType === 'placeholder' (Text content)
+                } else { 
                     const Tag = (processedContentForDisplay.includes('\n') && !isEditorPreview) ? 'pre' : 'div';
                     return (
                       <Tag
@@ -345,11 +342,10 @@ export function CardPreview({
         })}
       </div>
       {showSizeInfo && !isPrintMode && (
-        <div className="text-xs text-muted-foreground mt-1">
+        <div className="text-xs text-muted-foreground mt-1" data-html2canvas-ignore="true">
           Approx. Print Size: {cardStandardWidthInches}in x {cardStandardHeightInches}in
         </div>
       )}
     </div>
   );
 }
-

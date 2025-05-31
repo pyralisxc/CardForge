@@ -50,7 +50,6 @@ export function SaveAsPdfButton({
       const effectivePrintableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
       const effectivePrintableHeightMm = selectedPaperSize.heightMm - 2 * pdfMarginMm;
 
-      // Adjust for card spacing when calculating cards per row/page
       const cardsPerRow = Math.max(1, Math.floor((effectivePrintableWidthMm + pdfCardSpacingMm) / (cardWidthMm + pdfCardSpacingMm)));
       const rowsPerPage = Math.max(1, Math.floor((effectivePrintableHeightMm + pdfCardSpacingMm) / (cardHeightMm + pdfCardSpacingMm)));
       const cardsPerPage = cardsPerRow * rowsPerPage;
@@ -92,10 +91,8 @@ export function SaveAsPdfButton({
           currentX = pdfMarginMm;
           currentY = pdfMarginMm;
         } else if (cardCountOnCurrentPage > 0 && cardCountOnCurrentPage % cardsPerRow === 0) {
-          // New row on the same page
           currentX = pdfMarginMm;
           currentY += cardHeightMm + pdfCardSpacingMm;
-           // Check if new row overflows page
            if (currentY + cardHeightMm > selectedPaperSize.heightMm - pdfMarginMm) {
              pdf.addPage();
              cardCountOnCurrentPage = 0;
@@ -104,30 +101,30 @@ export function SaveAsPdfButton({
            }
         }
 
-
         const canvas = await html2canvas(cardElement, {
           scale: 2,
           useCORS: true,
           logging: false,
           backgroundColor: null,
+          ignoreElements: (element) => {
+            return element.getAttribute('data-html2canvas-ignore') === 'true';
+          },
         });
         const imgData = canvas.toDataURL('image/png');
 
         pdf.addImage(imgData, 'PNG', currentX, currentY, cardWidthMm, cardHeightMm);
 
         if (pdfIncludeCutLines) {
-          pdf.setDrawColor(180, 180, 180); // Light grey for cut lines
+          pdf.setDrawColor(180, 180, 180); 
           pdf.setLineWidth(0.1);
-          // Outer box exactly around the card
           pdf.rect(currentX, currentY, cardWidthMm, cardHeightMm);
         }
         
         cardCountOnCurrentPage++;
-        if (i < generatedDisplayCards.length - 1) { // Don't advance cursor if it's the last card
-            if (cardCountOnCurrentPage % cardsPerRow !== 0) { // More cards in this row
+        if (i < generatedDisplayCards.length - 1) { 
+            if (cardCountOnCurrentPage % cardsPerRow !== 0) { 
                  currentX += cardWidthMm + pdfCardSpacingMm;
             }
-            // Logic for moving to next row or page is handled at the start of the loop for the *next* card
         }
       }
       pdf.save('tcg-cards.pdf');
