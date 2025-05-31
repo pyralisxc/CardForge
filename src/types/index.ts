@@ -71,4 +71,3 @@ export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
 }
-
