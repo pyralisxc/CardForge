@@ -72,8 +72,7 @@ const SectionStylingFormMemoized = ({
       borderWidth: defaultStyling.borderWidth,
       borderRadius: defaultStyling.borderRadius,
       minHeight: defaultStyling.minHeight,
-      backgroundImageUrl: defaultStyling.backgroundImageUrl, // Reset background image URL as well
-      // Explicitly NOT resetting: id, sectionContentType, contentPlaceholder, flexGrow, customHeight, customWidth, imageWidthPx, imageHeightPx
+      backgroundImageUrl: defaultStyling.backgroundImageUrl, 
     };
     handleUpdate(stylingUpdates);
     toast({ title: "Styling Reset", description: `Styling for column reset to defaults.` });
@@ -89,10 +88,10 @@ const SectionStylingFormMemoized = ({
       onValueChange={() => onToggleStylingAccordion(section.id)}
     >
       <AccordionItem value={section.id} id={`accordion-section-styling-${section.id}`} className="border rounded-md p-0 mt-2">
-        <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5 px-2">
+        <AccordionTrigger className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:no-underline py-1.5 px-2 sm:px-3">
           <div className="flex items-center gap-1.5"><Paintbrush className="h-4 w-4" />Styling Options</div>
         </AccordionTrigger>
-        <AccordionContent className="pt-2 pb-3 px-3 space-y-2 border-t">
+        <AccordionContent className="pt-2 pb-3 px-2 sm:px-3 space-y-2 border-t">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
             <div>
               <Label htmlFor={`contentBgColor-${section.id}`} className="text-xs">Background Color (Section)</Label>
@@ -230,4 +229,3 @@ const SectionStylingFormMemoized = ({
 };
 
 export const SectionStylingForm = React.memo(SectionStylingFormMemoized);
-

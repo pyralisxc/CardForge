@@ -127,7 +127,7 @@ const ColumnEditorMemoized = ({
           </Button>
         </div>
       </div>
-      <AccordionContent className="p-3 space-y-3 bg-background/50">
+      <AccordionContent className="p-2 sm:p-3 space-y-3 bg-background/50">
         <div>
           <Label htmlFor={`sectionContentType-${section.id}`} className="text-xs">Section Content Type</Label>
           <Select

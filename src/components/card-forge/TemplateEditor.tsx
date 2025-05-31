@@ -107,7 +107,6 @@ export function TemplateEditor({
 
     const newTemplate: TCGCardTemplate = {
       ...baseTemplate,
-      // ...templateData, // Apply all templateData first
       id: anId,
       name: templateData.name !== undefined ? templateData.name : baseTemplate.name,
       aspectRatio: templateData.aspectRatio !== undefined ? templateData.aspectRatio : baseTemplate.aspectRatio,
@@ -120,17 +119,14 @@ export function TemplateEditor({
       cardBorderWidth: templateData.cardBorderWidth !== undefined ? templateData.cardBorderWidth : baseTemplate.cardBorderWidth,
       cardBorderStyle: templateData.cardBorderStyle !== undefined ? templateData.cardBorderStyle : baseTemplate.cardBorderStyle,
       cardBorderRadius: templateData.cardBorderRadius !== undefined ? templateData.cardBorderRadius : baseTemplate.cardBorderRadius,
-      rows: [], // Start with empty rows and reconstruct them
+      rows: [], 
     };
 
-    // Apply all properties from templateData that are not explicitly handled above or are part of rows.
-    // This helps ensure any other top-level properties are carried over.
     for (const key in templateData) {
         if (key !== 'rows' && !(key in newTemplate)) {
             (newTemplate as any)[key] = (templateData as any)[key];
         }
     }
-
 
     newTemplate.rows = (templateData.rows || baseTemplate.rows || []).map(currentRowDataFromState => {
       const rowId = currentRowDataFromState.id || nanoid();
@@ -143,7 +139,7 @@ export function TemplateEditor({
         id: rowId,
       };
 
-      reconstructedRow.columns = (currentRowDataFromState.columns || baseTemplateRow.columns || []).map(currentSectionDataFromState => {
+      reconstructedRow.columns = (currentRowDataFromState.columns || []).map(currentSectionDataFromState => {
         const sectionId = currentSectionDataFromState.id || nanoid();
         const baseTemplateSection = (baseTemplateRow.columns || []).find(bs => bs.id === sectionId) || createDefaultSection(sectionId);
 
@@ -226,7 +222,7 @@ export function TemplateEditor({
 
 
   useEffect(() => {
-    let templateToLoad: Partial<TCGCardTemplate> = currentTemplate; // Default to current state to avoid full reset if no other conditions met
+    let templateToLoad: Partial<TCGCardTemplate> = currentTemplate; 
     let shouldReconstruct = false;
     let newActiveRows: string[] | undefined = undefined;
 
@@ -240,19 +236,20 @@ export function TemplateEditor({
             }
         } else {
             resetFormToNew();
-            return; // Exit early as resetFormToNew handles its own state
+            return; 
         }
-    } else if (initialTemplate && currentTemplate.id === null) { // If it's a new template form, but there was an initial one passed (e.g. duplication intent)
+    } else if (initialTemplate && currentTemplate.id === null) { 
          if (JSON.stringify(currentTemplate) !== JSON.stringify(initialTemplate)) {
              templateToLoad = initialTemplate;
              shouldReconstruct = true;
              newActiveRows = (initialTemplate.rows || []).map(r => r.id).filter(Boolean) as string[];
          }
-    } else if (currentTemplate.id === null && (!initialTemplate || initialTemplate.id === null)) { // Current is truly new, initial was also new or undefined
-        templateToLoad = memoizedGetFreshDefaultTemplate(null, currentTemplate.name);
-        if (currentTemplate.rows.length !== templateToLoad.rows?.length || currentTemplate.name !== templateToLoad.name) {
+    } else if (currentTemplate.id === null && (!initialTemplate || initialTemplate.id === null)) { 
+        const freshDefault = memoizedGetFreshDefaultTemplate(null, currentTemplate.name);
+        if (JSON.stringify(currentTemplate) !== JSON.stringify(freshDefault)) {
+             templateToLoad = freshDefault;
              shouldReconstruct = true;
-             newActiveRows = (templateToLoad.rows || []).map(r => r.id).filter(Boolean) as string[];
+             newActiveRows = (freshDefault.rows || []).map(r => r.id).filter(Boolean) as string[];
         }
     }
     
@@ -264,7 +261,8 @@ export function TemplateEditor({
         setActiveRowAccordionItems(newActiveRows);
       }
     }
-  }, [initialTemplate, selectedTemplateToEditId, templates, reconstructTemplate, memoizedGetFreshDefaultTemplate, resetFormToNew, currentTemplate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTemplate, selectedTemplateToEditId, templates, reconstructTemplate, memoizedGetFreshDefaultTemplate, resetFormToNew]);
   
   useEffect(() => {
     setAspectRatioInput(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
@@ -293,7 +291,7 @@ export function TemplateEditor({
       rows: [...(prev.rows || []), createDefaultRow(newRowId)]
     }));
     setActiveRowAccordionItems(prevActive => [...prevActive, newRowId]);
-    setIsRowsAndSectionsCardOpen(true); // Ensure the card is open to show the new row
+    setIsRowsAndSectionsCardOpen(true); 
   }, []);
 
   const removeRow = useCallback((rowId: string) => {
@@ -331,7 +329,7 @@ export function TemplateEditor({
     setActiveStylingAccordion(newSectionId); 
     setActiveColumnAccordionItems(prevActive => [...prevActive, newSectionId]); 
     if (!activeRowAccordionItems.includes(rowId)) setActiveRowAccordionItems(prevActive => [...prevActive, rowId]);
-    setIsRowsAndSectionsCardOpen(true); // Ensure card is open
+    setIsRowsAndSectionsCardOpen(true); 
   }, [activeRowAccordionItems]);
 
 
@@ -450,7 +448,7 @@ export function TemplateEditor({
 
 
   const handleRowClickFromPreview = useCallback((rowId: string) => {
-    setIsRowsAndSectionsCardOpen(true); // Ensure parent card is open
+    setIsRowsAndSectionsCardOpen(true); 
     setActiveRowAccordionItems(prev => {
       if (prev.includes(rowId) && prev.length === 1 && activeRowAccordionItems.length === 1) return prev;
       if(prev.includes(rowId)) return prev.filter(id => id !== rowId);
@@ -460,7 +458,7 @@ export function TemplateEditor({
   }, [activeRowAccordionItems]);
 
   const handleSectionClickFromPreview = useCallback((sectionId: string) => {
-    setIsRowsAndSectionsCardOpen(true); // Ensure parent card is open
+    setIsRowsAndSectionsCardOpen(true); 
     const parentRow = (currentTemplate.rows || []).find(r => (r.columns || []).some(s => s.id === sectionId));
     if(parentRow && !activeRowAccordionItems.includes(parentRow.id)) setActiveRowAccordionItems(prevActive => [...prevActive, parentRow.id]);
     onToggleColumnAccordion(sectionId);
@@ -769,7 +767,7 @@ export function TemplateEditor({
                                                 <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeRow(row.id)}} aria-label="Remove row" className="h-7 w-7"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </div>
                                         </div>
-                                        <AccordionContent className="p-3 space-y-4 border-t bg-background/70">
+                                        <AccordionContent className="p-2 sm:p-3 space-y-4 border-t bg-background/70">
                                         <div className='grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3'>
                                             <div>
                                                 <Label htmlFor={`rowAlignItems-${row.id}`}>Row Vertical Alignment (columns)</Label>
