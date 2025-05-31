@@ -11,19 +11,20 @@ import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
-import { SaveAsPdfButton } from '@/components/card-forge/SaveAsPdfButton'; // Updated import
+import { SaveAsPdfButton } from '@/components/card-forge/SaveAsPdfButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Wand2, Cog } from 'lucide-react';
+import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Wand2, Cog, Scissors, SpacingHorizontalIcon, BringToFront } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { PAPER_SIZES, createDefaultRow, createDefaultSection, TABS_CONFIG, DEFAULT_TEMPLATES } from '@/lib/constants'; 
+import { PAPER_SIZES, createDefaultRow, createDefaultSection, TABS_CONFIG, DEFAULT_TEMPLATES } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -47,6 +48,12 @@ export default function CardForgePage() {
   const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // PDF Print Options State
+  const [pdfMarginMm, setPdfMarginMm] = useState<number>(10);
+  const [pdfCardSpacingMm, setPdfCardSpacingMm] = useState<number>(0);
+  const [pdfIncludeCutLines, setPdfIncludeCutLines] = useState<boolean>(false);
+
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -63,27 +70,27 @@ export default function CardForgePage() {
             }
         } catch (e) {
             console.warn("Failed to parse templates from localStorage. Starting fresh.", e);
-             initialTemplatesToLoad = []; 
+             initialTemplatesToLoad = [];
         }
     }
-    
+
     if (initialTemplatesToLoad.length === 0 && DEFAULT_TEMPLATES.length === 0) {
-        if (templates.length > 0) { 
+        if (templates.length > 0) {
             setTemplates([]);
         }
         return;
     }
-    
+
     if (initialTemplatesToLoad.length === 0 && DEFAULT_TEMPLATES.length > 0) {
       initialTemplatesToLoad = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
     }
-    
+
 
     const processedTemplates = initialTemplatesToLoad.map((t_loaded: Partial<TCGCardTemplate>) => {
         const baseTemplate = getFreshDefaultTemplate(t_loaded.id, t_loaded.name);
         let newT: TCGCardTemplate = { ...baseTemplate, ...t_loaded };
         newT.id = newT.id || baseTemplate.id || nanoid();
-        newT.name = newT.name || baseTemplate.name; 
+        newT.name = newT.name || baseTemplate.name;
 
         newT.rows = (t_loaded.rows || []).map((r_loaded: Partial<CardRow>) => {
             const rowId = r_loaded.id || nanoid();
@@ -94,7 +101,7 @@ export default function CardForgePage() {
                 const sectionId = c_loaded.id || nanoid();
                 const baseCol = createDefaultSection(sectionId);
                 let newC: CardSection = { ...baseCol, ...c_loaded, id: sectionId };
-                
+
                 newC.sectionContentType = newC.sectionContentType || baseCol.sectionContentType;
                 newC.contentPlaceholder = newC.contentPlaceholder || baseCol.contentPlaceholder;
                 newC.backgroundImageUrl = newC.backgroundImageUrl === undefined ? baseCol.backgroundImageUrl : newC.backgroundImageUrl;
@@ -113,13 +120,13 @@ export default function CardForgePage() {
         }
         return newT;
     });
-    
+
     if (JSON.stringify(templates) !== JSON.stringify(processedTemplates)) {
         setTemplates(processedTemplates);
     }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]); 
+  }, [mounted]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate) => {
     setTemplates(prevTemplates => {
@@ -184,12 +191,12 @@ export default function CardForgePage() {
 
   const handleDuplicateCard = useCallback((cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
-      ...JSON.parse(JSON.stringify(cardToDuplicate)), 
+      ...JSON.parse(JSON.stringify(cardToDuplicate)),
       uniqueId: nanoid(),
     };
     setGeneratedDisplayCards(prev => [...prev, newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
-    setIsEditDialogOpen(false); 
+    setIsEditDialogOpen(false);
     setEditingCard(null);
   }, [toast]);
 
@@ -239,7 +246,7 @@ export default function CardForgePage() {
               let hydratedTemplate: TCGCardTemplate = { ...baseTemplate, ...card.template };
               hydratedTemplate.id = hydratedTemplate.id || baseTemplate.id || nanoid();
               hydratedTemplate.name = hydratedTemplate.name || baseTemplate.name;
-              
+
               hydratedTemplate.rows = (card.template.rows || []).map((r_loaded: Partial<CardRow>) => {
                 const rowId = r_loaded.id || nanoid();
                 const baseRow = createDefaultRow(rowId);
@@ -367,7 +374,44 @@ export default function CardForgePage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                           <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
-                          <div className="flex items-center space-x-2 pt-1">
+                          <div className="space-y-3 pt-2 border-t">
+                            <Label className="text-md font-medium">PDF Options</Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <Label htmlFor="pdfMargin" className="text-xs flex items-center gap-1"><BringToFront className="h-3 w-3"/>Margins (mm)</Label>
+                                    <Input
+                                        id="pdfMargin"
+                                        type="number"
+                                        value={pdfMarginMm}
+                                        onChange={(e) => setPdfMarginMm(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                        className="h-8 text-xs"
+                                        min="0"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1"><SpacingHorizontalIcon className="h-3 w-3"/>Card Spacing (mm)</Label>
+                                    <Input
+                                        id="pdfCardSpacing"
+                                        type="number"
+                                        value={pdfCardSpacingMm}
+                                        onChange={(e) => setPdfCardSpacingMm(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                        className="h-8 text-xs"
+                                        min="0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-2 pt-1">
+                                <Switch
+                                    id="pdfIncludeCutLines"
+                                    checked={pdfIncludeCutLines}
+                                    onCheckedChange={setPdfIncludeCutLines}
+                                    aria-label="Toggle cut lines in PDF"
+                                />
+                                <Label htmlFor="pdfIncludeCutLines" className="flex items-center gap-1 cursor-pointer text-xs"><Scissors className="h-3 w-3"/>Include Cut Lines</Label>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2 pt-2 border-t">
                               <Switch
                                   id="hide-empty-sections"
                                   checked={hideEmptySections}
@@ -378,7 +422,7 @@ export default function CardForgePage() {
                                   <EyeOff className="h-4 w-4" /> Hide empty sections
                               </Label>
                           </div>
-                          <div className="flex flex-col gap-2 pt-2">
+                          <div className="flex flex-col gap-2 pt-2 border-t">
                              <div className="grid grid-cols-2 gap-2">
                                <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
                                   <FolderDown className="h-4 w-4" /> Save Set
@@ -388,10 +432,13 @@ export default function CardForgePage() {
                                </Button>
                                <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
                              </div>
-                              <SaveAsPdfButton 
+                              <SaveAsPdfButton
                                 generatedDisplayCards={generatedDisplayCards}
                                 selectedPaperSize={selectedPaperSize}
-                                disabled={generatedDisplayCards.length === 0} 
+                                pdfMarginMm={pdfMarginMm}
+                                pdfCardSpacingMm={pdfCardSpacingMm}
+                                pdfIncludeCutLines={pdfIncludeCutLines}
+                                disabled={generatedDisplayCards.length === 0}
                               />
                               {generatedDisplayCards.length > 0 && (
                                   <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
@@ -418,7 +465,7 @@ export default function CardForgePage() {
                           <CardPreview
                             key={cardItem.uniqueId}
                             card={cardItem}
-                            isPrintMode={false} // isPrintMode might be deprecated
+                            isPrintMode={false}
                             className="mx-auto"
                             showSizeInfo={index === 0}
                             hideEmptySections={hideEmptySections}

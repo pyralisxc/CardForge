@@ -12,12 +12,18 @@ import { useToast } from '@/hooks/use-toast';
 interface SaveAsPdfButtonProps {
   generatedDisplayCards: DisplayCard[];
   selectedPaperSize: PaperSize;
+  pdfMarginMm: number;
+  pdfCardSpacingMm: number;
+  pdfIncludeCutLines: boolean;
   disabled?: boolean;
 }
 
 export function SaveAsPdfButton({
   generatedDisplayCards,
   selectedPaperSize,
+  pdfMarginMm,
+  pdfCardSpacingMm,
+  pdfIncludeCutLines,
   disabled = false,
 }: SaveAsPdfButtonProps) {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
@@ -40,82 +46,88 @@ export function SaveAsPdfButton({
 
       const cardWidthMm = 63;
       const cardHeightMm = 88;
-      const marginMm = 10;
 
-      const printableWidthMm = selectedPaperSize.widthMm - 2 * marginMm;
-      const printableHeightMm = selectedPaperSize.heightMm - 2 * marginMm;
+      const effectivePrintableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
+      const effectivePrintableHeightMm = selectedPaperSize.heightMm - 2 * pdfMarginMm;
 
-      const cardsPerRow = Math.floor(printableWidthMm / cardWidthMm);
-      const rowsPerPage = Math.floor(printableHeightMm / cardHeightMm);
+      // Adjust for card spacing when calculating cards per row/page
+      const cardsPerRow = Math.max(1, Math.floor((effectivePrintableWidthMm + pdfCardSpacingMm) / (cardWidthMm + pdfCardSpacingMm)));
+      const rowsPerPage = Math.max(1, Math.floor((effectivePrintableHeightMm + pdfCardSpacingMm) / (cardHeightMm + pdfCardSpacingMm)));
       const cardsPerPage = cardsPerRow * rowsPerPage;
 
-      if (cardsPerPage === 0) {
+
+      if (cardsPerPage === 0 || cardWidthMm > effectivePrintableWidthMm || cardHeightMm > effectivePrintableHeightMm) {
         toast({
           title: "Layout Error",
-          description: `Paper size too small for cards with margin ${marginMm}mm. Try a larger paper size.`,
+          description: `Paper size or margins too small for cards. Card: ${cardWidthMm}x${cardHeightMm}mm, Printable: ${effectivePrintableWidthMm.toFixed(1)}x${effectivePrintableHeightMm.toFixed(1)}mm (with ${pdfMarginMm}mm margins). Spacing: ${pdfCardSpacingMm}mm.`,
           variant: "destructive",
+          duration: 7000,
         });
         setIsLoadingPdf(false);
         return;
       }
-      
+
       let cardCountOnCurrentPage = 0;
-      let currentX = marginMm;
-      let currentY = marginMm;
+      let currentX = pdfMarginMm;
+      let currentY = pdfMarginMm;
 
       for (let i = 0; i < generatedDisplayCards.length; i++) {
         const cardItem = generatedDisplayCards[i];
-        const cardElement = document.getElementById(`card-preview-${cardItem.uniqueId}`);
+        const cardElementId = `card-preview-${cardItem.uniqueId}`;
+        const cardElement = document.getElementById(cardElementId);
 
-        if (cardElement) {
-          const canvas = await html2canvas(cardElement, {
-            scale: 2, // Capture at higher resolution
-            useCORS: true,
-            logging: false,
-            backgroundColor: null, // Attempt to preserve transparency
-          });
-          const imgData = canvas.toDataURL('image/png');
-
-          if (cardCountOnCurrentPage >= cardsPerPage) {
-            pdf.addPage();
-            cardCountOnCurrentPage = 0;
-            currentX = marginMm;
-            currentY = marginMm;
-          }
-          
-          // Check if adding this card would overflow vertically on the current row
-          // If so, and it's not the first card in the row, move to next row
-          if (currentX + cardWidthMm > selectedPaperSize.widthMm - marginMm && cardCountOnCurrentPage % cardsPerRow !== 0) {
-             currentX = marginMm;
-             currentY += cardHeightMm;
-             // If this new row would also overflow the page, start a new page
-             if (currentY + cardHeightMm > selectedPaperSize.heightMm - marginMm) {
-                pdf.addPage();
-                cardCountOnCurrentPage = 0; // Reset for the new page
-                currentX = marginMm;
-                currentY = marginMm;
-             }
-          }
+        if (!cardElement) {
+            console.warn(`Card element not found for ID: ${cardElementId}. Skipping.`);
+            toast({
+                title: "Render Warning",
+                description: `Could not find card element for "${cardItem.data?.cardName || cardItem.uniqueId.substring(0,6)}" to render to PDF. It might have been removed or hidden.`,
+                variant: "default"
+            });
+            continue;
+        }
+        
+        if (cardCountOnCurrentPage > 0 && cardCountOnCurrentPage % cardsPerPage === 0) {
+          pdf.addPage();
+          cardCountOnCurrentPage = 0;
+          currentX = pdfMarginMm;
+          currentY = pdfMarginMm;
+        } else if (cardCountOnCurrentPage > 0 && cardCountOnCurrentPage % cardsPerRow === 0) {
+          // New row on the same page
+          currentX = pdfMarginMm;
+          currentY += cardHeightMm + pdfCardSpacingMm;
+           // Check if new row overflows page
+           if (currentY + cardHeightMm > selectedPaperSize.heightMm - pdfMarginMm) {
+             pdf.addPage();
+             cardCountOnCurrentPage = 0;
+             currentX = pdfMarginMm;
+             currentY = pdfMarginMm;
+           }
+        }
 
 
-          pdf.addImage(imgData, 'PNG', currentX, currentY, cardWidthMm, cardHeightMm);
-          cardCountOnCurrentPage++;
+        const canvas = await html2canvas(cardElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: null,
+        });
+        const imgData = canvas.toDataURL('image/png');
 
-          currentX += cardWidthMm;
-          // If current row is full, move to the next row
-          if (cardCountOnCurrentPage % cardsPerRow === 0 && cardCountOnCurrentPage > 0) {
-            currentX = marginMm;
-            currentY += cardHeightMm;
-            
-            // If starting a new row would overflow page, start a new page instead
-            // (but only if there are more cards to print)
-            if (currentY + cardHeightMm > selectedPaperSize.heightMm - marginMm && i < generatedDisplayCards.length - 1) {
-              pdf.addPage();
-              cardCountOnCurrentPage = 0; // Reset for new page
-              currentX = marginMm;
-              currentY = marginMm;
+        pdf.addImage(imgData, 'PNG', currentX, currentY, cardWidthMm, cardHeightMm);
+
+        if (pdfIncludeCutLines) {
+          pdf.setDrawColor(180, 180, 180); // Light grey for cut lines
+          pdf.setLineWidth(0.1);
+          // Outer box exactly around the card
+          pdf.rect(currentX, currentY, cardWidthMm, cardHeightMm);
+        }
+        
+        cardCountOnCurrentPage++;
+        if (i < generatedDisplayCards.length - 1) { // Don't advance cursor if it's the last card
+            if (cardCountOnCurrentPage % cardsPerRow !== 0) { // More cards in this row
+                 currentX += cardWidthMm + pdfCardSpacingMm;
             }
-          }
+            // Logic for moving to next row or page is handled at the start of the loop for the *next* card
         }
       }
       pdf.save('tcg-cards.pdf');
@@ -129,7 +141,7 @@ export function SaveAsPdfButton({
   };
 
   return (
-    <Button onClick={handleSaveAsPdf} disabled={disabled || isLoadingPdf} variant="outline">
+    <Button onClick={handleSaveAsPdf} disabled={disabled || isLoadingPdf} variant="outline" className="w-full">
       {isLoadingPdf ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
