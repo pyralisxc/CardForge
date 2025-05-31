@@ -85,7 +85,7 @@ const ColumnEditorMemoized = ({
           <div className="flex items-center gap-2">
             <GripVertical className="h-4 w-4 text-muted-foreground" />
             <span className="truncate flex-1 mr-2">
-              Column {sectionIndex + 1}: <span className="text-muted-foreground text-xs">{placeholderInfo}</span>
+              Column {sectionIndex + 1}: <span className="text-muted-foreground text-xs truncate">{placeholderInfo}</span>
             </span>
           </div>
         </AccordionTrigger>

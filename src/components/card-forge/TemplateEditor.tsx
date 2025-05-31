@@ -758,7 +758,7 @@ export function TemplateEditor({
                                             >
                                                 <div className="flex items-center gap-2">
                                                     <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                                    <span>Row {rowIndex + 1} ({ (row.columns || []).length} Column(s))</span>
+                                                    <span className="truncate">Row {rowIndex + 1} ({(row.columns || []).length} Column(s))</span>
                                                 </div>
                                             </AccordionTrigger>
                                             <div className="flex gap-1 ml-2 flex-shrink-0">
