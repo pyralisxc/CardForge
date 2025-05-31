@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Wand2, Cog, Scissors, SpacingHorizontalIcon, BringToFront } from 'lucide-react';
+import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Wand2, Cog, Scissors, ArrowLeftRight, BringToFront } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -389,7 +389,7 @@ export default function CardForgePage() {
                                     />
                                 </div>
                                 <div>
-                                    <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1"><SpacingHorizontalIcon className="h-3 w-3"/>Card Spacing (mm)</Label>
+                                    <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1"><ArrowLeftRight className="h-3 w-3"/>Card Spacing (mm)</Label>
                                     <Input
                                         id="pdfCardSpacing"
                                         type="number"
@@ -503,4 +503,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-
