@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront } from 'lucide-react';
 
-import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate, getFreshDefaultTemplate } from '@/store/appStore';
+import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate as reconstructMinimalTemplateFromStore, getFreshDefaultTemplate as getFreshDefaultTemplateFromStore } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -32,9 +32,9 @@ export default function CardForgePage() {
   const { toast } = useToast();
 
   // Zustand store selectors
-  const templates = useAppStore((state) => state.templates);
-  const storedCards = useAppStore((state) => state.storedCards); // Using storedCards
-  const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards); // Selector for runtime cards
+  const templatesFromStore = useAppStore((state) => state.templates);
+  const storedCards = useAppStore((state) => state.storedCards);
+  const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards);
   
   const selectedPaperSize = useAppStore((state) => state.selectedPaperSize);
   const activeTab = useAppStore((state) => state.activeTab);
@@ -43,11 +43,11 @@ export default function CardForgePage() {
   const pdfMarginMm = useAppStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useAppStore((state) => state.pdfCardSpacingMm);
   const pdfIncludeCutLines = useAppStore((state) => state.pdfIncludeCutLines);
-  const editingCardFromStore = useAppStore(selectEditingCard); // Using selector for editingCard
+  const editingCardFromStore = useAppStore(selectEditingCard);
   const isEditDialogOpen = useAppStore((state) => state.isEditDialogOpen);
   
   // Zustand store actions
-  const addOrUpdateTemplate = useAppStore((state) => state.addOrUpdateTemplate);
+  const addOrUpdateTemplateAction = useAppStore((state) => state.addOrUpdateTemplate);
   const deleteTemplateAction = useAppStore((state) => state.deleteTemplate);
   const addGeneratedCardsAction = useAppStore((state) => state.addGeneratedCards);
   const clearGeneratedCardsAction = useAppStore((state) => state.clearGeneratedCards);
@@ -60,35 +60,44 @@ export default function CardForgePage() {
   const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
   const openEditDialogAction = useAppStore((state) => state.openEditDialog);
   const closeEditDialogAction = useAppStore((state) => state.closeEditDialog);
-  const rehydrateCallback = useAppStore((state) => state._rehydrateCallback);
+  // _rehydrateCallback is called internally by the store
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // This useEffect hook replaces the previous manual localStorage loading.
-  // Zustand's `persist` middleware handles loading.
+  // Comment: Zustand's `persist` middleware handles loading from localStorage.
   // The `_rehydrateCallback` in the store can handle any post-rehydration logic.
-  // It is called by onRehydrateStorage in the persist middleware.
-  // No specific useEffect needed here for initial load if persist middleware is correctly configured.
+  // No specific useEffect needed here for initial template/card loading if persist is correctly configured.
 
-  // memoizedGetFreshDefaultTemplate is a stable reference to the function from the store.
-  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
-  // memoizedReconstructMinimalTemplate is a stable reference to the function from the store.
-  const memoizedReconstructMinimalTemplate = useCallback(reconstructMinimalTemplate, []);
+  // Memoized versions of store utility functions to pass as stable props
+  const reconstructMinimalTemplate = useCallback(
+    (t_loaded_partial: Partial<TCGCardTemplate>): TCGCardTemplate => {
+      return reconstructMinimalTemplateFromStore(t_loaded_partial);
+    },
+    [] // reconstructMinimalTemplateFromStore is imported, so it's stable.
+  );
+
+  const memoizedGetFreshDefaultTemplate = useCallback(
+    (id?: string | null, nameProp?: string): TCGCardTemplate => {
+      return getFreshDefaultTemplateFromStore(id, nameProp);
+    },
+    [] // getFreshDefaultTemplateFromStore is imported, so it's stable.
+  );
 
 
-  const handleSaveTemplate = useCallback((template: TCGCardTemplate) => {
-    const savedTemplateId = addOrUpdateTemplate(template); // Action returns the ID
+  const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
+    // The addOrUpdateTemplateAction in the store already handles reconstruction.
+    const savedTemplateId = addOrUpdateTemplateAction(template);
     toast({ title: "Template Saved", description: `"${template.name || savedTemplateId}" has been saved.` });
-    // TemplateEditor's selectedTemplateToEditId might need to be updated if it was a new template
-    // This is now handled by TemplateEditor itself if it tracks its own selected ID for editing.
-  }, [addOrUpdateTemplate, toast]);
+    return savedTemplateId;
+  }, [addOrUpdateTemplateAction, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
-    const templateToDelete = templates.find(t => t.id === templateId);
+    // The deleteTemplateAction in the store handles updating selected IDs if necessary.
+    const templateToDelete = templatesFromStore.find(t => t.id === templateId);
     deleteTemplateAction(templateId);
     toast({ title: "Template Deleted", description: `"${templateToDelete?.name || templateId}" has been removed.` });
-  }, [deleteTemplateAction, toast, templates]);
+  }, [deleteTemplateAction, toast, templatesFromStore]);
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
     addGeneratedCardsAction(cards);
@@ -96,7 +105,7 @@ export default function CardForgePage() {
   }, [addGeneratedCardsAction, toast]);
 
   const handleSingleCardAdded = useCallback((card: DisplayCard) => {
-    addGeneratedCardsAction([card]); // addGeneratedCardsAction expects an array
+    addGeneratedCardsAction([card]);
   }, [addGeneratedCardsAction]);
 
   const handleClearGeneratedCards = useCallback(() => {
@@ -111,7 +120,7 @@ export default function CardForgePage() {
   const handleSaveEditedCard = useCallback((updatedCard: DisplayCard) => {
     updateGeneratedCardAction(updatedCard);
     toast({ title: "Card Updated", description: "Changes saved." });
-    // closeEditDialogAction is called by the dialog itself upon save.
+    // closeEditDialogAction is called by the dialog itself.
   }, [updateGeneratedCardAction, toast]);
 
   const handleDuplicateCard = useCallback((cardToDuplicate: DisplayCard) => {
@@ -121,9 +130,6 @@ export default function CardForgePage() {
     };
     addGeneratedCardsAction([newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
-    // No need to close dialog here, EditCardDialog might handle it or stay open for further edits on the new copy.
-    // Assuming EditCardDialog closes itself if duplication also implies saving/closing.
-    // If not, and user expects dialog to close: closeEditDialogAction();
   }, [addGeneratedCardsAction, toast]);
 
   const handleCloseEditDialog = useCallback(() => {
@@ -131,11 +137,10 @@ export default function CardForgePage() {
   }, [closeEditDialogAction]);
 
   const handleSaveCardSet = useCallback(() => {
-    if (storedCards.length === 0) { // Check storedCards from store
+    if (storedCards.length === 0) {
       toast({ title: "Nothing to save", description: "Generate some cards first.", variant: "default" });
       return;
     }
-    // storedCards from the store are already in the correct StoredDisplayCard format
     const jsonString = JSON.stringify(storedCards, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -190,9 +195,8 @@ export default function CardForgePage() {
     setIsMobileMenuOpen(false);
   }, [setActiveTabAction]);
 
-  // useEffect to ensure singleCardGeneratorSelectedTemplateId has a valid default after templates load/change.
-  // This logic is now handled by _rehydrateCallback in the Zustand store.
-  // No useEffect needed here for this specific purpose.
+  // Comment: Initial selection of template for single card generator is handled by Zustand's _rehydrateCallback.
+  // No specific useEffect needed here for that purpose.
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -237,13 +241,14 @@ export default function CardForgePage() {
           </TabsList>
 
           <TabsContent value="editor">
-            {/* Zustand handles initial loading state internally with persist middleware */}
             <TemplateEditor
               onSaveTemplate={handleSaveTemplate}
-              templates={templates} // from Zustand
+              templates={templatesFromStore} 
               onDeleteTemplate={handleDeleteTemplate}
-              reconstructMinimalTemplate={memoizedReconstructMinimalTemplate}
+              reconstructMinimalTemplate={reconstructMinimalTemplate}
               memoizedGetFreshDefaultTemplate={memoizedGetFreshDefaultTemplate}
+              selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}
+              onSelectTemplateForEditing={setSingleCardGeneratorSelectedTemplateIdAction}
             />
           </TabsContent>
 
@@ -251,13 +256,13 @@ export default function CardForgePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1 space-y-6">
                  <SingleCardGenerator
-                    templates={templates} // from Zustand
+                    templates={templatesFromStore}
                     onSingleCardAdded={handleSingleCardAdded}
                     onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
-                    selectedTemplateIdProp={singleCardGeneratorSelectedTemplateId} // from Zustand
+                    selectedTemplateIdProp={singleCardGeneratorSelectedTemplateId}
                  />
                 <BulkGenerator
-                  templates={templates} // from Zustand
+                  templates={templatesFromStore}
                   onCardsGenerated={handleBulkCardsGenerated}
                 />
 
@@ -377,7 +382,7 @@ export default function CardForgePage() {
           </TabsContent>
         </Tabs>
       </main>
-      {isEditDialogOpen && editingCardFromStore && ( // Use Zustand state for dialog and card
+      {isEditDialogOpen && editingCardFromStore && (
         <EditCardDialog
             isOpen={isEditDialogOpen}
             card={editingCardFromStore}
@@ -392,5 +397,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-
-    
