@@ -56,6 +56,9 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
   const defaultSectionId1 = `default-sec-1-for-${newTemplateId || 'new'}`;
   const defaultRowId2 = `default-row-2-for-${newTemplateId || 'new'}`;
   const defaultSectionId2 = `default-sec-2-for-${newTemplateId || 'new'}`;
+  const defaultRowId3 = `default-row-3-for-${newTemplateId || 'new'}`;
+  const defaultSectionId3A = `default-sec-3A-for-${newTemplateId || 'new'}`;
+  const defaultSectionId3B = `default-sec-3B-for-${newTemplateId || 'new'}`;
 
 
   return {
@@ -68,10 +71,14 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
     cardBorderRadius: '0.5rem',
     rows: [
       createDefaultRow(defaultRowId1, [
-        createDefaultSection(defaultSectionId1, { contentPlaceholder: `{{cardName}}`, flexGrow: 1, sectionContentType: 'placeholder', textAlign:'center', fontSize:'text-lg', fontWeight: 'font-bold' }),
+        createDefaultSection(defaultSectionId1, { contentPlaceholder: `{{cardName:"Card Name"}}`, flexGrow: 1, sectionContentType: 'placeholder', textAlign:'center', fontSize:'text-lg', fontWeight: 'font-bold' }),
       ]),
       createDefaultRow(defaultRowId2, [
-        createDefaultSection(defaultSectionId2, { contentPlaceholder: '{{artworkUrl}}', sectionContentType:'image', flexGrow:1, customHeight: '200px', imageWidthPx: '260', imageHeightPx:'180' }),
+        createDefaultSection(defaultSectionId2, { contentPlaceholder: '{{artworkUrl:"https://placehold.co/260x180.png?text=Artwork"}}', sectionContentType:'image', flexGrow:1, customHeight: '180px', imageWidthPx: '260', imageHeightPx:'180' }),
+      ]),
+       createDefaultRow(defaultRowId3, [
+        createDefaultSection(defaultSectionId3A, { contentPlaceholder: `{{description:"Effect Text"}}`, flexGrow: 2, sectionContentType: 'placeholder', customHeight: '80px' }),
+        createDefaultSection(defaultSectionId3B, { contentPlaceholder: `{{stats:"P/T"}}`, flexGrow: 1, sectionContentType: 'placeholder', textAlign: 'center', customHeight: '80px' }),
       ]),
     ],
   };
@@ -147,55 +154,52 @@ export function TemplateEditor({
             const sectionId = (c_loaded.id && c_loaded.id.trim() !== "") ? c_loaded.id : nanoid();
             const sectionDefaults = createDefaultSection(sectionId);
 
-            const finalSection: CardSection = {
-                ...sectionDefaults, // Start with full defaults
-                ...c_loaded,        // Overlay loaded data
-                id: sectionId,      // Ensure ID
-            };
+            const finalSection: CardSection = { ...sectionDefaults };
 
-            const fieldsToNormalize: (keyof CardSection)[] = [
-                'backgroundImageUrl', 'textColor', 'backgroundColor', 'fontFamily',
-                'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding',
-                'borderColor', 'borderWidth', 'borderRadius', 'minHeight',
-                'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'
-            ];
-
-            fieldsToNormalize.forEach(fieldKey => {
-                if (c_loaded[fieldKey] === '' || c_loaded[fieldKey] === undefined) {
-                     // If it was empty or undefined in loaded, see if default is better
-                     if (sectionDefaults[fieldKey] === '' || sectionDefaults[fieldKey] === undefined) {
-                        // Both loaded and default are empty/undefined, so delete
-                        delete (finalSection as any)[fieldKey];
+            // Overlay loaded data, but only if it's not an empty string for optional fields
+            (Object.keys(c_loaded) as Array<keyof CardSection>).forEach(key => {
+                if (c_loaded[key] !== undefined) {
+                     const optionalStringFields: (keyof CardSection)[] = [
+                        'backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor',
+                        'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'
+                     ];
+                     if (optionalStringFields.includes(key) && c_loaded[key] === '') {
+                        // Do not overlay empty string for these, effectively deleting it or relying on default
+                        delete (finalSection as any)[key];
                      } else {
-                        // Default is not empty, so use default
-                        (finalSection as any)[fieldKey] = sectionDefaults[fieldKey];
+                        (finalSection as any)[key] = c_loaded[key]!;
                      }
-                } else {
-                    // Loaded value is present and not empty string, keep it
-                    (finalSection as any)[fieldKey] = c_loaded[fieldKey]!;
                 }
             });
-             // Ensure essential structural defaults if they were deleted but are not meant to be empty
-            if (finalSection.fontFamily === undefined) finalSection.fontFamily = sectionDefaults.fontFamily;
-            if (finalSection.fontSize === undefined) finalSection.fontSize = sectionDefaults.fontSize;
-            if (finalSection.fontWeight === undefined) finalSection.fontWeight = sectionDefaults.fontWeight;
-            if (finalSection.textAlign === undefined) finalSection.textAlign = sectionDefaults.textAlign;
-            if (finalSection.fontStyle === undefined) finalSection.fontStyle = sectionDefaults.fontStyle;
-            if (finalSection.padding === undefined) finalSection.padding = sectionDefaults.padding;
+            finalSection.id = sectionId; // Ensure ID is always set from c_loaded or new nanoid
 
-            if (finalSection.borderWidth === undefined && sectionDefaults.borderWidth && sectionDefaults.borderWidth !== '_none_') finalSection.borderWidth = sectionDefaults.borderWidth;
-            else if (finalSection.borderWidth === undefined) finalSection.borderWidth = '_none_';
+            // Restore essential defaults if they became undefined or empty through the process
+            const essentialDefaults: Partial<CardSection> = {
+                fontFamily: sectionDefaults.fontFamily,
+                fontSize: sectionDefaults.fontSize,
+                fontWeight: sectionDefaults.fontWeight,
+                textAlign: sectionDefaults.textAlign,
+                fontStyle: sectionDefaults.fontStyle,
+                padding: sectionDefaults.padding,
+                borderWidth: sectionDefaults.borderWidth,
+                borderRadius: sectionDefaults.borderRadius,
+                minHeight: sectionDefaults.minHeight,
+                sectionContentType: sectionDefaults.sectionContentType,
+                contentPlaceholder: sectionDefaults.contentPlaceholder,
+                flexGrow: sectionDefaults.flexGrow,
+            };
 
-            if (finalSection.borderRadius === undefined && sectionDefaults.borderRadius && sectionDefaults.borderRadius !== 'rounded-none') finalSection.borderRadius = sectionDefaults.borderRadius;
-            else if (finalSection.borderRadius === undefined) finalSection.borderRadius = 'rounded-none';
-
-            if (finalSection.minHeight === undefined && sectionDefaults.minHeight && sectionDefaults.minHeight !== '_auto_') finalSection.minHeight = sectionDefaults.minHeight;
-            else if (finalSection.minHeight === undefined) finalSection.minHeight = '_auto_';
-
+            (Object.keys(essentialDefaults) as Array<keyof CardSection>).forEach(key => {
+                if (finalSection[key] === undefined || (typeof finalSection[key] === 'string' && (finalSection[key] as string).trim() === '')) {
+                    (finalSection as any)[key] = essentialDefaults[key];
+                }
+            });
+            
             if (finalSection.sectionContentType === 'image') {
-                if (finalSection.imageWidthPx === undefined) finalSection.imageWidthPx = sectionDefaults.imageWidthPx;
-                if (finalSection.imageHeightPx === undefined) finalSection.imageHeightPx = sectionDefaults.imageHeightPx;
+                if (finalSection.imageWidthPx === undefined || finalSection.imageWidthPx === '') finalSection.imageWidthPx = sectionDefaults.imageWidthPx;
+                if (finalSection.imageHeightPx === undefined || finalSection.imageHeightPx === '') finalSection.imageHeightPx = sectionDefaults.imageHeightPx;
             }
+
 
             return finalSection;
         });
@@ -205,8 +209,6 @@ export function TemplateEditor({
         return newR;
     });
 
-    // If it's a brand new template (templateData.id was null) AND it ended up with no rows,
-    // THEN populate with fresh default rows with new IDs.
     if (templateData.id === null && newTemplate.rows.length === 0) {
         const defaultStructureForEmpty = memoizedGetFreshDefaultTemplate(null, newTemplate.name);
         newTemplate.rows = defaultStructureForEmpty.rows.map(r => ({
@@ -215,8 +217,6 @@ export function TemplateEditor({
             columns: r.columns.map(c => ({ ...createDefaultSection(nanoid()), ...c, id: nanoid() }))
         }));
     }
-    // Otherwise, if it's an existing template that became empty, it remains empty.
-
     return newTemplate;
   }, [memoizedGetFreshDefaultTemplate]);
 
@@ -261,7 +261,7 @@ export function TemplateEditor({
     const fullyProcessedNewTemplate = reconstructTemplate(newFreshTemplateBase);
 
     updateCurrentTemplateState(fullyProcessedNewTemplate);
-    setSelectedTemplateToEditId(null);
+    setSelectedTemplateToEditId(null); // Critical for "new" mode
     setAspectRatioInput(fullyProcessedNewTemplate.aspectRatio || TCG_ASPECT_RATIO);
     setCustomWidthValue('');
     setCustomHeightValue('');
@@ -284,19 +284,17 @@ export function TemplateEditor({
           updateCurrentTemplateState(reconstructed);
           setAspectRatioInput(reconstructed.aspectRatio || TCG_ASPECT_RATIO);
         }
-      } else { // Stale ID or ID not found
-        if (currentTemplateInternalRef.current?.id !== null) { // If not already in "new template" mode
+      } else {
+        if (currentTemplateInternalRef.current?.id !== null) {
           resetFormToNew();
-          setAspectRatioInput(memoizedGetFreshDefaultTemplate(null).aspectRatio || TCG_ASPECT_RATIO);
         }
       }
     } else { // No template selected (new template mode)
-      if (currentTemplateInternalRef.current?.id !== null) { // If not already in "new template" mode
+      if (currentTemplateInternalRef.current?.id !== null) {
          resetFormToNew();
-         setAspectRatioInput(memoizedGetFreshDefaultTemplate(null).aspectRatio || TCG_ASPECT_RATIO);
       }
     }
-  }, [selectedTemplateToEditId, templates]); // Simplified dependencies
+  }, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, updateCurrentTemplateState]);
 
 
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
@@ -446,11 +444,11 @@ export function TemplateEditor({
 
   const livePreviewData = useMemo(() => {
     const data: { [key: string]: string } = {};
-    extractUniquePlaceholderKeys(currentTemplateInternalRef.current).forEach(p => {
+    extractUniquePlaceholderKeys(currentTemplate).forEach(p => {
       data[p.key] = p.defaultValue !== undefined ? p.defaultValue : `{{${p.key}}}`;
     });
     return data;
-  }, [currentTemplateInternalRef.current]); // Depend on the ref's current value if it's stable enough, or currentTemplate state
+  }, [currentTemplate]);
 
   const onToggleStylingAccordion = useCallback((sectionId: string) => {
     setActiveStylingAccordion(prev => prev === sectionId ? null : sectionId);
@@ -917,7 +915,7 @@ export function TemplateEditor({
                 <p className="text-xs text-muted-foreground text-center mb-3">(Click row or section in preview to focus.)</p>
                 <div className="mx-auto max-w-xs flex justify-center">
                     <CardPreview
-                        card={{frontTemplate: currentTemplateInternalRef.current, frontData:livePreviewData, uniqueId: 'editor-preview'}}
+                        card={{ template: currentTemplate, data: livePreviewData, uniqueId: 'editor-preview' }}
                         isPrintMode={false}
                         isEditorPreview={true}
                         hideEmptySections={false}
@@ -940,7 +938,7 @@ export function TemplateEditor({
                         </DialogHeader>
                         <div className="flex justify-center p-4 my-auto">
                             <CardPreview
-                                card={{ frontTemplate: currentTemplateInternalRef.current, frontData: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
+                                card={{ template: currentTemplate, data: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
                                 isPrintMode={false}
                                 isEditorPreview={true}
                                 hideEmptySections={false}
@@ -958,3 +956,4 @@ export function TemplateEditor({
     </div>
   );
 }
+
