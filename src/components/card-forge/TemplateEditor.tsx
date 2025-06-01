@@ -23,8 +23,7 @@ import {
   createDefaultSection,
   CARD_BORDER_STYLES,
   DIMENSION_UNITS,
-  DEFAULT_TEMPLATES, 
-  ESSENTIAL_SECTION_DEFAULTS
+  DEFAULT_TEMPLATES
 } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -96,6 +95,20 @@ interface TemplateEditorProps {
   memoizedGetFreshDefaultTemplate: (id?: string | null, nameProp?: string) => TCGCardTemplate;
 }
 
+const ESSENTIAL_SECTION_DEFAULTS: Partial<CardSection> = {
+  fontFamily: 'font-sans',
+  fontSize: 'text-sm',
+  fontWeight: 'font-normal',
+  textAlign: 'left',
+  fontStyle: 'normal',
+  padding: 'p-1',
+  borderWidth: '_none_',
+  borderRadius: 'rounded-none',
+  minHeight: '_auto_',
+  flexGrow: 0,
+  sectionContentType: 'placeholder',
+};
+
 export function TemplateEditor({
   onSaveTemplate,
   templates,
@@ -107,11 +120,11 @@ export function TemplateEditor({
 
   const reconstructTemplate = useCallback((templateData: Partial<TCGCardTemplate>): TCGCardTemplate => {
     let anId: string | null;
-    if (templateData.id === null) { // Explicitly new, unsaved
+    if (templateData.id === null) {
         anId = null;
-    } else if (templateData.id && templateData.id.trim() !== "") { // Valid existing ID
+    } else if (templateData.id && templateData.id.trim() !== "") {
         anId = templateData.id;
-    } else { // Undefined, empty string, or whitespace only ID -> generate new
+    } else {
         anId = nanoid();
     }
 
@@ -157,55 +170,42 @@ export function TemplateEditor({
             const sectionId = (c_loaded.id && c_loaded.id.trim() !== "") ? c_loaded.id : nanoid();
             const sectionDefaultsForId = createDefaultSection(sectionId);
             
-            let sectionBase: Partial<CardSection> = {};
+            let sectionBase: Partial<CardSection> = { id: sectionId };
 
-            // 1. Start with loaded data
-            for (const key in c_loaded) {
-                if (Object.prototype.hasOwnProperty.call(c_loaded, key)) {
-                    sectionBase[key as keyof CardSection] = c_loaded[key as keyof CardSection];
+            (Object.keys(ESSENTIAL_SECTION_DEFAULTS) as Array<keyof CardSection>).forEach(key => {
+                if (c_loaded[key] !== undefined && String(c_loaded[key]).trim() !== "") {
+                    (sectionBase as any)[key] = c_loaded[key];
+                } else if (ESSENTIAL_SECTION_DEFAULTS[key] !== '' && ESSENTIAL_SECTION_DEFAULTS[key] !== undefined) {
+                     (sectionBase as any)[key] = ESSENTIAL_SECTION_DEFAULTS[key];
+                } else {
+                    delete (sectionBase as any)[key];
                 }
-            }
-            sectionBase.id = sectionId; // Ensure ID from loaded or new nanoid
-
-            // 2. Fill missing fields with defaults from createDefaultSection(sectionId)
-            for (const key in sectionDefaultsForId) {
-                if (sectionBase[key as keyof CardSection] === undefined) {
-                    sectionBase[key as keyof CardSection] = sectionDefaultsForId[key as keyof CardSection];
-                }
-            }
+            });
             
-            // 3. Normalize: Delete optional string fields if they are empty string
             const optionalStringFields: (keyof CardSection)[] = [
                 'backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor',
-                'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'
-                // Not including: fontFamily, fontSize, fontWeight, textAlign, fontStyle, padding, borderWidth, borderRadius, minHeight
-                // as these have specific non-empty defaults we want to keep if not explicitly set or if deleted.
+                'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx', 'contentPlaceholder'
             ];
-            optionalStringFields.forEach(fieldKey => {
-                if (sectionBase[fieldKey] === '') {
-                    delete sectionBase[fieldKey];
-                }
-            });
 
-            // 4. Ensure essential defaults are present if they became undefined (e.g. by deletion or if never set)
-            // This uses the centrally defined ESSENTIAL_SECTION_DEFAULTS
-            (Object.keys(ESSENTIAL_SECTION_DEFAULTS) as Array<keyof CardSection>).forEach(key => {
-                if (sectionBase[key] === undefined || (typeof sectionBase[key] === 'string' && (sectionBase[key] as string).trim() === '')) {
-                     // Only apply if the essential default itself is not an empty string, or if the field is not one we prefer to delete if empty
-                    const preferredEmptyDeletionFields = ['backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor', 'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'];
-                    if (ESSENTIAL_SECTION_DEFAULTS[key] !== '' || !preferredEmptyDeletionFields.includes(key)) {
-                        (sectionBase as any)[key] = ESSENTIAL_SECTION_DEFAULTS[key];
-                    } else if (sectionBase[key] === '') { // if it's an empty string and in preferredEmptyDeletionFields, ensure it's deleted
-                        delete sectionBase[key];
-                    }
-                }
+            optionalStringFields.forEach(fieldKey => {
+                 if (c_loaded[fieldKey] !== undefined && String(c_loaded[fieldKey]).trim() !== "") {
+                    (sectionBase as any)[fieldKey] = c_loaded[fieldKey];
+                 } else if (sectionDefaultsForId[fieldKey] !== undefined && String(sectionDefaultsForId[fieldKey]).trim() !== "") {
+                    (sectionBase as any)[fieldKey] = sectionDefaultsForId[fieldKey];
+                 } else if (sectionBase[fieldKey] === '' || sectionBase[fieldKey] === undefined) {
+                    delete (sectionBase as any)[fieldKey];
+                 }
             });
             
+            if (sectionBase.contentPlaceholder === undefined || String(sectionBase.contentPlaceholder).trim() === "") {
+                 sectionBase.contentPlaceholder = sectionDefaultsForId.contentPlaceholder;
+            }
+
+
             if (sectionBase.sectionContentType === 'image') {
                 if (sectionBase.imageWidthPx === undefined || String(sectionBase.imageWidthPx).trim() === '') sectionBase.imageWidthPx = sectionDefaultsForId.imageWidthPx;
                 if (sectionBase.imageHeightPx === undefined || String(sectionBase.imageHeightPx).trim() === '') sectionBase.imageHeightPx = sectionDefaultsForId.imageHeightPx;
             }
-
             return sectionBase as CardSection;
         });
 
@@ -215,7 +215,7 @@ export function TemplateEditor({
         return newR;
     });
 
-    if (newTemplate.rows.length === 0 && templateData.id === null) { // Only for brand new templates being initialized
+    if (newTemplate.rows.length === 0 && templateData.id === null) { 
         const defaultStructureForEmpty = memoizedGetFreshDefaultTemplate(null, newTemplate.name);
         newTemplate.rows = defaultStructureForEmpty.rows.map(r => ({
             ...r,
@@ -263,8 +263,8 @@ export function TemplateEditor({
 
 
  const resetFormToNew = useCallback(() => {
-    const newFreshTemplateBase = memoizedGetFreshDefaultTemplate(null); // Gets a fresh one with new IDs
-    const fullyProcessedNewTemplate = reconstructTemplate(newFreshTemplateBase); // Reconstruct ensures canonical form
+    const newFreshTemplateBase = memoizedGetFreshDefaultTemplate(null); 
+    const fullyProcessedNewTemplate = reconstructTemplate(newFreshTemplateBase); 
 
     updateCurrentTemplateState(fullyProcessedNewTemplate);
     setSelectedTemplateToEditId(null);
@@ -279,37 +279,30 @@ export function TemplateEditor({
     setIsRowsAndSectionsCardOpen(true);
   }, [memoizedGetFreshDefaultTemplate, reconstructTemplate, updateCurrentTemplateState]);
 
-
   useEffect(() => {
     if (selectedTemplateToEditId) {
       const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateFromList) {
         const reconstructed = reconstructTemplate(templateFromList);
-        const isDifferentId = currentTemplateInternalRef.current?.id !== selectedTemplateToEditId;
-        const isDifferentContent = JSON.stringify(currentTemplateInternalRef.current) !== JSON.stringify(reconstructed);
-
-        if (isDifferentId || isDifferentContent) {
+        if (currentTemplateInternalRef.current.id !== selectedTemplateToEditId || JSON.stringify(currentTemplateInternalRef.current) !== JSON.stringify(reconstructed)) {
           updateCurrentTemplateState(reconstructed);
           setAspectRatioInput(reconstructed.aspectRatio || TCG_ASPECT_RATIO);
         }
-      } else { 
-        if (currentTemplateInternalRef.current?.id !== null) { 
+      } else {
+        if (currentTemplateInternalRef.current.id !== null) {
           resetFormToNew();
-          setAspectRatioInput(memoizedGetFreshDefaultTemplate(null).aspectRatio || TCG_ASPECT_RATIO);
         }
       }
-    } else { 
-      if (currentTemplateInternalRef.current?.id !== null) { 
+    } else {
+      if (currentTemplateInternalRef.current.id !== null) {
         resetFormToNew();
-        setAspectRatioInput(memoizedGetFreshDefaultTemplate(null).aspectRatio || TCG_ASPECT_RATIO);
       }
     }
-  }, [selectedTemplateToEditId, templates]);
+  }, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, updateCurrentTemplateState]);
 
 
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
-    const newState = { ...currentTemplateInternalRef.current, ...updates };
-    updateCurrentTemplateState(newState);
+    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, ...updates });
   }, [updateCurrentTemplateState]);
 
 
@@ -966,5 +959,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
-    
