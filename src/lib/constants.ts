@@ -113,17 +113,18 @@ export const createDefaultSection = (id: string, overrides: Partial<CardSection>
     flexGrow: 0,
     customHeight: '',
     customWidth: '',
-    imageWidthPx: '100', 
-    imageHeightPx: '100', 
+    imageWidthPx: '100',
+    imageHeightPx: '100',
     ...overrides,
   };
   return baseSection;
 };
 
 export const createDefaultRow = (id: string, columns?: CardSection[], alignItems?: CardRow['alignItems'], customHeight?: string): CardRow => {
+  const defaultColumnId = `default-col-for-row-${id}`; // Deterministic ID for the default column
   return {
     id: id,
-    columns: columns && columns.length > 0 ? columns : [createDefaultSection(nanoid())],
+    columns: columns && columns.length > 0 ? columns : [createDefaultSection(defaultColumnId)],
     alignItems: alignItems || 'flex-start',
     customHeight: customHeight || '',
   };
@@ -137,5 +138,3 @@ export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementTyp
   { value: "generator", label: "Card Generator", icon: PackageOpen },
   { value: "ai", label: "AI Helper", icon: Wand2 },
 ];
-
-    
