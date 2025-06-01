@@ -35,8 +35,9 @@ const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 100 * 1024; // 100KB threshold for s
 
 export default function CardForgePage() {
   const [mounted, setMounted] = useState(false);
-  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
   const { toast } = useToast();
+  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
+
 
   const reconstructMinimalTemplate = useCallback((t_loaded: Partial<TCGCardTemplate>): TCGCardTemplate => {
     const validatedId = (t_loaded.id && t_loaded.id.trim() !== "") ? t_loaded.id : nanoid();
@@ -46,70 +47,96 @@ export default function CardForgePage() {
         name: t_loaded.name || `Template ${validatedId.substring(0, 8)}`,
         aspectRatio: t_loaded.aspectRatio || TCG_ASPECT_RATIO,
         frameStyle: t_loaded.frameStyle || 'standard',
+        cardBorderWidth: t_loaded.cardBorderWidth || '4px',
+        cardBorderStyle: t_loaded.cardBorderStyle || 'solid',
+        cardBorderRadius: t_loaded.cardBorderRadius || '0.5rem',
         rows: [],
     };
 
-    if (t_loaded.cardBackgroundImageUrl) {
+    // Handle optional string properties: only include if non-empty
+    if (t_loaded.cardBackgroundImageUrl && t_loaded.cardBackgroundImageUrl.trim() !== "") {
       if (t_loaded.cardBackgroundImageUrl.startsWith('data:') && t_loaded.cardBackgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
         base.cardBackgroundImageUrl = `placeholder:Card background image too large for storage`;
       } else {
         base.cardBackgroundImageUrl = t_loaded.cardBackgroundImageUrl;
       }
     }
-    if (t_loaded.baseBackgroundColor) base.baseBackgroundColor = t_loaded.baseBackgroundColor;
-    if (t_loaded.baseTextColor) base.baseTextColor = t_loaded.baseTextColor;
-    if (t_loaded.defaultSectionBorderColor) base.defaultSectionBorderColor = t_loaded.defaultSectionBorderColor;
-    if (t_loaded.cardBorderColor) base.cardBorderColor = t_loaded.cardBorderColor;
-    if (t_loaded.cardBorderWidth) base.cardBorderWidth = t_loaded.cardBorderWidth; else base.cardBorderWidth = '4px';
-    if (t_loaded.cardBorderStyle) base.cardBorderStyle = t_loaded.cardBorderStyle; else base.cardBorderStyle = 'solid';
-    if (t_loaded.cardBorderRadius) base.cardBorderRadius = t_loaded.cardBorderRadius; else base.cardBorderRadius = '0.5rem';
-
+    if (t_loaded.baseBackgroundColor && t_loaded.baseBackgroundColor.trim() !== "") base.baseBackgroundColor = t_loaded.baseBackgroundColor;
+    if (t_loaded.baseTextColor && t_loaded.baseTextColor.trim() !== "") base.baseTextColor = t_loaded.baseTextColor;
+    if (t_loaded.defaultSectionBorderColor && t_loaded.defaultSectionBorderColor.trim() !== "") base.defaultSectionBorderColor = t_loaded.defaultSectionBorderColor;
+    if (t_loaded.cardBorderColor && t_loaded.cardBorderColor.trim() !== "") base.cardBorderColor = t_loaded.cardBorderColor;
+    
     const newT = base as TCGCardTemplate;
 
     const sourceRows = t_loaded.rows && t_loaded.rows.length > 0 ? t_loaded.rows : memoizedGetFreshDefaultTemplate(null, newT.name).rows;
 
     newT.rows = sourceRows.map((r_source: Partial<CardRow>) => {
         const rowId = (r_source.id && r_source.id.trim() !== "") ? r_source.id : nanoid();
-        const newR: CardRow = {
+        
+        const rowBase: Partial<CardRow> = {
             id: rowId,
-            columns: [],
-            alignItems: r_source.alignItems || 'flex-start', // Ensure default alignItems
+            alignItems: r_source.alignItems || 'flex-start',
+            columns: []
         };
-        if (r_source.customHeight) newR.customHeight = r_source.customHeight;
-
-        // Use createDefaultRow for complete defaults if r_source is very minimal
-        const baseRow = createDefaultRow(rowId, [], r_source.alignItems, r_source.customHeight);
-        Object.assign(newR, baseRow, r_source, { id: rowId }); // Merge, ensuring ID and structure
+        if (r_source.customHeight && r_source.customHeight.trim() !== "") rowBase.customHeight = r_source.customHeight;
+        
+        const newR = rowBase as CardRow;
 
         const sourceColumns = r_source.columns && r_source.columns.length > 0 ? r_source.columns : [createDefaultSection(`default-col-for-row-${rowId}`)];
 
         newR.columns = sourceColumns.map((c_source: Partial<CardSection>) => {
             const sectionId = (c_source.id && c_source.id.trim() !== "") ? c_source.id : nanoid();
-            // Use createDefaultSection for complete defaults, then merge c_source
-            const baseSection = createDefaultSection(sectionId);
-            const newC: CardSection = { ...baseSection, ...c_source, id: sectionId }; // Merge and ensure ID
+            const sectionBase: Partial<CardSection> = { 
+                ...createDefaultSection(sectionId), // start with full defaults
+                ...c_source, // overlay loaded data
+                id: sectionId // ensure ID
+            };
 
-            if (newC.backgroundImageUrl && newC.backgroundImageUrl.startsWith('data:') && newC.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-              newC.backgroundImageUrl = `placeholder:Section background image too large for storage`;
+            // Normalize optional fields: remove them if they are empty strings from c_source, otherwise keep default from createDefaultSection or loaded value
+            const fieldsToNormalize: (keyof CardSection)[] = [
+                'backgroundImageUrl', 'textColor', 'backgroundColor', 'fontFamily', 
+                'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 
+                'borderColor', 'borderWidth', 'borderRadius', 'minHeight', 
+                'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'
+            ];
+
+            fieldsToNormalize.forEach(fieldKey => {
+                if (c_source[fieldKey] === '') { // If loaded value was explicitly empty string
+                    delete sectionBase[fieldKey]; // Remove it, rely on CSS or component defaults later
+                } else if (c_source[fieldKey] !== undefined) {
+                    sectionBase[fieldKey] = c_source[fieldKey]; // Keep loaded value
+                } else {
+                    // If not in c_source, keep value from createDefaultSection (already spread)
+                    // but if that default is also an empty string for an optional field, consider removing it
+                    if (sectionBase[fieldKey] === '' && 
+                        ['backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor', 'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'].includes(fieldKey as string)) {
+                         delete sectionBase[fieldKey];
+                    }
+                }
+            });
+            
+            if (sectionBase.backgroundImageUrl && sectionBase.backgroundImageUrl.startsWith('data:') && sectionBase.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+              sectionBase.backgroundImageUrl = `placeholder:Section background image too large for storage`;
             }
-            // Ensure image dimensions are set if type is image and they are missing
-            if (newC.sectionContentType === 'image') {
-                if (newC.imageWidthPx === undefined) newC.imageWidthPx = baseSection.imageWidthPx;
-                if (newC.imageHeightPx === undefined) newC.imageHeightPx = baseSection.imageHeightPx;
+             // Ensure image dimensions are set if type is image and they are missing
+            if (sectionBase.sectionContentType === 'image') {
+                if (sectionBase.imageWidthPx === undefined) sectionBase.imageWidthPx = createDefaultSection('').imageWidthPx;
+                if (sectionBase.imageHeightPx === undefined) sectionBase.imageHeightPx = createDefaultSection('').imageHeightPx;
             }
-            return newC;
+
+            return sectionBase as CardSection;
         });
-        if (newR.columns.length === 0) newR.columns = [createDefaultSection(`default-col-for-row-${rowId}`)]; // Ensure at least one column
+        if (newR.columns.length === 0) newR.columns = [createDefaultSection(`default-col-for-row-${rowId}`)]; 
 
         return newR;
     });
 
-    if (newT.rows.length === 0) {
+    if (newT.rows.length === 0) { // Should not happen if sourceRows logic is correct, but as a safeguard
         const defaultStructure = memoizedGetFreshDefaultTemplate(null, newT.name);
         newT.rows = defaultStructure.rows.map(r => ({
             ...r,
-            id:nanoid(), // Ensure fresh IDs for these entirely new default rows
-            columns: r.columns.map(c => ({...c, id:nanoid()})) // And their columns
+            id:nanoid(), 
+            columns: r.columns.map(c => ({...c, id:nanoid()})) 
         }));
     }
     return newT;
@@ -117,11 +144,6 @@ export default function CardForgePage() {
 
 
   const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, []);
-  // editingTemplate is for passing to TemplateEditor if a specific template is "selected" for editing.
-  // For now, TemplateEditor manages its own currentTemplate based on selection or "new".
-  // This state might be more useful if we had a "Duplicate Template" button outside editor.
-  // const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
-
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
   const [storedCards, setStoredCards] = useLocalStorage<StoredDisplayCard[]>(LOCAL_STORAGE_CARD_SET_KEY, []);
   const [cardViewSides, setCardViewSides] = useState<Record<string, 'front' | 'back'>>({});
@@ -161,7 +183,6 @@ export default function CardForgePage() {
     }
 
     const processedTemplates = initialTemplatesToLoad.map(reconstructMinimalTemplate);
-    // Only update if the content actually differs to prevent loops
     if (JSON.stringify(templates) !== JSON.stringify(processedTemplates)) {
         setTemplates(processedTemplates);
     }
@@ -187,7 +208,7 @@ export default function CardForgePage() {
         missingTemplatesInfo.totalSkipped++;
         continue;
       }
-      const frontTemplate = reconstructMinimalTemplate(frontTemplateFound); // Use minimal reconstructor
+      const frontTemplate = reconstructMinimalTemplate(frontTemplateFound); 
       if (!frontTemplate) {
         missingTemplatesInfo.front++;
         missingTemplatesInfo.totalSkipped++;
@@ -198,8 +219,8 @@ export default function CardForgePage() {
       if (stored.backTemplateId && stored.backTemplateId.trim() !== "") {
         const backTemplateFound = templates.find(t => t.id === stored.backTemplateId);
         if (backTemplateFound) {
-          backTemplate = reconstructMinimalTemplate(backTemplateFound); // Use minimal reconstructor
-          if (!backTemplate) missingTemplatesInfo.back++; // Should not happen if found and reconstructor is robust
+          backTemplate = reconstructMinimalTemplate(backTemplateFound); 
+          if (!backTemplate) missingTemplatesInfo.back++; 
         } else {
           missingTemplatesInfo.back++;
         }
@@ -240,7 +261,7 @@ export default function CardForgePage() {
   }, [generatedDisplayCards, mounted, setStoredCards, storedCards]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate) => {
-    const templateForStorage = { ...template };
+    let templateForStorage = { ...template }; // Shallow copy
     let cardBgStripped = false;
     let sectionBgStrippedCount = 0;
 
@@ -251,18 +272,25 @@ export default function CardForgePage() {
       cardBgStripped = true;
     }
 
+    // Deep clone rows and columns for modification
+    templateForStorage.rows = JSON.parse(JSON.stringify(templateForStorage.rows)); 
     templateForStorage.rows = templateForStorage.rows.map(row => ({
       ...row,
       columns: row.columns.map(section => {
-        if (section.backgroundImageUrl &&
-            section.backgroundImageUrl.startsWith('data:') &&
-            section.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+        const sectionCopy = {...section};
+        if (sectionCopy.backgroundImageUrl &&
+            sectionCopy.backgroundImageUrl.startsWith('data:') &&
+            sectionCopy.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
           sectionBgStrippedCount++;
-          return { ...section, backgroundImageUrl: `placeholder:Section background image was too large to save.` };
+          sectionCopy.backgroundImageUrl = `placeholder:Section background image was too large to save.`;
         }
-        return section;
+        return sectionCopy;
       })
     }));
+    
+    // Final check: ensure the sanitized template is fully reconstructed to normalize optional fields
+    templateForStorage = reconstructMinimalTemplate(templateForStorage);
+
 
     if (cardBgStripped) {
         toast({ title: "Image Size Notice", description: `The main card background image for template "${template.name}" was too large for persistent storage and was not saved. It will remain in the editor for this session only unless re-selected or a URL is used.`, variant: "default", duration: 8000 });
@@ -276,19 +304,15 @@ export default function CardForgePage() {
       const newTemplates = existingIndex > -1
         ? prevTemplates.map((t, i) => i === existingIndex ? templateForStorage : t)
         : [...prevTemplates, templateForStorage];
-      // The useLocalStorage hook will handle the actual stringify and save if newTemplates differs from prevTemplates.
-      return newTemplates;
+      return newTemplates; // useLocalStorage will handle stringify and save if different
     });
-    // The TemplateEditor itself keeps the live image for the current session.
-    // This toast confirms the *intent* to save.
     toast({ title: "Template Updated", description: `"${templateForStorage.name || templateForStorage.id}" has been updated in the list.` });
 
-  }, [setTemplates, toast]);
+  }, [setTemplates, toast, reconstructMinimalTemplate]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     const templateToDelete = templates.find(t => t.id === templateId);
     setTemplates(prevTemplates => prevTemplates.filter(t => t.id !== templateId));
-    // No need to manage editingTemplate here as TemplateEditor handles its own current state
     if (singleCardGeneratorSelectedTemplateId === templateId) setSingleCardGeneratorSelectedTemplateId(null);
     toast({ title: "Template Deleted", description: `"${templateToDelete?.name || templateId}" has been removed.` });
   }, [singleCardGeneratorSelectedTemplateId, toast, templates, setTemplates]);
@@ -437,7 +461,7 @@ export default function CardForgePage() {
               newCardViewSidesState[cardUniqueId] = 'front';
             });
 
-            setGeneratedDisplayCards(runtimeCards); // This will trigger the useEffect to update storedCards
+            setGeneratedDisplayCards(runtimeCards); 
             setCardViewSides(newCardViewSidesState);
 
             let toastMessage = `${runtimeCards.length} cards processed.`;
@@ -531,7 +555,6 @@ export default function CardForgePage() {
                 templates={templates}
                 onDeleteTemplate={handleDeleteTemplate}
                 memoizedGetFreshDefaultTemplate={memoizedGetFreshDefaultTemplate}
-                // initialTemplate prop can be used if you want to deep link to editing a specific template
               />
             )}
           </TabsContent>
