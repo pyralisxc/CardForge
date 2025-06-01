@@ -3,7 +3,7 @@
 
 import type { TCGCardTemplate, CardData, DisplayCard } from '@/types'; // ExtractedPlaceholder removed
 import type { ChangeEvent } from 'react';
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'; // Added useEffect
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
