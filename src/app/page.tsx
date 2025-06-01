@@ -4,7 +4,7 @@
 import type { ChangeEvent, ElementType } from 'react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from '@/components/card-forge/Header';
-import { TemplateEditor, getFreshDefaultTemplate as getFreshDefaultTemplateForEditor } from '@/components/card-forge/TemplateEditor';
+import { TemplateEditor } from '@/components/card-forge/TemplateEditor';
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront } from 'lucide-react';
 
-import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate } from '@/store/appStore';
+import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate, getFreshDefaultTemplate } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -71,10 +71,9 @@ export default function CardForgePage() {
   // It is called by onRehydrateStorage in the persist middleware.
   // No specific useEffect needed here for initial load if persist middleware is correctly configured.
 
-  // Memoized version of getFreshDefaultTemplate from the TemplateEditor component,
-  // which itself should import it from the store or constants if it's a pure utility.
-  // For CardForgePage, we can pass the one from the store if needed by TemplateEditor.
-  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplateForEditor, []);
+  // memoizedGetFreshDefaultTemplate is a stable reference to the function from the store.
+  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
+  // memoizedReconstructMinimalTemplate is a stable reference to the function from the store.
   const memoizedReconstructMinimalTemplate = useCallback(reconstructMinimalTemplate, []);
 
 
@@ -243,8 +242,8 @@ export default function CardForgePage() {
               onSaveTemplate={handleSaveTemplate}
               templates={templates} // from Zustand
               onDeleteTemplate={handleDeleteTemplate}
-              // getFreshDefaultTemplate is now imported by TemplateEditor or from store utils
-              reconstructMinimalTemplate={memoizedReconstructMinimalTemplate} // Pass the memoized reconstructor
+              reconstructMinimalTemplate={memoizedReconstructMinimalTemplate}
+              memoizedGetFreshDefaultTemplate={memoizedGetFreshDefaultTemplate}
             />
           </TabsContent>
 
@@ -393,3 +392,5 @@ export default function CardForgePage() {
     </div>
   );
 }
+
+    
