@@ -23,7 +23,7 @@ import {
   createDefaultSection,
   CARD_BORDER_STYLES,
   DIMENSION_UNITS,
-  DEFAULT_TEMPLATES
+  DEFAULT_TEMPLATES,
 } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
@@ -39,12 +39,12 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
   const isValidExistingId = id && id.trim() !== "";
 
   if (id === null) {
-    newTemplateId = null; // Explicitly new, unsaved template
+    newTemplateId = null; 
     newTemplateName = nameProp || `New Unsaved Template`;
   } else if (isValidExistingId) {
     newTemplateId = id;
     newTemplateName = nameProp || `Template ${String(id).substring(0, 8)}`;
-  } else { // id is undefined, empty string, or whitespace only
+  } else { 
     newTemplateId = nanoid();
     newTemplateName = nameProp || `Template ${newTemplateId.substring(0, 8)}`;
   }
@@ -102,9 +102,9 @@ const ESSENTIAL_SECTION_DEFAULTS: Partial<CardSection> = {
   textAlign: 'left',
   fontStyle: 'normal',
   padding: 'p-1',
-  borderWidth: '_none_',
-  borderRadius: 'rounded-none',
-  minHeight: '_auto_',
+  borderWidth: '_none_', 
+  borderRadius: 'rounded-none', 
+  minHeight: '_auto_', 
   flexGrow: 0,
   sectionContentType: 'placeholder',
 };
@@ -168,43 +168,40 @@ export function TemplateEditor({
 
         newR.columns = (r_loaded.columns || []).map((c_loaded: Partial<CardSection>) => {
             const sectionId = (c_loaded.id && c_loaded.id.trim() !== "") ? c_loaded.id : nanoid();
-            const sectionDefaultsForId = createDefaultSection(sectionId);
             
-            let sectionBase: Partial<CardSection> = { id: sectionId };
+            let sectionBase: Partial<CardSection> = { ...ESSENTIAL_SECTION_DEFAULTS, id: sectionId };
 
-            (Object.keys(ESSENTIAL_SECTION_DEFAULTS) as Array<keyof CardSection>).forEach(key => {
+            (Object.keys(ESSENTIAL_SECTION_DEFAULTS) as Array<keyof typeof ESSENTIAL_SECTION_DEFAULTS>).forEach(key => {
                 if (c_loaded[key] !== undefined && String(c_loaded[key]).trim() !== "") {
                     (sectionBase as any)[key] = c_loaded[key];
-                } else if (ESSENTIAL_SECTION_DEFAULTS[key] !== '' && ESSENTIAL_SECTION_DEFAULTS[key] !== undefined) {
-                     (sectionBase as any)[key] = ESSENTIAL_SECTION_DEFAULTS[key];
-                } else {
-                    delete (sectionBase as any)[key];
                 }
             });
-            
-            const optionalStringFields: (keyof CardSection)[] = [
+
+            const otherOptionalFields: Array<Exclude<keyof CardSection, keyof typeof ESSENTIAL_SECTION_DEFAULTS | 'id'>> = [
                 'backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor',
                 'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx', 'contentPlaceholder'
             ];
 
-            optionalStringFields.forEach(fieldKey => {
-                 if (c_loaded[fieldKey] !== undefined && String(c_loaded[fieldKey]).trim() !== "") {
-                    (sectionBase as any)[fieldKey] = c_loaded[fieldKey];
-                 } else if (sectionDefaultsForId[fieldKey] !== undefined && String(sectionDefaultsForId[fieldKey]).trim() !== "") {
-                    (sectionBase as any)[fieldKey] = sectionDefaultsForId[fieldKey];
-                 } else if (sectionBase[fieldKey] === '' || sectionBase[fieldKey] === undefined) {
-                    delete (sectionBase as any)[fieldKey];
-                 }
+            otherOptionalFields.forEach(key => {
+                if (c_loaded[key] !== undefined && String(c_loaded[key]).trim() !== "") {
+                    (sectionBase as any)[key] = c_loaded[key];
+                } else {
+                    delete (sectionBase as any)[key]; 
+                }
             });
             
             if (sectionBase.contentPlaceholder === undefined || String(sectionBase.contentPlaceholder).trim() === "") {
-                 sectionBase.contentPlaceholder = sectionDefaultsForId.contentPlaceholder;
+                 sectionBase.contentPlaceholder = createDefaultSection(sectionId).contentPlaceholder;
             }
 
-
             if (sectionBase.sectionContentType === 'image') {
-                if (sectionBase.imageWidthPx === undefined || String(sectionBase.imageWidthPx).trim() === '') sectionBase.imageWidthPx = sectionDefaultsForId.imageWidthPx;
-                if (sectionBase.imageHeightPx === undefined || String(sectionBase.imageHeightPx).trim() === '') sectionBase.imageHeightPx = sectionDefaultsForId.imageHeightPx;
+                const defaultImageSection = createDefaultSection(sectionId);
+                if (sectionBase.imageWidthPx === undefined || String(sectionBase.imageWidthPx).trim() === '') {
+                    sectionBase.imageWidthPx = defaultImageSection.imageWidthPx;
+                }
+                if (sectionBase.imageHeightPx === undefined || String(sectionBase.imageHeightPx).trim() === '') {
+                    sectionBase.imageHeightPx = defaultImageSection.imageHeightPx;
+                }
             }
             return sectionBase as CardSection;
         });
@@ -226,9 +223,8 @@ export function TemplateEditor({
     return newTemplate;
   }, [memoizedGetFreshDefaultTemplate]);
 
-
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => {
-     const templateToLoad = initialTemplate && initialTemplate.id !== null && initialTemplate.id.trim() !== ""
+     const templateToLoad = initialTemplate && initialTemplate.id !== null && initialTemplate.id?.trim() !== ""
         ? initialTemplate
         : memoizedGetFreshDefaultTemplate(null, initialTemplate?.name);
     return reconstructTemplate(templateToLoad);
@@ -291,33 +287,37 @@ export function TemplateEditor({
       } else {
         if (currentTemplateInternalRef.current.id !== null) {
           resetFormToNew();
+          setAspectRatioInput(memoizedGetFreshDefaultTemplate(null).aspectRatio || TCG_ASPECT_RATIO);
         }
       }
     } else {
       if (currentTemplateInternalRef.current.id !== null) {
         resetFormToNew();
+        setAspectRatioInput(memoizedGetFreshDefaultTemplate(null).aspectRatio || TCG_ASPECT_RATIO);
       }
     }
-  }, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, updateCurrentTemplateState]);
+  }, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, memoizedGetFreshDefaultTemplate, updateCurrentTemplateState]);
 
 
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, ...updates });
-  }, [updateCurrentTemplateState]);
+    const updatedRaw = { ...currentTemplateInternalRef.current, ...updates };
+    const reconstructedForUpdate = reconstructTemplate(updatedRaw);
+    updateCurrentTemplateState(reconstructedForUpdate);
+  }, [updateCurrentTemplateState, reconstructTemplate]);
 
 
   const updateRow = useCallback((rowId: string, updates: Partial<CardRow>) => {
     const newRows = (currentTemplateInternalRef.current.rows || []).map(r => r.id === rowId ? { ...r, ...updates } : r);
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
-  }, [updateCurrentTemplateState]);
+    updateCurrentTemplate({ rows: newRows });
+  }, [updateCurrentTemplate]);
 
   const addRow = useCallback(() => {
     const newRowId = nanoid();
     const newRows = [...(currentTemplateInternalRef.current.rows || []), createDefaultRow(newRowId)];
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
+    updateCurrentTemplate({ rows: newRows });
     setActiveRowAccordionItems(prevActive => [...prevActive, newRowId]);
     setIsRowsAndSectionsCardOpen(true);
-  }, [updateCurrentTemplateState]);
+  }, [updateCurrentTemplate]);
 
   const removeRow = useCallback((rowId: string) => {
     let newRows = (currentTemplateInternalRef.current.rows || []).filter(r => r.id !== rowId);
@@ -328,8 +328,8 @@ export function TemplateEditor({
     } else {
       setActiveRowAccordionItems(prevActive => prevActive.filter(id => id !== rowId));
     }
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
-  }, [updateCurrentTemplateState]);
+    updateCurrentTemplate({ rows: newRows });
+  }, [updateCurrentTemplate]);
 
   const moveRow = useCallback((rowId: string, direction: 'up' | 'down') => {
     const rows = [...(currentTemplateInternalRef.current.rows || [])];
@@ -338,20 +338,20 @@ export function TemplateEditor({
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= rows.length) return;
     [rows[index], rows[targetIndex]] = [rows[targetIndex], rows[index]];
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows });
-  }, [updateCurrentTemplateState]);
+    updateCurrentTemplate({ rows });
+  }, [updateCurrentTemplate]);
 
   const addSectionToRow = useCallback((rowId: string) => {
     const newSectionId = nanoid();
     const newRows = (currentTemplateInternalRef.current.rows || []).map(r =>
         r.id === rowId ? { ...r, columns: [...(r.columns || []), createDefaultSection(newSectionId)] } : r
     );
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
+    updateCurrentTemplate({ rows: newRows });
     setActiveStylingAccordion(newSectionId);
     setActiveColumnAccordionItems(prevActive => [...prevActive, newSectionId]);
     if (!activeRowAccordionItems.includes(rowId)) setActiveRowAccordionItems(prevActive => [...prevActive, rowId]);
     setIsRowsAndSectionsCardOpen(true);
-  }, [activeRowAccordionItems, updateCurrentTemplateState]);
+  }, [activeRowAccordionItems, updateCurrentTemplate]);
 
 
   const removeSectionFromRow = useCallback((rowId: string, sectionId: string) => {
@@ -362,17 +362,17 @@ export function TemplateEditor({
       }
       return r;
     });
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
+    updateCurrentTemplate({ rows: newRows });
     if (activeStylingAccordion === sectionId) setActiveStylingAccordion(null);
     setActiveColumnAccordionItems(prevActive => prevActive.filter(id => id !== sectionId));
-  }, [activeStylingAccordion, updateCurrentTemplateState]);
+  }, [activeStylingAccordion, updateCurrentTemplate]);
 
   const onUpdateSectionInRow = useCallback((rowId: string, sectionId: string, updates: Partial<CardSection>) => {
     const newRows = (currentTemplateInternalRef.current.rows || []).map(r =>
         r.id === rowId ? { ...r, columns: (r.columns || []).map(s => s.id === sectionId ? { ...s, ...updates } : s) } : r
     );
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
-  }, [updateCurrentTemplateState]);
+    updateCurrentTemplate({ rows: newRows });
+  }, [updateCurrentTemplate]);
 
   const moveSectionInRow = useCallback((rowId: string, sectionId: string, direction: 'left' | 'right') => {
     const newRows = (currentTemplateInternalRef.current.rows || []).map(r => {
@@ -386,8 +386,8 @@ export function TemplateEditor({
       }
       return r;
     });
-    updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
-  }, [updateCurrentTemplateState]);
+    updateCurrentTemplate({ rows: newRows });
+  }, [updateCurrentTemplate]);
 
   const handleSubmit = useCallback(() => {
     let templateToSave = { ...currentTemplateInternalRef.current };
