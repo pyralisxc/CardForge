@@ -29,8 +29,8 @@ import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, Sto
 import { useToast } from '@/hooks/use-toast';
 
 const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV10-reconstructed';
-const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV1-simple'; // Reverted key
-const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 100 * 1024; // 100KB threshold for stripping from localStorage
+const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV1-simple';
+const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 100 * 1024; // 100KB threshold
 
 
 export default function CardForgePage() {
@@ -53,31 +53,32 @@ export default function CardForgePage() {
         rows: [],
     };
 
-    // Handle optional string properties: only include if non-empty
-    if (t_loaded.cardBackgroundImageUrl && t_loaded.cardBackgroundImageUrl.trim() !== "") {
-      if (t_loaded.cardBackgroundImageUrl.startsWith('data:') && t_loaded.cardBackgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-        base.cardBackgroundImageUrl = `placeholder:Card background image too large for storage`;
-      } else {
-        base.cardBackgroundImageUrl = t_loaded.cardBackgroundImageUrl;
-      }
-    } else {
-        delete base.cardBackgroundImageUrl;
-    }
-    if (t_loaded.baseBackgroundColor && t_loaded.baseBackgroundColor.trim() !== "") base.baseBackgroundColor = t_loaded.baseBackgroundColor; else delete base.baseBackgroundColor;
-    if (t_loaded.baseTextColor && t_loaded.baseTextColor.trim() !== "") base.baseTextColor = t_loaded.baseTextColor; else delete base.baseTextColor;
-    if (t_loaded.defaultSectionBorderColor && t_loaded.defaultSectionBorderColor.trim() !== "") base.defaultSectionBorderColor = t_loaded.defaultSectionBorderColor; else delete base.defaultSectionBorderColor;
-    if (t_loaded.cardBorderColor && t_loaded.cardBorderColor.trim() !== "") base.cardBorderColor = t_loaded.cardBorderColor; else delete base.cardBorderColor;
+    const optionalStringFieldsForBase: (keyof TCGCardTemplate)[] = [
+        'cardBackgroundImageUrl', 'baseBackgroundColor', 'baseTextColor', 'defaultSectionBorderColor', 'cardBorderColor'
+    ];
+
+    optionalStringFieldsForBase.forEach(fieldKey => {
+        if (t_loaded[fieldKey] && String(t_loaded[fieldKey]).trim() !== "") {
+           if (fieldKey === 'cardBackgroundImageUrl' && String(t_loaded[fieldKey]).startsWith('data:') && String(t_loaded[fieldKey]).length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+                base[fieldKey] = `placeholder:Card background image too large for storage`;
+            } else {
+                (base as any)[fieldKey] = t_loaded[fieldKey];
+            }
+        } else {
+            delete (base as any)[fieldKey];
+        }
+    });
     
     const newT = base as TCGCardTemplate;
 
-    const sourceRows = t_loaded.rows && t_loaded.rows.length > 0 ? t_loaded.rows : memoizedGetFreshDefaultTemplate(null, newT.name).rows;
+    const sourceRows = t_loaded.rows && t_loaded.rows.length > 0 ? t_loaded.rows : [];
 
     newT.rows = sourceRows.map((r_source: Partial<CardRow>) => {
         const rowId = (r_source.id && r_source.id.trim() !== "") ? r_source.id : nanoid();
         
         const rowBase: Partial<CardRow> = {
             id: rowId,
-            alignItems: r_source.alignItems || 'flex-start',
+            alignItems: r_source.alignItems || 'flex-start', // Essential default
             columns: []
         };
         if (r_source.customHeight && r_source.customHeight.trim() !== "") rowBase.customHeight = r_source.customHeight;
@@ -89,40 +90,44 @@ export default function CardForgePage() {
 
         newR.columns = sourceColumns.map((c_source: Partial<CardSection>) => {
             const sectionId = (c_source.id && c_source.id.trim() !== "") ? c_source.id : nanoid();
-            const sectionDefaults = createDefaultSection(sectionId);
-            const sectionBase: Partial<CardSection> = { 
-                ...sectionDefaults, // start with full defaults
-                ...c_source, // overlay loaded data
-                id: sectionId // ensure ID
+            const sectionDefaults = createDefaultSection(sectionId); // For comparing against
+            
+            // Start with absolutely essential defaults
+            const sectionBase: Partial<CardSection> = {
+                id: sectionId,
+                sectionContentType: c_source.sectionContentType || sectionDefaults.sectionContentType,
+                contentPlaceholder: c_source.contentPlaceholder !== undefined ? c_source.contentPlaceholder : sectionDefaults.contentPlaceholder,
+                flexGrow: c_source.flexGrow !== undefined ? c_source.flexGrow : sectionDefaults.flexGrow,
             };
 
-            const fieldsToNormalize: (keyof CardSection)[] = [
+            const optionalFields: (keyof CardSection)[] = [
                 'backgroundImageUrl', 'textColor', 'backgroundColor', 'fontFamily', 
                 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 
                 'borderColor', 'borderWidth', 'borderRadius', 'minHeight', 
                 'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'
             ];
 
-            fieldsToNormalize.forEach(fieldKey => {
-                 if (c_source[fieldKey] === '' || c_source[fieldKey] === undefined) {
-                     if (sectionDefaults[fieldKey] === '' || sectionDefaults[fieldKey] === undefined || 
-                         // Specifically for these, if default is empty, we prefer to delete
-                         ['backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor', 'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'].includes(fieldKey as string) && (sectionDefaults[fieldKey] === '')) {
-                        delete sectionBase[fieldKey];
+            optionalFields.forEach(fieldKey => {
+                if (c_source[fieldKey] && String(c_source[fieldKey]).trim() !== "") {
+                     if (fieldKey === 'backgroundImageUrl' && String(c_source[fieldKey]).startsWith('data:') && String(c_source[fieldKey]).length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+                        sectionBase[fieldKey] = `placeholder:Section background image too large for storage`;
                      } else {
-                        sectionBase[fieldKey] = sectionDefaults[fieldKey];
+                        (sectionBase as any)[fieldKey] = c_source[fieldKey];
                      }
                 } else {
-                    sectionBase[fieldKey] = c_source[fieldKey] as any;
+                    // Only apply default if c_source didn't have it AND the default isn't an empty string (unless it's an essential like fontFamily)
+                    const essentialDefaultFields = ['fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 'borderWidth', 'borderRadius', 'minHeight'];
+                    if (essentialDefaultFields.includes(fieldKey) && sectionDefaults[fieldKey] && String(sectionDefaults[fieldKey]).trim() !== "") {
+                         (sectionBase as any)[fieldKey] = sectionDefaults[fieldKey];
+                    } else {
+                        delete (sectionBase as any)[fieldKey];
+                    }
                 }
             });
             
-            if (sectionBase.backgroundImageUrl && sectionBase.backgroundImageUrl.startsWith('data:') && sectionBase.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-              sectionBase.backgroundImageUrl = `placeholder:Section background image too large for storage`;
-            }
             if (sectionBase.sectionContentType === 'image') {
-                if (sectionBase.imageWidthPx === undefined) sectionBase.imageWidthPx = createDefaultSection('').imageWidthPx;
-                if (sectionBase.imageHeightPx === undefined) sectionBase.imageHeightPx = createDefaultSection('').imageHeightPx;
+                if (sectionBase.imageWidthPx === undefined || String(sectionBase.imageWidthPx).trim() === '') sectionBase.imageWidthPx = sectionDefaults.imageWidthPx;
+                if (sectionBase.imageHeightPx === undefined || String(sectionBase.imageHeightPx).trim() === '') sectionBase.imageHeightPx = sectionDefaults.imageHeightPx;
             }
 
             return sectionBase as CardSection;
@@ -132,7 +137,7 @@ export default function CardForgePage() {
         return newR;
     });
 
-    if (newT.rows.length === 0) {
+    if (newT.rows.length === 0) { // Only if truly no rows from source and it's not a minimal load
         const defaultStructure = memoizedGetFreshDefaultTemplate(null, newT.name);
         newT.rows = defaultStructure.rows.map(r => ({
             ...r,
@@ -186,7 +191,7 @@ export default function CardForgePage() {
     if (JSON.stringify(templates) !== JSON.stringify(processedTemplates)) {
         setTemplates(processedTemplates);
     }
-  }, [mounted, reconstructMinimalTemplate, templates, setTemplates]);
+  }, [mounted, setTemplates, templates, reconstructMinimalTemplate]);
 
 
   useEffect(() => {
@@ -279,10 +284,14 @@ export default function CardForgePage() {
 
     setTemplates(prevTemplates => {
       const existingIndex = prevTemplates.findIndex(t => t.id === templateForStorage.id);
-      const newTemplates = existingIndex > -1
+      const newTemplatesArray = existingIndex > -1
         ? prevTemplates.map((t, i) => i === existingIndex ? templateForStorage : t)
         : [...prevTemplates, templateForStorage];
-      return newTemplates;
+      
+      if (JSON.stringify(prevTemplates) === JSON.stringify(newTemplatesArray)) {
+        return prevTemplates;
+      }
+      return newTemplatesArray;
     });
     toast({ title: "Template Updated", description: `"${templateForStorage.name || templateForStorage.id}" has been updated in the list.` });
 
@@ -648,3 +657,5 @@ export default function CardForgePage() {
     </div>
   );
 }
+
+    
