@@ -37,13 +37,13 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
 
   const isValidExistingId = id && id.trim() !== "";
 
-  if (id === null) { 
+  if (id === null) {
     newTemplateId = null;
     newTemplateName = nameProp || `Template ${nanoid(8)}`;
-  } else if (isValidExistingId) { 
+  } else if (isValidExistingId) {
     newTemplateId = id;
     newTemplateName = nameProp || `Template ${String(id).substring(0, 8)}`;
-  } else { 
+  } else { // id is undefined, empty string, or only whitespace
     newTemplateId = nanoid();
     newTemplateName = nameProp || `Template ${newTemplateId.substring(0, 8)}`;
   }
@@ -87,7 +87,8 @@ interface TemplateEditorProps {
   onSaveTemplate: (template: TCGCardTemplate) => void;
   templates: TCGCardTemplate[];
   onDeleteTemplate: (templateId: string) => void;
-  initialTemplate?: TCGCardTemplate | null;
+  initialTemplate?: TCGCardTemplate | null; // This prop is used for initial selection
+  memoizedGetFreshDefaultTemplate: (id?: string | null, nameProp?: string) => TCGCardTemplate; // Prop from page
 }
 
 export function TemplateEditor({
@@ -95,15 +96,19 @@ export function TemplateEditor({
   templates,
   onDeleteTemplate,
   initialTemplate,
+  memoizedGetFreshDefaultTemplate, // Use the prop
 }: TemplateEditorProps) {
   const { toast } = useToast();
-  
-  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
 
   const reconstructTemplate = useCallback((templateData: Partial<TCGCardTemplate>): TCGCardTemplate => {
-    const anId: string | null = (templateData.id === null) 
-        ? null 
-        : ((templateData.id && templateData.id.trim() !== "") ? templateData.id : nanoid());
+    let anId: string | null;
+    if (templateData.id === null) {
+      anId = null;
+    } else if (templateData.id && templateData.id.trim() !== "") {
+      anId = templateData.id;
+    } else {
+      anId = nanoid();
+    }
 
     const newTemplate: TCGCardTemplate = {
         id: anId,
@@ -124,27 +129,27 @@ export function TemplateEditor({
     const sourceRows = templateData.rows || [];
     newTemplate.rows = sourceRows.map((r_loaded: Partial<CardRow>) => {
         const rowId = (r_loaded.id && r_loaded.id.trim() !== "") ? r_loaded.id : nanoid();
-        // Use createDefaultRow to get all default properties, then spread r_loaded to override
-        const newR: CardRow = { 
-            ...createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight), // Pass existing alignItems/customHeight if they exist
-            ...r_loaded, // Spread the loaded row data
-            id: rowId // Ensure ID is correct
-        }; 
-        
+        const newR: CardRow = {
+            ...createDefaultRow(rowId, [], r_loaded.alignItems, r_loaded.customHeight),
+            ...r_loaded,
+            id: rowId
+        };
+
         newR.columns = (r_loaded.columns || []).map((c_loaded: Partial<CardSection>) => {
             const sectionId = (c_loaded.id && c_loaded.id.trim() !== "") ? c_loaded.id : nanoid();
-            // Use createDefaultSection for defaults, then spread c_loaded
             return { ...createDefaultSection(sectionId), ...c_loaded, id: sectionId };
         });
-        if (newR.columns.length === 0) newR.columns = [createDefaultSection(nanoid())];
+        if (newR.columns.length === 0) newR.columns = [createDefaultSection(`default-col-for-row-${rowId}`)]; // Use deterministic default
         return newR;
     });
 
     if (newTemplate.rows.length === 0) {
-        const defaultStructureForEmpty = memoizedGetFreshDefaultTemplate(null, 'Temporary Default'); // Get standard new structure
+        // If after processing, there are still no rows (e.g. templateData.rows was empty or undefined)
+        // then populate with truly fresh default rows.
+        const defaultStructureForEmpty = memoizedGetFreshDefaultTemplate(null, 'Temporary Default');
         newTemplate.rows = defaultStructureForEmpty.rows.map(r => ({
             ...r,
-            id: nanoid(), 
+            id: nanoid(),
             columns: r.columns.map(c => ({...c, id: nanoid()}))
         }));
     }
@@ -154,15 +159,15 @@ export function TemplateEditor({
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => {
      const templateToLoad = initialTemplate && initialTemplate.id !== null && initialTemplate.id.trim() !== ""
-        ? initialTemplate 
-        : memoizedGetFreshDefaultTemplate(null, initialTemplate?.name); 
+        ? initialTemplate
+        : memoizedGetFreshDefaultTemplate(null, initialTemplate?.name);
     return reconstructTemplate(templateToLoad);
   });
-  
+
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(
     () => (initialTemplate?.id && initialTemplate.id.trim() !== "") ? initialTemplate.id : null
   );
-  
+
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
   const [customWidthValue, setCustomWidthValue] = useState<string>('');
   const [customHeightValue, setCustomHeightValue] = useState<string>('');
@@ -180,10 +185,10 @@ export function TemplateEditor({
 
 
   const resetFormToNew = useCallback(() => {
-    const newFreshTemplateBase = memoizedGetFreshDefaultTemplate(null); 
-    const fullyProcessedNewTemplate = reconstructTemplate(newFreshTemplateBase); // Ensure it's fully processed
+    const newFreshTemplateBase = memoizedGetFreshDefaultTemplate(null);
+    const fullyProcessedNewTemplate = reconstructTemplate(newFreshTemplateBase);
     setCurrentTemplate(fullyProcessedNewTemplate);
-    setSelectedTemplateToEditId(null); 
+    setSelectedTemplateToEditId(null);
     setAspectRatioInput(fullyProcessedNewTemplate.aspectRatio || TCG_ASPECT_RATIO);
     setCustomWidthValue('');
     setCustomHeightValue('');
@@ -196,32 +201,44 @@ export function TemplateEditor({
   }, [reconstructTemplate, memoizedGetFreshDefaultTemplate]);
 
 
- useEffect(() => {
-    if (selectedTemplateToEditId) {
-        const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
-        if (templateFromList) {
-            const reconstructed = reconstructTemplate(templateFromList);
-            if (currentTemplate.id !== selectedTemplateToEditId || JSON.stringify(currentTemplate) !== JSON.stringify(reconstructed)) {
-                setCurrentTemplate(reconstructed);
-                setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]);
-                setActiveColumnAccordionItems([]);
-                setActiveStylingAccordion(null);
-            }
-        } else { 
-            if (currentTemplate.id !== null || selectedTemplateToEditId !== null) { 
-               resetFormToNew(); 
-            }
-        }
-    } else { 
-        if (currentTemplate.id !== null) { 
-            resetFormToNew();
-        }
-    }
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew]);
-  
   useEffect(() => {
-    if (currentTemplate.aspectRatio !== aspectRatioInput) {
+    if (selectedTemplateToEditId) { // Editing an existing template
+      const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
+      if (templateFromList) {
+        const reconstructed = reconstructTemplate(templateFromList);
+        if (currentTemplate.id !== selectedTemplateToEditId || JSON.stringify(currentTemplate) !== JSON.stringify(reconstructed)) {
+          setCurrentTemplate(reconstructed);
+          setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]);
+          setActiveColumnAccordionItems([]);
+          setActiveStylingAccordion(null);
+          setAspectRatioInput(reconstructed.aspectRatio || TCG_ASPECT_RATIO);
+        }
+      } else { // Selected ID not found in templates list
+        if (currentTemplate.id !== null) { // If not already in "new template" mode
+          resetFormToNew();
+        }
+      }
+    } else { // No template selected to edit (selectedTemplateToEditId is null) => "Create New" mode
+      if (currentTemplate.id !== null) { // If not already in "new template" mode
+        resetFormToNew();
+      } else {
+        // Already in "new template" mode, ensure aspectRatioInput is synced to default if it drifted
+        const defaultNewAspectRatio = memoizedGetFreshDefaultTemplate(null).aspectRatio || TCG_ASPECT_RATIO;
+        if (aspectRatioInput !== defaultNewAspectRatio) {
+          setAspectRatioInput(defaultNewAspectRatio);
+        }
+      }
+    }
+  }, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, currentTemplate.id, memoizedGetFreshDefaultTemplate, aspectRatioInput]);
+
+
+  useEffect(() => {
+    // Secondary effect to sync aspectRatioInput from currentTemplate if it changes,
+    // but avoid overriding user input if the aspectRatio input field is focused.
+    const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+    const isAspectRatioInputFocused = activeElement && activeElement.id === 'templateAspectRatio';
+
+    if (currentTemplate.aspectRatio !== aspectRatioInput && !isAspectRatioInputFocused) {
         setAspectRatioInput(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
     }
   }, [currentTemplate.aspectRatio, aspectRatioInput]);
@@ -246,7 +263,7 @@ export function TemplateEditor({
       rows: [...(prev.rows || []), createDefaultRow(newRowId)]
     }));
     setActiveRowAccordionItems(prevActive => [...prevActive, newRowId]);
-    setIsRowsAndSectionsCardOpen(true); 
+    setIsRowsAndSectionsCardOpen(true);
   }, []);
 
   const removeRow = useCallback((rowId: string) => {
@@ -281,17 +298,24 @@ export function TemplateEditor({
       ...prev,
       rows: (prev.rows || []).map(r => r.id === rowId ? { ...r, columns: [...(r.columns || []), createDefaultSection(newSectionId)] } : r)
     }));
-    setActiveStylingAccordion(newSectionId); 
-    setActiveColumnAccordionItems(prevActive => [...prevActive, newSectionId]); 
+    setActiveStylingAccordion(newSectionId);
+    setActiveColumnAccordionItems(prevActive => [...prevActive, newSectionId]);
     if (!activeRowAccordionItems.includes(rowId)) setActiveRowAccordionItems(prevActive => [...prevActive, rowId]);
-    setIsRowsAndSectionsCardOpen(true); 
+    setIsRowsAndSectionsCardOpen(true);
   }, [activeRowAccordionItems]);
 
 
   const removeSectionFromRow = useCallback((rowId: string, sectionId: string) => {
     setCurrentTemplate(prev => ({
       ...prev,
-      rows: (prev.rows || []).map(r => r.id === rowId ? { ...r, columns: (r.columns || []).filter(s => s.id !== sectionId).length > 0 ? (r.columns || []).filter(s => s.id !== sectionId) : [createDefaultSection(nanoid())] } : r)
+      rows: (prev.rows || []).map(r => {
+        if (r.id === rowId) {
+          const newColumns = (r.columns || []).filter(s => s.id !== sectionId);
+          // Ensure row always has at least one column
+          return { ...r, columns: newColumns.length > 0 ? newColumns : [createDefaultSection(`default-col-for-row-${rowId}`)] };
+        }
+        return r;
+      })
     }));
     if (activeStylingAccordion === sectionId) setActiveStylingAccordion(null);
     setActiveColumnAccordionItems(prevActive => prevActive.filter(id => id !== sectionId));
@@ -343,8 +367,8 @@ export function TemplateEditor({
         return;
       }
 
-    if (templateToSave.id === null || templateToSave.id.trim() === "") { 
-      templateToSave.id = nanoid(); 
+    if (templateToSave.id === null || templateToSave.id.trim() === "") {
+      templateToSave.id = nanoid();
     }
 
     const existingTemplateWithSameName = templates.find(t => t.name === templateToSave.name && t.id !== templateToSave.id);
@@ -352,8 +376,8 @@ export function TemplateEditor({
         toast({ title: "Save Error", description: `A different template with the name "${templateToSave.name}" already exists. Please choose a unique name.`, variant: "destructive" });
         return;
     }
-    
-    const finalTemplateToSave = reconstructTemplate(templateToSave);
+
+    const finalTemplateToSave = reconstructTemplate(templateToSave); // Ensure it's fully processed
     onSaveTemplate(finalTemplateToSave);
 
     if (selectedTemplateToEditId !== finalTemplateToSave.id) {
@@ -364,7 +388,7 @@ export function TemplateEditor({
 
 
   const handleSelectTemplateToEdit = useCallback((templateId: string | null) => {
-     setSelectedTemplateToEditId(templateId); 
+     setSelectedTemplateToEditId(templateId);
      setCustomWidthValue('');
      setCustomHeightValue('');
      setCustomUnit('mm');
@@ -397,7 +421,7 @@ export function TemplateEditor({
 
 
   const handleRowClickFromPreview = useCallback((rowId: string) => {
-    setIsRowsAndSectionsCardOpen(true); 
+    setIsRowsAndSectionsCardOpen(true);
     setActiveRowAccordionItems(prev => {
       if (prev.includes(rowId) && prev.length === 1 && activeRowAccordionItems.length === 1) return prev;
       if(prev.includes(rowId)) return prev.filter(id => id !== rowId);
@@ -407,7 +431,7 @@ export function TemplateEditor({
   }, [activeRowAccordionItems]);
 
   const handleSectionClickFromPreview = useCallback((sectionId: string) => {
-    setIsRowsAndSectionsCardOpen(true); 
+    setIsRowsAndSectionsCardOpen(true);
     const parentRow = (currentTemplate.rows || []).find(r => (r.columns || []).some(s => s.id === sectionId));
     if(parentRow && !activeRowAccordionItems.includes(parentRow.id)) setActiveRowAccordionItems(prevActive => [...prevActive, parentRow.id]);
     onToggleColumnAccordion(sectionId);
@@ -440,7 +464,6 @@ export function TemplateEditor({
 
     const simplified = simplifyRatio(widthNum, heightNum);
     updateCurrentTemplate({ aspectRatio: simplified });
-    setAspectRatioInput(simplified); 
     toast({ title: "Aspect Ratio Updated", description: `Ratio set to ${simplified} based on custom dimensions.` });
   }, [customWidthValue, customHeightValue, updateCurrentTemplate, toast]);
 
@@ -461,7 +484,7 @@ export function TemplateEditor({
             <div className="space-y-2 mt-4 pt-4 border-t">
               <Label>Edit Existing Template:</Label>
               <Select
-                value={selectedTemplateToEditId || undefined} 
+                value={selectedTemplateToEditId || undefined}
                 onValueChange={(id) => handleSelectTemplateToEdit(id === 'new-template-placeholder-value' ? null : id)}
               >
                 <SelectTrigger>
@@ -469,7 +492,7 @@ export function TemplateEditor({
                 </SelectTrigger>
                 <SelectContent>
                   <ScrollArea className="max-h-[200px] pr-1">
-                    {templates.filter(t => t.id && t.id.trim() !== "").map((template) => ( 
+                    {templates.filter(t => t.id && t.id.trim() !== "").map((template) => (
                       <SelectItem key={template.id} value={template.id!}>
                         {template.name || `Template (${String(template.id).substring(0,5)})`}
                       </SelectItem>
@@ -510,10 +533,10 @@ export function TemplateEditor({
       </Card>
 
       <div className="lg:col-span-2 space-y-6">
-            <Accordion 
-              type="single" 
-              collapsible 
-              className="w-full" 
+            <Accordion
+              type="single"
+              collapsible
+              className="w-full"
               value={isSettingsCardOpen ? "editor-settings-card" : undefined}
               onValueChange={(value) => setIsSettingsCardOpen(value === "editor-settings-card")}
             >
@@ -539,14 +562,14 @@ export function TemplateEditor({
                             <Label htmlFor="templateName">Template Name</Label>
                             <Input
                                 id="templateName"
-                                value={currentTemplate.name || ''} 
+                                value={currentTemplate.name || ''}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                     updateCurrentTemplate({ name: e.target.value });
                                 }}
                                 placeholder="Enter a unique name for your template"
                             />
                         </div>
-                        
+
                         <div className="space-y-3 border p-3 rounded-md bg-muted/20">
                             <h4 className="text-sm font-medium">Define Aspect Ratio</h4>
                             <div className="space-y-2">
@@ -560,7 +583,7 @@ export function TemplateEditor({
                                         const ratioParts = newRatio.split(':').map(Number);
                                         if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
                                             updateCurrentTemplate({ aspectRatio: newRatio });
-                                        } else if (newRatio.trim() === '') { 
+                                        } else if (newRatio.trim() === '') {
                                             updateCurrentTemplate({ aspectRatio: TCG_ASPECT_RATIO });
                                         }
                                     }}
@@ -721,10 +744,10 @@ export function TemplateEditor({
               </AccordionItem>
             </Accordion>
 
-            <Accordion 
-              type="single" 
-              collapsible 
-              className="w-full" 
+            <Accordion
+              type="single"
+              collapsible
+              className="w-full"
               value={isRowsAndSectionsCardOpen ? "rows-sections-card" : undefined}
               onValueChange={(value) => setIsRowsAndSectionsCardOpen(value === "rows-sections-card")}
             >
