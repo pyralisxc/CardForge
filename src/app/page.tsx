@@ -4,7 +4,7 @@
 import type { ChangeEvent, ElementType } from 'react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from '@/components/card-forge/Header';
-import { TemplateEditor, getFreshDefaultTemplate } from '@/components/card-forge/TemplateEditor';
+import { TemplateEditor, getFreshDefaultTemplate as getFreshDefaultTemplateForEditor } from '@/components/card-forge/TemplateEditor';
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
@@ -21,359 +21,123 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront } from 'lucide-react';
+
+import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate } from '@/store/appStore';
+import { TABS_CONFIG } from '@/lib/constants';
+import type { TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { PAPER_SIZES, createDefaultSection, TABS_CONFIG, DEFAULT_TEMPLATES, TCG_ASPECT_RATIO, createDefaultRow } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, StoredDisplayCard, CardData } from '@/types';
-import { useToast } from '@/hooks/use-toast';
-
-const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV10-reconstructed';
-const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV1-simple';
-const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 100 * 1024; // 100KB threshold
-
-
 export default function CardForgePage() {
-  const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
-  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
 
-
-  const reconstructMinimalTemplate = useCallback((t_loaded: Partial<TCGCardTemplate>): TCGCardTemplate => {
-    const validatedId = (t_loaded.id && t_loaded.id.trim() !== "") ? t_loaded.id : nanoid();
-
-    const base: Partial<TCGCardTemplate> = {
-        id: validatedId,
-        name: t_loaded.name || `Template ${validatedId.substring(0, 8)}`,
-        aspectRatio: t_loaded.aspectRatio || TCG_ASPECT_RATIO,
-        frameStyle: t_loaded.frameStyle || 'standard',
-        cardBorderWidth: t_loaded.cardBorderWidth || '4px',
-        cardBorderStyle: t_loaded.cardBorderStyle || 'solid',
-        cardBorderRadius: t_loaded.cardBorderRadius || '0.5rem',
-        rows: [],
-    };
-
-    const optionalStringFieldsForBase: (keyof Pick<TCGCardTemplate, 'cardBackgroundImageUrl' | 'baseBackgroundColor' | 'baseTextColor' | 'defaultSectionBorderColor' | 'cardBorderColor'>)[] = [
-        'cardBackgroundImageUrl', 'baseBackgroundColor', 'baseTextColor', 'defaultSectionBorderColor', 'cardBorderColor'
-    ];
-
-    optionalStringFieldsForBase.forEach(fieldKey => {
-        const value = t_loaded[fieldKey];
-        if (value && String(value).trim() !== "") {
-           if (fieldKey === 'cardBackgroundImageUrl' && String(value).startsWith('data:') && String(value).length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-                (base as any)[fieldKey] = `placeholder:Card background image too large for storage`;
-            } else {
-                (base as any)[fieldKey] = value;
-            }
-        } else {
-            delete (base as any)[fieldKey]; // Omit if empty
-        }
-    });
-    
-    const newT = base as TCGCardTemplate;
-
-    const sourceRows = t_loaded.rows && t_loaded.rows.length > 0 ? t_loaded.rows : [];
-
-    newT.rows = sourceRows.map((r_source: Partial<CardRow>) => {
-        const rowId = (r_source.id && r_source.id.trim() !== "") ? r_source.id : nanoid();
-        
-        const rowBase: Partial<CardRow> = {
-            id: rowId,
-            alignItems: r_source.alignItems || 'flex-start',
-            columns: []
-        };
-        if (r_source.customHeight && r_source.customHeight.trim() !== "") rowBase.customHeight = r_source.customHeight;
-        else delete rowBase.customHeight; // Omit if empty
-        
-        const newR = rowBase as CardRow;
-
-        const sourceColumns = r_source.columns && r_source.columns.length > 0 ? r_source.columns : [createDefaultSection(createDefaultRow(rowId).columns[0].id)];
-
-        newR.columns = sourceColumns.map((c_source: Partial<CardSection>) => {
-            const sectionId = (c_source.id && c_source.id.trim() !== "") ? c_source.id : nanoid();
-            const sectionDefaults = createDefaultSection(sectionId);
-            
-            const sectionBase: Partial<CardSection> = {
-                id: sectionId,
-                sectionContentType: c_source.sectionContentType || sectionDefaults.sectionContentType,
-                contentPlaceholder: c_source.contentPlaceholder !== undefined ? c_source.contentPlaceholder : sectionDefaults.contentPlaceholder,
-                flexGrow: c_source.flexGrow !== undefined ? c_source.flexGrow : sectionDefaults.flexGrow,
-            };
-
-            const optionalFields: (keyof Omit<CardSection, 'id' | 'sectionContentType' | 'contentPlaceholder' | 'flexGrow'>)[] = [
-                'backgroundImageUrl', 'textColor', 'backgroundColor', 'fontFamily', 
-                'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 
-                'borderColor', 'borderWidth', 'borderRadius', 'minHeight', 
-                'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'
-            ];
-
-            optionalFields.forEach(fieldKey => {
-                const value = c_source[fieldKey];
-                if (value !== undefined && String(value).trim() !== "") {
-                     if (fieldKey === 'backgroundImageUrl' && String(value).startsWith('data:') && String(value).length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-                        (sectionBase as any)[fieldKey] = `placeholder:Section background image too large for storage`;
-                     } else {
-                        (sectionBase as any)[fieldKey] = value;
-                     }
-                } else {
-                    // For essential styling defaults that should persist even if empty initially in c_source
-                    // These are already part of sectionDefaults used by createDefaultSection
-                    const essentialDefaultFields = ['fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 'borderWidth', 'borderRadius', 'minHeight'];
-                    if (essentialDefaultFields.includes(fieldKey)) {
-                        const defaultValueFromDefaults = sectionDefaults[fieldKey as keyof CardSection];
-                        if (defaultValueFromDefaults !== undefined && String(defaultValueFromDefaults).trim() !== "") {
-                            (sectionBase as any)[fieldKey] = defaultValueFromDefaults;
-                        } else {
-                           delete (sectionBase as any)[fieldKey]; // Omit if default is also empty
-                        }
-                    } else {
-                         delete (sectionBase as any)[fieldKey]; // Omit other optionals if empty
-                    }
-                }
-            });
-            
-            if ((sectionBase.contentPlaceholder === undefined || String(sectionBase.contentPlaceholder).trim() === "") && sectionDefaults.contentPlaceholder) {
-                 sectionBase.contentPlaceholder = sectionDefaults.contentPlaceholder;
-            }
-
-            if (sectionBase.sectionContentType === 'image') {
-                if ((sectionBase.imageWidthPx === undefined || String(sectionBase.imageWidthPx).trim() === '') && sectionDefaults.imageWidthPx) sectionBase.imageWidthPx = sectionDefaults.imageWidthPx;
-                if ((sectionBase.imageHeightPx === undefined || String(sectionBase.imageHeightPx).trim() === '') && sectionDefaults.imageHeightPx) sectionBase.imageHeightPx = sectionDefaults.imageHeightPx;
-            }
-            return sectionBase as CardSection;
-        });
-        if (newR.columns.length === 0) newR.columns = [createDefaultSection(createDefaultRow(rowId).columns[0].id)]; 
-
-        return newR;
-    });
-
-    if (newT.rows.length === 0 && (t_loaded.id === null || !t_loaded.id)) { // Only add default rows for brand new templates
-        const defaultStructure = memoizedGetFreshDefaultTemplate(null, newT.name);
-        newT.rows = defaultStructure.rows.map(r => ({
-            ...r,
-            id:nanoid(), 
-            columns: r.columns.map(c => ({...c, id:nanoid()})) 
-        }));
-    }
-    return newT;
-  }, [memoizedGetFreshDefaultTemplate]);
-
-
-  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, []);
-  const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
-  const [storedCards, setStoredCards] = useLocalStorage<StoredDisplayCard[]>(LOCAL_STORAGE_CARD_SET_KEY, []);
+  // Zustand store selectors
+  const templates = useAppStore((state) => state.templates);
+  const storedCards = useAppStore((state) => state.storedCards); // Using storedCards
+  const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards); // Selector for runtime cards
   
-  const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>(PAPER_SIZES[0]);
-  const [activeTab, setActiveTab] = useState<string>(TABS_CONFIG[0].value);
-  const [hideEmptySections, setHideEmptySections] = useState<boolean>(true);
+  const selectedPaperSize = useAppStore((state) => state.selectedPaperSize);
+  const activeTab = useAppStore((state) => state.activeTab);
+  const hideEmptySections = useAppStore((state) => state.hideEmptySections);
+  const singleCardGeneratorSelectedTemplateId = useAppStore((state) => state.singleCardGeneratorSelectedTemplateId);
+  const pdfMarginMm = useAppStore((state) => state.pdfMarginMm);
+  const pdfCardSpacingMm = useAppStore((state) => state.pdfCardSpacingMm);
+  const pdfIncludeCutLines = useAppStore((state) => state.pdfIncludeCutLines);
+  const editingCardFromStore = useAppStore(selectEditingCard); // Using selector for editingCard
+  const isEditDialogOpen = useAppStore((state) => state.isEditDialogOpen);
+  
+  // Zustand store actions
+  const addOrUpdateTemplate = useAppStore((state) => state.addOrUpdateTemplate);
+  const deleteTemplateAction = useAppStore((state) => state.deleteTemplate);
+  const addGeneratedCardsAction = useAppStore((state) => state.addGeneratedCards);
+  const clearGeneratedCardsAction = useAppStore((state) => state.clearGeneratedCards);
+  const updateGeneratedCardAction = useAppStore((state) => state.updateGeneratedCard);
+  const setStoredCardsFromFileAction = useAppStore((state) => state.setStoredCardsFromFile);
+  const setSelectedPaperSizeAction = useAppStore((state) => state.setSelectedPaperSize);
+  const setActiveTabAction = useAppStore((state) => state.setActiveTab);
+  const setHideEmptySectionsAction = useAppStore((state) => state.setHideEmptySections);
+  const setSingleCardGeneratorSelectedTemplateIdAction = useAppStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
+  const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
+  const openEditDialogAction = useAppStore((state) => state.openEditDialog);
+  const closeEditDialogAction = useAppStore((state) => state.closeEditDialog);
+  const rehydrateCallback = useAppStore((state) => state._rehydrateCallback);
 
-  const [editingCard, setEditingCard] = useState<DisplayCard | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [pdfMarginMm, setPdfMarginMm] = useState<number>(5);
-  const [pdfCardSpacingMm, setPdfCardSpacingMm] = useState<number>(0);
-  const [pdfIncludeCutLines, setPdfIncludeCutLines] = useState<boolean>(false);
+  // This useEffect hook replaces the previous manual localStorage loading.
+  // Zustand's `persist` middleware handles loading.
+  // The `_rehydrateCallback` in the store can handle any post-rehydration logic.
+  // It is called by onRehydrateStorage in the persist middleware.
+  // No specific useEffect needed here for initial load if persist middleware is correctly configured.
 
-  useEffect(() => { setMounted(true); }, []);
+  // Memoized version of getFreshDefaultTemplate from the TemplateEditor component,
+  // which itself should import it from the store or constants if it's a pure utility.
+  // For CardForgePage, we can pass the one from the store if needed by TemplateEditor.
+  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplateForEditor, []);
+  const memoizedReconstructMinimalTemplate = useCallback(reconstructMinimalTemplate, []);
 
- useEffect(() => {
-    if (!mounted) return;
-
-    let initialTemplatesToLoad: Partial<TCGCardTemplate>[] = [];
-    const storedTemplatesRaw = window.localStorage.getItem(LOCAL_STORAGE_TEMPLATES_KEY);
-
-    if (storedTemplatesRaw) {
-        try {
-            const parsed = JSON.parse(storedTemplatesRaw);
-            if (Array.isArray(parsed)) {
-                initialTemplatesToLoad = parsed;
-            }
-        } catch (e) { 
-            console.warn("Failed to parse templates from localStorage. Initializing with empty or defaults.", e);
-        }
-    }
-
-    if (initialTemplatesToLoad.length === 0 && DEFAULT_TEMPLATES.length > 0) {
-      initialTemplatesToLoad = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)); // Deep copy defaults
-    }
-    
-    setTemplates(initialTemplatesToLoad.map(reconstructMinimalTemplate));
-
-  }, [mounted, reconstructMinimalTemplate, setTemplates, memoizedGetFreshDefaultTemplate]);
-
-
-  useEffect(() => {
-    if (!mounted) return;
-
-    const rehydratedCards: DisplayCard[] = [];
-    let missingTemplatesInfoCount = 0;
-
-    for (const stored of storedCards) {
-      const templateIdToFind = stored.templateId;
-      if (!templateIdToFind || templateIdToFind.trim() === "") {
-          missingTemplatesInfoCount++;
-          continue;
-      }
-      const templateFound = templates.find(t => t.id === templateIdToFind);
-      if (!templateFound) {
-        missingTemplatesInfoCount++;
-        continue;
-      }
-      const template = reconstructMinimalTemplate(templateFound); 
-      if (!template) { 
-        missingTemplatesInfoCount++;
-        continue;
-      }
-
-      rehydratedCards.push({
-        uniqueId: stored.uniqueId,
-        template: template,
-        data: stored.data,
-      });
-    }
-
-    if (JSON.stringify(generatedDisplayCards) !== JSON.stringify(rehydratedCards)) {
-      setGeneratedDisplayCards(rehydratedCards);
-    }
-
-    if (missingTemplatesInfoCount > 0 && rehydratedCards.length < storedCards.length) {
-        let message = `Some cards could not be fully loaded: ${missingTemplatesInfoCount} card(s) skipped due to missing templates.`;
-        toast({ title: "Card Load Notice", description: message, variant: "default", duration: 7000 });
-    }
-  }, [storedCards, templates, mounted, reconstructMinimalTemplate, toast, generatedDisplayCards]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const storableCards: StoredDisplayCard[] = generatedDisplayCards.map(card => ({
-      uniqueId: card.uniqueId,
-      templateId: card.template.id!, 
-      data: card.data,
-    }));
-    if (JSON.stringify(storedCards) !== JSON.stringify(storableCards)) {
-      setStoredCards(storableCards);
-    }
-  }, [generatedDisplayCards, mounted, setStoredCards, storedCards]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate) => {
-    setTemplates(prevTemplates => {
-        let templateForStorage = { ...template }; 
-        let cardBgStripped = false;
-        let sectionBgStrippedCount = 0;
-
-        if (templateForStorage.cardBackgroundImageUrl &&
-            templateForStorage.cardBackgroundImageUrl.startsWith('data:') &&
-            templateForStorage.cardBackgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-          templateForStorage.cardBackgroundImageUrl = `placeholder:Card background image was too large to save.`;
-          cardBgStripped = true;
-        }
-
-        templateForStorage.rows = JSON.parse(JSON.stringify(templateForStorage.rows)); 
-        templateForStorage.rows = templateForStorage.rows.map(row => ({
-          ...row,
-          columns: row.columns.map(section => {
-            const sectionCopy = {...section};
-            if (sectionCopy.backgroundImageUrl &&
-                sectionCopy.backgroundImageUrl.startsWith('data:') &&
-                sectionCopy.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-              sectionBgStrippedCount++;
-              sectionCopy.backgroundImageUrl = `placeholder:Section background image was too large to save.`;
-            }
-            return sectionCopy;
-          })
-        }));
-        
-        templateForStorage = reconstructMinimalTemplate(templateForStorage);
-
-        if (cardBgStripped) {
-            toast({ title: "Image Size Notice", description: `The main card background image for template "${template.name}" was too large for persistent storage and was not saved. It will remain in the editor for this session only unless re-selected or a URL is used.`, variant: "default", duration: 8000 });
-        }
-        if (sectionBgStrippedCount > 0) {
-            toast({ title: "Image Size Notice", description: `${sectionBgStrippedCount} section background image(s) in template "${template.name}" were too large for persistent storage and were not saved. They will remain in the editor for this session only unless re-selected or a URL is used.`, variant: "default", duration: 8000 });
-        }
-        
-        const existingIndex = prevTemplates.findIndex(t => t.id === templateForStorage.id);
-        const newTemplatesArray = existingIndex > -1
-            ? prevTemplates.map((t, i) => i === existingIndex ? templateForStorage : reconstructMinimalTemplate(t)) // Ensure all templates are in canonical form
-            : [...prevTemplates.map(reconstructMinimalTemplate), templateForStorage]; // Ensure all templates are in canonical form
-
-        // Check if the content has actually changed significantly
-        const prevTemplatesCanonical = prevTemplates.map(reconstructMinimalTemplate);
-        if (JSON.stringify(prevTemplatesCanonical) === JSON.stringify(newTemplatesArray)) {
-            return prevTemplates; // Return original reference if no semantic change
-        }
-        
-        toast({ title: "Template Updated", description: `"${templateForStorage.name || templateForStorage.id}" has been updated in the list.` });
-        return newTemplatesArray;
-    });
-  }, [setTemplates, toast, reconstructMinimalTemplate]);
+    const savedTemplateId = addOrUpdateTemplate(template); // Action returns the ID
+    toast({ title: "Template Saved", description: `"${template.name || savedTemplateId}" has been saved.` });
+    // TemplateEditor's selectedTemplateToEditId might need to be updated if it was a new template
+    // This is now handled by TemplateEditor itself if it tracks its own selected ID for editing.
+  }, [addOrUpdateTemplate, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     const templateToDelete = templates.find(t => t.id === templateId);
-    setTemplates(prevTemplates => prevTemplates.filter(t => t.id !== templateId));
-    if (singleCardGeneratorSelectedTemplateId === templateId) setSingleCardGeneratorSelectedTemplateId(null);
+    deleteTemplateAction(templateId);
     toast({ title: "Template Deleted", description: `"${templateToDelete?.name || templateId}" has been removed.` });
-  }, [singleCardGeneratorSelectedTemplateId, toast, templates, setTemplates]);
+  }, [deleteTemplateAction, toast, templates]);
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
-    setGeneratedDisplayCards(prev => [...prev, ...cards]);
+    addGeneratedCardsAction(cards);
     if (cards.length > 0) toast({ title: "Bulk Generation Complete", description: `${cards.length} cards added.` });
-  }, [toast]);
+  }, [addGeneratedCardsAction, toast]);
 
   const handleSingleCardAdded = useCallback((card: DisplayCard) => {
-    setGeneratedDisplayCards(prev => [...prev, card]);
-  }, []);
+    addGeneratedCardsAction([card]); // addGeneratedCardsAction expects an array
+  }, [addGeneratedCardsAction]);
 
   const handleClearGeneratedCards = useCallback(() => {
-    setGeneratedDisplayCards([]);
+    clearGeneratedCardsAction();
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
-  }, [toast]);
+  }, [clearGeneratedCardsAction, toast]);
 
   const handleEditCardRequest = useCallback((cardToEdit: DisplayCard) => {
-    setEditingCard(cardToEdit);
-    setIsEditDialogOpen(true);
-  }, []);
+    openEditDialogAction(cardToEdit.uniqueId);
+  }, [openEditDialogAction]);
 
   const handleSaveEditedCard = useCallback((updatedCard: DisplayCard) => {
-    setGeneratedDisplayCards(prev =>
-      prev.map(card => card.uniqueId === updatedCard.uniqueId ? updatedCard : card)
-    );
-    setIsEditDialogOpen(false);
-    setEditingCard(null);
+    updateGeneratedCardAction(updatedCard);
     toast({ title: "Card Updated", description: "Changes saved." });
-  }, [toast]);
+    // closeEditDialogAction is called by the dialog itself upon save.
+  }, [updateGeneratedCardAction, toast]);
 
   const handleDuplicateCard = useCallback((cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
       ...JSON.parse(JSON.stringify(cardToDuplicate)), 
       uniqueId: nanoid(),
     };
-    setGeneratedDisplayCards(prev => [...prev, newCard]);
+    addGeneratedCardsAction([newCard]);
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
-    setIsEditDialogOpen(false); 
-    setEditingCard(null);
-  }, [toast]);
+    // No need to close dialog here, EditCardDialog might handle it or stay open for further edits on the new copy.
+    // Assuming EditCardDialog closes itself if duplication also implies saving/closing.
+    // If not, and user expects dialog to close: closeEditDialogAction();
+  }, [addGeneratedCardsAction, toast]);
 
   const handleCloseEditDialog = useCallback(() => {
-    setIsEditDialogOpen(false);
-    setEditingCard(null);
-  }, []);
+    closeEditDialogAction();
+  }, [closeEditDialogAction]);
 
   const handleSaveCardSet = useCallback(() => {
-    if (generatedDisplayCards.length === 0) {
+    if (storedCards.length === 0) { // Check storedCards from store
       toast({ title: "Nothing to save", description: "Generate some cards first.", variant: "default" });
       return;
     }
-    const cardsToStore: StoredDisplayCard[] = generatedDisplayCards.map(card => ({
-      uniqueId: card.uniqueId,
-      templateId: card.template.id!, 
-      data: card.data,
-    }));
-
-    const jsonString = JSON.stringify(cardsToStore, null, 2);
+    // storedCards from the store are already in the correct StoredDisplayCard format
+    const jsonString = JSON.stringify(storedCards, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -384,8 +148,7 @@ export default function CardForgePage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast({ title: "Set Saved", description: "Card set downloaded as tcg-card-set.json" });
-  }, [generatedDisplayCards, toast]);
-
+  }, [storedCards, toast]);
 
   const isValidStoredDisplayCard = (item: any): item is Partial<StoredDisplayCard> => {
     return item &&
@@ -401,43 +164,13 @@ export default function CardForgePage() {
       reader.onload = (e) => {
         try {
           const jsonString = e.target?.result as string;
-          const loadedItems: Partial<StoredDisplayCard>[] = JSON.parse(jsonString);
+          const loadedItemsRaw: Partial<StoredDisplayCard>[] = JSON.parse(jsonString);
 
-          if (Array.isArray(loadedItems) && loadedItems.every(isValidStoredDisplayCard)) {
-            const runtimeCards: DisplayCard[] = [];
-            let missingTemplateCount = 0;
-
-            loadedItems.forEach(storedCard => {
-              const templateIdToLoad = storedCard.templateId;
-              if (!templateIdToLoad || templateIdToLoad.trim() === "") { 
-                  missingTemplateCount++;
-                  return;
-              }
-              const templateFound = templates.find(t => t.id === templateIdToLoad);
-              if (!templateFound) {
-                missingTemplateCount++;
-                return;
-              }
-              const reconstructedTemplate = reconstructMinimalTemplate(templateFound); 
-              if (!reconstructedTemplate) { 
-                missingTemplateCount++;
-                return;
-              }
-
-              const cardUniqueId = storedCard.uniqueId || nanoid(); 
-              runtimeCards.push({
-                uniqueId: cardUniqueId,
-                template: reconstructedTemplate,
-                data: storedCard.data || {}, 
-              });
-            });
-
-            setGeneratedDisplayCards(runtimeCards); 
-
-            let toastMessage = `${runtimeCards.length} cards processed.`;
-            if (missingTemplateCount > 0) toastMessage += ` ${missingTemplateCount} cards skipped due to missing templates.`;
+          if (Array.isArray(loadedItemsRaw) && loadedItemsRaw.every(isValidStoredDisplayCard)) {
+            const { successCount, skippedCount } = setStoredCardsFromFileAction(loadedItemsRaw as StoredDisplayCard[]);
+            let toastMessage = `${successCount} cards processed.`;
+            if (skippedCount > 0) toastMessage += ` ${skippedCount} cards skipped due to missing or invalid templates.`;
             toast({ title: "Set Load Complete", description: toastMessage, duration: 7000 });
-
           } else {
             toast({ title: "Load Error", description: "Invalid file format. Expected an array of valid stored cards.", variant: "destructive" });
           }
@@ -451,28 +184,22 @@ export default function CardForgePage() {
         fileInputRef.current.value = "";
       }
     }
-  }, [templates, toast, reconstructMinimalTemplate]); 
+  }, [setStoredCardsFromFileAction, toast]); 
 
   const handleMobileMenuSelect = useCallback((tabValue: string) => {
-    setActiveTab(tabValue);
+    setActiveTabAction(tabValue);
     setIsMobileMenuOpen(false);
-  }, []);
+  }, [setActiveTabAction]);
 
-  useEffect(() => {
-    if (mounted && !singleCardGeneratorSelectedTemplateId && templates.length > 0) {
-      const firstValidTemplate = templates.find(t => t.id && t.id.trim() !== "");
-      if (firstValidTemplate) {
-        setSingleCardGeneratorSelectedTemplateId(firstValidTemplate.id);
-      }
-    }
-  }, [templates, mounted, singleCardGeneratorSelectedTemplateId]);
-
+  // useEffect to ensure singleCardGeneratorSelectedTemplateId has a valid default after templates load/change.
+  // This logic is now handled by _rehydrateCallback in the Zustand store.
+  // No useEffect needed here for this specific purpose.
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTabAction} className="w-full">
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -511,156 +238,150 @@ export default function CardForgePage() {
           </TabsList>
 
           <TabsContent value="editor">
-            {!mounted ? <p>Loading templates...</p> : (
-              <TemplateEditor
-                onSaveTemplate={handleSaveTemplate}
-                templates={templates}
-                onDeleteTemplate={handleDeleteTemplate}
-                memoizedGetFreshDefaultTemplate={memoizedGetFreshDefaultTemplate}
-                reconstructMinimalTemplate={reconstructMinimalTemplate}
-              />
-            )}
+            {/* Zustand handles initial loading state internally with persist middleware */}
+            <TemplateEditor
+              onSaveTemplate={handleSaveTemplate}
+              templates={templates} // from Zustand
+              onDeleteTemplate={handleDeleteTemplate}
+              // getFreshDefaultTemplate is now imported by TemplateEditor or from store utils
+              reconstructMinimalTemplate={memoizedReconstructMinimalTemplate} // Pass the memoized reconstructor
+            />
           </TabsContent>
 
           <TabsContent value="generator">
-            {!mounted ? <p>Loading...</p> : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1 space-y-6">
-                   <SingleCardGenerator
-                      templates={templates}
-                      onSingleCardAdded={handleSingleCardAdded}
-                      onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateId}
-                      selectedTemplateIdProp={singleCardGeneratorSelectedTemplateId}
-                   />
-                  <BulkGenerator
-                    templates={templates}
-                    onCardsGenerated={handleBulkCardsGenerated}
-                  />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1 space-y-6">
+                 <SingleCardGenerator
+                    templates={templates} // from Zustand
+                    onSingleCardAdded={handleSingleCardAdded}
+                    onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
+                    selectedTemplateIdProp={singleCardGeneratorSelectedTemplateId} // from Zustand
+                 />
+                <BulkGenerator
+                  templates={templates} // from Zustand
+                  onCardsGenerated={handleBulkCardsGenerated}
+                />
 
-                  <Card>
-                      <CardHeader>
-                          <CardTitle className="text-xl flex items-center gap-2"> Manage & Export</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                          <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSize} />
-                          <div className="space-y-3 pt-2 border-t">
-                            <Label className="text-md font-medium">PDF Options</Label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <Label htmlFor="pdfMargin" className="text-xs flex items-center gap-1"><BringToFront className="h-3 w-3"/>Margins (mm)</Label>
-                                    <Input
-                                        id="pdfMargin"
-                                        type="number"
-                                        value={pdfMarginMm}
-                                        onChange={(e) => setPdfMarginMm(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                                        className="h-8 text-xs"
-                                        min="0"
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1"><ArrowLeftRight className="h-3 w-3"/>Card Spacing (mm)</Label>
-                                    <Input
-                                        id="pdfCardSpacing"
-                                        type="number"
-                                        value={pdfCardSpacingMm}
-                                        onChange={(e) => setPdfCardSpacingMm(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                                        className="h-8 text-xs"
-                                        min="0"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-2 pt-1">
-                                <Switch
-                                    id="pdfIncludeCutLines"
-                                    checked={pdfIncludeCutLines}
-                                    onCheckedChange={setPdfIncludeCutLines}
-                                    aria-label="Toggle cut lines in PDF"
-                                />
-                                <Label htmlFor="pdfIncludeCutLines" className="flex items-center gap-1 cursor-pointer text-xs"><Scissors className="h-3 w-3"/>Include Cut Lines</Label>
-                            </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-xl flex items-center gap-2"> Manage & Export</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSizeAction} />
+                        <div className="space-y-3 pt-2 border-t">
+                          <Label className="text-md font-medium">PDF Options</Label>
+                          <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                  <Label htmlFor="pdfMargin" className="text-xs flex items-center gap-1"><BringToFront className="h-3 w-3"/>Margins (mm)</Label>
+                                  <Input
+                                      id="pdfMargin"
+                                      type="number"
+                                      value={pdfMarginMm}
+                                      onChange={(e) => setPdfOptionsAction({ margin: parseInt(e.target.value, 10) || 0 })}
+                                      className="h-8 text-xs"
+                                      min="0"
+                                  />
+                              </div>
+                              <div>
+                                  <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1"><ArrowLeftRight className="h-3 w-3"/>Card Spacing (mm)</Label>
+                                  <Input
+                                      id="pdfCardSpacing"
+                                      type="number"
+                                      value={pdfCardSpacingMm}
+                                      onChange={(e) => setPdfOptionsAction({ spacing: parseInt(e.target.value, 10) || 0 })}
+                                      className="h-8 text-xs"
+                                      min="0"
+                                  />
+                              </div>
                           </div>
-
-                          <div className="flex items-center space-x-2 pt-2 border-t">
+                          <div className="flex items-center space-x-2 pt-1">
                               <Switch
-                                  id="hide-empty-sections"
-                                  checked={hideEmptySections}
-                                  onCheckedChange={setHideEmptySections}
-                                  aria-label="Toggle visibility of empty sections in card previews"
+                                  id="pdfIncludeCutLines"
+                                  checked={pdfIncludeCutLines}
+                                  onCheckedChange={(checked) => setPdfOptionsAction({ cutLines: checked })}
+                                  aria-label="Toggle cut lines in PDF"
                               />
-                              <Label htmlFor="hide-empty-sections" className="flex items-center gap-1 cursor-pointer">
-                                  <EyeOff className="h-4 w-4" /> Hide empty sections
-                              </Label>
+                              <Label htmlFor="pdfIncludeCutLines" className="flex items-center gap-1 cursor-pointer text-xs"><Scissors className="h-3 w-3"/>Include Cut Lines</Label>
                           </div>
-                          <div className="flex flex-col gap-2 pt-2 border-t">
-                             <div className="grid grid-cols-2 gap-2">
-                               <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
-                                  <FolderDown className="h-4 w-4" /> Save Set
-                               </Button>
-                               <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
-                                  <FolderUp className="h-4 w-4" /> Load Set
-                               </Button>
-                               <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
-                             </div>
-                              <SaveAsPdfButton
-                                generatedDisplayCards={generatedDisplayCards}
-                                selectedPaperSize={selectedPaperSize}
-                                pdfMarginMm={pdfMarginMm}
-                                pdfCardSpacingMm={pdfCardSpacingMm}
-                                pdfIncludeCutLines={pdfIncludeCutLines}
-                                disabled={generatedDisplayCards.length === 0}
-                              />
-                              {generatedDisplayCards.length > 0 && (
-                                  <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
-                                      <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
-                                  </Button>
-                              )}
-                          </div>
-                      </CardContent>
-                  </Card>
+                        </div>
 
-                </div>
-                <div className="lg:col-span-2">
-                  <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
-                  {generatedDisplayCards.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
-                       <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
-                      <p className="text-lg font-medium">No cards generated yet.</p>
-                      <p className="text-sm">Use the panels on the left to add cards or load a set.</p>
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-                        {generatedDisplayCards.map((cardItem, index) => (
-                          <CardPreview
-                            key={cardItem.uniqueId}
-                            card={cardItem}
-                            isPrintMode={false}
-                            className="mx-auto"
-                            showSizeInfo={index === 0}
-                            hideEmptySections={hideEmptySections}
-                            onEdit={handleEditCardRequest}
-                          />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </div>
+                        <div className="flex items-center space-x-2 pt-2 border-t">
+                            <Switch
+                                id="hide-empty-sections"
+                                checked={hideEmptySections}
+                                onCheckedChange={setHideEmptySectionsAction}
+                                aria-label="Toggle visibility of empty sections in card previews"
+                            />
+                            <Label htmlFor="hide-empty-sections" className="flex items-center gap-1 cursor-pointer">
+                                <EyeOff className="h-4 w-4" /> Hide empty sections
+                            </Label>
+                        </div>
+                        <div className="flex flex-col gap-2 pt-2 border-t">
+                           <div className="grid grid-cols-2 gap-2">
+                             <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
+                                <FolderDown className="h-4 w-4" /> Save Set
+                             </Button>
+                             <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
+                                <FolderUp className="h-4 w-4" /> Load Set
+                             </Button>
+                             <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
+                           </div>
+                            <SaveAsPdfButton
+                              generatedDisplayCards={generatedDisplayCards}
+                              selectedPaperSize={selectedPaperSize}
+                              pdfMarginMm={pdfMarginMm}
+                              pdfCardSpacingMm={pdfCardSpacingMm}
+                              pdfIncludeCutLines={pdfIncludeCutLines}
+                              disabled={generatedDisplayCards.length === 0}
+                            />
+                            {generatedDisplayCards.length > 0 && (
+                                <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
+                                    <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
+                                </Button>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
               </div>
-            )}
+              <div className="lg:col-span-2">
+                <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
+                {generatedDisplayCards.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
+                     <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
+                    <p className="text-lg font-medium">No cards generated yet.</p>
+                    <p className="text-sm">Use the panels on the left to add cards or load a set.</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+                      {generatedDisplayCards.map((cardItem, index) => (
+                        <CardPreview
+                          key={cardItem.uniqueId}
+                          card={cardItem}
+                          isPrintMode={false}
+                          className="mx-auto"
+                          showSizeInfo={index === 0}
+                          hideEmptySections={hideEmptySections}
+                          onEdit={handleEditCardRequest}
+                        />
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+            </div>
           </TabsContent>
 
-
           <TabsContent value="ai">
-             {!mounted ? <p>Loading AI Helper...</p> : (
-                <AIDesignAssistant />
-             )}
+              <AIDesignAssistant />
           </TabsContent>
         </Tabs>
       </main>
-      {editingCard && (
+      {isEditDialogOpen && editingCardFromStore && ( // Use Zustand state for dialog and card
         <EditCardDialog
             isOpen={isEditDialogOpen}
-            card={editingCard}
+            card={editingCardFromStore}
             onSave={handleSaveEditedCard}
             onDuplicate={handleDuplicateCard}
             onClose={handleCloseEditDialog}

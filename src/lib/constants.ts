@@ -91,52 +91,60 @@ export const DIMENSION_UNITS: Array<{ label: string; value: string }> = [
   { label: 'Pixels (px)', value: 'px' },
 ];
 
-
+// Utility function to create a default section, used by store and components.
 export const createDefaultSection = (id: string, overrides: Partial<CardSection> = {}): CardSection => {
   const baseSection: CardSection = {
     id: id,
     sectionContentType: 'placeholder',
     contentPlaceholder: '{{new_field:"Default Text"}}',
-    backgroundImageUrl: '',
-    textColor: '',
-    backgroundColor: '',
+    // backgroundImageUrl: '', // Omitted to be truly undefined unless specified
+    // textColor: '', // Omitted
+    // backgroundColor: '', // Omitted
     fontFamily: 'font-sans',
     fontSize: 'text-sm',
     fontWeight: 'font-normal',
     textAlign: 'left',
     fontStyle: 'normal',
     padding: 'p-1',
-    borderColor: '',
-    borderWidth: '_none_',
-    borderRadius: 'rounded-none',
-    minHeight: '_auto_',
+    // borderColor: '', // Omitted
+    borderWidth: '_none_', // Represents "no border" as a default choice
+    borderRadius: 'rounded-none', // Represents "no radius"
+    minHeight: '_auto_', // Represents "auto height"
     flexGrow: 0,
-    customHeight: '',
-    customWidth: '',
-    imageWidthPx: '100',
-    imageHeightPx: '100',
+    // customHeight: '', // Omitted
+    // customWidth: '', // Omitted
+    imageWidthPx: '100', // Default for image type
+    imageHeightPx: '100', // Default for image type
     ...overrides,
   };
+  // Clean up any empty string optional fields that might have been set by overrides
+  // to ensure they are truly omitted if meant to be "not set".
+  // This is more for ensuring canonical structure if an override explicitly sets an empty string.
+  (Object.keys(baseSection) as Array<keyof CardSection>).forEach(key => {
+    if (baseSection[key] === '' && 
+        !['id', 'sectionContentType', 'contentPlaceholder', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 'borderWidth', 'borderRadius', 'minHeight', 'flexGrow', 'imageWidthPx', 'imageHeightPx'].includes(key)) {
+      delete baseSection[key];
+    }
+  });
   return baseSection;
 };
 
+// Utility function to create a default row, used by store and components.
 export const createDefaultRow = (id: string, columns?: CardSection[], alignItems?: CardRow['alignItems'], customHeight?: string): CardRow => {
-  const defaultColumnId = `default-col-for-row-${id}`;
+  const defaultColumnId = `default-col-for-row-${id}`; // Deterministic default column ID
   return {
     id: id,
     columns: columns && columns.length > 0 ? columns : [createDefaultSection(defaultColumnId)],
     alignItems: alignItems || 'flex-start',
-    customHeight: customHeight || '',
+    customHeight: customHeight && customHeight.trim() !== '' ? customHeight : undefined, // Omit if empty
   };
 };
 
-export const DEFAULT_TEMPLATES: TCGCardTemplate[] = [];
-
+// DEFAULT_TEMPLATES has been moved to appStore.ts to be DEFAULT_TEMPLATES_DATA to avoid circular deps
+// and to be closer to the store initialization logic.
 
 export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
   { value: "editor", label: "Template Editor", icon: Cog },
   { value: "generator", label: "Card Generator", icon: PackageOpen },
   { value: "ai", label: "AI Helper", icon: Wand2 },
 ];
-
-// export const NO_BACK_TEMPLATE_VALUE = "no-back-template"; // Removed as it's related to back-of-card

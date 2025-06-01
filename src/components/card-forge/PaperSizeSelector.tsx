@@ -1,20 +1,22 @@
+
 "use client";
 
 import type { PaperSize } from '@/types';
-import { PAPER_SIZES } from '@/lib/constants';
+import { PAPER_SIZES } from '@/lib/constants'; //PAPER_SIZES is a static constant
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// No direct import of useAppStore here, uses props for selectedSize and onSelectSize (which calls Zustand action)
 
 interface PaperSizeSelectorProps {
-  selectedSize: PaperSize;
-  onSelectSize: (size: PaperSize) => void;
+  selectedSize: PaperSize; // From Zustand store via props
+  onSelectSize: (size: PaperSize) => void; // Calls Zustand action via props
 }
 
 export function PaperSizeSelector({ selectedSize, onSelectSize }: PaperSizeSelectorProps) {
   const handleSelect = (value: string) => {
     const size = PAPER_SIZES.find(s => s.name === value);
     if (size) {
-      onSelectSize(size);
+      onSelectSize(size); // This prop function will call the Zustand action
     }
   };
 

@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard, ExtractedPlaceholder } from '@/types';
+import type { TCGCardTemplate, CardData, DisplayCard } from '@/types'; // ExtractedPlaceholder removed
 import type { ChangeEvent } from 'react';
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,16 +13,17 @@ import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { Download, PackagePlus, UploadCloud, FileText } from 'lucide-react';
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
-
+// No direct import of useAppStore here, uses props for templates and actions
 
 interface BulkGeneratorProps {
-  templates: TCGCardTemplate[];
-  onCardsGenerated: (cards: DisplayCard[]) => void;
+  templates: TCGCardTemplate[]; // From Zustand store via props
+  onCardsGenerated: (cards: DisplayCard[]) => void; // Calls Zustand action via props
 }
 
 type SupportedFileType = 'csv';
 
 export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProps) {
+  // Local state for this component's form
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,8 +31,12 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // selectedTemplate is derived from local state and props.
+  // useMemo is appropriate here as `templates` prop might re-render the component.
   const selectedTemplate = useMemo(() => templates.find(t => t.id === selectedTemplateId), [templates, selectedTemplateId]);
 
+  // placeholderObjects is derived from selectedTemplate.
+  // useMemo ensures it's only recalculated when selectedTemplate changes.
   const placeholderObjects = useMemo(() => {
     if (!selectedTemplate) return [];
     return extractUniquePlaceholderKeys(selectedTemplate);
@@ -55,24 +60,41 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     return `${headers}\n${exampleDataLine}`;
   }, [placeholderObjects, selectedTemplate]);
 
-  const exampleCSV = generateExampleCSV();
+  // exampleCSV is derived. Recompute only when generateExampleCSV changes.
+  const exampleCSV = useMemo(() => generateExampleCSV(), [generateExampleCSV]);
+
+  // Effect to update selectedTemplateId if the first template in the list changes
+  // and no template was previously selected, or if the currently selected one disappears.
+  // This is a safe useEffect: it reacts to `templates` prop to update local state.
+  useEffect(() => {
+    // Zustand reactivity handles updates to `templates` prop.
+    if (templates.length > 0) {
+      const currentSelectionExists = templates.some(t => t.id === selectedTemplateId);
+      if (!selectedTemplateId || !currentSelectionExists) {
+        setSelectedTemplateId(templates[0].id!); // Select the first available template
+      }
+    } else {
+      setSelectedTemplateId(''); // No templates, clear selection
+    }
+    // Dependency: `templates` list from global store.
+    // `selectedTemplateId` is included to re-evaluate if it becomes invalid.
+  }, [templates, selectedTemplateId]);
+
 
   const handleGenerate = async () => {
     if (!selectedTemplate) {
       toast({ title: "Template Required", description: "Please select a TCG template for the cards.", variant: "destructive" });
       return;
     }
+    if (!bulkDataInput.trim()) {
+      toast({ title: "Error", description: "Please provide data for card generation.", variant: "destructive" });
+      return;
+    }
 
     setIsLoading(true);
-    let generatedCards: DisplayCard[] = [];
-
+    // Async logic (parsing CSV, creating card objects) is local to this action.
+    // No direct global state side effects here beyond calling onCardsGenerated.
     try {
-      if (!bulkDataInput.trim()) {
-        toast({ title: "Error", description: "Please provide data for card generation.", variant: "destructive" });
-        setIsLoading(false);
-        return;
-      }
-
       const lines = bulkDataInput.trim().split('\n');
       if (lines.length < 2) {
         toast({ title: "Error", description: "CSV data must include a header row and at least one data row.", variant: "destructive" });
@@ -80,9 +102,11 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         return;
       }
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"(.*)"$/, '$1'));
+      const generatedCards: DisplayCard[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         if (lines[i].trim() === '') continue;
+        // Basic CSV parsing, consider a library for robustness if needed
         const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'));
         const cardData: CardData = {};
         headers.forEach((header, index) => {
@@ -90,14 +114,14 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         });
 
         const displayCard: DisplayCard = {
-            template: selectedTemplate,
+            template: selectedTemplate, // Full template object
             data: cardData,
             uniqueId: nanoid()
         };
         generatedCards.push(displayCard);
       }
 
-      onCardsGenerated(generatedCards);
+      onCardsGenerated(generatedCards); // Calls Zustand action via prop
       if (generatedCards.length > 0) {
         toast({ title: "Success", description: `${generatedCards.length} TCG cards generated.` });
       } else {
@@ -124,10 +148,11 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
+      // File reading is an async side effect, correctly handled here.
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
-        setBulkDataInput(text);
+        setBulkDataInput(text); // Update local state
         toast({ title: "File Loaded", description: `Content of "${file.name}" loaded.` });
       };
       reader.onerror = () => {
@@ -135,7 +160,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       };
       reader.readAsText(file);
     }
-    if (fileInputRef.current) {
+    if (fileInputRef.current) { // Reset file input to allow re-upload of same file name
       fileInputRef.current.value = "";
     }
   };
@@ -145,11 +170,12 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       toast({ title: "Template Required", description: "Please select a TCG template first.", variant: "default" });
       return;
     }
-    const csvContent = generateExampleCSV();
+    const csvContent = exampleCSV; // Use memoized exampleCSV
     if (!csvContent.trim() || !csvContent.includes('\n') || csvContent.startsWith("Select a template first.")) {
        toast({ title: "Template Error", description: "Could not generate CSV template. Ensure template has placeholders.", variant: "destructive" });
        return;
     }
+    // File download is a browser side effect, correctly handled here.
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -175,8 +201,8 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         <div>
             <Label htmlFor="bulkTemplateSelect">1. Select Template*</Label>
             <Select
-              value={selectedTemplateId}
-              onValueChange={(id) => setSelectedTemplateId(id)}
+              value={selectedTemplateId} // Controlled by local state
+              onValueChange={(id) => setSelectedTemplateId(id)} // Updates local state
               disabled={templates.length === 0}
             >
               <SelectTrigger id="bulkTemplateSelect">
@@ -225,8 +251,8 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           </Label>
           <Textarea
             id="bulkData"
-            value={bulkDataInput}
-            onChange={handleDataInputChange}
+            value={bulkDataInput} // Local state
+            onChange={handleDataInputChange} // Updates local state
             placeholder={selectedTemplate ? `Example CSV for "${selectedTemplate.name}":\n${exampleCSV}` : `Select a template to see example CSV structure.`}
             rows={8}
             className="font-mono text-sm"
