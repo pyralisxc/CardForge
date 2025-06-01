@@ -249,24 +249,27 @@ export function TemplateEditor({
     if (selectedTemplateToEditId) {
         const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
         if (templateFromList) {
-            if (currentTemplate.id !== selectedTemplateToEditId) { // Only update if different
-                const reconstructed = reconstructTemplate(templateFromList);
+            const reconstructed = reconstructTemplate(templateFromList);
+            // Only update if the currentTemplate in state is not already this one (ID and content check)
+            if (currentTemplate.id !== selectedTemplateToEditId || JSON.stringify(currentTemplate) !== JSON.stringify(reconstructed)) {
                 setCurrentTemplate(reconstructed);
                 setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]);
                 setActiveColumnAccordionItems([]);
                 setActiveStylingAccordion(null);
             }
         } else { // selectedTemplateToEditId is set, but template not found (e.g. deleted)
-            if(currentTemplate.id !== null || selectedTemplateToEditId !== null) { // Avoid loop if already resetting
-               resetFormToNew();
+            // Avoid loop if already resetting (i.e., if currentTemplate is already a "new" template state and selectedId is also null after reset)
+            if (currentTemplate.id !== null || selectedTemplateToEditId !== null) { 
+               resetFormToNew(); // This sets selectedTemplateToEditId to null and currentTemplate.id to null
             }
         }
     } else { // No template selected (selectedTemplateToEditId is null) -> New Template mode
-        if (currentTemplate.id !== null) { // Only reset if not already in "new template" state
+        if (currentTemplate.id !== null) { // Only reset if currentTemplate is not already a "new" one (which has id: null)
             resetFormToNew();
         }
     }
-}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, currentTemplate.id]); // currentTemplate.id helps prevent loops
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew]);
   
   useEffect(() => {
     if (currentTemplate.aspectRatio !== aspectRatioInput) {
