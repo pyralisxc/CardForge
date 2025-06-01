@@ -16,12 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Upload, Layers } from 'lucide-react';
 
-const NO_BACK_TEMPLATE_VALUE = "no-back-template";
-
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
   onSingleCardAdded: (card: DisplayCard) => void;
-  onTemplateSelectionChange?: (templateId: string | null) => void; // For front template
+  onTemplateSelectionChange?: (templateId: string | null) => void;
   selectedTemplateIdProp?: string | null;
 }
 
@@ -39,27 +37,20 @@ export function SingleCardGenerator({
   onTemplateSelectionChange,
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
-  const [selectedFrontTemplateId, setSelectedFrontTemplateId] = useState<string | null>(null);
-  const [selectedBackTemplateId, setSelectedBackTemplateId] = useState<string | null>(null);
-
-  const [frontCardData, setFrontCardData] = useState<CardData>({});
-  const [backCardData, setBackCardData] = useState<CardData>({});
-
-  const [frontDynamicFields, setFrontDynamicFields] = useState<DynamicField[]>([]);
-  const [backDynamicFields, setBackDynamicFields] = useState<DynamicField[]>([]);
-
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [cardData, setCardData] = useState<CardData>({});
+  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   const { toast } = useToast();
-  const frontFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const backFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     const initialTargetId = selectedTemplateIdProp !== undefined 
         ? (selectedTemplateIdProp || (templates.length > 0 ? templates[0].id : null))
         : (templates.length > 0 ? templates[0].id : null);
-    if (selectedFrontTemplateId !== initialTargetId) {
-        setSelectedFrontTemplateId(initialTargetId);
+    if (selectedTemplateId !== initialTargetId) {
+        setSelectedTemplateId(initialTargetId);
     }
-  }, [selectedTemplateIdProp, templates, selectedFrontTemplateId]);
+  }, [selectedTemplateIdProp, templates, selectedTemplateId]);
 
 
   const generateDynamicFields = useCallback((template: TCGCardTemplate | undefined, currentData: CardData): [DynamicField[], CardData] => {
@@ -105,44 +96,32 @@ export function SingleCardGenerator({
   }, []);
 
   useEffect(() => {
-    const frontTemplate = templates.find(t => t.id === selectedFrontTemplateId);
-    const [newFrontFields, newGeneratedFrontData] = generateDynamicFields(frontTemplate, frontCardData);
+    const template = templates.find(t => t.id === selectedTemplateId);
+    const [newFields, newGeneratedData] = generateDynamicFields(template, cardData);
     
-    setFrontDynamicFields(newFrontFields);
-    if (JSON.stringify(frontCardData) !== JSON.stringify(newGeneratedFrontData)) {
-        setFrontCardData(newGeneratedFrontData);
+    setDynamicFields(newFields);
+    if (JSON.stringify(cardData) !== JSON.stringify(newGeneratedData)) {
+        setCardData(newGeneratedData);
     }
-  }, [selectedFrontTemplateId, templates, frontCardData, generateDynamicFields]);
+  }, [selectedTemplateId, templates, cardData, generateDynamicFields]);
 
-  useEffect(() => {
-    const backTemplate = templates.find(t => t.id === selectedBackTemplateId);
-    const [newBackFields, newGeneratedBackData] = generateDynamicFields(backTemplate, backCardData);
-
-    setBackDynamicFields(newBackFields);
-    if (JSON.stringify(backCardData) !== JSON.stringify(newGeneratedBackData)) {
-        setBackCardData(newGeneratedBackData);
-    }
-  }, [selectedBackTemplateId, templates, backCardData, generateDynamicFields]);
-
-  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string, side: 'front' | 'back') => {
-    const setter = side === 'front' ? setFrontCardData : setBackCardData;
-    setter(prev => ({ ...prev, [fieldKey]: e.target.value }));
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
+    setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
   }, []);
 
-  const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string, side: 'front' | 'back') => {
+  const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
     const file = event.target.files?.[0];
-    const setter = side === 'front' ? setFrontCardData : setBackCardData;
-    const refs = side === 'front' ? frontFileInputRefs : backFileInputRefs;
+    const refs = fileInputRefs; 
 
     if (file) {
       const reader = new FileReader();
       reader.onload = (eRead) => {
         const dataUri = eRead.target?.result as string;
-        setter(prev => ({ ...prev, [fieldKey]: dataUri }));
-        toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI for ${fieldKey} (${side}).` });
+        setCardData(prev => ({ ...prev, [fieldKey]: dataUri }));
+        toast({ title: "Image Uploaded", description: `"${file.name}" loaded as Data URI for ${fieldKey}.` });
       };
       reader.onerror = () => {
-        toast({ title: "Error", description: `Failed to read image file for ${side}.`, variant: "destructive" });
+        toast({ title: "Error", description: `Failed to read image file.`, variant: "destructive" });
       };
       reader.readAsDataURL(file);
     }
@@ -152,101 +131,70 @@ export function SingleCardGenerator({
   }, [toast]);
 
   const handleAddCard = useCallback(() => {
-    const frontTemplate = templates.find(t => t.id === selectedFrontTemplateId);
-    if (!frontTemplate) {
-      toast({ title: "Front Template Required", description: "Please select a TCG template for the card front.", variant: "destructive" });
+    const template = templates.find(t => t.id === selectedTemplateId);
+    if (!template) {
+      toast({ title: "Template Required", description: "Please select a TCG template for the card.", variant: "destructive" });
       return;
     }
 
-    const finalFrontData: CardData = { ...frontCardData };
-    frontDynamicFields.forEach(field => {
-        const currentValue = String(finalFrontData[field.key] || '').trim();
+    const finalCardData: CardData = { ...cardData };
+    dynamicFields.forEach(field => {
+        const currentValue = String(finalCardData[field.key] || '').trim();
         if (currentValue === '' || currentValue === `{{${field.key}}}`) {
-          if (field.defaultValue !== undefined) finalFrontData[field.key] = field.defaultValue;
-          else if (field.isImageKey) finalFrontData[field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
-          else finalFrontData[field.key] = '';
+          if (field.defaultValue !== undefined) finalCardData[field.key] = field.defaultValue;
+          else if (field.isImageKey) finalCardData[field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
+          else finalCardData[field.key] = '';
         }
     });
 
-    let backTemplate: TCGCardTemplate | null = null;
-    let finalBackData: CardData | null = null;
-
-    if (selectedBackTemplateId) {
-        backTemplate = templates.find(t => t.id === selectedBackTemplateId) || null;
-        if (backTemplate) {
-            finalBackData = { ...backCardData };
-            backDynamicFields.forEach(field => {
-                const currentValue = String(finalBackData![field.key] || '').trim();
-                 if (currentValue === '' || currentValue === `{{${field.key}}}`) {
-                    if (field.defaultValue !== undefined) finalBackData![field.key] = field.defaultValue;
-                    else if (field.isImageKey) finalBackData![field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
-                    else finalBackData![field.key] = '';
-                }
-            });
-        }
-    }
-
     const displayCard: DisplayCard = {
-      frontTemplate: frontTemplate,
-      frontData: finalFrontData,
-      backTemplate: backTemplate,
-      backData: finalBackData,
+      template: template,
+      data: finalCardData,
       uniqueId: nanoid(),
     };
     onSingleCardAdded(displayCard);
 
     toast({ title: "Success", description: `Card added to preview list.` });
-  }, [selectedFrontTemplateId, selectedBackTemplateId, templates, frontCardData, backCardData, frontDynamicFields, backDynamicFields, onSingleCardAdded, toast]);
+  }, [selectedTemplateId, templates, cardData, dynamicFields, onSingleCardAdded, toast]);
 
-  const handleFrontTemplateSelectChange = useCallback((id: string | null) => {
-    if (selectedFrontTemplateId !== id) {
-        setSelectedFrontTemplateId(id);
-        // Reset frontCardData to trigger re-initialization by the useEffect for front data
-        // This ensures that stale data from a previous template isn't improperly merged.
-        setFrontCardData({}); 
+  const handleTemplateSelectChange = useCallback((id: string | null) => {
+    if (selectedTemplateId !== id) {
+        setSelectedTemplateId(id);
+        setCardData({}); 
     }
     if (onTemplateSelectionChange) {
       onTemplateSelectionChange(id);
     }
-  }, [onTemplateSelectionChange, selectedFrontTemplateId]);
+  }, [onTemplateSelectionChange, selectedTemplateId]);
 
-  const handleBackTemplateSelectChange = useCallback((id: string | null) => {
-    const newBackId = id === NO_BACK_TEMPLATE_VALUE ? null : id;
-    if (selectedBackTemplateId !== newBackId) {
-        setSelectedBackTemplateId(newBackId);
-        // Reset backCardData for the same reasons as frontCardData
-        setBackCardData({});
-    }
-  }, [selectedBackTemplateId]);
 
-  const renderFieldsForSide = (
+  const renderFields = (
     fields: DynamicField[],
     data: CardData,
-    side: 'front' | 'back',
     fileRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
   ) => {
     if (fields.length === 0) {
       return <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields.</p>;
     }
     return fields.map(field => (
-      <div key={`${side}-${field.key}`}>
-        <Label htmlFor={`singleCard-${side}-${field.key}`}>
+      <div key={field.key}>
+        <Label htmlFor={`singleCard-${field.key}`}>
           {field.label} {field.isImageKey ? '(Image URL or Upload)' : ''}
         </Label>
         <div className={field.isImageKey ? "flex items-center gap-2" : ""}>
           {field.type === 'textarea' ? (
             <Textarea
-              id={`singleCard-${side}-${field.key}`}
+              id={`singleCard-${field.key}`}
               value={(data[field.key] as string) || ''}
-              onChange={(e) => handleInputChange(e, field.key, side)}
+              onChange={(e) => handleInputChange(e, field.key)}
               placeholder={`Enter value for ${field.key}...`}
               rows={3}
             />
           ) : (
             <Input
-              id={`singleCard-${side}-${field.key}`}
+              id={`singleCard-${field.key}`}
               value={(data[field.key] as string) || ''}
-              onChange={(e) => handleInputChange(e, field.key, side)}
+              onChange={(e) => handleInputChange(e, field.key)}
               placeholder={field.isImageKey ? `URL or Data URI for ${field.key}` : `Enter value for ${field.key}...`}
               className={field.isImageKey ? "flex-grow" : ""}
             />
@@ -267,9 +215,9 @@ export function SingleCardGenerator({
                 type="file"
                 accept="image/*"
                 ref={el => fileRefs.current[field.key] = el}
-                onChange={(e) => handleImageUpload(e, field.key, side)}
+                onChange={(e) => handleImageUpload(e, field.key)}
                 style={{ display: 'none' }}
-                id={`singleCard-file-${side}-${field.key}`}
+                id={`singleCard-file-${field.key}`}
               />
             </>
           )}
@@ -282,92 +230,58 @@ export function SingleCardGenerator({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Single Card Entry</CardTitle>
-        <CardDescription>Select template(s) and fill in data for its placeholders.</CardDescription>
+        <CardDescription>Select a template and fill in data for its placeholders.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label htmlFor="singleFrontTemplateSelect">Select Front Template*</Label>
+          <Label htmlFor="singleTemplateSelect">Select Template*</Label>
           <Select
-            value={selectedFrontTemplateId ?? undefined}
-            onValueChange={handleFrontTemplateSelectChange}
+            value={selectedTemplateId ?? undefined}
+            onValueChange={handleTemplateSelectChange}
             disabled={templates.length === 0}
           >
-            <SelectTrigger id="singleFrontTemplateSelect">
-              <SelectValue placeholder="Choose front template (Required)" />
+            <SelectTrigger id="singleTemplateSelect">
+              <SelectValue placeholder="Choose template (Required)" />
             </SelectTrigger>
             <SelectContent>
               {templates.length > 0 ? (
-                templates.map(t => <SelectItem key={`front-${t.id || 'new-template-option'}`} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>)
+                templates.map(t => <SelectItem key={`single-${t.id || 'new-template-option'}`} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>)
               ) : (
-                <SelectItem value="no-templates-front" disabled>No templates available.</SelectItem>
+                <SelectItem value="no-templates-single" disabled>No templates available.</SelectItem>
               )}
             </SelectContent>
           </Select>
         </div>
 
-        <div>
-          <Label htmlFor="singleBackTemplateSelect">Select Back Template (Optional)</Label>
-          <Select
-            value={selectedBackTemplateId ?? NO_BACK_TEMPLATE_VALUE}
-            onValueChange={handleBackTemplateSelectChange}
-            disabled={templates.length === 0}
-          >
-            <SelectTrigger id="singleBackTemplateSelect">
-              <SelectValue placeholder="Choose back template (Optional)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_BACK_TEMPLATE_VALUE}>No Back Template</SelectItem>
-              {templates.map(t => <SelectItem key={`back-${t.id || 'new-template-option-back'}`} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {selectedFrontTemplateId && (
-          <Accordion type="multiple" defaultValue={['front-data-item']} className="w-full">
-            <AccordionItem value="front-data-item">
+        {selectedTemplateId && (
+          <Accordion type="single" collapsible defaultValue="card-data-item" className="w-full">
+            <AccordionItem value="card-data-item">
               <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
                 <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4" /> Front Card Data
+                  <Layers className="h-4 w-4" /> Card Data
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3 pt-3 border-t">
-                {frontDynamicFields.length > 0 ?
-                  renderFieldsForSide(frontDynamicFields, frontCardData, 'front', frontFileInputRefs) :
-                  <p className="text-sm text-muted-foreground">Selected front template has no placeholder fields.</p>
+                {dynamicFields.length > 0 ?
+                  renderFields(dynamicFields, cardData, fileInputRefs) :
+                  <p className="text-sm text-muted-foreground">Selected template has no placeholder fields.</p>
                 }
               </AccordionContent>
             </AccordionItem>
-
-            {selectedBackTemplateId && templates.find(t => t.id === selectedBackTemplateId) && (
-              <AccordionItem value="back-data-item" className="mt-3">
-                <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
-                   <div className="flex items-center gap-2">
-                     <Layers className="h-4 w-4" /> Back Card Data
-                   </div>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-3 pt-3 border-t">
-                  {backDynamicFields.length > 0 ?
-                    renderFieldsForSide(backDynamicFields, backCardData, 'back', backFileInputRefs) :
-                    <p className="text-sm text-muted-foreground">Selected back template has no placeholder fields.</p>
-                  }
-                </AccordionContent>
-              </AccordionItem>
-            )}
           </Accordion>
         )}
 
-         {!selectedFrontTemplateId && templates.length > 0 && (
-            <p className="text-sm text-muted-foreground">Select a front template above to start entering card data.</p>
+         {!selectedTemplateId && templates.length > 0 && (
+            <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
         )}
          {templates.length === 0 && (
             <p className="text-sm text-muted-foreground">No templates available. Please create one in the "Template Editor" tab first.</p>
         )}
 
-        <Button onClick={handleAddCard} disabled={!selectedFrontTemplateId} className="w-full">
+        <Button onClick={handleAddCard} disabled={!selectedTemplateId} className="w-full">
           <PlusSquare className="mr-2 h-4 w-4" /> Add Card to Preview List
         </Button>
       </CardContent>
     </Card>
   );
 }
-

@@ -63,19 +63,15 @@ export interface PaperSize {
 
 // Represents the structure stored in localStorage for generated cards
 export interface StoredDisplayCard {
-  frontTemplateId: string;
-  frontData: CardData;
-  backTemplateId?: string | null;
-  backData?: CardData | null;
+  templateId: string; // Was frontTemplateId
+  data: CardData;    // Was frontData
   uniqueId: string;
 }
 
 // Represents the runtime structure used in the application
 export interface DisplayCard {
-  frontTemplate: TCGCardTemplate;
-  frontData: CardData;
-  backTemplate?: TCGCardTemplate | null;
-  backData?: CardData | null;
+  template: TCGCardTemplate; // Was frontTemplate
+  data: CardData;        // Was frontData
   uniqueId: string;
 }
 

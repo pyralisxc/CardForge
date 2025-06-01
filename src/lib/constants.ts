@@ -121,7 +121,7 @@ export const createDefaultSection = (id: string, overrides: Partial<CardSection>
 };
 
 export const createDefaultRow = (id: string, columns?: CardSection[], alignItems?: CardRow['alignItems'], customHeight?: string): CardRow => {
-  const defaultColumnId = `default-col-for-row-${id}`; // Deterministic ID for the default column
+  const defaultColumnId = `default-col-for-row-${id}`;
   return {
     id: id,
     columns: columns && columns.length > 0 ? columns : [createDefaultSection(defaultColumnId)],
@@ -138,3 +138,5 @@ export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementTyp
   { value: "generator", label: "Card Generator", icon: PackageOpen },
   { value: "ai", label: "AI Helper", icon: Wand2 },
 ];
+
+// export const NO_BACK_TEMPLATE_VALUE = "no-back-template"; // Removed as it's related to back-of-card

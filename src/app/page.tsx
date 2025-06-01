@@ -29,7 +29,7 @@ import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, Sto
 import { useToast } from '@/hooks/use-toast';
 
 const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV10-reconstructed';
-const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV2-templateIDs';
+const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV1-simple'; // Reverted key
 const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 100 * 1024; // 100KB threshold for stripping from localStorage
 
 
@@ -60,11 +60,13 @@ export default function CardForgePage() {
       } else {
         base.cardBackgroundImageUrl = t_loaded.cardBackgroundImageUrl;
       }
+    } else {
+        delete base.cardBackgroundImageUrl;
     }
-    if (t_loaded.baseBackgroundColor && t_loaded.baseBackgroundColor.trim() !== "") base.baseBackgroundColor = t_loaded.baseBackgroundColor;
-    if (t_loaded.baseTextColor && t_loaded.baseTextColor.trim() !== "") base.baseTextColor = t_loaded.baseTextColor;
-    if (t_loaded.defaultSectionBorderColor && t_loaded.defaultSectionBorderColor.trim() !== "") base.defaultSectionBorderColor = t_loaded.defaultSectionBorderColor;
-    if (t_loaded.cardBorderColor && t_loaded.cardBorderColor.trim() !== "") base.cardBorderColor = t_loaded.cardBorderColor;
+    if (t_loaded.baseBackgroundColor && t_loaded.baseBackgroundColor.trim() !== "") base.baseBackgroundColor = t_loaded.baseBackgroundColor; else delete base.baseBackgroundColor;
+    if (t_loaded.baseTextColor && t_loaded.baseTextColor.trim() !== "") base.baseTextColor = t_loaded.baseTextColor; else delete base.baseTextColor;
+    if (t_loaded.defaultSectionBorderColor && t_loaded.defaultSectionBorderColor.trim() !== "") base.defaultSectionBorderColor = t_loaded.defaultSectionBorderColor; else delete base.defaultSectionBorderColor;
+    if (t_loaded.cardBorderColor && t_loaded.cardBorderColor.trim() !== "") base.cardBorderColor = t_loaded.cardBorderColor; else delete base.cardBorderColor;
     
     const newT = base as TCGCardTemplate;
 
@@ -79,20 +81,21 @@ export default function CardForgePage() {
             columns: []
         };
         if (r_source.customHeight && r_source.customHeight.trim() !== "") rowBase.customHeight = r_source.customHeight;
+        else delete rowBase.customHeight;
         
         const newR = rowBase as CardRow;
 
-        const sourceColumns = r_source.columns && r_source.columns.length > 0 ? r_source.columns : [createDefaultSection(`default-col-for-row-${rowId}`)];
+        const sourceColumns = r_source.columns && r_source.columns.length > 0 ? r_source.columns : [createDefaultSection(createDefaultRow(rowId).columns[0].id)];
 
         newR.columns = sourceColumns.map((c_source: Partial<CardSection>) => {
             const sectionId = (c_source.id && c_source.id.trim() !== "") ? c_source.id : nanoid();
+            const sectionDefaults = createDefaultSection(sectionId);
             const sectionBase: Partial<CardSection> = { 
-                ...createDefaultSection(sectionId), // start with full defaults
+                ...sectionDefaults, // start with full defaults
                 ...c_source, // overlay loaded data
                 id: sectionId // ensure ID
             };
 
-            // Normalize optional fields: remove them if they are empty strings from c_source, otherwise keep default from createDefaultSection or loaded value
             const fieldsToNormalize: (keyof CardSection)[] = [
                 'backgroundImageUrl', 'textColor', 'backgroundColor', 'fontFamily', 
                 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 
@@ -101,24 +104,22 @@ export default function CardForgePage() {
             ];
 
             fieldsToNormalize.forEach(fieldKey => {
-                if (c_source[fieldKey] === '') { // If loaded value was explicitly empty string
-                    delete sectionBase[fieldKey]; // Remove it, rely on CSS or component defaults later
-                } else if (c_source[fieldKey] !== undefined) {
-                    sectionBase[fieldKey] = c_source[fieldKey]; // Keep loaded value
+                 if (c_source[fieldKey] === '' || c_source[fieldKey] === undefined) {
+                     if (sectionDefaults[fieldKey] === '' || sectionDefaults[fieldKey] === undefined || 
+                         // Specifically for these, if default is empty, we prefer to delete
+                         ['backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor', 'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'].includes(fieldKey as string) && (sectionDefaults[fieldKey] === '')) {
+                        delete sectionBase[fieldKey];
+                     } else {
+                        sectionBase[fieldKey] = sectionDefaults[fieldKey];
+                     }
                 } else {
-                    // If not in c_source, keep value from createDefaultSection (already spread)
-                    // but if that default is also an empty string for an optional field, consider removing it
-                    if (sectionBase[fieldKey] === '' && 
-                        ['backgroundImageUrl', 'textColor', 'backgroundColor', 'borderColor', 'customHeight', 'customWidth', 'imageWidthPx', 'imageHeightPx'].includes(fieldKey as string)) {
-                         delete sectionBase[fieldKey];
-                    }
+                    sectionBase[fieldKey] = c_source[fieldKey] as any;
                 }
             });
             
             if (sectionBase.backgroundImageUrl && sectionBase.backgroundImageUrl.startsWith('data:') && sectionBase.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
               sectionBase.backgroundImageUrl = `placeholder:Section background image too large for storage`;
             }
-             // Ensure image dimensions are set if type is image and they are missing
             if (sectionBase.sectionContentType === 'image') {
                 if (sectionBase.imageWidthPx === undefined) sectionBase.imageWidthPx = createDefaultSection('').imageWidthPx;
                 if (sectionBase.imageHeightPx === undefined) sectionBase.imageHeightPx = createDefaultSection('').imageHeightPx;
@@ -126,12 +127,12 @@ export default function CardForgePage() {
 
             return sectionBase as CardSection;
         });
-        if (newR.columns.length === 0) newR.columns = [createDefaultSection(`default-col-for-row-${rowId}`)]; 
+        if (newR.columns.length === 0) newR.columns = [createDefaultSection(createDefaultRow(rowId).columns[0].id)]; 
 
         return newR;
     });
 
-    if (newT.rows.length === 0) { // Should not happen if sourceRows logic is correct, but as a safeguard
+    if (newT.rows.length === 0) {
         const defaultStructure = memoizedGetFreshDefaultTemplate(null, newT.name);
         newT.rows = defaultStructure.rows.map(r => ({
             ...r,
@@ -146,8 +147,7 @@ export default function CardForgePage() {
   const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, []);
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
   const [storedCards, setStoredCards] = useLocalStorage<StoredDisplayCard[]>(LOCAL_STORAGE_CARD_SET_KEY, []);
-  const [cardViewSides, setCardViewSides] = useState<Record<string, 'front' | 'back'>>({});
-
+  
   const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>(PAPER_SIZES[0]);
   const [activeTab, setActiveTab] = useState<string>(TABS_CONFIG[0].value);
   const [hideEmptySections, setHideEmptySections] = useState<boolean>(true);
@@ -193,45 +193,29 @@ export default function CardForgePage() {
     if (!mounted) return;
 
     const rehydratedCards: DisplayCard[] = [];
-    let missingTemplatesInfo = { front: 0, back: 0, totalSkipped: 0 };
+    let missingTemplatesInfoCount = 0;
 
     for (const stored of storedCards) {
-      const frontTemplateIdToFind = stored.frontTemplateId;
-      if (!frontTemplateIdToFind || frontTemplateIdToFind.trim() === "") {
-          missingTemplatesInfo.front++;
-          missingTemplatesInfo.totalSkipped++;
+      const templateIdToFind = stored.templateId;
+      if (!templateIdToFind || templateIdToFind.trim() === "") {
+          missingTemplatesInfoCount++;
           continue;
       }
-      const frontTemplateFound = templates.find(t => t.id === frontTemplateIdToFind);
-      if (!frontTemplateFound) {
-        missingTemplatesInfo.front++;
-        missingTemplatesInfo.totalSkipped++;
+      const templateFound = templates.find(t => t.id === templateIdToFind);
+      if (!templateFound) {
+        missingTemplatesInfoCount++;
         continue;
       }
-      const frontTemplate = reconstructMinimalTemplate(frontTemplateFound); 
-      if (!frontTemplate) {
-        missingTemplatesInfo.front++;
-        missingTemplatesInfo.totalSkipped++;
+      const template = reconstructMinimalTemplate(templateFound); 
+      if (!template) {
+        missingTemplatesInfoCount++;
         continue;
-      }
-
-      let backTemplate: TCGCardTemplate | null = null;
-      if (stored.backTemplateId && stored.backTemplateId.trim() !== "") {
-        const backTemplateFound = templates.find(t => t.id === stored.backTemplateId);
-        if (backTemplateFound) {
-          backTemplate = reconstructMinimalTemplate(backTemplateFound); 
-          if (!backTemplate) missingTemplatesInfo.back++; 
-        } else {
-          missingTemplatesInfo.back++;
-        }
       }
 
       rehydratedCards.push({
         uniqueId: stored.uniqueId,
-        frontTemplate: frontTemplate,
-        frontData: stored.frontData,
-        backTemplate: backTemplate,
-        backData: stored.backData,
+        template: template,
+        data: stored.data,
       });
     }
 
@@ -239,9 +223,8 @@ export default function CardForgePage() {
       setGeneratedDisplayCards(rehydratedCards);
     }
 
-    if (missingTemplatesInfo.totalSkipped > 0 && rehydratedCards.length < storedCards.length) {
-        let message = `Some cards could not be fully loaded: ${missingTemplatesInfo.totalSkipped} card(s) skipped due to missing front templates.`;
-        if(missingTemplatesInfo.back > 0) message += ` Additionally, ${missingTemplatesInfo.back} card(s) are missing their back templates.`;
+    if (missingTemplatesInfoCount > 0 && rehydratedCards.length < storedCards.length) {
+        let message = `Some cards could not be fully loaded: ${missingTemplatesInfoCount} card(s) skipped due to missing templates.`;
         toast({ title: "Card Load Notice", description: message, variant: "default", duration: 7000 });
     }
   }, [storedCards, templates, mounted, reconstructMinimalTemplate, toast, generatedDisplayCards]);
@@ -250,10 +233,8 @@ export default function CardForgePage() {
     if (!mounted) return;
     const storableCards: StoredDisplayCard[] = generatedDisplayCards.map(card => ({
       uniqueId: card.uniqueId,
-      frontTemplateId: card.frontTemplate.id!,
-      frontData: card.frontData,
-      backTemplateId: card.backTemplate?.id || null,
-      backData: card.backData,
+      templateId: card.template.id!,
+      data: card.data,
     }));
     if (JSON.stringify(storedCards) !== JSON.stringify(storableCards)) {
       setStoredCards(storableCards);
@@ -261,7 +242,7 @@ export default function CardForgePage() {
   }, [generatedDisplayCards, mounted, setStoredCards, storedCards]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate) => {
-    let templateForStorage = { ...template }; // Shallow copy
+    let templateForStorage = { ...template }; 
     let cardBgStripped = false;
     let sectionBgStrippedCount = 0;
 
@@ -272,7 +253,6 @@ export default function CardForgePage() {
       cardBgStripped = true;
     }
 
-    // Deep clone rows and columns for modification
     templateForStorage.rows = JSON.parse(JSON.stringify(templateForStorage.rows)); 
     templateForStorage.rows = templateForStorage.rows.map(row => ({
       ...row,
@@ -288,9 +268,7 @@ export default function CardForgePage() {
       })
     }));
     
-    // Final check: ensure the sanitized template is fully reconstructed to normalize optional fields
     templateForStorage = reconstructMinimalTemplate(templateForStorage);
-
 
     if (cardBgStripped) {
         toast({ title: "Image Size Notice", description: `The main card background image for template "${template.name}" was too large for persistent storage and was not saved. It will remain in the editor for this session only unless re-selected or a URL is used.`, variant: "default", duration: 8000 });
@@ -304,7 +282,7 @@ export default function CardForgePage() {
       const newTemplates = existingIndex > -1
         ? prevTemplates.map((t, i) => i === existingIndex ? templateForStorage : t)
         : [...prevTemplates, templateForStorage];
-      return newTemplates; // useLocalStorage will handle stringify and save if different
+      return newTemplates;
     });
     toast({ title: "Template Updated", description: `"${templateForStorage.name || templateForStorage.id}" has been updated in the list.` });
 
@@ -319,22 +297,15 @@ export default function CardForgePage() {
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
     setGeneratedDisplayCards(prev => [...prev, ...cards]);
-    setCardViewSides(prevSides => {
-        const newSides = {...prevSides};
-        cards.forEach(c => { newSides[c.uniqueId] = 'front'; });
-        return newSides;
-    });
     if (cards.length > 0) toast({ title: "Bulk Generation Complete", description: `${cards.length} cards added.` });
   }, [toast]);
 
   const handleSingleCardAdded = useCallback((card: DisplayCard) => {
     setGeneratedDisplayCards(prev => [...prev, card]);
-    setCardViewSides(prevSides => ({...prevSides, [card.uniqueId]: 'front'}));
   }, []);
 
   const handleClearGeneratedCards = useCallback(() => {
     setGeneratedDisplayCards([]);
-    setCardViewSides({});
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
   }, [toast]);
 
@@ -358,7 +329,6 @@ export default function CardForgePage() {
       uniqueId: nanoid(),
     };
     setGeneratedDisplayCards(prev => [...prev, newCard]);
-    setCardViewSides(prevSides => ({...prevSides, [newCard.uniqueId]: 'front'}));
     toast({ title: "Card Duplicated", description: "A copy of the card has been added." });
     setIsEditDialogOpen(false);
     setEditingCard(null);
@@ -376,10 +346,8 @@ export default function CardForgePage() {
     }
     const cardsToStore: StoredDisplayCard[] = generatedDisplayCards.map(card => ({
       uniqueId: card.uniqueId,
-      frontTemplateId: card.frontTemplate.id!,
-      frontData: card.frontData,
-      backTemplateId: card.backTemplate?.id || null,
-      backData: card.backData,
+      templateId: card.template.id!,
+      data: card.data,
     }));
 
     const jsonString = JSON.stringify(cardsToStore, null, 2);
@@ -398,11 +366,9 @@ export default function CardForgePage() {
 
   const isValidStoredDisplayCard = (item: any): item is Partial<StoredDisplayCard> => {
     return item &&
-           typeof item.frontTemplateId === 'string' && item.frontTemplateId.trim() !== "" &&
-           typeof item.frontData === 'object' && item.frontData !== null &&
-           typeof item.uniqueId === 'string' && item.uniqueId.trim() !== "" &&
-           (item.backTemplateId === undefined || item.backTemplateId === null || (typeof item.backTemplateId === 'string')) &&
-           (item.backData === undefined || item.backData === null || typeof item.backData === 'object');
+           typeof item.templateId === 'string' && item.templateId.trim() !== "" &&
+           typeof item.data === 'object' && item.data !== null &&
+           typeof item.uniqueId === 'string' && item.uniqueId.trim() !== "";
   };
 
   const handleLoadCardSet = useCallback((event: ChangeEvent<HTMLInputElement>) => {
@@ -416,57 +382,37 @@ export default function CardForgePage() {
 
           if (Array.isArray(loadedItems) && loadedItems.every(isValidStoredDisplayCard)) {
             const runtimeCards: DisplayCard[] = [];
-            const newCardViewSidesState: Record<string, 'front' | 'back'> = {};
-            let missingFrontCount = 0;
-            let missingBackCount = 0;
+            let missingTemplateCount = 0;
 
             loadedItems.forEach(storedCard => {
-              const frontTemplateIdToLoad = storedCard.frontTemplateId;
-              if (!frontTemplateIdToLoad || frontTemplateIdToLoad.trim() === "") {
-                  missingFrontCount++;
+              const templateIdToLoad = storedCard.templateId;
+              if (!templateIdToLoad || templateIdToLoad.trim() === "") {
+                  missingTemplateCount++;
                   return;
               }
-              const frontTemplateFound = templates.find(t => t.id === frontTemplateIdToLoad);
-              if (!frontTemplateFound) {
-                missingFrontCount++;
+              const templateFound = templates.find(t => t.id === templateIdToLoad);
+              if (!templateFound) {
+                missingTemplateCount++;
                 return;
               }
-              const reconstructedFrontTemplate = reconstructMinimalTemplate(frontTemplateFound);
-              if (!reconstructedFrontTemplate) {
-                missingFrontCount++;
+              const reconstructedTemplate = reconstructMinimalTemplate(templateFound);
+              if (!reconstructedTemplate) {
+                missingTemplateCount++;
                 return;
-              }
-
-              let backTemplate: TCGCardTemplate | null = null;
-              if (storedCard.backTemplateId && storedCard.backTemplateId.trim() !== "") {
-                const foundBack = templates.find(t => t.id === storedCard.backTemplateId);
-                if (foundBack) {
-                  backTemplate = reconstructMinimalTemplate(foundBack);
-                }
-                if (!backTemplate && foundBack) {
-                    missingBackCount++;
-                } else if (!foundBack) {
-                    missingBackCount++;
-                }
               }
 
               const cardUniqueId = storedCard.uniqueId || nanoid();
               runtimeCards.push({
                 uniqueId: cardUniqueId,
-                frontTemplate: reconstructedFrontTemplate,
-                frontData: storedCard.frontData || {},
-                backTemplate: backTemplate,
-                backData: (backTemplate && storedCard.backData) ? storedCard.backData : null,
+                template: reconstructedTemplate,
+                data: storedCard.data || {},
               });
-              newCardViewSidesState[cardUniqueId] = 'front';
             });
 
             setGeneratedDisplayCards(runtimeCards); 
-            setCardViewSides(newCardViewSidesState);
 
             let toastMessage = `${runtimeCards.length} cards processed.`;
-            if (missingFrontCount > 0) toastMessage += ` ${missingFrontCount} cards skipped due to missing front templates.`;
-            if (missingBackCount > 0) toastMessage += ` ${missingBackCount} cards loaded without their back templates.`;
+            if (missingTemplateCount > 0) toastMessage += ` ${missingTemplateCount} cards skipped due to missing templates.`;
             toast({ title: "Set Load Complete", description: toastMessage, duration: 7000 });
 
           } else {
@@ -497,13 +443,6 @@ export default function CardForgePage() {
       }
     }
   }, [templates, mounted, singleCardGeneratorSelectedTemplateId]);
-
-  const handleToggleCardSide = useCallback((uniqueId: string) => {
-    setCardViewSides(prev => ({
-      ...prev,
-      [uniqueId]: prev[uniqueId] === 'back' ? 'front' : 'back',
-    }));
-  }, []);
 
 
   return (
@@ -676,8 +615,6 @@ export default function CardForgePage() {
                             showSizeInfo={index === 0}
                             hideEmptySections={hideEmptySections}
                             onEdit={handleEditCardRequest}
-                            forceRenderSide={cardViewSides[cardItem.uniqueId] || 'front'}
-                            onToggleSide={handleToggleCardSide}
                           />
                         ))}
                       </div>
