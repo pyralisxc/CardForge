@@ -230,8 +230,7 @@ export function TemplateEditor({
     setActiveStylingAccordion(null);
     setIsSettingsCardOpen(true);
     setIsRowsAndSectionsCardOpen(true);
-    // toast({ title: "Form Reset", description: `Ready to create a new template: "${newFreshTemplate.name}"` });
-  }, [toast, reconstructTemplate, memoizedGetFreshDefaultTemplate]);
+  }, [reconstructTemplate, memoizedGetFreshDefaultTemplate]);
 
 
  useEffect(() => {
@@ -239,16 +238,13 @@ export function TemplateEditor({
     if (selectedTemplateToEditId && templateFromList) {
         const reconstructed = reconstructTemplate(templateFromList);
         setCurrentTemplate(reconstructed);
-        // Resetting accordions when a different template is loaded for a cleaner editing slate
         setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(Boolean) as string[]);
         setActiveColumnAccordionItems([]);
         setActiveStylingAccordion(null);
     } else if (!selectedTemplateToEditId && (currentTemplate.id !== null || initialTemplate?.id !== null)) {
-        // This means we explicitly switched to "Create New", or initial state was for a new one
         resetFormToNew();
     }
-    // If selectedTemplateToEditId is null and currentTemplate.id is also null, it's already a new template form.
-}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, initialTemplate]);
+}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, initialTemplate, currentTemplate.id]);
   
   useEffect(() => {
     if (currentTemplate.aspectRatio !== aspectRatioInput) {
@@ -395,7 +391,6 @@ export function TemplateEditor({
 
   const handleSelectTemplateToEdit = useCallback((templateId: string | null) => {
      setSelectedTemplateToEditId(templateId);
-     // Clear custom dimension inputs when changing template or creating new
      setCustomWidthValue('');
      setCustomHeightValue('');
      setCustomUnit('mm');
@@ -471,7 +466,7 @@ export function TemplateEditor({
 
     const simplified = simplifyRatio(widthNum, heightNum);
     updateCurrentTemplate({ aspectRatio: simplified });
-    setAspectRatioInput(simplified); // Update the direct ratio input field as well
+    setAspectRatioInput(simplified); 
     toast({ title: "Aspect Ratio Updated", description: `Ratio set to ${simplified} based on custom dimensions.` });
   }, [customWidthValue, customHeightValue, updateCurrentTemplate, toast]);
 
@@ -866,7 +861,7 @@ export function TemplateEditor({
                 <p className="text-xs text-muted-foreground text-center mb-3">(Click row or section in preview to focus.)</p>
                 <div className="mx-auto max-w-xs flex justify-center">
                     <CardPreview
-                        card={{template: currentTemplate, data:livePreviewData, uniqueId: 'editor-preview'}}
+                        card={{frontTemplate: currentTemplate, frontData:livePreviewData, uniqueId: 'editor-preview'}}
                         isPrintMode={false}
                         isEditorPreview={true}
                         hideEmptySections={false}
@@ -889,7 +884,7 @@ export function TemplateEditor({
                         </DialogHeader>
                         <div className="flex justify-center p-4 my-auto">
                             <CardPreview
-                                card={{ template: currentTemplate, data: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
+                                card={{ frontTemplate: currentTemplate, frontData: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
                                 isPrintMode={false}
                                 isEditorPreview={true}
                                 hideEmptySections={false}
@@ -907,3 +902,4 @@ export function TemplateEditor({
     </div>
   );
 }
+
