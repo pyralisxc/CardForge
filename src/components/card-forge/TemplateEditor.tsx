@@ -35,28 +35,29 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
   let newTemplateId: string | null;
   let newTemplateName: string;
 
-  if (id === null) { 
+  const isValidExistingId = id && id.trim() !== "";
+
+  if (id === null) { // Explicitly null for new, unsaved template
     newTemplateId = null;
     newTemplateName = nameProp || `Template ${nanoid(8)}`;
-  } else if (id && nameProp && nameProp !== "New Unsaved Template") { 
+  } else if (isValidExistingId) { // A valid, non-empty string ID was passed
     newTemplateId = id;
-    newTemplateName = nameProp;
-  } else if (id) { 
-    newTemplateId = id;
-    newTemplateName = `Template ${String(id).substring(0, 8)}`; 
-  } else { 
+    newTemplateName = nameProp || `Template ${String(id).substring(0, 8)}`;
+  } else { // id was undefined, or an empty/whitespace string (treat as new, needs a real ID)
     newTemplateId = nanoid();
     newTemplateName = nameProp || `Template ${newTemplateId.substring(0, 8)}`;
   }
-   if (nameProp && nameProp !== "New Unsaved Template" && nameProp !== newTemplateName && id === null) {
-    newTemplateName = nameProp; 
+
+  // Further refinement for nameProp if it was for a new template (id was originally null or invalid)
+  if (nameProp && nameProp !== "New Unsaved Template" && newTemplateName !== nameProp && (id === null || !isValidExistingId)) {
+    newTemplateName = nameProp;
   }
 
 
-  const defaultRowId1 = id === null ? 'unsaved-default-row-1-v9-stable-id' : nanoid();
-  const defaultSectionId1 = id === null ? 'unsaved-default-sec-1-v9-stable-id' : nanoid();
-  const defaultRowId2 = id === null ? 'unsaved-default-row-2-v9-stable-id' : nanoid();
-  const defaultSectionId2 = id === null ? 'unsaved-default-sec-2-v9-stable-id' : nanoid();
+  const defaultRowId1 = (id === null || !isValidExistingId) ? 'unsaved-default-row-1-v9-stable-id' : nanoid();
+  const defaultSectionId1 = (id === null || !isValidExistingId) ? 'unsaved-default-sec-1-v9-stable-id' : nanoid();
+  const defaultRowId2 = (id === null || !isValidExistingId) ? 'unsaved-default-row-2-v9-stable-id' : nanoid();
+  const defaultSectionId2 = (id === null || !isValidExistingId) ? 'unsaved-default-sec-2-v9-stable-id' : nanoid();
 
 
   return {
@@ -102,8 +103,17 @@ export function TemplateEditor({
   const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
 
   const reconstructTemplate = useCallback((templateData: Partial<TCGCardTemplate>): TCGCardTemplate => {
-    const anId = templateData.id !== undefined ? templateData.id : nanoid(); 
-    const baseTemplate = memoizedGetFreshDefaultTemplate(anId, templateData.name); 
+    // Ensure `anId` is either a valid string or null, never ""
+    let anId: string | null;
+    if (templateData.id === null) {
+        anId = null;
+    } else if (templateData.id && templateData.id.trim() !== "") {
+        anId = templateData.id;
+    } else { // Undefined, empty string, or whitespace-only string
+        anId = nanoid(); // If it's not explicitly null for "new", give it an ID
+    }
+    
+    const baseTemplate = memoizedGetFreshDefaultTemplate(anId, templateData.name);
 
     const newTemplate: TCGCardTemplate = {
       ...baseTemplate,
@@ -129,7 +139,7 @@ export function TemplateEditor({
     }
 
     newTemplate.rows = (templateData.rows || baseTemplate.rows || []).map(currentRowDataFromState => {
-      const rowId = currentRowDataFromState.id || nanoid();
+      const rowId = (currentRowDataFromState.id && currentRowDataFromState.id.trim() !== "") ? currentRowDataFromState.id : nanoid();
       const baseTemplateRow = baseTemplate.rows.find(br => br.id === rowId) || createDefaultRow(rowId);
 
       let reconstructedRow: CardRow = {
@@ -140,7 +150,7 @@ export function TemplateEditor({
       };
 
       reconstructedRow.columns = (currentRowDataFromState.columns || []).map(currentSectionDataFromState => {
-        const sectionId = currentSectionDataFromState.id || nanoid();
+        const sectionId = (currentSectionDataFromState.id && currentSectionDataFromState.id.trim() !== "") ? currentSectionDataFromState.id : nanoid();
         const baseTemplateSection = (baseTemplateRow.columns || []).find(bs => bs.id === sectionId) || createDefaultSection(sectionId);
 
         const reconstructedSection: CardSection = {
@@ -193,13 +203,15 @@ export function TemplateEditor({
 
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => {
-     const templateToLoad = initialTemplate && initialTemplate.id !== null 
+     const templateToLoad = initialTemplate && initialTemplate.id !== null && initialTemplate.id.trim() !== ""
         ? initialTemplate 
-        : memoizedGetFreshDefaultTemplate(null, initialTemplate?.name);
+        : memoizedGetFreshDefaultTemplate(null, initialTemplate?.name); // initialTemplate.id might be "" here, getFresh will handle
     return reconstructTemplate(templateToLoad);
   });
   
-  const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(() => initialTemplate?.id || null);
+  const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(
+    () => (initialTemplate?.id && initialTemplate.id.trim() !== "") ? initialTemplate.id : null
+  );
   
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
   const [customWidthValue, setCustomWidthValue] = useState<string>('');
@@ -207,7 +219,7 @@ export function TemplateEditor({
   const [customUnit, setCustomUnit] = useState<string>('mm');
 
   const [activeRowAccordionItems, setActiveRowAccordionItems] = useState<string[]>(
-     (currentTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]
+     (currentTemplate.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]
   );
   const [activeColumnAccordionItems, setActiveColumnAccordionItems] = useState<string[]>([]);
   const [activeStylingAccordion, setActiveStylingAccordion] = useState<string | null>(null);
@@ -225,7 +237,7 @@ export function TemplateEditor({
     setCustomWidthValue('');
     setCustomHeightValue('');
     setCustomUnit('mm');
-    setActiveRowAccordionItems((newFreshTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]);
+    setActiveRowAccordionItems((newFreshTemplate.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]);
     setActiveColumnAccordionItems([]);
     setActiveStylingAccordion(null);
     setIsSettingsCardOpen(true);
@@ -234,17 +246,27 @@ export function TemplateEditor({
 
 
  useEffect(() => {
-    const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
-    if (selectedTemplateToEditId && templateFromList) {
-        const reconstructed = reconstructTemplate(templateFromList);
-        setCurrentTemplate(reconstructed);
-        setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(Boolean) as string[]);
-        setActiveColumnAccordionItems([]);
-        setActiveStylingAccordion(null);
-    } else if (!selectedTemplateToEditId && (currentTemplate.id !== null || initialTemplate?.id !== null)) {
-        resetFormToNew();
+    if (selectedTemplateToEditId) {
+        const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
+        if (templateFromList) {
+            if (currentTemplate.id !== selectedTemplateToEditId) { // Only update if different
+                const reconstructed = reconstructTemplate(templateFromList);
+                setCurrentTemplate(reconstructed);
+                setActiveRowAccordionItems((reconstructed.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]);
+                setActiveColumnAccordionItems([]);
+                setActiveStylingAccordion(null);
+            }
+        } else { // selectedTemplateToEditId is set, but template not found (e.g. deleted)
+            if(currentTemplate.id !== null || selectedTemplateToEditId !== null) { // Avoid loop if already resetting
+               resetFormToNew();
+            }
+        }
+    } else { // No template selected (selectedTemplateToEditId is null) -> New Template mode
+        if (currentTemplate.id !== null) { // Only reset if not already in "new template" state
+            resetFormToNew();
+        }
     }
-}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, initialTemplate, currentTemplate.id]);
+}, [selectedTemplateToEditId, templates, reconstructTemplate, resetFormToNew, currentTemplate.id]); // currentTemplate.id helps prevent loops
   
   useEffect(() => {
     if (currentTemplate.aspectRatio !== aspectRatioInput) {
@@ -369,7 +391,7 @@ export function TemplateEditor({
         return;
       }
 
-    if (templateToSave.id === null) { 
+    if (templateToSave.id === null || templateToSave.id.trim() === "") { 
       templateToSave.id = nanoid(); 
     }
 
@@ -390,7 +412,7 @@ export function TemplateEditor({
 
 
   const handleSelectTemplateToEdit = useCallback((templateId: string | null) => {
-     setSelectedTemplateToEditId(templateId);
+     setSelectedTemplateToEditId(templateId); // This will trigger the useEffect to load/reset
      setCustomWidthValue('');
      setCustomHeightValue('');
      setCustomUnit('mm');
@@ -486,10 +508,28 @@ export function TemplateEditor({
           {templates.length > 0 && (
             <div className="space-y-2 mt-4 pt-4 border-t">
               <Label>Edit Existing Template:</Label>
-              <ScrollArea className="max-h-[200px] pr-1">
-                <ul className="space-y-2">
-                  {templates.map((template) => (
-                    <li key={template.id} className="flex justify-between items-center p-2 border rounded-md hover:bg-muted/30 transition-colors">
+              <Select
+                value={selectedTemplateToEditId || undefined} 
+                onValueChange={(id) => handleSelectTemplateToEdit(id === 'new-template-placeholder-value' ? null : id)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a template to edit..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <ScrollArea className="max-h-[200px] pr-1">
+                    {/* This placeholder is for visual cue, not truly selectable if templates exist */}
+                    {/* <SelectItem value="new-template-placeholder-value" disabled={templates.length > 0}>Create New / Unselected</SelectItem> */}
+                    {templates.filter(t => t.id && t.id.trim() !== "").map((template) => ( // Ensure valid ID for SelectItem
+                      <SelectItem key={template.id} value={template.id!}>
+                        {template.name || `Template (${String(template.id).substring(0,5)})`}
+                      </SelectItem>
+                    ))}
+                  </ScrollArea>
+                </SelectContent>
+              </Select>
+              <ul className="space-y-1 mt-1 max-h-[160px] overflow-y-auto pr-1">
+                  {templates.filter(t => t.id && t.id.trim() !== "").map((template) => (
+                    <li key={`${template.id}-li`} className="flex justify-between items-center p-1.5 border rounded-md hover:bg-muted/30 transition-colors text-xs">
                       <span
                         className={cn(
                             "cursor-pointer flex-grow truncate",
@@ -507,13 +547,12 @@ export function TemplateEditor({
                           e.stopPropagation();
                           onDeleteTemplate(template.id!);
                           if (selectedTemplateToEditId === template.id) resetFormToNew();
-                      }} aria-label={`Delete template ${template.name || 'Untitled Template'}`} className="h-7 w-7">
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      }} aria-label={`Delete template ${template.name || 'Untitled Template'}`} className="h-6 w-6">
+                        <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     </li>
                   ))}
                 </ul>
-              </ScrollArea>
             </div>
           )}
            {(templates.length === 0) && <p className="text-muted-foreground text-sm mt-2">No custom templates saved. Click "Create New Template" to start.</p>}

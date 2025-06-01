@@ -28,8 +28,8 @@ import { PAPER_SIZES, createDefaultRow, createDefaultSection, TABS_CONFIG, DEFAU
 import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, StoredDisplayCard, CardData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
-const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV10-reconstructed'; // Updated key
-const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV2-templateIDs'; // Updated key for new structure
+const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV10-reconstructed';
+const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV2-templateIDs';
 
 
 export default function CardForgePage() {
@@ -37,9 +37,7 @@ export default function CardForgePage() {
   const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, []);
   const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
 
-  // This state will hold the rich DisplayCard objects for runtime use
   const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
-  // useLocalStorage will manage the StoredDisplayCard[] structure
   const [storedCards, setStoredCards] = useLocalStorage<StoredDisplayCard[]>(LOCAL_STORAGE_CARD_SET_KEY, []);
 
 
@@ -62,7 +60,6 @@ export default function CardForgePage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Effect to synchronize runtime generatedDisplayCards from storedCards (loaded from localStorage)
   useEffect(() => {
     if (!mounted || !templates) return;
 
@@ -74,7 +71,7 @@ export default function CardForgePage() {
       if (!frontTemplate) {
         missingTemplatesInfo.front++;
         missingTemplatesInfo.totalSkipped++;
-        continue; // Skip card if front template is missing
+        continue; 
       }
 
       let backTemplate: TCGCardTemplate | null = null;
@@ -82,7 +79,6 @@ export default function CardForgePage() {
         backTemplate = templates.find(t => t.id === stored.backTemplateId) || null;
         if (!backTemplate) {
           missingTemplatesInfo.back++;
-          // Do not skip, just load without back if back template is missing
         }
       }
       
@@ -102,25 +98,22 @@ export default function CardForgePage() {
         toast({ title: "Card Load Notice", description: message, variant: "default", duration: 7000 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storedCards, templates, mounted]); // Rerun if storedCards or templates list changes
+  }, [storedCards, templates, mounted]); 
 
-  // Effect to synchronize storedCards when runtime generatedDisplayCards change
   useEffect(() => {
     if (!mounted) return;
     const storableCards: StoredDisplayCard[] = generatedDisplayCards.map(card => ({
       uniqueId: card.uniqueId,
-      frontTemplateId: card.frontTemplate.id!, // Assuming front template always has an ID at this stage
+      frontTemplateId: card.frontTemplate.id!, 
       frontData: card.frontData,
       backTemplateId: card.backTemplate?.id || null,
       backData: card.backData,
     }));
-    // Avoid direct comparison of potentially large arrays if setStoredCards is smart
     setStoredCards(storableCards);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedDisplayCards, mounted]);
 
 
-  // Template loading from localStorage (for the templates list itself)
   useEffect(() => {
     if (!mounted) return;
 
@@ -139,16 +132,19 @@ export default function CardForgePage() {
     }
     
     const processSingleTemplate = (t_loaded: Partial<TCGCardTemplate>): TCGCardTemplate => {
-        const baseTemplate = getFreshDefaultTemplate(t_loaded.id, t_loaded.name);
+        const validatedId = (t_loaded.id && t_loaded.id.trim() !== "") ? t_loaded.id : nanoid();
+        const baseTemplate = getFreshDefaultTemplate(validatedId, t_loaded.name);
+        
         let newT: TCGCardTemplate = { ...baseTemplate, ...t_loaded };
-        newT.id = newT.id || baseTemplate.id || nanoid();
+        newT.id = validatedId; // Ensure final ID is the validated one (non-empty, non-null)
         newT.name = newT.name || baseTemplate.name;
+
         newT.rows = (t_loaded.rows || []).map((r_loaded: Partial<CardRow>) => {
-            const rowId = r_loaded.id || nanoid();
+            const rowId = (r_loaded.id && r_loaded.id.trim() !== "") ? r_loaded.id : nanoid();
             const baseRow = createDefaultRow(rowId);
             const newR: CardRow = { ...baseRow, ...r_loaded, id: rowId };
             newR.columns = (r_loaded.columns || []).map((c_loaded: Partial<CardSection>) => {
-                const sectionId = c_loaded.id || nanoid();
+                const sectionId = (c_loaded.id && c_loaded.id.trim() !== "") ? c_loaded.id : nanoid();
                 const baseCol = createDefaultSection(sectionId);
                 return { ...baseCol, ...c_loaded, id: sectionId };
             });
@@ -160,6 +156,8 @@ export default function CardForgePage() {
     };
 
     const processedTemplates = initialTemplatesToLoad.map(processSingleTemplate);
+    // Only update state if the processed templates are actually different from current ones
+    // This check helps prevent infinite loops if `templates` is in a dependency array elsewhere
     if (JSON.stringify(templates) !== JSON.stringify(processedTemplates)) {
         setTemplates(processedTemplates);
     }
@@ -189,16 +187,16 @@ export default function CardForgePage() {
   }, [editingTemplate, singleCardGeneratorSelectedTemplateId, toast, setTemplates, templates]);
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
-    setGeneratedDisplayCards(prev => [...prev, ...cards]); // Operates on runtime DisplayCard
+    setGeneratedDisplayCards(prev => [...prev, ...cards]); 
     if (cards.length > 0) toast({ title: "Bulk Generation Complete", description: `${cards.length} cards added.` });
   }, [toast]);
 
   const handleSingleCardAdded = useCallback((card: DisplayCard) => {
-    setGeneratedDisplayCards(prev => [...prev, card]); // Operates on runtime DisplayCard
+    setGeneratedDisplayCards(prev => [...prev, card]); 
   }, []);
 
   const handleClearGeneratedCards = useCallback(() => {
-    setGeneratedDisplayCards([]); // Clears runtime, which will trigger effect to clear storedCards
+    setGeneratedDisplayCards([]); 
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
   }, [toast]);
 
@@ -208,7 +206,7 @@ export default function CardForgePage() {
   }, []);
 
   const handleSaveEditedCard = useCallback((updatedCard: DisplayCard) => {
-    setGeneratedDisplayCards(prev => // Operates on runtime DisplayCard
+    setGeneratedDisplayCards(prev => 
       prev.map(card => card.uniqueId === updatedCard.uniqueId ? updatedCard : card)
     );
     setIsEditDialogOpen(false);
@@ -217,7 +215,7 @@ export default function CardForgePage() {
   }, [toast]);
 
   const handleDuplicateCard = useCallback((cardToDuplicate: DisplayCard) => {
-    const newCard: DisplayCard = { // Operates on runtime DisplayCard
+    const newCard: DisplayCard = { 
       ...JSON.parse(JSON.stringify(cardToDuplicate)), 
       uniqueId: nanoid(),
     };
@@ -237,7 +235,6 @@ export default function CardForgePage() {
       toast({ title: "Nothing to save", description: "Generate some cards first.", variant: "default" });
       return;
     }
-    // Transform runtime DisplayCard[] to StoredDisplayCard[] for saving
     const cardsToStore: StoredDisplayCard[] = generatedDisplayCards.map(card => ({
       uniqueId: card.uniqueId,
       frontTemplateId: card.frontTemplate.id!, 
@@ -260,18 +257,18 @@ export default function CardForgePage() {
   }, [generatedDisplayCards, toast]);
 
 
-  // Helper to ensure a loaded template object is fully formed
-  const fullyReconstructTemplate = (templateData: Partial<TCGCardTemplate> | null | undefined): TCGCardTemplate | null => {
-    if (!templateData || !templateData.id) return null; // Must have an ID to be valid
+  const fullyReconstructTemplate = useCallback((templateData: Partial<TCGCardTemplate> | null | undefined): TCGCardTemplate | null => {
+    if (!templateData || !templateData.id || templateData.id.trim() === "") return null;
     const baseTemplate = getFreshDefaultTemplate(templateData.id, templateData.name);
     let newT: TCGCardTemplate = { ...baseTemplate, ...templateData };
+    newT.id = templateData.id; // Ensure we use the valid passed ID
     newT.name = newT.name || baseTemplate.name;
     newT.rows = (templateData.rows || []).map((r_loaded: Partial<CardRow>) => {
-        const rowId = r_loaded.id || nanoid();
+        const rowId = (r_loaded.id && r_loaded.id.trim() !== "") ? r_loaded.id : nanoid();
         const baseRow = createDefaultRow(rowId);
         const newR: CardRow = { ...baseRow, ...r_loaded, id: rowId };
         newR.columns = (r_loaded.columns || []).map((c_loaded: Partial<CardSection>) => {
-            const sectionId = c_loaded.id || nanoid();
+            const sectionId = (c_loaded.id && c_loaded.id.trim() !== "") ? c_loaded.id : nanoid();
             const baseCol = createDefaultSection(sectionId);
             return { ...baseCol, ...c_loaded, id: sectionId };
         });
@@ -280,14 +277,14 @@ export default function CardForgePage() {
     });
     if (newT.rows.length === 0) newT.rows = [createDefaultRow(nanoid(), [createDefaultSection(nanoid())])];
     return newT;
-  };
+  }, []);
 
   const isValidStoredDisplayCard = (item: any): item is Partial<StoredDisplayCard> => {
     return item &&
-           typeof item.frontTemplateId === 'string' &&
+           typeof item.frontTemplateId === 'string' && item.frontTemplateId.trim() !== "" &&
            typeof item.frontData === 'object' && item.frontData !== null &&
-           typeof item.uniqueId === 'string' &&
-           (item.backTemplateId === undefined || item.backTemplateId === null || typeof item.backTemplateId === 'string') &&
+           typeof item.uniqueId === 'string' && item.uniqueId.trim() !== "" &&
+           (item.backTemplateId === undefined || item.backTemplateId === null || (typeof item.backTemplateId === 'string' && item.backTemplateId.trim() !== "")) &&
            (item.backData === undefined || item.backData === null || typeof item.backData === 'object');
   };
 
@@ -309,10 +306,10 @@ export default function CardForgePage() {
               const frontTemplate = templates.find(t => t.id === storedCard.frontTemplateId);
               if (!frontTemplate) {
                 missingFrontCount++;
-                return; // Skip card if front template is essential and missing
+                return; 
               }
               const reconstructedFrontTemplate = fullyReconstructTemplate(frontTemplate);
-              if (!reconstructedFrontTemplate) { // Double check reconstruction
+              if (!reconstructedFrontTemplate) { 
                 missingFrontCount++;
                 return;
               }
@@ -323,9 +320,9 @@ export default function CardForgePage() {
                 if (foundBack) {
                   backTemplate = fullyReconstructTemplate(foundBack);
                 }
-                if (!backTemplate && foundBack) { // Found but failed reconstruction
+                if (!backTemplate && foundBack) { 
                     missingBackCount++;
-                } else if (!foundBack) { // Not found at all
+                } else if (!foundBack) { 
                     missingBackCount++;
                 }
               }
@@ -339,7 +336,7 @@ export default function CardForgePage() {
               });
             });
 
-            setGeneratedDisplayCards(runtimeCards); // This will trigger the effect to save to localStorage
+            setGeneratedDisplayCards(runtimeCards); 
             
             let toastMessage = `${runtimeCards.length} cards processed.`;
             if (missingFrontCount > 0) toastMessage += ` ${missingFrontCount} cards skipped due to missing front templates.`;
@@ -368,7 +365,10 @@ export default function CardForgePage() {
 
   useEffect(() => {
     if (mounted && !singleCardGeneratorSelectedTemplateId && templates.length > 0) {
-      setSingleCardGeneratorSelectedTemplateId(templates[0].id);
+      const firstValidTemplate = templates.find(t => t.id && t.id.trim() !== "");
+      if (firstValidTemplate) {
+        setSingleCardGeneratorSelectedTemplateId(firstValidTemplate.id);
+      }
     }
   }, [templates, mounted, singleCardGeneratorSelectedTemplateId]);
 
@@ -537,13 +537,13 @@ export default function CardForgePage() {
                         {generatedDisplayCards.map((cardItem, index) => (
                           <CardPreview
                             key={cardItem.uniqueId}
-                            card={cardItem} // Pass the full DisplayCard object
+                            card={cardItem} 
                             isPrintMode={false}
                             className="mx-auto"
                             showSizeInfo={index === 0}
                             hideEmptySections={hideEmptySections}
                             onEdit={handleEditCardRequest}
-                            forceRenderSide="front" // Ensure only front is shown in grid
+                            forceRenderSide="front" 
                           />
                         ))}
                       </div>
