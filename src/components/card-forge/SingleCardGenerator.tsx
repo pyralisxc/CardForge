@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard } from '@/types'; // ExtractedPlaceholder removed
+import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
 import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -15,7 +15,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Upload, Layers } from 'lucide-react';
-// No direct import of useAppStore here, uses props for templates and actions
 
 interface DynamicField {
   key: string;
@@ -26,10 +25,10 @@ interface DynamicField {
 }
 
 interface SingleCardGeneratorProps {
-  templates: TCGCardTemplate[]; // From Zustand store via props
-  onSingleCardAdded: (card: DisplayCard) => void; // Calls Zustand action via props
-  onTemplateSelectionChange?: (templateId: string | null) => void; // Calls Zustand action via props
-  selectedTemplateIdProp?: string | null; // From Zustand store via props
+  templates: TCGCardTemplate[];
+  onSingleCardAdded: (card: DisplayCard) => void;
+  onTemplateSelectionChange: (templateId: string | null) => void; // Calls Zustand action
+  selectedTemplateIdProp: string | null; // From Zustand store
 }
 
 export function SingleCardGenerator({
@@ -39,38 +38,22 @@ export function SingleCardGenerator({
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
   // Local state for the form fields and data for the single card being generated.
-  // selectedTemplateId is synced with selectedTemplateIdProp from the global store.
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  // selectedTemplateId is now directly from selectedTemplateIdProp (Zustand store).
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // useEffect to synchronize local selectedTemplateId with the prop from Zustand.
-  // This is a common pattern when a component's internal state needs to reflect a global state
-  // but also allow for local control or initialization.
-  useEffect(() => {
-    // Zustand reactivity handles updates to selectedTemplateIdProp.
-    // This effect ensures local state matches global if prop changes.
-    const targetId = selectedTemplateIdProp !== undefined 
-        ? (selectedTemplateIdProp || (templates.length > 0 ? templates[0].id : null))
-        : (templates.length > 0 ? templates[0].id : null);
-    
-    if (selectedTemplateId !== targetId) {
-        setSelectedTemplateId(targetId);
-        // When template changes, reset local cardData, fields will regenerate in next effect
-        setCardData({}); 
-    }
-    // Dependency: selectedTemplateIdProp from global store, and templates list.
-  }, [selectedTemplateIdProp, templates]);
-
+  // Comment: selectedTemplateIdProp is managed by Zustand.
+  // Defaulting logic (e.g., selecting the first template if the current one is invalid)
+  // is handled by the Zustand store's _rehydrateCallback or actions like deleteTemplate.
 
   const generateDynamicFields = useCallback((template: TCGCardTemplate | undefined, currentData: CardData): [DynamicField[], CardData] => {
     if (!template) return [[], {}];
 
     const extractedPlaceholders = extractUniquePlaceholderKeys(template);
-    const newCardDataState: CardData = {}; // Build new data state based on placeholders and current/defaults
+    const newCardDataState: CardData = {};
     
     const fields: DynamicField[] = extractedPlaceholders.map(placeholder => {
       const isImageSectionKey = template.rows.some(row =>
@@ -86,14 +69,14 @@ export function SingleCardGenerator({
           placeholder.key.toLowerCase().includes('description')
       );
 
-      let initialValue: string | number | undefined = currentData[placeholder.key]; // Prefer existing data if any
+      let initialValue: string | number | undefined = currentData[placeholder.key];
       if (initialValue === undefined && placeholder.defaultValue !== undefined) {
         initialValue = placeholder.defaultValue;
       }
       if (isImageSectionKey && (initialValue === undefined || String(initialValue).trim() === '' || String(initialValue).trim() === `{{${placeholder.key}}}`)) {
          initialValue = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(placeholder.key))}`;
       }
-      if (initialValue === undefined) { // Fallback to empty string if no other value
+      if (initialValue === undefined) {
         initialValue = '';
       }
       newCardDataState[placeholder.key] = initialValue;
@@ -107,28 +90,19 @@ export function SingleCardGenerator({
       };
     });
     return [fields, newCardDataState];
-  }, []); // Empty dependency array as extractUniquePlaceholderKeys and toTitleCase are pure utils
+  }, []);
 
-  // useEffect to regenerate dynamic fields and cardData structure when the selected template changes.
-  // This is a safe use of useEffect: it reacts to `selectedTemplateId` (local state, synced with global)
-  // and `templates` (prop from global) to update local UI state (`dynamicFields`, `cardData`).
+  // Safe useEffect: Reacts to selectedTemplateIdProp (from Zustand) or templates list changes
+  // to regenerate dynamic fields and reset local cardData (form state) with defaults from the new template.
   useEffect(() => {
-    // Zustand reactivity handles templates prop changes.
-    // This effect runs when local `selectedTemplateId` changes or `templates` list changes.
-    const template = templates.find(t => t.id === selectedTemplateId);
-    // Pass existing cardData to preserve user input if they switch templates and switch back,
-    // or if fields are common.
-    const [newFields, newGeneratedData] = generateDynamicFields(template, cardData); 
+    const template = templates.find(t => t.id === selectedTemplateIdProp);
+    // Regenerate fields and reset cardData with defaults from the new template.
+    // Passing {} as currentData ensures fresh defaults are applied.
+    const [newFields, newGeneratedData] = generateDynamicFields(template, {}); 
     
     setDynamicFields(newFields);
-    // Only update cardData if the structure or default-derived values have changed.
-    // Avoids clearing user input unnecessarily if field keys are stable.
-    if (JSON.stringify(cardData) !== JSON.stringify(newGeneratedData)) {
-        setCardData(newGeneratedData);
-    }
-    // Dependencies: `selectedTemplateId` (local), `templates` (global prop), `generateDynamicFields` (memoized),
-    // and `cardData` itself to ensure defaults are correctly applied over existing data.
-  }, [selectedTemplateId, templates, generateDynamicFields, cardData]);
+    setCardData(newGeneratedData); // This resets the form to the new template's structure/defaults.
+  }, [selectedTemplateIdProp, templates, generateDynamicFields]);
 
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
@@ -156,45 +130,40 @@ export function SingleCardGenerator({
   }, [toast]);
 
   const handleAddCard = useCallback(() => {
-    const template = templates.find(t => t.id === selectedTemplateId);
+    const template = templates.find(t => t.id === selectedTemplateIdProp);
     if (!template) {
       toast({ title: "Template Required", description: "Please select a TCG template for the card.", variant: "destructive" });
       return;
     }
 
     const finalCardData: CardData = { ...cardData };
-    dynamicFields.forEach(field => { // Ensure all fields defined by the template have a value
+    dynamicFields.forEach(field => {
         const currentValue = finalCardData[field.key];
         if (currentValue === undefined || String(currentValue).trim() === '' || String(currentValue).trim() === `{{${field.key}}}`) {
           if (field.defaultValue !== undefined) finalCardData[field.key] = field.defaultValue;
           else if (field.isImageKey) finalCardData[field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
-          else finalCardData[field.key] = ''; // Default to empty string for non-image, non-defaulted fields
+          else finalCardData[field.key] = '';
         }
     });
 
     const displayCard: DisplayCard = {
-      template: template, // The full template object
+      template: template,
       data: finalCardData,
       uniqueId: nanoid(),
     };
-    onSingleCardAdded(displayCard); // Calls Zustand action via prop
+    onSingleCardAdded(displayCard);
 
     toast({ title: "Success", description: `Card added to preview list.` });
-    // Optionally reset form fields here if desired after adding
-    // const [_, resetData] = generateDynamicFields(template, {}); // Get fresh defaults
-    // setCardData(resetData);
-  }, [selectedTemplateId, templates, cardData, dynamicFields, onSingleCardAdded, toast, generateDynamicFields]);
+    
+    // Reset form fields to defaults for the currently selected template after adding a card
+    const [_, resetData] = generateDynamicFields(template, {});
+    setCardData(resetData);
+
+  }, [selectedTemplateIdProp, templates, cardData, dynamicFields, onSingleCardAdded, toast, generateDynamicFields]);
 
   const handleTemplateSelectChange = useCallback((id: string | null) => {
-    // This updates local state, which then syncs with global via onTemplateSelectionChange prop.
-    // Or, onTemplateSelectionChange directly updates global, which flows back via selectedTemplateIdProp.
-    // The latter is cleaner.
-    if (onTemplateSelectionChange) {
-      onTemplateSelectionChange(id); // Calls Zustand action via prop
-    } else {
-      setSelectedTemplateId(id); // Fallback if no prop, but prop method is preferred
-    }
-    setCardData({}); // Reset local data when template changes
+    onTemplateSelectionChange(id); // Calls Zustand action via prop
+    // cardData will be reset by the useEffect hook reacting to selectedTemplateIdProp change
   }, [onTemplateSelectionChange]);
 
 
@@ -203,10 +172,10 @@ export function SingleCardGenerator({
     data: CardData,
     fileRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
   ) => {
-    if (fields.length === 0 && selectedTemplateId) {
+    if (fields.length === 0 && selectedTemplateIdProp) {
       return <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields.</p>;
     }
-    if (!selectedTemplateId) {
+    if (!selectedTemplateIdProp) {
         return <p className="text-sm text-muted-foreground">Select a template to see its fields.</p>;
     }
     return fields.map(field => (
@@ -269,8 +238,8 @@ export function SingleCardGenerator({
         <div>
           <Label htmlFor="singleTemplateSelect">Select Template*</Label>
           <Select
-            value={selectedTemplateId ?? undefined} // Use local selectedTemplateId for Select control
-            onValueChange={handleTemplateSelectChange}
+            value={selectedTemplateIdProp ?? undefined} // Use prop from Zustand
+            onValueChange={handleTemplateSelectChange} // Calls Zustand action
             disabled={templates.length === 0}
           >
             <SelectTrigger id="singleTemplateSelect">
@@ -286,7 +255,7 @@ export function SingleCardGenerator({
           </Select>
         </div>
 
-        {selectedTemplateId && (
+        {selectedTemplateIdProp && (
           <Accordion type="single" collapsible defaultValue="card-data-item" className="w-full">
             <AccordionItem value="card-data-item">
               <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
@@ -301,14 +270,14 @@ export function SingleCardGenerator({
           </Accordion>
         )}
 
-         {!selectedTemplateId && templates.length > 0 && (
+         {!selectedTemplateIdProp && templates.length > 0 && (
             <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
         )}
          {templates.length === 0 && (
             <p className="text-sm text-muted-foreground">No templates available. Please create one in the "Template Editor" tab first.</p>
         )}
 
-        <Button onClick={handleAddCard} disabled={!selectedTemplateId} className="w-full">
+        <Button onClick={handleAddCard} disabled={!selectedTemplateIdProp} className="w-full">
           <PlusSquare className="mr-2 h-4 w-4" /> Add Card to Preview List
         </Button>
       </CardContent>

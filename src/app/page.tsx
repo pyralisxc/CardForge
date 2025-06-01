@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront } from 'lucide-react';
 
-import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate as reconstructMinimalTemplateFromStore, getFreshDefaultTemplate as getFreshDefaultTemplateFromStore } from '@/store/appStore';
+import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate as reconstructMinimalTemplateFromStore, getFreshDefaultTemplate } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -60,33 +60,23 @@ export default function CardForgePage() {
   const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
   const openEditDialogAction = useAppStore((state) => state.openEditDialog);
   const closeEditDialogAction = useAppStore((state) => state.closeEditDialog);
-  // _rehydrateCallback is called internally by the store
+  // _rehydrateCallback is called internally by the store's persist middleware.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Comment: Zustand's `persist` middleware handles loading from localStorage.
-  // The `_rehydrateCallback` in the store can handle any post-rehydration logic.
-  // No specific useEffect needed here for initial template/card loading if persist is correctly configured.
+  // The `_rehydrateCallback` in the store handles any post-rehydration logic,
+  // like setting initial template selections. No specific useEffect needed here for that.
 
   // Memoized versions of store utility functions to pass as stable props
-  const reconstructMinimalTemplate = useCallback(
-    (t_loaded_partial: Partial<TCGCardTemplate>): TCGCardTemplate => {
-      return reconstructMinimalTemplateFromStore(t_loaded_partial);
-    },
-    [] // reconstructMinimalTemplateFromStore is imported, so it's stable.
-  );
-
-  const memoizedGetFreshDefaultTemplate = useCallback(
-    (id?: string | null, nameProp?: string): TCGCardTemplate => {
-      return getFreshDefaultTemplateFromStore(id, nameProp);
-    },
-    [] // getFreshDefaultTemplateFromStore is imported, so it's stable.
-  );
+  // These come directly from the store now, no need to re-memoize here if they are stable from the store.
+  const reconstructMinimalTemplate = useCallback(reconstructMinimalTemplateFromStore, []);
+  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
 
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
-    // The addOrUpdateTemplateAction in the store already handles reconstruction.
+    // The addOrUpdateTemplateAction in the store handles reconstruction.
     const savedTemplateId = addOrUpdateTemplateAction(template);
     toast({ title: "Template Saved", description: `"${template.name || savedTemplateId}" has been saved.` });
     return savedTemplateId;
@@ -195,8 +185,8 @@ export default function CardForgePage() {
     setIsMobileMenuOpen(false);
   }, [setActiveTabAction]);
 
-  // Comment: Initial selection of template for single card generator is handled by Zustand's _rehydrateCallback.
-  // No specific useEffect needed here for that purpose.
+  // Comment: Initial selection of template for single card generator (and now bulk generator)
+  // is handled by Zustand's _rehydrateCallback or other actions modifying the templates list.
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -264,6 +254,8 @@ export default function CardForgePage() {
                 <BulkGenerator
                   templates={templatesFromStore}
                   onCardsGenerated={handleBulkCardsGenerated}
+                  selectedTemplateIdProp={singleCardGeneratorSelectedTemplateId}
+                  onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
                 />
 
                 <Card>

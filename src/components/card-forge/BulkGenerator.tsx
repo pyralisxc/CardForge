@@ -1,9 +1,9 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard } from '@/types'; // ExtractedPlaceholder removed
+import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
 import type { ChangeEvent } from 'react';
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'; // Added useEffect
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -13,30 +13,35 @@ import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { Download, PackagePlus, UploadCloud, FileText } from 'lucide-react';
 import { extractUniquePlaceholderKeys } from '@/lib/utils';
-// No direct import of useAppStore here, uses props for templates and actions
 
 interface BulkGeneratorProps {
-  templates: TCGCardTemplate[]; // From Zustand store via props
-  onCardsGenerated: (cards: DisplayCard[]) => void; // Calls Zustand action via props
+  templates: TCGCardTemplate[];
+  onCardsGenerated: (cards: DisplayCard[]) => void;
+  selectedTemplateIdProp: string | null; // From Zustand store via props
+  onTemplateSelectionChange: (templateId: string | null) => void; // Calls Zustand action via props
 }
 
 type SupportedFileType = 'csv';
 
-export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProps) {
+export function BulkGenerator({ 
+  templates, 
+  onCardsGenerated,
+  selectedTemplateIdProp,
+  onTemplateSelectionChange 
+}: BulkGeneratorProps) {
   // Local state for this component's form
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFileType] = useState<SupportedFileType>('csv'); 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // selectedTemplate is derived from local state and props.
-  // useMemo is appropriate here as `templates` prop might re-render the component.
-  const selectedTemplate = useMemo(() => templates.find(t => t.id === selectedTemplateId), [templates, selectedTemplateId]);
+  // selectedTemplate is derived from selectedTemplateIdProp (from Zustand) and templates prop.
+  const selectedTemplate = useMemo(() => {
+    return templates.find(t => t.id === selectedTemplateIdProp);
+  }, [templates, selectedTemplateIdProp]);
 
   // placeholderObjects is derived from selectedTemplate.
-  // useMemo ensures it's only recalculated when selectedTemplate changes.
   const placeholderObjects = useMemo(() => {
     if (!selectedTemplate) return [];
     return extractUniquePlaceholderKeys(selectedTemplate);
@@ -60,26 +65,12 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     return `${headers}\n${exampleDataLine}`;
   }, [placeholderObjects, selectedTemplate]);
 
-  // exampleCSV is derived. Recompute only when generateExampleCSV changes.
   const exampleCSV = useMemo(() => generateExampleCSV(), [generateExampleCSV]);
 
-  // Effect to update selectedTemplateId if the first template in the list changes
-  // and no template was previously selected, or if the currently selected one disappears.
-  // This is a safe useEffect: it reacts to `templates` prop to update local state.
-  useEffect(() => {
-    // Zustand reactivity handles updates to `templates` prop.
-    if (templates.length > 0) {
-      const currentSelectionExists = templates.some(t => t.id === selectedTemplateId);
-      if (!selectedTemplateId || !currentSelectionExists) {
-        setSelectedTemplateId(templates[0].id!); // Select the first available template
-      }
-    } else {
-      setSelectedTemplateId(''); // No templates, clear selection
-    }
-    // Dependency: `templates` list from global store.
-    // `selectedTemplateId` is included to re-evaluate if it becomes invalid.
-  }, [templates, selectedTemplateId]);
-
+  // Comment: The selectedTemplateIdProp is managed by Zustand.
+  // Defaulting logic (e.g., selecting the first template if the current one is invalid)
+  // is handled by the Zustand store's _rehydrateCallback or actions like deleteTemplate.
+  // No local useEffect is needed here to manage selectedTemplateId.
 
   const handleGenerate = async () => {
     if (!selectedTemplate) {
@@ -92,8 +83,6 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     }
 
     setIsLoading(true);
-    // Async logic (parsing CSV, creating card objects) is local to this action.
-    // No direct global state side effects here beyond calling onCardsGenerated.
     try {
       const lines = bulkDataInput.trim().split('\n');
       if (lines.length < 2) {
@@ -106,7 +95,6 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
 
       for (let i = 1; i < lines.length; i++) {
         if (lines[i].trim() === '') continue;
-        // Basic CSV parsing, consider a library for robustness if needed
         const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'));
         const cardData: CardData = {};
         headers.forEach((header, index) => {
@@ -114,14 +102,14 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         });
 
         const displayCard: DisplayCard = {
-            template: selectedTemplate, // Full template object
+            template: selectedTemplate,
             data: cardData,
             uniqueId: nanoid()
         };
         generatedCards.push(displayCard);
       }
 
-      onCardsGenerated(generatedCards); // Calls Zustand action via prop
+      onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
         toast({ title: "Success", description: `${generatedCards.length} TCG cards generated.` });
       } else {
@@ -148,11 +136,10 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
-      // File reading is an async side effect, correctly handled here.
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
-        setBulkDataInput(text); // Update local state
+        setBulkDataInput(text);
         toast({ title: "File Loaded", description: `Content of "${file.name}" loaded.` });
       };
       reader.onerror = () => {
@@ -160,7 +147,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       };
       reader.readAsText(file);
     }
-    if (fileInputRef.current) { // Reset file input to allow re-upload of same file name
+    if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
@@ -170,12 +157,11 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
       toast({ title: "Template Required", description: "Please select a TCG template first.", variant: "default" });
       return;
     }
-    const csvContent = exampleCSV; // Use memoized exampleCSV
+    const csvContent = exampleCSV;
     if (!csvContent.trim() || !csvContent.includes('\n') || csvContent.startsWith("Select a template first.")) {
        toast({ title: "Template Error", description: "Could not generate CSV template. Ensure template has placeholders.", variant: "destructive" });
        return;
     }
-    // File download is a browser side effect, correctly handled here.
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -191,6 +177,11 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
     toast({ title: "Template Downloaded", description: `${fileName} downloaded.` });
   };
 
+  const handleTemplateSelectChange = useCallback((id: string | null) => {
+    onTemplateSelectionChange(id);
+    setBulkDataInput(''); // Clear data input when template changes
+  }, [onTemplateSelectionChange]);
+
   return (
     <Card>
       <CardHeader>
@@ -201,8 +192,8 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
         <div>
             <Label htmlFor="bulkTemplateSelect">1. Select Template*</Label>
             <Select
-              value={selectedTemplateId} // Controlled by local state
-              onValueChange={(id) => setSelectedTemplateId(id)} // Updates local state
+              value={selectedTemplateIdProp ?? undefined} // Use prop from Zustand
+              onValueChange={handleTemplateSelectChange} // Calls Zustand action via prop
               disabled={templates.length === 0}
             >
               <SelectTrigger id="bulkTemplateSelect">
@@ -222,7 +213,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
             <Button
                 onClick={() => fileInputRef.current?.click()}
                 variant="outline"
-                disabled={!selectedTemplateId}
+                disabled={!selectedTemplateIdProp}
                 className="w-full sm:w-auto flex-grow sm:flex-grow-0"
             >
                 <UploadCloud className="mr-2 h-4 w-4" /> Upload CSV File
@@ -238,7 +229,7 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
             <Button
                 onClick={handleDownloadTemplateCSV}
                 variant="outline"
-                disabled={!selectedTemplateId}
+                disabled={!selectedTemplateIdProp}
                 className="w-full sm:w-auto flex-grow sm:flex-grow-0"
             >
                 <FileText className="mr-2 h-4 w-4" /> Download Example CSV
@@ -251,20 +242,20 @@ export function BulkGenerator({ templates, onCardsGenerated }: BulkGeneratorProp
           </Label>
           <Textarea
             id="bulkData"
-            value={bulkDataInput} // Local state
-            onChange={handleDataInputChange} // Updates local state
+            value={bulkDataInput}
+            onChange={handleDataInputChange}
             placeholder={selectedTemplate ? `Example CSV for "${selectedTemplate.name}":\n${exampleCSV}` : `Select a template to see example CSV structure.`}
             rows={8}
             className="font-mono text-sm"
-            disabled={!selectedTemplateId}
+            disabled={!selectedTemplateIdProp}
           />
           {selectedTemplate && <p className="text-xs text-muted-foreground mt-1">
             Your CSV headers should be: <strong>{placeholderObjects.map(p => p.key).join(',') || "No placeholders found in selected template"}</strong>.
           </p>}
-           {!selectedTemplateId && <p className="text-xs text-muted-foreground mt-1">Select a template first.</p>}
+           {!selectedTemplateIdProp && <p className="text-xs text-muted-foreground mt-1">Select a template first.</p>}
         </div>
 
-        <Button onClick={handleGenerate} disabled={isLoading || !selectedTemplateId || !bulkDataInput.trim()} className="w-full">
+        <Button onClick={handleGenerate} disabled={isLoading || !selectedTemplateIdProp || !bulkDataInput.trim()} className="w-full">
           {isLoading ? 'Generating...' : <> <Download className="mr-2 h-4 w-4" /> Generate Cards from Data</>}
         </Button>
       </CardContent>
