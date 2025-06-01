@@ -39,16 +39,16 @@ export const getFreshDefaultTemplate = (id?: string | null, nameProp?: string): 
   const isValidExistingId = id && id.trim() !== "";
 
   if (id === null) {
-    newTemplateId = null; 
+    newTemplateId = null;
     newTemplateName = nameProp || `New Unsaved Template`;
   } else if (isValidExistingId) {
     newTemplateId = id;
     newTemplateName = nameProp || `Template ${String(id).substring(0, 8)}`;
-  } else { 
+  } else {
     newTemplateId = nanoid();
     newTemplateName = nameProp || `Template ${newTemplateId.substring(0, 8)}`;
   }
-  
+
   if (nameProp && nameProp !== "New Unsaved Template" && (id === null || !isValidExistingId)) {
     newTemplateName = nameProp;
   }
@@ -91,9 +91,8 @@ interface TemplateEditorProps {
   onSaveTemplate: (template: TCGCardTemplate) => void;
   templates: TCGCardTemplate[];
   onDeleteTemplate: (templateId: string) => void;
-  initialTemplate?: TCGCardTemplate | null; // No longer used for direct init, page.tsx handles it
   memoizedGetFreshDefaultTemplate: (id?: string | null, nameProp?: string) => TCGCardTemplate;
-  reconstructMinimalTemplate: (templateData: Partial<TCGCardTemplate>) => TCGCardTemplate; // Prop from page
+  reconstructMinimalTemplate: (templateData: Partial<TCGCardTemplate>) => TCGCardTemplate;
 }
 
 
@@ -101,24 +100,16 @@ export function TemplateEditor({
   onSaveTemplate,
   templates,
   onDeleteTemplate,
-  // initialTemplate, // No longer directly used for initialization here
   memoizedGetFreshDefaultTemplate,
-  reconstructMinimalTemplate, // Use this prop for all reconstructions
+  reconstructMinimalTemplate,
 }: TemplateEditorProps) {
   const { toast } = useToast();
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => {
-    // Initialize with a fresh, unsaved template structure, using the passed reconstructor
     return reconstructMinimalTemplate(memoizedGetFreshDefaultTemplate(null));
   });
 
   const currentTemplateInternalRef = useRef<TCGCardTemplate>(currentTemplate);
-
-  const updateCurrentTemplateState = useCallback((newTemplate: TCGCardTemplate) => {
-    setCurrentTemplate(newTemplate);
-    currentTemplateInternalRef.current = newTemplate;
-  }, [setCurrentTemplate]); // setCurrentTemplate is stable
-
 
   const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(null);
 
@@ -138,51 +129,63 @@ export function TemplateEditor({
   const [isRowsAndSectionsCardOpen, setIsRowsAndSectionsCardOpen] = useState(true);
 
 
- const resetFormToNew = useCallback(() => {
-    const newFreshTemplateBase = memoizedGetFreshDefaultTemplate(null); 
-    const fullyProcessedNewTemplate = reconstructMinimalTemplate(newFreshTemplateBase); 
+  const updateCurrentTemplateState = useCallback((newTemplate: TCGCardTemplate) => {
+    setCurrentTemplate(newTemplate);
+    currentTemplateInternalRef.current = newTemplate;
+  }, [setCurrentTemplate]);
 
+
+ const resetFormToNew = useCallback(() => {
+    const newFreshTemplateBase = memoizedGetFreshDefaultTemplate(null);
+    const fullyProcessedNewTemplate = reconstructMinimalTemplate(newFreshTemplateBase);
     updateCurrentTemplateState(fullyProcessedNewTemplate);
-    // setSelectedTemplateToEditId(null); // This is handled by handleSelectTemplateToEdit
+
     setAspectRatioInput(fullyProcessedNewTemplate.aspectRatio || TCG_ASPECT_RATIO);
+    const newActiveRowIds = (fullyProcessedNewTemplate.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[];
+    setActiveRowAccordionItems(newActiveRowIds);
+
     setCustomWidthValue('');
     setCustomHeightValue('');
     setCustomUnit('mm');
-    setActiveRowAccordionItems((fullyProcessedNewTemplate.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]);
     setActiveColumnAccordionItems([]);
     setActiveStylingAccordion(null);
     setIsSettingsCardOpen(true);
     setIsRowsAndSectionsCardOpen(true);
-  }, [memoizedGetFreshDefaultTemplate, reconstructMinimalTemplate, updateCurrentTemplateState]);
+  }, [updateCurrentTemplateState, memoizedGetFreshDefaultTemplate, reconstructMinimalTemplate, setActiveRowAccordionItems]);
+
 
   useEffect(() => {
     if (selectedTemplateToEditId) {
       const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateFromList) {
-        const reconstructed = reconstructMinimalTemplate(templateFromList); // Use shared reconstructor
-        if (currentTemplateInternalRef.current?.id !== reconstructed.id || 
-            JSON.stringify(currentTemplateInternalRef.current) !== JSON.stringify(reconstructed)) {
+        const reconstructed = reconstructMinimalTemplate(templateFromList);
+        if (
+            currentTemplate.id !== selectedTemplateToEditId ||
+            JSON.stringify(currentTemplateInternalRef.current) !== JSON.stringify(reconstructed)
+        ) {
           updateCurrentTemplateState(reconstructed);
           setAspectRatioInput(reconstructed.aspectRatio || TCG_ASPECT_RATIO);
+          const newActiveRowIds = (reconstructed.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[];
+          if (JSON.stringify(activeRowAccordionItems) !== JSON.stringify(newActiveRowIds)) {
+             setActiveRowAccordionItems(newActiveRowIds);
+          }
         }
-      } else { // Stale ID, selected template not in list
-        if (currentTemplateInternalRef.current?.id !== null) { 
+      } else {
+        if (currentTemplate.id !== null) {
           resetFormToNew();
-          // setAspectRatioInput is handled by resetFormToNew now
         }
       }
-    } else { // New template mode (selectedTemplateToEditId is null)
-      if (currentTemplateInternalRef.current?.id !== null) { 
+    } else {
+      if (currentTemplate.id !== null) {
         resetFormToNew();
-        // setAspectRatioInput is handled by resetFormToNew now
       }
     }
-  }, [selectedTemplateToEditId, templates, reconstructMinimalTemplate, resetFormToNew, updateCurrentTemplateState, memoizedGetFreshDefaultTemplate]);
+  }, [selectedTemplateToEditId, templates]);
 
 
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
     const updatedRaw = { ...currentTemplateInternalRef.current, ...updates };
-    const reconstructedForUpdate = reconstructMinimalTemplate(updatedRaw); // Use shared reconstructor
+    const reconstructedForUpdate = reconstructMinimalTemplate(updatedRaw);
     updateCurrentTemplateState(reconstructedForUpdate);
   }, [updateCurrentTemplateState, reconstructMinimalTemplate]);
 
@@ -302,23 +305,20 @@ export function TemplateEditor({
         return;
     }
 
-    // TemplateToSave is already in the canonical form from reconstructMinimalTemplate via updateCurrentTemplateState
-    onSaveTemplate(templateToSave); 
+    onSaveTemplate(reconstructMinimalTemplate(templateToSave));
 
     if (selectedTemplateToEditId !== templateToSave.id) {
       setSelectedTemplateToEditId(templateToSave.id!);
     }
      toast({ title: "Template Saved", description: `"${templateToSave.name}" has been saved.`});
-  }, [templates, onSaveTemplate, toast, selectedTemplateToEditId]);
+  }, [templates, onSaveTemplate, toast, selectedTemplateToEditId, reconstructMinimalTemplate]);
 
 
   const handleSelectTemplateToEdit = useCallback((templateId: string | null) => {
      setSelectedTemplateToEditId(templateId);
-     // Reset custom dimension inputs when selection changes or new template is chosen
      setCustomWidthValue('');
      setCustomHeightValue('');
      setCustomUnit('mm');
-     // aspectRatioInput will be set by the useEffect
   }, [setSelectedTemplateToEditId]);
 
 
@@ -391,7 +391,7 @@ export function TemplateEditor({
 
     const simplified = simplifyRatio(widthNum, heightNum);
     updateCurrentTemplate({ aspectRatio: simplified });
-    setAspectRatioInput(simplified); // Also update the input field display
+    setAspectRatioInput(simplified);
     toast({ title: "Aspect Ratio Updated", description: `Ratio set to ${simplified} based on custom dimensions.` });
   }, [customWidthValue, customHeightValue, updateCurrentTemplate, toast]);
 
@@ -507,21 +507,20 @@ export function TemplateEditor({
                                     value={aspectRatioInput}
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                         const newRatio = e.target.value;
-                                        setAspectRatioInput(newRatio); // Update local input state
-                                        // Attempt to update currentTemplate if valid, otherwise it might revert on blur/next effect
+                                        setAspectRatioInput(newRatio);
                                         const ratioParts = newRatio.split(':').map(Number);
                                         if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
                                             updateCurrentTemplate({ aspectRatio: newRatio });
-                                        } else if (newRatio.trim() === '') { // If cleared, revert to default maybe?
+                                        } else if (newRatio.trim() === '') {
                                             updateCurrentTemplate({ aspectRatio: TCG_ASPECT_RATIO });
                                         }
                                     }}
-                                    onBlur={() => { // Ensure currentTemplate aspect ratio is synced from valid input or currentTemplate
+                                    onBlur={() => {
                                         const currentStoredRatio = currentTemplate.aspectRatio || TCG_ASPECT_RATIO;
                                         const ratioParts = aspectRatioInput.split(':').map(Number);
                                         if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
                                             if (aspectRatioInput !== currentStoredRatio) updateCurrentTemplate({ aspectRatio: aspectRatioInput });
-                                        } else { // If input is invalid on blur, reset input to current stored valid ratio
+                                        } else {
                                             setAspectRatioInput(currentStoredRatio);
                                             if (currentStoredRatio !== (currentTemplate.aspectRatio || TCG_ASPECT_RATIO)) {
                                                 updateCurrentTemplate({ aspectRatio: currentStoredRatio });
