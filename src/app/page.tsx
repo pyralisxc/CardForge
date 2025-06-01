@@ -24,49 +24,24 @@ import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Sciss
 import { nanoid } from 'nanoid';
 
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { PAPER_SIZES, createDefaultRow, createDefaultSection, TABS_CONFIG, DEFAULT_TEMPLATES, TCG_ASPECT_RATIO } from '@/lib/constants';
+import { PAPER_SIZES, createDefaultSection, TABS_CONFIG, DEFAULT_TEMPLATES, TCG_ASPECT_RATIO } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, CardSection, CardRow, StoredDisplayCard, CardData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 const LOCAL_STORAGE_TEMPLATES_KEY = 'cardForgeTCGTemplatesV10-reconstructed';
 const LOCAL_STORAGE_CARD_SET_KEY = 'cardForgeTCGSavedSetV2-templateIDs';
+const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 100 * 1024; // 100KB threshold for stripping from localStorage
 
 
 export default function CardForgePage() {
   const [mounted, setMounted] = useState(false);
-  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, []);
-  const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
-
-  const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
-  const [storedCards, setStoredCards] = useLocalStorage<StoredDisplayCard[]>(LOCAL_STORAGE_CARD_SET_KEY, []);
-  const [cardViewSides, setCardViewSides] = useState<Record<string, 'front' | 'back'>>({});
-
-
-  const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>(PAPER_SIZES[0]);
-  const [activeTab, setActiveTab] = useState<string>(TABS_CONFIG[0].value);
-  const { toast } = useToast();
-  const [hideEmptySections, setHideEmptySections] = useState<boolean>(true);
-
-  const [editingCard, setEditingCard] = useState<DisplayCard | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const [pdfMarginMm, setPdfMarginMm] = useState<number>(5);
-  const [pdfCardSpacingMm, setPdfCardSpacingMm] = useState<number>(0);
-  const [pdfIncludeCutLines, setPdfIncludeCutLines] = useState<boolean>(false);
-
   const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
-
-
-  useEffect(() => { setMounted(true); }, []);
+  const { toast } = useToast();
 
   const reconstructMinimalTemplate = useCallback((t_loaded: Partial<TCGCardTemplate>): TCGCardTemplate => {
     const validatedId = (t_loaded.id && t_loaded.id.trim() !== "") ? t_loaded.id : nanoid();
     
-    const base: Partial<TCGCardTemplate> = { // Use Partial here
+    const base: Partial<TCGCardTemplate> = { 
         id: validatedId,
         name: t_loaded.name || `Template ${validatedId.substring(0, 8)}`,
         aspectRatio: t_loaded.aspectRatio || TCG_ASPECT_RATIO,
@@ -74,17 +49,22 @@ export default function CardForgePage() {
         rows: [],
     };
 
-    // Selectively add properties if they exist in t_loaded or are essential cosmetic defaults
-    if (t_loaded.cardBackgroundImageUrl) base.cardBackgroundImageUrl = t_loaded.cardBackgroundImageUrl;
+    if (t_loaded.cardBackgroundImageUrl) {
+      if (t_loaded.cardBackgroundImageUrl.startsWith('data:') && t_loaded.cardBackgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+        base.cardBackgroundImageUrl = `placeholder:Card background image too large for storage`;
+      } else {
+        base.cardBackgroundImageUrl = t_loaded.cardBackgroundImageUrl;
+      }
+    }
     if (t_loaded.baseBackgroundColor) base.baseBackgroundColor = t_loaded.baseBackgroundColor;
     if (t_loaded.baseTextColor) base.baseTextColor = t_loaded.baseTextColor;
     if (t_loaded.defaultSectionBorderColor) base.defaultSectionBorderColor = t_loaded.defaultSectionBorderColor;
     if (t_loaded.cardBorderColor) base.cardBorderColor = t_loaded.cardBorderColor;
-    if (t_loaded.cardBorderWidth) base.cardBorderWidth = t_loaded.cardBorderWidth; else base.cardBorderWidth = '4px'; // Essential visual default
-    if (t_loaded.cardBorderStyle) base.cardBorderStyle = t_loaded.cardBorderStyle; else base.cardBorderStyle = 'solid'; // Essential visual default
-    if (t_loaded.cardBorderRadius) base.cardBorderRadius = t_loaded.cardBorderRadius; else base.cardBorderRadius = '0.5rem'; // Essential visual default
+    if (t_loaded.cardBorderWidth) base.cardBorderWidth = t_loaded.cardBorderWidth; else base.cardBorderWidth = '4px';
+    if (t_loaded.cardBorderStyle) base.cardBorderStyle = t_loaded.cardBorderStyle; else base.cardBorderStyle = 'solid';
+    if (t_loaded.cardBorderRadius) base.cardBorderRadius = t_loaded.cardBorderRadius; else base.cardBorderRadius = '0.5rem';
     
-    const newT = base as TCGCardTemplate; // Cast to full type after selective assignment
+    const newT = base as TCGCardTemplate;
 
     const sourceRows = t_loaded.rows && t_loaded.rows.length > 0 ? t_loaded.rows : memoizedGetFreshDefaultTemplate(null, newT.name).rows;
 
@@ -93,10 +73,9 @@ export default function CardForgePage() {
         const newR: CardRow = {
             id: rowId,
             columns: [],
-            alignItems: r_source.alignItems || 'flex-start', // Essential default
+            alignItems: r_source.alignItems || 'flex-start',
         };
         if (r_source.customHeight) newR.customHeight = r_source.customHeight;
-
 
         const sourceColumns = r_source.columns && r_source.columns.length > 0 ? r_source.columns : [createDefaultSection(nanoid())];
 
@@ -106,10 +85,16 @@ export default function CardForgePage() {
                 id: sectionId,
                 sectionContentType: c_source.sectionContentType || 'placeholder',
                 contentPlaceholder: c_source.contentPlaceholder || '',
-                flexGrow: c_source.flexGrow === undefined ? 0 : c_source.flexGrow, // Essential default
+                flexGrow: c_source.flexGrow === undefined ? 0 : c_source.flexGrow,
             };
-            // Selectively add optional properties
-            if (c_source.backgroundImageUrl) newC.backgroundImageUrl = c_source.backgroundImageUrl;
+            
+            if (c_source.backgroundImageUrl) {
+              if (c_source.backgroundImageUrl.startsWith('data:') && c_source.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+                newC.backgroundImageUrl = `placeholder:Section background image too large for storage`;
+              } else {
+                newC.backgroundImageUrl = c_source.backgroundImageUrl;
+              }
+            }
             if (c_source.imageWidthPx) newC.imageWidthPx = c_source.imageWidthPx; else if(newC.sectionContentType === 'image') newC.imageWidthPx = '100';
             if (c_source.imageHeightPx) newC.imageHeightPx = c_source.imageHeightPx; else if(newC.sectionContentType === 'image') newC.imageHeightPx = '100';
             if (c_source.textColor) newC.textColor = c_source.textColor;
@@ -131,13 +116,37 @@ export default function CardForgePage() {
         return newR;
     });
     
-    if (newT.rows.length === 0) { // Should be rare
+    if (newT.rows.length === 0) {
         newT.rows = memoizedGetFreshDefaultTemplate(null, newT.name).rows.map(r => ({...r, id:nanoid(), columns: r.columns.map(c => ({...c, id:nanoid()}))}));
     }
     return newT;
   }, [memoizedGetFreshDefaultTemplate]);
 
-  // Effect to load initial templates from localStorage or use defaults
+
+  const [templates, setTemplates] = useLocalStorage<TCGCardTemplate[]>(LOCAL_STORAGE_TEMPLATES_KEY, []);
+  const [editingTemplate, setEditingTemplate] = useState<TCGCardTemplate | null>(null);
+
+  const [generatedDisplayCards, setGeneratedDisplayCards] = useState<DisplayCard[]>([]);
+  const [storedCards, setStoredCards] = useLocalStorage<StoredDisplayCard[]>(LOCAL_STORAGE_CARD_SET_KEY, []);
+  const [cardViewSides, setCardViewSides] = useState<Record<string, 'front' | 'back'>>({});
+
+  const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>(PAPER_SIZES[0]);
+  const [activeTab, setActiveTab] = useState<string>(TABS_CONFIG[0].value);
+  const [hideEmptySections, setHideEmptySections] = useState<boolean>(true);
+
+  const [editingCard, setEditingCard] = useState<DisplayCard | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [singleCardGeneratorSelectedTemplateId, setSingleCardGeneratorSelectedTemplateId] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [pdfMarginMm, setPdfMarginMm] = useState<number>(5);
+  const [pdfCardSpacingMm, setPdfCardSpacingMm] = useState<number>(0);
+  const [pdfIncludeCutLines, setPdfIncludeCutLines] = useState<boolean>(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     if (!mounted) return;
 
@@ -159,10 +168,10 @@ export default function CardForgePage() {
     if (JSON.stringify(templates) !== JSON.stringify(processedTemplates)) {
         setTemplates(processedTemplates);
     }
-  }, [mounted, setTemplates, templates, reconstructMinimalTemplate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, reconstructMinimalTemplate]);
 
 
-  // Effect to rehydrate DisplayCards from StoredDisplayCards when templates or storedCards change
   useEffect(() => {
     if (!mounted) return;
 
@@ -183,7 +192,7 @@ export default function CardForgePage() {
         continue;
       }
       const frontTemplate = reconstructMinimalTemplate(frontTemplateFound);
-      if (!frontTemplate) { // Should not happen if found
+      if (!frontTemplate) { 
         missingTemplatesInfo.front++;
         missingTemplatesInfo.totalSkipped++;
         continue;
@@ -194,7 +203,7 @@ export default function CardForgePage() {
         const backTemplateFound = templates.find(t => t.id === stored.backTemplateId);
         if (backTemplateFound) {
           backTemplate = reconstructMinimalTemplate(backTemplateFound);
-          if (!backTemplate) missingTemplatesInfo.back++; // Should not happen
+          if (!backTemplate) missingTemplatesInfo.back++;
         } else {
           missingTemplatesInfo.back++;
         }
@@ -213,15 +222,13 @@ export default function CardForgePage() {
       setGeneratedDisplayCards(rehydratedCards);
     }
 
-    if (missingTemplatesInfo.totalSkipped > 0 && rehydratedCards.length < storedCards.length) { // only toast if cards were actually skipped
+    if (missingTemplatesInfo.totalSkipped > 0 && rehydratedCards.length < storedCards.length) { 
         let message = `Some cards could not be fully loaded: ${missingTemplatesInfo.totalSkipped} card(s) skipped due to missing front templates.`;
         if(missingTemplatesInfo.back > 0) message += ` Additionally, ${missingTemplatesInfo.back} card(s) are missing their back templates.`;
         toast({ title: "Card Load Notice", description: message, variant: "default", duration: 7000 });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storedCards, templates, mounted, reconstructMinimalTemplate]); // generatedDisplayCards removed to prevent re-running this when it sets generatedDisplayCards
+  }, [storedCards, templates, mounted, reconstructMinimalTemplate, toast, generatedDisplayCards]); 
 
-  // Effect to update StoredDisplayCards when DisplayCards change (e.g., after generation or editing)
   useEffect(() => {
     if (!mounted) return;
     const storableCards: StoredDisplayCard[] = generatedDisplayCards.map(card => ({
@@ -234,22 +241,67 @@ export default function CardForgePage() {
     if (JSON.stringify(storedCards) !== JSON.stringify(storableCards)) {
       setStoredCards(storableCards);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatedDisplayCards, mounted]); // storedCards removed here
+  }, [generatedDisplayCards, mounted, setStoredCards, storedCards]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate) => {
+    const templateForStorage = { ...template }; // Start with a copy of the template from the editor
+    let cardBgStripped = false;
+    let sectionBgStrippedCount = 0;
+
+    // Sanitize card background image for storage
+    if (templateForStorage.cardBackgroundImageUrl && 
+        templateForStorage.cardBackgroundImageUrl.startsWith('data:') && 
+        templateForStorage.cardBackgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+      templateForStorage.cardBackgroundImageUrl = `placeholder:Card background image was too large to save.`;
+      cardBgStripped = true;
+    }
+
+    // Sanitize section background images for storage
+    templateForStorage.rows = templateForStorage.rows.map(row => ({
+      ...row,
+      columns: row.columns.map(section => {
+        if (section.backgroundImageUrl && 
+            section.backgroundImageUrl.startsWith('data:') && 
+            section.backgroundImageUrl.length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
+          sectionBgStrippedCount++;
+          return { ...section, backgroundImageUrl: `placeholder:Section background image was too large to save.` };
+        }
+        return section;
+      })
+    }));
+    
+    if (cardBgStripped) {
+        toast({ title: "Image Size Notice", description: `The main card background image for template "${template.name}" was too large for persistent storage and was not saved. It will remain in the editor for this session only unless re-selected or a URL is used.`, variant: "default", duration: 8000 });
+    }
+    if (sectionBgStrippedCount > 0) {
+        toast({ title: "Image Size Notice", description: `${sectionBgStrippedCount} section background image(s) in template "${template.name}" were too large for persistent storage and were not saved. They will remain in the editor for this session only unless re-selected or a URL is used.`, variant: "default", duration: 8000 });
+    }
+
+
     setTemplates(prevTemplates => {
-      const existingIndex = prevTemplates.findIndex(t => t.id === template.id);
+      const existingIndex = prevTemplates.findIndex(t => t.id === templateForStorage.id);
       const newTemplates = existingIndex > -1 
-        ? prevTemplates.map((t, i) => i === existingIndex ? template : t) 
-        : [...prevTemplates, template];
+        ? prevTemplates.map((t, i) => i === existingIndex ? templateForStorage : t) 
+        : [...prevTemplates, templateForStorage];
       return newTemplates;
     });
-    toast({ title: "Template Saved", description: `"${template.name || template.id}" has been saved.` });
+    toast({ title: "Template Saved", description: `"${templateForStorage.name || templateForStorage.id}" has been saved.` });
+    
+    // Update editingTemplate to reflect the version that might have stripped images (for consistency if re-selected)
+    // but ensure the editor itself keeps the live, potentially large image for the current session.
+    // The editor's currentTemplate state is separate and should retain the user's latest input.
+    // So, we only update 'editingTemplate' if it's the one being saved.
     if (!editingTemplate || editingTemplate.id === template.id || !templates.find(t => t.id === template.id)) {
-        setEditingTemplate(template);
+        // If we want the 'editingTemplate' state to reflect the stripped version for future edits,
+        // we'd set it to templateForStorage. But usually, the editor keeps the live version.
+        // For now, let's assume the editor's internal state is the source of truth for the current session.
+        // The main `templates` list will have the stripped version for persistence.
+        // Let's ensure setEditingTemplate is called with the *original* template from editor to keep live image
+        const originalTemplateFromEditor = template; 
+        setEditingTemplate(originalTemplateFromEditor);
     }
-  }, [templates, editingTemplate, toast, setTemplates]);
+
+  }, [setTemplates, toast, templates, editingTemplate]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     const templateToDelete = templates.find(t => t.id === templateId);
@@ -343,7 +395,7 @@ export default function CardForgePage() {
            typeof item.frontTemplateId === 'string' && item.frontTemplateId.trim() !== "" &&
            typeof item.frontData === 'object' && item.frontData !== null &&
            typeof item.uniqueId === 'string' && item.uniqueId.trim() !== "" &&
-           (item.backTemplateId === undefined || item.backTemplateId === null || (typeof item.backTemplateId === 'string')) && // Allow empty string for backTemplateId now
+           (item.backTemplateId === undefined || item.backTemplateId === null || (typeof item.backTemplateId === 'string')) && 
            (item.backData === undefined || item.backData === null || typeof item.backData === 'object');
   };
 
@@ -653,6 +705,3 @@ export default function CardForgePage() {
     </div>
   );
 }
-
-
-    
