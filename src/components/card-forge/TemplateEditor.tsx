@@ -27,14 +27,15 @@ import { CardPreview } from './CardPreview';
 import { ColumnEditor } from './ColumnEditor';
 import { nanoid } from 'nanoid';
 import { cn, extractUniquePlaceholderKeys, simplifyRatio } from "@/lib/utils";
-import type { getFreshDefaultTemplateObject as GetFreshDefaultTemplateFn, reconstructMinimalTemplateObject as ReconstructMinimalTemplateFn } from '@/store/appStore'; // Import types
+import type { getFreshDefaultTemplateObject as GetFreshDefaultTemplateFn, reconstructMinimalTemplateObject as ReconstructMinimalTemplateFn } from '@/store/appStore';
 
 interface TemplateEditorProps {
   onSaveTemplate: (template: TCGCardTemplate) => void;
   templates: TCGCardTemplate[];
   onDeleteTemplate: (templateId: string) => void;
-  reconstructMinimalTemplate: ReconstructMinimalTemplateFn; // Use the imported type
-  memoizedGetFreshDefaultTemplate: GetFreshDefaultTemplateFn; // Use the imported type
+  reconstructMinimalTemplate: ReconstructMinimalTemplateFn;
+  memoizedGetFreshDefaultTemplate: GetFreshDefaultTemplateFn;
+  initialSelectedTemplateIdProp: string | null;
 }
 
 export function TemplateEditor({
@@ -43,13 +44,33 @@ export function TemplateEditor({
   onDeleteTemplate,
   reconstructMinimalTemplate,
   memoizedGetFreshDefaultTemplate,
+  initialSelectedTemplateIdProp,
 }: TemplateEditorProps) {
   const { toast } = useToast();
 
-  // Local state for the template currently being edited.
-  // Initialized with a fresh, unsaved template, reconstructed for canonical form.
-  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() => reconstructMinimalTemplate(memoizedGetFreshDefaultTemplate(null)));
-  const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(null);
+  const [selectedTemplateToEditId, setSelectedTemplateToEditId] = useState<string | null>(initialSelectedTemplateIdProp);
+
+  // Determine initial value for currentTemplate based on selectedTemplateToEditId
+  // This is crucial to run this logic once for useState initializer.
+  const selectedTemplateToEditIdInitialValue = useMemo(() => {
+    if (initialSelectedTemplateIdProp) {
+      const foundTemplate = templates.find(t => t.id === initialSelectedTemplateIdProp);
+      if (foundTemplate) return initialSelectedTemplateIdProp;
+    }
+    // If no prop, or prop not found, or creating new, default to null (new template mode)
+    // Or if templates list is empty, it should also be null.
+    if (templates.length > 0 && !initialSelectedTemplateIdProp) {
+        const firstValidTemplate = templates.find(t => t.id && t.id.trim() !== "");
+        return firstValidTemplate ? firstValidTemplate.id : null;
+    }
+    return initialSelectedTemplateIdProp; // This will be null if no suitable ID found or if explicitly new
+  }, [initialSelectedTemplateIdProp, templates]);
+
+
+  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() =>
+    reconstructMinimalTemplate(memoizedGetFreshDefaultTemplate(selectedTemplateToEditIdInitialValue))
+  );
+  const currentTemplateInternalRef = useRef<TCGCardTemplate>(currentTemplate);
 
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
   const [customWidthValue, setCustomWidthValue] = useState<string>('');
@@ -64,87 +85,80 @@ export function TemplateEditor({
   const [isSettingsCardOpen, setIsSettingsCardOpen] = useState(true);
   const [isRowsAndSectionsCardOpen, setIsRowsAndSectionsCardOpen] = useState(true);
 
-  // Ref to hold the current version of the template for comparisons in useEffect, to break dependency cycles.
-  const currentTemplateInternalRef = useRef<TCGCardTemplate>(currentTemplate);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []); // Empty dependency array ensures this runs once on mount
+
+
+  // Effect to update local selectedTemplateToEditId when prop changes (from Zustand)
+  // This is generally safe as it reacts to an external prop to update local sync state.
+  useEffect(() => {
+    setSelectedTemplateToEditId(initialSelectedTemplateIdProp);
+  }, [initialSelectedTemplateIdProp]);
+
 
   // Stable callback to update both currentTemplate state and its ref.
-  const updateCurrentTemplateState = useCallback((newTemplateData: Partial<TCGCardTemplate>) => {
-    // Always reconstruct to ensure canonical form before setting state.
+  const updateCurrentTemplateState = useCallback((newTemplateData: Partial<TCGCardTemplate> | TCGCardTemplate) => {
     const reconstructedNewTemplate = reconstructMinimalTemplate(newTemplateData);
     setCurrentTemplate(reconstructedNewTemplate);
     currentTemplateInternalRef.current = reconstructedNewTemplate;
-  }, [reconstructMinimalTemplate]); // Depends on reconstructMinimalTemplate prop
+  }, [reconstructMinimalTemplate]);
 
-  // Callback to reset the form to a new, unsaved template state.
+
   const resetFormToNew = useCallback(() => {
-    const newFreshTemplate = memoizedGetFreshDefaultTemplate(null); // prop
-    const fullyProcessedNewTemplate = reconstructMinimalTemplate(newFreshTemplate); // prop
-    updateCurrentTemplateState(fullyProcessedNewTemplate); // This sets currentTemplate & ref
+    const newFreshTemplate = memoizedGetFreshDefaultTemplate(null);
+    const fullyProcessedNewTemplate = reconstructMinimalTemplate(newFreshTemplate);
+    updateCurrentTemplateState(fullyProcessedNewTemplate);
     
-    // Set ancillary UI state based on the new template
     setAspectRatioInput(fullyProcessedNewTemplate.aspectRatio || TCG_ASPECT_RATIO);
-    setActiveRowAccordionItems((fullyProcessedNewTemplate.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[]);
-  }, [memoizedGetFreshDefaultTemplate, reconstructMinimalTemplate, updateCurrentTemplateState]); // Removed setters
+    const newRowIds = (fullyProcessedNewTemplate.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[];
+    setActiveRowAccordionItems(newRowIds);
+  }, [memoizedGetFreshDefaultTemplate, reconstructMinimalTemplate, updateCurrentTemplateState, setActiveRowAccordionItems]);
 
-  // Effect to load a selected template from the global list into local editing state
-  // or reset to a new template form.
+  // Main effect for loading/resetting the editor form based on selection or template list changes.
+  // This is a complex effect but necessary for the editor's core functionality.
   useEffect(() => {
-    // Zustand reactivity ensures 'templates' prop updates when store changes.
-    // This effect manages loading the selected template into local 'currentTemplate' state for editing.
     if (selectedTemplateToEditId) {
       const templateFromList = templates.find(t => t.id === selectedTemplateToEditId);
       if (templateFromList) {
-        const reconstructed = reconstructMinimalTemplate(templateFromList); // prop: reconstructs to canonical form
-        // Only update if the template ID is different or if content has changed.
+        const reconstructed = reconstructMinimalTemplate(templateFromList);
         if (
           currentTemplateInternalRef.current?.id !== reconstructed.id ||
           JSON.stringify(reconstructed) !== JSON.stringify(currentTemplateInternalRef.current)
         ) {
-          updateCurrentTemplateState(reconstructed); // Sets currentTemplate and updates ref
+          updateCurrentTemplateState(reconstructed);
           setAspectRatioInput(reconstructed.aspectRatio || TCG_ASPECT_RATIO);
-          // Only update accordion if row IDs actually changed
-          const newRowIds = (reconstructed.rows || []).map(r => r.id).filter(id => id && id.trim() !== "") as string[];
+          const newRowIds = (reconstructed.rows || []).map(r => r.id).filter(Boolean) as string[];
           if(JSON.stringify(newRowIds) !== JSON.stringify(activeRowAccordionItems)) {
-              setActiveRowAccordionItems(newRowIds);
+             setActiveRowAccordionItems(newRowIds);
           }
         }
       } else {
-        // Selected ID not found in list (stale ID), reset to "new template" mode
-        // only if not already in new template mode (i.e., current template ID is not null).
         if (currentTemplateInternalRef.current?.id !== null) {
           resetFormToNew();
         }
       }
     } else {
-      // No template selected (creating a new one).
-      // Reset to "new template" form *only if not already in that state* (i.e., current template ID is not null).
-      if (currentTemplateInternalRef.current?.id !== null) {
-        resetFormToNew();
-      }
-      // If currentTemplateInternalRef.current.id is already null, we're in 'new template' mode.
-      // currentTemplate was initialized by useState, so no need to call resetFormToNew again as it would generate new nanoIds.
+       if (currentTemplateInternalRef.current?.id !== null) {
+          resetFormToNew();
+        }
     }
-    // Dependencies:
-    // - selectedTemplateToEditId: Primary trigger.
-    // - templates: If the list changes, we might need to reload or reset.
-    // - Other dependencies are stable callbacks/props.
-    // - activeRowAccordionItems: read before being potentially set.
   }, [
       selectedTemplateToEditId,
       templates,
-      reconstructMinimalTemplate, // Prop from page
-      resetFormToNew,             // useCallback
-      updateCurrentTemplateState, // useCallback
-      activeRowAccordionItems
+      reconstructMinimalTemplate,
+      resetFormToNew,
+      updateCurrentTemplateState,
+      activeRowAccordionItems // Included because it's read before being potentially set
   ]);
 
 
-  // Generic update function for top-level template properties
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
     const updatedRaw = { ...currentTemplateInternalRef.current, ...updates };
-    // Pass through reconstructMinimalTemplate to ensure canonical form for any update
-    updateCurrentTemplateState(updatedRaw);
-  }, [updateCurrentTemplateState]); // updateCurrentTemplateState depends on reconstructMinimalTemplate
+    updateCurrentTemplateState(reconstructMinimalTemplate(updatedRaw));
+  }, [updateCurrentTemplateState, reconstructMinimalTemplate]);
 
   const updateLocalRow = useCallback((rowId: string, updates: Partial<CardRow>) => {
     const newRows = (currentTemplateInternalRef.current.rows || []).map(r => r.id === rowId ? { ...r, ...updates } : r);
@@ -153,12 +167,14 @@ export function TemplateEditor({
 
   const addLocalRow = useCallback(() => {
     const newRowId = nanoid();
-    const newRows = [...(currentTemplateInternalRef.current.rows || []), memoizedGetFreshDefaultTemplate(null).rows[0] /* hack: get a default row structure */];
-    // Fix the new row's ID
-    newRows[newRows.length -1].id = newRowId;
-    // Ensure new row's columns also have new IDs
-    newRows[newRows.length-1].columns = newRows[newRows.length-1].columns.map(c => ({...c, id: nanoid()}));
-
+    const defaultRowStructure = memoizedGetFreshDefaultTemplate(null).rows[0] || { id: newRowId, columns: [], alignItems: 'flex-start' };
+    const newRow: CardRow = {
+        ...defaultRowStructure,
+        id: newRowId,
+        columns: defaultRowStructure.columns.map(c => ({ ...c, id: nanoid() }))
+    };
+    const newRows = [...(currentTemplateInternalRef.current.rows || []), newRow];
+    
     setActiveRowAccordionItems(active => [...active, newRowId]);
     setIsRowsAndSectionsCardOpen(true);
     updateCurrentTemplateState({ ...currentTemplateInternalRef.current, rows: newRows });
@@ -166,10 +182,13 @@ export function TemplateEditor({
 
   const removeLocalRow = useCallback((rowId: string) => {
     let newRows = (currentTemplateInternalRef.current.rows || []).filter(r => r.id !== rowId);
-    if (newRows.length === 0) { // Ensure there's always at least one row in the editor
-      const newFallbackRow = memoizedGetFreshDefaultTemplate(null).rows[0]; // Get a default row structure
-      newFallbackRow.id = nanoid(); // Give it a new ID
-      newFallbackRow.columns = newFallbackRow.columns.map(c => ({...c, id: nanoid()})); // New column IDs
+    if (newRows.length === 0) {
+      const defaultRowStructure = memoizedGetFreshDefaultTemplate(null).rows[0] || { id: nanoid(), columns: [], alignItems: 'flex-start' };
+      const newFallbackRow: CardRow = {
+          ...defaultRowStructure,
+          id: nanoid(),
+          columns: defaultRowStructure.columns.map(c => ({ ...c, id: nanoid() }))
+      };
       newRows.push(newFallbackRow);
       setActiveRowAccordionItems([newFallbackRow.id]);
     } else {
@@ -190,15 +209,16 @@ export function TemplateEditor({
   
   const addLocalSectionToRow = useCallback((rowId: string) => {
     const newSectionId = nanoid();
-    const newRows = (currentTemplateInternalRef.current.rows || []).map(r =>
-        r.id === rowId ? { ...r, columns: [...(r.columns || []), memoizedGetFreshDefaultTemplate(null).rows[0].columns[0] /* default section */ ] } : r
-    );
-    // Fix the new section's ID
-    const targetRow = newRows.find(r => r.id === rowId);
-    if (targetRow && targetRow.columns.length > 0) {
-      targetRow.columns[targetRow.columns.length -1].id = newSectionId;
-    }
+    const defaultSectionStructure = memoizedGetFreshDefaultTemplate(null).rows[0]?.columns[0] || { id: newSectionId, sectionContentType: 'placeholder', contentPlaceholder: '{{new_field}}', flexGrow: 0 };
+    const newSection: CardSection = {
+        ...defaultSectionStructure,
+        id: newSectionId,
+    };
 
+    const newRows = (currentTemplateInternalRef.current.rows || []).map(r =>
+        r.id === rowId ? { ...r, columns: [...(r.columns || []), newSection ] } : r
+    );
+    
     setActiveStylingAccordion(newSectionId);
     setActiveColumnAccordionItems(prevActive => [...prevActive, newSectionId]);
     if (!activeRowAccordionItems.includes(rowId)) setActiveRowAccordionItems(prevActive => [...prevActive, rowId]);
@@ -211,9 +231,9 @@ export function TemplateEditor({
     const newRows = (currentTemplateInternalRef.current.rows || []).map(r => {
       if (r.id === rowId) {
         const newColumns = (r.columns || []).filter(s => s.id !== sectionId);
-        // Ensure row always has at least one column
+        const defaultSectionStructure = memoizedGetFreshDefaultTemplate(null).rows[0]?.columns[0] || { id: nanoid(), sectionContentType: 'placeholder', contentPlaceholder: '{{fallback_field}}', flexGrow: 0 };
         const finalColumns = newColumns.length > 0 ? newColumns : [
-            { ...memoizedGetFreshDefaultTemplate(null).rows[0].columns[0], id: nanoid() } // default section with new ID
+            { ...defaultSectionStructure, id: nanoid() }
         ];
         return { ...r, columns: finalColumns };
       }
@@ -269,15 +289,14 @@ export function TemplateEditor({
         return;
     }
     
-    if (templateToSave.id === null) { // If it was a new template, it still has id: null
-        templateToSave.id = nanoid(); // Assign a new ID before saving
+    if (templateToSave.id === null) {
+        templateToSave.id = nanoid();
     }
 
-    onSaveTemplate(reconstructMinimalTemplate(templateToSave)); // Ensure it's in canonical form before saving
+    const finalSavedId = onSaveTemplate(reconstructMinimalTemplate(templateToSave));
     
-    // After saving, if it was a new template that now has an ID, select it.
-    if (selectedTemplateToEditId !== templateToSave.id) {
-      setSelectedTemplateToEditId(templateToSave.id!);
+    if (selectedTemplateToEditId !== finalSavedId) {
+      setSelectedTemplateToEditId(finalSavedId);
     }
     toast({ title: "Template Saved", description: `"${templateToSave.name || templateToSave.id}" saved.` });
   }, [onSaveTemplate, toast, selectedTemplateToEditId, reconstructMinimalTemplate]);
@@ -285,8 +304,6 @@ export function TemplateEditor({
 
   const handleSelectTemplateToEdit = useCallback((templateId: string | null) => {
      setSelectedTemplateToEditId(templateId); 
-     // The main useEffect will handle loading or resetting the form.
-     // Resetting custom dimension inputs for clarity if switching templates.
      setCustomWidthValue('');
      setCustomHeightValue('');
      setCustomUnit('mm');
@@ -311,7 +328,7 @@ export function TemplateEditor({
     setActiveStylingAccordion(prev => prev === sectionId ? null : sectionId);
   }, []);
 
-  const onToggleColumnAccordionCb = useCallback((sectionId: string) => { // Renamed to avoid conflict
+  const onToggleColumnAccordionCb = useCallback((sectionId: string) => {
     setActiveColumnAccordionItems(prev =>
       prev.includes(sectionId) ? prev.filter(id => id !== sectionId) : [...prev, sectionId]
     );
@@ -320,7 +337,7 @@ export function TemplateEditor({
   const handleRowClickFromPreview = useCallback((rowId: string) => {
     setIsRowsAndSectionsCardOpen(true);
     setActiveRowAccordionItems(prev => {
-      if (prev.includes(rowId) && prev.length === 1 && activeRowAccordionItems.length === 1) return prev;
+      if (prev.includes(rowId) && prev.length === 1 && activeRowAccordionItems.length === 1) return prev; // Avoid closing if it's the only one open and clicked again
       if(prev.includes(rowId)) return prev.filter(id => id !== rowId);
       return [...prev, rowId];
     });
@@ -361,15 +378,13 @@ export function TemplateEditor({
     toast({ title: "Aspect Ratio Updated", description: `Ratio set to ${simplified} based on custom dimensions.` });
   }, [customWidthValue, customHeightValue, updateCurrentTemplate, toast]);
 
+  // Effect to sync local aspectRatioInput when currentTemplate.aspectRatio changes externally
+  // This is a safe effect as it syncs local UI state from derived/canonical state.
   useEffect(() => {
-    // This effect syncs the local aspectRatioInput UI state when the currentTemplate's aspectRatio changes.
-    // This is important if the aspectRatio is changed programmatically (e.g., loading a template).
-    // It does not cause loops because setAspectRatioInput doesn't directly trigger changes to currentTemplate.aspectRatio.
-    // User changes to aspectRatioInput trigger updateCurrentTemplate, which updates currentTemplate.aspectRatio.
     if (currentTemplate.aspectRatio !== aspectRatioInput) {
         setAspectRatioInput(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
     }
-  }, [currentTemplate.aspectRatio]); // Removed aspectRatioInput from deps as it's being set
+  }, [currentTemplate.aspectRatio]);
 
 
   return (
@@ -457,7 +472,7 @@ export function TemplateEditor({
                         </CardTitle>
                         <CardDescription className="mt-1">
                             {currentTemplate.id === null ? "Define new template properties." : `Editing template properties.`}
-                            {currentTemplate.id && <span className="text-xs text-muted-foreground ml-2">(ID: {typeof currentTemplate.id === 'string' ? currentTemplate.id.substring(0,8) : 'New'})</span>}
+                            {hasMounted && currentTemplate.id && <span className="text-xs text-muted-foreground ml-2">(ID: {typeof currentTemplate.id === 'string' ? currentTemplate.id.substring(0,8) : 'New'})</span>}
                         </CardDescription>
                       </div>
                     </CardHeader>
@@ -490,18 +505,19 @@ export function TemplateEditor({
                                         if (ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0) {
                                             updateCurrentTemplate({ aspectRatio: newRatio });
                                         } else if (newRatio.trim() === '') {
-                                            updateCurrentTemplate({ aspectRatio: TCG_ASPECT_RATIO });
+                                            // If user clears it, maybe revert to default or last valid. For now, let it be, blur will fix.
+                                            updateCurrentTemplate({ aspectRatio: TCG_ASPECT_RATIO }); // Or set to an empty string / invalid marker
                                         }
                                     }}
                                     onBlur={() => { 
                                         const currentStoredRatio = currentTemplate.aspectRatio || TCG_ASPECT_RATIO;
                                         const ratioParts = aspectRatioInput.split(':').map(Number);
                                         if (!(ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0)) {
-                                            setAspectRatioInput(currentStoredRatio); 
-                                            if (currentTemplate.aspectRatio !== currentStoredRatio) { 
-                                               updateCurrentTemplate({ aspectRatio: currentStoredRatio });
-                                            }
+                                            setAspectRatioInput(currentStoredRatio); // Revert display to valid stored ratio
+                                            // No need to call updateCurrentTemplate if it's already currentStoredRatio
                                         } else if (aspectRatioInput !== currentStoredRatio) {
+                                            // If input is valid and different, it should have been updated by onChange already
+                                            // This blur ensures canonical form if user typed e.g. "063:088"
                                             updateCurrentTemplate({aspectRatio: aspectRatioInput});
                                         }
                                     }}
