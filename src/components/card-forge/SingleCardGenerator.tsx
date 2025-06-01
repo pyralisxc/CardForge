@@ -4,7 +4,7 @@
 import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
 import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
 import type { ChangeEvent } from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,16 +38,17 @@ export function SingleCardGenerator({
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
   // Local state for the form fields and data for the single card being generated.
-  // selectedTemplateId is now directly from selectedTemplateIdProp (Zustand store).
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Comment: selectedTemplateIdProp is managed by Zustand.
-  // Defaulting logic (e.g., selecting the first template if the current one is invalid)
-  // is handled by the Zustand store's _rehydrateCallback or actions like deleteTemplate.
+  // selectedTemplate is derived from selectedTemplateIdProp (from Zustand) and templates prop.
+  const selectedTemplate = useMemo(() => {
+    return templates.find(t => t.id === selectedTemplateIdProp);
+  }, [templates, selectedTemplateIdProp]);
+
 
   const generateDynamicFields = useCallback((template: TCGCardTemplate | undefined, currentData: CardData): [DynamicField[], CardData] => {
     if (!template) return [[], {}];
@@ -92,17 +93,17 @@ export function SingleCardGenerator({
     return [fields, newCardDataState];
   }, []);
 
-  // Safe useEffect: Reacts to selectedTemplateIdProp (from Zustand) or templates list changes
+  // Safe useEffect: Reacts to selectedTemplateIdProp (from Zustand via prop) or templates list changes
   // to regenerate dynamic fields and reset local cardData (form state) with defaults from the new template.
   useEffect(() => {
-    const template = templates.find(t => t.id === selectedTemplateIdProp);
+    // The selectedTemplate is now derived via useMemo based on selectedTemplateIdProp
     // Regenerate fields and reset cardData with defaults from the new template.
     // Passing {} as currentData ensures fresh defaults are applied.
-    const [newFields, newGeneratedData] = generateDynamicFields(template, {}); 
+    const [newFields, newGeneratedData] = generateDynamicFields(selectedTemplate, {}); 
     
     setDynamicFields(newFields);
     setCardData(newGeneratedData); // This resets the form to the new template's structure/defaults.
-  }, [selectedTemplateIdProp, templates, generateDynamicFields]);
+  }, [selectedTemplate, generateDynamicFields]); // Depend on the derived selectedTemplate
 
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string) => {
     setCardData(prev => ({ ...prev, [fieldKey]: e.target.value }));
@@ -130,8 +131,7 @@ export function SingleCardGenerator({
   }, [toast]);
 
   const handleAddCard = useCallback(() => {
-    const template = templates.find(t => t.id === selectedTemplateIdProp);
-    if (!template) {
+    if (!selectedTemplate) { // Use the memoized selectedTemplate
       toast({ title: "Template Required", description: "Please select a TCG template for the card.", variant: "destructive" });
       return;
     }
@@ -147,7 +147,7 @@ export function SingleCardGenerator({
     });
 
     const displayCard: DisplayCard = {
-      template: template,
+      template: selectedTemplate, // Use the memoized selectedTemplate
       data: finalCardData,
       uniqueId: nanoid(),
     };
@@ -156,14 +156,14 @@ export function SingleCardGenerator({
     toast({ title: "Success", description: `Card added to preview list.` });
     
     // Reset form fields to defaults for the currently selected template after adding a card
-    const [_, resetData] = generateDynamicFields(template, {});
+    const [_, resetData] = generateDynamicFields(selectedTemplate, {}); // Use memoized selectedTemplate
     setCardData(resetData);
 
-  }, [selectedTemplateIdProp, templates, cardData, dynamicFields, onSingleCardAdded, toast, generateDynamicFields]);
+  }, [selectedTemplate, cardData, dynamicFields, onSingleCardAdded, toast, generateDynamicFields]); // Use memoized selectedTemplate
 
   const handleTemplateSelectChange = useCallback((id: string | null) => {
     onTemplateSelectionChange(id); // Calls Zustand action via prop
-    // cardData will be reset by the useEffect hook reacting to selectedTemplateIdProp change
+    // cardData will be reset by the useEffect hook reacting to selectedTemplate change
   }, [onTemplateSelectionChange]);
 
 
@@ -284,3 +284,5 @@ export function SingleCardGenerator({
     </Card>
   );
 }
+
+    

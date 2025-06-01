@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront } from 'lucide-react';
 
-import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate as reconstructMinimalTemplateFromStore, getFreshDefaultTemplate } from '@/store/appStore';
+import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate as reconstructMinimalTemplateFromStore, getFreshDefaultTemplate as getFreshDefaultTemplateFromStore } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
 import type { TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -70,9 +70,8 @@ export default function CardForgePage() {
   // like setting initial template selections. No specific useEffect needed here for that.
 
   // Memoized versions of store utility functions to pass as stable props
-  // These come directly from the store now, no need to re-memoize here if they are stable from the store.
   const reconstructMinimalTemplate = useCallback(reconstructMinimalTemplateFromStore, []);
-  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplate, []);
+  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplateFromStore, []);
 
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
@@ -389,3 +388,5 @@ export default function CardForgePage() {
     </div>
   );
 }
+
+    
