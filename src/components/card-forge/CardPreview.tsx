@@ -3,12 +3,14 @@
 
 import type { DisplayCard, CardSection, CardData, CardRow } from '@/types';
 import NextImage from 'next/image';
-import { cn, replacePlaceholdersLocal, simplifyRatio, gcd } from '@/lib/utils'; // Added simplifyRatio, gcd
+import { cn, replacePlaceholdersLocal, simplifyRatio, gcd } from '@/lib/utils';
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 interface CardPreviewProps {
-  card: DisplayCard; // Updated to expect the new DisplayCard structure
+  card: DisplayCard;
   className?: string;
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
@@ -18,7 +20,8 @@ interface CardPreviewProps {
   onRowClick?: (rowId: string) => void;
   onEdit?: (card: DisplayCard) => void;
   targetWidthPx?: number;
-  forceRenderSide?: 'front' | 'back'; // For PDF generator to explicitly render back
+  forceRenderSide?: 'front' | 'back';
+  onToggleSide?: (uniqueId: string) => void;
 }
 
 const PREVIEW_WIDTH_PX = 280; 
@@ -37,14 +40,14 @@ export function CardPreview({
   onEdit,
   targetWidthPx,
   forceRenderSide = 'front',
+  onToggleSide,
 }: CardPreviewProps) {
   
   const templateToRender = (forceRenderSide === 'back' && card.backTemplate) ? card.backTemplate : card.frontTemplate;
   const dataToRender = (forceRenderSide === 'back' && card.backData) ? card.backData : card.frontData;
 
-  if (!templateToRender) { // If forcing back and no back template, render nothing or a placeholder
+  if (!templateToRender) {
     if (forceRenderSide === 'back') {
-        // Optionally render a blank card or specific "no back" visual for PDF
         const [aspectW, aspectH] = (card.frontTemplate.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
         const effectiveWidth = targetWidthPx || PREVIEW_WIDTH_PX;
         const cardPixelHeightFallback = (effectiveWidth / aspectW) * aspectH;
@@ -63,7 +66,7 @@ export function CardPreview({
             </div>
         );
     }
-    return <div className="text-destructive">Error: Template not provided for rendering.</div>;
+    return <div className="text-destructive p-4 text-center">Error: Template not provided for rendering. Card ID: {card.uniqueId}</div>;
   }
 
 
@@ -148,25 +151,47 @@ export function CardPreview({
     return false;
   };
   
-  const handleCardClick = () => {
-    if (onEdit && !isEditorPreview && forceRenderSide === 'front') { // Only allow edit on front preview
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent edit dialog if toggle button was clicked
+    if ((e.target as HTMLElement).closest('.card-side-toggle-button')) {
+      return;
+    }
+    if (onEdit && !isEditorPreview) {
       onEdit(card);
     }
   };
 
-  // Use a unique ID for the preview element, incorporating the side if forced
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click event
+    if (onToggleSide) {
+      onToggleSide(card.uniqueId);
+    }
+  };
+
   const elementIdSuffix = forceRenderSide === 'back' ? `${card.uniqueId}-back` : card.uniqueId;
 
 
   return (
     <div 
-      id={`card-preview-${elementIdSuffix}`} // Use uniqueId from original card prop
-      className={cn("flex flex-col items-center group", className)}
+      id={`card-preview-${elementIdSuffix}`}
+      className={cn("flex flex-col items-center group relative", className)} // Added relative for button positioning
     >
+      {onToggleSide && !isPrintMode && !isEditorPreview && (card.backTemplate || forceRenderSide === 'back') && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="card-side-toggle-button absolute top-1 right-1 z-10 h-7 w-7 bg-background/70 hover:bg-background/90 text-muted-foreground hover:text-foreground no-print"
+          onClick={handleToggleClick}
+          aria-label={forceRenderSide === 'back' ? 'View Front' : 'View Back'}
+          title={forceRenderSide === 'back' ? 'View Front' : 'View Back'}
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      )}
       <div
         className={cn(
           "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden",
-          onEdit && !isEditorPreview && forceRenderSide === 'front' ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
+          onEdit && !isEditorPreview ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
           `frame-${templateToRender.frameStyle || 'standard'}`
         )}
         style={cardContainerStyle}
@@ -331,9 +356,8 @@ export function CardPreview({
                     const isValidUrl = imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'));
 
                     if (!isValidUrl) {
-                         // Use a placeholder that indicates front or back if appropriate
                         const placeholderText = forceRenderSide === 'back' ? "Back Art" : (artworkHintValue || "Artwork");
-                        imageUrl = `https://placehold.co/${displayWidth || 600}x${displayHeight || 400}.png?text=${encodeURIComponent(placeholderText)}`;
+                        imageUrl = `https://placehold.co/${displayWidth > 0 ? displayWidth : 600}x${displayHeight > 0 ? displayHeight : 400}.png?text=${encodeURIComponent(placeholderText)}`;
                     }
                     
                     if (shouldHideSection(section, imageUrl) && !isEditorPreview) {
@@ -390,9 +414,9 @@ export function CardPreview({
           );
         })}
       </div>
-      {showSizeInfo && !isPrintMode && forceRenderSide === 'front' && (
+      {showSizeInfo && !isPrintMode && (
         <div className="text-xs text-muted-foreground mt-1" data-html2canvas-ignore="true">
-          {calculatedPrintSize}
+          {calculatedPrintSize} (Viewing: {forceRenderSide})
         </div>
       )}
     </div>

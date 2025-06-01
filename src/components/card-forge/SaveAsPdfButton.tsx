@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { CardPreview } from './CardPreview'; // Import CardPreview
+import { CardPreview } from './CardPreview';
 
 interface SaveAsPdfButtonProps {
   generatedDisplayCards: DisplayCard[];
@@ -32,62 +32,55 @@ export function SaveAsPdfButton({
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const { toast } = useToast();
 
-  const renderCardForCanvas = async (card: DisplayCard, side: 'front' | 'back'): Promise<HTMLDivElement | null> => {
+  const renderCardForCanvas = async (card: DisplayCard, side: 'front' | 'back', renderContainer: HTMLDivElement): Promise<HTMLDivElement | null> => {
     const templateToRender = side === 'back' ? card.backTemplate : card.frontTemplate;
-    if (!templateToRender && side === 'back' && !card.backTemplate) { // If specifically asking for back and no back template
-        // Create a dummy div matching front card's aspect ratio for blank back
+    
+    if (!templateToRender && side === 'back' && !card.backTemplate) {
         const aspectRatioString = card.frontTemplate.aspectRatio || TCG_ASPECT_RATIO;
         const ratioParts = aspectRatioString.split(':').map(Number);
-        const cardWidthMm = 63; // Standard print width
+        const cardWidthMm = 63;
         let cardHeightMm = (cardWidthMm / (ratioParts[0] || 63)) * (ratioParts[1] || 88);
 
         const tempDiv = document.createElement('div');
-        tempDiv.style.width = `${cardWidthMm * 3.7795275591}px`; // Convert mm to approx px for canvas
+        tempDiv.style.width = `${cardWidthMm * 3.7795275591}px`;
         tempDiv.style.height = `${cardHeightMm * 3.7795275591}px`;
-        tempDiv.style.backgroundColor = 'white'; // Or some other indicator of blank
-        tempDiv.style.border = '1px solid #ccc';
+        tempDiv.style.backgroundColor = '#FFFFFF'; 
+        tempDiv.style.border = '1px solid #DDDDDD';
         tempDiv.style.display = 'flex';
         tempDiv.style.alignItems = 'center';
         tempDiv.style.justifyContent = 'center';
-        // tempDiv.innerHTML = '<p style="font-size: 12px; color: #666;">Blank Back</p>'; // Optional text
-        return tempDiv; // Return the div itself, html2canvas can take an element
+        // Ensure this div is appended to the renderContainer for html2canvas to find it
+        renderContainer.appendChild(tempDiv);
+        return tempDiv;
     }
-    if(!templateToRender) return null;
+    if (!templateToRender) return null;
 
+    // Create a dedicated child div within renderContainer for each card to avoid conflicts
+    const cardSpecificContainer = document.createElement('div');
+    cardSpecificContainer.id = `pdf-render-card-${card.uniqueId}-${side}-${Date.now()}`;
+    renderContainer.appendChild(cardSpecificContainer);
 
-    // Create a temporary div to render the CardPreview component
-    const tempContainer = document.createElement('div');
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px'; // Position off-screen
-    tempContainer.style.top = '-9999px';
-    document.body.appendChild(tempContainer);
-
-    // Use ReactDOM.render to render the component into the div
-    // We need a unique key for React reconciliation if we render multiple times
     const previewElement = createElement(CardPreview, {
+      key: `pdf-preview-${card.uniqueId}-${side}`, // Unique key for React
       card: card,
-      isPrintMode: true, // Ensures certain styles/elements are for printing
+      isPrintMode: true,
       forceRenderSide: side,
-      // targetWidthPx should match the desired canvas resolution width
-      // Standard TCG is ~2.5in wide. At 300DPI, this is 750px. Let's use a smaller consistent size for canvas generation.
-      targetWidthPx: 300, // A consistent width for canvas generation
-      className: `pdf-render-card-${side}` // Add a class for potential styling
+      targetWidthPx: 300, 
+      className: `pdf-render-card-${side}`
     });
     
-    // A way to wait for the component to be rendered and styles applied.
-    // This is a common challenge with html2canvas and dynamically rendered React components.
     return new Promise((resolve) => {
-      ReactDOM.render(previewElement, tempContainer, () => {
-        // Small timeout to allow browser to paint. This is not foolproof.
-        setTimeout(() => {
-          const cardElement = tempContainer.firstChild as HTMLDivElement;
-          resolve(cardElement);
-          // Clean up after a delay to ensure canvas is done
-          // setTimeout(() => {
-          //   ReactDOM.unmountComponentAtNode(tempContainer);
-          //   document.body.removeChild(tempContainer);
-          // }, 100);
-        }, 50); // Adjust delay as needed, or look into MutationObserver
+      ReactDOM.render(previewElement, cardSpecificContainer, () => {
+        setTimeout(() => { // Allow browser to paint
+          const cardElement = cardSpecificContainer.firstChild as HTMLDivElement | null;
+          if (cardElement) {
+            resolve(cardElement);
+          } else {
+            console.error(`Failed to get cardElement for ${card.uniqueId}-${side}`);
+            resolve(null);
+          }
+          // Do not unmount/remove here, parent loop will clean up the main renderContainer
+        }, 100); // Increased timeout slightly
       });
     });
   };
@@ -122,8 +115,7 @@ export function SaveAsPdfButton({
       let cardsOnCurrentFrontPage: { card: DisplayCard, x: number, y: number, w: number, h: number }[] = [];
       let currentX = pdfMarginMm;
       let currentY = pdfMarginMm;
-      let pageNumber = 1;
-
+      
       for (let i = 0; i < generatedDisplayCards.length; i++) {
         const cardItem = generatedDisplayCards[i];
         const aspectRatioString = cardItem.frontTemplate.aspectRatio || TCG_ASPECT_RATIO;
@@ -131,16 +123,14 @@ export function SaveAsPdfButton({
         let cardWidthMm = standardPrintCardWidthMm;
         let cardHeightMm = (cardWidthMm / (ratioParts[0] || 63)) * (ratioParts[1] || 88);
 
-        if (currentX + cardWidthMm > effectivePrintableWidthMm + pdfCardSpacingMm - (pdfCardSpacingMm > 0 ? pdfCardSpacingMm : 0)  && cardsOnCurrentFrontPage.length > 0) { // card won't fit in row
+        if (currentX + cardWidthMm > effectivePrintableWidthMm + pdfMarginMm - (pdfCardSpacingMm > 0 ? 0 : pdfCardSpacingMm) && cardsOnCurrentFrontPage.length > 0) {
           currentX = pdfMarginMm;
-          currentY += cardsOnCurrentFrontPage[0].h + pdfCardSpacingMm; // Use height of first card in previous row for simplicity
+          currentY += cardsOnCurrentFrontPage[0].h + pdfCardSpacingMm;
         }
-        if (currentY + cardHeightMm > effectivePrintableHeightMm + pdfCardSpacingMm - (pdfCardSpacingMm > 0 ? pdfCardSpacingMm : 0) && cardsOnCurrentFrontPage.length > 0) { // card won't fit on page
-           // Process current page's fronts and backs
+        if (currentY + cardHeightMm > effectivePrintableHeightMm + pdfMarginMm - (pdfCardSpacingMm > 0 ? 0 : pdfCardSpacingMm) && cardsOnCurrentFrontPage.length > 0) {
           await processPage(pdf, cardsOnCurrentFrontPage, tempRenderContainer);
-          cardsOnCurrentFrontPage = [];
+          cardsOnCurrentFrontPage = []; // Reset for next page
           pdf.addPage();
-          pageNumber++;
           currentX = pdfMarginMm;
           currentY = pdfMarginMm;
         }
@@ -160,8 +150,11 @@ export function SaveAsPdfButton({
       toast({ title: "PDF Generation Failed", description: `An error occurred: ${(error as Error).message}`, variant: "destructive" });
     } finally {
       setIsLoadingPdf(false);
-      ReactDOM.unmountComponentAtNode(tempRenderContainer); // Ensure unmount
-      document.body.removeChild(tempRenderContainer); // Clean up container
+      // Clean up: Unmount all rendered components and remove the container
+      ReactDOM.unmountComponentAtNode(tempRenderContainer);
+      if (document.body.contains(tempRenderContainer)) {
+        document.body.removeChild(tempRenderContainer);
+      }
     }
   };
 
@@ -170,27 +163,54 @@ export function SaveAsPdfButton({
     pageCards: { card: DisplayCard, x: number, y: number, w: number, h: number }[],
     renderContainer: HTMLDivElement
   ) {
+    // Clear previous renderContainer children before rendering new set
+    while (renderContainer.firstChild) {
+        ReactDOM.unmountComponentAtNode(renderContainer.firstChild as Element); // Unmount React component if it's a root
+        renderContainer.removeChild(renderContainer.firstChild);
+    }
+
     // Render and add all fronts for this page
     for (const { card, x, y, w, h } of pageCards) {
-      const cardElement = await renderCardForCanvas(card, 'front');
+      const cardElement = await renderCardForCanvas(card, 'front', renderContainer);
       if (cardElement) {
-        const canvas = await html2canvas(cardElement, { scale: 2, useCORS: true, logging: false, backgroundColor: null });
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
-        if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
+        try {
+            const canvas = await html2canvas(cardElement, { scale: 2, useCORS: true, logging: false, backgroundColor: null });
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
+            if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
+        } catch (e) {
+            console.error("Error processing front of card for PDF:", card.uniqueId, e);
+            pdf.text(`Error rendering front: ${card.uniqueId.substring(0,5)}`, x, y + h/2);
+        }
+      } else {
+         pdf.text(`Missing front render: ${card.uniqueId.substring(0,5)}`, x, y + h/2);
       }
     }
 
-    // Check if any card on this page has a back
-    const hasAnyBacks = pageCards.some(c => c.card.backTemplate);
-    if (hasAnyBacks) {
+    const hasAnyBacksOnThisPage = pageCards.some(c => c.card.backTemplate);
+    if (hasAnyBacksOnThisPage) {
       pdf.addPage();
-      // Render and add all backs for this page
+      // Clear renderContainer again for back sides
+      while (renderContainer.firstChild) {
+          ReactDOM.unmountComponentAtNode(renderContainer.firstChild as Element);
+          renderContainer.removeChild(renderContainer.firstChild);
+      }
+
       for (const { card, x, y, w, h } of pageCards) {
-        const backElement = await renderCardForCanvas(card, 'back');
+        const backElement = await renderCardForCanvas(card, 'back', renderContainer);
         if (backElement) {
-          const canvas = await html2canvas(backElement, { scale: 2, useCORS: true, logging: false, backgroundColor: null });
-          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
-          if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
+          try {
+            const canvas = await html2canvas(backElement, { scale: 2, useCORS: true, logging: false, backgroundColor: null });
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h); // Position backs at the same (mirrored) location
+            if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
+          } catch (e) {
+            console.error("Error processing back of card for PDF:", card.uniqueId, e);
+            pdf.text(`Error rendering back: ${card.uniqueId.substring(0,5)}`, x, y + h/2);
+          }
+        } else if (card.backTemplate) { // It was supposed to have a back, but rendering failed
+             pdf.text(`Missing back render: ${card.uniqueId.substring(0,5)}`, x, y + h/2);
+        } else { // No back template, draw a simple placeholder if needed for alignment (already handled by renderCardForCanvas for blank backs)
+            // The renderCardForCanvas already handles creating a blank div for no-back scenarios.
+            // If that itself returned null, it's an issue. For now, if backElement is null and no backTemplate, it means it's a blank.
         }
       }
     }
@@ -199,18 +219,26 @@ export function SaveAsPdfButton({
   function drawCutLines(pdf: jsPDF, x: number, y: number, w: number, h: number) {
       pdf.setDrawColor(180, 180, 180); 
       pdf.setLineWidth(0.1);
-      const cutOffset = pdfCardSpacingMm > 0 ? 0 : -0.5; 
-      const cutLength = 3; 
+      // Adjust cut lines if spacing is zero to avoid overlap, draw inside slightly
+      const cutOffset = pdfCardSpacingMm === 0 ? 0.2 : 0; 
+      const cutLength = pdfCardSpacingMm === 0 ? 2 : 3;
 
-      pdf.line(x + cutOffset - cutLength, y + cutOffset, x + cutOffset, y + cutOffset);
-      pdf.line(x + cutOffset, y + cutOffset - cutLength, x + cutOffset, y + cutOffset);
-      pdf.line(x + w - cutOffset + cutLength, y + cutOffset, x + w - cutOffset, y + cutOffset);
-      pdf.line(x + w - cutOffset, y + cutOffset - cutLength, x + w - cutOffset, y + cutOffset);
-      pdf.line(x + cutOffset - cutLength, y + h - cutOffset, x + cutOffset, y + h - cutOffset);
-      pdf.line(x + cutOffset, y + h - cutOffset + cutLength, x + cutOffset, y + h - cutOffset);
-      pdf.line(x + w - cutOffset + cutLength, y + h - cutOffset, x + w - cutOffset, y + h - cutOffset);
-      pdf.line(x + w - cutOffset, y + h - cutOffset + cutLength, x + w - cutOffset, y + h - cutOffset);
-      if (pdfCardSpacingMm === 0) {
+      // Top-left
+      pdf.line(x - cutLength + cutOffset, y + cutOffset, x + cutOffset, y + cutOffset);
+      pdf.line(x + cutOffset, y - cutLength + cutOffset, x + cutOffset, y + cutOffset);
+      // Top-right
+      pdf.line(x + w + cutLength - cutOffset, y + cutOffset, x + w - cutOffset, y + cutOffset);
+      pdf.line(x + w - cutOffset, y - cutLength + cutOffset, x + w - cutOffset, y + cutOffset);
+      // Bottom-left
+      pdf.line(x - cutLength + cutOffset, y + h - cutOffset, x + cutOffset, y + h - cutOffset);
+      pdf.line(x + cutOffset, y + h + cutLength - cutOffset, x + cutOffset, y + h - cutOffset);
+      // Bottom-right
+      pdf.line(x + w + cutLength - cutOffset, y + h - cutOffset, x + w - cutOffset, y + h - cutOffset);
+      pdf.line(x + w - cutOffset, y + h + cutLength - cutOffset, x + w - cutOffset, y + h - cutOffset);
+      
+      // If no spacing, explicitly draw the card border to make cutting easier
+      if (pdfCardSpacingMm === 0 && pdfIncludeCutLines) {
+          pdf.setDrawColor(200, 200, 200); // Lighter color for the box itself
           pdf.rect(x, y, w, h);
       }
   }
