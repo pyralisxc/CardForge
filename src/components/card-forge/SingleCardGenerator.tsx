@@ -39,7 +39,7 @@ export function SingleCardGenerator({
   onTemplateSelectionChange,
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
-  const [selectedFrontTemplateId, setSelectedFrontTemplateId] = useState<string | null>(selectedTemplateIdProp || templates[0]?.id || null);
+  const [selectedFrontTemplateId, setSelectedFrontTemplateId] = useState<string | null>(null);
   const [selectedBackTemplateId, setSelectedBackTemplateId] = useState<string | null>(null);
 
   const [frontCardData, setFrontCardData] = useState<CardData>({});
@@ -53,12 +53,16 @@ export function SingleCardGenerator({
   const backFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    if (selectedTemplateIdProp !== undefined) {
-      setSelectedFrontTemplateId(selectedTemplateIdProp || templates[0]?.id || null);
+    const initialTargetId = selectedTemplateIdProp !== undefined 
+        ? (selectedTemplateIdProp || (templates.length > 0 ? templates[0].id : null))
+        : (templates.length > 0 ? templates[0].id : null);
+    if (selectedFrontTemplateId !== initialTargetId) {
+        setSelectedFrontTemplateId(initialTargetId);
     }
-  }, [selectedTemplateIdProp, templates]);
+  }, [selectedTemplateIdProp, templates, selectedFrontTemplateId]);
 
-  const generateDynamicFields = (template: TCGCardTemplate | undefined, currentData: CardData): [DynamicField[], CardData] => {
+
+  const generateDynamicFields = useCallback((template: TCGCardTemplate | undefined, currentData: CardData): [DynamicField[], CardData] => {
     if (!template) return [[], {}];
 
     const extractedPlaceholders = extractUniquePlaceholderKeys(template);
@@ -98,43 +102,27 @@ export function SingleCardGenerator({
       };
     });
     return [fields, newCardDataState];
-  };
+  }, []);
 
   useEffect(() => {
     const frontTemplate = templates.find(t => t.id === selectedFrontTemplateId);
-    const [newFrontFields, newFrontData] = generateDynamicFields(frontTemplate, frontCardData);
+    const [newFrontFields, newGeneratedFrontData] = generateDynamicFields(frontTemplate, frontCardData);
+    
     setFrontDynamicFields(newFrontFields);
-    if (Object.keys(frontCardData).join(',') !== Object.keys(newFrontData).join(',')) {
-        setFrontCardData(newFrontData);
-    } else {
-        const updatedWithDefaults = {...newFrontData};
-        Object.keys(newFrontData).forEach(key => {
-            if (String(updatedWithDefaults[key]).trim() === '' && newFrontFields.find(f=>f.key === key)?.defaultValue) {
-                updatedWithDefaults[key] = newFrontFields.find(f=>f.key === key)!.defaultValue!;
-            }
-        });
-        setFrontCardData(updatedWithDefaults);
+    if (JSON.stringify(frontCardData) !== JSON.stringify(newGeneratedFrontData)) {
+        setFrontCardData(newGeneratedFrontData);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFrontTemplateId, templates]); // Only re-run for front if front template changes
+  }, [selectedFrontTemplateId, templates, frontCardData, generateDynamicFields]);
 
   useEffect(() => {
     const backTemplate = templates.find(t => t.id === selectedBackTemplateId);
-    const [newBackFields, newBackData] = generateDynamicFields(backTemplate, backCardData);
+    const [newBackFields, newGeneratedBackData] = generateDynamicFields(backTemplate, backCardData);
+
     setBackDynamicFields(newBackFields);
-     if (Object.keys(backCardData).join(',') !== Object.keys(newBackData).join(',')) {
-        setBackCardData(newBackData);
-    } else {
-        const updatedWithDefaults = {...newBackData};
-        Object.keys(newBackData).forEach(key => {
-            if (String(updatedWithDefaults[key]).trim() === '' && newBackFields.find(f=>f.key === key)?.defaultValue) {
-                updatedWithDefaults[key] = newBackFields.find(f=>f.key === key)!.defaultValue!;
-            }
-        });
-        setBackCardData(updatedWithDefaults);
+    if (JSON.stringify(backCardData) !== JSON.stringify(newGeneratedBackData)) {
+        setBackCardData(newGeneratedBackData);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBackTemplateId, templates]); // Only re-run for back if back template changes
+  }, [selectedBackTemplateId, templates, backCardData, generateDynamicFields]);
 
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, fieldKey: string, side: 'front' | 'back') => {
     const setter = side === 'front' ? setFrontCardData : setBackCardData;
@@ -211,17 +199,25 @@ export function SingleCardGenerator({
   }, [selectedFrontTemplateId, selectedBackTemplateId, templates, frontCardData, backCardData, frontDynamicFields, backDynamicFields, onSingleCardAdded, toast]);
 
   const handleFrontTemplateSelectChange = useCallback((id: string | null) => {
-    setSelectedFrontTemplateId(id);
-    setFrontCardData({});
+    if (selectedFrontTemplateId !== id) {
+        setSelectedFrontTemplateId(id);
+        // Reset frontCardData to trigger re-initialization by the useEffect for front data
+        // This ensures that stale data from a previous template isn't improperly merged.
+        setFrontCardData({}); 
+    }
     if (onTemplateSelectionChange) {
       onTemplateSelectionChange(id);
     }
-  }, [onTemplateSelectionChange]);
+  }, [onTemplateSelectionChange, selectedFrontTemplateId]);
 
   const handleBackTemplateSelectChange = useCallback((id: string | null) => {
-    setSelectedBackTemplateId(id === NO_BACK_TEMPLATE_VALUE ? null : id);
-    setBackCardData({});
-  }, []);
+    const newBackId = id === NO_BACK_TEMPLATE_VALUE ? null : id;
+    if (selectedBackTemplateId !== newBackId) {
+        setSelectedBackTemplateId(newBackId);
+        // Reset backCardData for the same reasons as frontCardData
+        setBackCardData({});
+    }
+  }, [selectedBackTemplateId]);
 
   const renderFieldsForSide = (
     fields: DynamicField[],
@@ -292,7 +288,7 @@ export function SingleCardGenerator({
         <div>
           <Label htmlFor="singleFrontTemplateSelect">Select Front Template*</Label>
           <Select
-            value={selectedFrontTemplateId ?? undefined} // Use undefined for Select to show placeholder if value is null
+            value={selectedFrontTemplateId ?? undefined}
             onValueChange={handleFrontTemplateSelectChange}
             disabled={templates.length === 0}
           >
@@ -374,3 +370,4 @@ export function SingleCardGenerator({
     </Card>
   );
 }
+
