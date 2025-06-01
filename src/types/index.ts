@@ -61,6 +61,16 @@ export interface PaperSize {
   heightMm: number;
 }
 
+// Represents the structure stored in localStorage for generated cards
+export interface StoredDisplayCard {
+  frontTemplateId: string;
+  frontData: CardData;
+  backTemplateId?: string | null;
+  backData?: CardData | null;
+  uniqueId: string;
+}
+
+// Represents the runtime structure used in the application
 export interface DisplayCard {
   frontTemplate: TCGCardTemplate;
   frontData: CardData;
