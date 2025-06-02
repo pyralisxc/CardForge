@@ -54,12 +54,19 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
     baseBackgroundColor: 'hsl(260, 60%, 55%)', baseTextColor: 'hsl(220, 10%, 95%)', cardBorderColor: 'hsl(220, 10%, 95%)',
     cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem', cardBackgroundImageUrl: undefined,
   },
-  'standard': {
-    baseBackgroundColor: '#FFFFFF', baseTextColor: '#000000', cardBorderColor: undefined, // Default fallback border color will apply from theme/globals
-    cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
+  'standard': { // For 'Standard' (user-editable colors from theme defaults)
+    baseBackgroundColor: '#FFFFFF', // Default white, user can change
+    baseTextColor: '#000000',     // Default black, user can change
+    cardBorderColor: undefined,      // Fallback to theme/globals.css, user can change. reconstruction will remove if undefined.
+    cardBorderWidth: '4px',       // Default, user can change
+    cardBorderStyle: 'solid',     // Default, user can change
+    cardBorderRadius: '0.5rem',   // Default, user can change
+    cardBackgroundImageUrl: undefined, // User can set
   },
-  'custom': { // For 'Custom Colors' mode, allows full user control
-    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '', // Start empty or with theme defaults
+  'custom': { // For 'Custom Colors' mode (user-editable from blank slate or last values)
+    // These are often initially empty or based on previous state before switching to custom.
+    // Reconstruction will turn empty strings to undefined for these optional fields.
+    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '', 
     cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
   }
 };
@@ -119,10 +126,7 @@ export function TemplateEditor({
   const resetFormToNew = useCallback(() => {
     const newFreshTemplate = memoizedGetFreshDefaultTemplate(null, "New Unsaved Template");
     updateCurrentTemplateState(newFreshTemplate);
-    // Explicitly set UI states for a new template
-    setAspectRatioInput(newFreshTemplate.aspectRatio || TCG_ASPECT_RATIO);
-    setActiveRowAccordionItems((newFreshTemplate.rows || []).map(r => r.id).filter(Boolean) as string[]);
-  }, [memoizedGetFreshDefaultTemplate, updateCurrentTemplateState, reconstructMinimalTemplate]);
+  }, [memoizedGetFreshDefaultTemplate, updateCurrentTemplateState]);
 
 
   // Main Data Loading Effect: Responsible for loading the selected template or resetting.
@@ -163,18 +167,16 @@ export function TemplateEditor({
   // Effect to synchronize aspectRatioInput with currentTemplate.aspectRatio
   useEffect(() => {
     if (!hasMounted) return;
-
     const targetAspectRatio = currentTemplateInternalRef.current.aspectRatio || TCG_ASPECT_RATIO;
     if (targetAspectRatio !== aspectRatioInput) {
       setAspectRatioInput(targetAspectRatio);
     }
-  }, [hasMounted, currentTemplateInternalRef.current.aspectRatio, currentTemplateInternalRef.current.id, aspectRatioInput]);
+  }, [hasMounted, currentTemplateInternalRef.current.id, currentTemplateInternalRef.current.aspectRatio, aspectRatioInput]);
 
 
   // Effect to synchronize activeRowAccordionItems with currentTemplate.rows
   useEffect(() => {
     if (!hasMounted) return;
-
     let newRowIds: string[];
     const currentRows = currentTemplateInternalRef.current.rows;
 
@@ -190,38 +192,40 @@ export function TemplateEditor({
     if (JSON.stringify(newRowIds) !== JSON.stringify(activeRowAccordionItems)) {
       setActiveRowAccordionItems(newRowIds);
     }
-  }, [hasMounted, currentTemplateInternalRef.current.rows, currentTemplateInternalRef.current.id, activeRowAccordionItems, memoizedGetFreshDefaultTemplate]);
+  }, [hasMounted, currentTemplateInternalRef.current.id, currentTemplateInternalRef.current.rows, activeRowAccordionItems, memoizedGetFreshDefaultTemplate]);
 
   // Effect to update currentTemplate with visual properties from pre-defined frame styles
   useEffect(() => {
     if (!hasMounted) return;
 
-    const currentActualFrameStyle = currentTemplateInternalRef.current.frameStyle || 'standard';
-    const predefinedProps = PREDEFINED_FRAME_VISUAL_PROPERTIES[currentActualFrameStyle];
+    const newSelectedFrameStyle = currentTemplateInternalRef.current.frameStyle || 'standard';
+    const predefinedVisualProps = PREDEFINED_FRAME_VISUAL_PROPERTIES[newSelectedFrameStyle];
 
-    if (predefinedProps) {
-      let needsAnUpdate = false;
-      const updatesToConsider: Partial<TCGCardTemplate> = {};
+    if (predefinedVisualProps) {
+      // Construct the next state by taking essential non-visual parts from the current template,
+      // and overlaying all visual properties from the selected frame style.
+      const candidateTemplateState: Partial<TCGCardTemplate> = {
+        // Preserve essential non-visual properties that are NOT part of visual styling
+        id: currentTemplateInternalRef.current.id,
+        name: currentTemplateInternalRef.current.name,
+        aspectRatio: currentTemplateInternalRef.current.aspectRatio,
+        rows: currentTemplateInternalRef.current.rows,
+        // defaultSectionBorderColor is also a visual prop but part of overall styling, not a specific frame style visual.
+        // Let PREDEFINED_FRAME_VISUAL_PROPERTIES override it if it defines it, else keep current.
+        defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor,
 
-      for (const key in predefinedProps) {
-        const typedKey = key as keyof TCGCardTemplate;
-        if (currentTemplateInternalRef.current[typedKey] !== predefinedProps[typedKey]) {
-          updatesToConsider[typedKey] = predefinedProps[typedKey];
-          needsAnUpdate = true;
-        }
-      }
+        // Apply ALL visual properties from the selected frame style
+        ...predefinedVisualProps,
+        
+        frameStyle: newSelectedFrameStyle, // Ensure the frameStyle itself is correctly set
+      };
       
-      if (!Object.prototype.hasOwnProperty.call(predefinedProps, 'cardBackgroundImageUrl') && currentTemplateInternalRef.current.cardBackgroundImageUrl) {
-          updatesToConsider.cardBackgroundImageUrl = undefined;
-          needsAnUpdate = true;
-      }
-
-
-      if (needsAnUpdate) {
-        updateCurrentTemplate(updatesToConsider);
-      }
+      // updateCurrentTemplateState handles reconstruction and the JSON.stringify check.
+      updateCurrentTemplateState(candidateTemplateState);
     }
-  }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplate]);
+  // Key dependencies: only run when frameStyle changes (which is updated by user selection), or on mount.
+  // reconstructMinimalTemplate is used by updateCurrentTemplateState.
+  }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplateState, reconstructMinimalTemplate]);
 
 
   const updateLocalRow = useCallback((rowId: string, updates: Partial<CardRow>) => {
@@ -889,3 +893,4 @@ export function TemplateEditor({
     </div>
   );
 }
+
