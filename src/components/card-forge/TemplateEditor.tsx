@@ -31,27 +31,20 @@ import type { getFreshDefaultTemplate as GetFreshDefaultTemplateFn, reconstructM
 
 export type { ReconstructMinimalTemplateFn as ReconstructTemplatePropFn };
 
-interface TemplateEditorProps {
-  onSaveTemplate: (template: TCGCardTemplate) => string;
-  templates: TCGCardTemplate[];
-  onDeleteTemplate: (templateId: string) => void;
-  reconstructMinimalTemplate: ReconstructMinimalTemplateFn;
-  memoizedGetFreshDefaultTemplate: GetFreshDefaultTemplateFn;
-  selectedTemplateIdForEditing: string | null;
-  onSelectTemplateForEditing: (id: string | null) => void;
-}
-
 const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate>> = {
   'classic-gold': {
     baseBackgroundColor: '#fDF4D8', baseTextColor: '#4A3B2A', cardBorderRadius: '0.75rem',
-    cardBorderColor: 'transparent', cardBorderWidth: '6px', cardBorderStyle: 'solid', cardBackgroundImageUrl: undefined,
+    cardBorderColor: 'transparent', // This will be handled by CSS border-image for classic-gold
+    cardBorderWidth: '6px', cardBorderStyle: 'solid', cardBackgroundImageUrl: undefined,
   },
   'minimal-dark': {
     baseBackgroundColor: '#282828', baseTextColor: '#c0c0c0', cardBorderColor: '#4a4a4a',
     cardBorderWidth: '2px', cardBorderStyle: 'solid', cardBorderRadius: '0.25rem', cardBackgroundImageUrl: undefined,
   },
   'arcane-purple': {
-    baseBackgroundColor: 'hsl(260, 60%, 55%)', baseTextColor: 'hsl(220, 10%, 95%)', cardBorderColor: 'hsl(220, 10%, 95%)',
+    baseBackgroundColor: '#7A52CC', // Was hsl(260, 60%, 55%)
+    baseTextColor: '#F1F2F3',       // Was hsl(220, 10%, 95%)
+    cardBorderColor: '#F1F2F3',     // Was hsl(220, 10%, 95%)
     cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem', cardBackgroundImageUrl: undefined,
   },
   'standard': { // For 'Standard' (user-editable colors from theme defaults)
@@ -64,8 +57,6 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
     cardBackgroundImageUrl: undefined, // User can set
   },
   'custom': { // For 'Custom Colors' mode (user-editable from blank slate or last values)
-    // These are often initially empty or based on previous state before switching to custom.
-    // Reconstruction will turn empty strings to undefined for these optional fields.
     baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '', 
     cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
   }
@@ -85,8 +76,11 @@ export function TemplateEditor({
 
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
-    setHasMounted(true);
-  }, []);
+    if (!hasMounted) { // Ensure this effect runs only once on mount
+      setHasMounted(true);
+    }
+  }, [hasMounted]);
+
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() =>
     reconstructMinimalTemplate(memoizedGetFreshDefaultTemplate(selectedTemplateIdForEditing))
@@ -202,29 +196,17 @@ export function TemplateEditor({
     const predefinedVisualProps = PREDEFINED_FRAME_VISUAL_PROPERTIES[newSelectedFrameStyle];
 
     if (predefinedVisualProps) {
-      // Construct the next state by taking essential non-visual parts from the current template,
-      // and overlaying all visual properties from the selected frame style.
       const candidateTemplateState: Partial<TCGCardTemplate> = {
-        // Preserve essential non-visual properties that are NOT part of visual styling
         id: currentTemplateInternalRef.current.id,
         name: currentTemplateInternalRef.current.name,
         aspectRatio: currentTemplateInternalRef.current.aspectRatio,
         rows: currentTemplateInternalRef.current.rows,
-        // defaultSectionBorderColor is also a visual prop but part of overall styling, not a specific frame style visual.
-        // Let PREDEFINED_FRAME_VISUAL_PROPERTIES override it if it defines it, else keep current.
         defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor,
-
-        // Apply ALL visual properties from the selected frame style
         ...predefinedVisualProps,
-        
-        frameStyle: newSelectedFrameStyle, // Ensure the frameStyle itself is correctly set
+        frameStyle: newSelectedFrameStyle, 
       };
-      
-      // updateCurrentTemplateState handles reconstruction and the JSON.stringify check.
       updateCurrentTemplateState(candidateTemplateState);
     }
-  // Key dependencies: only run when frameStyle changes (which is updated by user selection), or on mount.
-  // reconstructMinimalTemplate is used by updateCurrentTemplateState.
   }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplateState, reconstructMinimalTemplate]);
 
 
