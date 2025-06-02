@@ -27,7 +27,7 @@ import { CardPreview } from './CardPreview';
 import { ColumnEditor } from './ColumnEditor';
 import { nanoid } from 'nanoid';
 import { cn, extractUniquePlaceholderKeys, simplifyRatio } from "@/lib/utils";
-import type { getFreshDefaultTemplateObject as GetFreshDefaultTemplateFn, reconstructMinimalTemplateObject as ReconstructMinimalTemplateFn } from '@/store/appStore';
+import type { getFreshDefaultTemplate as GetFreshDefaultTemplateFn, reconstructMinimalTemplate as ReconstructMinimalTemplateFn } from '@/store/appStore';
 
 export type { ReconstructMinimalTemplateFn as ReconstructTemplatePropFn };
 
@@ -136,12 +136,14 @@ export function TemplateEditor({
       if (foundTemplate) {
         templateToLoad = foundTemplate;
       } else {
+        // Selected ID is stale or not found, reset to new if current isn't already new
         if (currentTemplateInternalRef.current?.id !== null) {
           performingReset = true;
         }
         templateToLoad = memoizedGetFreshDefaultTemplate(null);
       }
     } else {
+      // No template selected (Create New mode), reset if current isn't already new
       if (currentTemplateInternalRef.current?.id !== null) {
         performingReset = true;
       }
@@ -158,41 +160,44 @@ export function TemplateEditor({
     }
   }, [hasMounted, selectedTemplateIdForEditing, templates, reconstructMinimalTemplate, resetFormToNew, updateCurrentTemplateState, memoizedGetFreshDefaultTemplate]);
 
+
   // Effect to synchronize aspectRatioInput with currentTemplate.aspectRatio
   useEffect(() => {
-    if (!hasMounted) return; // Guard: Only run client-side after mount
+    if (!hasMounted) return; // Guard against running on server or before mount
 
-    const targetAspectRatio = currentTemplate.aspectRatio || TCG_ASPECT_RATIO;
+    const targetAspectRatio = currentTemplateInternalRef.current.aspectRatio || TCG_ASPECT_RATIO;
     if (targetAspectRatio !== aspectRatioInput) {
       setAspectRatioInput(targetAspectRatio);
     }
-  }, [hasMounted, currentTemplate.aspectRatio, currentTemplate.id, aspectRatioInput]);
+  }, [hasMounted, currentTemplateInternalRef.current.aspectRatio, currentTemplateInternalRef.current.id, aspectRatioInput]);
+
 
   // Effect to synchronize activeRowAccordionItems with currentTemplate.rows
   useEffect(() => {
-    if (!hasMounted) return; // Guard: Only run client-side after mount
+    if (!hasMounted) return; // Guard against running on server or before mount
 
     let newRowIds: string[];
-    const currentRows = currentTemplate.rows;
+    const currentRows = currentTemplateInternalRef.current.rows;
+
     if (currentRows && currentRows.length > 0) {
       newRowIds = currentRows.map(r => r.id).filter(Boolean) as string[];
-    } else if (currentTemplate.id === null) {
+    } else if (currentTemplateInternalRef.current.id === null) { // For a brand new, unsaved template
       const defaultNewTemplate = memoizedGetFreshDefaultTemplate(null);
       newRowIds = (defaultNewTemplate.rows || []).map(r => r.id).filter(Boolean) as string[];
-    } else {
+    } else { // For an existing template that might have its rows cleared
       newRowIds = [];
     }
 
     if (JSON.stringify(newRowIds) !== JSON.stringify(activeRowAccordionItems)) {
       setActiveRowAccordionItems(newRowIds);
     }
-  }, [hasMounted, currentTemplate.rows, currentTemplate.id, activeRowAccordionItems, memoizedGetFreshDefaultTemplate]);
+  }, [hasMounted, currentTemplateInternalRef.current.rows, currentTemplateInternalRef.current.id, activeRowAccordionItems, memoizedGetFreshDefaultTemplate]);
 
   // Effect to update currentTemplate with visual properties from pre-defined frame styles
   useEffect(() => {
-    if (!hasMounted) return; // Guard: Only run client-side after mount
+    if (!hasMounted) return; // Guard against running on server or before mount
 
-    const currentActualFrameStyle = currentTemplate.frameStyle || 'standard';
+    const currentActualFrameStyle = currentTemplateInternalRef.current.frameStyle || 'standard';
     const predefinedProps = PREDEFINED_FRAME_VISUAL_PROPERTIES[currentActualFrameStyle];
 
     if (predefinedProps) {
@@ -201,21 +206,24 @@ export function TemplateEditor({
 
       for (const key in predefinedProps) {
         const typedKey = key as keyof TCGCardTemplate;
-        if (currentTemplate[typedKey] !== predefinedProps[typedKey]) {
+        if (currentTemplateInternalRef.current[typedKey] !== predefinedProps[typedKey]) {
           updatesToConsider[typedKey] = predefinedProps[typedKey];
           needsAnUpdate = true;
         }
       }
-      if (!Object.prototype.hasOwnProperty.call(predefinedProps, 'cardBackgroundImageUrl') && currentTemplate.cardBackgroundImageUrl) {
+      // Special handling for cardBackgroundImageUrl: if the predefined style doesn't specify one,
+      // but the current template has one, it should be cleared.
+      if (!Object.prototype.hasOwnProperty.call(predefinedProps, 'cardBackgroundImageUrl') && currentTemplateInternalRef.current.cardBackgroundImageUrl) {
           updatesToConsider.cardBackgroundImageUrl = undefined;
           needsAnUpdate = true;
       }
+
 
       if (needsAnUpdate) {
         updateCurrentTemplate(updatesToConsider);
       }
     }
-  }, [hasMounted, currentTemplate, updateCurrentTemplate]);
+  }, [hasMounted, currentTemplateInternalRef.current.frameStyle, currentTemplateInternalRef.current.baseBackgroundColor, currentTemplateInternalRef.current.baseTextColor, currentTemplateInternalRef.current.cardBorderRadius, currentTemplateInternalRef.current.cardBorderColor, currentTemplateInternalRef.current.cardBorderWidth, currentTemplateInternalRef.current.cardBorderStyle, currentTemplateInternalRef.current.cardBackgroundImageUrl, updateCurrentTemplate]);
 
 
   const updateLocalRow = useCallback((rowId: string, updates: Partial<CardRow>) => {
@@ -357,18 +365,18 @@ export function TemplateEditor({
 
 
   const isNonCustomizableFrame = useMemo(() =>
-    currentTemplate.frameStyle &&
-    currentTemplate.frameStyle !== 'standard' &&
-    currentTemplate.frameStyle !== 'custom'
-  , [currentTemplate.frameStyle]);
+    currentTemplateInternalRef.current.frameStyle &&
+    currentTemplateInternalRef.current.frameStyle !== 'standard' &&
+    currentTemplateInternalRef.current.frameStyle !== 'custom'
+  , [currentTemplateInternalRef.current.frameStyle]);
 
   const livePreviewData = useMemo(() => {
     const data: { [key: string]: string } = {};
-    extractUniquePlaceholderKeys(currentTemplate).forEach(p => {
+    extractUniquePlaceholderKeys(currentTemplateInternalRef.current).forEach(p => {
       data[p.key] = p.defaultValue !== undefined ? p.defaultValue : `{{${p.key}}}`;
     });
     return data;
-  }, [currentTemplate]);
+  }, [currentTemplateInternalRef.current]);
 
   const onToggleStylingAccordion = useCallback((sectionId: string) => {
     setActiveStylingAccordion(prev => prev === sectionId ? null : sectionId);
@@ -392,13 +400,13 @@ export function TemplateEditor({
 
   const handleSectionClickFromPreview = useCallback((sectionId: string) => {
     setIsRowsAndSectionsCardOpen(true);
-    const parentRow = (currentTemplate.rows || []).find(r => (r.columns || []).some(s => s.id === sectionId));
+    const parentRow = (currentTemplateInternalRef.current.rows || []).find(r => (r.columns || []).some(s => s.id === sectionId));
     if(parentRow && !activeRowAccordionItems.includes(parentRow.id)) {
         setActiveRowAccordionItems(prevActive => [...prevActive, parentRow.id]);
     }
     onToggleColumnAccordionCb(sectionId);
     setTimeout(() => document.querySelector(`.column-editor-card[data-section-id="${sectionId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
-  }, [currentTemplate.rows, activeRowAccordionItems, onToggleColumnAccordionCb]);
+  }, [currentTemplateInternalRef.current.rows, activeRowAccordionItems, onToggleColumnAccordionCb]);
 
 
   const handleCardBgImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
@@ -504,11 +512,11 @@ export function TemplateEditor({
                       <div>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <Edit2 className="h-5 w-5" />
-                            Template Settings: <span className="text-primary font-medium">{currentTemplate.name || "Untitled Template"}</span>
+                            Template Settings: <span className="text-primary font-medium">{currentTemplateInternalRef.current.name || "Untitled Template"}</span>
                         </CardTitle>
                         <CardDescription className="mt-1">
-                            {currentTemplate.id === null ? "Define new template properties." : `Editing template properties.`}
-                            {hasMounted && currentTemplate.id && <span className="text-xs text-muted-foreground ml-2">(ID: {typeof currentTemplate.id === 'string' ? currentTemplate.id.substring(0,8) : 'New'})</span>}
+                            {currentTemplateInternalRef.current.id === null ? "Define new template properties." : `Editing template properties.`}
+                            {hasMounted && currentTemplateInternalRef.current.id && <span className="text-xs text-muted-foreground ml-2">(ID: {typeof currentTemplateInternalRef.current.id === 'string' ? currentTemplateInternalRef.current.id.substring(0,8) : 'New'})</span>}
                         </CardDescription>
                       </div>
                     </CardHeader>
@@ -519,7 +527,7 @@ export function TemplateEditor({
                             <Label htmlFor="templateName">Template Name</Label>
                             <Input
                                 id="templateName"
-                                value={currentTemplate.name || ''}
+                                value={currentTemplateInternalRef.current.name || ''}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                     updateCurrentTemplate({ name: e.target.value });
                                 }}
@@ -545,11 +553,11 @@ export function TemplateEditor({
                                         }
                                     }}
                                     onBlur={() => {
-                                        const currentStoredRatio = currentTemplate.aspectRatio || TCG_ASPECT_RATIO;
+                                        const currentStoredRatio = currentTemplateInternalRef.current.aspectRatio || TCG_ASPECT_RATIO;
                                         const ratioParts = aspectRatioInput.split(':').map(Number);
                                         if (!(ratioParts.length === 2 && !isNaN(ratioParts[0]) && ratioParts[0] > 0 && !isNaN(ratioParts[1]) && ratioParts[1] > 0)) {
                                             setAspectRatioInput(currentStoredRatio);
-                                            if(currentTemplate.aspectRatio !== currentStoredRatio) updateCurrentTemplate({aspectRatio: currentStoredRatio});
+                                            if(currentTemplateInternalRef.current.aspectRatio !== currentStoredRatio) updateCurrentTemplate({aspectRatio: currentStoredRatio});
                                         } else if (aspectRatioInput !== currentStoredRatio) {
                                             updateCurrentTemplate({aspectRatio: aspectRatioInput});
                                         }
@@ -591,7 +599,7 @@ export function TemplateEditor({
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                                         <div>
                                             <Label htmlFor="templateFrameStyle">Card Frame Style</Label>
-                                            <Select value={currentTemplate.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
+                                            <Select value={currentTemplateInternalRef.current.frameStyle || 'standard'} onValueChange={v => updateCurrentTemplate({frameStyle: v})}>
                                                 <SelectTrigger id="templateFrameStyle"><SelectValue/></SelectTrigger>
                                                 <SelectContent>{FRAME_STYLES.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                                             </Select>
@@ -602,7 +610,7 @@ export function TemplateEditor({
                                         <div className="flex items-center gap-2">
                                             <Input
                                             id="cardBackgroundImageUrl"
-                                            value={currentTemplate.cardBackgroundImageUrl || ''}
+                                            value={currentTemplateInternalRef.current.cardBackgroundImageUrl || ''}
                                             onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ cardBackgroundImageUrl: e.target.value })}
                                             placeholder="e.g., https://.../bg.png or {{bgKey}}"
                                             className="h-8 text-xs flex-grow"
@@ -630,74 +638,74 @@ export function TemplateEditor({
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-0.5">
                                             {isNonCustomizableFrame
-                                            ? `Background is controlled by Frame Style ('${currentTemplate.frameStyle || ''}').`
+                                            ? `Background is controlled by Frame Style ('${currentTemplateInternalRef.current.frameStyle || ''}').`
                                             : "Applies to 'Standard' and 'Custom Colors' frames. Leave empty for none."}
                                         </p>
                                         </div>
 
                                         <div>
                                             <Label htmlFor="baseBgColor">Base Background Color</Label>
-                                            <Input id="baseBgColor" type="color" value={currentTemplate.baseBackgroundColor || ''}
+                                            <Input id="baseBgColor" type="color" value={currentTemplateInternalRef.current.baseBackgroundColor || ''}
                                                 onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ baseBackgroundColor: e.target.value })}
                                                 disabled={isNonCustomizableFrame} />
                                             <p className="text-xs text-muted-foreground mt-0.5">
                                                 {isNonCustomizableFrame
-                                                    ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').`
+                                                    ? `Overridden by Frame Style ('${currentTemplateInternalRef.current.frameStyle || ''}').`
                                                     : "Applies to 'Standard' and 'Custom Colors' frames. Other frames may override."}
                                             </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="baseTextColor">Base Text Color</Label>
-                                            <Input id="baseTextColor" type="color" value={currentTemplate.baseTextColor || ''}
+                                            <Input id="baseTextColor" type="color" value={currentTemplateInternalRef.current.baseTextColor || ''}
                                                 onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ baseTextColor: e.target.value })}
                                                 disabled={isNonCustomizableFrame} />
                                             <p className="text-xs text-muted-foreground mt-0.5">
                                                 {isNonCustomizableFrame
-                                                    ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').`
+                                                    ? `Overridden by Frame Style ('${currentTemplateInternalRef.current.frameStyle || ''}').`
                                                     : "Applies to 'Standard' and 'Custom Colors' frames. Other frames may override."}
                                             </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="defaultSectionBorderColor">Default Section Fallback Border Color</Label>
-                                            <Input id="defaultSectionBorderColor" type="color" value={currentTemplate.defaultSectionBorderColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ defaultSectionBorderColor: e.target.value })} />
+                                            <Input id="defaultSectionBorderColor" type="color" value={currentTemplateInternalRef.current.defaultSectionBorderColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ defaultSectionBorderColor: e.target.value })} />
                                             <p className="text-xs text-muted-foreground mt-0.5">Fallback for individual section borders if they have width but no specific color.</p>
                                         </div>
                                         <div>
                                             <Label htmlFor="cardBorderColor">Card Outer Border Color</Label>
-                                            <Input id="cardBorderColor" type="color" value={currentTemplate.cardBorderColor || ''} onChange={e => updateCurrentTemplate({cardBorderColor: e.target.value})}
+                                            <Input id="cardBorderColor" type="color" value={currentTemplateInternalRef.current.cardBorderColor || ''} onChange={e => updateCurrentTemplate({cardBorderColor: e.target.value})}
                                             disabled={isNonCustomizableFrame}/>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : "For 'Standard'/'Custom Colors' frames."}
+                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplateInternalRef.current.frameStyle || ''}').` : "For 'Standard'/'Custom Colors' frames."}
                                             </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="cardBorderWidth">Card Outer Border Width</Label>
-                                            <Input id="cardBorderWidth" value={currentTemplate.cardBorderWidth || ''} onChange={e => updateCurrentTemplate({cardBorderWidth: e.target.value})} placeholder="e.g., 4px, 0"
+                                            <Input id="cardBorderWidth" value={currentTemplateInternalRef.current.cardBorderWidth || ''} onChange={e => updateCurrentTemplate({cardBorderWidth: e.target.value})} placeholder="e.g., 4px, 0"
                                             className="h-8 text-xs"
                                             disabled={isNonCustomizableFrame}/>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : 'E.g., "4px", "0" for no border.'}
+                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplateInternalRef.current.frameStyle || ''}').` : 'E.g., "4px", "0" for no border.'}
                                             </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="cardBorderStyle">Card Outer Border Style</Label>
-                                            <Select value={currentTemplate.cardBorderStyle || '_default_'} onValueChange={v => updateCurrentTemplate({cardBorderStyle: (v === '_default_' ? undefined : v as TCGCardTemplate['cardBorderStyle'])}) }
+                                            <Select value={currentTemplateInternalRef.current.cardBorderStyle || '_default_'} onValueChange={v => updateCurrentTemplate({cardBorderStyle: (v === '_default_' ? undefined : v as TCGCardTemplate['cardBorderStyle'])}) }
                                             disabled={isNonCustomizableFrame}
                                             >
                                                 <SelectTrigger id="cardBorderStyle"><SelectValue/></SelectTrigger>
                                                 <SelectContent>{CARD_BORDER_STYLES.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                                             </Select>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : "For 'Standard'/'Custom Colors' frames."}
+                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplateInternalRef.current.frameStyle || ''}').` : "For 'Standard'/'Custom Colors' frames."}
                                             </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="cardBorderRadius">Card Corner Radius</Label>
-                                            <Input id="cardBorderRadius" value={currentTemplate.cardBorderRadius || ''} onChange={e => updateCurrentTemplate({cardBorderRadius: e.target.value})} placeholder="e.g., 8px, 0.5rem"
+                                            <Input id="cardBorderRadius" value={currentTemplateInternalRef.current.cardBorderRadius || ''} onChange={e => updateCurrentTemplate({cardBorderRadius: e.target.value})} placeholder="e.g., 8px, 0.5rem"
                                             className="h-8 text-xs"
                                             disabled={isNonCustomizableFrame}/>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : 'E.g., "8px", "0.5rem".'}
+                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplateInternalRef.current.frameStyle || ''}').` : 'E.g., "8px", "0.5rem".'}
                                             </p>
                                         </div>
                                     </div>
@@ -739,7 +747,7 @@ export function TemplateEditor({
                                     onValueChange={setActiveRowAccordionItems}
                                     className="w-full space-y-2"
                                 >
-                                    {(currentTemplate.rows || []).map((row, rowIndex) => (
+                                    {(currentTemplateInternalRef.current.rows || []).map((row, rowIndex) => (
                                     <AccordionItem value={row.id} key={row.id} id={`accordion-row-${row.id}`} className="border border-border bg-card/60 rounded-md overflow-hidden last:mb-0">
                                     <div className="flex items-center w-full px-2 py-1 hover:bg-muted/30 rounded-t-md focus-within:ring-1 focus-within:ring-ring">
                                             <AccordionTrigger
@@ -753,7 +761,7 @@ export function TemplateEditor({
                                             </AccordionTrigger>
                                             <div className="flex gap-1 ml-2 flex-shrink-0">
                                                 <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveLocalRow(row.id, 'up')}} disabled={rowIndex === 0} aria-label="Move row up" className="h-7 w-7"><ArrowUp className="h-4 w-4" /></Button>
-                                                <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveLocalRow(row.id, 'down')}} disabled={rowIndex === (currentTemplate.rows || []).length - 1} aria-label="Move row down" className="h-7 w-7"><ArrowDown className="h-4 w-4" /></Button>
+                                                <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); moveLocalRow(row.id, 'down')}} disabled={rowIndex === (currentTemplateInternalRef.current.rows || []).length - 1} aria-label="Move row down" className="h-7 w-7"><ArrowDown className="h-4 w-4" /></Button>
                                                 <Button type="button" variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeLocalRow(row.id)}} aria-label="Remove row" className="h-7 w-7"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             </div>
                                         </div>
@@ -831,7 +839,7 @@ export function TemplateEditor({
             <div className="mt-6 pt-6 border-t">
                 <Button type="button" onClick={handleSubmit} className="w-full flex items-center gap-2 text-lg py-6">
                     <Save className="h-5 w-5"/>
-                    Save Template "{currentTemplate.name || "Untitled Template"}"
+                    Save Template "{currentTemplateInternalRef.current.name || "Untitled Template"}"
                 </Button>
             </div>
 
@@ -841,7 +849,7 @@ export function TemplateEditor({
                 {hasMounted && (
                   <div className="mx-auto max-w-xs flex justify-center">
                       <CardPreview
-                          card={{ template: currentTemplate, data: livePreviewData, uniqueId: 'editor-preview' }}
+                          card={{ template: currentTemplateInternalRef.current, data: livePreviewData, uniqueId: 'editor-preview' }}
                           isPrintMode={false}
                           isEditorPreview={true}
                           hideEmptySections={false}
@@ -861,11 +869,11 @@ export function TemplateEditor({
                 <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
                     <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl max-h-[90vh] flex flex-col">
                         <DialogHeader>
-                            <DialogTitle>Full Size Template Preview: {currentTemplate.name || "Untitled Template"}</DialogTitle>
+                            <DialogTitle>Full Size Template Preview: {currentTemplateInternalRef.current.name || "Untitled Template"}</DialogTitle>
                         </DialogHeader>
                         <div className="flex justify-center p-4 my-auto">
                             <CardPreview
-                                card={{ template: currentTemplate, data: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
+                                card={{ template: currentTemplateInternalRef.current, data: livePreviewData, uniqueId: 'full-editor-preview-dialog' }}
                                 isPrintMode={false}
                                 isEditorPreview={true}
                                 hideEmptySections={false}
@@ -883,3 +891,5 @@ export function TemplateEditor({
     </div>
   );
 }
+
+    
