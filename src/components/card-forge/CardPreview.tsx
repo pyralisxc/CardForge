@@ -80,7 +80,10 @@ export function CardPreview({
       cardContainerStyle.borderImageSource = String(tb.cardBorderImageSource).toLowerCase().includes('gradient(')
         ? tb.cardBorderImageSource
         : `url(${tb.cardBorderImageSource})`;
-      cardContainerStyle.borderImageSlice = 1; 
+      
+      const parsedBorderWidthForSlice = parseInt(String(tb.cardBorderWidth || '4px').replace(/\D/g, ''), 10);
+      cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice > 0 ? parsedBorderWidthForSlice : 1;
+
       cardContainerStyle.borderColor = 'transparent'; 
       cardContainerStyle.borderWidth = tb.cardBorderWidth || '4px';
       cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
@@ -97,7 +100,8 @@ export function CardPreview({
           cardContainerStyle.borderStyle = 'none';
           cardContainerStyle.borderWidth = '0';
       } else {
-          cardContainerStyle.borderStyle = 'solid';
+          // Fallback for predefined frames that might not set it but expect one from .tcg-card-preview base
+          cardContainerStyle.borderStyle = 'solid'; 
       }
   }
   
@@ -428,4 +432,3 @@ export function CardPreview({
   );
 }
 
-    
