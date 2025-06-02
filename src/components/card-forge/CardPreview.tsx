@@ -1,15 +1,15 @@
 
 "use client";
 
-import type { DisplayCard, CardSection, CardData, CardRow, TCGCardTemplate } from '@/types'; 
+import type { DisplayCard, CardSection, CardData, CardRow, TCGCardTemplate } from '@/types';
 import NextImage from 'next/image';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils'; 
+import { cn, replacePlaceholdersLocal } from '@/lib/utils';
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 
 interface CardPreviewProps {
-  card: DisplayCard; 
+  card: DisplayCard;
   className?: string;
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
@@ -55,82 +55,80 @@ export function CardPreview({
 
   const effectiveWidthPx = targetWidthPx || PREVIEW_WIDTH_PX;
   const [aspectW, aspectH] = (templateToRender.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
-  const cardPixelHeight = (aspectW > 0 && aspectH > 0) ? (effectiveWidthPx / aspectW) * aspectH : (effectiveWidthPx / (63 / 88));
+
+  // Ensure cardPixelHeight is always calculated correctly and is a finite number
+  let cardPixelHeight: number;
+  if (aspectW > 0 && aspectH > 0 && effectiveWidthPx > 0 && isFinite(effectiveWidthPx) && isFinite(aspectW) && isFinite(aspectH)) {
+    cardPixelHeight = (effectiveWidthPx / aspectW) * aspectH;
+  } else {
+    // Fallback to default TCG ratio if aspectW/H is invalid or effectiveWidthPx is not usable
+    const defaultRatioParts = TCG_ASPECT_RATIO.split(':').map(Number);
+    cardPixelHeight = (effectiveWidthPx / defaultRatioParts[0]) * defaultRatioParts[1];
+  }
+  if (!isFinite(cardPixelHeight)) { // Final fallback if calculation resulted in non-finite
+      cardPixelHeight = (effectiveWidthPx / (63/88));
+  }
+
 
   const cardContainerStyle: React.CSSProperties = {
-    aspectRatio: (aspectW > 0 && aspectH > 0) ? `${aspectW} / ${aspectH}` : undefined,
     width: `${effectiveWidthPx}px`,
-    height: (aspectW > 0 && aspectH > 0 ? 'auto' : `${cardPixelHeight}px`),
+    height: `${cardPixelHeight}px`, // Explicitly set height
     boxSizing: 'border-box',
   };
 
-  const tb = templateToRender; 
+  const tb = templateToRender;
   const isStandardOrCustomFrame = tb.frameStyle === 'standard' || tb.frameStyle === 'custom';
-  
+
   const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
-  const useBorderImageMask = isStandardOrCustomFrame && resolvedCardBorderImageSource && 
-                             !resolvedCardBorderImageSource.toLowerCase().includes('gradient(') && 
+  const useBorderImageMask = isStandardOrCustomFrame && resolvedCardBorderImageSource &&
+                             !resolvedCardBorderImageSource.toLowerCase().includes('gradient(') &&
                              !resolvedCardBorderImageSource.startsWith("CSS:");
 
   if (useBorderImageMask) {
     const borderWidthNum = parsePixelValue(tb.cardBorderWidth, 0);
-    // For SVG rx/ry, we need to parse radius. This is a simplification.
-    // A robust solution would handle 'rem', '%', etc., possibly with getComputedStyle.
     const borderRadiusNum = parsePixelValue(tb.cardBorderRadius, 0);
 
-    // viewBox will be the size of the card for simplicity in mask coordinates
-    const svgViewBoxWidth = 100; // Using a percentage-like viewBox
+    const svgViewBoxWidth = 100;
     const svgViewBoxHeight = 100;
-    
-    // Convert CSS radius and width to SVG viewport units
-    // This scaling is approximate and assumes radius/width are relative to card size
-    // A more accurate scaling would involve the actual card pixel dimensions.
+
     const svgRx = (borderRadiusNum / effectiveWidthPx) * svgViewBoxWidth;
-    const svgRy = (borderRadiusNum / cardPixelHeight) * svgViewBoxHeight; // Approximate
-    const svgStrokeWidth = (borderWidthNum / effectiveWidthPx) * svgViewBoxWidth; // Approximate
+    const svgRy = (borderRadiusNum / cardPixelHeight) * svgViewBoxHeight;
+    const svgStrokeWidth = (borderWidthNum / effectiveWidthPx) * svgViewBoxWidth;
 
-
-    // Create an SVG mask: a white border on a black background (for luminance mask)
-    // or a path that only draws the border (for alpha mask)
-    // Using alpha mask for simplicity: draw a hollow rounded rectangle.
     const svgMaskString = `
       <svg width="${svgViewBoxWidth}" height="${svgViewBoxHeight}" viewBox="0 0 ${svgViewBoxWidth} ${svgViewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <mask id="borderMask-${card.uniqueId}">
             <rect width="100%" height="100%" fill="white" rx="${svgRx}" ry="${svgRy}"/>
-            <rect 
-              x="${svgStrokeWidth / 2}" 
-              y="${svgStrokeWidth / 2}" 
-              width="${svgViewBoxWidth - svgStrokeWidth}" 
-              height="${svgViewBoxHeight - svgStrokeWidth}" 
-              fill="black" 
-              rx="${Math.max(0, svgRx - svgStrokeWidth / 2)}" 
+            <rect
+              x="${svgStrokeWidth / 2}"
+              y="${svgStrokeWidth / 2}"
+              width="${svgViewBoxWidth - svgStrokeWidth}"
+              height="${svgViewBoxHeight - svgStrokeWidth}"
+              fill="black"
+              rx="${Math.max(0, svgRx - svgStrokeWidth / 2)}"
               ry="${Math.max(0, svgRy - svgStrokeWidth / 2)}"
             />
           </mask>
         </defs>
         <rect width="100%" height="100%" fill="white" mask="url(#borderMask-${card.uniqueId})"/>
       </svg>
-    `.replace(/\s\s+/g, ' ').trim(); // Minify SVG string slightly
+    `.replace(/\s\s+/g, ' ').trim();
 
     const svgDataUri = `data:image/svg+xml;base64,${btoa(svgMaskString)}`;
 
     cardContainerStyle.backgroundImage = `url(${resolvedCardBorderImageSource})`;
-    cardContainerStyle.backgroundSize = 'cover'; // Or other desired size
+    cardContainerStyle.backgroundSize = 'cover';
     cardContainerStyle.backgroundPosition = 'center';
+    cardContainerStyle.backgroundColor = 'transparent'; // Ensure main container is transparent for content bg to show
     cardContainerStyle.maskImage = `url("${svgDataUri}")`;
-    cardContainerStyle.WebkitMaskImage = `url("${svgDataUri}")`; // For Safari/older Chrome
+    cardContainerStyle.WebkitMaskImage = `url("${svgDataUri}")`;
     cardContainerStyle.maskSize = '100% 100%';
     cardContainerStyle.maskRepeat = 'no-repeat';
-    // cardContainerStyle.maskMode = 'alpha'; // Not always needed if SVG mask is drawn correctly for alpha
-    
-    // No actual CSS border needed when using this mask technique for the border visual
     cardContainerStyle.border = 'none';
-    // Radius is handled by the mask's shape and the clipping of the element itself
     if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
 
-
-  } else { // Original border logic
+  } else { // Original border logic (solid, CSS gradient border-image, or predefined frame)
     const userHasProvidedBorderImageCSSOrURL = resolvedCardBorderImageSource && !resolvedCardBorderImageSource.startsWith("CSS:");
     const isCSSDrivenBorderImage = resolvedCardBorderImageSource && resolvedCardBorderImageSource.startsWith("CSS:");
 
@@ -144,20 +142,17 @@ export function CardPreview({
 
     if (isStandardOrCustomFrame && !userHasProvidedBorderImageCSSOrURL && !isCSSDrivenBorderImage && effectiveBorderWidthNum > 0) {
         cardContainerStyle.boxShadow = `0 0 0 ${finalEffectiveBorderWidthForShadow} ${solidBorderColorForShadow}`;
-        cardContainerStyle.borderWidth = tb.cardBorderWidth; 
+        cardContainerStyle.borderWidth = tb.cardBorderWidth;
         cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
                                           ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
                                           : 'solid';
         cardContainerStyle.borderColor = 'transparent';
     } else if (userHasProvidedBorderImageCSSOrURL && !isCSSDrivenBorderImage) {
-        cardContainerStyle.borderImageSource = String(resolvedCardBorderImageSource).toLowerCase().includes('gradient(')
-          ? resolvedCardBorderImageSource
-          : `url(${resolvedCardBorderImageSource})`;
-        
+        // This is for CSS gradient border-image
+        cardContainerStyle.borderImageSource = resolvedCardBorderImageSource;
         const parsedBorderWidthForSlice = parsePixelValue(String(tb.cardBorderWidth || '4px'), 1);
         cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice > 0 ? parsedBorderWidthForSlice : 1;
-
-        cardContainerStyle.borderColor = 'transparent'; 
+        cardContainerStyle.borderColor = 'transparent';
         cardContainerStyle.borderWidth = tb.cardBorderWidth || '4px';
         cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
                                           ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
@@ -173,25 +168,25 @@ export function CardPreview({
             cardContainerStyle.borderStyle = 'none';
             cardContainerStyle.borderWidth = '0';
         } else {
-            cardContainerStyle.borderStyle = 'solid'; 
+            cardContainerStyle.borderStyle = 'solid';
         }
     }
     if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
   }
-  
-  // Background color and non-border-image background image logic
-  if (isStandardOrCustomFrame) { // Apply base colors only if not using the mask for border image
-    if (tb.baseBackgroundColor && !useBorderImageMask) cardContainerStyle.backgroundColor = tb.baseBackgroundColor;
-    // Text color is always applied if set
-    if (tb.baseTextColor) cardContainerStyle.color = tb.baseTextColor;
+
+  // Background color for non-masked borders (or if mask doesn't handle it)
+  if (isStandardOrCustomFrame && !useBorderImageMask) {
+    if (tb.baseBackgroundColor) cardContainerStyle.backgroundColor = tb.baseBackgroundColor;
   }
-  
-  // Apply card's own background image if not using masking for border, or if it's a different image
+  // Text color is always applied if set
+  if (tb.baseTextColor) cardContainerStyle.color = tb.baseTextColor;
+
+  // Apply card's own content background image if not using masking for border, or if it's a different image
+  // If using mask, this content background is handled by the separate layer
   if (tb.cardBackgroundImageUrl && !useBorderImageMask) {
     const resolvedCardBgUrl = replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview);
     if (resolvedCardBgUrl && (resolvedCardBgUrl.startsWith('http') || resolvedCardBgUrl.startsWith('data:'))) {
         cardContainerStyle.backgroundImage = `url(${resolvedCardBgUrl})`;
-        // Keep existing backgroundSize and backgroundPosition if mask is used for border and source is same
         if (!(useBorderImageMask && resolvedCardBgUrl === resolvedCardBorderImageSource)) {
             cardContainerStyle.backgroundSize = 'cover';
             cardContainerStyle.backgroundPosition = 'center';
@@ -216,13 +211,13 @@ export function CardPreview({
   }, [templateToRender.aspectRatio, showSizeInfo]);
 
   const descriptiveArtworkText = useMemo(() => {
-    let nameValue = 'Artwork'; 
+    let nameValue = 'Artwork';
     if (dataToRender) {
       const nameKeys = ['cardName', 'title', 'name'];
       for (const key of nameKeys) {
         const value = dataToRender[key];
         if (value && typeof value === 'string' && value.trim()) {
-          nameValue = value.trim(); 
+          nameValue = value.trim();
           break;
         }
       }
@@ -231,7 +226,7 @@ export function CardPreview({
   }, [dataToRender]);
 
   const dataAiHintKeywords = useMemo(() => {
-    let baseHint = 'card art'; 
+    let baseHint = 'card art';
     if (dataToRender) {
       const nameKeys = ['cardName', 'title', 'name'];
       for (const key of nameKeys) {
@@ -239,7 +234,7 @@ export function CardPreview({
         if (value && typeof value === 'string' && value.trim()) {
           const words = value.trim().toLowerCase().split(/\s+/);
           baseHint = words.slice(0, 2).join(' ');
-          if (baseHint) break; 
+          if (baseHint) break;
         }
       }
     }
@@ -271,6 +266,29 @@ export function CardPreview({
 
   const elementIdSuffix = card.uniqueId;
 
+  const contentBackgroundLayerStyle: React.CSSProperties = useMemo(() => {
+    if (!useBorderImageMask) return {};
+    const style: React.CSSProperties = {
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 0,
+      borderRadius: tb.cardBorderRadius || undefined, // Match card's radius
+    };
+    if (tb.baseBackgroundColor) {
+      style.backgroundColor = tb.baseBackgroundColor;
+    }
+    if (tb.cardBackgroundImageUrl) {
+      const resolvedContentBgUrl = replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview);
+      if (resolvedContentBgUrl && (resolvedContentBgUrl.startsWith('http') || resolvedContentBgUrl.startsWith('data:'))) {
+        style.backgroundImage = `url(${resolvedContentBgUrl})`;
+        style.backgroundSize = 'cover';
+        style.backgroundPosition = 'center';
+      }
+    }
+    return style;
+  }, [useBorderImageMask, tb.baseBackgroundColor, tb.cardBackgroundImageUrl, tb.cardBorderRadius, dataToRender, isEditorPreview]);
+
+
   return (
     <div
       id={`card-preview-${elementIdSuffix}`}
@@ -286,6 +304,9 @@ export function CardPreview({
         data-ai-hint="tcg card custom"
         onClick={handleCardClick}
       >
+        {useBorderImageMask && (
+          <div className="card-content-background-layer" style={contentBackgroundLayerStyle}></div>
+        )}
         {(templateToRender.rows || []).map((row, rowIndex) => {
           const handlePreviewRowClick = (e: React.MouseEvent) => {
             if (isEditorPreview && onRowClick) {
@@ -307,7 +328,7 @@ export function CardPreview({
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
             flexShrink: 0,
-            zIndex: 1 // Ensure rows are above the card's masked background
+            zIndex: 1
           };
 
           const allColumnsInRowEffectivelyHidden = (row.columns || []).every(col => {
@@ -511,3 +532,4 @@ export function CardPreview({
     </div>
   );
 }
+
