@@ -56,52 +56,67 @@ export function CardPreview({
     boxSizing: 'border-box',
   };
 
-  if (templateToRender.frameStyle === 'standard' || templateToRender.frameStyle === 'custom') {
-    if (templateToRender.baseBackgroundColor) cardContainerStyle.backgroundColor = templateToRender.baseBackgroundColor;
-    if (templateToRender.baseTextColor) cardContainerStyle.color = templateToRender.baseTextColor;
+  const tb = templateToRender; // alias for brevity
+  const isStandardOrCustomFrame = tb.frameStyle === 'standard' || tb.frameStyle === 'custom';
+  const userHasProvidedBorderImage = isStandardOrCustomFrame && tb.cardBorderImageSource && !tb.cardBorderImageSource.startsWith("CSS:");
+
+  const effectiveBorderWidthStr = tb.cardBorderWidth || '0px';
+  const borderWidthMatch = effectiveBorderWidthStr.match(/^(\d+(\.\d+)?)/);
+  const effectiveBorderWidthNum = borderWidthMatch ? parseFloat(borderWidthMatch[1]) : 0;
+  const unitMatch = effectiveBorderWidthStr.match(/[a-zA-Z%]+$/);
+  const effectiveBorderWidthUnit = unitMatch ? unitMatch[0] : 'px';
+  const finalEffectiveBorderWidthForShadow = `${effectiveBorderWidthNum}${effectiveBorderWidthUnit}`;
+  const solidBorderColorForShadow = tb.cardBorderColor || 'hsl(var(--border))';
+
+
+  if (isStandardOrCustomFrame && !userHasProvidedBorderImage && effectiveBorderWidthNum > 0) {
+      cardContainerStyle.boxShadow = `0 0 0 ${finalEffectiveBorderWidthForShadow} ${solidBorderColorForShadow}`;
+      cardContainerStyle.borderWidth = tb.cardBorderWidth; 
+      cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
+                                        ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
+                                        : 'solid';
+      cardContainerStyle.borderColor = 'transparent';
+  } else if (userHasProvidedBorderImage) {
+      cardContainerStyle.borderImageSource = String(tb.cardBorderImageSource).toLowerCase().includes('gradient(')
+        ? tb.cardBorderImageSource
+        : `url(${tb.cardBorderImageSource})`;
+      cardContainerStyle.borderImageSlice = 1; 
+      cardContainerStyle.borderColor = 'transparent'; 
+      cardContainerStyle.borderWidth = tb.cardBorderWidth || '4px';
+      cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
+                                        ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
+                                        : 'solid';
+  } else {
+      // Predefined CSS frames OR Standard/Custom with no border width/image.
+      if (tb.cardBorderColor) cardContainerStyle.borderColor = tb.cardBorderColor;
+      if (tb.cardBorderWidth) cardContainerStyle.borderWidth = tb.cardBorderWidth;
+
+      if (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none') {
+          cardContainerStyle.borderStyle = tb.cardBorderStyle as React.CSSProperties['borderStyle'];
+      } else if (tb.cardBorderStyle === 'none' || effectiveBorderWidthNum === 0) {
+          cardContainerStyle.borderStyle = 'none';
+          cardContainerStyle.borderWidth = '0';
+      } else {
+          cardContainerStyle.borderStyle = 'solid';
+      }
+  }
+  
+  if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
+
+  // Background color and image logic
+  if (tb.frameStyle === 'standard' || tb.frameStyle === 'custom') {
+    if (tb.baseBackgroundColor) cardContainerStyle.backgroundColor = tb.baseBackgroundColor;
+    if (tb.baseTextColor) cardContainerStyle.color = tb.baseTextColor;
   }
 
-  if (templateToRender.cardBackgroundImageUrl) {
-    const resolvedCardBgUrl = replacePlaceholdersLocal(templateToRender.cardBackgroundImageUrl, dataToRender, isEditorPreview);
+  if (tb.cardBackgroundImageUrl) {
+    const resolvedCardBgUrl = replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview);
     if (resolvedCardBgUrl && (resolvedCardBgUrl.startsWith('http') || resolvedCardBgUrl.startsWith('data:'))) {
         cardContainerStyle.backgroundImage = `url(${resolvedCardBgUrl})`;
         cardContainerStyle.backgroundSize = 'cover';
         cardContainerStyle.backgroundPosition = 'center';
     }
   }
-
-  // Border styling
-  if (templateToRender.cardBorderImageSource && !templateToRender.cardBorderImageSource.startsWith("CSS:")) {
-    // User-defined border image/gradient takes precedence
-    cardContainerStyle.borderImageSource = `url(${templateToRender.cardBorderImageSource})`; // Basic URL assumption, could be gradient string
-    if (templateToRender.cardBorderImageSource.toLowerCase().includes('gradient(')) { // If it's a gradient string
-        cardContainerStyle.borderImageSource = templateToRender.cardBorderImageSource;
-    }
-    cardContainerStyle.borderImageSlice = 1; // Common default, might need to be configurable
-    cardContainerStyle.borderColor = 'transparent'; // Must be transparent for border-image to show
-    // Ensure border width and style are set, as border-image relies on them
-    cardContainerStyle.borderWidth = templateToRender.cardBorderWidth || '4px'; 
-    cardContainerStyle.borderStyle = (templateToRender.cardBorderStyle && templateToRender.cardBorderStyle !== '_default_' && templateToRender.cardBorderStyle !== 'none') 
-                                      ? templateToRender.cardBorderStyle as React.CSSProperties['borderStyle'] 
-                                      : 'solid';
-  } else if (templateToRender.frameStyle !== 'classic-gold' && templateToRender.frameStyle !== 'minimal-dark' && templateToRender.frameStyle !== 'arcane-purple') {
-    // For 'standard', 'custom', or other non-CSS-defined frames without cardBorderImageSource
-    if (templateToRender.cardBorderColor) cardContainerStyle.borderColor = templateToRender.cardBorderColor;
-    if (templateToRender.cardBorderWidth) cardContainerStyle.borderWidth = templateToRender.cardBorderWidth;
-    if (templateToRender.cardBorderStyle && templateToRender.cardBorderStyle !== '_default_' && templateToRender.cardBorderStyle !== 'none') {
-      cardContainerStyle.borderStyle = templateToRender.cardBorderStyle as React.CSSProperties['borderStyle'];
-    } else if (templateToRender.cardBorderStyle === 'none') {
-       cardContainerStyle.borderStyle = 'none';
-       cardContainerStyle.borderWidth = '0';
-    } else { // Default border for standard/custom if not specified
-        cardContainerStyle.borderStyle = 'solid'; 
-    }
-  }
-  // Note: For 'classic-gold', 'minimal-dark', 'arcane-purple', border styles are primarily controlled by globals.css
-  // and their `cardBorderColor` might be `transparent` or a specific color from PREDEFINED_FRAME_VISUAL_PROPERTIES.
-  
-  if (templateToRender.cardBorderRadius) cardContainerStyle.borderRadius = templateToRender.cardBorderRadius;
-
 
   const calculatedPrintSize = useMemo(() => {
     if (!showSizeInfo) return '';
@@ -412,3 +427,5 @@ export function CardPreview({
     </div>
   );
 }
+
+    
