@@ -70,7 +70,7 @@ export const DEFAULT_TEMPLATES_DATA: Partial<TCGCardTemplate>[] = [
 ];
 
 
-const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 150 * 1024; // Increased slightly
+const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 150 * 1024; // This limit might be reconsidered for persisted state if needed.
 
 export const getFreshDefaultTemplateObject = (id?: string | null, nameProp?: string): TCGCardTemplate => {
   let newTemplateId: string | null;
@@ -146,11 +146,8 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
   optionalStringFieldsForBase.forEach(fieldKey => {
       const value = t_loaded[fieldKey];
       if (value && String(value).trim() !== "") {
-         if (fieldKey === 'cardBackgroundImageUrl' && String(value).startsWith('data:') && String(value).length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-              (base as any)[fieldKey] = `placeholder:Card background image too large for storage (${String(value).length} chars).`;
-          } else {
-              (base as any)[fieldKey] = value;
-          }
+          // Removed MAX_DATA_URI_LENGTH_FOR_PERSISTENCE check for cardBackgroundImageUrl
+          (base as any)[fieldKey] = value;
       } else {
           delete (base as any)[fieldKey];
       }
@@ -202,11 +199,8 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
               const defaultValueFromDefaults = sectionDefaults[fieldKey as keyof CardSection];
 
               if (value !== undefined && String(value).trim() !== "") {
-                   if (fieldKey === 'backgroundImageUrl' && String(value).startsWith('data:') && String(value).length > MAX_DATA_URI_LENGTH_FOR_PERSISTENCE) {
-                      (sectionBase as any)[fieldKey] = `placeholder:Section background image too large for storage.`;
-                   } else {
-                      (sectionBase as any)[fieldKey] = value;
-                   }
+                   // Removed MAX_DATA_URI_LENGTH_FOR_PERSISTENCE check for section backgroundImageUrl
+                  (sectionBase as any)[fieldKey] = value;
               } else if (defaultValueFromDefaults !== undefined && String(defaultValueFromDefaults) !== "" && String(value).trim() === "" && String(defaultValueFromDefaults) !== String(sectionDefaultsForCompare[fieldKey as keyof CardSection])) {
                   // If loaded value is empty string, but default is not, keep the default
                   (sectionBase as any)[fieldKey] = defaultValueFromDefaults;
