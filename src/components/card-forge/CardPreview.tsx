@@ -21,7 +21,7 @@ interface CardPreviewProps {
   targetWidthPx?: number;
 }
 
-const PREVIEW_WIDTH_PX = 280; 
+const PREVIEW_WIDTH_PX = 280;
 const STANDARD_TCG_WIDTH_MM = 63;
 const MM_TO_INCHES = 1 / 25.4;
 
@@ -37,9 +37,9 @@ export function CardPreview({
   onEdit,
   targetWidthPx,
 }: CardPreviewProps) {
-  
-  const templateToRender = card.template; // Simplified: always use card.template
-  const dataToRender = card.data;     // Simplified: always use card.data
+
+  const templateToRender = card.template;
+  const dataToRender = card.data;
 
   if (!templateToRender) {
     return <div className="text-destructive p-4 text-center">Error: Template not provided for rendering. Card ID: {card.uniqueId}</div>;
@@ -60,13 +60,13 @@ export function CardPreview({
     if (templateToRender.baseBackgroundColor) cardContainerStyle.backgroundColor = templateToRender.baseBackgroundColor;
     if (templateToRender.baseTextColor) cardContainerStyle.color = templateToRender.baseTextColor;
   }
-  
+
   if (templateToRender.cardBackgroundImageUrl) {
     const resolvedCardBgUrl = replacePlaceholdersLocal(templateToRender.cardBackgroundImageUrl, dataToRender, isEditorPreview);
     if (resolvedCardBgUrl && (resolvedCardBgUrl.startsWith('http') || resolvedCardBgUrl.startsWith('data:'))) {
         cardContainerStyle.backgroundImage = `url(${resolvedCardBgUrl})`;
-        cardContainerStyle.backgroundSize = 'cover'; 
-        cardContainerStyle.backgroundPosition = 'center'; 
+        cardContainerStyle.backgroundSize = 'cover';
+        cardContainerStyle.backgroundPosition = 'center';
     }
   }
 
@@ -85,7 +85,7 @@ export function CardPreview({
     const [ratioW, ratioH] = (templateToRender.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
     if (isNaN(ratioW) || isNaN(ratioH) || ratioW <= 0 || ratioH <= 0) {
         const defaultWidthIn = (STANDARD_TCG_WIDTH_MM * MM_TO_INCHES).toFixed(1);
-        const defaultHeightIn = (88 * MM_TO_INCHES).toFixed(1); 
+        const defaultHeightIn = (88 * MM_TO_INCHES).toFixed(1);
         return `Approx. Print Size: ${defaultWidthIn}in x ${defaultHeightIn}in`;
     }
 
@@ -95,23 +95,40 @@ export function CardPreview({
     return `Approx. Print Size: ${widthInches}in x ${heightInches}in`;
   }, [templateToRender.aspectRatio, showSizeInfo]);
 
-
-  const artworkHintValue = useMemo(() => {
-    let nameValue = 'card art'; 
+  const descriptiveArtworkText = useMemo(() => {
+    let nameValue = 'Artwork'; // Default for placeholder image text
     if (dataToRender) {
       const nameKeys = ['cardName', 'title', 'name'];
       for (const key of nameKeys) {
-        if (dataToRender[key] && typeof dataToRender[key] === 'string' && (dataToRender[key] as string).trim()) {
-          nameValue = (dataToRender[key] as string).trim().toLowerCase();
+        const value = dataToRender[key];
+        if (value && typeof value === 'string' && value.trim()) {
+          nameValue = value.trim(); // Use full name for descriptive placeholder text
           break;
         }
       }
     }
-    return nameValue.substring(0, 50); 
+    return nameValue;
   }, [dataToRender]);
 
+  const dataAiHintKeywords = useMemo(() => {
+    let baseHint = 'card art'; // Default for data-ai-hint
+    if (dataToRender) {
+      const nameKeys = ['cardName', 'title', 'name'];
+      for (const key of nameKeys) {
+        const value = dataToRender[key];
+        if (value && typeof value === 'string' && value.trim()) {
+          baseHint = value.trim().toLowerCase().split(/\s+/).slice(0, 2).join(' ');
+          if (baseHint) break; // Found a name, use its first 1-2 words
+        }
+      }
+    }
+    // Ensure if baseHint became empty (e.g. name was only punctuation), it defaults
+    return baseHint || 'card art';
+  }, [dataToRender]);
+
+
   const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
-    if (isEditorPreview) return false; 
+    if (isEditorPreview) return false;
     if (hideEmptySections) {
       if (section.sectionContentType === 'image') {
         const imageKey = section.contentPlaceholder;
@@ -125,7 +142,7 @@ export function CardPreview({
     }
     return false;
   };
-  
+
   const handleCardClick = (e: React.MouseEvent) => {
     if (onEdit && !isEditorPreview) {
       onEdit(card);
@@ -135,7 +152,7 @@ export function CardPreview({
   const elementIdSuffix = card.uniqueId;
 
   return (
-    <div 
+    <div
       id={`card-preview-${elementIdSuffix}`}
       className={cn("flex flex-col items-center group relative", className)}
     >
@@ -169,9 +186,9 @@ export function CardPreview({
             display: 'flex',
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
-            flexShrink: 0, 
+            flexShrink: 0,
           };
-          
+
           const allColumnsInRowEffectivelyHidden = (row.columns || []).every(col => {
             let colContent = '';
             if (col.sectionContentType === 'image') {
@@ -212,7 +229,7 @@ export function CardPreview({
                   width: section.customWidth || undefined,
                   overflowWrap: 'break-word',
                 };
-                
+
                 if (section.backgroundImageUrl) {
                     const resolvedBgUrl = replacePlaceholdersLocal(section.backgroundImageUrl, dataToRender, isEditorPreview);
                     if (resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'))) {
@@ -236,19 +253,19 @@ export function CardPreview({
                 if (section.sectionContentType !== 'image') {
                   sectionStyle.overflowWrap = 'break-word';
                   if (section.flexGrow && section.flexGrow > 0) {
-                    sectionStyle.minWidth = 0; 
+                    sectionStyle.minWidth = 0;
                     sectionStyle.minHeight = 0;
                     sectionStyle.overflowY = 'auto';
                   }
                 }
-                
+
                 let sectionBorderClass = '';
                 if (section.borderWidth && section.borderWidth !== '_none_') {
                     sectionBorderClass = section.borderWidth;
                 }
-                
+
                 const sectionClasses = cn(
-                  'relative', 
+                  'relative',
                   section.padding || 'p-1',
                   section.fontSize || 'text-sm',
                   section.fontWeight || 'font-normal',
@@ -267,7 +284,7 @@ export function CardPreview({
                     onSectionClick(section.id);
                   }
                 };
-                
+
                 let processedContentForDisplay = isEditorPreview && section.sectionContentType === 'placeholder'
                     ? section.contentPlaceholder.replace(/\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g, (match, key) => key)
                     : replacePlaceholdersLocal(section.contentPlaceholder, dataToRender, true);
@@ -307,10 +324,10 @@ export function CardPreview({
                     const isValidUrl = imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'));
 
                     if (!isValidUrl) {
-                        const placeholderText = artworkHintValue || "Artwork";
-                        imageUrl = `https://placehold.co/${displayWidth > 0 ? displayWidth : 600}x${displayHeight > 0 ? displayHeight : 400}.png?text=${encodeURIComponent(placeholderText)}`;
+                        const placeholderTextForUrl = descriptiveArtworkText || "Artwork";
+                        imageUrl = `https://placehold.co/${displayWidth > 0 ? displayWidth : 600}x${displayHeight > 0 ? displayHeight : 400}.png?text=${encodeURIComponent(placeholderTextForUrl)}`;
                     }
-                    
+
                     if (shouldHideSection(section, imageUrl) && !isEditorPreview) {
                         return null;
                     }
@@ -323,7 +340,7 @@ export function CardPreview({
                                 ...sectionStyle,
                                 width: section.imageWidthPx ? `${displayWidth}px` : (section.customWidth || '100%'),
                                 height: section.imageHeightPx ? `${displayHeight}px` : (section.customHeight || 'auto'),
-                                overflow: 'hidden', 
+                                overflow: 'hidden',
                                 borderRadius: section.borderRadius || undefined,
                             }}
                             onClick={handlePreviewSectionClick}
@@ -334,19 +351,19 @@ export function CardPreview({
                                 alt={`Image for ${section.contentPlaceholder}`}
                                 width={displayWidth > 0 ? displayWidth : 300}
                                 height={displayHeight > 0 ? displayHeight : 200}
-                                style={{ 
-                                  objectFit: 'contain', 
-                                  width: '100%', 
+                                style={{
+                                  objectFit: 'contain',
+                                  width: '100%',
                                   height: '100%',
                                   borderRadius: section.borderRadius || undefined,
                                 }}
-                                data-ai-hint={`${artworkHintValue}`}
+                                data-ai-hint={dataAiHintKeywords}
                                 priority={rowIndex === 0 && sectionIndex === 0}
                             />
                         </div>
                     );
 
-                } else { 
+                } else {
                     const Tag = (processedContentForDisplay.includes('\n') && !isEditorPreview) ? 'pre' : 'div';
                     return (
                       <Tag
@@ -373,3 +390,4 @@ export function CardPreview({
     </div>
   );
 }
+
