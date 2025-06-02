@@ -15,6 +15,8 @@ export const DEFAULT_TEMPLATES_DATA: Partial<TCGCardTemplate>[] = [
     baseBackgroundColor: '#FDF5E6', // Parchment
     baseTextColor: '#5D4037', // Dark Brown
     cardBorderRadius: '0.75rem',
+    cardBorderColor: 'transparent', // Essential for border-image
+    cardBorderImageSource: "CSS: Classic Gold Gradient", // Descriptive placeholder
     rows: [
       {
         id: `dfr1-${'default-fantasy-classic'}`,
@@ -57,6 +59,8 @@ export const DEFAULT_TEMPLATES_DATA: Partial<TCGCardTemplate>[] = [
     frameStyle: 'minimal-dark',
     baseBackgroundColor: '#282828',
     baseTextColor: '#c0c0c0',
+    cardBorderColor: '#4a4a4a', // Solid border for this style
+    cardBorderImageSource: undefined,
     rows: [
        { id: `dmmr1-${'default-modern-minimal'}`, columns: [ { id: `dmms1-${'default-modern-minimal'}`, sectionContentType: 'placeholder', contentPlaceholder: '{{title:"Phase Shift"}}', flexGrow: 1, textAlign: 'left', fontSize: 'text-lg', fontWeight: 'font-semibold', padding: 'p-2', textColor: '#e0e0e0', minHeight: 'min-h-[35px]' }] },
        { id: `dmmr2-${'default-modern-minimal'}`, customHeight: '220px', columns: [ { id: `dmms2-${'default-modern-minimal'}`, sectionContentType: 'image', contentPlaceholder: 'mainImage', flexGrow: 1, imageWidthPx: '290', imageHeightPx: '220', padding: 'p-0' }] },
@@ -69,8 +73,6 @@ export const DEFAULT_TEMPLATES_DATA: Partial<TCGCardTemplate>[] = [
   }
 ];
 
-
-const MAX_DATA_URI_LENGTH_FOR_PERSISTENCE = 150 * 1024; // This limit might be reconsidered for persisted state if needed.
 
 export const getFreshDefaultTemplateObject = (id?: string | null, nameProp?: string): TCGCardTemplate => {
   let newTemplateId: string | null;
@@ -108,6 +110,7 @@ export const getFreshDefaultTemplateObject = (id?: string | null, nameProp?: str
     cardBorderWidth: '4px',
     cardBorderStyle: 'solid',
     cardBorderRadius: '0.5rem',
+    cardBorderImageSource: undefined, // Initialize new property
     rows: [
       utilCreateDefaultRow(defaultRowId1, [
         utilCreateDefaultSection(defaultSectionId1, { contentPlaceholder: `{{cardName:"Card Name"}}`, flexGrow: 1, sectionContentType: 'placeholder', textAlign:'center', fontSize:'text-lg', fontWeight: 'font-bold' }),
@@ -139,17 +142,16 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
       rows: [],
   };
 
-  const optionalStringFieldsForBase: (keyof Pick<TCGCardTemplate, 'cardBackgroundImageUrl' | 'baseBackgroundColor' | 'baseTextColor' | 'defaultSectionBorderColor' | 'cardBorderColor'>)[] = [
-      'cardBackgroundImageUrl', 'baseBackgroundColor', 'baseTextColor', 'defaultSectionBorderColor', 'cardBorderColor'
+  const optionalStringFieldsForBase: (keyof Pick<TCGCardTemplate, 'cardBackgroundImageUrl' | 'baseBackgroundColor' | 'baseTextColor' | 'defaultSectionBorderColor' | 'cardBorderColor' | 'cardBorderImageSource'>)[] = [
+      'cardBackgroundImageUrl', 'baseBackgroundColor', 'baseTextColor', 'defaultSectionBorderColor', 'cardBorderColor', 'cardBorderImageSource'
   ];
 
   optionalStringFieldsForBase.forEach(fieldKey => {
       const value = t_loaded[fieldKey];
       if (value && String(value).trim() !== "") {
-          // Removed MAX_DATA_URI_LENGTH_FOR_PERSISTENCE check for cardBackgroundImageUrl
           (base as any)[fieldKey] = value;
       } else {
-          delete (base as any)[fieldKey];
+          delete (base as any)[fieldKey]; // Ensure truly undefined if empty
       }
   });
   
@@ -171,14 +173,13 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
       
       const newR = rowBase as CardRow;
 
-      // Ensure createDefaultSection is using the util version
-      const sectionDefaultsForCompare = utilCreateDefaultSection(nanoid()); // For comparison of default values
+      const sectionDefaultsForCompare = utilCreateDefaultSection(nanoid()); 
       const sourceColumns = r_source.columns && Array.isArray(r_source.columns) && r_source.columns.length > 0 ? r_source.columns : [utilCreateDefaultSection(`default-col-for-row-${rowId}`)];
 
       newR.columns = sourceColumns.map((c_source_partial: Partial<CardSection>) => {
           const c_source = { ...c_source_partial };
           const sectionId = (c_source.id && c_source.id.trim() !== "") ? c_source.id : nanoid();
-          const sectionDefaults = utilCreateDefaultSection(sectionId); // Use util version
+          const sectionDefaults = utilCreateDefaultSection(sectionId); 
           
           const sectionBase: Partial<CardSection> = {
               id: sectionId,
@@ -199,10 +200,8 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
               const defaultValueFromDefaults = sectionDefaults[fieldKey as keyof CardSection];
 
               if (value !== undefined && String(value).trim() !== "") {
-                   // Removed MAX_DATA_URI_LENGTH_FOR_PERSISTENCE check for section backgroundImageUrl
                   (sectionBase as any)[fieldKey] = value;
               } else if (defaultValueFromDefaults !== undefined && String(defaultValueFromDefaults) !== "" && String(value).trim() === "" && String(defaultValueFromDefaults) !== String(sectionDefaultsForCompare[fieldKey as keyof CardSection])) {
-                  // If loaded value is empty string, but default is not, keep the default
                   (sectionBase as any)[fieldKey] = defaultValueFromDefaults;
               }
               else {
@@ -210,14 +209,12 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
               }
           });
           
-          // Ensure essential defaults that should always exist if not overridden (even if to empty string by user)
           const essentialDefaultFields = ['fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 'borderWidth', 'borderRadius', 'minHeight'];
           essentialDefaultFields.forEach(key => {
             if (sectionBase[key as keyof CardSection] === undefined) {
                  (sectionBase as any)[key] = sectionDefaults[key as keyof CardSection];
             }
           });
-
 
           if ((sectionBase.contentPlaceholder === undefined || String(sectionBase.contentPlaceholder).trim() === "") && sectionDefaults.contentPlaceholder) {
                sectionBase.contentPlaceholder = sectionDefaults.contentPlaceholder;
@@ -234,11 +231,8 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
       return newR;
   });
 
-  // If after all reconstruction, rows are empty for a *new* template (id was null originally or generated for first time)
-  // then populate with default structure.
-  // For existing templates (t_loaded.id was present), if rows are empty, they stay empty.
   if (newT.rows.length === 0 && (!t_loaded_partial.id || t_loaded_partial.id.trim() === "")) {
-      const defaultStructure = getFreshDefaultTemplateObject(null, newT.name); // Use the store's getFresh
+      const defaultStructure = getFreshDefaultTemplateObject(null, newT.name);
       newT.rows = defaultStructure.rows.map(r => ({
           ...r,
           id:nanoid(), 
@@ -265,7 +259,7 @@ interface AppState {
   isEditDialogOpen: boolean;
   
   // Actions
-  addOrUpdateTemplate: (template: TCGCardTemplate) => string; // Returns ID of saved template
+  addOrUpdateTemplate: (template: TCGCardTemplate) => string; 
   deleteTemplate: (templateId: string) => void;
   
   addGeneratedCards: (newCards: DisplayCard[]) => void;
@@ -286,7 +280,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>()(
-  devtools( // Using devtools for easier debugging
+  devtools( 
     persist(
       (set, get) => ({
         templates: [],
@@ -306,12 +300,12 @@ export const useAppStore = create<AppState>()(
 
         addOrUpdateTemplate: (template) => {
           let templateToSave = { ...template };
-          if (!templateToSave.id || templateToSave.id.trim() === "" || templateToSave.id === null) { // Check for null explicitly
+          if (!templateToSave.id || templateToSave.id.trim() === "" || templateToSave.id === null) { 
             templateToSave.id = nanoid();
           }
           const reconstructed = reconstructMinimalTemplateObject(templateToSave);
           
-          let finalId = reconstructed.id!; // id is guaranteed by reconstruction
+          let finalId = reconstructed.id!; 
 
           set((state) => {
             const newTemplates = [...state.templates];
@@ -321,10 +315,9 @@ export const useAppStore = create<AppState>()(
             } else {
               newTemplates.push(reconstructed);
             }
-            // Ensure all templates in the list are in canonical form for comparison by persist middleware
             const canonicalTemplates = newTemplates.map(t => reconstructMinimalTemplateObject(t));
             if (JSON.stringify(state.templates) === JSON.stringify(canonicalTemplates)) {
-                return state; // Avoid update if no actual change
+                return state; 
             }
             return { templates: canonicalTemplates };
           });
@@ -374,7 +367,7 @@ export const useAppStore = create<AppState>()(
                 if(templateFound){
                     runtimeCards.push({
                         uniqueId: storedCardFromFile.uniqueId || nanoid(),
-                        templateId: templateFound.id!, // Use the ID from the found template
+                        templateId: templateFound.id!, 
                         data: storedCardFromFile.data || {}
                     });
                     successCount++;
@@ -442,26 +435,23 @@ export const useAppStore = create<AppState>()(
               console.error("Error rehydrating from Zustand storage:", error);
             }
             if (state) {
-              // Call the rehydration callback after the state has been set
-              // Timeout ensures it runs after the current tick where Zustand finalizes rehydration
               setTimeout(() => state._rehydrateCallback(), 0);
             }
           };
         },
-        version: 2, // version number for migrations if needed
+        version: 2, 
       }
     )
   )
 );
 
-// Selector to get DisplayCard[] from StoredDisplayCard[] and templates[]
 export const selectGeneratedDisplayCards = (state: AppState): DisplayCard[] => {
   return state.storedCards.reduce((acc: DisplayCard[], storedCard) => {
     const template = state.templates.find(t => t.id === storedCard.templateId);
     if (template) {
       acc.push({
         uniqueId: storedCard.uniqueId,
-        template: template, // Already reconstructed in store
+        template: template, 
         data: storedCard.data,
       });
     }
@@ -469,21 +459,13 @@ export const selectGeneratedDisplayCards = (state: AppState): DisplayCard[] => {
   }, []);
 };
 
-// Selector for the card currently being edited
 export const selectEditingCard = (state: AppState): DisplayCard | null => {
     if (!state.editingCardUniqueId || !state.isEditDialogOpen) return null;
     
-    // Use the selectGeneratedDisplayCards selector to get the full card object
     const allDisplayCards = selectGeneratedDisplayCards(state);
     const editingDisplayCard = allDisplayCards.find(card => card.uniqueId === state.editingCardUniqueId);
     
     return editingDisplayCard || null;
 };
 
-// Call the rehydration callback once manually after store creation for initial setup if not persisted yet.
-// This might be too early if persist isn't done. `onRehydrateStorage` is better.
-// setTimeout(() => useAppStore.getState()._rehydrateCallback(), 0);
-
-// Expose getFreshDefaultTemplate and reconstructMinimalTemplate for use outside the store if needed
-// (e.g. in TemplateEditor for new template state before saving to store)
 export { getFreshDefaultTemplateObject as getFreshDefaultTemplate, reconstructMinimalTemplateObject as reconstructMinimalTemplate };

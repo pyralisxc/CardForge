@@ -1,15 +1,15 @@
 
 "use client";
 
-import type { DisplayCard, CardSection, CardData, CardRow, TCGCardTemplate } from '@/types'; // Ensure TCGCardTemplate is imported
+import type { DisplayCard, CardSection, CardData, CardRow, TCGCardTemplate } from '@/types'; 
 import NextImage from 'next/image';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils'; // Removed simplifyRatio, gcd
+import { cn, replacePlaceholdersLocal } from '@/lib/utils'; 
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 
 interface CardPreviewProps {
-  card: DisplayCard; // This now refers to the simplified DisplayCard
+  card: DisplayCard; 
   className?: string;
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
@@ -70,15 +70,38 @@ export function CardPreview({
     }
   }
 
-  if (templateToRender.cardBorderColor) cardContainerStyle.borderColor = templateToRender.cardBorderColor;
-  if (templateToRender.cardBorderWidth) cardContainerStyle.borderWidth = templateToRender.cardBorderWidth;
-  if (templateToRender.cardBorderStyle && templateToRender.cardBorderStyle !== '_default_' && templateToRender.cardBorderStyle !== 'none') {
-    cardContainerStyle.borderStyle = templateToRender.cardBorderStyle as React.CSSProperties['borderStyle'];
-  } else if (templateToRender.cardBorderStyle === 'none') {
-     cardContainerStyle.borderStyle = 'none';
-     cardContainerStyle.borderWidth = '0';
+  // Border styling
+  if (templateToRender.cardBorderImageSource && !templateToRender.cardBorderImageSource.startsWith("CSS:")) {
+    // User-defined border image/gradient takes precedence
+    cardContainerStyle.borderImageSource = `url(${templateToRender.cardBorderImageSource})`; // Basic URL assumption, could be gradient string
+    if (templateToRender.cardBorderImageSource.toLowerCase().includes('gradient(')) { // If it's a gradient string
+        cardContainerStyle.borderImageSource = templateToRender.cardBorderImageSource;
+    }
+    cardContainerStyle.borderImageSlice = 1; // Common default, might need to be configurable
+    cardContainerStyle.borderColor = 'transparent'; // Must be transparent for border-image to show
+    // Ensure border width and style are set, as border-image relies on them
+    cardContainerStyle.borderWidth = templateToRender.cardBorderWidth || '4px'; 
+    cardContainerStyle.borderStyle = (templateToRender.cardBorderStyle && templateToRender.cardBorderStyle !== '_default_' && templateToRender.cardBorderStyle !== 'none') 
+                                      ? templateToRender.cardBorderStyle as React.CSSProperties['borderStyle'] 
+                                      : 'solid';
+  } else if (templateToRender.frameStyle !== 'classic-gold' && templateToRender.frameStyle !== 'minimal-dark' && templateToRender.frameStyle !== 'arcane-purple') {
+    // For 'standard', 'custom', or other non-CSS-defined frames without cardBorderImageSource
+    if (templateToRender.cardBorderColor) cardContainerStyle.borderColor = templateToRender.cardBorderColor;
+    if (templateToRender.cardBorderWidth) cardContainerStyle.borderWidth = templateToRender.cardBorderWidth;
+    if (templateToRender.cardBorderStyle && templateToRender.cardBorderStyle !== '_default_' && templateToRender.cardBorderStyle !== 'none') {
+      cardContainerStyle.borderStyle = templateToRender.cardBorderStyle as React.CSSProperties['borderStyle'];
+    } else if (templateToRender.cardBorderStyle === 'none') {
+       cardContainerStyle.borderStyle = 'none';
+       cardContainerStyle.borderWidth = '0';
+    } else { // Default border for standard/custom if not specified
+        cardContainerStyle.borderStyle = 'solid'; 
+    }
   }
+  // Note: For 'classic-gold', 'minimal-dark', 'arcane-purple', border styles are primarily controlled by globals.css
+  // and their `cardBorderColor` might be `transparent` or a specific color from PREDEFINED_FRAME_VISUAL_PROPERTIES.
+  
   if (templateToRender.cardBorderRadius) cardContainerStyle.borderRadius = templateToRender.cardBorderRadius;
+
 
   const calculatedPrintSize = useMemo(() => {
     if (!showSizeInfo) return '';
@@ -96,13 +119,13 @@ export function CardPreview({
   }, [templateToRender.aspectRatio, showSizeInfo]);
 
   const descriptiveArtworkText = useMemo(() => {
-    let nameValue = 'Artwork'; // Default for placeholder image text
+    let nameValue = 'Artwork'; 
     if (dataToRender) {
       const nameKeys = ['cardName', 'title', 'name'];
       for (const key of nameKeys) {
         const value = dataToRender[key];
         if (value && typeof value === 'string' && value.trim()) {
-          nameValue = value.trim(); // Use full name for descriptive placeholder text
+          nameValue = value.trim(); 
           break;
         }
       }
@@ -111,18 +134,17 @@ export function CardPreview({
   }, [dataToRender]);
 
   const dataAiHintKeywords = useMemo(() => {
-    let baseHint = 'card art'; // Default for data-ai-hint
+    let baseHint = 'card art'; 
     if (dataToRender) {
       const nameKeys = ['cardName', 'title', 'name'];
       for (const key of nameKeys) {
         const value = dataToRender[key];
         if (value && typeof value === 'string' && value.trim()) {
           baseHint = value.trim().toLowerCase().split(/\s+/).slice(0, 2).join(' ');
-          if (baseHint) break; // Found a name, use its first 1-2 words
+          if (baseHint) break; 
         }
       }
     }
-    // Ensure if baseHint became empty (e.g. name was only punctuation), it defaults
     return baseHint || 'card art';
   }, [dataToRender]);
 
@@ -390,4 +412,3 @@ export function CardPreview({
     </div>
   );
 }
-

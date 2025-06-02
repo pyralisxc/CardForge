@@ -38,6 +38,7 @@ export interface TCGCardTemplate {
   aspectRatio: string;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
+  cardBorderImageSource?: string; // New property for border image/gradient
 
   baseBackgroundColor?: string;
   baseTextColor?: string;

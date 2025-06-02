@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import {
-  LayoutDashboard, Trash2, PlusCircle, Rows, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, Settings, Frame, FileImage
+  LayoutDashboard, Trash2, PlusCircle, Rows, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, Settings, Frame, FileImage, Image as ImageIconLucide
 } from 'lucide-react';
 import {
   TCG_ASPECT_RATIO,
@@ -37,27 +37,27 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
   'classic-gold': {
     baseBackgroundColor: '#fDF4D8', baseTextColor: '#4A3B2A', cardBorderRadius: '0.75rem',
     cardBorderColor: 'transparent', cardBorderWidth: '6px', cardBorderStyle: 'solid',
-    cardBackgroundImageUrl: undefined, frameStyle: 'classic-gold'
+    cardBackgroundImageUrl: undefined, frameStyle: 'classic-gold', cardBorderImageSource: "CSS: Classic Gold Gradient"
   },
   'minimal-dark': {
     baseBackgroundColor: '#282828', baseTextColor: '#c0c0c0', cardBorderColor: '#4a4a4a',
     cardBorderWidth: '2px', cardBorderStyle: 'solid', cardBorderRadius: '0.25rem',
-    cardBackgroundImageUrl: undefined, frameStyle: 'minimal-dark'
+    cardBackgroundImageUrl: undefined, frameStyle: 'minimal-dark', cardBorderImageSource: undefined
   },
   'arcane-purple': {
-    baseBackgroundColor: '#7A52CC', baseTextColor: '#F1F2F3', cardBorderColor: '#F1F2F3',
+    baseBackgroundColor: '#7A52CC', baseTextColor: '#F1F2F3', cardBorderColor: '#F1F2F3', // Hex values
     cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem',
-    cardBackgroundImageUrl: undefined, frameStyle: 'arcane-purple'
+    cardBackgroundImageUrl: undefined, frameStyle: 'arcane-purple', cardBorderImageSource: undefined
   },
-  'standard': { // Default for "Standard" style
+  'standard': { 
     baseBackgroundColor: '#FFFFFF', baseTextColor: '#000000', cardBorderRadius: '0.5rem',
     cardBorderColor: undefined, cardBorderWidth: '4px', cardBorderStyle: 'solid',
-    cardBackgroundImageUrl: undefined, frameStyle: 'standard'
+    cardBackgroundImageUrl: undefined, frameStyle: 'standard', cardBorderImageSource: undefined
   },
-  'custom': { // Default for "Custom Colors" (user-defined, so start with empty/theme-derived values)
+  'custom': { 
     baseBackgroundColor: '', baseTextColor: '', cardBorderRadius: '0.5rem',
     cardBorderColor: '', cardBorderWidth: '4px', cardBorderStyle: 'solid',
-    cardBackgroundImageUrl: undefined, frameStyle: 'custom'
+    cardBackgroundImageUrl: undefined, frameStyle: 'custom', cardBorderImageSource: undefined
   }
 };
 
@@ -85,12 +85,9 @@ export function TemplateEditor({
   const { toast } = useToast();
 
   const [hasMounted, setHasMounted] = useState(false);
-  // currentTemplate is the "draft" state being edited locally.
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() =>
     reconstructMinimalTemplate(memoizedGetFreshDefaultTemplate(selectedTemplateIdForEditing))
   );
-  // currentTemplateInternalRef holds a ref to the latest currentTemplate,
-  // useful for callbacks and effects that need the latest data without causing re-renders.
   const currentTemplateInternalRef = useRef<TCGCardTemplate>(currentTemplate);
 
   const [aspectRatioInput, setAspectRatioInput] = useState<string>(currentTemplate.aspectRatio || TCG_ASPECT_RATIO);
@@ -102,6 +99,7 @@ export function TemplateEditor({
   const [activeStylingAccordion, setActiveStylingAccordion] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const cardBgImageInputRef = useRef<HTMLInputElement | null>(null);
+  const cardBorderImageInputRef = useRef<HTMLInputElement | null>(null);
   const [isSettingsCardOpen, setIsSettingsCardOpen] = useState(true);
   const [isRowsAndSectionsCardOpen, setIsRowsAndSectionsCardOpen] = useState(true);
 
@@ -125,9 +123,16 @@ export function TemplateEditor({
   }, [reconstructMinimalTemplate]);
 
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
-    const updatedRaw = { ...currentTemplateInternalRef.current, ...updates };
+    let finalUpdates = { ...updates };
+    // If cardBorderImageSource is being set to a truthy value for standard/custom,
+    // ensure cardBorderColor becomes transparent effectively.
+    // However, we won't persist 'transparent' directly unless it's a non-customizable frame.
+    // The preview will handle making it transparent.
+    const currentInternal = currentTemplateInternalRef.current;
+    const updatedRaw = { ...currentInternal, ...finalUpdates };
     updateCurrentTemplateState(reconstructMinimalTemplate(updatedRaw));
   }, [reconstructMinimalTemplate, updateCurrentTemplateState]);
+
 
   const resetFormToNew = useCallback(() => {
     const newFreshTemplate = memoizedGetFreshDefaultTemplate(null, "New Unsaved Template");
@@ -135,7 +140,6 @@ export function TemplateEditor({
   }, [memoizedGetFreshDefaultTemplate, updateCurrentTemplateState]);
 
 
-  // Effect to load a template when selectedTemplateIdForEditing changes or on initial load.
   useEffect(() => {
     if (!hasMounted) return;
 
@@ -147,14 +151,12 @@ export function TemplateEditor({
       if (foundTemplate) {
         templateToLoad = foundTemplate;
       } else {
-        // If selected ID is invalid (e.g., template deleted), and current form is not already a "new" one
         if (currentTemplateInternalRef.current?.id !== null) {
           performingReset = true;
         }
-        templateToLoad = memoizedGetFreshDefaultTemplate(null); // Default to a new, unsaved template structure
+        templateToLoad = memoizedGetFreshDefaultTemplate(null); 
       }
-    } else { // No template ID selected, means we're creating a new one
-      // If current form is not already a "new" one, trigger a reset
+    } else { 
       if (currentTemplateInternalRef.current?.id !== null) {
         performingReset = true;
       }
@@ -162,11 +164,9 @@ export function TemplateEditor({
     }
 
     if (performingReset) {
-      resetFormToNew(); // Resets to a clean "New Unsaved Template"
+      resetFormToNew(); 
     } else {
-      // Load the selected or new template data, ensuring it's reconstructed.
       const reconstructedLoadedTemplate = reconstructMinimalTemplate(templateToLoad);
-      // Only update state if it's actually different to avoid unnecessary re-renders/loops.
       if (JSON.stringify(reconstructedLoadedTemplate) !== JSON.stringify(currentTemplateInternalRef.current)) {
         updateCurrentTemplateState(reconstructedLoadedTemplate);
       }
@@ -174,7 +174,6 @@ export function TemplateEditor({
   }, [hasMounted, selectedTemplateIdForEditing, templates, reconstructMinimalTemplate, resetFormToNew, updateCurrentTemplateState, memoizedGetFreshDefaultTemplate]);
 
 
-  // Effect to synchronize the local aspectRatioInput with the current template's aspect ratio.
   useEffect(() => {
     if (!hasMounted) return;
     const targetAspectRatio = currentTemplateInternalRef.current.aspectRatio || TCG_ASPECT_RATIO;
@@ -184,7 +183,6 @@ export function TemplateEditor({
   }, [hasMounted, currentTemplateInternalRef.current.id, currentTemplateInternalRef.current.aspectRatio, aspectRatioInput]);
 
 
-  // Effect to manage active row accordions, expanding all rows of a newly loaded template.
   useEffect(() => {
     if (!hasMounted) return;
     let newRowIds: string[];
@@ -192,7 +190,7 @@ export function TemplateEditor({
 
     if (currentRows && currentRows.length > 0) {
       newRowIds = currentRows.map(r => r.id).filter(Boolean) as string[];
-    } else if (currentTemplateInternalRef.current.id === null) { // For a new, unsaved template
+    } else if (currentTemplateInternalRef.current.id === null) { 
       const defaultNewTemplate = memoizedGetFreshDefaultTemplate(null);
       newRowIds = (defaultNewTemplate.rows || []).map(r => r.id).filter(Boolean) as string[];
     } else {
@@ -205,28 +203,23 @@ export function TemplateEditor({
   }, [hasMounted, currentTemplateInternalRef.current.id, currentTemplateInternalRef.current.rows, activeRowAccordionItems, memoizedGetFreshDefaultTemplate]);
 
 
-  // Effect to apply visual properties from PREDEFINED_FRAME_VISUAL_PROPERTIES when frameStyle changes.
   useEffect(() => {
     if (!hasMounted) return;
-
     const newSelectedFrameStyle = currentTemplateInternalRef.current.frameStyle || 'standard';
     const predefinedVisualProps = PREDEFINED_FRAME_VISUAL_PROPERTIES[newSelectedFrameStyle];
 
     if (predefinedVisualProps) {
-        // Construct a candidate state based on the current non-visuals and the new frame's visuals
         const candidateTemplateState: Partial<TCGCardTemplate> = {
             id: currentTemplateInternalRef.current.id,
             name: currentTemplateInternalRef.current.name,
             aspectRatio: currentTemplateInternalRef.current.aspectRatio,
-            rows: currentTemplateInternalRef.current.rows, // Keep current rows
-            defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor, // Keep if set
-            ...predefinedVisualProps, // Apply all visual properties from the selected frame style
-            frameStyle: newSelectedFrameStyle, // Ensure frameStyle is explicitly set
+            rows: currentTemplateInternalRef.current.rows, 
+            defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor,
+            ...predefinedVisualProps, 
+            frameStyle: newSelectedFrameStyle, 
         };
-        // updateCurrentTemplateState handles reconstruction and checks for actual changes before setting state.
         updateCurrentTemplateState(reconstructMinimalTemplate(candidateTemplateState));
     }
-  // This effect should primarily react to frameStyle changes.
   }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplateState, reconstructMinimalTemplate]);
 
 
@@ -367,9 +360,13 @@ export function TemplateEditor({
   }, [onSelectTemplateForEditing]);
 
   const isNonCustomizableFrame = useMemo(() => {
-    const frameStyle = currentTemplate.frameStyle;
+    const frameStyle = currentTemplate.frameStyle; // Use state variable for reactivity
     return !!frameStyle && frameStyle !== 'standard' && frameStyle !== 'custom';
   }, [currentTemplate.frameStyle]);
+
+  const isBorderImageSourceActive = useMemo(() => {
+    return !!currentTemplate.cardBorderImageSource && currentTemplate.cardBorderImageSource.trim() !== "" && !currentTemplate.cardBorderImageSource.startsWith("CSS:");
+  }, [currentTemplate.cardBorderImageSource]);
 
   const livePreviewData = useMemo(() => {
     const data: { [key: string]: string } = {};
@@ -417,6 +414,19 @@ export function TemplateEditor({
       reader.onload = (e) => updateCurrentTemplate({ cardBackgroundImageUrl: e.target?.result as string });
       reader.readAsDataURL(file);
       toast({ title: "Image Uploaded", description: `Card background image "${file.name}" loaded.` });
+    }
+    if (event.target) event.target.value = "";
+  }, [updateCurrentTemplate, toast]);
+  
+  const handleCardBorderImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        updateCurrentTemplate({ cardBorderImageSource: e.target?.result as string });
+        toast({ title: "Image Uploaded", description: `Card border image "${file.name}" loaded.` });
+      }
+      reader.readAsDataURL(file);
     }
     if (event.target) event.target.value = "";
   }, [updateCurrentTemplate, toast]);
@@ -653,7 +663,7 @@ export function TemplateEditor({
                                             <p className="text-xs text-muted-foreground mt-0.5">
                                                 {isNonCustomizableFrame
                                                     ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').`
-                                                    : "Applies to 'Standard' and 'Custom Colors' frames. Other frames may override."}
+                                                    : "Applies to 'Standard' and 'Custom Colors' frames."}
                                             </p>
                                         </div>
                                         <div>
@@ -664,7 +674,7 @@ export function TemplateEditor({
                                             <p className="text-xs text-muted-foreground mt-0.5">
                                                 {isNonCustomizableFrame
                                                     ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').`
-                                                    : "Applies to 'Standard' and 'Custom Colors' frames. Other frames may override."}
+                                                    : "Applies to 'Standard' and 'Custom Colors' frames."}
                                             </p>
                                         </div>
                                         <div>
@@ -672,33 +682,76 @@ export function TemplateEditor({
                                             <Input id="defaultSectionBorderColor" type="color" value={currentTemplate.defaultSectionBorderColor || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ defaultSectionBorderColor: e.target.value })} />
                                             <p className="text-xs text-muted-foreground mt-0.5">Fallback for individual section borders if they have width but no specific color.</p>
                                         </div>
+
+                                        {/* Card Border Image/Gradient Input */}
+                                        <div className="space-y-1">
+                                          <Label htmlFor="cardBorderImageSource">Card Border Image/Gradient (URL or CSS)</Label>
+                                          <div className="flex items-center gap-2 w-full">
+                                            <Input
+                                              id="cardBorderImageSource"
+                                              value={currentTemplate.cardBorderImageSource || ''}
+                                              onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ cardBorderImageSource: e.target.value })}
+                                              placeholder={currentTemplate.cardBorderImageSource?.startsWith("CSS:") ? currentTemplate.cardBorderImageSource : "URL (https://...) or CSS gradient (linear-gradient(...))"}
+                                              className="h-8 text-xs flex-grow"
+                                              disabled={isNonCustomizableFrame || (currentTemplate.cardBorderImageSource?.startsWith("CSS:") ?? false)}
+                                            />
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="icon"
+                                              className="h-8 w-8 shrink-0"
+                                              onClick={() => cardBorderImageInputRef.current?.click()}
+                                              aria-label="Upload card border image"
+                                              disabled={isNonCustomizableFrame || (currentTemplate.cardBorderImageSource?.startsWith("CSS:") ?? false)}
+                                            >
+                                              <ImageIconLucide className="h-4 w-4" />
+                                            </Button>
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              ref={cardBorderImageInputRef}
+                                              onChange={handleCardBorderImageUpload}
+                                              style={{ display: 'none' }}
+                                              id="cardBorderImageSource-file"
+                                            />
+                                          </div>
+                                          <p className="text-xs text-muted-foreground mt-0.5">
+                                            {isNonCustomizableFrame || (currentTemplate.cardBorderImageSource?.startsWith("CSS:") ?? false)
+                                              ? `Border image/gradient is controlled by Frame Style ('${currentTemplate.frameStyle || ''}').`
+                                              : "For 'Standard'/'Custom'. Overrides solid border color."}
+                                          </p>
+                                        </div>
+                                        
                                         <div>
-                                            <Label htmlFor="cardBorderColor">Card Outer Border Color</Label>
+                                            <Label htmlFor="cardBorderColor">Card Outer Border Color (Solid)</Label>
                                             <Input id="cardBorderColor" type="color" value={currentTemplate.cardBorderColor || ''} onChange={e => updateCurrentTemplate({cardBorderColor: e.target.value})}
-                                            disabled={isNonCustomizableFrame}/>
+                                            disabled={isNonCustomizableFrame || isBorderImageSourceActive}
+                                            />
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : "For 'Standard'/'Custom Colors' frames."}
+                                                {isNonCustomizableFrame ? `Solid border color is overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` 
+                                                 : isBorderImageSourceActive ? "Solid border color is overridden by Border Image/Gradient."
+                                                 : "For 'Standard'/'Custom Colors' frames if no border image is set."}
                                             </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="cardBorderWidth">Card Outer Border Width</Label>
                                             <Input id="cardBorderWidth" value={currentTemplate.cardBorderWidth || ''} onChange={e => updateCurrentTemplate({cardBorderWidth: e.target.value})} placeholder="e.g., 4px, 0"
                                             className="h-8 text-xs"
-                                            disabled={isNonCustomizableFrame}/>
+                                            disabled={isNonCustomizableFrame && currentTemplate.frameStyle !== 'classic-gold'}/>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : 'E.g., "4px", "0" for no border.'}
+                                                {isNonCustomizableFrame && currentTemplate.frameStyle !== 'classic-gold' ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : 'E.g., "4px", "0" for no border. Needed for border image.'}
                                             </p>
                                         </div>
                                         <div>
                                             <Label htmlFor="cardBorderStyle">Card Outer Border Style</Label>
                                             <Select value={currentTemplate.cardBorderStyle || '_default_'} onValueChange={v => updateCurrentTemplate({cardBorderStyle: (v === '_default_' ? undefined : v as TCGCardTemplate['cardBorderStyle'])}) }
-                                            disabled={isNonCustomizableFrame}
+                                            disabled={isNonCustomizableFrame && currentTemplate.frameStyle !== 'classic-gold'}
                                             >
                                                 <SelectTrigger id="cardBorderStyle"><SelectValue/></SelectTrigger>
                                                 <SelectContent>{CARD_BORDER_STYLES.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                                             </Select>
                                             <p className="text-xs text-muted-foreground mt-0.5">
-                                                {isNonCustomizableFrame ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : "For 'Standard'/'Custom Colors' frames."}
+                                                {isNonCustomizableFrame && currentTemplate.frameStyle !== 'classic-gold' ? `Overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` : "Needed for border image."}
                                             </p>
                                         </div>
                                         <div>
@@ -894,4 +947,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
