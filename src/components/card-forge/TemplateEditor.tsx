@@ -45,7 +45,7 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
     cardBackgroundImageUrl: undefined, frameStyle: 'minimal-dark', cardBorderImageSource: undefined
   },
   'arcane-purple': {
-    baseBackgroundColor: '#7A52CC', baseTextColor: '#F1F2F3', cardBorderColor: '#F1F2F3', // Hex values
+    baseBackgroundColor: '#7A52CC', baseTextColor: '#F1F2F3', cardBorderColor: '#F1F2F3', 
     cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem',
     cardBackgroundImageUrl: undefined, frameStyle: 'arcane-purple', cardBorderImageSource: undefined
   },
@@ -124,10 +124,6 @@ export function TemplateEditor({
 
   const updateCurrentTemplate = useCallback((updates: Partial<TCGCardTemplate>) => {
     let finalUpdates = { ...updates };
-    // If cardBorderImageSource is being set to a truthy value for standard/custom,
-    // ensure cardBorderColor becomes transparent effectively.
-    // However, we won't persist 'transparent' directly unless it's a non-customizable frame.
-    // The preview will handle making it transparent.
     const currentInternal = currentTemplateInternalRef.current;
     const updatedRaw = { ...currentInternal, ...finalUpdates };
     updateCurrentTemplateState(reconstructMinimalTemplate(updatedRaw));
@@ -360,7 +356,7 @@ export function TemplateEditor({
   }, [onSelectTemplateForEditing]);
 
   const isNonCustomizableFrame = useMemo(() => {
-    const frameStyle = currentTemplate.frameStyle; // Use state variable for reactivity
+    const frameStyle = currentTemplate.frameStyle; 
     return !!frameStyle && frameStyle !== 'standard' && frameStyle !== 'custom';
   }, [currentTemplate.frameStyle]);
 
@@ -689,7 +685,7 @@ export function TemplateEditor({
                                           <div className="flex items-center gap-2 w-full">
                                             <Input
                                               id="cardBorderImageSource"
-                                              value={currentTemplate.cardBorderImageSource || ''}
+                                              value={currentTemplate.cardBorderImageSource?.startsWith("CSS:") ? "" : currentTemplate.cardBorderImageSource || ''}
                                               onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ cardBorderImageSource: e.target.value })}
                                               placeholder={currentTemplate.cardBorderImageSource?.startsWith("CSS:") ? currentTemplate.cardBorderImageSource : "URL (https://...) or CSS gradient (linear-gradient(...))"}
                                               className="h-8 text-xs flex-grow"
