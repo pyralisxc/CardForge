@@ -82,7 +82,7 @@ export function CardPreview({
     width: `${effectiveWidthPx}px`,
     height: `${cardPixelHeight}px`,
     boxSizing: 'border-box',
-    position: 'relative', // Needed for z-indexing of children if required
+    position: 'relative', 
   };
 
   if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
@@ -101,7 +101,7 @@ export function CardPreview({
   if (useImageBorderViaMultiBackground) {
     cardContainerStyle.padding = finalEffectiveBorderWidthWithUnit;
     cardContainerStyle.border = 'none'; 
-    cardContainerStyle.backgroundColor = tb.baseBackgroundColor || 'transparent';
+    cardContainerStyle.backgroundColor = 'transparent'; // Base element transparent, layers define appearance
 
     const finalBgImages = [];
     const finalBgSizes = [];
@@ -110,15 +110,28 @@ export function CardPreview({
     const finalBgPositions = [];
     const finalBgRepeats = [];
 
+    // Layer 2: Content Background Image (Optional, Topmost)
     if (resolvedCardContentBgUrl && (resolvedCardContentBgUrl.startsWith('http') || resolvedCardContentBgUrl.startsWith('data:'))) {
         finalBgImages.push(`url(${resolvedCardContentBgUrl})`);
-        finalBgSizes.push('cover'); 
+        finalBgSizes.push('cover'); // Or tb.cardContentBackgroundSize if implemented
         finalBgClips.push('content-box');
         finalBgOrigins.push('content-box');
         finalBgPositions.push('center center');
         finalBgRepeats.push('no-repeat');
     }
 
+    // Layer 1: Base Background Color for Content Area (Middle)
+    const baseBgForContent = tb.baseBackgroundColor && tb.baseBackgroundColor !== 'transparent' ? tb.baseBackgroundColor : null;
+    if (baseBgForContent) {
+        finalBgImages.push(`linear-gradient(${baseBgForContent}, ${baseBgForContent})`);
+        finalBgSizes.push('auto'); 
+        finalBgClips.push('content-box');
+        finalBgOrigins.push('content-box');
+        finalBgPositions.push('center center');
+        finalBgRepeats.push('no-repeat');
+    }
+    
+    // Layer 0: Border Image (Bottommost, fills padding-box)
     finalBgImages.push(`url(${resolvedCardBorderImageSource})`);
     finalBgSizes.push('cover'); 
     finalBgClips.push('padding-box');
@@ -139,15 +152,16 @@ export function CardPreview({
     if (tb.baseTextColor) cardContainerStyle.color = tb.baseTextColor;
 
     if (resolvedCardContentBgUrl && (resolvedCardContentBgUrl.startsWith('http') || resolvedCardContentBgUrl.startsWith('data:'))) {
+        // For non-multi-background cases, this content background is applied directly.
+        // If a border image is active via CSS (e.g. classic-gold), this background needs to respect it.
         cardContainerStyle.backgroundImage = `url(${resolvedCardContentBgUrl})`;
-        cardContainerStyle.backgroundSize = 'cover';
+        cardContainerStyle.backgroundSize = 'cover'; // Or tb.cardContentBackgroundSize
         cardContainerStyle.backgroundPosition = 'center';
-        cardContainerStyle.backgroundClip = 'padding-box'; // Ensure content bg respects border width for solid borders too
-        cardContainerStyle.backgroundOrigin = 'padding-box';
+        cardContainerStyle.backgroundClip = 'content-box'; // Ensures content bg is inside any border
+        cardContainerStyle.backgroundOrigin = 'content-box';
     }
     
     if (isStandardOrCustomFrame && !isCSSDrivenBorderImage && numericBorderWidth > 0) {
-        // Solid border using box-shadow trick (if not using multi-background image border)
         cardContainerStyle.boxShadow = `0 0 0 ${finalEffectiveBorderWidthWithUnit} ${tb.cardBorderColor || 'hsl(var(--border))'}`;
         cardContainerStyle.borderColor = 'transparent';
         cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit; 
@@ -155,16 +169,15 @@ export function CardPreview({
                                           ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
                                           : 'solid';
     } else if (isStandardOrCustomFrame && isCSSDrivenBorderImage && numericBorderWidth > 0) {
-        // CSS Gradient border-image 
         cardContainerStyle.borderImageSource = resolvedCardBorderImageSource; 
-        const parsedBorderWidthForSlice = numericBorderWidth > 0 ? numericBorderWidth : 1; // Slice needs a number
+        const parsedBorderWidthForSlice = numericBorderWidth > 0 ? numericBorderWidth : 1;
         cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice; 
         cardContainerStyle.borderColor = 'transparent'; 
         cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit;
         cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
                                           ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
                                           : 'solid';
-    } else if (!isStandardOrCustomFrame) { // Predefined CSS frames 
+    } else if (!isStandardOrCustomFrame) { 
         if (tb.cardBorderColor) cardContainerStyle.borderColor = tb.cardBorderColor;
         if (tb.cardBorderWidth) cardContainerStyle.borderWidth = tb.cardBorderWidth;
         if (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none') {
@@ -286,8 +299,8 @@ export function CardPreview({
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
             flexShrink: 0,
-            zIndex: 1, // Ensure rows are above main card background layers
-            position: 'relative', // For z-index to work
+            zIndex: 1, 
+            position: 'relative', 
           };
 
           const allColumnsInRowEffectivelyHidden = (row.columns || []).every(col => {
@@ -492,5 +505,3 @@ export function CardPreview({
   );
 }
 
-
-    
