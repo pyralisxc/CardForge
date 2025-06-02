@@ -3,7 +3,7 @@
 
 import type { DisplayCard, CardSection, CardData, CardRow, TCGCardTemplate } from '@/types'; // Ensure TCGCardTemplate is imported
 import NextImage from 'next/image';
-import { cn, replacePlaceholdersLocal, simplifyRatio, gcd } from '@/lib/utils';
+import { cn, replacePlaceholdersLocal } from '@/lib/utils'; // Removed simplifyRatio, gcd
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
