@@ -37,25 +37,25 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
   'classic-gold': {
     baseBackgroundColor: '#fDF4D8', baseTextColor: '#4A3B2A', cardBorderRadius: '0.75rem',
     cardBorderColor: 'transparent', // Crucial for border-image to show
-    cardBorderWidth: '6px', cardBorderStyle: 'solid', cardBackgroundImageUrl: undefined,
+    cardBorderWidth: '6px', cardBorderStyle: 'solid', cardBackgroundImageUrl: undefined, frameStyle: 'classic-gold'
   },
   'minimal-dark': {
     baseBackgroundColor: '#282828', baseTextColor: '#c0c0c0', cardBorderColor: '#4a4a4a',
-    cardBorderWidth: '2px', cardBorderStyle: 'solid', cardBorderRadius: '0.25rem', cardBackgroundImageUrl: undefined,
+    cardBorderWidth: '2px', cardBorderStyle: 'solid', cardBorderRadius: '0.25rem', cardBackgroundImageUrl: undefined, frameStyle: 'minimal-dark'
   },
   'arcane-purple': {
     baseBackgroundColor: '#7A52CC', // Hex equivalent of hsl(260, 60%, 55%)
     baseTextColor: '#F1F2F3',       // Hex equivalent of hsl(220, 10%, 95%)
     cardBorderColor: '#F1F2F3',     // Hex equivalent of hsl(220, 10%, 95%)
-    cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem', cardBackgroundImageUrl: undefined,
+    cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem', cardBackgroundImageUrl: undefined, frameStyle: 'arcane-purple'
   },
   'standard': {
     baseBackgroundColor: '#FFFFFF', baseTextColor: '#000000', cardBorderColor: undefined,
-    cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
+    cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined, frameStyle: 'standard'
   },
-  'custom': {
-    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '',
-    cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
+  'custom': { // "Custom Colors" implies user-defined, so start with empty/theme-derived values
+    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '', // Intentionally empty to allow user input or theme defaults
+    cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined, frameStyle: 'custom'
   }
 };
 
@@ -205,14 +205,13 @@ export function TemplateEditor({
         id: currentTemplateInternalRef.current.id,
         name: currentTemplateInternalRef.current.name,
         aspectRatio: currentTemplateInternalRef.current.aspectRatio,
-        rows: currentTemplateInternalRef.current.rows, // Keep existing rows structure
-        defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor, // Keep existing user preference
+        rows: currentTemplateInternalRef.current.rows, 
+        defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor, 
 
         // Apply ALL visual properties from the selected frame style
         ...predefinedVisualProps,
         frameStyle: newSelectedFrameStyle, // Ensure this is explicitly set
       };
-      // updateCurrentTemplateState will handle reconstruction and prevent update if no actual change
       updateCurrentTemplateState(reconstructMinimalTemplate(candidateTemplateState));
     }
   }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplateState, reconstructMinimalTemplate]);
@@ -357,9 +356,9 @@ export function TemplateEditor({
 
 
   const isNonCustomizableFrame = useMemo(() => {
-    const frameStyle = currentTemplateInternalRef.current.frameStyle;
+    const frameStyle = currentTemplate.frameStyle; // Use state variable for useMemo dependency
     return !!frameStyle && frameStyle !== 'standard' && frameStyle !== 'custom';
-  }, [currentTemplateInternalRef.current.frameStyle]);
+  }, [currentTemplate.frameStyle]);
 
 
   const livePreviewData = useMemo(() => {
@@ -604,7 +603,7 @@ export function TemplateEditor({
                                             id="cardBackgroundImageUrl"
                                             value={currentTemplateInternalRef.current.cardBackgroundImageUrl || ''}
                                             onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ cardBackgroundImageUrl: e.target.value })}
-                                            placeholder="URL or Data URI for background"
+                                            placeholder="URL, Data URI, or {{bg_key}}"
                                             className="h-8 text-xs flex-grow"
                                             disabled={isNonCustomizableFrame}
                                             />
@@ -883,3 +882,4 @@ export function TemplateEditor({
     </div>
   );
 }
+
