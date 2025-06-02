@@ -67,15 +67,10 @@ export function CardPreview({
   }
 
   const tb = templateToRender;
-  const isStandardOrCustomFrame = tb.frameStyle === 'standard' || tb.frameStyle === 'custom';
-
-  // Prepare resolved URLs/values
+  
   const resolvedCardContentBgUrl = tb.cardBackgroundImageUrl ? replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview) : undefined;
   const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
   
-  const isActualImageBorderSource = resolvedCardBorderImageSource && 
-                                    (resolvedCardBorderImageSource.startsWith('http') || resolvedCardBorderImageSource.startsWith('data:'));
-
   const effectiveBorderWidthStr = tb.cardBorderWidth || '0px';
   const borderWidthMatch = effectiveBorderWidthStr.match(/^(\d+(\.\d+)?)/);
   const numericBorderWidth = borderWidthMatch ? parseFloat(borderWidthMatch[1]) : 0;
@@ -83,64 +78,63 @@ export function CardPreview({
   const effectiveBorderWidthUnit = unitMatch ? unitMatch[0] : 'px';
   const finalEffectiveBorderWidthWithUnit = `${numericBorderWidth}${effectiveBorderWidthUnit}`;
 
-
   const cardContainerStyle: React.CSSProperties = {
     width: `${effectiveWidthPx}px`,
     height: `${cardPixelHeight}px`,
     boxSizing: 'border-box',
+    position: 'relative', // Needed for z-indexing of children if required
   };
 
   if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
 
-  if (isStandardOrCustomFrame && isActualImageBorderSource && numericBorderWidth > 0) {
-    // --- New Multi-background Image Border Logic ---
+  const isStandardOrCustomFrame = tb.frameStyle === 'standard' || tb.frameStyle === 'custom';
+  const isCSSDrivenBorderImage = resolvedCardBorderImageSource && resolvedCardBorderImageSource.startsWith("CSS:");
+  
+  const useImageBorderViaMultiBackground = 
+    isStandardOrCustomFrame &&
+    resolvedCardBorderImageSource &&
+    !isCSSDrivenBorderImage &&
+    !resolvedCardBorderImageSource.startsWith("linear-gradient") &&
+    !resolvedCardBorderImageSource.startsWith("radial-gradient") &&
+    numericBorderWidth > 0;
+
+  if (useImageBorderViaMultiBackground) {
     cardContainerStyle.padding = finalEffectiveBorderWidthWithUnit;
-    cardContainerStyle.border = 'none'; // Border is created by padding and background
+    cardContainerStyle.border = 'none'; 
     cardContainerStyle.backgroundColor = tb.baseBackgroundColor || 'transparent';
 
-    const bgImages: string[] = [];
-    const bgSizes: string[] = [];
-    const bgClips: string[] = [];
-    const bgPositions: string[] = [];
-    const bgRepeats: string[] = [];
+    const finalBgImages = [];
+    const finalBgSizes = [];
+    const finalBgClips = [];
+    const finalBgOrigins = [];
+    const finalBgPositions = [];
+    const finalBgRepeats = [];
 
-    // Layer 1: Content Background (image for content area)
     if (resolvedCardContentBgUrl && (resolvedCardContentBgUrl.startsWith('http') || resolvedCardContentBgUrl.startsWith('data:'))) {
-        bgImages.push(`url(${resolvedCardContentBgUrl})`);
-        bgSizes.push('cover'); // Or be configurable
-        bgClips.push('content-box');
-        bgPositions.push('center center');
-        bgRepeats.push('no-repeat');
+        finalBgImages.push(`url(${resolvedCardContentBgUrl})`);
+        finalBgSizes.push('cover'); 
+        finalBgClips.push('content-box');
+        finalBgOrigins.push('content-box');
+        finalBgPositions.push('center center');
+        finalBgRepeats.push('no-repeat');
     }
 
-    // Layer 2: Border Image (image for border area, appears in padding)
-    bgImages.push(`url(${resolvedCardBorderImageSource})`);
-    bgSizes.push('cover'); // Border image covers entire element
-    bgClips.push('padding-box'); // Makes it visible only in padding area
-    bgPositions.push('center center');
-    bgRepeats.push('no-repeat'); // Or repeat if it's a tile
-
-    // If content image was added, ensure the border image also has position/repeat entries
-    // This is a bit simplified; CSS applies properties sequentially if lists are unequal.
-    // For safety, ensure all lists are the same length if a content image is present.
-    if (resolvedCardContentBgUrl && (resolvedCardContentBgUrl.startsWith('http') || resolvedCardContentBgUrl.startsWith('data:'))) {
-      // The arrays will have one entry from content, and one from border.
-      // If the border image layer was the *only* image, its single entry is fine.
-    } else if (bgImages.length === 1 && bgImages[0].includes(resolvedCardBorderImageSource!)) {
-      // Only border image is present. Ensure content area is simply the baseBackgroundColor
-      // by not adding a first layer with `content-box` clipping.
-      // The baseBackgroundColor will show through the content-box area.
-    }
-
-
-    cardContainerStyle.backgroundImage = bgImages.join(', ');
-    cardContainerStyle.backgroundSize = bgSizes.join(', ');
-    cardContainerStyle.backgroundClip = bgClips.join(', ');
-    cardContainerStyle.backgroundPosition = bgPositions.join(', ');
-    cardContainerStyle.backgroundRepeat = bgRepeats.join(', ');
+    finalBgImages.push(`url(${resolvedCardBorderImageSource})`);
+    finalBgSizes.push('cover'); 
+    finalBgClips.push('padding-box');
+    finalBgOrigins.push('padding-box');
+    finalBgPositions.push('center center');
+    finalBgRepeats.push('no-repeat');
     
+    cardContainerStyle.backgroundImage = finalBgImages.join(', ');
+    cardContainerStyle.backgroundSize = finalBgSizes.join(', ');
+    cardContainerStyle.backgroundClip = finalBgClips.join(', ');
+    cardContainerStyle.backgroundOrigin = finalBgOrigins.join(', ');
+    cardContainerStyle.backgroundPosition = finalBgPositions.join(', ');
+    cardContainerStyle.backgroundRepeat = finalBgRepeats.join(', ');
+
   } else {
-    // --- Fallback to Original Border Logic (Solid color with box-shadow, CSS border-image, or predefined frame) ---
+    // Fallback to Original Border Logic (Solid color with box-shadow, CSS border-image, or predefined frame)
     cardContainerStyle.backgroundColor = tb.baseBackgroundColor || undefined;
     if (tb.baseTextColor) cardContainerStyle.color = tb.baseTextColor;
 
@@ -148,42 +142,38 @@ export function CardPreview({
         cardContainerStyle.backgroundImage = `url(${resolvedCardContentBgUrl})`;
         cardContainerStyle.backgroundSize = 'cover';
         cardContainerStyle.backgroundPosition = 'center';
+        cardContainerStyle.backgroundClip = 'padding-box'; // Ensure content bg respects border width for solid borders too
+        cardContainerStyle.backgroundOrigin = 'padding-box';
     }
     
-    const isCSSDrivenBorderImage = resolvedCardBorderImageSource && resolvedCardBorderImageSource.startsWith("CSS:");
-
-    if (isStandardOrCustomFrame && !isCSSDrivenBorderImage && !isActualImageBorderSource && numericBorderWidth > 0) {
-        // Solid border using box-shadow trick
+    if (isStandardOrCustomFrame && !isCSSDrivenBorderImage && numericBorderWidth > 0) {
+        // Solid border using box-shadow trick (if not using multi-background image border)
         cardContainerStyle.boxShadow = `0 0 0 ${finalEffectiveBorderWidthWithUnit} ${tb.cardBorderColor || 'hsl(var(--border))'}`;
         cardContainerStyle.borderColor = 'transparent';
-        cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit;
+        cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit; 
         cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
                                           ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
                                           : 'solid';
     } else if (isStandardOrCustomFrame && isCSSDrivenBorderImage && numericBorderWidth > 0) {
-        // CSS Gradient border-image (e.g., "linear-gradient(...)")
-        // The actual border-image string is handled by the frame's CSS usually for "CSS:" types.
-        // Here we ensure the basics are set for it to apply.
-        cardContainerStyle.borderImageSource = resolvedCardBorderImageSource; // This might be just "CSS: Something"
-        const parsedBorderWidthForSlice = numericBorderWidth > 0 ? numericBorderWidth : 1;
-        cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice;
-        cardContainerStyle.borderColor = 'transparent'; // Crucial for border-image
+        // CSS Gradient border-image 
+        cardContainerStyle.borderImageSource = resolvedCardBorderImageSource; 
+        const parsedBorderWidthForSlice = numericBorderWidth > 0 ? numericBorderWidth : 1; // Slice needs a number
+        cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice; 
+        cardContainerStyle.borderColor = 'transparent'; 
         cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit;
         cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
                                           ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
                                           : 'solid';
-    } else {
-        // Predefined CSS frames OR Standard/Custom with no border width/image OR no border image source
+    } else if (!isStandardOrCustomFrame) { // Predefined CSS frames 
         if (tb.cardBorderColor) cardContainerStyle.borderColor = tb.cardBorderColor;
         if (tb.cardBorderWidth) cardContainerStyle.borderWidth = tb.cardBorderWidth;
-
         if (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none') {
             cardContainerStyle.borderStyle = tb.cardBorderStyle as React.CSSProperties['borderStyle'];
         } else if (tb.cardBorderStyle === 'none' || numericBorderWidth === 0) {
             cardContainerStyle.borderStyle = 'none';
             cardContainerStyle.borderWidth = '0';
         } else {
-            cardContainerStyle.borderStyle = 'solid'; // Default solid if width > 0 and no other style
+            cardContainerStyle.borderStyle = 'solid';
         }
     }
   }
@@ -275,8 +265,6 @@ export function CardPreview({
         data-ai-hint="tcg card custom"
         onClick={handleCardClick}
       >
-        {/* Content Background Layer is now handled by multiple backgrounds on main container if applicable */}
-        {/* Rows will render inside the padding if multi-background border is active */}
         {(templateToRender.rows || []).map((row, rowIndex) => {
           const handlePreviewRowClick = (e: React.MouseEvent) => {
             if (isEditorPreview && onRowClick) {
@@ -298,7 +286,8 @@ export function CardPreview({
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
             flexShrink: 0,
-            zIndex: 1 // Ensure rows are above any potential z-indexed main background layers
+            zIndex: 1, // Ensure rows are above main card background layers
+            position: 'relative', // For z-index to work
           };
 
           const allColumnsInRowEffectivelyHidden = (row.columns || []).every(col => {
@@ -503,3 +492,5 @@ export function CardPreview({
   );
 }
 
+
+    
