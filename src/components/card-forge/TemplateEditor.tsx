@@ -31,10 +31,12 @@ import type { getFreshDefaultTemplate as GetFreshDefaultTemplateFn, reconstructM
 
 export type { ReconstructMinimalTemplateFn as ReconstructTemplatePropFn };
 
+// Defines the visual properties for each pre-defined frame style.
+// These values will be reflected in the input fields when a style is selected.
 const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate>> = {
   'classic-gold': {
     baseBackgroundColor: '#fDF4D8', baseTextColor: '#4A3B2A', cardBorderRadius: '0.75rem',
-    cardBorderColor: 'transparent', // This will be handled by CSS border-image for classic-gold
+    cardBorderColor: 'transparent', // Crucial for border-image to show
     cardBorderWidth: '6px', cardBorderStyle: 'solid', cardBackgroundImageUrl: undefined,
   },
   'minimal-dark': {
@@ -42,25 +44,31 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
     cardBorderWidth: '2px', cardBorderStyle: 'solid', cardBorderRadius: '0.25rem', cardBackgroundImageUrl: undefined,
   },
   'arcane-purple': {
-    baseBackgroundColor: '#7A52CC', // Was hsl(260, 60%, 55%)
-    baseTextColor: '#F1F2F3',       // Was hsl(220, 10%, 95%)
-    cardBorderColor: '#F1F2F3',     // Was hsl(220, 10%, 95%)
+    baseBackgroundColor: '#7A52CC', // Hex equivalent of hsl(260, 60%, 55%)
+    baseTextColor: '#F1F2F3',       // Hex equivalent of hsl(220, 10%, 95%)
+    cardBorderColor: '#F1F2F3',     // Hex equivalent of hsl(220, 10%, 95%)
     cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem', cardBackgroundImageUrl: undefined,
   },
-  'standard': { // For 'Standard' (user-editable colors from theme defaults)
-    baseBackgroundColor: '#FFFFFF', // Default white, user can change
-    baseTextColor: '#000000',     // Default black, user can change
-    cardBorderColor: undefined,      // Fallback to theme/globals.css, user can change. reconstruction will remove if undefined.
-    cardBorderWidth: '4px',       // Default, user can change
-    cardBorderStyle: 'solid',     // Default, user can change
-    cardBorderRadius: '0.5rem',   // Default, user can change
-    cardBackgroundImageUrl: undefined, // User can set
+  'standard': {
+    baseBackgroundColor: '#FFFFFF', baseTextColor: '#000000', cardBorderColor: undefined,
+    cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
   },
-  'custom': { // For 'Custom Colors' mode (user-editable from blank slate or last values)
-    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '', 
+  'custom': {
+    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '',
     cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
   }
 };
+
+
+interface TemplateEditorProps {
+  onSaveTemplate: (template: TCGCardTemplate) => string;
+  templates: TCGCardTemplate[];
+  onDeleteTemplate: (templateId: string) => void;
+  reconstructMinimalTemplate: ReconstructMinimalTemplateFn;
+  memoizedGetFreshDefaultTemplate: GetFreshDefaultTemplateFn;
+  selectedTemplateIdForEditing: string | null;
+  onSelectTemplateForEditing: (templateId: string | null) => void;
+}
 
 
 export function TemplateEditor({
@@ -75,13 +83,6 @@ export function TemplateEditor({
   const { toast } = useToast();
 
   const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => {
-    if (!hasMounted) { // Ensure this effect runs only once on mount
-      setHasMounted(true);
-    }
-  }, [hasMounted]);
-
-
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(() =>
     reconstructMinimalTemplate(memoizedGetFreshDefaultTemplate(selectedTemplateIdForEditing))
   );
@@ -98,6 +99,12 @@ export function TemplateEditor({
   const cardBgImageInputRef = useRef<HTMLInputElement | null>(null);
   const [isSettingsCardOpen, setIsSettingsCardOpen] = useState(true);
   const [isRowsAndSectionsCardOpen, setIsRowsAndSectionsCardOpen] = useState(true);
+
+  useEffect(() => {
+    if (!hasMounted) {
+      setHasMounted(true);
+    }
+  }, [hasMounted]);
 
   const updateCurrentTemplateState = useCallback((newTemplateData: Partial<TCGCardTemplate> | TCGCardTemplate) => {
     const isAlreadyReconstructed = 'rows' in newTemplateData && Array.isArray(newTemplateData.rows);
@@ -122,8 +129,6 @@ export function TemplateEditor({
     updateCurrentTemplateState(newFreshTemplate);
   }, [memoizedGetFreshDefaultTemplate, updateCurrentTemplateState]);
 
-
-  // Main Data Loading Effect: Responsible for loading the selected template or resetting.
   useEffect(() => {
     if (!hasMounted) return;
 
@@ -158,7 +163,6 @@ export function TemplateEditor({
   }, [hasMounted, selectedTemplateIdForEditing, templates, reconstructMinimalTemplate, resetFormToNew, updateCurrentTemplateState, memoizedGetFreshDefaultTemplate]);
 
 
-  // Effect to synchronize aspectRatioInput with currentTemplate.aspectRatio
   useEffect(() => {
     if (!hasMounted) return;
     const targetAspectRatio = currentTemplateInternalRef.current.aspectRatio || TCG_ASPECT_RATIO;
@@ -168,7 +172,6 @@ export function TemplateEditor({
   }, [hasMounted, currentTemplateInternalRef.current.id, currentTemplateInternalRef.current.aspectRatio, aspectRatioInput]);
 
 
-  // Effect to synchronize activeRowAccordionItems with currentTemplate.rows
   useEffect(() => {
     if (!hasMounted) return;
     let newRowIds: string[];
@@ -176,10 +179,10 @@ export function TemplateEditor({
 
     if (currentRows && currentRows.length > 0) {
       newRowIds = currentRows.map(r => r.id).filter(Boolean) as string[];
-    } else if (currentTemplateInternalRef.current.id === null) { 
+    } else if (currentTemplateInternalRef.current.id === null) {
       const defaultNewTemplate = memoizedGetFreshDefaultTemplate(null);
       newRowIds = (defaultNewTemplate.rows || []).map(r => r.id).filter(Boolean) as string[];
-    } else { 
+    } else {
       newRowIds = [];
     }
 
@@ -188,7 +191,7 @@ export function TemplateEditor({
     }
   }, [hasMounted, currentTemplateInternalRef.current.id, currentTemplateInternalRef.current.rows, activeRowAccordionItems, memoizedGetFreshDefaultTemplate]);
 
-  // Effect to update currentTemplate with visual properties from pre-defined frame styles
+
   useEffect(() => {
     if (!hasMounted) return;
 
@@ -196,16 +199,21 @@ export function TemplateEditor({
     const predefinedVisualProps = PREDEFINED_FRAME_VISUAL_PROPERTIES[newSelectedFrameStyle];
 
     if (predefinedVisualProps) {
+      // Construct a candidate state that merges essential non-visual properties with ALL visual properties from the selected frame style.
       const candidateTemplateState: Partial<TCGCardTemplate> = {
+        // Preserve essential non-visual properties
         id: currentTemplateInternalRef.current.id,
         name: currentTemplateInternalRef.current.name,
         aspectRatio: currentTemplateInternalRef.current.aspectRatio,
-        rows: currentTemplateInternalRef.current.rows,
-        defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor,
+        rows: currentTemplateInternalRef.current.rows, // Keep existing rows structure
+        defaultSectionBorderColor: currentTemplateInternalRef.current.defaultSectionBorderColor, // Keep existing user preference
+
+        // Apply ALL visual properties from the selected frame style
         ...predefinedVisualProps,
-        frameStyle: newSelectedFrameStyle, 
+        frameStyle: newSelectedFrameStyle, // Ensure this is explicitly set
       };
-      updateCurrentTemplateState(candidateTemplateState);
+      // updateCurrentTemplateState will handle reconstruction and prevent update if no actual change
+      updateCurrentTemplateState(reconstructMinimalTemplate(candidateTemplateState));
     }
   }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplateState, reconstructMinimalTemplate]);
 
@@ -596,7 +604,7 @@ export function TemplateEditor({
                                             id="cardBackgroundImageUrl"
                                             value={currentTemplateInternalRef.current.cardBackgroundImageUrl || ''}
                                             onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ cardBackgroundImageUrl: e.target.value })}
-                                            placeholder="e.g., https://.../bg.png or {{bgKey}}"
+                                            placeholder="URL or Data URI for background"
                                             className="h-8 text-xs flex-grow"
                                             disabled={isNonCustomizableFrame}
                                             />
@@ -875,4 +883,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
