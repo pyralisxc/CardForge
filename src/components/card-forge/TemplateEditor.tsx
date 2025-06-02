@@ -31,8 +31,6 @@ import type { getFreshDefaultTemplate as GetFreshDefaultTemplateFn, reconstructM
 
 export type { ReconstructMinimalTemplateFn as ReconstructTemplatePropFn };
 
-// Defines the visual properties for each pre-defined frame style.
-// These values will be reflected in the input fields when a style is selected.
 const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate>> = {
   'classic-gold': {
     baseBackgroundColor: '#fDF4D8', baseTextColor: '#4A3B2A', cardBorderRadius: '0.75rem',
@@ -44,8 +42,8 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
     cardBorderWidth: '2px', cardBorderStyle: 'solid', cardBorderRadius: '0.25rem',
     cardBackgroundImageUrl: undefined, frameStyle: 'minimal-dark', cardBorderImageSource: undefined
   },
-  'arcane-purple': {
-    baseBackgroundColor: '#7A52CC', baseTextColor: '#F1F2F3', cardBorderColor: '#F1F2F3', 
+  'arcane-purple': { // Hex values for color inputs
+    baseBackgroundColor: '#4A0E7E', baseTextColor: '#E6E6FA', cardBorderColor: '#D8BFD8', 
     cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem',
     cardBackgroundImageUrl: undefined, frameStyle: 'arcane-purple', cardBorderImageSource: undefined
   },
@@ -214,7 +212,17 @@ export function TemplateEditor({
             ...predefinedVisualProps, 
             frameStyle: newSelectedFrameStyle, 
         };
-        updateCurrentTemplateState(reconstructMinimalTemplate(candidateTemplateState));
+        // Only update if the relevant predefined props actually differ to avoid loops
+        let changed = false;
+        for (const key in predefinedVisualProps) {
+            if ((predefinedVisualProps as any)[key] !== (currentTemplateInternalRef.current as any)[key]) {
+                changed = true;
+                break;
+            }
+        }
+        if (changed) {
+            updateCurrentTemplateState(reconstructMinimalTemplate(candidateTemplateState));
+        }
     }
   }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplateState, reconstructMinimalTemplate]);
 
@@ -360,8 +368,10 @@ export function TemplateEditor({
     return !!frameStyle && frameStyle !== 'standard' && frameStyle !== 'custom';
   }, [currentTemplate.frameStyle]);
 
-  const isBorderImageSourceActive = useMemo(() => {
-    return !!currentTemplate.cardBorderImageSource && currentTemplate.cardBorderImageSource.trim() !== "" && !currentTemplate.cardBorderImageSource.startsWith("CSS:");
+  const isBorderImageSourceActiveAndNotCSS = useMemo(() => {
+    return !!currentTemplate.cardBorderImageSource && 
+           currentTemplate.cardBorderImageSource.trim() !== "" && 
+           !currentTemplate.cardBorderImageSource.startsWith("CSS:");
   }, [currentTemplate.cardBorderImageSource]);
 
   const livePreviewData = useMemo(() => {
@@ -679,13 +689,12 @@ export function TemplateEditor({
                                             <p className="text-xs text-muted-foreground mt-0.5">Fallback for individual section borders if they have width but no specific color.</p>
                                         </div>
 
-                                        {/* Card Border Image/Gradient Input */}
                                         <div className="space-y-1">
                                           <Label htmlFor="cardBorderImageSource">Card Border Image/Gradient (URL or CSS)</Label>
                                           <div className="flex items-center gap-2 w-full">
                                             <Input
                                               id="cardBorderImageSource"
-                                              value={currentTemplate.cardBorderImageSource?.startsWith("CSS:") ? "" : currentTemplate.cardBorderImageSource || ''}
+                                              value={currentTemplate.cardBorderImageSource || ''}
                                               onChange={(e: ChangeEvent<HTMLInputElement>) => updateCurrentTemplate({ cardBorderImageSource: e.target.value })}
                                               placeholder={currentTemplate.cardBorderImageSource?.startsWith("CSS:") ? currentTemplate.cardBorderImageSource : "URL (https://...) or CSS gradient (linear-gradient(...))"}
                                               className="h-8 text-xs flex-grow"
@@ -721,11 +730,11 @@ export function TemplateEditor({
                                         <div>
                                             <Label htmlFor="cardBorderColor">Card Outer Border Color (Solid)</Label>
                                             <Input id="cardBorderColor" type="color" value={currentTemplate.cardBorderColor || ''} onChange={e => updateCurrentTemplate({cardBorderColor: e.target.value})}
-                                            disabled={isNonCustomizableFrame || isBorderImageSourceActive}
+                                            disabled={isNonCustomizableFrame || isBorderImageSourceActiveAndNotCSS}
                                             />
                                             <p className="text-xs text-muted-foreground mt-0.5">
                                                 {isNonCustomizableFrame ? `Solid border color is overridden by Frame Style ('${currentTemplate.frameStyle || ''}').` 
-                                                 : isBorderImageSourceActive ? "Solid border color is overridden by Border Image/Gradient."
+                                                 : isBorderImageSourceActiveAndNotCSS ? "Solid border color is overridden by Border Image/Gradient."
                                                  : "For 'Standard'/'Custom Colors' frames if no border image is set."}
                                             </p>
                                         </div>

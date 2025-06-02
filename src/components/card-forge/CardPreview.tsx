@@ -25,6 +25,14 @@ const PREVIEW_WIDTH_PX = 280;
 const STANDARD_TCG_WIDTH_MM = 63;
 const MM_TO_INCHES = 1 / 25.4;
 
+// Helper to parse simple pixel values from strings like "10px" or "10"
+const parsePixelValue = (value: string | undefined, defaultValue = 0): number => {
+  if (!value) return defaultValue;
+  const parsed = parseInt(String(value).replace(/px$/, ''), 10);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
+
+
 export function CardPreview({
   card,
   className,
@@ -56,71 +64,141 @@ export function CardPreview({
     boxSizing: 'border-box',
   };
 
-  const tb = templateToRender; // alias for brevity
+  const tb = templateToRender; 
   const isStandardOrCustomFrame = tb.frameStyle === 'standard' || tb.frameStyle === 'custom';
-  const userHasProvidedBorderImage = isStandardOrCustomFrame && tb.cardBorderImageSource && !tb.cardBorderImageSource.startsWith("CSS:");
+  
+  const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
+  const useBorderImageMask = isStandardOrCustomFrame && resolvedCardBorderImageSource && 
+                             !resolvedCardBorderImageSource.toLowerCase().includes('gradient(') && 
+                             !resolvedCardBorderImageSource.startsWith("CSS:");
 
-  const effectiveBorderWidthStr = tb.cardBorderWidth || '0px';
-  const borderWidthMatch = effectiveBorderWidthStr.match(/^(\d+(\.\d+)?)/);
-  const effectiveBorderWidthNum = borderWidthMatch ? parseFloat(borderWidthMatch[1]) : 0;
-  const unitMatch = effectiveBorderWidthStr.match(/[a-zA-Z%]+$/);
-  const effectiveBorderWidthUnit = unitMatch ? unitMatch[0] : 'px';
-  const finalEffectiveBorderWidthForShadow = `${effectiveBorderWidthNum}${effectiveBorderWidthUnit}`;
-  const solidBorderColorForShadow = tb.cardBorderColor || 'hsl(var(--border))';
+  if (useBorderImageMask) {
+    const borderWidthNum = parsePixelValue(tb.cardBorderWidth, 0);
+    // For SVG rx/ry, we need to parse radius. This is a simplification.
+    // A robust solution would handle 'rem', '%', etc., possibly with getComputedStyle.
+    const borderRadiusNum = parsePixelValue(tb.cardBorderRadius, 0);
+
+    // viewBox will be the size of the card for simplicity in mask coordinates
+    const svgViewBoxWidth = 100; // Using a percentage-like viewBox
+    const svgViewBoxHeight = 100;
+    
+    // Convert CSS radius and width to SVG viewport units
+    // This scaling is approximate and assumes radius/width are relative to card size
+    // A more accurate scaling would involve the actual card pixel dimensions.
+    const svgRx = (borderRadiusNum / effectiveWidthPx) * svgViewBoxWidth;
+    const svgRy = (borderRadiusNum / cardPixelHeight) * svgViewBoxHeight; // Approximate
+    const svgStrokeWidth = (borderWidthNum / effectiveWidthPx) * svgViewBoxWidth; // Approximate
 
 
-  if (isStandardOrCustomFrame && !userHasProvidedBorderImage && effectiveBorderWidthNum > 0) {
-      cardContainerStyle.boxShadow = `0 0 0 ${finalEffectiveBorderWidthForShadow} ${solidBorderColorForShadow}`;
-      cardContainerStyle.borderWidth = tb.cardBorderWidth; 
-      cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
-                                        ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
-                                        : 'solid';
-      cardContainerStyle.borderColor = 'transparent';
-  } else if (userHasProvidedBorderImage) {
-      cardContainerStyle.borderImageSource = String(tb.cardBorderImageSource).toLowerCase().includes('gradient(')
-        ? tb.cardBorderImageSource
-        : `url(${tb.cardBorderImageSource})`;
-      
-      const parsedBorderWidthForSlice = parseInt(String(tb.cardBorderWidth || '4px').replace(/\D/g, ''), 10);
-      cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice > 0 ? parsedBorderWidthForSlice : 1;
+    // Create an SVG mask: a white border on a black background (for luminance mask)
+    // or a path that only draws the border (for alpha mask)
+    // Using alpha mask for simplicity: draw a hollow rounded rectangle.
+    const svgMaskString = `
+      <svg width="${svgViewBoxWidth}" height="${svgViewBoxHeight}" viewBox="0 0 ${svgViewBoxWidth} ${svgViewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <mask id="borderMask-${card.uniqueId}">
+            <rect width="100%" height="100%" fill="white" rx="${svgRx}" ry="${svgRy}"/>
+            <rect 
+              x="${svgStrokeWidth / 2}" 
+              y="${svgStrokeWidth / 2}" 
+              width="${svgViewBoxWidth - svgStrokeWidth}" 
+              height="${svgViewBoxHeight - svgStrokeWidth}" 
+              fill="black" 
+              rx="${Math.max(0, svgRx - svgStrokeWidth / 2)}" 
+              ry="${Math.max(0, svgRy - svgStrokeWidth / 2)}"
+            />
+          </mask>
+        </defs>
+        <rect width="100%" height="100%" fill="white" mask="url(#borderMask-${card.uniqueId})"/>
+      </svg>
+    `.replace(/\s\s+/g, ' ').trim(); // Minify SVG string slightly
 
-      cardContainerStyle.borderColor = 'transparent'; 
-      cardContainerStyle.borderWidth = tb.cardBorderWidth || '4px';
-      cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
-                                        ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
-                                        : 'solid';
-  } else {
-      // Predefined CSS frames OR Standard/Custom with no border width/image.
-      if (tb.cardBorderColor) cardContainerStyle.borderColor = tb.cardBorderColor;
-      if (tb.cardBorderWidth) cardContainerStyle.borderWidth = tb.cardBorderWidth;
+    const svgDataUri = `data:image/svg+xml;base64,${btoa(svgMaskString)}`;
 
-      if (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none') {
-          cardContainerStyle.borderStyle = tb.cardBorderStyle as React.CSSProperties['borderStyle'];
-      } else if (tb.cardBorderStyle === 'none' || effectiveBorderWidthNum === 0) {
-          cardContainerStyle.borderStyle = 'none';
-          cardContainerStyle.borderWidth = '0';
-      } else {
-          // Fallback for predefined frames that might not set it but expect one from .tcg-card-preview base
-          cardContainerStyle.borderStyle = 'solid'; 
-      }
+    cardContainerStyle.backgroundImage = `url(${resolvedCardBorderImageSource})`;
+    cardContainerStyle.backgroundSize = 'cover'; // Or other desired size
+    cardContainerStyle.backgroundPosition = 'center';
+    cardContainerStyle.maskImage = `url("${svgDataUri}")`;
+    cardContainerStyle.WebkitMaskImage = `url("${svgDataUri}")`; // For Safari/older Chrome
+    cardContainerStyle.maskSize = '100% 100%';
+    cardContainerStyle.maskRepeat = 'no-repeat';
+    // cardContainerStyle.maskMode = 'alpha'; // Not always needed if SVG mask is drawn correctly for alpha
+    
+    // No actual CSS border needed when using this mask technique for the border visual
+    cardContainerStyle.border = 'none';
+    // Radius is handled by the mask's shape and the clipping of the element itself
+    if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
+
+
+  } else { // Original border logic
+    const userHasProvidedBorderImageCSSOrURL = resolvedCardBorderImageSource && !resolvedCardBorderImageSource.startsWith("CSS:");
+    const isCSSDrivenBorderImage = resolvedCardBorderImageSource && resolvedCardBorderImageSource.startsWith("CSS:");
+
+    const effectiveBorderWidthStr = tb.cardBorderWidth || '0px';
+    const borderWidthMatch = effectiveBorderWidthStr.match(/^(\d+(\.\d+)?)/);
+    const effectiveBorderWidthNum = borderWidthMatch ? parseFloat(borderWidthMatch[1]) : 0;
+    const unitMatch = effectiveBorderWidthStr.match(/[a-zA-Z%]+$/);
+    const effectiveBorderWidthUnit = unitMatch ? unitMatch[0] : 'px';
+    const finalEffectiveBorderWidthForShadow = `${effectiveBorderWidthNum}${effectiveBorderWidthUnit}`;
+    const solidBorderColorForShadow = tb.cardBorderColor || 'hsl(var(--border))';
+
+    if (isStandardOrCustomFrame && !userHasProvidedBorderImageCSSOrURL && !isCSSDrivenBorderImage && effectiveBorderWidthNum > 0) {
+        cardContainerStyle.boxShadow = `0 0 0 ${finalEffectiveBorderWidthForShadow} ${solidBorderColorForShadow}`;
+        cardContainerStyle.borderWidth = tb.cardBorderWidth; 
+        cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
+                                          ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
+                                          : 'solid';
+        cardContainerStyle.borderColor = 'transparent';
+    } else if (userHasProvidedBorderImageCSSOrURL && !isCSSDrivenBorderImage) {
+        cardContainerStyle.borderImageSource = String(resolvedCardBorderImageSource).toLowerCase().includes('gradient(')
+          ? resolvedCardBorderImageSource
+          : `url(${resolvedCardBorderImageSource})`;
+        
+        const parsedBorderWidthForSlice = parsePixelValue(String(tb.cardBorderWidth || '4px'), 1);
+        cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice > 0 ? parsedBorderWidthForSlice : 1;
+
+        cardContainerStyle.borderColor = 'transparent'; 
+        cardContainerStyle.borderWidth = tb.cardBorderWidth || '4px';
+        cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
+                                          ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
+                                          : 'solid';
+    } else {
+        // Predefined CSS frames OR Standard/Custom with no border width/image, or CSS-driven image.
+        if (tb.cardBorderColor) cardContainerStyle.borderColor = tb.cardBorderColor;
+        if (tb.cardBorderWidth) cardContainerStyle.borderWidth = tb.cardBorderWidth;
+
+        if (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none') {
+            cardContainerStyle.borderStyle = tb.cardBorderStyle as React.CSSProperties['borderStyle'];
+        } else if (tb.cardBorderStyle === 'none' || effectiveBorderWidthNum === 0) {
+            cardContainerStyle.borderStyle = 'none';
+            cardContainerStyle.borderWidth = '0';
+        } else {
+            cardContainerStyle.borderStyle = 'solid'; 
+        }
+    }
+    if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
   }
   
-  if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
-
-  // Background color and image logic
-  if (tb.frameStyle === 'standard' || tb.frameStyle === 'custom') {
-    if (tb.baseBackgroundColor) cardContainerStyle.backgroundColor = tb.baseBackgroundColor;
+  // Background color and non-border-image background image logic
+  if (isStandardOrCustomFrame) { // Apply base colors only if not using the mask for border image
+    if (tb.baseBackgroundColor && !useBorderImageMask) cardContainerStyle.backgroundColor = tb.baseBackgroundColor;
+    // Text color is always applied if set
     if (tb.baseTextColor) cardContainerStyle.color = tb.baseTextColor;
   }
-
-  if (tb.cardBackgroundImageUrl) {
+  
+  // Apply card's own background image if not using masking for border, or if it's a different image
+  if (tb.cardBackgroundImageUrl && !useBorderImageMask) {
     const resolvedCardBgUrl = replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview);
     if (resolvedCardBgUrl && (resolvedCardBgUrl.startsWith('http') || resolvedCardBgUrl.startsWith('data:'))) {
         cardContainerStyle.backgroundImage = `url(${resolvedCardBgUrl})`;
-        cardContainerStyle.backgroundSize = 'cover';
-        cardContainerStyle.backgroundPosition = 'center';
+        // Keep existing backgroundSize and backgroundPosition if mask is used for border and source is same
+        if (!(useBorderImageMask && resolvedCardBgUrl === resolvedCardBorderImageSource)) {
+            cardContainerStyle.backgroundSize = 'cover';
+            cardContainerStyle.backgroundPosition = 'center';
+        }
     }
   }
+
 
   const calculatedPrintSize = useMemo(() => {
     if (!showSizeInfo) return '';
@@ -159,7 +237,8 @@ export function CardPreview({
       for (const key of nameKeys) {
         const value = dataToRender[key];
         if (value && typeof value === 'string' && value.trim()) {
-          baseHint = value.trim().toLowerCase().split(/\s+/).slice(0, 2).join(' ');
+          const words = value.trim().toLowerCase().split(/\s+/);
+          baseHint = words.slice(0, 2).join(' ');
           if (baseHint) break; 
         }
       }
@@ -228,6 +307,7 @@ export function CardPreview({
             alignItems: row.alignItems || 'flex-start',
             height: rowEffectiveHeight,
             flexShrink: 0,
+            zIndex: 1 // Ensure rows are above the card's masked background
           };
 
           const allColumnsInRowEffectivelyHidden = (row.columns || []).every(col => {
@@ -431,4 +511,3 @@ export function CardPreview({
     </div>
   );
 }
-
