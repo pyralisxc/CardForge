@@ -55,14 +55,15 @@ const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate
     cardBorderWidth: '5px', cardBorderStyle: 'solid', cardBorderRadius: '0.6rem', cardBackgroundImageUrl: undefined,
   },
   'standard': {
-    baseBackgroundColor: '#FFFFFF', baseTextColor: '#000000', cardBorderColor: undefined,
+    baseBackgroundColor: '#FFFFFF', baseTextColor: '#000000', cardBorderColor: undefined, // Default fallback border color will apply from theme/globals
     cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
   },
-  'custom': {
-    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '',
+  'custom': { // For 'Custom Colors' mode, allows full user control
+    baseBackgroundColor: '', baseTextColor: '', cardBorderColor: '', // Start empty or with theme defaults
     cardBorderWidth: '4px', cardBorderStyle: 'solid', cardBorderRadius: '0.5rem', cardBackgroundImageUrl: undefined,
   }
 };
+
 
 export function TemplateEditor({
   onSaveTemplate,
@@ -126,7 +127,7 @@ export function TemplateEditor({
 
   // Main Data Loading Effect: Responsible for loading the selected template or resetting.
   useEffect(() => {
-    if (!hasMounted) return; // Guard: Only run client-side after mount
+    if (!hasMounted) return;
 
     let templateToLoad: Partial<TCGCardTemplate>;
     let performingReset = false;
@@ -136,14 +137,12 @@ export function TemplateEditor({
       if (foundTemplate) {
         templateToLoad = foundTemplate;
       } else {
-        // Selected ID is stale or not found, reset to new if current isn't already new
         if (currentTemplateInternalRef.current?.id !== null) {
           performingReset = true;
         }
         templateToLoad = memoizedGetFreshDefaultTemplate(null);
       }
     } else {
-      // No template selected (Create New mode), reset if current isn't already new
       if (currentTemplateInternalRef.current?.id !== null) {
         performingReset = true;
       }
@@ -163,7 +162,7 @@ export function TemplateEditor({
 
   // Effect to synchronize aspectRatioInput with currentTemplate.aspectRatio
   useEffect(() => {
-    if (!hasMounted) return; // Guard against running on server or before mount
+    if (!hasMounted) return;
 
     const targetAspectRatio = currentTemplateInternalRef.current.aspectRatio || TCG_ASPECT_RATIO;
     if (targetAspectRatio !== aspectRatioInput) {
@@ -174,17 +173,17 @@ export function TemplateEditor({
 
   // Effect to synchronize activeRowAccordionItems with currentTemplate.rows
   useEffect(() => {
-    if (!hasMounted) return; // Guard against running on server or before mount
+    if (!hasMounted) return;
 
     let newRowIds: string[];
     const currentRows = currentTemplateInternalRef.current.rows;
 
     if (currentRows && currentRows.length > 0) {
       newRowIds = currentRows.map(r => r.id).filter(Boolean) as string[];
-    } else if (currentTemplateInternalRef.current.id === null) { // For a brand new, unsaved template
+    } else if (currentTemplateInternalRef.current.id === null) { 
       const defaultNewTemplate = memoizedGetFreshDefaultTemplate(null);
       newRowIds = (defaultNewTemplate.rows || []).map(r => r.id).filter(Boolean) as string[];
-    } else { // For an existing template that might have its rows cleared
+    } else { 
       newRowIds = [];
     }
 
@@ -195,7 +194,7 @@ export function TemplateEditor({
 
   // Effect to update currentTemplate with visual properties from pre-defined frame styles
   useEffect(() => {
-    if (!hasMounted) return; // Guard against running on server or before mount
+    if (!hasMounted) return;
 
     const currentActualFrameStyle = currentTemplateInternalRef.current.frameStyle || 'standard';
     const predefinedProps = PREDEFINED_FRAME_VISUAL_PROPERTIES[currentActualFrameStyle];
@@ -211,8 +210,7 @@ export function TemplateEditor({
           needsAnUpdate = true;
         }
       }
-      // Special handling for cardBackgroundImageUrl: if the predefined style doesn't specify one,
-      // but the current template has one, it should be cleared.
+      
       if (!Object.prototype.hasOwnProperty.call(predefinedProps, 'cardBackgroundImageUrl') && currentTemplateInternalRef.current.cardBackgroundImageUrl) {
           updatesToConsider.cardBackgroundImageUrl = undefined;
           needsAnUpdate = true;
@@ -223,7 +221,7 @@ export function TemplateEditor({
         updateCurrentTemplate(updatesToConsider);
       }
     }
-  }, [hasMounted, currentTemplateInternalRef.current.frameStyle, currentTemplateInternalRef.current.baseBackgroundColor, currentTemplateInternalRef.current.baseTextColor, currentTemplateInternalRef.current.cardBorderRadius, currentTemplateInternalRef.current.cardBorderColor, currentTemplateInternalRef.current.cardBorderWidth, currentTemplateInternalRef.current.cardBorderStyle, currentTemplateInternalRef.current.cardBackgroundImageUrl, updateCurrentTemplate]);
+  }, [hasMounted, currentTemplateInternalRef.current.frameStyle, updateCurrentTemplate]);
 
 
   const updateLocalRow = useCallback((rowId: string, updates: Partial<CardRow>) => {
@@ -364,11 +362,11 @@ export function TemplateEditor({
   }, [onSelectTemplateForEditing]);
 
 
-  const isNonCustomizableFrame = useMemo(() =>
-    currentTemplateInternalRef.current.frameStyle &&
-    currentTemplateInternalRef.current.frameStyle !== 'standard' &&
-    currentTemplateInternalRef.current.frameStyle !== 'custom'
-  , [currentTemplateInternalRef.current.frameStyle]);
+  const isNonCustomizableFrame = useMemo(() => {
+    const frameStyle = currentTemplateInternalRef.current.frameStyle;
+    return !!frameStyle && frameStyle !== 'standard' && frameStyle !== 'custom';
+  }, [currentTemplateInternalRef.current.frameStyle]);
+
 
   const livePreviewData = useMemo(() => {
     const data: { [key: string]: string } = {};
@@ -891,5 +889,3 @@ export function TemplateEditor({
     </div>
   );
 }
-
-    
