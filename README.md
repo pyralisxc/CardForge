@@ -10,6 +10,13 @@ Welcome to **TCG Card Forge**, a professional-grade Trading Card Game design sys
 - **Bulk Generation**: Import CSV data to generate entire sets of cards at once.
 - **PDF Export**: Print-ready PDF generation with custom margins, spacing, and optional cut lines.
 
+## Finding your repository on GitHub
+
+If you are looking for your code on GitHub outside of this editor:
+1. Open the **Terminal** tab at the bottom.
+2. Run `git remote get-url origin`.
+3. Copy that URL into your web browser.
+
 ## Getting Started
 
 1. **Design a Template**: Head to the "Template Editor" to define the look of your cards.
