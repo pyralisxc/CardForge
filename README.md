@@ -1,31 +1,54 @@
 # TCG Card Forge
 
-Welcome to **TCG Card Forge**, a professional-grade Trading Card Game design system built with Next.js, React, and Genkit AI.
+A professional-grade Trading Card Game design tool. Build layered card templates, generate cards from CSV data, and export print-ready PDFs.
 
 ## Features
 
-- **Template Editor**: Create complex, layered TCG templates with custom rows, columns, and styling.
-- **Layered Rendering**: High-fidelity rendering system that handles borders (images/colors), backgrounds, and content layers with proper CSS masking and clipping.
-- **AI Design Assistant**: Use Gemini-powered flows to generate card rules, flavor text, artwork concepts, and thematic color palettes.
-- **Bulk Generation**: Import CSV data to generate entire sets of cards at once.
-- **PDF Export**: Print-ready PDF generation with custom margins, spacing, and optional cut lines.
-
-## Finding your repository on GitHub
-
-If you are looking for your code on GitHub outside of this editor:
-1. Open the **Terminal** tab at the bottom.
-2. Run `git remote -v`.
-3. If you see a line starting with `origin`, copy the URL next to it.
-4. **If you get an error like "no such remote":** It means the project hasn't been pushed to GitHub yet. 
-   - Go to the **Source Control** tab (the branch icon) in the left sidebar.
-   - Select **Publish to GitHub**.
-   - Follow the prompts to create a repository on your GitHub account.
-   - Once published, run `git remote get-url origin` to get your link.
+- **Template Editor** — Create layered TCG templates with custom rows, columns, fonts, borders, and background images
+- **Card Generator** — Fill in cards manually one at a time, or import a CSV to generate an entire set at once
+- **PDF Export** — Print-ready export with configurable margins, card spacing, and optional cut lines
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
-- **UI Components**: Shadcn/UI & Tailwind CSS
-- **AI**: Genkit with Google Gemini
-- **State Management**: Zustand (with Persist middleware)
+- **Framework**: Next.js 15 (App Router, Turbopack)
+- **UI**: Shadcn/UI & Tailwind CSS
+- **State**: Zustand with localStorage persistence
 - **PDF Export**: jsPDF & html2canvas
+
+## First-Time Setup
+
+### Prerequisites
+
+You need [Node.js](https://nodejs.org) (LTS) installed. Verify with:
+
+```bash
+node --version
+npm --version
+```
+
+If either command fails, download and install Node.js LTS from https://nodejs.org, then restart your terminal.
+
+### Install & Run
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/pyralisxc/CardForge.git
+cd CardForge
+
+# 2. Install dependencies
+npm install
+
+# 3. Start the dev server
+npm run dev
+```
+
+Then open **http://localhost:9002** in your browser.
+
+### Other Commands
+
+```bash
+npm run build       # Production build
+npm run start       # Run production build locally
+npm run lint        # Lint the codebase
+npm run typecheck   # TypeScript type checking
+```
