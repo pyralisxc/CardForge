@@ -2,7 +2,7 @@
 import type { ElementType } from 'react';
 import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
-import { Cog, PackageOpen, Wand2 } from 'lucide-react';
+import { Cog, PackageOpen } from 'lucide-react';
 
 
 export const PAPER_SIZES: Array<{ name: string; widthMm: number; heightMm: number }> = [
@@ -146,5 +146,4 @@ export const createDefaultRow = (id: string, columns?: CardSection[], alignItems
 export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
   { value: "editor", label: "Template Editor", icon: Cog },
   { value: "generator", label: "Card Generator", icon: PackageOpen },
-  { value: "ai", label: "AI Helper", icon: Wand2 },
 ];

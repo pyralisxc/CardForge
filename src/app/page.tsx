@@ -7,7 +7,6 @@ import { Header } from '@/components/card-forge/Header';
 import { TemplateEditor } from '@/components/card-forge/TemplateEditor';
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
-import { AIDesignAssistant } from '@/components/card-forge/AIDesignAssistant';
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
@@ -221,7 +220,7 @@ export default function CardForgePage() {
             </Sheet>
           </div>
 
-          <TabsList className="hidden md:grid w-full md:grid-cols-3 mb-6 no-print">
+          <TabsList className="hidden md:grid w-full md:grid-cols-2 mb-6 no-print">
             {TABS_CONFIG.map(tab => (
               <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
                 <tab.icon className="mr-2 h-4 w-4" /> {tab.label}
@@ -368,9 +367,6 @@ export default function CardForgePage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="ai">
-              <AIDesignAssistant />
-          </TabsContent>
         </Tabs>
       </main>
       {isEditDialogOpen && editingCardFromStore && (
