@@ -14,25 +14,13 @@ Welcome to **TCG Card Forge**, a professional-grade Trading Card Game design sys
 
 If you are looking for your code on GitHub outside of this editor:
 1. Open the **Terminal** tab at the bottom.
-2. Run `git remote get-url origin`.
-3. Copy that URL into your web browser.
-
-## Getting Started
-
-1. **Design a Template**: Head to the "Template Editor" to define the look of your cards.
-2. **Generate Cards**: Use the "Card Generator" to create single cards or bulk import data.
-3. **Download**: Save your card set as a JSON file or export as a high-quality PDF for printing.
-
-## Git Management
-
-This project is managed via Git. To see your current source control status:
-- Use the **Source Control** tab in the left sidebar.
-- Run `git status` in the integrated terminal.
-
-To connect this project to a remote repository (like GitHub):
-1. Open the Source Control tab.
-2. Select **Publish to GitHub**.
-3. Follow the authentication prompts to sync your code.
+2. Run `git remote -v`.
+3. If you see a line starting with `origin`, copy the URL next to it.
+4. **If you get an error like "no such remote":** It means the project hasn't been pushed to GitHub yet. 
+   - Go to the **Source Control** tab (the branch icon) in the left sidebar.
+   - Select **Publish to GitHub**.
+   - Follow the prompts to create a repository on your GitHub account.
+   - Once published, run `git remote get-url origin` to get your link.
 
 ## Tech Stack
 
