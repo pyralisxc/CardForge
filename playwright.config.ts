@@ -7,7 +7,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   webServer: {
-    command: 'C:\\Progra~1\\nodejs\\npm.cmd run dev',
+    command: 'npm run dev',
     url: 'http://127.0.0.1:9002',
     reuseExistingServer: true,
     timeout: 120_000,
