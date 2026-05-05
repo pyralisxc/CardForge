@@ -217,7 +217,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
               <input
                 type="file"
                 accept="image/*"
-                ref={el => fileRefsLocal.current[field.key] = el}
+                ref={(el) => {
+                  fileRefsLocal.current[field.key] = el;
+                }}
                 onChange={(e) => handleImageUpload(e, field.key)}
                 style={{ display: 'none' }}
                 id={`editCard-file-${field.key}`}

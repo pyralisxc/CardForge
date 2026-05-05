@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import {
-  LayoutDashboard, Trash2, PlusCircle, Rows, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, Settings, Frame, FileImage, Image as ImageIconLucide
+  LayoutDashboard, Trash2, PlusCircle, Rows, Eye, Save, Edit2, GripVertical, ArrowUp, ArrowDown, Settings, Frame, FileImage, Image as ImageIconLucide, Copy
 } from 'lucide-react';
 import {
   TCG_ASPECT_RATIO,
@@ -26,10 +26,13 @@ import { useToast } from '@/hooks/use-toast';
 import { CardPreview } from './CardPreview';
 import { ColumnEditor } from './ColumnEditor';
 import { nanoid } from 'nanoid';
-import { cn, extractUniquePlaceholderKeys, simplifyRatio } from "@/lib/utils";
-import type { getFreshDefaultTemplate as GetFreshDefaultTemplateFn, reconstructMinimalTemplate as ReconstructMinimalTemplateFn } from '@/store/appStore';
+import { cn, extractUniquePlaceholderKeys } from "@/lib/utils";
+import type { getFreshDefaultTemplate, reconstructMinimalTemplate } from '@/store/appStore';
 
-export type { ReconstructMinimalTemplateFn as ReconstructTemplatePropFn };
+type ReconstructMinimalTemplateFn = typeof reconstructMinimalTemplate;
+type GetFreshDefaultTemplateFn = typeof getFreshDefaultTemplate;
+
+export type ReconstructTemplatePropFn = ReconstructMinimalTemplateFn;
 
 const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate>> = {
   'classic-gold': {
@@ -64,6 +67,7 @@ interface TemplateEditorProps {
   onSaveTemplate: (template: TCGCardTemplate) => string;
   templates: TCGCardTemplate[];
   onDeleteTemplate: (templateId: string) => void;
+  onCloneTemplate: (templateId: string) => string | null;
   reconstructMinimalTemplate: ReconstructMinimalTemplateFn;
   memoizedGetFreshDefaultTemplate: GetFreshDefaultTemplateFn;
   selectedTemplateIdForEditing: string | null;
@@ -75,6 +79,7 @@ export function TemplateEditor({
   onSaveTemplate,
   templates,
   onDeleteTemplate,
+  onCloneTemplate,
   reconstructMinimalTemplate,
   memoizedGetFreshDefaultTemplate,
   selectedTemplateIdForEditing,
@@ -445,10 +450,24 @@ export function TemplateEditor({
       toast({ title: "Invalid Dimensions", description: "Please enter positive numbers for width and height.", variant: "destructive" });
       return;
     }
-    const simplified = simplifyRatio(widthNum, heightNum);
-    updateCurrentTemplate({ aspectRatio: simplified });
-    toast({ title: "Aspect Ratio Updated", description: `Ratio set to ${simplified} based on custom dimensions.` });
-  }, [customWidthValue, customHeightValue, updateCurrentTemplate, toast]);
+
+    // Convert to mm so the stored ratio always represents real mm dimensions.
+    // The PDF layout and size-info calculations interpret ratio numbers as mm.
+    const MM_CONVERSION: Record<string, number> = {
+      mm: 1,
+      cm: 10,
+      in: 25.4,
+      px96:  25.4 / 96,   // CSS / screen pixels at 96 dpi
+      px300: 25.4 / 300,  // print pixels at 300 dpi (standard for card printing)
+    };
+    const factor = MM_CONVERSION[customUnit] ?? 1;
+    const widthMm = Math.round(widthNum * factor * 100) / 100;
+    const heightMm = Math.round(heightNum * factor * 100) / 100;
+    const ratio = `${widthMm}:${heightMm}`;
+
+    updateCurrentTemplate({ aspectRatio: ratio });
+    toast({ title: "Aspect Ratio Updated", description: `Ratio set to ${ratio} (${widthMm}mm × ${heightMm}mm).` });
+  }, [customWidthValue, customHeightValue, customUnit, updateCurrentTemplate, toast]);
 
 
   return (
@@ -499,6 +518,13 @@ export function TemplateEditor({
                       >
                         {template.name || `Template (${String(template.id!).substring(0,5)})`}
                       </span>
+                      <Button variant="ghost" size="icon" onClick={(e) => {
+                          e.stopPropagation();
+                          const newId = onCloneTemplate(template.id!);
+                          if (newId) onSelectTemplateForEditing(newId);
+                      }} aria-label={`Clone template ${template.name || 'Untitled Template'}`} className="h-6 w-6">
+                        <Copy className="h-3 w-3 text-muted-foreground" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={(e) => {
                           e.stopPropagation();
                           onDeleteTemplate(template.id!);

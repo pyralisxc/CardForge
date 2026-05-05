@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#4a4d50"/>
+  <filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".2" numOctaves="5" seed="14"/><feColorMatrix values=".38 0 0 0 .02 0 .38 0 0 .02 0 0 .38 0 .02 0 0 0 .42 0"/></filter>
+  <rect width="192" height="192" filter="url(#n)"/>
+  <path d="M10 52c40-15 56 18 92 0s53-2 78 9M-4 134c43 18 82-17 121 0 29 13 44-9 83-3" fill="none" stroke="#d5ad54" stroke-width="1.5" opacity=".13"/>
+</svg>

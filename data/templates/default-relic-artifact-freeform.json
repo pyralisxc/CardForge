@@ -1,0 +1,388 @@
+{
+  "id": "default-relic-artifact-freeform",
+  "name": "Smoke Freeform Template",
+  "layoutMode": "freeform",
+  "aspectRatio": "63:88",
+  "frameStyle": "custom",
+  "cardBorderWidth": "5px",
+  "cardBorderStyle": "double",
+  "cardBorderRadius": "12px",
+  "appearance": {
+    "material": {
+      "baseColor": "#15110a",
+      "textColor": "#f7e6b0",
+      "texture": {
+        "kind": "none"
+      }
+    },
+    "border": {
+      "kind": "double",
+      "color": "#d5ad54",
+      "width": 5,
+      "radius": 12
+    }
+  },
+  "rows": [],
+  "baseBackgroundColor": "#15110a",
+  "baseTextColor": "#f7e6b0",
+  "cardBorderColor": "#d5ad54",
+  "freeformCanvas": {
+    "width": 630,
+    "height": 880,
+    "gridSize": 20,
+    "elements": [
+      {
+        "id": "relic-frame",
+        "type": "shape",
+        "name": "Engraved Metal Frame",
+        "x": 26,
+        "y": 26,
+        "width": 578,
+        "height": 828,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 0,
+        "locked": false,
+        "content": "",
+        "shapeKind": "rectangle",
+        "textColor": "#111827",
+        "backgroundColor": "rgba(255,255,255,0.16)",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#d1d5db",
+        "borderWidth": "border",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "rgba(255,255,255,0.16)",
+        "strokeColor": "#fbbf24",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "#120f0b",
+            "texture": {
+              "kind": "etched",
+              "intensity": 55,
+              "scale": 8
+            },
+            "gradient": {
+              "type": "radial",
+              "stops": [
+                {
+                  "id": "a",
+                  "color": "#d5ad54",
+                  "position": 0,
+                  "opacity": 0.26
+                },
+                {
+                  "id": "b",
+                  "color": "#120f0b",
+                  "position": 100,
+                  "opacity": 1
+                }
+              ]
+            }
+          },
+          "border": {
+            "kind": "etched",
+            "color": "#d5ad54",
+            "secondaryColor": "#5f4216",
+            "width": 5,
+            "radius": 14
+          },
+          "effects": {
+            "shadow": 28,
+            "glow": 12,
+            "bevel": 38
+          }
+        }
+      },
+      {
+        "id": "relic-art",
+        "type": "image",
+        "name": "Artifact Art",
+        "x": 76,
+        "y": 136,
+        "width": 478,
+        "height": 310,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 1,
+        "locked": false,
+        "content": "artworkUrl",
+        "textColor": "#111827",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#d1d5db",
+        "borderWidth": "border",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "imageSource": "artworkUrl",
+        "appearance": {
+          "border": {
+            "kind": "relic",
+            "color": "#d5ad54",
+            "width": 3,
+            "radius": 6
+          },
+          "effects": {
+            "shadow": 30
+          }
+        }
+      },
+      {
+        "id": "relic-rules",
+        "type": "text",
+        "name": "Rules",
+        "x": 76,
+        "y": 540,
+        "width": 478,
+        "height": 180,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "content": "{{rulesText:\"When Aureate Engine enters play, charge it.\\nWhenever you spend a charge, create a gold token.\"}}",
+        "textColor": "#111827",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontWeight": "font-bold",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-3",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "rgba(244,226,186,0.92)",
+            "textColor": "#20140a",
+            "texture": {
+              "kind": "parchment",
+              "intensity": 42,
+              "scale": 10
+            }
+          },
+          "border": {
+            "kind": "relic",
+            "color": "#4a2f12",
+            "secondaryColor": "#d5ad54",
+            "width": 4,
+            "radius": 8
+          },
+          "effects": {
+            "innerHighlight": 24,
+            "bevel": 20
+          }
+        }
+      },
+      {
+        "id": "relic-title",
+        "type": "text",
+        "name": "Title",
+        "x": 72,
+        "y": 62,
+        "width": 486,
+        "height": 50,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{cardName:\"AUREATE ENGINE\"}}",
+        "textColor": "#111827",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-cinzel",
+        "fontSize": "text-lg",
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "#17100b",
+            "textColor": "#f7df9d",
+            "texture": {
+              "kind": "etched",
+              "intensity": 36,
+              "scale": 9
+            }
+          },
+          "border": {
+            "kind": "double",
+            "color": "#d5ad54",
+            "width": 3,
+            "radius": 8
+          }
+        }
+      },
+      {
+        "id": "relic-divider",
+        "type": "shape",
+        "name": "Gem Divider",
+        "x": 80,
+        "y": 474,
+        "width": 470,
+        "height": 18,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "",
+        "shapeKind": "line",
+        "textColor": "#111827",
+        "backgroundColor": "rgba(255,255,255,0.16)",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#d1d5db",
+        "borderWidth": "border",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "rgba(255,255,255,0.16)",
+        "strokeColor": "#fbbf24",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "#d5ad54",
+            "gradient": {
+              "type": "linear",
+              "angle": 90,
+              "stops": [
+                {
+                  "id": "a",
+                  "color": "transparent",
+                  "position": 0
+                },
+                {
+                  "id": "b",
+                  "color": "#7f5d1f",
+                  "position": 22
+                },
+                {
+                  "id": "c",
+                  "color": "#f5d27b",
+                  "position": 50
+                },
+                {
+                  "id": "d",
+                  "color": "#7f5d1f",
+                  "position": 78
+                },
+                {
+                  "id": "e",
+                  "color": "transparent",
+                  "position": 100
+                }
+              ]
+            }
+          },
+          "border": {
+            "kind": "none",
+            "radius": 999
+          }
+        }
+      },
+      {
+        "id": "_-BYSLe59DBY1EW7mcZRC",
+        "type": "text",
+        "name": "Text Layer",
+        "x": 82,
+        "y": 82,
+        "width": 260,
+        "height": 72,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 4,
+        "locked": false,
+        "content": "{{newText:\"New Text\"}}",
+        "textColor": "#221407",
+        "backgroundColor": "rgba(235,211,159,0.96)",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderColor": "#5a3410",
+        "borderWidth": "border-4",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "rgba(235,211,159,0.96)",
+        "strokeColor": "#5a3410",
+        "strokeWidth": 4,
+        "appearance": {
+          "material": {
+            "baseColor": "rgba(235,211,159,0.96)",
+            "textColor": "#221407",
+            "gradient": {
+              "type": "linear",
+              "angle": 180,
+              "stops": [
+                {
+                  "id": "a",
+                  "color": "#fff6d8",
+                  "position": 0,
+                  "opacity": 0.96
+                },
+                {
+                  "id": "b",
+                  "color": "#c69343",
+                  "position": 100,
+                  "opacity": 0.36
+                }
+              ]
+            },
+            "texture": {
+              "kind": "uploaded",
+              "imageSource": "/card-assets/textures/parchment-grain.svg",
+              "assetSource": "/card-assets/textures/parchment-grain.svg",
+              "assetKind": "texture",
+              "intensity": 55,
+              "scale": 8,
+              "textureOpacity": 42,
+              "textureScale": 160,
+              "blendMode": "multiply"
+            }
+          },
+          "border": {
+            "kind": "relic",
+            "color": "#5a3410",
+            "secondaryColor": "#d5ad54",
+            "width": 4,
+            "radius": 6,
+            "innerWidth": 1
+          },
+          "effects": {
+            "innerHighlight": 35,
+            "bevel": 25
+          }
+        },
+        "backgroundImageUrl": "url(/card-assets/textures/parchment-grain.svg), linear-gradient(180deg, rgba(255,246,216,0.96) 0%, rgba(198,147,67,0.36) 100%)"
+      }
+    ]
+  }
+}

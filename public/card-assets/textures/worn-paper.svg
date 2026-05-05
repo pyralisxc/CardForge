@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#ecd9a8"/>
+  <circle cx="24" cy="26" r="18" fill="#8b5b27" opacity=".13"/><circle cx="170" cy="44" r="25" fill="#fff4cf" opacity=".32"/><circle cx="132" cy="152" r="38" fill="#8b5b27" opacity=".08"/>
+  <filter id="n"><feTurbulence baseFrequency=".8" numOctaves="3" seed="8"/><feColorMatrix values=".24 0 0 0 .17 0 .18 0 0 .11 0 0 .08 0 .04 0 0 0 .30 0"/></filter>
+  <rect width="192" height="192" filter="url(#n)" opacity=".7"/>
+</svg>

@@ -7,6 +7,7 @@ export default {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/lib/**/*.{js,ts}",
   ],
   theme: {
   	extend: {
@@ -15,6 +16,11 @@ export default {
         mono: ['var(--font-geist-mono)', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
         cinzel: ['var(--font-cinzel)', 'serif'],
         lato: ['var(--font-lato)', 'sans-serif'],
+        trajan: ['Cinzel', 'Trajan Pro', 'Palatino Linotype', 'serif'],
+        book: ['Iowan Old Style', 'Book Antiqua', 'Palatino Linotype', 'Georgia', 'serif'],
+        humanist: ['Optima', 'Segoe UI', 'Trebuchet MS', 'Arial', 'sans-serif'],
+        condensed: ['Arial Narrow', 'Roboto Condensed', 'Arial', 'sans-serif'],
+        engraved: ['Garamond', 'Baskerville', 'Times New Roman', 'serif'],
       },
   		colors: {
   			background: 'hsl(var(--background))',

@@ -2,9 +2,9 @@
 "use client";
 
 import type { ChangeEvent, ElementType } from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Header } from '@/components/card-forge/Header';
-import { TemplateEditor } from '@/components/card-forge/TemplateEditor';
+import { CardTemplateMaker2 } from '@/components/card-forge/CardTemplateMaker2';
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { CardPreview } from '@/components/card-forge/CardPreview';
@@ -19,11 +19,21 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront, Search } from 'lucide-react';
 
-import { useAppStore, selectGeneratedDisplayCards, selectEditingCard, reconstructMinimalTemplate as reconstructMinimalTemplateFromStore, getFreshDefaultTemplate as getFreshDefaultTemplateFromStore } from '@/store/appStore';
+import { useAppStore, selectGeneratedDisplayCards, selectEditingCard } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
-import type { TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
+import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 
@@ -32,6 +42,11 @@ export default function CardForgePage() {
 
   // Zustand store selectors
   const templatesFromStore = useAppStore((state) => state.templates);
+  const freeformTemplatesForGenerator = useMemo(
+    () => templatesFromStore.filter(template => template.layoutMode === 'freeform'),
+    [templatesFromStore],
+  );
+  const appearanceStyles = useAppStore((state) => state.appearanceStyles);
   const storedCards = useAppStore((state) => state.storedCards);
   const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards);
   
@@ -39,6 +54,9 @@ export default function CardForgePage() {
   const activeTab = useAppStore((state) => state.activeTab);
   const hideEmptySections = useAppStore((state) => state.hideEmptySections);
   const singleCardGeneratorSelectedTemplateId = useAppStore((state) => state.singleCardGeneratorSelectedTemplateId);
+  const generatorSelectedTemplateId = freeformTemplatesForGenerator.some(template => template.id === singleCardGeneratorSelectedTemplateId)
+    ? singleCardGeneratorSelectedTemplateId
+    : (freeformTemplatesForGenerator.find(template => template.id)?.id || null);
   const pdfMarginMm = useAppStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useAppStore((state) => state.pdfCardSpacingMm);
   const pdfIncludeCutLines = useAppStore((state) => state.pdfIncludeCutLines);
@@ -47,7 +65,12 @@ export default function CardForgePage() {
   
   // Zustand store actions
   const addOrUpdateTemplateAction = useAppStore((state) => state.addOrUpdateTemplate);
+  const mergeTemplatesFromFilesAction = useAppStore((state) => state.mergeTemplatesFromFiles);
   const deleteTemplateAction = useAppStore((state) => state.deleteTemplate);
+  const cloneTemplateAction = useAppStore((state) => state.cloneTemplate);
+  const setAppearanceStylesFromFilesAction = useAppStore((state) => state.setAppearanceStylesFromFiles);
+  const addOrUpdateAppearanceStyleAction = useAppStore((state) => state.addOrUpdateAppearanceStyle);
+  const deleteAppearanceStyleAction = useAppStore((state) => state.deleteAppearanceStyle);
   const addGeneratedCardsAction = useAppStore((state) => state.addGeneratedCards);
   const clearGeneratedCardsAction = useAppStore((state) => state.clearGeneratedCards);
   const updateGeneratedCardAction = useAppStore((state) => state.updateGeneratedCard);
@@ -63,29 +86,127 @@ export default function CardForgePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [gallerySearch, setGallerySearch] = useState('');
+  const [templatePendingDeleteId, setTemplatePendingDeleteId] = useState<string | null>(null);
+  const [isClearCardsDialogOpen, setIsClearCardsDialogOpen] = useState(false);
 
   // Comment: Zustand's `persist` middleware handles loading from localStorage.
   // The `_rehydrateCallback` in the store handles any post-rehydration logic,
   // like setting initial template selections. No specific useEffect needed here for that.
 
-  // Memoized versions of store utility functions to pass as stable props
-  const reconstructMinimalTemplate = useCallback(reconstructMinimalTemplateFromStore, []);
-  const memoizedGetFreshDefaultTemplate = useCallback(getFreshDefaultTemplateFromStore, []);
+  useEffect(() => {
+    let cancelled = false;
 
+    const loadFileBackedTemplates = async () => {
+      try {
+        const response = await fetch('/api/templates', { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = await response.json() as { templates?: Partial<TCGCardTemplate>[] };
+        if (cancelled || !Array.isArray(payload.templates) || payload.templates.length === 0) return;
+        mergeTemplatesFromFilesAction(payload.templates);
+      } catch (error) {
+        console.warn('Unable to load file-backed templates:', error);
+      }
+    };
+
+    loadFileBackedTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, [mergeTemplatesFromFilesAction]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFileBackedStyles = async () => {
+      try {
+        const response = await fetch('/api/styles', { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = await response.json() as Partial<AppearanceStyleLibrary>;
+        if (cancelled || !Array.isArray(payload.styles)) return;
+        setAppearanceStylesFromFilesAction(payload.styles);
+      } catch (error) {
+        console.warn('Unable to load file-backed styles:', error);
+      }
+    };
+
+    loadFileBackedStyles();
+    return () => {
+      cancelled = true;
+    };
+  }, [setAppearanceStylesFromFilesAction]);
+
+  const handleSaveAppearanceStyle = useCallback((style: AppearanceStylePreset): string => {
+    const savedId = addOrUpdateAppearanceStyleAction(style);
+    void fetch('/api/styles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(style),
+    }).catch((error) => {
+      console.warn('Unable to save style file:', error);
+    });
+    toast({ title: "Style Saved", description: `"${style.name}" is available in Appearance Studio.` });
+    return savedId;
+  }, [addOrUpdateAppearanceStyleAction, toast]);
+
+  const handleDeleteAppearanceStyle = useCallback((styleId: string) => {
+    deleteAppearanceStyleAction(styleId);
+    void fetch('/api/styles', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: styleId }),
+    }).catch((error) => {
+      console.warn('Unable to delete style file:', error);
+    });
+  }, [deleteAppearanceStyleAction]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
     // The addOrUpdateTemplateAction in the store handles reconstruction.
     const savedTemplateId = addOrUpdateTemplateAction(template);
     toast({ title: "Template Saved", description: `"${template.name || savedTemplateId}" has been saved.` });
+    const templateForFile = useAppStore.getState().templates.find(t => t.id === savedTemplateId);
+    if (templateForFile) {
+      void fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(templateForFile),
+      }).catch((error) => {
+        console.warn('Unable to save template file:', error);
+      });
+    }
     return savedTemplateId;
   }, [addOrUpdateTemplateAction, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
-    // The deleteTemplateAction in the store handles updating selected IDs if necessary.
+    setTemplatePendingDeleteId(templateId);
+  }, []);
+
+  const handleConfirmDeleteTemplate = useCallback(() => {
+    if (!templatePendingDeleteId) return;
+    const templateId = templatePendingDeleteId;
     const templateToDelete = templatesFromStore.find(t => t.id === templateId);
+    const dependentCardCount = storedCards.filter(card => card.templateId === templateId).length;
     deleteTemplateAction(templateId);
-    toast({ title: "Template Deleted", description: `"${templateToDelete?.name || templateId}" has been removed.` });
-  }, [deleteTemplateAction, toast, templatesFromStore]);
+    void fetch('/api/templates', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: templateId }),
+    }).catch((error) => {
+      console.warn('Unable to delete template file:', error);
+    });
+    setTemplatePendingDeleteId(null);
+    toast({
+      title: "Template Deleted",
+      description: `"${templateToDelete?.name || templateId}" and ${dependentCardCount} generated card${dependentCardCount === 1 ? '' : 's'} using it have been removed.`,
+    });
+  }, [deleteTemplateAction, storedCards, templatePendingDeleteId, toast, templatesFromStore]);
+
+  const handleCloneTemplate = useCallback((templateId: string): string | null => {
+    const source = templatesFromStore.find(t => t.id === templateId);
+    const newId = cloneTemplateAction(templateId);
+    if (newId) toast({ title: "Template Cloned", description: `"Copy of ${source?.name || templateId}" created.` });
+    return newId;
+  }, [cloneTemplateAction, toast, templatesFromStore]);
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
     addGeneratedCardsAction(cards);
@@ -98,6 +219,7 @@ export default function CardForgePage() {
 
   const handleClearGeneratedCards = useCallback(() => {
     clearGeneratedCardsAction();
+    setIsClearCardsDialogOpen(false);
     toast({ title: "Cleared", description: "Generated cards have been cleared." });
   }, [clearGeneratedCardsAction, toast]);
 
@@ -183,6 +305,8 @@ export default function CardForgePage() {
     setIsMobileMenuOpen(false);
   }, [setActiveTabAction]);
 
+  const effectiveActiveTab = TABS_CONFIG.some(tab => tab.value === activeTab) ? activeTab : TABS_CONFIG[0].value;
+
   // Comment: Initial selection of template for single card generator (and now bulk generator)
   // is handled by Zustand's _rehydrateCallback or other actions modifying the templates list.
 
@@ -190,13 +314,13 @@ export default function CardForgePage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
-        <Tabs value={activeTab} onValueChange={setActiveTabAction} className="w-full">
+        <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full">
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="outline" className="w-full flex items-center justify-center gap-2">
                   <MenuIcon className="h-5 w-5" />
-                  Menu ({TABS_CONFIG.find(t => t.value === activeTab)?.label})
+                  Menu ({TABS_CONFIG.find(t => t.value === effectiveActiveTab)?.label})
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[280px] sm:w-[320px]">
@@ -207,7 +331,7 @@ export default function CardForgePage() {
                   {TABS_CONFIG.map(tab => (
                     <Button
                       key={tab.value}
-                      variant={activeTab === tab.value ? "secondary" : "ghost"}
+                      variant={effectiveActiveTab === tab.value ? "secondary" : "ghost"}
                       className="w-full justify-start"
                       onClick={() => handleMobileMenuSelect(tab.value)}
                     >
@@ -228,13 +352,15 @@ export default function CardForgePage() {
             ))}
           </TabsList>
 
-          <TabsContent value="editor">
-            <TemplateEditor
+          <TabsContent value="template-maker-2">
+            <CardTemplateMaker2
               onSaveTemplate={handleSaveTemplate}
-              templates={templatesFromStore} 
+              templates={templatesFromStore}
+              appearanceStyles={appearanceStyles}
+              onSaveAppearanceStyle={handleSaveAppearanceStyle}
+              onDeleteAppearanceStyle={handleDeleteAppearanceStyle}
               onDeleteTemplate={handleDeleteTemplate}
-              reconstructMinimalTemplate={reconstructMinimalTemplate}
-              memoizedGetFreshDefaultTemplate={memoizedGetFreshDefaultTemplate}
+              onCloneTemplate={handleCloneTemplate}
               selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}
               onSelectTemplateForEditing={setSingleCardGeneratorSelectedTemplateIdAction}
             />
@@ -244,15 +370,15 @@ export default function CardForgePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1 space-y-6">
                  <SingleCardGenerator
-                    templates={templatesFromStore}
+                    templates={freeformTemplatesForGenerator}
                     onSingleCardAdded={handleSingleCardAdded}
                     onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
-                    selectedTemplateIdProp={singleCardGeneratorSelectedTemplateId}
+                    selectedTemplateIdProp={generatorSelectedTemplateId}
                  />
                 <BulkGenerator
-                  templates={templatesFromStore}
+                  templates={freeformTemplatesForGenerator}
                   onCardsGenerated={handleBulkCardsGenerated}
-                  selectedTemplateIdProp={singleCardGeneratorSelectedTemplateId}
+                  selectedTemplateIdProp={generatorSelectedTemplateId}
                   onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
                 />
 
@@ -327,9 +453,10 @@ export default function CardForgePage() {
                               pdfCardSpacingMm={pdfCardSpacingMm}
                               pdfIncludeCutLines={pdfIncludeCutLines}
                               disabled={generatedDisplayCards.length === 0}
+                              templateName={generatedDisplayCards[0]?.template?.name}
                             />
                             {generatedDisplayCards.length > 0 && (
-                                <Button variant="destructive" onClick={handleClearGeneratedCards} className="flex items-center gap-2">
+                                <Button variant="destructive" onClick={() => setIsClearCardsDialogOpen(true)} className="flex items-center gap-2">
                                     <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
                                 </Button>
                             )}
@@ -339,7 +466,18 @@ export default function CardForgePage() {
 
               </div>
               <div className="lg:col-span-2">
-                <h2 className="text-2xl font-semibold mb-4 text-foreground">Generated Cards Preview ({generatedDisplayCards.length})</h2>
+                <div className="flex items-center justify-between mb-4 gap-3">
+                  <h2 className="text-2xl font-semibold text-foreground shrink-0">Generated Cards ({generatedDisplayCards.length})</h2>
+                  <div className="relative flex-grow max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Search cards..."
+                      value={gallerySearch}
+                      onChange={(e) => setGallerySearch(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
+                </div>
                 {generatedDisplayCards.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
                      <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
@@ -349,7 +487,16 @@ export default function CardForgePage() {
                 ) : (
                   <ScrollArea className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-                      {generatedDisplayCards.map((cardItem, index) => (
+                      {generatedDisplayCards
+                        .filter(card => {
+                          if (!gallerySearch.trim()) return true;
+                          const q = gallerySearch.toLowerCase();
+                          return (
+                            card.template.name?.toLowerCase().includes(q) ||
+                            Object.values(card.data).some(v => String(v).toLowerCase().includes(q))
+                          );
+                        })
+                        .map((cardItem, index) => (
                         <CardPreview
                           key={cardItem.uniqueId}
                           card={cardItem}
@@ -378,6 +525,42 @@ export default function CardForgePage() {
             onClose={handleCloseEditDialog}
         />
       )}
+      <AlertDialog open={!!templatePendingDeleteId} onOpenChange={(open) => !open && setTemplatePendingDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const template = templatesFromStore.find(t => t.id === templatePendingDeleteId);
+                const dependentCardCount = storedCards.filter(card => card.templateId === templatePendingDeleteId).length;
+                return `"${template?.name || templatePendingDeleteId || 'This template'}" will be permanently removed from this browser. ${dependentCardCount} generated card${dependentCardCount === 1 ? '' : 's'} using it will also be removed.`;
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteTemplate} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={isClearCardsDialogOpen} onOpenChange={setIsClearCardsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all generated cards?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {generatedDisplayCards.length} generated card{generatedDisplayCards.length === 1 ? '' : 's'} from this browser. Templates will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearGeneratedCards} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Clear Cards
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <footer className="text-center p-4 text-muted-foreground text-sm border-t no-print">
         TCG Card Forge &copy; {new Date().getFullYear()}
       </footer>

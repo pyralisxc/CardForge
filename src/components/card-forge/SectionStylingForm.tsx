@@ -72,7 +72,11 @@ const SectionStylingFormMemoized = ({
       borderWidth: defaultStyling.borderWidth,
       borderRadius: defaultStyling.borderRadius,
       minHeight: defaultStyling.minHeight,
-      backgroundImageUrl: defaultStyling.backgroundImageUrl, 
+      backgroundImageUrl: defaultStyling.backgroundImageUrl,
+      imageObjectFit: undefined,
+      flexGrow: 0,
+      customHeight: undefined,
+      customWidth: undefined,
     };
     handleUpdate(stylingUpdates);
     toast({ title: "Styling Reset", description: `Styling for column reset to defaults.` });
@@ -206,6 +210,20 @@ const SectionStylingFormMemoized = ({
                 <SelectContent>{MIN_HEIGHT_OPTIONS.map(s=><SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {section.sectionContentType === 'image' && (
+              <div>
+                <Label htmlFor={`imageObjectFit-${section.id}`} className="text-xs">Image Fit</Label>
+                <Select value={section.imageObjectFit || 'cover'} onValueChange={v => handleUpdate({ imageObjectFit: v as CardSection['imageObjectFit'] })}>
+                  <SelectTrigger id={`imageObjectFit-${section.id}`} className="text-xs h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cover" className="text-xs">Cover (fill, crop edges)</SelectItem>
+                    <SelectItem value="contain" className="text-xs">Contain (fit inside, letterbox)</SelectItem>
+                    <SelectItem value="fill" className="text-xs">Fill (stretch to fit)</SelectItem>
+                    <SelectItem value="none" className="text-xs">None (natural size)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex items-center space-x-2 sm:col-span-2">
               <Label htmlFor={`flexGrow-${section.id}`} className="text-xs cursor-pointer flex-grow">Flex Grow (expand to fill row space)</Label>
               <Input type="number" id={`flexGrow-${section.id}`} value={section.flexGrow || 0} onChange={(e: ChangeEvent<HTMLInputElement>) => handleUpdate({ flexGrow: parseInt(e.target.value,10) || 0 })} min="0" className="h-8 text-xs w-16" />

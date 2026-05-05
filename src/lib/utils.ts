@@ -2,6 +2,7 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { TCGCardTemplate, CardData, CardSection } from "@/types";
+import { TCG_ASPECT_RATIO } from "@/lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -57,6 +58,19 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
     processStringForPlaceholders(row.customHeight);
   });
   processStringForPlaceholders(template.cardBackgroundImageUrl);
+
+  template.freeformCanvas?.elements?.forEach(element => {
+    if (element.type === 'image') {
+      const source = element.imageSource || element.content;
+      if (source && !source.startsWith('http') && !source.startsWith('data:') && !source.includes('{{') && !placeholderMap.has(source)) {
+        placeholderMap.set(source, { key: source });
+      }
+      processStringForPlaceholders(source);
+    } else {
+      processStringForPlaceholders(element.content);
+    }
+    processStringForPlaceholders(element.backgroundImageUrl);
+  });
 
   return Array.from(placeholderMap.values());
 }
@@ -154,4 +168,59 @@ export function simplifyRatio(w: number, h: number): string {
   const simplifiedH = intH / commonDivisor;
 
   return `${simplifiedW}:${simplifiedH}`;
+}
+
+export function parseCSV(raw: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  const pushField = () => {
+    row.push(current.trim());
+    current = '';
+  };
+
+  const pushRow = () => {
+    pushField();
+    if (row.some((field) => field.trim() !== '')) {
+      rows.push(row);
+    }
+    row = [];
+  };
+
+  for (let index = 0; index < raw.length; index++) {
+    const char = raw[index];
+
+    if (char === '"') {
+      if (inQuotes && raw[index + 1] === '"') {
+        current += '"';
+        index++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      pushField();
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && raw[index + 1] === '\n') {
+        index++;
+      }
+      pushRow();
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.length > 0 || row.length > 0) {
+    pushRow();
+  }
+
+  return rows;
 }

@@ -61,6 +61,9 @@ export function SingleCardGenerator({
           (row.columns || []).some(col =>
               col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
           )
+      ) || !!template.freeformCanvas?.elements?.some(element =>
+          element.type === 'image' &&
+          (element.imageSource === placeholder.key || element.content === placeholder.key)
       );
       const isTextarea = !isImageSectionKey && (
           placeholder.key.toLowerCase().includes('rules') ||
@@ -84,7 +87,7 @@ export function SingleCardGenerator({
 
       return {
         key: placeholder.key,
-        label: `{{${placeholder.key}}}`,
+        label: toTitleCase(placeholder.key),
         type: isTextarea ? 'textarea' : 'input',
         isImageKey: isImageSectionKey,
         defaultValue: placeholder.defaultValue,
@@ -216,7 +219,9 @@ export function SingleCardGenerator({
               <input
                 type="file"
                 accept="image/*"
-                ref={el => fileRefs.current[field.key] = el}
+                ref={(el) => {
+                  fileRefs.current[field.key] = el;
+                }}
                 onChange={(e) => handleImageUpload(e, field.key)}
                 style={{ display: 'none' }}
                 id={`singleCard-file-${field.key}`}
@@ -274,7 +279,7 @@ export function SingleCardGenerator({
             <p className="text-sm text-muted-foreground">Select a template above to start entering card data.</p>
         )}
          {templates.length === 0 && (
-            <p className="text-sm text-muted-foreground">No templates available. Please create one in the "Template Editor" tab first.</p>
+            <p className="text-sm text-muted-foreground">No Maker 2.0 templates available. Please create one in "Card Template Maker 2.0" first.</p>
         )}
 
         <Button onClick={handleAddCard} disabled={!selectedTemplateIdProp} className="w-full">

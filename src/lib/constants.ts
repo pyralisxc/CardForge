@@ -2,7 +2,7 @@
 import type { ElementType } from 'react';
 import type { TCGCardTemplate, CardSection, CardRow } from '@/types';
 import { nanoid } from 'nanoid';
-import { Cog, PackageOpen } from 'lucide-react';
+import { PackageOpen, PenTool } from 'lucide-react';
 
 
 export const PAPER_SIZES: Array<{ name: string; widthMm: number; heightMm: number }> = [
@@ -12,26 +12,33 @@ export const PAPER_SIZES: Array<{ name: string; widthMm: number; heightMm: numbe
 
 export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
 
-export const FONT_SIZES: Array<{ label: string; value: CardSection['fontSize'] }> = [
+export const FONT_SIZES: Array<{ label: string; value: NonNullable<CardSection['fontSize']> }> = [
   { label: 'X-Small (0.75rem)', value: 'text-xs' }, { label: 'Small (0.875rem)', value: 'text-sm' },
   { label: 'Base/Medium (1rem)', value: 'text-base' }, { label: 'Large (1.125rem)', value: 'text-lg' },
   { label: 'X-Large (1.25rem)', value: 'text-xl' }, { label: 'XX-Large (1.5rem)', value: 'text-2xl' },
 ];
 
-export const FONT_WEIGHTS: Array<CardSection['fontWeight']> = ['font-normal', 'font-medium', 'font-semibold', 'font-bold'];
-export const TEXT_ALIGNS: Array<CardSection['textAlign']> = ['left', 'center', 'right', 'justify'];
-export const FONT_STYLES: Array<CardSection['fontStyle']> = ['normal', 'italic'];
+export const FONT_WEIGHTS: Array<NonNullable<CardSection['fontWeight']>> = ['font-normal', 'font-medium', 'font-semibold', 'font-bold'];
+export const TEXT_ALIGNS: Array<NonNullable<CardSection['textAlign']>> = ['left', 'center', 'right', 'justify'];
+export const FONT_STYLES: Array<NonNullable<CardSection['fontStyle']>> = ['normal', 'italic'];
 
-export const ROW_ALIGN_ITEMS: Array<{ label: string; value: CardRow['alignItems'] }> = [
+export const ROW_ALIGN_ITEMS: Array<{ label: string; value: NonNullable<CardRow['alignItems']> }> = [
   { label: 'Align Top', value: 'flex-start' }, { label: 'Align Middle', value: 'center' },
   { label: 'Align Bottom', value: 'flex-end' }, { label: 'Stretch to Fill', value: 'stretch' },
   { label: 'Align Baselines', value: 'baseline' },
 ];
 
 export const AVAILABLE_FONTS: Array<{name: string, value: string}> = [
-  { name: 'Default Sans-Serif', value: 'font-sans' }, { name: 'Serif (Georgia-like)', value: 'font-serif' },
-  { name: 'Monospaced', value: 'font-mono' }, { name: 'Fantasy (Cinzel)', value: 'font-cinzel' },
+  { name: 'System Sans', value: 'font-sans' },
+  { name: 'Serif Classic', value: 'font-serif' },
+  { name: 'Monospaced', value: 'font-mono' },
+  { name: 'Fantasy Display (Cinzel)', value: 'font-cinzel' },
   { name: 'Clean Sans (Lato)', value: 'font-lato' },
+  { name: 'Trajan-Style Small Caps', value: 'font-trajan' },
+  { name: 'Oldstyle Book', value: 'font-book' },
+  { name: 'Humanist Card Text', value: 'font-humanist' },
+  { name: 'Condensed Title', value: 'font-condensed' },
+  { name: 'Engraved Serif', value: 'font-engraved' },
 ];
 
 export const PADDING_OPTIONS: Array<{ label: string; value: string }> = [
@@ -70,7 +77,7 @@ export const FRAME_STYLES: Array<{ label: string; value: string }> = [
   { label: 'Arcane Purple', value: 'arcane-purple' },
 ];
 
-export const CARD_BORDER_STYLES: Array<{ label: string; value: TCGCardTemplate['cardBorderStyle'] | '_default_' }> = [
+export const CARD_BORDER_STYLES: Array<{ label: string; value: NonNullable<TCGCardTemplate['cardBorderStyle']> | '_default_' }> = [
   { label: 'Default (from Frame/Theme)', value: '_default_' },
   { label: 'Solid', value: 'solid' },
   { label: 'Dashed', value: 'dashed' },
@@ -88,7 +95,8 @@ export const DIMENSION_UNITS: Array<{ label: string; value: string }> = [
   { label: 'Millimeters (mm)', value: 'mm' },
   { label: 'Inches (in)', value: 'in' },
   { label: 'Centimeters (cm)', value: 'cm' },
-  { label: 'Pixels (px)', value: 'px' },
+  { label: 'Pixels – screen (96 dpi)', value: 'px96' },
+  { label: 'Pixels – print (300 dpi)', value: 'px300' },
 ];
 
 // Utility function to create a default section, used by store and components.
@@ -102,6 +110,7 @@ export const createDefaultSection = (id: string, overrides: Partial<CardSection>
     // backgroundColor: '', // Omitted
     fontFamily: 'font-sans',
     fontSize: 'text-sm',
+    fontSizePx: 14,
     fontWeight: 'font-normal',
     textAlign: 'left',
     fontStyle: 'normal',
@@ -113,16 +122,15 @@ export const createDefaultSection = (id: string, overrides: Partial<CardSection>
     flexGrow: 0,
     // customHeight: '', // Omitted
     // customWidth: '', // Omitted
-    imageWidthPx: '100', // Default for image type
-    imageHeightPx: '100', // Default for image type
+    // imageWidthPx/imageHeightPx intentionally omitted — undefined means the image fills
+    // its container via 100%/auto. Only set these explicitly when the user wants a fixed px size.
     ...overrides,
   };
   // Clean up any empty string optional fields that might have been set by overrides
   // to ensure they are truly omitted if meant to be "not set".
-  // This is more for ensuring canonical structure if an override explicitly sets an empty string.
   (Object.keys(baseSection) as Array<keyof CardSection>).forEach(key => {
     if (baseSection[key] === '' && 
-        !['id', 'sectionContentType', 'contentPlaceholder', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 'borderWidth', 'borderRadius', 'minHeight', 'flexGrow', 'imageWidthPx', 'imageHeightPx'].includes(key)) {
+        !['id', 'sectionContentType', 'contentPlaceholder', 'fontFamily', 'fontSize', 'fontWeight', 'textAlign', 'fontStyle', 'padding', 'borderWidth', 'borderRadius', 'minHeight', 'flexGrow'].includes(key)) {
       delete baseSection[key];
     }
   });
@@ -144,6 +152,6 @@ export const createDefaultRow = (id: string, columns?: CardSection[], alignItems
 // and to be closer to the store initialization logic.
 
 export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
-  { value: "editor", label: "Template Editor", icon: Cog },
+  { value: "template-maker-2", label: "Card Template Maker 2.0", icon: PenTool },
   { value: "generator", label: "Card Generator", icon: PackageOpen },
 ];

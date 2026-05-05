@@ -1,13 +1,9 @@
 import type {NextConfig} from 'next';
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants';
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+const createNextConfig = (phase: string): NextConfig => ({
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+  allowedDevOrigins: ['127.0.0.1'],
   images: {
     remotePatterns: [
       {
@@ -18,6 +14,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-};
+});
 
-export default nextConfig;
+export default createNextConfig;

@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, createElement, Fragment } from 'react';
-import ReactDOM from 'react-dom';
+import { useState, createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { DisplayCard, PaperSize, TCGCardTemplate } from '@/types';
+import type { DisplayCard, PaperSize } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,7 @@ interface SaveAsPdfButtonProps {
   pdfCardSpacingMm: number;
   pdfIncludeCutLines: boolean;
   disabled?: boolean;
+  templateName?: string;
 }
 
 export function SaveAsPdfButton({
@@ -28,11 +29,16 @@ export function SaveAsPdfButton({
   pdfCardSpacingMm,
   pdfIncludeCutLines,
   disabled = false,
+  templateName,
 }: SaveAsPdfButtonProps) {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const { toast } = useToast();
 
-  const renderCardForCanvas = async (card: DisplayCard, renderContainer: HTMLDivElement): Promise<HTMLDivElement | null> => {
+  const renderCardForCanvas = async (
+    card: DisplayCard,
+    renderContainer: HTMLDivElement,
+    mountedRoots: Root[]
+  ): Promise<HTMLDivElement | null> => {
     const templateToRender = card.template;
     
     if (!templateToRender) return null;
@@ -50,8 +56,12 @@ export function SaveAsPdfButton({
     });
     
     return new Promise((resolve) => {
-      ReactDOM.render(previewElement, cardSpecificContainer, () => {
-        setTimeout(() => { 
+      const root = createRoot(cardSpecificContainer);
+      mountedRoots.push(root);
+      root.render(previewElement);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
           const cardElement = cardSpecificContainer.firstChild as HTMLDivElement | null;
           if (cardElement) {
             resolve(cardElement);
@@ -59,7 +69,7 @@ export function SaveAsPdfButton({
             console.error(`Failed to get cardElement for ${card.uniqueId}`);
             resolve(null);
           }
-        }, 100); 
+        });
       });
     });
   };
@@ -79,6 +89,7 @@ export function SaveAsPdfButton({
     tempRenderContainer.style.top = '-99999px';
     tempRenderContainer.id = 'pdf-temp-render-container';
     document.body.appendChild(tempRenderContainer);
+    const mountedRoots: Root[] = [];
     
     try {
       const pdf = new jsPDF({
@@ -87,49 +98,82 @@ export function SaveAsPdfButton({
         format: [selectedPaperSize.widthMm, selectedPaperSize.heightMm],
       });
 
-      const standardPrintCardWidthMm = 63;
       const effectivePrintableWidthMm = selectedPaperSize.widthMm - 2 * pdfMarginMm;
       const effectivePrintableHeightMm = selectedPaperSize.heightMm - 2 * pdfMarginMm;
       
       let cardsOnCurrentPage: { card: DisplayCard, x: number, y: number, w: number, h: number }[] = [];
       let currentX = pdfMarginMm;
       let currentY = pdfMarginMm;
+      let currentRowMaxHeightMm = 0;
       
       for (let i = 0; i < generatedDisplayCards.length; i++) {
         const cardItem = generatedDisplayCards[i];
         const aspectRatioString = cardItem.template.aspectRatio || TCG_ASPECT_RATIO;
         const ratioParts = aspectRatioString.split(':').map(Number);
-        let cardWidthMm = standardPrintCardWidthMm;
-        let cardHeightMm = (cardWidthMm / (ratioParts[0] || 63)) * (ratioParts[1] || 88);
+        const ratioW = ratioParts[0] || 63;
+        const ratioH = ratioParts[1] || 88;
+
+        // Derive physical card size in mm.
+        // If both ratio values are >= 20, they represent actual mm dimensions (e.g. 63:88).
+        // If they're small integers (e.g. 5:7, 16:9) treat as a pure proportion and
+        // normalise to the standard 88mm card height.
+        const STANDARD_CARD_HEIGHT_MM = 88;
+        let cardWidthMm: number;
+        let cardHeightMm: number;
+        if (ratioW >= 20 && ratioH >= 20) {
+          cardWidthMm = ratioW;
+          cardHeightMm = ratioH;
+        } else {
+          cardHeightMm = STANDARD_CARD_HEIGHT_MM;
+          cardWidthMm = (ratioW / ratioH) * STANDARD_CARD_HEIGHT_MM;
+        }
+
+        // Scale down proportionally if the card is larger than the printable area.
+        if (cardWidthMm > effectivePrintableWidthMm || cardHeightMm > effectivePrintableHeightMm) {
+          const scale = Math.min(
+            effectivePrintableWidthMm / cardWidthMm,
+            effectivePrintableHeightMm / cardHeightMm
+          );
+          cardWidthMm = Math.round(cardWidthMm * scale * 1000) / 1000;
+          cardHeightMm = Math.round(cardHeightMm * scale * 1000) / 1000;
+        }
 
         if (currentX + cardWidthMm > effectivePrintableWidthMm + pdfMarginMm - (pdfCardSpacingMm > 0 ? 0 : pdfCardSpacingMm) && cardsOnCurrentPage.length > 0) {
           currentX = pdfMarginMm;
-          currentY += cardsOnCurrentPage[0].h + pdfCardSpacingMm;
+          currentY += currentRowMaxHeightMm + pdfCardSpacingMm;
+          currentRowMaxHeightMm = 0;
         }
         if (currentY + cardHeightMm > effectivePrintableHeightMm + pdfMarginMm - (pdfCardSpacingMm > 0 ? 0 : pdfCardSpacingMm) && cardsOnCurrentPage.length > 0) {
-          await processPage(pdf, cardsOnCurrentPage, tempRenderContainer);
+          await processPage(pdf, cardsOnCurrentPage, tempRenderContainer, mountedRoots);
           cardsOnCurrentPage = []; 
           pdf.addPage();
           currentX = pdfMarginMm;
           currentY = pdfMarginMm;
+          currentRowMaxHeightMm = 0;
         }
         cardsOnCurrentPage.push({ card: cardItem, x: currentX, y: currentY, w: cardWidthMm, h: cardHeightMm });
+        currentRowMaxHeightMm = Math.max(currentRowMaxHeightMm, cardHeightMm);
         currentX += cardWidthMm + pdfCardSpacingMm;
       }
 
       if (cardsOnCurrentPage.length > 0) {
-        await processPage(pdf, cardsOnCurrentPage, tempRenderContainer);
+        await processPage(pdf, cardsOnCurrentPage, tempRenderContainer, mountedRoots);
       }
 
-      pdf.save('tcg-cards.pdf'); // Simplified filename
-      toast({ title: "PDF Saved", description: "tcg-cards.pdf has been downloaded." });
+      const safeName = (templateName || generatedDisplayCards[0]?.template?.name || 'tcg-cards')
+        .replace(/[^a-zA-Z0-9_\- ]/g, '')
+        .trim()
+        .replace(/\s+/g, '-') || 'tcg-cards';
+      const timestamp = new Date().toISOString().slice(0, 10);
+      pdf.save(`${safeName}-${timestamp}.pdf`);
+      toast({ title: "PDF Saved", description: `${safeName}-${timestamp}.pdf has been downloaded.` });
 
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast({ title: "PDF Generation Failed", description: `An error occurred: ${(error as Error).message}`, variant: "destructive" });
     } finally {
       setIsLoadingPdf(false);
-      ReactDOM.unmountComponentAtNode(tempRenderContainer);
+      mountedRoots.splice(0).forEach((root) => root.unmount());
       if (document.body.contains(tempRenderContainer)) {
         document.body.removeChild(tempRenderContainer);
       }
@@ -139,15 +183,16 @@ export function SaveAsPdfButton({
   async function processPage(
     pdf: jsPDF, 
     pageCards: { card: DisplayCard, x: number, y: number, w: number, h: number }[],
-    renderContainer: HTMLDivElement
+    renderContainer: HTMLDivElement,
+    mountedRoots: Root[]
   ) {
+    mountedRoots.splice(0).forEach((root) => root.unmount());
     while (renderContainer.firstChild) {
-        ReactDOM.unmountComponentAtNode(renderContainer.firstChild as Element); 
         renderContainer.removeChild(renderContainer.firstChild);
     }
 
     for (const { card, x, y, w, h } of pageCards) {
-      const cardElement = await renderCardForCanvas(card, renderContainer);
+      const cardElement = await renderCardForCanvas(card, renderContainer, mountedRoots);
       if (cardElement) {
         try {
             const canvas = await html2canvas(cardElement, { scale: 2, useCORS: true, logging: false, backgroundColor: null });

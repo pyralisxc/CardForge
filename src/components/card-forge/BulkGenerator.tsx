@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { Download, PackagePlus, UploadCloud, FileText } from 'lucide-react';
-import { extractUniquePlaceholderKeys } from '@/lib/utils';
+import { extractUniquePlaceholderKeys, parseCSV } from '@/lib/utils';
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
@@ -84,21 +84,20 @@ export function BulkGenerator({
 
     setIsLoading(true);
     try {
-      const lines = bulkDataInput.trim().split('\n');
-      if (lines.length < 2) {
+      const parsedRows = parseCSV(bulkDataInput.trim());
+      if (parsedRows.length < 2) {
         toast({ title: "Error", description: "CSV data must include a header row and at least one data row.", variant: "destructive" });
         setIsLoading(false);
         return;
       }
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"(.*)"$/, '$1'));
+      const headers = parsedRows[0].map(h => h.replace(/^"(.*)"$/, '$1').trim());
       const generatedCards: DisplayCard[] = [];
 
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim() === '') continue;
-        const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'));
+      for (let i = 1; i < parsedRows.length; i++) {
+        const values = parsedRows[i];
         const cardData: CardData = {};
         headers.forEach((header, index) => {
-          cardData[header] = values[index] || '';
+          cardData[header] = values[index] ?? '';
         });
 
         const displayCard: DisplayCard = {
