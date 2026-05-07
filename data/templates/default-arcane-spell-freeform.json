@@ -1,6 +1,6 @@
-﻿{
+{
     "id":  "default-arcane-spell-freeform",
-    "name":  "Smoke Freeform Template",
+    "name":  "Arcane Spell",
     "aspectRatio":  "63:88",
     "frameStyle":  "custom",
     "cardBorderWidth":  "4px",

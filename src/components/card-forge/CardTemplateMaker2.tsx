@@ -157,6 +157,12 @@ export function CardTemplateMaker2({
 
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(initialTemplate);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(initialTemplate.freeformCanvas?.elements[0]?.id || null);
+  const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
+
+  const selectElement = useCallback((id: string | null) => {
+    setSelectedElementId(id);
+    if (id !== null) setActiveInspectorTab('element');
+  }, []);
   const [zoom, setZoom] = useState(0.62);
   const [autoFitCanvas, setAutoFitCanvas] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
@@ -371,8 +377,8 @@ export function CardTemplateMaker2({
     );
     updateCanvas({ elements: [...updatedElements, groupElement] });
     setCheckedLayerIds([]);
-    setSelectedElementId(groupId);
-  }, [canvas.elements, checkedLayerIds, updateCanvas]);
+    selectElement(groupId);
+  }, [canvas.elements, checkedLayerIds, selectElement, updateCanvas]);
 
   const ungroupSelected = useCallback(() => {
     if (!selectedElement) return;
@@ -449,8 +455,8 @@ export function CardTemplateMaker2({
       appearance: normalizeAppearanceForElement(mergedElement),
     };
     updateCanvas({ elements: [...canvas.elements, newElement] });
-    setSelectedElementId(id);
-  }, [canvas.elements, updateCanvas]);
+    selectElement(id);
+  }, [canvas.elements, selectElement, updateCanvas]);
 
   const duplicateSelected = useCallback(() => {
     if (!selectedElement) return;
@@ -464,8 +470,8 @@ export function CardTemplateMaker2({
       locked: false,
     };
     updateCanvas({ elements: [...canvas.elements, copyElement] });
-    setSelectedElementId(copyElement.id);
-  }, [canvas.elements, gridSize, selectedElement, updateCanvas]);
+    selectElement(copyElement.id);
+  }, [canvas.elements, gridSize, selectedElement, selectElement, updateCanvas]);
 
   const deleteSelected = useCallback(() => {
     if (!selectedElement) return;
@@ -525,7 +531,7 @@ export function CardTemplateMaker2({
     if (previewMode || element.locked) return;
     event.preventDefault();
     event.stopPropagation();
-    setSelectedElementId(element.id);
+    selectElement(element.id);
     setHistory(items => [...items.slice(-39), currentTemplate]);
     setFuture([]);
     const point = getCanvasPoint(event);
@@ -533,19 +539,19 @@ export function CardTemplateMaker2({
     const childOriginals = new Map(canvas.elements.filter(e => descendantIds.includes(e.id)).map(e => [e.id, { ...e }]));
     dragStateRef.current = { mode: 'move', id: element.id, startX: point.x, startY: point.y, original: element, childOriginals };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, currentTemplate, getCanvasPoint, getDescendantIds, previewMode]);
+  }, [canvas.elements, currentTemplate, getCanvasPoint, getDescendantIds, previewMode, selectElement]);
 
   const handleResizePointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement) => {
     if (previewMode || element.locked) return;
     event.preventDefault();
     event.stopPropagation();
-    setSelectedElementId(element.id);
+    selectElement(element.id);
     setHistory(items => [...items.slice(-39), currentTemplate]);
     setFuture([]);
     const point = getCanvasPoint(event);
     dragStateRef.current = { mode: 'resize', id: element.id, startX: point.x, startY: point.y, original: element, childOriginals: new Map() };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [currentTemplate, getCanvasPoint, previewMode]);
+  }, [currentTemplate, getCanvasPoint, previewMode, selectElement]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent) => {
     const dragState = dragStateRef.current;
@@ -1104,11 +1110,8 @@ export function CardTemplateMaker2({
               <div className="space-y-3 p-2">
                 <Card className={cn(makerTheme.panel, 'rounded-[8px]')}>
                   <CardHeader className="p-2.5">
-                    <CardTitle className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
+                    <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
                       <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-[#d5ad54]" /> Templates</span>
-                      <Button type="button" variant="ghost" size="icon" onClick={handleNewTemplate} className="h-6 w-6 rounded-[3px] hover:bg-[#1b2230]">
-                        <Plus className="h-3.5 w-3.5" />
-                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 p-2.5 pt-0">
@@ -1334,7 +1337,7 @@ export function CardTemplateMaker2({
                               <button
                                 type="button"
                                 className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-                                onClick={() => setSelectedElementId(el.id)}
+                                onClick={() => selectElement(el.id)}
                               >
                                 <Icon className="h-3 w-3 shrink-0" />
                                 <span className="flex-1 truncate">{el.name}</span>
@@ -1535,7 +1538,7 @@ export function CardTemplateMaker2({
           <aside className="min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
             <ScrollArea className="h-[calc(100vh-205px)] min-h-[760px]">
               <div className="space-y-3 p-2">
-                <Tabs defaultValue="element">
+                <Tabs value={activeInspectorTab} onValueChange={setActiveInspectorTab}>
                   <TabsList className="grid h-9 w-full grid-cols-2 rounded-[5px] border border-[#2b2f39] bg-[#12161d] p-1">
                     <TabsTrigger value="template" className="h-7 rounded-[3px] text-xs data-[state=active]:bg-[#0b0f15] data-[state=active]:text-[#f5d27b]">Template</TabsTrigger>
                     <TabsTrigger value="element" className="h-7 rounded-[3px] text-xs data-[state=active]:bg-[#0b0f15] data-[state=active]:text-[#f5d27b]">Element</TabsTrigger>

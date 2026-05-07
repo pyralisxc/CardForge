@@ -1,6 +1,6 @@
-﻿{
+{
     "id":  "default-relic-artifact-freeform",
-    "name":  "Smoke Freeform Template",
+    "name":  "Relic Artifact",
     "aspectRatio":  "63:88",
     "frameStyle":  "custom",
     "cardBorderWidth":  "5px",

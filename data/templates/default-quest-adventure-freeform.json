@@ -1,6 +1,6 @@
-﻿{
+{
     "id":  "default-quest-adventure-freeform",
-    "name":  "Smoke Freeform Template",
+    "name":  "Quest Adventure",
     "aspectRatio":  "63:88",
     "frameStyle":  "custom",
     "cardBorderWidth":  "4px",
