@@ -3,7 +3,7 @@
 
 import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
 import type { ChangeEvent } from 'react';
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
-import { Download, PackagePlus, UploadCloud, FileText } from 'lucide-react';
+import { Download, PackagePlus, UploadCloud, FileText, ArrowRight } from 'lucide-react';
 import { extractUniquePlaceholderKeys, parseCSV } from '@/lib/utils';
 
 interface BulkGeneratorProps {
@@ -32,7 +32,9 @@ export function BulkGenerator({
   // Local state for this component's form
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFileType] = useState<SupportedFileType>('csv'); 
+  const [selectedFileType] = useState<SupportedFileType>('csv');
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +69,30 @@ export function BulkGenerator({
 
   const exampleCSV = useMemo(() => generateExampleCSV(), [generateExampleCSV]);
 
+  // Auto-build column mapping when CSV or template changes
+  useEffect(() => {
+    if (!bulkDataInput.trim() || !selectedTemplate) {
+      setCsvHeaders([]);
+      setColumnMapping({});
+      return;
+    }
+    try {
+      const rows = parseCSV(bulkDataInput.trim());
+      if (rows.length < 1) return;
+      const headers = rows[0].map((h: string) => h.replace(/^"|"$/g, '').trim());
+      setCsvHeaders(headers);
+      const keys = placeholderObjects.map(p => p.key);
+      const mapping: Record<string, string> = {};
+      headers.forEach((h: string) => {
+        mapping[h] = keys.find(k => k.toLowerCase() === h.toLowerCase()) ?? '';
+      });
+      setColumnMapping(mapping);
+    } catch {
+      setCsvHeaders([]);
+      setColumnMapping({});
+    }
+  }, [bulkDataInput, selectedTemplate, placeholderObjects]);
+
   // Comment: The selectedTemplateIdProp is managed by Zustand.
   // Defaulting logic (e.g., selecting the first template if the current one is invalid)
   // is handled by the Zustand store's _rehydrateCallback or actions like deleteTemplate.
@@ -90,14 +116,15 @@ export function BulkGenerator({
         setIsLoading(false);
         return;
       }
-      const headers = parsedRows[0].map(h => h.replace(/^"(.*)"$/, '$1').trim());
+      const headers = parsedRows[0].map((h: string) => h.replace(/^"|"$/g, '').trim());
       const generatedCards: DisplayCard[] = [];
 
       for (let i = 1; i < parsedRows.length; i++) {
         const values = parsedRows[i];
         const cardData: CardData = {};
-        headers.forEach((header, index) => {
-          cardData[header] = values[index] ?? '';
+        headers.forEach((header: string, index: number) => {
+          const mappedKey = columnMapping[header] || header;
+          if (mappedKey) cardData[mappedKey] = values[index] ?? '';
         });
 
         const displayCard: DisplayCard = {
@@ -222,6 +249,7 @@ export function BulkGenerator({
                 ref={fileInputRef}
                 onChange={handleFileUpload}
                 accept=".csv"
+                aria-hidden="true"
                 style={{ display: 'none' }}
                 id="bulk-file-upload-csv"
             />
@@ -253,6 +281,45 @@ export function BulkGenerator({
           </p>}
            {!selectedTemplateIdProp && <p className="text-xs text-muted-foreground mt-1">Select a template first.</p>}
         </div>
+
+        {/* Column Mapping Table */}
+        {csvHeaders.length > 0 && selectedTemplate && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-1.5">
+              <ArrowRight className="h-4 w-4" /> Column Mapping
+            </Label>
+            <div className="rounded-md border overflow-hidden text-xs">
+              <div className="grid grid-cols-[1fr_16px_1fr] gap-0 bg-muted/50 px-3 py-1.5 font-semibold text-muted-foreground">
+                <span>CSV Column</span>
+                <span />
+                <span>Template Field</span>
+              </div>
+              {csvHeaders.map(header => (
+                <div key={header} className="grid grid-cols-[1fr_16px_1fr] items-center gap-0 border-t px-3 py-1">
+                  <span className="font-mono truncate pr-1">{header}</span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <Select
+                    value={columnMapping[header] || '__unmapped__'}
+                    onValueChange={val => setColumnMapping(prev => ({ ...prev, [header]: val === '__unmapped__' ? '' : val }))}
+                  >
+                    <SelectTrigger className="h-7 text-xs border-muted bg-transparent shadow-none focus:ring-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unmapped__">— ignore —</SelectItem>
+                      {placeholderObjects.map(p => (
+                        <SelectItem key={p.key} value={p.key}>{p.key}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+            {csvHeaders.some(h => !columnMapping[h]) && (
+              <p className="text-xs text-amber-500 flex items-center gap-1">⚠ Some columns are unmapped and will be skipped.</p>
+            )}
+          </div>
+        )}
 
         <Button onClick={handleGenerate} disabled={isLoading || !selectedTemplateIdProp || !bulkDataInput.trim()} className="w-full">
           {isLoading ? 'Generating...' : <> <Download className="mr-2 h-4 w-4" /> Generate Cards from Data</>}

@@ -723,7 +723,25 @@ export const useAppStore = create<AppState>()(
             }
           };
         },
-        version: 2, 
+        // Increment this version number whenever the persisted state shape changes.
+        // Add a corresponding migration case below to keep existing user data intact.
+        version: 3,
+        migrate: (persistedState: unknown, fromVersion: number) => {
+          const s = persistedState as Record<string, unknown>;
+
+          // v2 → v3: storedCards used templateId/frontTemplateId inconsistently across early builds.
+          // Normalise any cards that still carry the old `frontTemplateId` key.
+          if (fromVersion < 3 && Array.isArray(s.storedCards)) {
+            s.storedCards = (s.storedCards as Array<Record<string, unknown>>).map((card) => {
+              if (!card.templateId && card.frontTemplateId) {
+                return { ...card, templateId: card.frontTemplateId };
+              }
+              return card;
+            });
+          }
+
+          return s;
+        },
       }
     )
   )

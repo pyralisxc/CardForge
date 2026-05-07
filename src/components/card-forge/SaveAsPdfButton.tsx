@@ -4,7 +4,7 @@
 import { useState, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { toCanvas } from 'html-to-image';
 import type { DisplayCard, PaperSize } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
@@ -195,7 +195,7 @@ export function SaveAsPdfButton({
       const cardElement = await renderCardForCanvas(card, renderContainer, mountedRoots);
       if (cardElement) {
         try {
-            const canvas = await html2canvas(cardElement, { scale: 2, useCORS: true, logging: false, backgroundColor: null });
+            const canvas = await toCanvas(cardElement, { pixelRatio: 2, skipFonts: false, fetchRequestInit: { mode: 'cors' } });
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
             if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
         } catch (e) {

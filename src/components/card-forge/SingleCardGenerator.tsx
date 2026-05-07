@@ -15,6 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Upload, Layers } from 'lucide-react';
+import { CardPreview } from '@/components/card-forge/CardPreview';
 
 interface DynamicField {
   key: string;
@@ -225,6 +226,7 @@ export function SingleCardGenerator({
                 onChange={(e) => handleImageUpload(e, field.key)}
                 style={{ display: 'none' }}
                 id={`singleCard-file-${field.key}`}
+                aria-label={`Upload image for ${field.label}`}
               />
             </>
           )}
@@ -232,6 +234,12 @@ export function SingleCardGenerator({
       </div>
     ));
   };
+
+  // Build a live DisplayCard for the mini-preview
+  const liveDisplayCard = useMemo<DisplayCard | null>(() => {
+    if (!selectedTemplate) return null;
+    return { template: selectedTemplate, data: cardData, uniqueId: 'live-preview' };
+  }, [selectedTemplate, cardData]);
 
   return (
     <Card>
@@ -243,8 +251,8 @@ export function SingleCardGenerator({
         <div>
           <Label htmlFor="singleTemplateSelect">Select Template*</Label>
           <Select
-            value={selectedTemplateIdProp ?? undefined} // Use prop from Zustand
-            onValueChange={handleTemplateSelectChange} // Calls Zustand action
+            value={selectedTemplateIdProp ?? undefined}
+            onValueChange={handleTemplateSelectChange}
             disabled={templates.length === 0}
           >
             <SelectTrigger id="singleTemplateSelect">
@@ -259,6 +267,15 @@ export function SingleCardGenerator({
             </SelectContent>
           </Select>
         </div>
+
+        {/* Live mini-preview */}
+        {liveDisplayCard && (
+          <div className="flex justify-center py-1">
+            <div className="rounded-md overflow-hidden shadow-md" style={{ width: 160 }}>
+              <CardPreview card={liveDisplayCard} targetWidthPx={160} />
+            </div>
+          </div>
+        )}
 
         {selectedTemplateIdProp && (
           <Accordion type="single" collapsible defaultValue="card-data-item" className="w-full">
@@ -289,5 +306,3 @@ export function SingleCardGenerator({
     </Card>
   );
 }
-
-    

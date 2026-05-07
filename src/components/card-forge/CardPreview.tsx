@@ -2,7 +2,7 @@
 "use client";
 
 import type { DisplayCard, CardSection, CardData, CardRow, TCGCardTemplate, FreeformCardElement } from '@/types';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils';
+import { cn, replacePlaceholdersLocal, parseRichText } from '@/lib/utils';
 import { appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { useMemo } from 'react';
@@ -114,22 +114,44 @@ function FormattedText({
   style?: React.CSSProperties;
 }) {
   const parsedText = useMemo(() => parseListText(text), [text]);
-  const content = parsedText.type === 'plain'
-    ? parsedText.text
-    : parsedText.type === 'ol'
+  const richSpans = useMemo(() => {
+    if (parsedText.type !== 'plain') return null;
+    return parseRichText(parsedText.text);
+  }, [parsedText]);
+
+  const content = parsedText.type === 'ol'
+    ? (
+      <ol className="m-0 list-decimal space-y-0.5 pl-4">
+        {parsedText.items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
+      </ol>
+    )
+    : parsedText.type === 'ul'
       ? (
-        <ol className="m-0 list-decimal space-y-0.5 pl-4">
-          {parsedText.items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
-        </ol>
-      )
-      : (
         <ul className="m-0 list-disc space-y-0.5 pl-4">
           {parsedText.items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
         </ul>
-      );
+      )
+      : richSpans
+        ? (
+          <>
+            {richSpans.map((span, i) => {
+              const spanStyle: React.CSSProperties = {};
+              if (span.bold) spanStyle.fontWeight = 'bold';
+              if (span.italic) spanStyle.fontStyle = 'italic';
+              if (span.underline) spanStyle.textDecoration = 'underline';
+              if (span.highlight) spanStyle.backgroundColor = span.highlight;
+              if (span.color) spanStyle.color = span.color;
+              const hasStyle = Object.keys(spanStyle).length > 0;
+              return hasStyle
+                ? <span key={i} style={spanStyle}>{span.text}</span>
+                : span.text;
+            })}
+          </>
+        )
+        : 'text' in parsedText ? parsedText.text : '';
 
   return (
-    <div className={cn('h-full w-full overflow-hidden leading-[1.18]', className)} style={style}>
+    <div className={cn('h-full w-full overflow-hidden leading-[1.18]', parsedText.type === 'plain' && 'whitespace-pre-wrap break-words', className)} style={style}>
       {content}
     </div>
   );
@@ -352,8 +374,21 @@ export function CardPreview({
     const canvas = templateToRender.freeformCanvas;
     const scaleX = effectiveWidthPx / Math.max(1, canvas.width);
     const scaleY = cardPixelHeight / Math.max(1, canvas.height);
+    const elementById = new Map((canvas.elements || []).map(el => [el.id, el]));
     return [...(canvas.elements || [])]
       .sort((a, b) => a.zIndex - b.zIndex)
+      .filter((element) => {
+        if (element.visible === false) return false;
+        // Hide if any ancestor is hidden
+        let pid = element.parentId;
+        while (pid) {
+          const parent = elementById.get(pid);
+          if (!parent) break;
+          if (parent.visible === false) return false;
+          pid = parent.parentId;
+        }
+        return true;
+      })
       .map((element) => {
         const borderWidth = borderWidthClassToPixels(element.borderWidth);
         const resolvedBgUrl = element.backgroundImageUrl ? replacePlaceholdersLocal(element.backgroundImageUrl, dataToRender, isEditorPreview) : '';
@@ -478,6 +513,7 @@ export function CardPreview({
           fontSize: `${textFontSizePx(element) * scaleX}px`,
           lineHeight: 1.18,
           fontStyle: element.fontStyle || 'normal',
+          writingMode: element.writingMode || 'horizontal-tb',
           whiteSpace: 'pre-wrap',
           overflowWrap: 'break-word',
         };

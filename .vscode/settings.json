@@ -1,4 +1,8 @@
 {
     "IDX.aI.enableInlineCompletion": true,
-    "IDX.aI.enableCodebaseIndexing": true
+    "IDX.aI.enableCodebaseIndexing": true,
+    "typescript.tsserver.watchOptions": {
+        "excludeDirectories": ["**/node_modules"]
+    },
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false
 }

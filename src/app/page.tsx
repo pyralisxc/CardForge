@@ -11,6 +11,7 @@ import { CardPreview } from '@/components/card-forge/CardPreview';
 import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/components/card-forge/SaveAsPdfButton';
+import { ExportCardImageButton } from '@/components/card-forge/ExportCardImageButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -29,12 +30,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront, Search } from 'lucide-react';
+import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront, Search, Download, SortAsc, PenTool, ArrowUpDown } from 'lucide-react';
 
 import { useAppStore, selectGeneratedDisplayCards, selectEditingCard } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
 import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+
 import { nanoid } from 'nanoid';
 
 export default function CardForgePage() {
@@ -82,13 +85,16 @@ export default function CardForgePage() {
   const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
   const openEditDialogAction = useAppStore((state) => state.openEditDialog);
   const closeEditDialogAction = useAppStore((state) => state.closeEditDialog);
-  // _rehydrateCallback is called internally by the store's persist middleware.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
+  const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
   const [gallerySearch, setGallerySearch] = useState('');
+  const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
   const [templatePendingDeleteId, setTemplatePendingDeleteId] = useState<string | null>(null);
   const [isClearCardsDialogOpen, setIsClearCardsDialogOpen] = useState(false);
+  const [isZipExporting, setIsZipExporting] = useState(false);
 
   // Comment: Zustand's `persist` middleware handles loading from localStorage.
   // The `_rehydrateCallback` in the store handles any post-rehydration logic,
@@ -106,6 +112,8 @@ export default function CardForgePage() {
         mergeTemplatesFromFilesAction(payload.templates);
       } catch (error) {
         console.warn('Unable to load file-backed templates:', error);
+      } finally {
+        if (!cancelled) setIsLoadingTemplates(false);
       }
     };
 
@@ -300,6 +308,61 @@ export default function CardForgePage() {
     }
   }, [setStoredCardsFromFileAction, toast]); 
 
+  const handleExportAllAsZip = useCallback(async () => {
+    if (generatedDisplayCards.length === 0) return;
+    setIsZipExporting(true);
+    setZipProgress({ done: 0, total: generatedDisplayCards.length });
+    try {
+      const JSZip = (await import('jszip')).default;
+      const html2canvas = (await import('html2canvas')).default;
+      const zip = new JSZip();
+      const folder = zip.folder('cards')!;
+
+      for (let i = 0; i < generatedDisplayCards.length; i++) {
+        const card = generatedDisplayCards[i];
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '-9999px';
+        container.style.width = '280px';
+        document.body.appendChild(container);
+
+        const { createRoot } = await import('react-dom/client');
+        const { createElement } = await import('react');
+        const { CardPreview } = await import('@/components/card-forge/CardPreview');
+        const root = createRoot(container);
+        root.render(createElement(CardPreview, { card, targetWidthPx: 280, isPrintMode: true }));
+
+        await new Promise(r => setTimeout(r, 120));
+
+        const canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false, backgroundColor: null });
+        root.unmount();
+        document.body.removeChild(container);
+
+        const blob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
+        const safeName = (card.data?.cardName || card.data?.name || `card-${i + 1}`).toString().replace(/[^a-z0-9_-]/gi, '_').substring(0, 40);
+        folder.file(`${String(i + 1).padStart(3, '0')}_${safeName}.png`, blob);
+        setZipProgress({ done: i + 1, total: generatedDisplayCards.length });
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'card-set.zip';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: 'ZIP Exported', description: `${generatedDisplayCards.length} cards saved to card-set.zip` });
+    } catch (err) {
+      toast({ title: 'Export Failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setIsZipExporting(false);
+      setZipProgress(null);
+    }
+  }, [generatedDisplayCards, toast]);
+
   const handleMobileMenuSelect = useCallback((tabValue: string) => {
     setActiveTabAction(tabValue);
     setIsMobileMenuOpen(false);
@@ -367,6 +430,23 @@ export default function CardForgePage() {
           </TabsContent>
 
           <TabsContent value="generator">
+            {isLoadingTemplates ? (
+              <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" aria-label="Loading templates" />
+                <p className="text-muted-foreground text-sm">Loading templates…</p>
+              </div>
+            ) : freeformTemplatesForGenerator.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-[60vh] border rounded-xl bg-card/30 text-center p-12 space-y-5 shadow-inner">
+                <PenTool className="h-16 w-16 text-primary/60" />
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold">No Templates Yet</h2>
+                  <p className="text-muted-foreground max-w-sm">Create a template in the Card Maker first, then come back here to fill in data and generate your cards.</p>
+                </div>
+                <Button size="lg" onClick={() => setActiveTabAction('template-maker-2')} className="gap-2">
+                  <PenTool className="h-5 w-5" /> Open Card Maker
+                </Button>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1 space-y-6">
                  <SingleCardGenerator
@@ -444,7 +524,7 @@ export default function CardForgePage() {
                              <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
                                 <FolderUp className="h-4 w-4" /> Load Set
                              </Button>
-                             <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" style={{ display: 'none' }} />
+                             <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" aria-hidden="true" style={{ display: 'none' }} />
                            </div>
                             <SaveAsPdfButton
                               generatedDisplayCards={generatedDisplayCards}
@@ -455,6 +535,12 @@ export default function CardForgePage() {
                               disabled={generatedDisplayCards.length === 0}
                               templateName={generatedDisplayCards[0]?.template?.name}
                             />
+                            <Button variant="outline" onClick={handleExportAllAsZip} disabled={generatedDisplayCards.length === 0 || isZipExporting} className="flex items-center gap-2">
+                              <Download className="h-4 w-4" /> {isZipExporting ? `Exporting… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : `Export PNG ZIP (${generatedDisplayCards.length})`}
+                            </Button>
+                            {zipProgress && (
+                              <Progress value={(zipProgress.done / zipProgress.total) * 100} className="h-1.5 mt-1" />
+                            )}
                             {generatedDisplayCards.length > 0 && (
                                 <Button variant="destructive" onClick={() => setIsClearCardsDialogOpen(true)} className="flex items-center gap-2">
                                     <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
@@ -466,16 +552,36 @@ export default function CardForgePage() {
 
               </div>
               <div className="lg:col-span-2">
-                <div className="flex items-center justify-between mb-4 gap-3">
-                  <h2 className="text-2xl font-semibold text-foreground shrink-0">Generated Cards ({generatedDisplayCards.length})</h2>
-                  <div className="relative flex-grow max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Search cards..."
-                      value={gallerySearch}
-                      onChange={(e) => setGallerySearch(e.target.value)}
-                      className="pl-8 h-8 text-sm"
-                    />
+                <div className="sticky top-0 z-10 bg-background pb-2 flex items-center justify-between mb-2 gap-3 flex-wrap">
+                  <h2 className="text-2xl font-semibold text-foreground shrink-0">
+                    Generated Cards ({generatedDisplayCards.length})
+                    {generatorSelectedTemplateId && freeformTemplatesForGenerator.find(t => t.id === generatorSelectedTemplateId) && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        — {freeformTemplatesForGenerator.find(t => t.id === generatorSelectedTemplateId)?.name}
+                      </span>
+                    )}
+                  </h2>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search cards..."
+                        value={gallerySearch}
+                        onChange={(e) => setGallerySearch(e.target.value)}
+                        className="pl-8 h-8 text-sm w-40"
+                      />
+                    </div>
+                    <select
+                      value={gallerySort}
+                      onChange={e => setGallerySort(e.target.value as typeof gallerySort)}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      aria-label="Sort gallery"
+                    >
+                      <option value="default">Order added</option>
+                      <option value="name-asc">Name A→Z</option>
+                      <option value="name-desc">Name Z→A</option>
+                      <option value="template">By Template</option>
+                    </select>
                   </div>
                 </div>
                 {generatedDisplayCards.length === 0 ? (
@@ -496,22 +602,33 @@ export default function CardForgePage() {
                             Object.values(card.data).some(v => String(v).toLowerCase().includes(q))
                           );
                         })
+                        .sort((a, b) => {
+                          if (gallerySort === 'name-asc') return String(a.data.cardName || a.data.name || '').localeCompare(String(b.data.cardName || b.data.name || ''));
+                          if (gallerySort === 'name-desc') return String(b.data.cardName || b.data.name || '').localeCompare(String(a.data.cardName || a.data.name || ''));
+                          if (gallerySort === 'template') return (a.template.name || '').localeCompare(b.template.name || '');
+                          return 0;
+                        })
                         .map((cardItem, index) => (
-                        <CardPreview
-                          key={cardItem.uniqueId}
-                          card={cardItem}
-                          isPrintMode={false}
-                          className="mx-auto"
-                          showSizeInfo={index === 0}
-                          hideEmptySections={hideEmptySections}
-                          onEdit={handleEditCardRequest}
-                        />
+                        <div key={cardItem.uniqueId} className="relative group/card">
+                          <CardPreview
+                            card={cardItem}
+                            isPrintMode={false}
+                            className="mx-auto"
+                            showSizeInfo={index === 0}
+                            hideEmptySections={hideEmptySections}
+                            onEdit={handleEditCardRequest}
+                          />
+                          <div className="absolute bottom-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
+                            <ExportCardImageButton card={cardItem} />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
                 )}
               </div>
             </div>
+            )}
           </TabsContent>
 
         </Tabs>

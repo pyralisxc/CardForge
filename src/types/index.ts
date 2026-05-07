@@ -134,6 +134,9 @@ export interface FreeformCardElement {
   opacity?: number;
   zIndex: number;
   locked?: boolean;
+  parentId?: string;
+
+  visible?: boolean;
 
   content?: string;
   imageSource?: string;
@@ -151,6 +154,7 @@ export interface FreeformCardElement {
   fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
+  writingMode?: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
   padding?: string;
   borderColor?: string;
   borderWidth?: string;

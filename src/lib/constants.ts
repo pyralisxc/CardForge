@@ -12,6 +12,17 @@ export const PAPER_SIZES: Array<{ name: string; widthMm: number; heightMm: numbe
 
 export const TCG_ASPECT_RATIO = '63:88'; // Standard TCG card aspect ratio
 
+export const ASPECT_RATIO_PRESETS: Array<{ label: string; value: string; widthMm: number; heightMm: number }> = [
+  { label: 'TCG Standard (63×88 mm)', value: '63:88', widthMm: 63, heightMm: 88 },
+  { label: 'Poker / Playing Card (63×88 mm)', value: '63:88', widthMm: 63, heightMm: 88 },
+  { label: 'Tarot (70×120 mm)', value: '70:120', widthMm: 70, heightMm: 120 },
+  { label: 'Business Card (85×54 mm)', value: '85:54', widthMm: 85, heightMm: 54 },
+  { label: 'Square (63×63 mm)', value: '63:63', widthMm: 63, heightMm: 63 },
+  { label: 'Mini Card (44×63 mm)', value: '44:63', widthMm: 44, heightMm: 63 },
+  { label: 'Bridge Card (57×89 mm)', value: '57:89', widthMm: 57, heightMm: 89 },
+  { label: 'Custom…', value: 'custom', widthMm: 0, heightMm: 0 },
+];
+
 export const FONT_SIZES: Array<{ label: string; value: NonNullable<CardSection['fontSize']> }> = [
   { label: 'X-Small (0.75rem)', value: 'text-xs' }, { label: 'Small (0.875rem)', value: 'text-sm' },
   { label: 'Base/Medium (1rem)', value: 'text-base' }, { label: 'Large (1.125rem)', value: 'text-lg' },
