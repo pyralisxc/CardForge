@@ -1,7 +1,6 @@
 {
   "id": "default-emberclaw-hd-freeform",
   "name": "Ember-Claw",
-  "layoutMode": "freeform",
   "aspectRatio": "69.85:95.25",
   "frameStyle": "minimal-dark",
   "cardBorderWidth": "2px",
@@ -25,7 +24,6 @@
       "borderImageSource": "linear-gradient(145deg, #050505 0%, #d5ad54 12%, #2d2010 24%, #f5d27b 40%, #11100d 54%, #8a6222 74%, #050505 100%)"
     }
   },
-  "rows": [],
   "baseBackgroundColor": "#282828",
   "baseTextColor": "#c0c0c0",
   "defaultSectionBorderColor": "#d5ad54",
@@ -885,8 +883,8 @@
         "id": "1FEtBSw_VT6pH6oq6pYHZ",
         "type": "shape",
         "name": "Divider",
-        "x": 90,
-        "y": 700,
+        "x": 60,
+        "y": 640,
         "width": 470,
         "height": 36,
         "rotation": 0,

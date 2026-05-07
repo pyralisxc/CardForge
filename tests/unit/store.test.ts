@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  DEFAULT_TEMPLATES_DATA,
   reconstructMinimalTemplateObject,
   createDefaultFreeformCanvas,
   selectGeneratedDisplayCards,
@@ -13,51 +12,45 @@ describe('app store helpers', () => {
     useAppStore.setState({
       templates: [],
       storedCards: [],
-      hasSeededDefaultTemplates: false,
       singleCardGeneratorSelectedTemplateId: null,
       editingCardUniqueId: null,
       isEditDialogOpen: false,
     });
   });
 
-  it('reconstructs an empty new template with default rows and columns', () => {
+  it('reconstructs an empty new template with a freeform canvas', () => {
     const template = reconstructMinimalTemplateObject({
       id: '',
       name: 'Recovered Template',
-      rows: [],
     });
 
     expect(template.id).toBeTruthy();
     expect(template.name).toBe('Recovered Template');
-    expect(template.rows.length).toBeGreaterThan(0);
-    expect(template.rows[0].columns.length).toBeGreaterThan(0);
+    expect(template.freeformCanvas).toBeDefined();
+    expect(template.freeformCanvas?.elements.length).toBeGreaterThan(0);
   });
 
-  it('repairs rows that have no columns', () => {
+  it('reconstructs a template preserving freeform canvas elements', () => {
     const template = reconstructMinimalTemplateObject({
       id: 'template-1',
       name: 'Template',
       aspectRatio: '63:88',
-      rows: [{ id: 'row-1', columns: [] }],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [{ id: 'el-1', type: 'text', name: 'Title', x: 0, y: 0, width: 200, height: 50, zIndex: 1, content: 'Test' }],
+      },
     });
 
-    expect(template.rows).toHaveLength(1);
-    expect(template.rows[0].columns).toHaveLength(1);
+    expect(template.freeformCanvas?.elements).toHaveLength(1);
+    expect(template.freeformCanvas?.elements[0].id).toBe('el-1');
   });
 
-  it('reconstructs a freeform template with a valid canvas and leaves row templates compatible', () => {
-    const rowTemplate = reconstructMinimalTemplateObject({
-      id: 'row-template',
-      name: 'Rows',
-      aspectRatio: '63:88',
-      rows: [{ id: 'row-1', columns: [] }],
-    });
+  it('reconstructs a freeform template with a valid canvas', () => {
     const freeformTemplate = reconstructMinimalTemplateObject({
       id: 'freeform-template',
       name: 'Freeform',
-      layoutMode: 'freeform',
       aspectRatio: '63:88',
-      rows: [],
       freeformCanvas: {
         width: 630,
         height: 880,
@@ -67,10 +60,6 @@ describe('app store helpers', () => {
       },
     });
 
-    expect(rowTemplate.layoutMode).toBe('rows');
-    expect(rowTemplate.freeformCanvas).toBeUndefined();
-    expect(freeformTemplate.layoutMode).toBe('freeform');
-    expect(freeformTemplate.rows).toEqual([]);
     expect(freeformTemplate.freeformCanvas?.width).toBe(630);
     expect(freeformTemplate.freeformCanvas?.elements[0].id).toBeTruthy();
     expect(freeformTemplate.freeformCanvas?.elements[0].content).toBe('{{title:"Name"}}');
@@ -80,7 +69,6 @@ describe('app store helpers', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'template-1',
       name: 'Template',
-      rows: [],
     });
     const storedCards: StoredDisplayCard[] = [
       { uniqueId: 'card-1', templateId: 'template-1', data: { cardName: 'Kept' } },
@@ -101,9 +89,7 @@ describe('app store helpers', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'freeform-template',
       name: 'Freeform',
-      layoutMode: 'freeform',
       aspectRatio: '63:88',
-      rows: [],
       freeformCanvas: createDefaultFreeformCanvas(),
     });
     const storedCards: StoredDisplayCard[] = [
@@ -116,19 +102,17 @@ describe('app store helpers', () => {
     } as Parameters<typeof selectGeneratedDisplayCards>[0]);
 
     expect(cards).toHaveLength(1);
-    expect(cards[0].template.layoutMode).toBe('freeform');
+    expect(cards[0].template.freeformCanvas).toBeDefined();
   });
 
   it('deleting a template also removes generated cards that depend on it', () => {
     const keptTemplate = reconstructMinimalTemplateObject({
       id: 'template-kept',
       name: 'Kept',
-      rows: [],
     });
     const deletedTemplate = reconstructMinimalTemplateObject({
       id: 'template-deleted',
       name: 'Deleted',
-      rows: [],
     });
 
     useAppStore.setState({
@@ -140,7 +124,6 @@ describe('app store helpers', () => {
       singleCardGeneratorSelectedTemplateId: 'template-deleted',
       editingCardUniqueId: 'card-deleted',
       isEditDialogOpen: true,
-      hasSeededDefaultTemplates: true,
     });
 
     useAppStore.getState().deleteTemplate('template-deleted');
@@ -152,27 +135,15 @@ describe('app store helpers', () => {
     expect(useAppStore.getState().isEditDialogOpen).toBe(false);
   });
 
-  it('seeds default templates only once', () => {
+  it('_rehydrateCallback fixes selectedTemplateId if the template no longer exists', () => {
+    const template = reconstructMinimalTemplateObject({ id: 'only-template', name: 'Only' });
     useAppStore.setState({
-      templates: [],
-      hasSeededDefaultTemplates: false,
-      singleCardGeneratorSelectedTemplateId: null,
+      templates: [template],
+      singleCardGeneratorSelectedTemplateId: 'stale-id-that-no-longer-exists',
     });
 
     useAppStore.getState()._rehydrateCallback();
 
-    expect(useAppStore.getState().templates).toHaveLength(DEFAULT_TEMPLATES_DATA.length);
-    expect(useAppStore.getState().hasSeededDefaultTemplates).toBe(true);
-
-    useAppStore.setState({
-      templates: [],
-      singleCardGeneratorSelectedTemplateId: null,
-      hasSeededDefaultTemplates: true,
-    });
-
-    useAppStore.getState()._rehydrateCallback();
-
-    expect(useAppStore.getState().templates).toEqual([]);
-    expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBeNull();
+    expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('only-template');
   });
 });

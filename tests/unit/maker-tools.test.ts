@@ -9,13 +9,12 @@ const shapeElement: Partial<FreeformCardElement> = { type: 'shape', shapeKind: '
 const dividerElement: Partial<FreeformCardElement> = { type: 'shape', shapeKind: 'line', shapeRole: 'divider' };
 
 describe('Maker 2.0 tool capability map', () => {
-  it('keeps shape primitives geometric and excludes line/capsule choices', () => {
+  it('keeps shape primitives geometric and excludes line choices', () => {
     const values = SHAPE_PRIMITIVE_OPTIONS.map(option => option.value);
 
     expect(values).toContain('rectangle');
     expect(values).toContain('corner-frame');
     expect(values).not.toContain('line');
-    expect(values).not.toContain('capsule');
   });
 
   it('routes divider elements away from normal shape controls', () => {

@@ -18,6 +18,7 @@ export type InspectorSection =
 export const SHAPE_PRIMITIVE_OPTIONS: Array<{ value: FreeformShapeKind; label: string }> = [
   { value: 'rectangle', label: 'Rectangle' },
   { value: 'ellipse', label: 'Ellipse' },
+  { value: 'capsule', label: 'Capsule' },
   { value: 'diamond', label: 'Diamond' },
   { value: 'hexagon', label: 'Hexagon' },
   { value: 'banner', label: 'Banner' },

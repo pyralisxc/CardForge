@@ -11,10 +11,14 @@ import {
   ArrowDownToLine,
   ArrowUpToLine,
   BoxSelect,
+  ChevronDown,
+  ChevronRight,
   Circle,
   Copy,
   Eye,
   EyeOff,
+  FolderPlus,
+  GripVertical,
   Grid3X3,
   Image as ImageIcon,
   Layers,
@@ -31,6 +35,7 @@ import {
   Trash2,
   Type,
   Undo2,
+  Ungroup,
   Unlock,
   Upload,
   X,
@@ -113,8 +118,8 @@ interface CardTemplateMaker2Props {
 }
 
 type DragState =
-  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement }
-  | { mode: 'resize'; id: string; startX: number; startY: number; original: FreeformCardElement };
+  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> }
+  | { mode: 'resize'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> };
 
 
 export function CardTemplateMaker2({
@@ -144,9 +149,9 @@ export function CardTemplateMaker2({
   const [customTextureAssets, setCustomTextureAssets] = useState<CardAssetOption[]>([]);
   const [customDividerAssets, setCustomDividerAssets] = useState<CardAssetOption[]>([]);
 
-  const freeformTemplates = useMemo(() => templates.filter(template => template.layoutMode === 'freeform'), [templates]);
+  const freeformTemplates = templates;
   const initialTemplate = useMemo(() => {
-    const selected = templates.find(template => template.id === selectedTemplateIdForEditing && template.layoutMode === 'freeform');
+    const selected = templates.find(template => template.id === selectedTemplateIdForEditing);
     return reconstructMinimalTemplate(selected || freeformTemplates[0] || makeNewFreeformTemplate());
   }, [freeformTemplates, selectedTemplateIdForEditing, templates]);
 
@@ -162,6 +167,11 @@ export function CardTemplateMaker2({
   const [customWidthValue, setCustomWidthValue] = useState('');
   const [customHeightValue, setCustomHeightValue] = useState('');
   const [customUnit, setCustomUnit] = useState('mm');
+  // Layers panel state
+  const [checkedLayerIds, setCheckedLayerIds] = useState<string[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [layerDragId, setLayerDragId] = useState<string | null>(null);
+  const [layerDropTarget, setLayerDropTarget] = useState<{ id: string; pos: 'before' | 'after' | 'child' } | null>(null);
 
   useEffect(() => {
     setCurrentTemplate(initialTemplate);
@@ -243,6 +253,36 @@ export function CardTemplateMaker2({
     return () => observer.disconnect();
   }, [autoFitCanvas, canvas.height, canvas.width]);
 
+  // ── Layer tree helpers ─────────────────────────────────────────────────────
+  type LayerNode = { element: FreeformCardElement; children: LayerNode[] };
+
+  const buildLayerTree = useCallback((elements: FreeformCardElement[]): LayerNode[] => {
+    const byId = new Map(elements.map(e => [e.id, e]));
+    const roots: LayerNode[] = [];
+    const nodeMap = new Map<string, LayerNode>(elements.map(e => [e.id, { element: e, children: [] }]));
+    for (const e of elements) {
+      if (e.parentId && nodeMap.has(e.parentId)) {
+        nodeMap.get(e.parentId)!.children.push(nodeMap.get(e.id)!);
+      } else if (!e.parentId || !byId.has(e.parentId)) {
+        roots.push(nodeMap.get(e.id)!);
+      }
+    }
+    const sortDesc = (nodes: LayerNode[]) => {
+      nodes.sort((a, b) => b.element.zIndex - a.element.zIndex);
+      nodes.forEach(n => sortDesc(n.children));
+    };
+    sortDesc(roots);
+    return roots;
+  }, []);
+
+  const getDescendantIds = useCallback((id: string, elements: FreeformCardElement[]): string[] => {
+    const directChildren = elements.filter(e => e.parentId === id);
+    return directChildren.flatMap(c => [c.id, ...getDescendantIds(c.id, elements)]);
+  }, []);
+
+  const layerTree = useMemo(() => buildLayerTree(canvas.elements), [buildLayerTree, canvas.elements]);
+
+  // ── Group / ungroup ─────────────────────────────────────────────────────
   const livePreviewData = useMemo(() => ({
     cardName: 'Astral Relic',
     cost: '3',
@@ -292,6 +332,60 @@ export function CardTemplateMaker2({
     const nextElement = { ...selectedElement, appearance: style.appearance };
     updateElement(selectedElement.id, { appearance: style.appearance, ...appearanceToLegacyElementFields(nextElement) });
   }, [selectedElement, updateElement]);
+
+  // ── Group / ungroup ───────────────────────────────────────────────────────
+  const groupChecked = useCallback(() => {
+    if (checkedLayerIds.length < 2) return;
+    const toGroup = canvas.elements.filter(e => checkedLayerIds.includes(e.id));
+    const xs = toGroup.map(e => e.x);
+    const ys = toGroup.map(e => e.y);
+    const x2s = toGroup.map(e => e.x + e.width);
+    const y2s = toGroup.map(e => e.y + e.height);
+    const bx = Math.min(...xs) - 8;
+    const by = Math.min(...ys) - 8;
+    const bw = Math.max(...x2s) - bx + 8;
+    const bh = Math.max(...y2s) - by + 8;
+    const maxZ = Math.max(0, ...toGroup.map(e => e.zIndex));
+    const groupId = nanoid();
+    const groupElement: FreeformCardElement = {
+      id: groupId,
+      type: 'shape',
+      name: 'Group',
+      x: bx,
+      y: by,
+      width: bw,
+      height: bh,
+      zIndex: maxZ,
+      locked: false,
+      visible: true,
+      shapeKind: 'rectangle',
+      fillColor: 'transparent',
+      strokeColor: 'transparent',
+      strokeWidth: 0,
+      backgroundColor: 'transparent',
+      borderWidth: '_none_',
+      appearance: normalizeAppearanceForElement({ id: groupId, type: 'shape', name: 'Group', x: bx, y: by, width: bw, height: bh, zIndex: maxZ }),
+    };
+    const updatedElements = canvas.elements.map(e =>
+      checkedLayerIds.includes(e.id) ? { ...e, parentId: groupId } : e
+    );
+    updateCanvas({ elements: [...updatedElements, groupElement] });
+    setCheckedLayerIds([]);
+    setSelectedElementId(groupId);
+  }, [canvas.elements, checkedLayerIds, updateCanvas]);
+
+  const ungroupSelected = useCallback(() => {
+    if (!selectedElement) return;
+    const childIds = getDescendantIds(selectedElement.id, canvas.elements);
+    const updatedElements = canvas.elements
+      .filter(e => e.id !== selectedElement.id)
+      .map(e => childIds.includes(e.id) && e.parentId === selectedElement.id ? { ...e, parentId: undefined } : e);
+    updateCanvas({ elements: updatedElements });
+    setSelectedElementId(null);
+  }, [canvas.elements, getDescendantIds, selectedElement, updateCanvas]);
+
+  const isGroupElement = selectedElement?.type === 'shape' &&
+    canvas.elements.some(e => e.parentId === selectedElement?.id);
 
   const saveSelectedAppearanceStyle = useCallback(() => {
     if (!selectedElement) return;
@@ -375,10 +469,11 @@ export function CardTemplateMaker2({
 
   const deleteSelected = useCallback(() => {
     if (!selectedElement) return;
-    const nextElements = canvas.elements.filter(element => element.id !== selectedElement.id);
+    const toDelete = new Set([selectedElement.id, ...getDescendantIds(selectedElement.id, canvas.elements)]);
+    const nextElements = canvas.elements.filter(element => !toDelete.has(element.id));
     updateCanvas({ elements: nextElements });
     setSelectedElementId(nextElements[0]?.id || null);
-  }, [canvas.elements, selectedElement, updateCanvas]);
+  }, [canvas.elements, getDescendantIds, selectedElement, updateCanvas]);
 
   const arrangeSelected = useCallback((direction: 'front' | 'back' | 'up' | 'down') => {
     if (!selectedElement) return;
@@ -434,9 +529,11 @@ export function CardTemplateMaker2({
     setHistory(items => [...items.slice(-39), currentTemplate]);
     setFuture([]);
     const point = getCanvasPoint(event);
-    dragStateRef.current = { mode: 'move', id: element.id, startX: point.x, startY: point.y, original: element };
+    const descendantIds = getDescendantIds(element.id, canvas.elements);
+    const childOriginals = new Map(canvas.elements.filter(e => descendantIds.includes(e.id)).map(e => [e.id, { ...e }]));
+    dragStateRef.current = { mode: 'move', id: element.id, startX: point.x, startY: point.y, original: element, childOriginals };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [currentTemplate, getCanvasPoint, previewMode]);
+  }, [canvas.elements, currentTemplate, getCanvasPoint, getDescendantIds, previewMode]);
 
   const handleResizePointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement) => {
     if (previewMode || element.locked) return;
@@ -446,7 +543,7 @@ export function CardTemplateMaker2({
     setHistory(items => [...items.slice(-39), currentTemplate]);
     setFuture([]);
     const point = getCanvasPoint(event);
-    dragStateRef.current = { mode: 'resize', id: element.id, startX: point.x, startY: point.y, original: element };
+    dragStateRef.current = { mode: 'resize', id: element.id, startX: point.x, startY: point.y, original: element, childOriginals: new Map() };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }, [currentTemplate, getCanvasPoint, previewMode]);
 
@@ -459,9 +556,18 @@ export function CardTemplateMaker2({
     // MIN_VISIBLE: minimum px that must remain on-canvas so elements can always be grabbed back
     const MIN_VISIBLE = 20;
     if (dragState.mode === 'move') {
-      updateElement(dragState.id, {
-        x: clamp(snapValue(dragState.original.x + deltaX), -(dragState.original.width - MIN_VISIBLE), canvas.width - MIN_VISIBLE),
-        y: clamp(snapValue(dragState.original.y + deltaY), -(dragState.original.height - MIN_VISIBLE), canvas.height - MIN_VISIBLE),
+      const newX = clamp(snapValue(dragState.original.x + deltaX), -(dragState.original.width - MIN_VISIBLE), canvas.width - MIN_VISIBLE);
+      const newY = clamp(snapValue(dragState.original.y + deltaY), -(dragState.original.height - MIN_VISIBLE), canvas.height - MIN_VISIBLE);
+      const actualDeltaX = newX - dragState.original.x;
+      const actualDeltaY = newY - dragState.original.y;
+      const { childOriginals } = dragState;
+      updateCanvas({
+        elements: canvas.elements.map(element => {
+          if (element.id === dragState.id) return { ...element, x: newX, y: newY };
+          const orig = childOriginals.get(element.id);
+          if (orig) return { ...element, x: orig.x + actualDeltaX, y: orig.y + actualDeltaY };
+          return element;
+        }),
       }, false);
     } else {
       updateElement(dragState.id, {
@@ -469,7 +575,7 @@ export function CardTemplateMaker2({
         height: clamp(snapValue(dragState.original.height + deltaY), 12, canvas.height * 2),
       }, false);
     }
-  }, [canvas.height, canvas.width, getCanvasPoint, snapValue, updateElement]);
+  }, [canvas.elements, canvas.height, canvas.width, getCanvasPoint, snapValue, updateCanvas, updateElement]);
 
   const handlePointerUp = useCallback(() => {
     dragStateRef.current = null;
@@ -494,9 +600,16 @@ export function CardTemplateMaker2({
     }
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       event.preventDefault();
-      updateElement(selectedElement.id, {
-        x: selectedElement.x + (event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0),
-        y: selectedElement.y + (event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0),
+      const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+      const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+      const childIds = getDescendantIds(selectedElement.id, canvas.elements);
+      updateCanvas({
+        elements: canvas.elements.map(element => {
+          if (element.id === selectedElement.id || childIds.includes(element.id)) {
+            return { ...element, x: element.x + dx, y: element.y + dy };
+          }
+          return element;
+        }),
       });
     }
   }, [deleteSelected, gridSize, selectedElement, updateElement]);
@@ -511,7 +624,7 @@ export function CardTemplateMaker2({
       toast({ title: 'Validation Error', description: 'Aspect Ratio must be in W:H format with positive numbers.', variant: 'destructive' });
       return;
     }
-    const savedId = onSaveTemplate({ ...currentTemplate, layoutMode: 'freeform', freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas) });
+    const savedId = onSaveTemplate({ ...currentTemplate, freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas) });
     onSelectTemplateForEditing(savedId);
   }, [currentTemplate, onSaveTemplate, onSelectTemplateForEditing, toast]);
 
@@ -572,7 +685,7 @@ export function CardTemplateMaker2({
 
   const applyTemplatePreset = useCallback((preset: (typeof templatePresets)[number]) => {
     const fileBackedTemplate = 'templateId' in preset
-      ? templates.find(template => template.id === preset.templateId && template.layoutMode === 'freeform')
+      ? templates.find(template => template.id === preset.templateId)
       : null;
 
     if (fileBackedTemplate?.id) {
@@ -791,6 +904,7 @@ export function CardTemplateMaker2({
   }, [toast]);
 
   const renderEditableElement = (element: FreeformCardElement) => {
+    if (element.visible === false) return null;
     const selected = selectedElementId === element.id;
     const borderWidth = borderWidthClassToPixels(element.borderWidth);
     const resolvedBg = element.backgroundImageUrl ? replacePlaceholdersLocal(element.backgroundImageUrl, livePreviewData, false) : '';
@@ -847,7 +961,7 @@ export function CardTemplateMaker2({
       baseStyle.backgroundColor = element.fillColor || element.backgroundColor || 'transparent';
       baseStyle.borderColor = element.strokeColor || element.borderColor || undefined;
       baseStyle.borderWidth = element.strokeWidth !== undefined ? element.strokeWidth : baseStyle.borderWidth;
-      baseStyle.borderRadius = element.shapeKind === 'ellipse' ? '9999px' : baseStyle.borderRadius;
+      baseStyle.borderRadius = (element.shapeKind === 'ellipse' || element.shapeKind === 'capsule') ? '9999px' : baseStyle.borderRadius;
       baseStyle.clipPath = elementIsDivider ? undefined : shapeClipPath(element.shapeKind);
       if (elementIsDivider) {
         baseStyle.height = Math.max(element.height || 0, element.strokeWidth || 2, 2);
@@ -877,7 +991,10 @@ export function CardTemplateMaker2({
           justifyContent: element.type === 'text' && (!element.writingMode || element.writingMode === 'horizontal-tb') ? (element.textAlign === 'right' ? 'flex-end' : element.textAlign === 'center' ? 'center' : 'flex-start') : undefined,
           textAlign: element.textAlign || 'left',
           fontSize: element.type === 'text' ? `${textFontSizePx(element)}px` : undefined,
-          lineHeight: element.type === 'text' ? 1.4 : undefined,
+          lineHeight: element.type === 'text' ? (element.lineHeight || 1.4) : undefined,
+          letterSpacing: element.type === 'text' ? element.letterSpacing : undefined,
+          textTransform: element.type === 'text' ? (element.textTransform as React.CSSProperties['textTransform']) : undefined,
+          textDecoration: element.type === 'text' ? element.textDecoration : undefined,
           fontStyle: element.fontStyle || 'normal',
           writingMode: element.writingMode as React.CSSProperties['writingMode'] || undefined,
           textOrientation: (element.writingMode && element.writingMode !== 'horizontal-tb') ? 'upright' : undefined,
@@ -1080,29 +1197,192 @@ export function CardTemplateMaker2({
                 </Card>
 
                 <Card className={cn(makerTheme.panel, 'rounded-[8px]')}>
-                  <CardHeader className="p-2.5">
+                  <CardHeader className="p-2.5 pb-1.5">
                     <CardTitle className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
                       <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-[#d5ad54]" /> Layers</span>
                       <span className="text-[10px] font-normal text-[#757d8c]">{canvas.elements.length}</span>
                     </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-1 p-2.5 pt-0">
-                    {sortedElements.map(element => {
-                      const Icon = element.type === 'text' ? Type : element.type === 'image' ? ImageIcon : element.type === 'icon' ? Sparkles : element.shapeKind === 'ellipse' ? Circle : Square;
-                      return (
+                    {/* Group / Ungroup toolbar */}
+                    <div className="mt-1.5 flex items-center gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={checkedLayerIds.length < 2}
+                            onClick={groupChecked}
+                            className="h-6 gap-1 px-1.5 text-[10px] text-[#b7bdc9] hover:bg-[#1a1f29] hover:text-[#f5d27b] disabled:opacity-40"
+                          >
+                            <FolderPlus className="h-3 w-3" /> Group
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">Group checked elements (select 2+)</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!isGroupElement}
+                            onClick={ungroupSelected}
+                            className="h-6 gap-1 px-1.5 text-[10px] text-[#b7bdc9] hover:bg-[#1a1f29] hover:text-[#f5d27b] disabled:opacity-40"
+                          >
+                            <Ungroup className="h-3 w-3" /> Ungroup
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">Ungroup children of selected group</TooltipContent>
+                      </Tooltip>
+                      {checkedLayerIds.length > 0 && (
                         <button
-                          key={element.id}
                           type="button"
-                          className={cn('grid w-full grid-cols-[18px_1fr_22px_22px] items-center gap-1 rounded-[4px] border px-1.5 py-1.5 text-left text-[11px] transition-colors', selectedElementId === element.id ? 'border-[#d5ad54] bg-[#211a0d] text-[#f5d27b]' : 'border-[#252b35] bg-[#0c1016] text-[#b7bdc9] hover:border-[#6d55b8] hover:bg-[#111720]')}
-                          onClick={() => setSelectedElementId(element.id)}
+                          onClick={() => setCheckedLayerIds([])}
+                          className="ml-auto text-[10px] text-[#757d8c] hover:text-[#b7bdc9]"
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{element.name}</span>
-                          <span className="text-center text-[10px] text-[#757d8c]">{element.zIndex}</span>
-                          {element.locked ? <Lock className="h-3.5 w-3.5 text-[#d5ad54]" /> : <Eye className="h-3.5 w-3.5 text-[#757d8c]" />}
+                          Clear ({checkedLayerIds.length})
                         </button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-2.5 pt-0">
+                    {/* Recursive layer tree renderer */}
+                    {(() => {
+                      const renderNode = (node: { element: FreeformCardElement; children: { element: FreeformCardElement; children: unknown[] }[] }, depth: number): React.ReactNode => {
+                        const el = node.element;
+                        const Icon = el.type === 'text' ? Type : el.type === 'image' ? ImageIcon : el.type === 'icon' ? Sparkles : el.shapeKind === 'ellipse' ? Circle : Square;
+                        const hasChildren = node.children.length > 0;
+                        const isCollapsed = collapsedGroups.has(el.id);
+                        const isChecked = checkedLayerIds.includes(el.id);
+                        const isSelected = selectedElementId === el.id;
+                        const isDropTarget = layerDropTarget?.id === el.id;
+                        return (
+                          <div key={el.id}>
+                            {/* Drop-before indicator */}
+                            {isDropTarget && layerDropTarget?.pos === 'before' && (
+                              <div className="mx-1 h-0.5 rounded bg-[#d5ad54]" />
+                            )}
+                            <div
+                              className={cn(
+                                'group flex w-full items-center gap-0.5 rounded-[4px] border px-1 py-1 text-[11px] transition-colors',
+                                isSelected ? 'border-[#d5ad54] bg-[#211a0d] text-[#f5d27b]' : 'border-transparent bg-[#0c1016] text-[#b7bdc9] hover:border-[#252b35] hover:bg-[#111720]',
+                                isDropTarget && layerDropTarget?.pos === 'child' && 'border-[#6d55b8] bg-[#1a1433]',
+                              )}
+                              style={{ paddingLeft: `${depth * 14 + 4}px` }}
+                              draggable
+                              onDragStart={(e) => { e.stopPropagation(); setLayerDragId(el.id); e.dataTransfer.effectAllowed = 'move'; }}
+                              onDragEnd={() => { setLayerDragId(null); setLayerDropTarget(null); }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (layerDragId === el.id) return;
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const relY = e.clientY - rect.top;
+                                const zone = rect.height / 3;
+                                if (relY < zone) setLayerDropTarget({ id: el.id, pos: 'before' });
+                                else if (relY > rect.height - zone) setLayerDropTarget({ id: el.id, pos: 'after' });
+                                else setLayerDropTarget({ id: el.id, pos: 'child' });
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const srcId = layerDragId;
+                                const tgt = layerDropTarget;
+                                setLayerDragId(null);
+                                setLayerDropTarget(null);
+                                if (!srcId || !tgt || srcId === tgt.id) return;
+                                if (tgt.pos === 'child') {
+                                  // Make srcId a child of tgt.id
+                                  updateCanvas({ elements: canvas.elements.map(e => e.id === srcId ? { ...e, parentId: tgt.id } : e) });
+                                } else {
+                                  // Reorder: reassign z-indices based on new order
+                                  const flat = [...canvas.elements].sort((a, b) => b.zIndex - a.zIndex);
+                                  const srcIdx = flat.findIndex(e => e.id === srcId);
+                                  const tgtIdx = flat.findIndex(e => e.id === tgt.id);
+                                  if (srcIdx === -1 || tgtIdx === -1) return;
+                                  const reordered = flat.filter(e => e.id !== srcId);
+                                  const insertAt = tgt.pos === 'before' ? tgtIdx : tgtIdx + 1;
+                                  reordered.splice(Math.min(insertAt, reordered.length), 0, flat[srcIdx]);
+                                  const totalZ = reordered.length;
+                                  const remap = new Map(reordered.map((e, i) => [e.id, totalZ - i]));
+                                  updateCanvas({ elements: canvas.elements.map(e => ({ ...e, zIndex: remap.get(e.id) ?? e.zIndex })) });
+                                }
+                              }}
+                            >
+                              {/* Drag handle */}
+                              <GripVertical className="h-3 w-3 shrink-0 cursor-grab text-[#454d5c] opacity-0 group-hover:opacity-100" />
+                              {/* Expand/collapse toggle */}
+                              {hasChildren ? (
+                                <button
+                                  type="button"
+                                  className="shrink-0 text-[#757d8c] hover:text-[#d5ad54]"
+                                  onClick={(e) => { e.stopPropagation(); setCollapsedGroups(prev => { const next = new Set(prev); next.has(el.id) ? next.delete(el.id) : next.add(el.id); return next; }); }}
+                                >
+                                  {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                </button>
+                              ) : (
+                                <span className="w-3 shrink-0" />
+                              )}
+                              {/* Checkbox for group selection */}
+                              <input
+                                type="checkbox"
+                                aria-label={`Select layer ${el.name}`}
+                                checked={isChecked}
+                                onChange={(e) => { e.stopPropagation(); setCheckedLayerIds(prev => e.target.checked ? [...prev, el.id] : prev.filter(id => id !== el.id)); }}
+                                className="h-3 w-3 shrink-0 cursor-pointer accent-[#d5ad54]"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              {/* Element icon */}
+                              <button
+                                type="button"
+                                className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                                onClick={() => setSelectedElementId(el.id)}
+                              >
+                                <Icon className="h-3 w-3 shrink-0" />
+                                <span className="flex-1 truncate">{el.name}</span>
+                                <span className="shrink-0 font-mono text-[10px] text-[#454d5c]">{el.zIndex}</span>
+                              </button>
+                              {/* Visibility toggle */}
+                              <button
+                                type="button"
+                                title={el.visible === false ? 'Show element' : 'Hide element'}
+                                onClick={(e) => { e.stopPropagation(); updateElement(el.id, { visible: el.visible === false ? true : false }); }}
+                                className="shrink-0 text-[#454d5c] hover:text-[#d5ad54]"
+                              >
+                                {el.visible === false ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              </button>
+                              {/* Lock toggle */}
+                              <button
+                                type="button"
+                                title={el.locked ? 'Unlock element' : 'Lock element'}
+                                onClick={(e) => { e.stopPropagation(); updateElement(el.id, { locked: !el.locked }); }}
+                                className="shrink-0 text-[#454d5c] hover:text-[#d5ad54]"
+                              >
+                                {el.locked ? <Lock className="h-3 w-3 text-[#d5ad54]" /> : <Unlock className="h-3 w-3" />}
+                              </button>
+                            </div>
+                            {/* Drop-after indicator */}
+                            {isDropTarget && layerDropTarget?.pos === 'after' && (
+                              <div className="mx-1 h-0.5 rounded bg-[#d5ad54]" />
+                            )}
+                            {/* Children */}
+                            {hasChildren && !isCollapsed && (
+                              <div>
+                                {(node.children as { element: FreeformCardElement; children: unknown[] }[]).map(child =>
+                                  renderNode(child as { element: FreeformCardElement; children: { element: FreeformCardElement; children: unknown[] }[] }, depth + 1)
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      };
+                      return (
+                        <div className="space-y-0.5">
+                          {layerTree.map(node => renderNode(node, 0))}
+                          {canvas.elements.length === 0 && (
+                            <p className="py-3 text-center text-[10px] text-[#454d5c]">No elements. Add one above.</p>
+                          )}
+                        </div>
                       );
-                    })}
+                    })()}
                   </CardContent>
                 </Card>
               </div>
@@ -1124,37 +1404,131 @@ export function CardTemplateMaker2({
               onDragOver={(event) => event.preventDefault()}
               onDrop={handleDrop}
             >
-              <div className="relative pl-7 pt-7" style={{ width: canvas.width * zoom + 28, height: canvas.height * zoom + 28 }}>
-                <div
-                  aria-hidden="true"
-                  className="absolute left-7 top-0 h-7 border-b border-[#3b3324] bg-[#090d13] shadow-[inset_0_-1px_0_rgba(213,173,84,0.18)]"
-                  style={{
-                    width: canvas.width * zoom,
-                    backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 19px, rgba(213,173,84,0.48) 19px 20px), repeating-linear-gradient(90deg, transparent 0 99px, rgba(213,173,84,0.9) 99px 100px)',
-                    backgroundSize: `${gridSize * zoom}px 100%, ${gridSize * 5 * zoom}px 100%`,
-                  }}
-                />
-                <div
-                  aria-hidden="true"
-                  className="absolute left-0 top-7 w-7 border-r border-[#3b3324] bg-[#090d13] shadow-[inset_-1px_0_0_rgba(213,173,84,0.18)]"
-                  style={{
-                    height: canvas.height * zoom,
-                    backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 19px, rgba(213,173,84,0.48) 19px 20px), repeating-linear-gradient(0deg, transparent 0 99px, rgba(213,173,84,0.9) 99px 100px)',
-                    backgroundSize: `100% ${gridSize * zoom}px, 100% ${gridSize * 5 * zoom}px`,
-                  }}
-                />
-                <div
-                  ref={canvasRef}
-                  data-cardforge-canvas="true"
-                  tabIndex={0}
-                  className="relative shadow-[0_24px_70px_rgba(0,0,0,0.75),0_0_0_1px_rgba(213,173,84,0.2)] focus:outline-none focus:ring-2 focus:ring-[#d5ad54]"
-                  style={canvasStyle}
-                  onKeyDown={handleCanvasKeyDown}
-                  onPointerDown={() => !previewMode && setSelectedElementId(null)}
-                >
-                  {[...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)}
-                </div>
-              </div>
+              {/* RULER_W=28px, GUTTER=96px of grid space around the card on all sides */}
+              {(() => {
+                const RULER_W = 28;
+                const GUTTER = 96;
+                const rulerTickBg = (axis: 'x' | 'y') => ({
+                  backgroundImage: axis === 'x'
+                    ? 'repeating-linear-gradient(90deg, transparent 0 19px, rgba(213,173,84,0.48) 19px 20px), repeating-linear-gradient(90deg, transparent 0 99px, rgba(213,173,84,0.9) 99px 100px)'
+                    : 'repeating-linear-gradient(0deg, transparent 0 19px, rgba(213,173,84,0.48) 19px 20px), repeating-linear-gradient(0deg, transparent 0 99px, rgba(213,173,84,0.9) 99px 100px)',
+                  backgroundSize: axis === 'x'
+                    ? `${gridSize * zoom}px 100%, ${gridSize * 5 * zoom}px 100%`
+                    : `100% ${gridSize * zoom}px, 100% ${gridSize * 5 * zoom}px`,
+                });
+                return (
+                  <div
+                    className="relative"
+                    style={{
+                      paddingLeft: RULER_W + GUTTER,
+                      paddingTop: RULER_W + GUTTER,
+                      width: RULER_W + GUTTER + canvas.width * zoom + GUTTER,
+                      height: RULER_W + GUTTER + canvas.height * zoom + GUTTER,
+                    }}
+                  >
+                    {/* Corner box */}
+                    <div aria-hidden="true" className="absolute left-0 top-0 border-b border-r border-[#3b3324] bg-[#090d13]" style={{ width: RULER_W, height: RULER_W }} />
+
+                    {/* Top ruler — extends full width including gutter on both sides */}
+                    <div
+                      aria-hidden="true"
+                      className="absolute top-0 border-b border-[#3b3324] bg-[#090d13] shadow-[inset_0_-1px_0_rgba(213,173,84,0.18)]"
+                      style={{
+                        left: RULER_W,
+                        height: RULER_W,
+                        width: GUTTER + canvas.width * zoom + GUTTER,
+                        overflow: 'visible',
+                        ...rulerTickBg('x'),
+                      }}
+                    >
+                      {(() => {
+                        const labelStep = gridSize * 5;
+                        const rawStep = labelStep * zoom;
+                        let screenStep = rawStep;
+                        while (screenStep < 24) screenStep *= 2;
+                        const totalW = GUTTER + canvas.width * zoom + GUTTER;
+                        const minN = Math.floor(-GUTTER / screenStep);
+                        const maxN = Math.ceil((canvas.width * zoom + GUTTER) / screenStep);
+                        const out: React.ReactNode[] = [];
+                        for (let n = minN; n <= maxN; n++) {
+                          const sx = GUTTER + n * screenStep;
+                          if (sx < 0 || sx > totalW) continue;
+                          const px = Math.round(n * screenStep / zoom);
+                          out.push(<span key={n} style={{ position: 'absolute', left: sx + 2, top: 14, fontSize: 7, lineHeight: 1, color: n === 0 ? 'rgba(213,173,84,0.9)' : n < 0 ? 'rgba(213,173,84,0.4)' : 'rgba(213,173,84,0.65)', userSelect: 'none', pointerEvents: 'none', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{px}</span>);
+                        }
+                        return out;
+                      })()}
+                    </div>
+                    {/* Card-start marker on top ruler */}
+                    <div aria-hidden="true" style={{ position: 'absolute', left: RULER_W + GUTTER, top: 0, width: 1, height: RULER_W, background: 'rgba(213,173,84,0.9)' }} />
+                    {/* Card-end marker on top ruler */}
+                    <div aria-hidden="true" style={{ position: 'absolute', left: RULER_W + GUTTER + canvas.width * zoom, top: 0, width: 1, height: RULER_W, background: 'rgba(213,173,84,0.5)' }} />
+
+                    {/* Left ruler — extends full height including gutter on both sides */}
+                    <div
+                      aria-hidden="true"
+                      className="absolute left-0 border-r border-[#3b3324] bg-[#090d13] shadow-[inset_-1px_0_0_rgba(213,173,84,0.18)]"
+                      style={{
+                        top: RULER_W,
+                        width: RULER_W,
+                        height: GUTTER + canvas.height * zoom + GUTTER,
+                        overflow: 'visible',
+                        ...rulerTickBg('y'),
+                      }}
+                    >
+                      {(() => {
+                        const labelStep = gridSize * 5;
+                        const rawStep = labelStep * zoom;
+                        let screenStep = rawStep;
+                        while (screenStep < 24) screenStep *= 2;
+                        const totalH = GUTTER + canvas.height * zoom + GUTTER;
+                        const minN = Math.floor(-GUTTER / screenStep);
+                        const maxN = Math.ceil((canvas.height * zoom + GUTTER) / screenStep);
+                        const out: React.ReactNode[] = [];
+                        for (let n = minN; n <= maxN; n++) {
+                          const sy = GUTTER + n * screenStep;
+                          if (sy < 0 || sy > totalH) continue;
+                          const py = Math.round(n * screenStep / zoom);
+                          out.push(<span key={n} style={{ position: 'absolute', top: sy - 5, right: 3, fontSize: 7, lineHeight: 1, color: n === 0 ? 'rgba(213,173,84,0.9)' : n < 0 ? 'rgba(213,173,84,0.4)' : 'rgba(213,173,84,0.65)', userSelect: 'none', pointerEvents: 'none', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{py}</span>);
+                        }
+                        return out;
+                      })()}
+                    </div>
+                    {/* Card-start marker on left ruler */}
+                    <div aria-hidden="true" style={{ position: 'absolute', top: RULER_W + GUTTER, left: 0, height: 1, width: RULER_W, background: 'rgba(213,173,84,0.9)' }} />
+                    {/* Card-end marker on left ruler */}
+                    <div aria-hidden="true" style={{ position: 'absolute', top: RULER_W + GUTTER + canvas.height * zoom, left: 0, height: 1, width: RULER_W, background: 'rgba(213,173,84,0.5)' }} />
+
+                    {/* Gutter grid overlay — faint grid continues into the gutter zone around the card */}
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        left: RULER_W,
+                        top: RULER_W,
+                        width: GUTTER + canvas.width * zoom + GUTTER,
+                        height: GUTTER + canvas.height * zoom + GUTTER,
+                        backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
+                        backgroundSize: `${gridSize * zoom}px ${gridSize * zoom}px`,
+                        pointerEvents: 'none',
+                      }}
+                    />
+
+                    {/* Card canvas */}
+                    <div
+                      ref={canvasRef}
+                      data-cardforge-canvas="true"
+                      tabIndex={0}
+                      className="relative shadow-[0_24px_70px_rgba(0,0,0,0.75),0_0_0_1px_rgba(213,173,84,0.2)] focus:outline-none focus:ring-2 focus:ring-[#d5ad54]"
+                      style={canvasStyle}
+                      onKeyDown={handleCanvasKeyDown}
+                      onPointerDown={() => !previewMode && setSelectedElementId(null)}
+                    >
+                      {[...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </section>
 
@@ -1199,6 +1573,10 @@ export function CardTemplateMaker2({
                           </div>
                         </div>
                         <Button type="button" variant="outline" size="sm" onClick={handleApplyCustomDimensions} className={cn(makerTheme.button, 'w-full text-xs')}>Apply Dimensions</Button>
+                        <div>
+                          <Label htmlFor="maker2-grid-size" className="text-xs text-[#b7bdc9]">Grid Size (px)</Label>
+                          <Input id="maker2-grid-size" className={makerTheme.control} type="number" min={1} max={200} value={gridSize} onChange={event => { const v = Math.round(Number(event.target.value)); if (v >= 1 && v <= 200) updateCanvas({ gridSize: v }); }} />
+                        </div>
                         <div>
                           <Label htmlFor="maker2-frame" className="text-xs text-[#b7bdc9]">Frame Style</Label>
                           <Select value={currentTemplate.frameStyle || 'custom'} onValueChange={handleApplyFrameStyle}>
@@ -1541,12 +1919,12 @@ export function CardTemplateMaker2({
                             </div>
                           </div>
                           <div className="grid grid-cols-3 gap-2">
-                            <Button type="button" variant="outline" size="icon" onClick={() => alignSelected('left')} className={makerTheme.button}><AlignLeft className="h-4 w-4" /></Button>
-                            <Button type="button" variant="outline" size="icon" onClick={() => alignSelected('center')} className={makerTheme.button}><AlignCenter className="h-4 w-4" /></Button>
-                            <Button type="button" variant="outline" size="icon" onClick={() => alignSelected('right')} className={makerTheme.button}><AlignRight className="h-4 w-4" /></Button>
-                            <Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('front')} className={makerTheme.button}><ArrowUpToLine className="h-4 w-4" /></Button>
-                            <Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('up')} className={makerTheme.button}><AlignHorizontalSpaceAround className="h-4 w-4" /></Button>
-                            <Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('back')} className={makerTheme.button}><ArrowDownToLine className="h-4 w-4" /></Button>
+                            <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => alignSelected('left')} className={makerTheme.button}><AlignLeft className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Align left edge to canvas</TooltipContent></Tooltip>
+                            <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => alignSelected('center')} className={makerTheme.button}><AlignCenter className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Center horizontally on canvas</TooltipContent></Tooltip>
+                            <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => alignSelected('right')} className={makerTheme.button}><AlignRight className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Align right edge to canvas</TooltipContent></Tooltip>
+                            <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('front')} className={makerTheme.button}><ArrowUpToLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Bring to front (top layer)</TooltipContent></Tooltip>
+                            <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('up')} className={makerTheme.button}><AlignHorizontalSpaceAround className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Move up one layer</TooltipContent></Tooltip>
+                            <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('back')} className={makerTheme.button}><ArrowDownToLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Send to back (bottom layer)</TooltipContent></Tooltip>
                           </div>
 
                           {(canUseTypography || canUseImageSource) && (
@@ -1919,7 +2297,12 @@ export function CardTemplateMaker2({
                                   </Select>
                                 </div>
                                 <div>
-                                  <Label htmlFor="element-writing-mode">Direction</Label>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Label htmlFor="element-writing-mode" className="cursor-help">Direction</Label>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Vertical modes stack each letter upright, like East Asian text</TooltipContent>
+                                  </Tooltip>
                                   <Select value={selectedElement.writingMode || 'horizontal-tb'} onValueChange={value => updateElement(selectedElement.id, { writingMode: value as FreeformCardElement['writingMode'] })}>
                                     <SelectTrigger id="element-writing-mode"><SelectValue /></SelectTrigger>
                                     <SelectContent>
@@ -1928,6 +2311,65 @@ export function CardTemplateMaker2({
                                       <SelectItem value="vertical-lr">Vertical ↕ (L→R)</SelectItem>
                                     </SelectContent>
                                   </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="element-text-transform">Transform</Label>
+                                  <Select value={selectedElement.textTransform || 'none'} onValueChange={value => updateElement(selectedElement.id, { textTransform: value as FreeformCardElement['textTransform'] })}>
+                                    <SelectTrigger id="element-text-transform"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">None</SelectItem>
+                                      <SelectItem value="uppercase">UPPERCASE</SelectItem>
+                                      <SelectItem value="lowercase">lowercase</SelectItem>
+                                      <SelectItem value="capitalize">Capitalize</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="element-text-decoration">Decoration</Label>
+                                  <Select value={selectedElement.textDecoration || 'none'} onValueChange={value => updateElement(selectedElement.id, { textDecoration: value as FreeformCardElement['textDecoration'] })}>
+                                    <SelectTrigger id="element-text-decoration"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">None</SelectItem>
+                                      <SelectItem value="underline">Underline</SelectItem>
+                                      <SelectItem value="line-through">Strikethrough</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Label htmlFor="element-line-height" className="cursor-help">Line Height</Label>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Spacing between lines. 1.0 = tight, 1.5 = normal, 2.0 = loose</TooltipContent>
+                                  </Tooltip>
+                                  <Input
+                                    id="element-line-height"
+                                    className={makerTheme.control}
+                                    type="number"
+                                    step="0.05"
+                                    min="0.8"
+                                    max="4"
+                                    placeholder="1.4"
+                                    value={selectedElement.lineHeight || ''}
+                                    onChange={event => updateElement(selectedElement.id, { lineHeight: event.target.value || undefined }, false)}
+                                  />
+                                </div>
+                                <div>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Label htmlFor="element-letter-spacing" className="cursor-help">Letter Spacing</Label>
+                                    </TooltipTrigger>
+                                    <TooltipContent>e.g. 0.05em (loose) or -0.02em (tight)</TooltipContent>
+                                  </Tooltip>
+                                  <Input
+                                    id="element-letter-spacing"
+                                    className={makerTheme.control}
+                                    placeholder="0em"
+                                    value={selectedElement.letterSpacing || ''}
+                                    onChange={event => updateElement(selectedElement.id, { letterSpacing: event.target.value || undefined }, false)}
+                                  />
                                 </div>
                               </div>
                             </>

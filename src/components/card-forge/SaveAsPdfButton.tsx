@@ -51,7 +51,7 @@ export function SaveAsPdfButton({
       key: `pdf-preview-${card.uniqueId}`, 
       card: card,
       isPrintMode: true,
-      targetWidthPx: 300, 
+      targetWidthPx: 744,  // ~300 DPI at 63mm standard TCG width
       className: `pdf-render-card`
     });
     
@@ -195,7 +195,7 @@ export function SaveAsPdfButton({
       const cardElement = await renderCardForCanvas(card, renderContainer, mountedRoots);
       if (cardElement) {
         try {
-            const canvas = await toCanvas(cardElement, { pixelRatio: 2, skipFonts: false, fetchRequestInit: { mode: 'cors' } });
+            const canvas = await toCanvas(cardElement, { pixelRatio: 3, skipFonts: false, fetchRequestInit: { mode: 'cors' } });
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
             if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
         } catch (e) {

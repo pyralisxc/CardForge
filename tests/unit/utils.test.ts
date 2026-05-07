@@ -19,47 +19,55 @@ describe('utils', () => {
     expect(result).toBe('Dragon Hoard - Artifact - ');
   });
 
-  it('extracts unique placeholders from text, image, and background fields', () => {
+  it('extracts unique placeholders from freeform elements and card background', () => {
     const template: TCGCardTemplate = {
       id: 'template-1',
       name: 'Template',
       aspectRatio: '63:88',
       cardBackgroundImageUrl: '{{cardBg}}',
-      rows: [
-        {
-          id: 'row-1',
-          columns: [
-            {
-              id: 'section-1',
-              sectionContentType: 'placeholder',
-              contentPlaceholder: '{{cardName:"Sample"}}',
-              backgroundImageUrl: '{{sectionBg}}',
-            },
-            {
-              id: 'section-2',
-              sectionContentType: 'image',
-              contentPlaceholder: 'artworkUrl',
-            },
-          ],
-        },
-      ],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'text-1',
+            type: 'text',
+            name: 'Title',
+            x: 0,
+            y: 0,
+            width: 200,
+            height: 50,
+            zIndex: 1,
+            content: '{{cardName:"Sample"}}',
+            backgroundImageUrl: '{{sectionBg}}',
+          },
+          {
+            id: 'image-1',
+            type: 'image',
+            name: 'Art',
+            x: 0,
+            y: 60,
+            width: 200,
+            height: 120,
+            zIndex: 2,
+            imageSource: 'artworkUrl',
+          },
+        ],
+      },
     };
 
-    expect(extractUniquePlaceholderKeys(template)).toEqual([
-      { key: 'cardName', defaultValue: 'Sample' },
-      { key: 'sectionBg' },
-      { key: 'artworkUrl' },
-      { key: 'cardBg' },
-    ]);
+    const keys = extractUniquePlaceholderKeys(template);
+    expect(keys.find(k => k.key === 'cardName')?.defaultValue).toBe('Sample');
+    expect(keys.find(k => k.key === 'sectionBg')).toBeDefined();
+    expect(keys.find(k => k.key === 'artworkUrl')).toBeDefined();
+    expect(keys.find(k => k.key === 'cardBg')).toBeDefined();
   });
 
   it('extracts unique placeholders from freeform elements', () => {
     const template: TCGCardTemplate = {
       id: 'template-freeform',
       name: 'Freeform',
-      layoutMode: 'freeform',
       aspectRatio: '63:88',
-      rows: [],
       freeformCanvas: {
         width: 630,
         height: 880,

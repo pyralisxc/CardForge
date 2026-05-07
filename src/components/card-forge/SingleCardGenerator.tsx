@@ -58,11 +58,7 @@ export function SingleCardGenerator({
     const newCardDataState: CardData = {};
     
     const fields: DynamicField[] = extractedPlaceholders.map(placeholder => {
-      const isImageSectionKey = template.rows.some(row =>
-          (row.columns || []).some(col =>
-              col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
-          )
-      ) || !!template.freeformCanvas?.elements?.some(element =>
+      const isImageSectionKey = !!template.freeformCanvas?.elements?.some(element =>
           element.type === 'image' &&
           (element.imageSource === placeholder.key || element.content === placeholder.key)
       );

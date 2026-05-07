@@ -1,7 +1,7 @@
 
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { TCGCardTemplate, CardData, CardSection } from "@/types";
+import type { TCGCardTemplate, CardData } from "@/types";
 import { TCG_ASPECT_RATIO } from "@/lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
@@ -23,7 +23,7 @@ export interface ExtractedPlaceholder {
  * @returns An array of unique placeholder objects { key: string; defaultValue?: string; }.
  */
 export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): ExtractedPlaceholder[] {
-  if (!template || !template.rows) return [];
+  if (!template) return [];
 
   const placeholderMap = new Map<string, ExtractedPlaceholder>();
   const placeholderRegex = /\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g; // For text placeholders
@@ -34,7 +34,9 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
     placeholderRegex.lastIndex = 0; 
     while ((match = placeholderRegex.exec(str)) !== null) {
       const key = match[1].trim();
-      const defaultValue = match[2] !== undefined ? match[2].replace(/\\"/g, '"') : undefined;
+      const defaultValue = match[2] !== undefined
+        ? match[2].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+        : undefined;
 
       if (!placeholderMap.has(key) || (defaultValue !== undefined && placeholderMap.get(key)!.defaultValue === undefined)) {
         placeholderMap.set(key, { key, defaultValue });
@@ -42,21 +44,6 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
     }
   };
 
-  template.rows.forEach(row => {
-    (row.columns || []).forEach(section => {
-      if (section.sectionContentType === 'image') {
-        if (section.contentPlaceholder && !placeholderMap.has(section.contentPlaceholder)) {
-          placeholderMap.set(section.contentPlaceholder, { key: section.contentPlaceholder });
-        }
-      } else { // 'placeholder' type
-        processStringForPlaceholders(section.contentPlaceholder);
-      }
-      processStringForPlaceholders(section.backgroundImageUrl); // Always check backgroundImageUrl
-      processStringForPlaceholders(section.customHeight);
-      processStringForPlaceholders(section.customWidth);
-    });
-    processStringForPlaceholders(row.customHeight);
-  });
   processStringForPlaceholders(template.cardBackgroundImageUrl);
 
   template.freeformCanvas?.elements?.forEach(element => {

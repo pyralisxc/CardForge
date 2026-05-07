@@ -1,32 +1,4 @@
 
-export interface CardSection {
-  id: string;
-  sectionContentType: 'placeholder' | 'image'; 
-  contentPlaceholder: string; 
-  backgroundImageUrl?: string;
-  imageWidthPx?: string;  
-  imageHeightPx?: string; 
-  imageObjectFit?: 'cover' | 'contain' | 'fill' | 'none';
-
-  // Styling
-  textColor?: string;
-  backgroundColor?: string;
-  fontFamily?: string;
-  fontSize?: 'text-xs' | 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
-  fontSizePx?: number;
-  fontWeight?: 'font-normal' | 'font-medium' | 'font-semibold' | 'font-bold';
-  textAlign?: 'left' | 'center' | 'right' | 'justify';
-  fontStyle?: 'normal' | 'italic';
-  padding?: string; 
-  borderColor?: string;
-  borderWidth?: string; 
-  borderRadius?: string; 
-  minHeight?: string; 
-  flexGrow?: number; 
-  customHeight?: string; 
-  customWidth?: string; 
-}
-
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
 export type FreeformShapeRole = 'basic' | 'panel' | 'artFrame' | 'rulesBox' | 'titlePlate' | 'statGem' | 'costOrb' | 'divider';
@@ -155,6 +127,10 @@ export interface FreeformCardElement {
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
   writingMode?: 'horizontal-tb' | 'vertical-rl' | 'vertical-lr';
+  letterSpacing?: string;
+  lineHeight?: string;
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  textDecoration?: 'none' | 'underline' | 'line-through';
   padding?: string;
   borderColor?: string;
   borderWidth?: string;
@@ -174,17 +150,9 @@ export interface FreeformCanvas {
   elements: FreeformCardElement[];
 }
 
-export interface CardRow {
-  id: string;
-  columns: CardSection[];
-  alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
-  customHeight?: string; 
-}
-
 export interface TCGCardTemplate {
   id: string | null; 
   name: string; 
-  layoutMode?: 'rows' | 'freeform';
   aspectRatio: string;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
@@ -200,7 +168,6 @@ export interface TCGCardTemplate {
   cardBorderRadius?: string;
   appearance?: FreeformAppearance;
 
-  rows: CardRow[];
   freeformCanvas?: FreeformCanvas;
 }
 

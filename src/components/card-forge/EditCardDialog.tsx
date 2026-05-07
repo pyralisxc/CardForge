@@ -57,10 +57,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     const newEditedDataState: CardData = {}; // Will hold the initialized data for the form
 
     const fields: DynamicField[] = allPlaceholderKeys.map(placeholder => {
-        const isImageSectionKey = template.rows.some(row =>
-          row.columns.some(col =>
-              col.sectionContentType === 'image' && col.contentPlaceholder === placeholder.key
-          )
+        const isImageSectionKey = !!template.freeformCanvas?.elements?.some(element =>
+          element.type === 'image' &&
+          (element.imageSource === placeholder.key || element.content === placeholder.key)
         );
         const isTextarea = !isImageSectionKey && (
           placeholder.key.toLowerCase().includes('rules') ||

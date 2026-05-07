@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { DisplayCard, CardSection, CardData, CardRow, TCGCardTemplate, FreeformCardElement } from '@/types';
+import type { DisplayCard, CardData, TCGCardTemplate, FreeformCardElement } from '@/types';
 import { cn, replacePlaceholdersLocal, parseRichText } from '@/lib/utils';
 import { appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
@@ -370,7 +370,7 @@ export function CardPreview({
   }, [dataToRender]);
 
   const freeformElements = useMemo(() => {
-    if (templateToRender.layoutMode !== 'freeform' || !templateToRender.freeformCanvas) return null;
+    if (!templateToRender.freeformCanvas) return null;
     const canvas = templateToRender.freeformCanvas;
     const scaleX = effectiveWidthPx / Math.max(1, canvas.width);
     const scaleY = cardPixelHeight / Math.max(1, canvas.height);
@@ -534,7 +534,7 @@ export function CardPreview({
   }, [cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, effectiveWidthPx, isEditorPreview, templateToRender]);
 
 
-  const shouldHideSection = (section: CardSection, processedContent: string): boolean => {
+  const shouldHideSection = (section: { sectionContentType?: string; contentPlaceholder?: string; backgroundImageUrl?: string }, processedContent: string): boolean => {
     if (isEditorPreview) return false;
     if (hideEmptySections) {
       if (section.sectionContentType === 'image') {
@@ -573,257 +573,7 @@ export function CardPreview({
         data-ai-hint="tcg card custom"
         onClick={handleCardClick}
       >
-        {templateToRender.layoutMode === 'freeform' ? freeformElements : (templateToRender.rows || []).map((row, rowIndex) => {
-          const handlePreviewRowClick = (e: React.MouseEvent) => {
-            if (isEditorPreview && onRowClick) {
-              e.stopPropagation();
-              onRowClick(row.id);
-            }
-          };
-
-          let rowEffectiveHeight: string | undefined = row.customHeight || undefined;
-          if (row.customHeight && row.customHeight.includes('%') && cardPixelHeight > 0 && isFinite(cardPixelHeight)) {
-            const percentageValue = parseFloat(row.customHeight.replace('%', ''));
-            if (!isNaN(percentageValue) && isFinite(percentageValue)) {
-              rowEffectiveHeight = `${cardPixelHeight * (percentageValue / 100)}px`;
-            }
-          }
-
-          const rowStyle: React.CSSProperties = {
-            display: 'flex',
-            alignItems: row.alignItems || 'flex-start',
-            height: rowEffectiveHeight,
-            flexShrink: 0,
-            zIndex: 1, 
-            position: 'relative', 
-          };
-
-          const allColumnsInRowEffectivelyHidden = (row.columns || []).every(col => {
-            let colContent = '';
-            if (col.sectionContentType === 'image') {
-                const imageKey = col.contentPlaceholder;
-                colContent = dataToRender && imageKey ? (dataToRender[imageKey] as string || '') : '';
-            } else {
-                colContent = replacePlaceholdersLocal(col.contentPlaceholder, dataToRender, true);
-            }
-            return shouldHideSection(col, colContent);
-          });
-
-          if (allColumnsInRowEffectivelyHidden && !isEditorPreview) {
-            return null;
-          }
-
-          return (
-            <div
-              key={row.id}
-              className={cn(
-                "flex w-full",
-                isEditorPreview && onRowClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-dashed hover:outline-blue-500/70' : ''
-              )}
-              style={rowStyle}
-              onClick={handlePreviewRowClick}
-              data-row-id={row.id}
-            >
-              {(row.columns || []).map((section, sectionIndex) => {
-                const sectionStyle: React.CSSProperties = {
-                  position: 'relative',
-                  color: section.textColor || undefined,
-                  backgroundColor: section.backgroundColor || 'transparent',
-                  textAlign: section.textAlign || 'left',
-                  fontStyle: section.fontStyle || 'normal',
-                  borderColor: section.borderColor || templateToRender.defaultSectionBorderColor || undefined,
-                  borderStyle: section.borderWidth && section.borderWidth !== '_none_' ? 'solid' : undefined,
-                  borderRadius: section.borderRadius || undefined,
-                  height: section.customHeight || undefined,
-                  width: section.customWidth || undefined,
-                  overflowWrap: 'break-word',
-                };
-
-                if (section.backgroundImageUrl) {
-                    const resolvedBgUrl = replacePlaceholdersLocal(section.backgroundImageUrl, dataToRender, isEditorPreview);
-                    if (resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'))) {
-                        sectionStyle.backgroundImage = `url(${resolvedBgUrl})`;
-                        sectionStyle.backgroundSize = 'cover';
-                        sectionStyle.backgroundPosition = 'center';
-                    }
-                }
-
-                if (section.customWidth) {
-                  // User set an explicit CSS width — pin to it.
-                  sectionStyle.width = section.customWidth;
-                  sectionStyle.flexBasis = section.customWidth;
-                  sectionStyle.flexShrink = 0;
-                  sectionStyle.flexGrow = section.flexGrow || 0;
-                } else if (section.sectionContentType === 'image' && !section.imageWidthPx) {
-                  // Image with no explicit pixel width: grow to fill available row space.
-                  // flexBasis:0% + flexGrow:1+ prevents the width:100% overflow that
-                  // would otherwise occur in multi-column rows.
-                  sectionStyle.flexGrow = section.flexGrow || 1;
-                  sectionStyle.flexShrink = 1;
-                  sectionStyle.flexBasis = '0%';
-                  sectionStyle.minWidth = '0';
-                } else {
-                  sectionStyle.flexBasis = (section.flexGrow && section.flexGrow > 0) ? '0%' : 'auto';
-                  sectionStyle.flexShrink = (section.flexGrow && section.flexGrow > 0) ? 1 : 0;
-                  sectionStyle.flexGrow = section.flexGrow || 0;
-                }
-
-
-                if (section.sectionContentType !== 'image') {
-                  sectionStyle.overflowWrap = 'break-word';
-                  if (section.flexGrow && section.flexGrow > 0) {
-                    sectionStyle.minWidth = 0;
-                    sectionStyle.minHeight = 0;
-                    sectionStyle.overflowY = 'auto';
-                  }
-                }
-
-                let sectionBorderClass = '';
-                if (section.borderWidth && section.borderWidth !== '_none_') {
-                    sectionBorderClass = section.borderWidth;
-                }
-
-                const sectionClasses = cn(
-                  'relative',
-                  section.padding || 'p-1',
-                  section.fontSize || 'text-sm',
-                  section.fontWeight || 'font-normal',
-                  section.fontFamily || 'font-sans',
-                  section.minHeight && section.minHeight !== '_auto_' && !section.customHeight ? section.minHeight : '',
-                  sectionBorderClass,
-                  section.sectionContentType !== 'image' ? 'whitespace-pre-wrap break-words' : '',
-                  isEditorPreview && onSectionClick ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-offset-[-1px] hover:outline-primary/70' : '',
-                  isEditorPreview && 'border-l border-r border-border/10',
-                  // w-full only applies to text sections: image sections are sized by flex layout.
-                  // Applying w-full (width:100%) to an image in a multi-column row causes it to
-                  // override flex distribution and consume the entire row width.
-                  (section.sectionContentType !== 'image' && !section.customWidth && ((section.flexGrow && section.flexGrow > 0) || (row.columns || []).length === 1)) ? 'w-full' : ''
-                );
-
-                const handlePreviewSectionClick = (e: React.MouseEvent) => {
-                  if (isEditorPreview && onSectionClick) {
-                    e.stopPropagation();
-                    onSectionClick(section.id);
-                  }
-                };
-
-                let processedContentForDisplay = isEditorPreview && section.sectionContentType === 'placeholder'
-                    ? section.contentPlaceholder.replace(/\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g, (match, key) => key)
-                    : replacePlaceholdersLocal(section.contentPlaceholder, dataToRender, true);
-
-                if (shouldHideSection(section, processedContentForDisplay) && !isEditorPreview && section.sectionContentType !== 'image') {
-                  return null;
-                }
-
-                if (section.sectionContentType === 'image') {
-                    const imageKey = section.contentPlaceholder;
-                    // displayWidth/Height are only used for the placeholder image URL dimensions.
-                    // The container's CSS size is controlled by imageWidthPx/customWidth/customHeight.
-                    // Use large fallbacks so placeholder images aren't tiny 100×100 thumbnails.
-                    const displayWidth = parseInt(section.imageWidthPx || '0', 10);
-                    const displayHeight = parseInt(section.imageHeightPx || '0', 10);
-
-                    if (isEditorPreview) {
-                        return (
-                            <div
-                                key={section.id}
-                                className={cn(sectionClasses, "flex items-center justify-center bg-muted/50 border-dashed border-border overflow-hidden")}
-                                style={{
-                                    ...sectionStyle,
-                                    // Only set explicit width when imageWidthPx is specified.
-                                    // customWidth is already in sectionStyle; no-explicit-width uses flex layout.
-                                    ...(section.imageWidthPx ? { width: `${displayWidth}px`, flexBasis: `${displayWidth}px`, flexShrink: 0, flexGrow: 0 } : {}),
-                                    height: section.imageHeightPx ? `${displayHeight}px` : (section.customHeight || '120px'),
-                                    borderRadius: section.borderRadius || undefined,
-                                }}
-                                onClick={handlePreviewSectionClick}
-                                data-section-id={section.id}
-                            >
-                                <div className="text-center text-muted-foreground text-xs p-1">
-                                    <div>Image Key: {section.contentPlaceholder || "not_set"}</div>
-                                    <div>Size: {section.imageWidthPx || 'auto'}px x {section.imageHeightPx || 'auto'}px</div>
-                                </div>
-                            </div>
-                        );
-                    }
-
-                    let imageUrl = dataToRender && imageKey ? (dataToRender[imageKey] as string || '') : '';
-                    const isValidUrl = imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'));
-
-                    if (!isValidUrl) {
-                        const placeholderTextForUrl = descriptiveArtworkText || "Artwork";
-                        imageUrl = `https://placehold.co/${displayWidth > 0 ? displayWidth : 600}x${displayHeight > 0 ? displayHeight : 400}.png?text=${encodeURIComponent(placeholderTextForUrl)}`;
-                    }
-
-                    if (shouldHideSection(section, imageUrl) && !isEditorPreview) {
-                        return null;
-                    }
-
-                    return (
-                        <div
-                            key={section.id}
-                            className={cn(sectionClasses, section.padding || 'p-0')}
-                            style={{
-                                ...sectionStyle,
-                                // Only set explicit width when imageWidthPx is specified.
-                                // customWidth is already in sectionStyle; no-explicit-width uses flex layout.
-                                ...(section.imageWidthPx ? { width: `${displayWidth}px`, flexBasis: `${displayWidth}px`, flexShrink: 0, flexGrow: 0 } : {}),
-                                height: section.imageHeightPx
-                                    ? `${displayHeight}px`
-                                    : (section.customHeight || (row.customHeight ? '100%' : 'auto')),
-                                maxWidth: '100%',
-                                overflow: 'hidden',
-                                borderRadius: section.borderRadius || undefined,
-                            }}
-                            onClick={handlePreviewSectionClick}
-                            data-section-id={section.id}
-                        >
-                            <img
-                                src={imageUrl}
-                                alt={`Image for ${section.contentPlaceholder}`}
-                                style={{
-                                  objectFit: section.imageObjectFit || 'cover',
-                                  width: '100%',
-                                  // height:100% only works when the container has a defined height.
-                                  // When container is height:auto (no explicit heights on section or row),
-                                  // use height:auto so the image renders at its natural aspect ratio.
-                                  height: (section.imageHeightPx || section.customHeight || row.customHeight) ? '100%' : 'auto',
-                                  borderRadius: section.borderRadius || undefined,
-                                  display: 'block',
-                                }}
-                                data-ai-hint={dataAiHintKeywords}
-                                onError={(e) => {
-                                  const placeholderText = descriptiveArtworkText || 'Image';
-                                  (e.currentTarget as HTMLImageElement).src = `https://placehold.co/${displayWidth > 0 ? displayWidth : 300}x${displayHeight > 0 ? displayHeight : 200}.png?text=${encodeURIComponent(placeholderText)}`;
-                                }}
-                            />
-                        </div>
-                    );
-
-                } else {
-                    return (
-                      <div
-                        key={section.id}
-                        className={sectionClasses}
-                        style={sectionStyle}
-                        onClick={handlePreviewSectionClick}
-                        data-section-id={section.id}
-                      >
-                        <FormattedText
-                          text={processedContentForDisplay}
-                          className={cn(section.fontSize || 'text-sm', section.fontWeight || 'font-normal', section.fontFamily || 'font-sans')}
-                          style={{
-                            textAlign: section.textAlign || 'left',
-                            fontStyle: section.fontStyle || 'normal',
-                          }}
-                        />
-                      </div>
-                    );
-                }
-              })}
-            </div>
-          );
-        })}
+        {freeformElements}
       </div>
       {showSizeInfo && !isPrintMode && (
         <div className="text-xs text-muted-foreground mt-1" data-html2canvas-ignore="true">

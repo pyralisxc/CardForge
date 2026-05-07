@@ -1,293 +1,291 @@
-{
-  "id": "default-quest-adventure-freeform",
-  "name": "Smoke Freeform Template",
-  "layoutMode": "freeform",
-  "aspectRatio": "63:88",
-  "frameStyle": "custom",
-  "cardBorderWidth": "4px",
-  "cardBorderStyle": "solid",
-  "cardBorderRadius": "12px",
-  "appearance": {
-    "material": {
-      "baseColor": "#0d1813",
-      "textColor": "#f1ead2",
-      "texture": {
-        "kind": "none"
-      }
-    },
-    "border": {
-      "kind": "solid",
-      "color": "#4fb286",
-      "width": 4,
-      "radius": 12
-    }
-  },
-  "rows": [],
-  "baseBackgroundColor": "#0d1813",
-  "baseTextColor": "#f1ead2",
-  "cardBorderColor": "#4fb286",
-  "freeformCanvas": {
-    "width": 630,
-    "height": 880,
-    "gridSize": 20,
-    "elements": [
-      {
-        "id": "quest-frame",
-        "type": "shape",
-        "name": "Verdant Frame",
-        "x": 28,
-        "y": 28,
-        "width": 574,
-        "height": 824,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 0,
-        "locked": false,
-        "content": "",
-        "shapeKind": "rectangle",
-        "textColor": "#111827",
-        "backgroundColor": "rgba(255,255,255,0.16)",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 14,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-0",
-        "borderColor": "#d1d5db",
-        "borderWidth": "border",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "fillColor": "rgba(255,255,255,0.16)",
-        "strokeColor": "#fbbf24",
-        "strokeWidth": 2,
-        "appearance": {
-          "material": {
-            "baseColor": "#0d1813",
-            "texture": {
-              "kind": "grain",
-              "intensity": 46,
-              "scale": 11
-            },
-            "gradient": {
-              "type": "linear",
-              "angle": 135,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#0f2a20",
-                  "position": 0,
-                  "opacity": 0.98
-                },
-                {
-                  "id": "b",
-                  "color": "#4fb286",
-                  "position": 60,
-                  "opacity": 0.32
-                },
-                {
-                  "id": "c",
-                  "color": "#d5ad54",
-                  "position": 100,
-                  "opacity": 0.24
-                }
-              ]
-            }
-          },
-          "border": {
-            "kind": "relic",
-            "color": "#d5ad54",
-            "secondaryColor": "#4fb286",
-            "width": 4,
-            "radius": 14
-          },
-          "effects": {
-            "innerHighlight": 24,
-            "bevel": 24
-          }
-        }
-      },
-      {
-        "id": "quest-art",
-        "type": "image",
-        "name": "Quest Art",
-        "x": 78,
-        "y": 146,
-        "width": 474,
-        "height": 270,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 1,
-        "locked": false,
-        "content": "artworkUrl",
-        "textColor": "#111827",
-        "backgroundColor": "transparent",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 14,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-0",
-        "borderColor": "#d1d5db",
-        "borderWidth": "border",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 2,
-        "imageSource": "artworkUrl",
-        "appearance": {
-          "border": {
-            "kind": "relic",
-            "color": "#d5ad54",
-            "width": 3,
-            "radius": 8
-          },
-          "effects": {
-            "shadow": 26
-          }
-        }
-      },
-      {
-        "id": "quest-steps",
-        "type": "text",
-        "name": "Quest Steps",
-        "x": 78,
-        "y": 462,
-        "width": 474,
-        "height": 246,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 2,
-        "locked": false,
-        "content": "{{rulesText:\"Complete these in order:\\n1. Explore a ruin.\\n2. Defeat a guardian.\\n3. Claim the gate's treasure.\"}}",
-        "textColor": "#111827",
-        "backgroundColor": "transparent",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 20,
-        "fontWeight": "font-bold",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-3",
-        "borderWidth": "_none_",
-        "borderRadius": "rounded-none",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 2,
-        "appearance": {
-          "material": {
-            "baseColor": "rgba(244,226,186,0.92)",
-            "textColor": "#20140a",
-            "texture": {
-              "kind": "parchment",
-              "intensity": 48,
-              "scale": 11
-            }
-          },
-          "border": {
-            "kind": "relic",
-            "color": "#31573d",
-            "secondaryColor": "#d5ad54",
-            "width": 4,
-            "radius": 8
-          },
-          "effects": {
-            "innerHighlight": 26,
-            "bevel": 18
-          }
-        }
-      },
-      {
-        "id": "quest-title",
-        "type": "text",
-        "name": "Quest Title",
-        "x": 72,
-        "y": 64,
-        "width": 486,
-        "height": 58,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 3,
-        "locked": false,
-        "content": "{{cardName:\"THE SUNKEN GATE\"}}",
-        "textColor": "#111827",
-        "backgroundColor": "transparent",
-        "fontFamily": "font-cinzel",
-        "fontSize": "text-lg",
-        "fontSizePx": 20,
-        "fontWeight": "font-bold",
-        "textAlign": "center",
-        "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
-        "borderRadius": "rounded-none",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 2,
-        "appearance": {
-          "material": {
-            "baseColor": "#161008",
-            "textColor": "#f7df9d",
-            "texture": {
-              "kind": "etched",
-              "intensity": 32,
-              "scale": 9
-            }
-          },
-          "border": {
-            "kind": "double",
-            "color": "#d5ad54",
-            "width": 2,
-            "radius": 8
-          }
-        }
-      },
-      {
-        "id": "quest-reward",
-        "type": "text",
-        "name": "Reward",
-        "x": 142,
-        "y": 742,
-        "width": 346,
-        "height": 42,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 3,
-        "locked": false,
-        "content": "{{reward:\"Reward: Create two relic tokens.\"}}",
-        "textColor": "#111827",
-        "backgroundColor": "transparent",
-        "fontFamily": "font-sans",
-        "fontSize": "text-xs",
-        "fontSizePx": 20,
-        "fontWeight": "font-semibold",
-        "textAlign": "center",
-        "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
-        "borderRadius": "rounded-none",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 2,
-        "appearance": {
-          "material": {
-            "baseColor": "#17100b",
-            "textColor": "#f7df9d"
-          },
-          "border": {
-            "kind": "foil",
-            "color": "#d5ad54",
-            "secondaryColor": "#4fb286",
-            "width": 2,
-            "radius": 999
-          },
-          "effects": {
-            "glow": 10
-          }
-        }
-      }
-    ]
-  }
+﻿{
+    "id":  "default-quest-adventure-freeform",
+    "name":  "Smoke Freeform Template",
+    "aspectRatio":  "63:88",
+    "frameStyle":  "custom",
+    "cardBorderWidth":  "4px",
+    "cardBorderStyle":  "solid",
+    "cardBorderRadius":  "12px",
+    "appearance":  {
+                       "material":  {
+                                        "baseColor":  "#0d1813",
+                                        "textColor":  "#f1ead2",
+                                        "texture":  {
+                                                        "kind":  "none"
+                                                    }
+                                    },
+                       "border":  {
+                                      "kind":  "solid",
+                                      "color":  "#4fb286",
+                                      "width":  4,
+                                      "radius":  12
+                                  }
+                   },
+    "baseBackgroundColor":  "#0d1813",
+    "baseTextColor":  "#f1ead2",
+    "cardBorderColor":  "#4fb286",
+    "freeformCanvas":  {
+                           "width":  630,
+                           "height":  880,
+                           "gridSize":  20,
+                           "elements":  [
+                                            {
+                                                "id":  "quest-frame",
+                                                "type":  "shape",
+                                                "name":  "Verdant Frame",
+                                                "x":  28,
+                                                "y":  28,
+                                                "width":  574,
+                                                "height":  824,
+                                                "rotation":  0,
+                                                "opacity":  1,
+                                                "zIndex":  0,
+                                                "locked":  false,
+                                                "content":  "",
+                                                "shapeKind":  "rectangle",
+                                                "textColor":  "#111827",
+                                                "backgroundColor":  "rgba(255,255,255,0.16)",
+                                                "fontFamily":  "font-sans",
+                                                "fontSize":  "text-sm",
+                                                "fontSizePx":  14,
+                                                "fontWeight":  "font-normal",
+                                                "textAlign":  "left",
+                                                "fontStyle":  "normal",
+                                                "padding":  "p-0",
+                                                "borderColor":  "#d1d5db",
+                                                "borderWidth":  "border",
+                                                "borderRadius":  "rounded-md",
+                                                "minHeight":  "_auto_",
+                                                "imageObjectFit":  "cover",
+                                                "fillColor":  "rgba(255,255,255,0.16)",
+                                                "strokeColor":  "#fbbf24",
+                                                "strokeWidth":  2,
+                                                "appearance":  {
+                                                                   "material":  {
+                                                                                    "baseColor":  "#0d1813",
+                                                                                    "texture":  {
+                                                                                                    "kind":  "grain",
+                                                                                                    "intensity":  46,
+                                                                                                    "scale":  11
+                                                                                                },
+                                                                                    "gradient":  {
+                                                                                                     "type":  "linear",
+                                                                                                     "angle":  135,
+                                                                                                     "stops":  [
+                                                                                                                   {
+                                                                                                                       "id":  "a",
+                                                                                                                       "color":  "#0f2a20",
+                                                                                                                       "position":  0,
+                                                                                                                       "opacity":  0.98
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "id":  "b",
+                                                                                                                       "color":  "#4fb286",
+                                                                                                                       "position":  60,
+                                                                                                                       "opacity":  0.32
+                                                                                                                   },
+                                                                                                                   {
+                                                                                                                       "id":  "c",
+                                                                                                                       "color":  "#d5ad54",
+                                                                                                                       "position":  100,
+                                                                                                                       "opacity":  0.24
+                                                                                                                   }
+                                                                                                               ]
+                                                                                                 }
+                                                                                },
+                                                                   "border":  {
+                                                                                  "kind":  "relic",
+                                                                                  "color":  "#d5ad54",
+                                                                                  "secondaryColor":  "#4fb286",
+                                                                                  "width":  4,
+                                                                                  "radius":  14
+                                                                              },
+                                                                   "effects":  {
+                                                                                   "innerHighlight":  24,
+                                                                                   "bevel":  24
+                                                                               }
+                                                               }
+                                            },
+                                            {
+                                                "id":  "quest-art",
+                                                "type":  "image",
+                                                "name":  "Quest Art",
+                                                "x":  78,
+                                                "y":  146,
+                                                "width":  474,
+                                                "height":  270,
+                                                "rotation":  0,
+                                                "opacity":  1,
+                                                "zIndex":  1,
+                                                "locked":  false,
+                                                "content":  "artworkUrl",
+                                                "textColor":  "#111827",
+                                                "backgroundColor":  "transparent",
+                                                "fontFamily":  "font-sans",
+                                                "fontSize":  "text-sm",
+                                                "fontSizePx":  14,
+                                                "fontWeight":  "font-normal",
+                                                "textAlign":  "left",
+                                                "fontStyle":  "normal",
+                                                "padding":  "p-0",
+                                                "borderColor":  "#d1d5db",
+                                                "borderWidth":  "border",
+                                                "borderRadius":  "rounded-md",
+                                                "minHeight":  "_auto_",
+                                                "imageObjectFit":  "cover",
+                                                "strokeWidth":  2,
+                                                "imageSource":  "artworkUrl",
+                                                "appearance":  {
+                                                                   "border":  {
+                                                                                  "kind":  "relic",
+                                                                                  "color":  "#d5ad54",
+                                                                                  "width":  3,
+                                                                                  "radius":  8
+                                                                              },
+                                                                   "effects":  {
+                                                                                   "shadow":  26
+                                                                               }
+                                                               }
+                                            },
+                                            {
+                                                "id":  "quest-steps",
+                                                "type":  "text",
+                                                "name":  "Quest Steps",
+                                                "x":  78,
+                                                "y":  462,
+                                                "width":  474,
+                                                "height":  246,
+                                                "rotation":  0,
+                                                "opacity":  1,
+                                                "zIndex":  2,
+                                                "locked":  false,
+                                                "content":  "{{rulesText:\"Complete these in order:\\n1. Explore a ruin.\\n2. Defeat a guardian.\\n3. Claim the gate\u0027s treasure.\"}}",
+                                                "textColor":  "#111827",
+                                                "backgroundColor":  "transparent",
+                                                "fontFamily":  "font-sans",
+                                                "fontSize":  "text-sm",
+                                                "fontSizePx":  20,
+                                                "fontWeight":  "font-bold",
+                                                "textAlign":  "left",
+                                                "fontStyle":  "normal",
+                                                "padding":  "p-3",
+                                                "borderWidth":  "_none_",
+                                                "borderRadius":  "rounded-none",
+                                                "minHeight":  "_auto_",
+                                                "imageObjectFit":  "cover",
+                                                "strokeWidth":  2,
+                                                "appearance":  {
+                                                                   "material":  {
+                                                                                    "baseColor":  "rgba(244,226,186,0.92)",
+                                                                                    "textColor":  "#20140a",
+                                                                                    "texture":  {
+                                                                                                    "kind":  "parchment",
+                                                                                                    "intensity":  48,
+                                                                                                    "scale":  11
+                                                                                                }
+                                                                                },
+                                                                   "border":  {
+                                                                                  "kind":  "relic",
+                                                                                  "color":  "#31573d",
+                                                                                  "secondaryColor":  "#d5ad54",
+                                                                                  "width":  4,
+                                                                                  "radius":  8
+                                                                              },
+                                                                   "effects":  {
+                                                                                   "innerHighlight":  26,
+                                                                                   "bevel":  18
+                                                                               }
+                                                               }
+                                            },
+                                            {
+                                                "id":  "quest-title",
+                                                "type":  "text",
+                                                "name":  "Quest Title",
+                                                "x":  72,
+                                                "y":  64,
+                                                "width":  486,
+                                                "height":  58,
+                                                "rotation":  0,
+                                                "opacity":  1,
+                                                "zIndex":  3,
+                                                "locked":  false,
+                                                "content":  "{{cardName:\"THE SUNKEN GATE\"}}",
+                                                "textColor":  "#111827",
+                                                "backgroundColor":  "transparent",
+                                                "fontFamily":  "font-cinzel",
+                                                "fontSize":  "text-lg",
+                                                "fontSizePx":  20,
+                                                "fontWeight":  "font-bold",
+                                                "textAlign":  "center",
+                                                "fontStyle":  "normal",
+                                                "padding":  "p-2",
+                                                "borderWidth":  "_none_",
+                                                "borderRadius":  "rounded-none",
+                                                "minHeight":  "_auto_",
+                                                "imageObjectFit":  "cover",
+                                                "strokeWidth":  2,
+                                                "appearance":  {
+                                                                   "material":  {
+                                                                                    "baseColor":  "#161008",
+                                                                                    "textColor":  "#f7df9d",
+                                                                                    "texture":  {
+                                                                                                    "kind":  "etched",
+                                                                                                    "intensity":  32,
+                                                                                                    "scale":  9
+                                                                                                }
+                                                                                },
+                                                                   "border":  {
+                                                                                  "kind":  "double",
+                                                                                  "color":  "#d5ad54",
+                                                                                  "width":  2,
+                                                                                  "radius":  8
+                                                                              }
+                                                               }
+                                            },
+                                            {
+                                                "id":  "quest-reward",
+                                                "type":  "text",
+                                                "name":  "Reward",
+                                                "x":  142,
+                                                "y":  742,
+                                                "width":  346,
+                                                "height":  42,
+                                                "rotation":  0,
+                                                "opacity":  1,
+                                                "zIndex":  3,
+                                                "locked":  false,
+                                                "content":  "{{reward:\"Reward: Create two relic tokens.\"}}",
+                                                "textColor":  "#111827",
+                                                "backgroundColor":  "transparent",
+                                                "fontFamily":  "font-sans",
+                                                "fontSize":  "text-xs",
+                                                "fontSizePx":  20,
+                                                "fontWeight":  "font-semibold",
+                                                "textAlign":  "center",
+                                                "fontStyle":  "normal",
+                                                "padding":  "p-2",
+                                                "borderWidth":  "_none_",
+                                                "borderRadius":  "rounded-none",
+                                                "minHeight":  "_auto_",
+                                                "imageObjectFit":  "cover",
+                                                "strokeWidth":  2,
+                                                "appearance":  {
+                                                                   "material":  {
+                                                                                    "baseColor":  "#17100b",
+                                                                                    "textColor":  "#f7df9d"
+                                                                                },
+                                                                   "border":  {
+                                                                                  "kind":  "foil",
+                                                                                  "color":  "#d5ad54",
+                                                                                  "secondaryColor":  "#4fb286",
+                                                                                  "width":  2,
+                                                                                  "radius":  999
+                                                                              },
+                                                                   "effects":  {
+                                                                                   "glow":  10
+                                                                               }
+                                                               }
+                                            }
+                                        ]
+                       }
 }

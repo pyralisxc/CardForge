@@ -1,8 +1,8 @@
 
 "use client";
 
-import type { ChangeEvent, ElementType } from 'react';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import type { ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from '@/components/card-forge/Header';
 import { CardTemplateMaker2 } from '@/components/card-forge/CardTemplateMaker2';
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
@@ -20,6 +20,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Cog, Scissors, ArrowLeftRight, BringToFront, Search, Download, SortAsc, PenTool, ArrowUpDown } from 'lucide-react';
+import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Scissors, ArrowLeftRight, BringToFront, Search, Download, PenTool } from 'lucide-react';
 
 import { useAppStore, selectGeneratedDisplayCards, selectEditingCard } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
@@ -45,10 +47,7 @@ export default function CardForgePage() {
 
   // Zustand store selectors
   const templatesFromStore = useAppStore((state) => state.templates);
-  const freeformTemplatesForGenerator = useMemo(
-    () => templatesFromStore.filter(template => template.layoutMode === 'freeform'),
-    [templatesFromStore],
-  );
+  const freeformTemplatesForGenerator = templatesFromStore;
   const appearanceStyles = useAppStore((state) => state.appearanceStyles);
   const storedCards = useAppStore((state) => state.storedCards);
   const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards);
@@ -95,10 +94,6 @@ export default function CardForgePage() {
   const [templatePendingDeleteId, setTemplatePendingDeleteId] = useState<string | null>(null);
   const [isClearCardsDialogOpen, setIsClearCardsDialogOpen] = useState(false);
   const [isZipExporting, setIsZipExporting] = useState(false);
-
-  // Comment: Zustand's `persist` middleware handles loading from localStorage.
-  // The `_rehydrateCallback` in the store handles any post-rehydration logic,
-  // like setting initial template selections. No specific useEffect needed here for that.
 
   useEffect(() => {
     let cancelled = false;
@@ -447,7 +442,7 @@ export default function CardForgePage() {
                 </Button>
               </div>
             ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="lg:col-span-1 space-y-6">
                  <SingleCardGenerator
                     templates={freeformTemplatesForGenerator}
@@ -470,9 +465,15 @@ export default function CardForgePage() {
                         <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSizeAction} />
                         <div className="space-y-3 pt-2 border-t">
                           <Label className="text-md font-medium">PDF Options</Label>
-                          <div className="grid grid-cols-2 gap-3">
+                          <TooltipProvider>
+                    <div className="grid grid-cols-2 gap-3">
                               <div>
-                                  <Label htmlFor="pdfMargin" className="text-xs flex items-center gap-1"><BringToFront className="h-3 w-3"/>Margins (mm)</Label>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Label htmlFor="pdfMargin" className="text-xs flex items-center gap-1 cursor-help"><BringToFront className="h-3 w-3"/>Margins (mm)</Label>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Space from paper edge to first card. Typical: 5–10 mm.</TooltipContent>
+                                  </Tooltip>
                                   <Input
                                       id="pdfMargin"
                                       type="number"
@@ -483,7 +484,12 @@ export default function CardForgePage() {
                                   />
                               </div>
                               <div>
-                                  <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1"><ArrowLeftRight className="h-3 w-3"/>Card Spacing (mm)</Label>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1 cursor-help"><ArrowLeftRight className="h-3 w-3"/>Card Spacing (mm)</Label>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Gap between each card. 0 = no gap, 2–4 mm is typical for cutting.</TooltipContent>
+                                  </Tooltip>
                                   <Input
                                       id="pdfCardSpacing"
                                       type="number"
@@ -494,6 +500,7 @@ export default function CardForgePage() {
                                   />
                               </div>
                           </div>
+                    </TooltipProvider>
                           <div className="flex items-center space-x-2 pt-1">
                               <Switch
                                   id="pdfIncludeCutLines"
@@ -571,17 +578,17 @@ export default function CardForgePage() {
                         className="pl-8 h-8 text-sm w-40"
                       />
                     </div>
-                    <select
-                      value={gallerySort}
-                      onChange={e => setGallerySort(e.target.value as typeof gallerySort)}
-                      className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                      aria-label="Sort gallery"
-                    >
-                      <option value="default">Order added</option>
-                      <option value="name-asc">Name A→Z</option>
-                      <option value="name-desc">Name Z→A</option>
-                      <option value="template">By Template</option>
-                    </select>
+                    <Select value={gallerySort} onValueChange={value => setGallerySort(value as typeof gallerySort)}>
+                      <SelectTrigger className="h-8 text-sm w-36" aria-label="Sort gallery">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Order added</SelectItem>
+                        <SelectItem value="name-asc">Name A→Z</SelectItem>
+                        <SelectItem value="name-desc">Name Z→A</SelectItem>
+                        <SelectItem value="template">By Template</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 {generatedDisplayCards.length === 0 ? (
