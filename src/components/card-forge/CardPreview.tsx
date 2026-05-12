@@ -2,11 +2,13 @@
 "use client";
 
 import type { DisplayCard, CardData, TCGCardTemplate, FreeformCardElement } from '@/types';
-import { cn, replacePlaceholdersLocal, parseRichText } from '@/lib/utils';
+import { cn, replacePlaceholdersLocal } from '@/lib/utils';
 import { appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
+import { buildTextElementStyle, RichTextContent } from '@/lib/textTools';
+import { useAppStore } from '@/store/appStore';
 import * as LucideIcons from 'lucide-react';
 
 interface CardPreviewProps {
@@ -50,48 +52,12 @@ const radiusClassToPixels = (value?: string): string | undefined => {
   }
 };
 
-const legacyFontSizeToPx = (value?: FreeformCardElement['fontSize']): number => {
-  if (value === 'text-xs') return 12;
-  if (value === 'text-sm') return 14;
-  if (value === 'text-base') return 16;
-  if (value === 'text-lg') return 18;
-  if (value === 'text-xl') return 20;
-  if (value === 'text-2xl') return 24;
-  return 14;
-};
-
-const textFontSizePx = (element: Pick<FreeformCardElement, 'fontSize' | 'fontSizePx'>): number =>
-  Math.min(96, Math.max(6, Math.round(Number(element.fontSizePx) || legacyFontSizeToPx(element.fontSize))));
-
 const getFreeformImageUrl = (element: FreeformCardElement, data: CardData, fallbackText: string): string => {
   const source = replacePlaceholdersLocal(element.imageSource || element.content, data, false);
   if (source && (source.startsWith('http') || source.startsWith('data:'))) return source;
   const keyedValue = source ? data[source] : undefined;
   if (typeof keyedValue === 'string' && (keyedValue.startsWith('http') || keyedValue.startsWith('data:'))) return keyedValue;
   return `https://placehold.co/${Math.max(80, Math.round(element.width || 300))}x${Math.max(80, Math.round(element.height || 200))}.png?text=${encodeURIComponent(fallbackText || 'Artwork')}`;
-};
-
-const parseListText = (text: string): { type: 'plain'; text: string } | { type: 'ul' | 'ol'; items: string[] } => {
-  const trimmed = text.trim();
-  if (!trimmed) return { type: 'plain', text };
-
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) {
-      return { type: 'ul', items: parsed.map(item => String(item)) };
-    }
-  } catch {
-    // Not JSON list content; fall through to line parsing.
-  }
-
-  const lines = trimmed.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  if (lines.length > 1 && lines.every(line => /^[-*\u2022]\s+/.test(line))) {
-    return { type: 'ul', items: lines.map(line => line.replace(/^[-*\u2022]\s+/, '')) };
-  }
-  if (lines.length > 1 && lines.every(line => /^\d+[.)]\s+/.test(line))) {
-    return { type: 'ol', items: lines.map(line => line.replace(/^\d+[.)]\s+/, '')) };
-  }
-  return { type: 'plain', text };
 };
 
 const shapeClipPath = (shapeKind?: FreeformCardElement['shapeKind']): string | undefined => {
@@ -103,60 +69,6 @@ const shapeClipPath = (shapeKind?: FreeformCardElement['shapeKind']): string | u
   if (shapeKind === 'corner-frame') return 'polygon(0% 0%, 28% 0%, 28% 6%, 6% 6%, 6% 28%, 0% 28%, 0% 0%, 72% 0%, 100% 0%, 100% 28%, 94% 28%, 94% 6%, 72% 6%, 72% 0%, 100% 72%, 100% 100%, 72% 100%, 72% 94%, 94% 94%, 94% 72%, 100% 72%, 28% 100%, 0% 100%, 0% 72%, 6% 72%, 6% 94%, 28% 94%)';
   return undefined;
 };
-
-function FormattedText({
-  text,
-  className,
-  style,
-}: {
-  text: string;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const parsedText = useMemo(() => parseListText(text), [text]);
-  const richSpans = useMemo(() => {
-    if (parsedText.type !== 'plain') return null;
-    return parseRichText(parsedText.text);
-  }, [parsedText]);
-
-  const content = parsedText.type === 'ol'
-    ? (
-      <ol className="m-0 list-decimal space-y-0.5 pl-4">
-        {parsedText.items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
-      </ol>
-    )
-    : parsedText.type === 'ul'
-      ? (
-        <ul className="m-0 list-disc space-y-0.5 pl-4">
-          {parsedText.items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
-        </ul>
-      )
-      : richSpans
-        ? (
-          <>
-            {richSpans.map((span, i) => {
-              const spanStyle: React.CSSProperties = {};
-              if (span.bold) spanStyle.fontWeight = 'bold';
-              if (span.italic) spanStyle.fontStyle = 'italic';
-              if (span.underline) spanStyle.textDecoration = 'underline';
-              if (span.highlight) spanStyle.backgroundColor = span.highlight;
-              if (span.color) spanStyle.color = span.color;
-              const hasStyle = Object.keys(spanStyle).length > 0;
-              return hasStyle
-                ? <span key={i} style={spanStyle}>{span.text}</span>
-                : span.text;
-            })}
-          </>
-        )
-        : 'text' in parsedText ? parsedText.text : '';
-
-  return (
-    <div className={cn('h-full w-full overflow-hidden leading-[1.18]', parsedText.type === 'plain' && 'whitespace-pre-wrap break-words', className)} style={style}>
-      {content}
-    </div>
-  );
-}
-
 
 export function CardPreview({
   card,
@@ -170,6 +82,7 @@ export function CardPreview({
   onEdit,
   targetWidthPx,
 }: CardPreviewProps) {
+  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
 
   const templateToRender = card.template;
   const dataToRender = card.data;
@@ -506,16 +419,7 @@ export function CardPreview({
         const processedText = replacePlaceholdersLocal(element.content, dataToRender, true);
         const textStyle: React.CSSProperties = {
           ...baseStyle,
-          display: 'flex',
-          alignItems: element.textAlign === 'center' ? 'center' : 'flex-start',
-          justifyContent: element.textAlign === 'center' ? 'center' : element.textAlign === 'right' ? 'flex-end' : 'flex-start',
-          textAlign: element.textAlign || 'left',
-          fontSize: `${textFontSizePx(element) * scaleX}px`,
-          lineHeight: 1.18,
-          fontStyle: element.fontStyle || 'normal',
-          writingMode: element.writingMode || 'horizontal-tb',
-          whiteSpace: 'pre-wrap',
-          overflowWrap: 'break-word',
+          ...buildTextElementStyle(element, scaleX),
         };
         return (
           <div
@@ -524,9 +428,10 @@ export function CardPreview({
             style={textStyle}
             data-freeform-element-id={element.id}
           >
-            <FormattedText
+            <RichTextContent
               text={processedText}
               className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
+              highlightColor={richTextHighlightColor}
             />
           </div>
         );

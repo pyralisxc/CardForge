@@ -73,7 +73,8 @@ import { appearanceToLegacyElementFields, appearanceToStyle, normalizeAppearance
 import { CARD_DIVIDER_ASSETS, SEAMLESS_TEXTURE_ASSETS } from '@/lib/cardAssets';
 import type { CardAssetOption } from '@/lib/cardAssets';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
-import { createDefaultFreeformCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate } from '@/store/appStore';
+import { buildTextElementStyle, RichTextContent, textFontSizePx } from '@/lib/textTools';
+import { createDefaultFreeformCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate, useAppStore } from '@/store/appStore';
 import { useToast } from '@/hooks/use-toast';
 import {
   PREDEFINED_FRAME_VISUAL_PROPERTIES,
@@ -90,14 +91,12 @@ import {
   SHAPE_ROLE_PRESETS,
   TEXT_FRAME_PRESETS,
   ColorField,
-  RichTextContent,
   RichTextToolbar,
   makeNewFreeformTemplate,
   mmConversion,
   borderWidthClassToPixels,
   radiusClassToPixels,
   clamp,
-  textFontSizePx,
   escapeTemplateText,
   unescapeTemplateText,
   parseTextBinding,
@@ -212,6 +211,8 @@ export function CardTemplateMaker2({
   const selectedElement = canvas.elements.find(element => element.id === selectedElementId) || null;
   const gridSize = canvas.gridSize || 20;
   const selectedElementIsDivider = isDividerElement(selectedElement);
+  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
+  const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
   const canUseBackgroundTexture = hasElementCapability(selectedElement, 'texture');
   const canUseTypography = hasElementCapability(selectedElement, 'typography');
   const canUseIconLibrary = hasElementCapability(selectedElement, 'icon');
@@ -977,7 +978,7 @@ export function CardTemplateMaker2({
       Object.assign(baseStyle, structuredAppearanceStyle);
     } else {
       const resolved = replacePlaceholdersLocal(element.content, livePreviewData, true);
-      body = <RichTextContent text={resolved} />;
+      body = <RichTextContent text={resolved} highlightColor={richTextHighlightColor} />;
     }
 
     return (
@@ -992,18 +993,7 @@ export function CardTemplateMaker2({
         )}
         style={{
           ...baseStyle,
-          display: element.type === 'text' ? (element.writingMode && element.writingMode !== 'horizontal-tb' ? 'block' : 'flex') : baseStyle.display,
-          alignItems: element.type === 'text' && !element.writingMode || element.writingMode === 'horizontal-tb' ? (element.textAlign === 'center' ? 'center' : undefined) : undefined,
-          justifyContent: element.type === 'text' && (!element.writingMode || element.writingMode === 'horizontal-tb') ? (element.textAlign === 'right' ? 'flex-end' : element.textAlign === 'center' ? 'center' : 'flex-start') : undefined,
-          textAlign: element.textAlign || 'left',
-          fontSize: element.type === 'text' ? `${textFontSizePx(element)}px` : undefined,
-          lineHeight: element.type === 'text' ? (element.lineHeight || 1.4) : undefined,
-          letterSpacing: element.type === 'text' ? element.letterSpacing : undefined,
-          textTransform: element.type === 'text' ? (element.textTransform as React.CSSProperties['textTransform']) : undefined,
-          textDecoration: element.type === 'text' ? element.textDecoration : undefined,
-          fontStyle: element.fontStyle || 'normal',
-          writingMode: element.writingMode as React.CSSProperties['writingMode'] || undefined,
-          textOrientation: (element.writingMode && element.writingMode !== 'horizontal-tb') ? 'upright' : undefined,
+          ...(element.type === 'text' ? buildTextElementStyle(element) : null),
         }}
         onPointerDown={(event) => handleElementPointerDown(event, element)}
       >
@@ -1953,6 +1943,8 @@ export function CardTemplateMaker2({
                                     <RichTextToolbar
                                       textareaRef={defaultTextareaRef}
                                       value={parseTextBinding(selectedElement.content).fallback}
+                                      highlightColor={richTextHighlightColor}
+                                      onHighlightColorChange={setRichTextHighlightColorAction}
                                       onChange={value => {
                                         const parsed = parseTextBinding(selectedElement.content);
                                         updateElement(selectedElement.id, { content: buildTextBinding(parsed.field || 'text', value) }, false);

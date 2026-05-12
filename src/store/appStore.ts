@@ -257,6 +257,7 @@ interface AppState {
   selectedPaperSize: PaperSize;
   activeTab: string;
   hideEmptySections: boolean;
+  richTextHighlightColor: string;
   singleCardGeneratorSelectedTemplateId: string | null;
 
   pdfMarginMm: number;
@@ -283,6 +284,7 @@ interface AppState {
   setSelectedPaperSize: (size: PaperSize) => void;
   setActiveTab: (tab: string) => void;
   setHideEmptySections: (hide: boolean) => void;
+  setRichTextHighlightColor: (color: string) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean }) => void;
 
@@ -303,6 +305,7 @@ export const useAppStore = create<AppState>()(
         selectedPaperSize: PAPER_SIZES[0],
         activeTab: TABS_CONFIG[0].value,
         hideEmptySections: true,
+        richTextHighlightColor: 'rgba(255,215,0,0.35)',
         singleCardGeneratorSelectedTemplateId: null,
 
         pdfMarginMm: 5,
@@ -474,6 +477,7 @@ export const useAppStore = create<AppState>()(
         setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
         setActiveTab: (tab) => set({ activeTab: tab }),
         setHideEmptySections: (hide) => set({ hideEmptySections: hide }),
+        setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
         setSingleCardGeneratorSelectedTemplateId: (id) => set({ singleCardGeneratorSelectedTemplateId: id }),
         setPdfOptions: (options) => set((state) => ({
           pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,
@@ -512,6 +516,7 @@ export const useAppStore = create<AppState>()(
           selectedPaperSize: state.selectedPaperSize,
           activeTab: state.activeTab,
           hideEmptySections: state.hideEmptySections,
+          richTextHighlightColor: state.richTextHighlightColor,
           singleCardGeneratorSelectedTemplateId: state.singleCardGeneratorSelectedTemplateId,
           pdfMarginMm: state.pdfMarginMm,
           pdfCardSpacingMm: state.pdfCardSpacingMm,
@@ -529,7 +534,7 @@ export const useAppStore = create<AppState>()(
         },
         // Increment this version number whenever the persisted state shape changes.
         // Add a corresponding migration case below to keep existing user data intact.
-        version: 4,
+        version: 5,
         migrate: (persistedState: unknown, fromVersion: number) => {
           const s = persistedState as Record<string, unknown>;
 
@@ -548,6 +553,10 @@ export const useAppStore = create<AppState>()(
           // at app startup, not seeded from a hardcoded in-memory array.
           if (fromVersion < 4) {
             delete s.hasSeededDefaultTemplates;
+          }
+
+          if (fromVersion < 5 || typeof s.richTextHighlightColor !== 'string') {
+            s.richTextHighlightColor = 'rgba(255,215,0,0.35)';
           }
 
           return s;

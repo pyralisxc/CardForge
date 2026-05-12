@@ -8,7 +8,7 @@
  * the main component file focused on rendering and interaction logic.
  */
 
-import { Fragment, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -33,7 +33,8 @@ import {
 } from 'lucide-react';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { parseRichText } from '@/lib/utils';
+import { buildTextBinding, escapeTemplateText, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
+import { textFontSizePx } from '@/lib/textTools';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/store/appStore';
 
 // ─── Frame Visual Properties ──────────────────────────────────────────────────
@@ -746,89 +747,6 @@ export const FONT_CLASS_TO_CSS: Record<string, string> = {
 
 // ─── ColorField Component ─────────────────────────────────────────────────────
 
-// ─── Rich Text Renderer ───────────────────────────────────────────────────────
-
-/** Renders inline spans from parseRichText with proper styles */
-function InlineRich({ text }: { text: string }) {
-  const spans = parseRichText(text);
-  return (
-    <>
-      {spans.map((span, i) => {
-        const s: React.CSSProperties = {};
-        if (span.bold) s.fontWeight = 'bold';
-        if (span.italic) s.fontStyle = 'italic';
-        if (span.underline) s.textDecoration = 'underline';
-        if (span.highlight) s.backgroundColor = span.highlight;
-        if (span.color) s.color = span.color;
-        if (Object.keys(s).length === 0) return <Fragment key={i}>{span.text}</Fragment>;
-        return <span key={i} style={s}>{span.text}</span>;
-      })}
-    </>
-  );
-}
-
-/**
- * RichTextContent — renders a multi-line, list-aware, inline-rich text string
- * for use in the freeform canvas preview. Supports:
- *  - Actual `\n` newlines → line breaks
- *  - Lines starting with `- ` or `• ` → <ul> bullet list
- *  - Lines starting with `N. ` → <ol> numbered list
- *  - **bold**, _italic_, __underline__, ==highlight==, [color:#hex]text[/color]
- */
-export function RichTextContent({ text }: { text: string }) {
-  const lines = text.split('\n');
-  const nodes: React.ReactNode[] = [];
-  let i = 0;
-  let key = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Bullet list
-    if (/^[-•]\s/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^[-•]\s/.test(lines[i])) {
-        items.push(lines[i].slice(2));
-        i++;
-      }
-      nodes.push(
-        <ul key={key++} style={{ listStyleType: 'disc', paddingLeft: '1.3em', margin: '0.15em 0' }}>
-          {items.map((item, j) => <li key={j}><InlineRich text={item} /></li>)}
-        </ul>,
-      );
-      continue;
-    }
-
-    // Numbered list
-    if (/^\d+\.\s/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
-        items.push(lines[i].replace(/^\d+\.\s/, ''));
-        i++;
-      }
-      nodes.push(
-        <ol key={key++} style={{ listStyleType: 'decimal', paddingLeft: '1.3em', margin: '0.15em 0' }}>
-          {items.map((item, j) => <li key={j}><InlineRich text={item} /></li>)}
-        </ol>,
-      );
-      continue;
-    }
-
-    // Empty line → spacer
-    if (line === '') {
-      nodes.push(<span key={key++} style={{ display: 'block', height: '0.5em' }} aria-hidden="true" />);
-      i++;
-      continue;
-    }
-
-    // Normal line
-    nodes.push(<p key={key++} style={{ margin: 0 }}><InlineRich text={line} /></p>);
-    i++;
-  }
-
-  return <>{nodes}</>;
-}
-
 // ─── Rich Text Toolbar ────────────────────────────────────────────────────────
 
 function applyFormat(
@@ -876,10 +794,13 @@ export interface RichTextToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (v: string) => void;
+  highlightColor: string;
+  onHighlightColorChange: (color: string) => void;
 }
 
-export function RichTextToolbar({ textareaRef, value, onChange }: RichTextToolbarProps) {
+export function RichTextToolbar({ textareaRef, value, onChange, highlightColor, onHighlightColorChange }: RichTextToolbarProps) {
   const [colorOpen, setColorOpen] = useState(false);
+  const [highlightOpen, setHighlightOpen] = useState(false);
   const [pickedColor, setPickedColor] = useState('#f5d27b');
 
   const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[#111720] text-[#d8d1c4] hover:border-[#d5ad54] hover:text-[#f5d27b] transition-colors';
@@ -903,6 +824,10 @@ export function RichTextToolbar({ textareaRef, value, onChange }: RichTextToolba
     setColorOpen(false);
   };
 
+  const handleHighlightColor = (value: string) => {
+    onHighlightColorChange(value);
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-1 rounded-[5px] border border-[#252b35] bg-[#0b0f15] px-1.5 py-1">
       <button type="button" className={btn} aria-label="Bold" title="Bold — **text**" onClick={() => handle('**', '**')}>
@@ -915,8 +840,28 @@ export function RichTextToolbar({ textareaRef, value, onChange }: RichTextToolba
         <Underline className="h-3.5 w-3.5" />
       </button>
       <button type="button" className={btn} aria-label="Highlight" title="Highlight — ==text==" onClick={() => handle('==', '==')}>
-        <Highlighter className="h-3.5 w-3.5" />
+        <Highlighter className="h-3.5 w-3.5" style={{ color: highlightColor }} />
       </button>
+      <Popover open={highlightOpen} onOpenChange={setHighlightOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" className={btn} aria-label="Highlight color" title="Global highlight color">
+            <span className="h-3.5 w-3.5 rounded-[2px] border border-[#2d3340]" style={{ backgroundColor: highlightColor }} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2 bg-[#0d1117] border-[#252b35]" side="left" align="start">
+          <HexColorPicker color={highlightColor} onChange={handleHighlightColor} />
+          <input
+            type="text"
+            value={highlightColor}
+            title="Highlight color"
+            onChange={e => {
+              const next = e.target.value;
+              if (/^(rgba?\([^)]*\)|#[0-9a-fA-F]{0,8})$/.test(next) || next === '') handleHighlightColor(next || '#ffd70059');
+            }}
+            className="mt-2 h-7 w-full rounded-[4px] border border-[#2d3340] bg-[#080b10] px-2 text-center font-mono text-xs text-[#d8d1c4] focus:outline-none focus:ring-1 focus:ring-[#d5ad54]"
+          />
+        </PopoverContent>
+      </Popover>
       <div className="h-4 w-px bg-[#2d3340]" />
       <button type="button" className={btn} aria-label="Bullet list" title="Bullet list — - item" onClick={() => handleList('- ')}>
         <List className="h-3.5 w-3.5" />
@@ -1031,36 +976,7 @@ export const radiusClassToPixels = (value?: string): string | undefined => {
 
 export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-export const legacyFontSizeToPx = (value?: FreeformCardElement['fontSize']): number => {
-  if (value === 'text-xs') return 12;
-  if (value === 'text-sm') return 14;
-  if (value === 'text-base') return 16;
-  if (value === 'text-lg') return 18;
-  if (value === 'text-xl') return 20;
-  if (value === 'text-2xl') return 24;
-  return 14;
-};
-
-export const textFontSizePx = (element: Pick<FreeformCardElement, 'fontSize' | 'fontSizePx'>): number =>
-  clamp(Math.round(Number(element.fontSizePx) || legacyFontSizeToPx(element.fontSize)), 6, 96);
-
-export const escapeTemplateText = (value: string): string =>
-  value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');
-
-export const unescapeTemplateText = (value: string): string =>
-  value.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-
-export const parseTextBinding = (content?: string): { field: string; fallback: string } => {
-  const raw = content || '';
-  const match = raw.match(/^\{\{\s*([A-Za-z_][\w.-]*)\s*:\s*"([\s\S]*)"\s*\}\}$/);
-  if (!match) return { field: '', fallback: raw };
-  return { field: match[1], fallback: unescapeTemplateText(match[2]) };
-};
-
-export const buildTextBinding = (field: string, fallback: string): string => {
-  const cleanField = field.trim().replace(/[^\w.-]/g, '');
-  return cleanField ? `{{${cleanField}:"${escapeTemplateText(fallback)}"}}` : fallback;
-};
+export { escapeTemplateText, unescapeTemplateText, parseTextBinding, buildTextBinding };
 
 export const shapeClipPath = (shapeKind?: FreeformCardElement['shapeKind']): string | undefined => {
   if (shapeKind === 'diamond') return 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';

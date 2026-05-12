@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   extractUniquePlaceholderKeys,
   parseCSV,
+  parseRichText,
   replacePlaceholdersLocal,
   simplifyRatio,
   toTitleCase,
 } from '@/lib/utils';
+import { buildTextBinding, parseTextBinding } from '@/lib/textBindings';
 import type { TCGCardTemplate } from '@/types';
 
 describe('utils', () => {
@@ -17,6 +19,25 @@ describe('utils', () => {
     );
 
     expect(result).toBe('Dragon Hoard - Artifact - ');
+  });
+
+  it('preserves multiline text bindings through parse and replacement', () => {
+    const binding = buildTextBinding('rulesText', 'Line one\n==Line two==');
+
+    expect(binding).toBe('{{rulesText:"Line one\\n==Line two=="}}');
+    expect(parseTextBinding(binding)).toEqual({
+      field: 'rulesText',
+      fallback: 'Line one\n==Line two==',
+    });
+    expect(replacePlaceholdersLocal(binding, {}, true)).toBe('Line one\n==Line two==');
+  });
+
+  it('parses highlight spans without stripping surrounding text', () => {
+    expect(parseRichText('Before ==marked== after')).toEqual([
+      { text: 'Before ' },
+      { text: 'marked', highlight: 'rgba(255,215,0,0.35)' },
+      { text: ' after' },
+    ]);
   });
 
   it('extracts unique placeholders from freeform elements and card background', () => {
