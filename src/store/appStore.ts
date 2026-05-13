@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 import type { TCGCardTemplate, PaperSize, DisplayCard, CardData, StoredDisplayCard, FreeformCanvas, FreeformCardElement, AppearanceStylePreset } from '@/types';
 import { PAPER_SIZES, TABS_CONFIG, TCG_ASPECT_RATIO } from '@/lib/constants';
 import { DEFAULT_APPEARANCE_LIBRARY, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
+import type { ExportMode } from '@/lib/printValidation';
 
 
 export const getFreshDefaultTemplateObject = (id?: string | null, nameProp?: string): TCGCardTemplate => {
@@ -263,6 +264,8 @@ interface AppState {
   pdfMarginMm: number;
   pdfCardSpacingMm: number;
   pdfIncludeCutLines: boolean;
+  exportMode: ExportMode;
+  exportDpi: number;
 
   editingCardUniqueId: string | null;
   isEditDialogOpen: boolean;
@@ -287,6 +290,8 @@ interface AppState {
   setRichTextHighlightColor: (color: string) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean }) => void;
+  setExportMode: (mode: ExportMode) => void;
+  setExportDpi: (dpi: number) => void;
 
   openEditDialog: (cardUniqueId: string) => void;
   closeEditDialog: () => void;
@@ -311,6 +316,8 @@ export const useAppStore = create<AppState>()(
         pdfMarginMm: 5,
         pdfCardSpacingMm: 0,
         pdfIncludeCutLines: false,
+        exportMode: 'physical',
+        exportDpi: 300,
 
         editingCardUniqueId: null,
         isEditDialogOpen: false,
@@ -484,6 +491,8 @@ export const useAppStore = create<AppState>()(
           pdfCardSpacingMm: options.spacing !== undefined ? Math.max(0, options.spacing) : state.pdfCardSpacingMm,
           pdfIncludeCutLines: options.cutLines !== undefined ? options.cutLines : state.pdfIncludeCutLines,
         })),
+        setExportMode: (mode) => set({ exportMode: mode }),
+        setExportDpi: (dpi) => set({ exportDpi: Math.min(1200, Math.max(72, Math.round(dpi))) }),
 
         openEditDialog: (cardUniqueId) => set({ editingCardUniqueId: cardUniqueId, isEditDialogOpen: true }),
         closeEditDialog: () => set({ editingCardUniqueId: null, isEditDialogOpen: false }),
@@ -521,6 +530,8 @@ export const useAppStore = create<AppState>()(
           pdfMarginMm: state.pdfMarginMm,
           pdfCardSpacingMm: state.pdfCardSpacingMm,
           pdfIncludeCutLines: state.pdfIncludeCutLines,
+          exportMode: state.exportMode,
+          exportDpi: state.exportDpi,
         }),
         onRehydrateStorage: () => {
           return (state, error) => {
@@ -534,7 +545,7 @@ export const useAppStore = create<AppState>()(
         },
         // Increment this version number whenever the persisted state shape changes.
         // Add a corresponding migration case below to keep existing user data intact.
-        version: 5,
+        version: 7,
         migrate: (persistedState: unknown, fromVersion: number) => {
           const s = persistedState as Record<string, unknown>;
 
@@ -557,6 +568,14 @@ export const useAppStore = create<AppState>()(
 
           if (fromVersion < 5 || typeof s.richTextHighlightColor !== 'string') {
             s.richTextHighlightColor = 'rgba(255,215,0,0.35)';
+          }
+
+          if (fromVersion < 6 || (s.exportMode !== 'physical' && s.exportMode !== 'virtual')) {
+            s.exportMode = 'physical';
+          }
+
+          if (fromVersion < 7 || typeof s.exportDpi !== 'number' || !Number.isFinite(s.exportDpi)) {
+            s.exportDpi = 300;
           }
 
           return s;

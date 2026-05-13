@@ -11,6 +11,8 @@ export const parseTextBinding = (content?: string): { field: string; fallback: s
   return { field: match[1], fallback: unescapeTemplateText(match[2]) };
 };
 
+export const isSimpleTextBinding = (content?: string): boolean => parseTextBinding(content).field.length > 0;
+
 export const buildTextBinding = (field: string, fallback: string): string => {
   const cleanField = field.trim().replace(/[^\w.-]/g, '');
   return cleanField ? `{{${cleanField}:"${escapeTemplateText(fallback)}"}}` : fallback;

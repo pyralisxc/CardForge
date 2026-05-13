@@ -25,9 +25,9 @@
 > Last updated: May 2026. Keep this section current whenever the data model or storage strategy changes.
 
 ### Tech Stack
-- **Framework**: Next.js 14+ (App Router), TypeScript strict
+- **Framework**: Next.js 15+ (App Router), TypeScript strict
 - **UI**: TailwindCSS + shadcn/ui (`src/components/ui/`)
-- **State**: Zustand with `persist` middleware (localStorage, key `card-forge-app-storage-v2`, schema version 4)
+- **State**: Zustand with `persist` middleware (localStorage, key `card-forge-app-storage-v2`, schema version 7)
 - **Canvas**: Freeform pointer-based drag/resize in `CardTemplateMaker2.tsx`
 
 ---
@@ -121,6 +121,9 @@ Templates have **two storage layers** that work together:
 | 2 | Added `storedCards` |
 | 3 | Normalised `frontTemplateId` → `templateId` in stored cards |
 | 4 | Removed `hasSeededDefaultTemplates` — seeding replaced by `data/templates/` API load |
+| 5 | Added shared rich-text highlight color persistence |
+| 6 | Added `exportMode` persistence (`physical` / `virtual`) |
+| 7 | Added `exportDpi` persistence with migration defaults |
 
 ---
 

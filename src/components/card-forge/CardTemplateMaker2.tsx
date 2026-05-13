@@ -97,12 +97,15 @@ import {
   borderWidthClassToPixels,
   radiusClassToPixels,
   clamp,
-  escapeTemplateText,
-  unescapeTemplateText,
-  parseTextBinding,
-  buildTextBinding,
   shapeClipPath,
 } from './makerConstants';
+import {
+  buildTextBinding,
+  escapeTemplateText,
+  isSimpleTextBinding,
+  parseTextBinding,
+  unescapeTemplateText,
+} from '@/lib/textBindings';
 
 interface CardTemplateMaker2Props {
   onSaveTemplate: (template: TCGCardTemplate) => string;
@@ -143,6 +146,7 @@ export function CardTemplateMaker2({
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const dividerAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const defaultTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const expressionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const [assetSearch, setAssetSearch] = useState('');
   const [customTextureAssets, setCustomTextureAssets] = useState<CardAssetOption[]>([]);
@@ -157,6 +161,7 @@ export function CardTemplateMaker2({
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(initialTemplate);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(initialTemplate.freeformCanvas?.elements[0]?.id || null);
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
+  const [textBindingMode, setTextBindingMode] = useState<'field' | 'expression'>('field');
 
   const selectElement = useCallback((id: string | null) => {
     setSelectedElementId(id);
@@ -244,6 +249,11 @@ export function CardTemplateMaker2({
       .filter(asset => asset.allowedTargets.includes('divider'))
       .filter(asset => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customDividerAssets]);
+
+  useEffect(() => {
+    if (!selectedElement || selectedElement.type !== 'text') return;
+    setTextBindingMode(isSimpleTextBinding(selectedElement.content) ? 'field' : 'expression');
+  }, [selectedElement?.content, selectedElement?.id, selectedElement?.type]);
 
   useEffect(() => {
     if (!autoFitCanvas || !stageRef.current) return;
@@ -1925,43 +1935,91 @@ export function CardTemplateMaker2({
                               {selectedElement.type === 'text' ? (
                                 <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
                                   <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Text Data Binding</Label>
-                                  <div>
-                                    <Label htmlFor="element-field-key" className="text-xs">Generator Field</Label>
-                                    <Input
-                                      id="element-field-key"
-                                      className={makerTheme.control}
-                                      placeholder="cardName"
-                                      value={parseTextBinding(selectedElement.content).field}
-                                      onChange={event => {
-                                        const parsed = parseTextBinding(selectedElement.content);
-                                        updateElement(selectedElement.id, { content: buildTextBinding(event.target.value, parsed.fallback) }, false);
-                                      }}
-                                    />
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className={cn(makerTheme.button, textBindingMode === 'field' && 'border-[#d5ad54] text-[#f5d27b]')}
+                                      onClick={() => setTextBindingMode('field')}
+                                    >
+                                      Field Binding
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className={cn(makerTheme.button, textBindingMode === 'expression' && 'border-[#d5ad54] text-[#f5d27b]')}
+                                      onClick={() => setTextBindingMode('expression')}
+                                    >
+                                      Template Expression
+                                    </Button>
                                   </div>
-                                  <div>
-                                    <Label htmlFor="element-default-text" className="text-xs">Default Text</Label>
-                                    <RichTextToolbar
-                                      textareaRef={defaultTextareaRef}
-                                      value={parseTextBinding(selectedElement.content).fallback}
-                                      highlightColor={richTextHighlightColor}
-                                      onHighlightColorChange={setRichTextHighlightColorAction}
-                                      onChange={value => {
-                                        const parsed = parseTextBinding(selectedElement.content);
-                                        updateElement(selectedElement.id, { content: buildTextBinding(parsed.field || 'text', value) }, false);
-                                      }}
-                                    />
-                                    <Textarea
-                                      id="element-default-text"
-                                      ref={defaultTextareaRef}
-                                      value={parseTextBinding(selectedElement.content).fallback}
-                                      onChange={event => {
-                                        const parsed = parseTextBinding(selectedElement.content);
-                                        updateElement(selectedElement.id, { content: buildTextBinding(parsed.field || 'text', event.target.value) }, false);
-                                      }}
-                                      rows={4}
-                                      className="mt-1 font-mono text-xs"
-                                    />
-                                  </div>
+                                  {textBindingMode === 'field' ? (
+                                    <>
+                                      <div>
+                                        <Label htmlFor="element-field-key" className="text-xs">Generator Field</Label>
+                                        <Input
+                                          id="element-field-key"
+                                          className={makerTheme.control}
+                                          placeholder="cardName"
+                                          value={parseTextBinding(selectedElement.content).field}
+                                          onChange={event => {
+                                            const parsed = parseTextBinding(selectedElement.content);
+                                            updateElement(selectedElement.id, { content: buildTextBinding(event.target.value, parsed.fallback) }, false);
+                                          }}
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor="element-default-text" className="text-xs">Default Text</Label>
+                                        <RichTextToolbar
+                                          textareaRef={defaultTextareaRef}
+                                          value={parseTextBinding(selectedElement.content).fallback}
+                                          highlightColor={richTextHighlightColor}
+                                          onHighlightColorChange={setRichTextHighlightColorAction}
+                                          onChange={value => {
+                                            const parsed = parseTextBinding(selectedElement.content);
+                                            updateElement(selectedElement.id, { content: buildTextBinding(parsed.field || 'text', value) }, false);
+                                          }}
+                                        />
+                                        <Textarea
+                                          id="element-default-text"
+                                          ref={defaultTextareaRef}
+                                          value={parseTextBinding(selectedElement.content).fallback}
+                                          onChange={event => {
+                                            const parsed = parseTextBinding(selectedElement.content);
+                                            updateElement(selectedElement.id, { content: buildTextBinding(parsed.field || 'text', event.target.value) }, false);
+                                          }}
+                                          rows={4}
+                                          className="mt-1 font-mono text-xs"
+                                        />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div>
+                                        <Label htmlFor="element-template-expression" className="text-xs">Template Expression</Label>
+                                        <RichTextToolbar
+                                          textareaRef={expressionTextareaRef}
+                                          value={selectedElement.content || ''}
+                                          highlightColor={richTextHighlightColor}
+                                          onHighlightColorChange={setRichTextHighlightColorAction}
+                                          onChange={value => updateElement(selectedElement.id, { content: value }, false)}
+                                        />
+                                        <Textarea
+                                          id="element-template-expression"
+                                          ref={expressionTextareaRef}
+                                          value={selectedElement.content || ''}
+                                          onChange={event => updateElement(selectedElement.id, { content: event.target.value }, false)}
+                                          rows={6}
+                                          className="mt-1 font-mono text-xs"
+                                        />
+                                      </div>
+                                      <p className="text-[10px] text-[#8f95a3]">
+                                        Mix static text and placeholder tokens in one sentence, then fill them from generator fields.
+                                      </p>
+                                    </>
+                                  )}
                                 </div>
                               ) : (
                                 <>

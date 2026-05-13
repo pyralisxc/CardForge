@@ -4,8 +4,10 @@ A professional-grade Trading Card Game design tool. Build layered card templates
 
 ## Features
 
-- **Template Editor** - Create layered TCG templates with custom rows, columns, fonts, borders, and background images
+- **Template Editor** - Create layered freeform TCG templates with text, image, shape, icon, font, border, and background controls
 - **Card Generator** - Fill in cards manually one at a time, or import a CSV to generate an entire set at once
+- **Bulk Validation Tools** - Auto-mapping, advanced mapping overrides, preview warnings, and optional strict-mode gating
+- **Export Profiles** - Physical Print and Virtual Export modes with configurable DPI and preflight checks
 - **PDF Export** - Print-ready export with configurable margins, card spacing, and optional cut lines
 
 ## Tech Stack
@@ -80,11 +82,10 @@ Then open **http://<your-ip>:9002** on any device on the network, for example `h
 
 ```bash
 npm run dev        # Local dev server on http://localhost:9002
-npm run build      # Production build, including type and lint validation
-npm run start      # Serve the production build locally
+npm run build      # Production build
 npm run lint       # Lint the codebase
 npm run typecheck  # TypeScript type-check (no emit)
-npm run test       # Unit tests
+npm run test:watch # Unit tests (Vitest watch mode)
 npm run smoke      # Browser smoke test against the local app
 ```
 

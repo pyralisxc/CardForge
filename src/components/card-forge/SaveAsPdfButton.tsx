@@ -11,6 +11,7 @@ import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 import { CardPreview } from './CardPreview';
+import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/lib/printValidation';
 
 interface SaveAsPdfButtonProps {
   generatedDisplayCards: DisplayCard[];
@@ -18,6 +19,8 @@ interface SaveAsPdfButtonProps {
   pdfMarginMm: number;
   pdfCardSpacingMm: number;
   pdfIncludeCutLines: boolean;
+  exportMode: ExportMode;
+  exportDpi: number;
   disabled?: boolean;
   templateName?: string;
 }
@@ -28,6 +31,8 @@ export function SaveAsPdfButton({
   pdfMarginMm,
   pdfCardSpacingMm,
   pdfIncludeCutLines,
+  exportMode,
+  exportDpi,
   disabled = false,
   templateName,
 }: SaveAsPdfButtonProps) {
@@ -37,7 +42,8 @@ export function SaveAsPdfButton({
   const renderCardForCanvas = async (
     card: DisplayCard,
     renderContainer: HTMLDivElement,
-    mountedRoots: Root[]
+    mountedRoots: Root[],
+    targetWidthPx: number
   ): Promise<HTMLDivElement | null> => {
     const templateToRender = card.template;
     
@@ -51,7 +57,7 @@ export function SaveAsPdfButton({
       key: `pdf-preview-${card.uniqueId}`, 
       card: card,
       isPrintMode: true,
-      targetWidthPx: 744,  // ~300 DPI at 63mm standard TCG width
+      targetWidthPx,
       className: `pdf-render-card`
     });
     
@@ -81,7 +87,39 @@ export function SaveAsPdfButton({
       return;
     }
     setIsLoadingPdf(true);
-    toast({ title: "Generating PDF...", description: "This may take a moment for many cards." });
+
+    const exportProfile = getExportProfile(exportMode, exportDpi);
+    const criticalIssues = new Set<string>();
+    const warningIssues = new Set<string>();
+
+    generatedDisplayCards.forEach((card) => {
+      const validation = validateCardExportQuality(card, exportMode);
+      validation.critical.forEach((issue) => criticalIssues.add(issue));
+      validation.warnings.forEach((issue) => warningIssues.add(issue));
+    });
+
+    if (criticalIssues.size > 0) {
+      toast({
+        title: "Export Blocked by Quality Checks",
+        description: Array.from(criticalIssues).slice(0, 2).join(' '),
+        variant: "destructive",
+      });
+      setIsLoadingPdf(false);
+      return;
+    }
+
+    if (warningIssues.size > 0) {
+      toast({
+        title: "Export Quality Warnings",
+        description: Array.from(warningIssues).slice(0, 2).join(' '),
+        duration: 7000,
+      });
+    }
+
+    toast({
+      title: "Generating PDF...",
+      description: `Using ${exportProfile.label} profile (${exportProfile.dpi} DPI target).`,
+    });
 
     const tempRenderContainer = document.createElement('div');
     tempRenderContainer.style.position = 'absolute';
@@ -144,7 +182,7 @@ export function SaveAsPdfButton({
           currentRowMaxHeightMm = 0;
         }
         if (currentY + cardHeightMm > effectivePrintableHeightMm + pdfMarginMm - (pdfCardSpacingMm > 0 ? 0 : pdfCardSpacingMm) && cardsOnCurrentPage.length > 0) {
-          await processPage(pdf, cardsOnCurrentPage, tempRenderContainer, mountedRoots);
+          await processPage(pdf, cardsOnCurrentPage, tempRenderContainer, mountedRoots, exportProfile.renderWidthPx, exportProfile.canvasPixelRatio);
           cardsOnCurrentPage = []; 
           pdf.addPage();
           currentX = pdfMarginMm;
@@ -157,7 +195,7 @@ export function SaveAsPdfButton({
       }
 
       if (cardsOnCurrentPage.length > 0) {
-        await processPage(pdf, cardsOnCurrentPage, tempRenderContainer, mountedRoots);
+        await processPage(pdf, cardsOnCurrentPage, tempRenderContainer, mountedRoots, exportProfile.renderWidthPx, exportProfile.canvasPixelRatio);
       }
 
       const safeName = (templateName || generatedDisplayCards[0]?.template?.name || 'tcg-cards')
@@ -184,7 +222,9 @@ export function SaveAsPdfButton({
     pdf: jsPDF, 
     pageCards: { card: DisplayCard, x: number, y: number, w: number, h: number }[],
     renderContainer: HTMLDivElement,
-    mountedRoots: Root[]
+    mountedRoots: Root[],
+    targetWidthPx: number,
+    canvasPixelRatio: number
   ) {
     mountedRoots.splice(0).forEach((root) => root.unmount());
     while (renderContainer.firstChild) {
@@ -192,10 +232,10 @@ export function SaveAsPdfButton({
     }
 
     for (const { card, x, y, w, h } of pageCards) {
-      const cardElement = await renderCardForCanvas(card, renderContainer, mountedRoots);
+      const cardElement = await renderCardForCanvas(card, renderContainer, mountedRoots, targetWidthPx);
       if (cardElement) {
         try {
-            const canvas = await toCanvas(cardElement, { pixelRatio: 3, skipFonts: false, fetchRequestInit: { mode: 'cors' } });
+            const canvas = await toCanvas(cardElement, { pixelRatio: canvasPixelRatio, skipFonts: false, fetchRequestInit: { mode: 'cors' } });
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
             if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
         } catch (e) {

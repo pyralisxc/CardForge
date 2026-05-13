@@ -2,7 +2,7 @@
 "use client";
 
 import type { DisplayCard, CardData, TCGCardTemplate, FreeformCardElement } from '@/types';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils';
+import { cn, getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/lib/utils';
 import { appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { useMemo } from 'react';
@@ -53,10 +53,16 @@ const radiusClassToPixels = (value?: string): string | undefined => {
 };
 
 const getFreeformImageUrl = (element: FreeformCardElement, data: CardData, fallbackText: string): string => {
+  const imageFieldKey = getImageFieldKeyForElement(element);
+  const keyedFieldValue = data[imageFieldKey];
+  if (typeof keyedFieldValue === 'string' && (keyedFieldValue.startsWith('http') || keyedFieldValue.startsWith('data:') || keyedFieldValue.startsWith('blob:') || keyedFieldValue.startsWith('/'))) {
+    return keyedFieldValue;
+  }
+
   const source = replacePlaceholdersLocal(element.imageSource || element.content, data, false);
-  if (source && (source.startsWith('http') || source.startsWith('data:'))) return source;
+  if (source && (source.startsWith('http') || source.startsWith('data:') || source.startsWith('blob:') || source.startsWith('/'))) return source;
   const keyedValue = source ? data[source] : undefined;
-  if (typeof keyedValue === 'string' && (keyedValue.startsWith('http') || keyedValue.startsWith('data:'))) return keyedValue;
+  if (typeof keyedValue === 'string' && (keyedValue.startsWith('http') || keyedValue.startsWith('data:') || keyedValue.startsWith('blob:') || keyedValue.startsWith('/'))) return keyedValue;
   return `https://placehold.co/${Math.max(80, Math.round(element.width || 300))}x${Math.max(80, Math.round(element.height || 200))}.png?text=${encodeURIComponent(fallbackText || 'Artwork')}`;
 };
 

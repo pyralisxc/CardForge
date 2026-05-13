@@ -1,6 +1,6 @@
 {
   "id": "default-emberclaw-hd-freeform",
-  "name": "Ember-Claw",
+  "name": "Smoke Freeform Template",
   "aspectRatio": "69.85:95.25",
   "frameStyle": "minimal-dark",
   "cardBorderWidth": "2px",
@@ -980,6 +980,85 @@
             "overlayOpacity": 100
           }
         }
+      },
+      {
+        "id": "9xBQGDnjfQWLIgD3KjFAy",
+        "type": "text",
+        "name": "Text Layer",
+        "x": 82,
+        "y": 82,
+        "width": 260,
+        "height": 72,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 11,
+        "locked": false,
+        "content": "{{newText:\"New Text\"}}",
+        "textColor": "#221407",
+        "backgroundColor": "rgba(235,211,159,0.96)",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontSizePx": 16,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderColor": "#5a3410",
+        "borderWidth": "border-4",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "rgba(235,211,159,0.96)",
+        "strokeColor": "#5a3410",
+        "strokeWidth": 4,
+        "appearance": {
+          "material": {
+            "baseColor": "rgba(235,211,159,0.96)",
+            "textColor": "#221407",
+            "gradient": {
+              "type": "linear",
+              "angle": 180,
+              "stops": [
+                {
+                  "id": "a",
+                  "color": "#fff6d8",
+                  "position": 0,
+                  "opacity": 0.96
+                },
+                {
+                  "id": "b",
+                  "color": "#c69343",
+                  "position": 100,
+                  "opacity": 0.36
+                }
+              ]
+            },
+            "texture": {
+              "kind": "uploaded",
+              "imageSource": "/card-assets/textures/parchment-grain.svg",
+              "assetSource": "/card-assets/textures/parchment-grain.svg",
+              "assetKind": "texture",
+              "intensity": 55,
+              "scale": 8,
+              "textureOpacity": 42,
+              "textureScale": 160,
+              "blendMode": "multiply"
+            }
+          },
+          "border": {
+            "kind": "relic",
+            "color": "#5a3410",
+            "secondaryColor": "#d5ad54",
+            "width": 4,
+            "radius": 6,
+            "innerWidth": 1
+          },
+          "effects": {
+            "innerHighlight": 35,
+            "bevel": 25
+          }
+        },
+        "backgroundImageUrl": "url(/card-assets/textures/parchment-grain.svg), linear-gradient(180deg, rgba(255,246,216,0.96) 0%, rgba(198,147,67,0.36) 100%)"
       }
     ]
   }

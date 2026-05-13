@@ -2,7 +2,8 @@
 "use client";
 
 import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
-import { extractUniquePlaceholderKeys, toTitleCase } from '@/lib/utils';
+import { toTitleCase } from '@/lib/utils';
+import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/lib/templateFields';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,14 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Upload, Layers } from 'lucide-react';
 import { CardPreview } from '@/components/card-forge/CardPreview';
-
-interface DynamicField {
-  key: string;
-  label: string;
-  type: 'input' | 'textarea';
-  isImageKey: boolean;
-  defaultValue?: string;
-}
+import { RichTextToolbar } from '@/components/card-forge/makerConstants';
+import { useAppStore } from '@/store/appStore';
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
@@ -40,10 +35,13 @@ export function SingleCardGenerator({
 }: SingleCardGeneratorProps) {
   // Local state for the form fields and data for the single card being generated.
   const [cardData, setCardData] = useState<CardData>({});
-  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
+  const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>([]);
   
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const textAreaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
+  const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
 
   // selectedTemplate is derived from selectedTemplateIdProp (from Zustand) and templates prop.
   const selectedTemplate = useMemo(() => {
@@ -51,44 +49,26 @@ export function SingleCardGenerator({
   }, [templates, selectedTemplateIdProp]);
 
 
-  const generateDynamicFields = useCallback((template: TCGCardTemplate | undefined, currentData: CardData): [DynamicField[], CardData] => {
+  const generateDynamicFields = useCallback((template: TCGCardTemplate | undefined, currentData: CardData): [TemplateFieldDefinition[], CardData] => {
     if (!template) return [[], {}];
 
-    const extractedPlaceholders = extractUniquePlaceholderKeys(template);
+    const extractedFields = extractTemplateFieldDefinitions(template);
     const newCardDataState: CardData = {};
     
-    const fields: DynamicField[] = extractedPlaceholders.map(placeholder => {
-      const isImageSectionKey = !!template.freeformCanvas?.elements?.some(element =>
-          element.type === 'image' &&
-          (element.imageSource === placeholder.key || element.content === placeholder.key)
-      );
-      const isTextarea = !isImageSectionKey && (
-          placeholder.key.toLowerCase().includes('rules') ||
-          placeholder.key.toLowerCase().includes('text') ||
-          placeholder.key.toLowerCase().includes('effect') ||
-          placeholder.key.toLowerCase().includes('abilit') ||
-          placeholder.key.toLowerCase().includes('description')
-      );
-
-      let initialValue: string | number | undefined = currentData[placeholder.key];
-      if (initialValue === undefined && placeholder.defaultValue !== undefined) {
-        initialValue = placeholder.defaultValue;
+    const fields: TemplateFieldDefinition[] = extractedFields.map(field => {
+      let initialValue: string | number | undefined = currentData[field.key];
+      if (initialValue === undefined && field.defaultValue !== undefined) {
+        initialValue = field.defaultValue;
       }
-      if (isImageSectionKey && (initialValue === undefined || String(initialValue).trim() === '' || String(initialValue).trim() === `{{${placeholder.key}}}`)) {
-         initialValue = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(placeholder.key))}`;
+      if (field.isImage && (initialValue === undefined || String(initialValue).trim() === '' || String(initialValue).trim() === `{{${field.key}}}`)) {
+         initialValue = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
       }
       if (initialValue === undefined) {
         initialValue = '';
       }
-      newCardDataState[placeholder.key] = initialValue;
+      newCardDataState[field.key] = initialValue;
 
-      return {
-        key: placeholder.key,
-        label: toTitleCase(placeholder.key),
-        type: isTextarea ? 'textarea' : 'input',
-        isImageKey: isImageSectionKey,
-        defaultValue: placeholder.defaultValue,
-      };
+      return field;
     });
     return [fields, newCardDataState];
   }, []);
@@ -141,7 +121,7 @@ export function SingleCardGenerator({
         const currentValue = finalCardData[field.key];
         if (currentValue === undefined || String(currentValue).trim() === '' || String(currentValue).trim() === `{{${field.key}}}`) {
           if (field.defaultValue !== undefined) finalCardData[field.key] = field.defaultValue;
-          else if (field.isImageKey) finalCardData[field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
+          else if (field.isImage) finalCardData[field.key] = `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(field.key))}`;
           else finalCardData[field.key] = '';
         }
     });
@@ -168,7 +148,7 @@ export function SingleCardGenerator({
 
 
   const renderFields = (
-    fields: DynamicField[],
+    fields: TemplateFieldDefinition[],
     data: CardData,
     fileRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
   ) => {
@@ -181,27 +161,42 @@ export function SingleCardGenerator({
     return fields.map(field => (
       <div key={field.key} className="space-y-1">
         <Label htmlFor={`singleCard-${field.key}`}>
-          {field.label} {field.isImageKey ? '(Image URL or Upload)' : ''}
+          {field.label} {field.isImage ? '(Image URL or Upload)' : ''}
         </Label>
-        <div className={field.isImageKey ? "flex items-center gap-2" : ""}>
-          {field.type === 'textarea' ? (
+        {field.editor === 'rich-textarea' && (
+          <RichTextToolbar
+            textareaRef={{
+              current: textAreaRefs.current[field.key],
+            }}
+            value={(data[field.key] as string) || ''}
+            onChange={(value) => setCardData(prev => ({ ...prev, [field.key]: value }))}
+            highlightColor={richTextHighlightColor}
+            onHighlightColorChange={setRichTextHighlightColorAction}
+          />
+        )}
+        <div className={field.isImage ? "flex items-center gap-2" : ""}>
+          {field.control === 'textarea' ? (
             <Textarea
               id={`singleCard-${field.key}`}
+              ref={(el) => {
+                textAreaRefs.current[field.key] = el;
+              }}
               value={(data[field.key] as string) || ''}
               onChange={(e) => handleInputChange(e, field.key)}
-              placeholder={`Enter value for ${field.key}...`}
-              rows={3}
+              placeholder={field.supportsRichText ? `Enter value for ${field.key}... Rich text markers like ==highlight== are supported.` : `Enter value for ${field.key}...`}
+              rows={field.editor === 'rich-textarea' ? 5 : 3}
+              className={field.editor === 'rich-textarea' ? 'font-mono text-xs' : undefined}
             />
           ) : (
             <Input
               id={`singleCard-${field.key}`}
               value={(data[field.key] as string) || ''}
               onChange={(e) => handleInputChange(e, field.key)}
-              placeholder={field.isImageKey ? `URL or Data URI for ${field.key}` : `Enter value for ${field.key}...`}
-              className={field.isImageKey ? "flex-grow" : ""}
+              placeholder={field.isImage ? `URL or Data URI for ${field.key}` : `Enter value for ${field.key}...`}
+              className={field.isImage ? "flex-grow" : ""}
             />
           )}
-          {field.isImageKey && (
+          {field.isImage && (
             <>
               <Button
                 type="button"
@@ -227,6 +222,9 @@ export function SingleCardGenerator({
             </>
           )}
         </div>
+        {field.helperText && (
+          <p className="text-xs text-muted-foreground">{field.helperText}</p>
+        )}
       </div>
     ));
   };

@@ -41,6 +41,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 
 import { nanoid } from 'nanoid';
+import { getExportProfile, type ExportMode } from '@/lib/printValidation';
 
 export default function CardForgePage() {
   const { toast } = useToast();
@@ -62,6 +63,8 @@ export default function CardForgePage() {
   const pdfMarginMm = useAppStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useAppStore((state) => state.pdfCardSpacingMm);
   const pdfIncludeCutLines = useAppStore((state) => state.pdfIncludeCutLines);
+  const exportMode = useAppStore((state) => state.exportMode);
+  const exportDpi = useAppStore((state) => state.exportDpi);
   const editingCardFromStore = useAppStore(selectEditingCard);
   const isEditDialogOpen = useAppStore((state) => state.isEditDialogOpen);
   
@@ -82,6 +85,8 @@ export default function CardForgePage() {
   const setHideEmptySectionsAction = useAppStore((state) => state.setHideEmptySections);
   const setSingleCardGeneratorSelectedTemplateIdAction = useAppStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
   const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
+  const setExportModeAction = useAppStore((state) => state.setExportMode);
+  const setExportDpiAction = useAppStore((state) => state.setExportDpi);
   const openEditDialogAction = useAppStore((state) => state.openEditDialog);
   const closeEditDialogAction = useAppStore((state) => state.closeEditDialog);
 
@@ -308,6 +313,7 @@ export default function CardForgePage() {
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: generatedDisplayCards.length });
     try {
+      const exportProfile = getExportProfile(exportMode, exportDpi);
       const JSZip = (await import('jszip')).default;
       const html2canvas = (await import('html2canvas')).default;
       const zip = new JSZip();
@@ -319,18 +325,23 @@ export default function CardForgePage() {
         container.style.position = 'fixed';
         container.style.left = '-9999px';
         container.style.top = '-9999px';
-        container.style.width = '280px';
+        container.style.width = `${exportProfile.renderWidthPx}px`;
         document.body.appendChild(container);
 
         const { createRoot } = await import('react-dom/client');
         const { createElement } = await import('react');
         const { CardPreview } = await import('@/components/card-forge/CardPreview');
         const root = createRoot(container);
-        root.render(createElement(CardPreview, { card, targetWidthPx: 280, isPrintMode: true }));
+        root.render(createElement(CardPreview, { card, targetWidthPx: exportProfile.renderWidthPx, isPrintMode: true }));
 
         await new Promise(r => setTimeout(r, 120));
 
-        const canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false, backgroundColor: null });
+        const canvas = await html2canvas(container, {
+          scale: exportProfile.canvasPixelRatio,
+          useCORS: true,
+          logging: false,
+          backgroundColor: null,
+        });
         root.unmount();
         document.body.removeChild(container);
 
@@ -349,14 +360,17 @@ export default function CardForgePage() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast({ title: 'ZIP Exported', description: `${generatedDisplayCards.length} cards saved to card-set.zip` });
+      toast({
+        title: 'ZIP Exported',
+        description: `${generatedDisplayCards.length} cards saved to card-set.zip using ${exportProfile.label} profile.`,
+      });
     } catch (err) {
       toast({ title: 'Export Failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
       setZipProgress(null);
     }
-  }, [generatedDisplayCards, toast]);
+  }, [exportDpi, exportMode, generatedDisplayCards, toast]);
 
   const handleMobileMenuSelect = useCallback((tabValue: string) => {
     setActiveTabAction(tabValue);
@@ -464,6 +478,40 @@ export default function CardForgePage() {
                     <CardContent className="space-y-4">
                         <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSizeAction} />
                         <div className="space-y-3 pt-2 border-t">
+                          <div className="space-y-1">
+                            <Label htmlFor="exportMode" className="text-md font-medium">Export Profile</Label>
+                            <Select
+                              value={exportMode}
+                              onValueChange={(value) => setExportModeAction(value as ExportMode)}
+                            >
+                              <SelectTrigger id="exportMode" className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="physical">Physical Print (300 DPI, strict checks)</SelectItem>
+                                <SelectItem value="virtual">Virtual Export (faster, warning-first)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Physical mode is recommended for print companies. Virtual mode is optimized for digital sharing.
+                            </p>
+                            <div className="space-y-1">
+                              <Label htmlFor="exportDpi" className="text-xs">Export DPI</Label>
+                              <Select
+                                value={String(exportDpi)}
+                                onValueChange={(value) => setExportDpiAction(parseInt(value, 10))}
+                              >
+                                <SelectTrigger id="exportDpi" className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="150">150 DPI</SelectItem>
+                                  <SelectItem value="300">300 DPI (industry standard)</SelectItem>
+                                  <SelectItem value="600">600 DPI</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
                           <Label className="text-md font-medium">PDF Options</Label>
                           <TooltipProvider>
                     <div className="grid grid-cols-2 gap-3">
@@ -539,6 +587,8 @@ export default function CardForgePage() {
                               pdfMarginMm={pdfMarginMm}
                               pdfCardSpacingMm={pdfCardSpacingMm}
                               pdfIncludeCutLines={pdfIncludeCutLines}
+                              exportMode={exportMode}
+                              exportDpi={exportDpi}
                               disabled={generatedDisplayCards.length === 0}
                               templateName={generatedDisplayCards[0]?.template?.name}
                             />
@@ -626,7 +676,7 @@ export default function CardForgePage() {
                             onEdit={handleEditCardRequest}
                           />
                           <div className="absolute bottom-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
-                            <ExportCardImageButton card={cardItem} />
+                            <ExportCardImageButton card={cardItem} exportMode={exportMode} exportDpi={exportDpi} />
                           </div>
                         </div>
                       ))}

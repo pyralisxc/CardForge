@@ -1,0 +1,81 @@
+import { describe, expect, it } from 'vitest';
+
+import { getExportProfile, validateCardExportQuality } from '@/lib/printValidation';
+import type { DisplayCard, TCGCardTemplate } from '@/types';
+
+const baseTemplate: TCGCardTemplate = {
+  id: 'template-1',
+  name: 'Template',
+  aspectRatio: '63:88',
+  freeformCanvas: {
+    width: 630,
+    height: 880,
+    elements: [
+      {
+        id: 'text-1',
+        type: 'text',
+        name: 'Rules',
+        x: 10,
+        y: 10,
+        width: 300,
+        height: 120,
+        zIndex: 1,
+        content: '{{rulesText:"Deal 1 damage."}}',
+        fontFamily: 'font-sans',
+      },
+      {
+        id: 'image-1',
+        type: 'image',
+        name: 'Artwork',
+        x: 10,
+        y: 150,
+        width: 300,
+        height: 300,
+        zIndex: 2,
+        content: 'artworkUrl',
+        imageSource: 'artworkUrl',
+      },
+    ],
+  },
+};
+
+const makeCard = (data: Record<string, string>): DisplayCard => ({
+  uniqueId: 'card-1',
+  template: baseTemplate,
+  data,
+});
+
+describe('print validation', () => {
+  it('provides profile defaults for physical and virtual exports', () => {
+    expect(getExportProfile('physical')).toMatchObject({ dpi: 300, renderWidthPx: 744, canvasPixelRatio: 3 });
+    expect(getExportProfile('virtual')).toMatchObject({ dpi: 150, renderWidthPx: 372, canvasPixelRatio: 2 });
+  });
+
+  it('supports configurable dpi while preserving profile semantics', () => {
+    expect(getExportProfile('physical', 600)).toMatchObject({ dpi: 600, canvasPixelRatio: 3 });
+    expect(getExportProfile('virtual', 96)).toMatchObject({ dpi: 96, canvasPixelRatio: 1 });
+  });
+
+  it('blocks physical exports when placeholders are used', () => {
+    const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://placehold.co/600x400.png?text=Artwork' });
+    const validation = validateCardExportQuality(card, 'physical');
+
+    expect(validation.critical.some((message) => message.includes('placeholder'))).toBe(true);
+  });
+
+  it('downgrades placeholder checks to warnings in virtual mode', () => {
+    const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://placehold.co/600x400.png?text=Artwork' });
+    const validation = validateCardExportQuality(card, 'virtual');
+
+    expect(validation.critical.some((message) => message.includes('placeholder'))).toBe(false);
+    expect(validation.warnings.some((message) => message.includes('placeholder'))).toBe(true);
+  });
+
+  it('treats missing required text fields as warnings, not blockers', () => {
+    const card = makeCard({ rulesText: '', artworkUrl: 'https://example.com/image.png' });
+    const validation = validateCardExportQuality(card, 'physical');
+
+    expect(validation.critical.some((message) => message.includes('Missing required field'))).toBe(false);
+    expect(validation.warnings.some((message) => message.includes('Missing required field'))).toBe(true);
+  });
+});

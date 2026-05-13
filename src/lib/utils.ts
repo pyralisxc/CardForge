@@ -1,7 +1,7 @@
 
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { TCGCardTemplate, CardData } from "@/types";
+import type { TCGCardTemplate, CardData, FreeformCardElement } from "@/types";
 import { TCG_ASPECT_RATIO } from "@/lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
@@ -11,6 +11,54 @@ export function cn(...inputs: ClassValue[]) {
 export interface ExtractedPlaceholder {
   key: string;
   defaultValue?: string;
+}
+
+const PLACEHOLDER_REGEX = /\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
+
+const STATIC_IMAGE_SOURCE_PREFIXES = ['http://', 'https://', 'data:', 'blob:', 'css:', 'linear-gradient', 'radial-gradient', '/'];
+
+const isStaticImageSource = (value: string): boolean => {
+  const lower = value.toLowerCase();
+  return STATIC_IMAGE_SOURCE_PREFIXES.some((prefix) => lower.startsWith(prefix));
+};
+
+const sanitizeImageFieldPart = (value: string): string => {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+};
+
+export function getBoundImageFieldKey(element: Pick<FreeformCardElement, 'imageSource' | 'content'>): string | undefined {
+  const candidates = [element.imageSource, element.content];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+
+    PLACEHOLDER_REGEX.lastIndex = 0;
+    const placeholderMatch = PLACEHOLDER_REGEX.exec(candidate);
+    if (placeholderMatch?.[1]) {
+      return placeholderMatch[1].trim();
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed || isStaticImageSource(trimmed)) continue;
+    if (/^[\w-]+$/.test(trimmed)) return trimmed;
+  }
+
+  return undefined;
+}
+
+export function deriveImageFieldKey(element: Pick<FreeformCardElement, 'id' | 'name'>): string {
+  const namePart = sanitizeImageFieldPart(element.name || 'image');
+  const idPart = sanitizeImageFieldPart(element.id || 'layer');
+  return `image_${namePart || 'image'}_${idPart || 'layer'}`;
+}
+
+export function getImageFieldKeyForElement(
+  element: Pick<FreeformCardElement, 'id' | 'name' | 'imageSource' | 'content'>
+): string {
+  return getBoundImageFieldKey(element) || deriveImageFieldKey(element);
 }
 
 /**
@@ -26,13 +74,12 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
   if (!template) return [];
 
   const placeholderMap = new Map<string, ExtractedPlaceholder>();
-  const placeholderRegex = /\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g; // For text placeholders
 
   const processStringForPlaceholders = (str: string | undefined) => {
     if (!str) return;
     let match;
-    placeholderRegex.lastIndex = 0; 
-    while ((match = placeholderRegex.exec(str)) !== null) {
+    PLACEHOLDER_REGEX.lastIndex = 0;
+    while ((match = PLACEHOLDER_REGEX.exec(str)) !== null) {
       const key = match[1].trim();
       const defaultValue = match[2] !== undefined
         ? match[2].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
@@ -49,9 +96,14 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
   template.freeformCanvas?.elements?.forEach(element => {
     if (element.type === 'image') {
       const source = element.imageSource || element.content;
-      if (source && !source.startsWith('http') && !source.startsWith('data:') && !source.includes('{{') && !placeholderMap.has(source)) {
-        placeholderMap.set(source, { key: source });
+
+      const imageFieldKey = getImageFieldKeyForElement(element);
+      const imageFieldExists = placeholderMap.has(imageFieldKey);
+      if (!imageFieldExists) {
+        const defaultValue = source && isStaticImageSource(source.trim()) ? source.trim() : undefined;
+        placeholderMap.set(imageFieldKey, { key: imageFieldKey, defaultValue });
       }
+
       processStringForPlaceholders(source);
     } else {
       processStringForPlaceholders(element.content);

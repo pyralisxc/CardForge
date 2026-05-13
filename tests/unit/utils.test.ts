@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deriveImageFieldKey,
   extractUniquePlaceholderKeys,
+  getBoundImageFieldKey,
+  getImageFieldKeyForElement,
   parseCSV,
   parseRichText,
   replacePlaceholdersLocal,
   simplifyRatio,
   toTitleCase,
 } from '@/lib/utils';
-import { buildTextBinding, parseTextBinding } from '@/lib/textBindings';
+import { buildTextBinding, isSimpleTextBinding, parseTextBinding } from '@/lib/textBindings';
 import type { TCGCardTemplate } from '@/types';
 
 describe('utils', () => {
@@ -30,6 +33,11 @@ describe('utils', () => {
       fallback: 'Line one\n==Line two==',
     });
     expect(replacePlaceholdersLocal(binding, {}, true)).toBe('Line one\n==Line two==');
+  });
+
+  it('detects simple binding strings and ignores full expressions', () => {
+    expect(isSimpleTextBinding('{{rulesText:"Deal 1"}}')).toBe(true);
+    expect(isSimpleTextBinding('When {{keyword:"Flying"}} enters, draw {{cards:"1"}}')).toBe(false);
   });
 
   it('parses highlight spans without stripping surrounding text', () => {
@@ -124,6 +132,59 @@ describe('utils', () => {
       { key: 'cardName', defaultValue: 'Sample' },
       { key: 'artworkUrl' },
       { key: 'frameBg' },
+    ]);
+  });
+
+  it('derives image field keys for placeholder and fixed-source image layers', () => {
+    expect(
+      getBoundImageFieldKey({
+        imageSource: '{{artworkUrl}}',
+        content: undefined,
+      })
+    ).toBe('artworkUrl');
+
+    expect(
+      getImageFieldKeyForElement({
+        id: 'hero-art-layer',
+        name: 'Hero Art',
+        imageSource: 'https://example.com/default-art.png',
+      })
+    ).toBe('image_hero_art_hero_art_layer');
+
+    expect(
+      deriveImageFieldKey({
+        id: 'layer-1',
+        name: 'Frame Art',
+      })
+    ).toBe('image_frame_art_layer_1');
+  });
+
+  it('adds deterministic image placeholders for fixed image layers', () => {
+    const template: TCGCardTemplate = {
+      id: 'template-fixed-image',
+      name: 'Fixed Image',
+      aspectRatio: '63:88',
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'hero-art-layer',
+            type: 'image',
+            name: 'Hero Art',
+            x: 0,
+            y: 60,
+            width: 200,
+            height: 120,
+            zIndex: 1,
+            imageSource: 'https://example.com/default-art.png',
+          },
+        ],
+      },
+    };
+
+    expect(extractUniquePlaceholderKeys(template)).toEqual([
+      { key: 'image_hero_art_hero_art_layer', defaultValue: 'https://example.com/default-art.png' },
     ]);
   });
 

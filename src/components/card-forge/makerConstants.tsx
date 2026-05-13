@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { buildTextBinding, escapeTemplateText, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
+import { buildTextBinding, escapeTemplateText, isSimpleTextBinding, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
 import { textFontSizePx } from '@/lib/textTools';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/store/appStore';
 
@@ -975,8 +975,6 @@ export const radiusClassToPixels = (value?: string): string | undefined => {
 };
 
 export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-export { escapeTemplateText, unescapeTemplateText, parseTextBinding, buildTextBinding };
 
 export const shapeClipPath = (shapeKind?: FreeformCardElement['shapeKind']): string | undefined => {
   if (shapeKind === 'diamond') return 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';

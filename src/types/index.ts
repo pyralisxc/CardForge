@@ -195,8 +195,3 @@ export interface DisplayCard {
   uniqueId: string;
 }
 
-export interface ExtractedPlaceholder {
-  key: string;
-  defaultValue?: string;
-}
-
