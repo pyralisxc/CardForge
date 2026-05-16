@@ -2,6 +2,8 @@
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
 export type FreeformShapeRole = 'basic' | 'panel' | 'artFrame' | 'rulesBox' | 'titlePlate' | 'statGem' | 'costOrb' | 'divider';
+export type GeneratorFieldKind = 'text' | 'richText' | 'rules';
+export type TemplateFieldContractType = GeneratorFieldKind | 'image';
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
 export type AppearanceStyleKind = 'material' | 'textFrame' | 'border' | 'divider' | 'icon' | 'theme';
@@ -131,6 +133,10 @@ export interface FreeformCardElement {
   lineHeight?: string;
   textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
   textDecoration?: 'none' | 'underline' | 'line-through';
+  generatorFieldKind?: GeneratorFieldKind;
+  generatorFieldRequired?: boolean;
+  textAutoFit?: boolean;
+  textMinFontSizePx?: number;
   padding?: string;
   borderColor?: string;
   borderWidth?: string;
@@ -150,6 +156,28 @@ export interface FreeformCanvas {
   elements: FreeformCardElement[];
 }
 
+export interface TemplateFieldContract {
+  key: string;
+  elementId?: string;
+  label?: string;
+  type?: TemplateFieldContractType;
+  required?: boolean;
+  multiline?: boolean;
+  description?: string;
+  example?: string;
+  textAutoFit?: boolean;
+  minFontSizePx?: number;
+  textColor?: string;
+  fontSizePx?: number;
+  fontWeight?: FreeformCardElement['fontWeight'];
+  fontStyle?: FreeformCardElement['fontStyle'];
+  textDecoration?: FreeformCardElement['textDecoration'];
+  textAlign?: FreeformCardElement['textAlign'];
+  writingMode?: FreeformCardElement['writingMode'];
+  lineHeight?: string;
+  letterSpacing?: string;
+}
+
 export interface TCGCardTemplate {
   id: string | null; 
   name: string; 
@@ -160,13 +188,14 @@ export interface TCGCardTemplate {
 
   baseBackgroundColor?: string;
   baseTextColor?: string;
-  defaultSectionBorderColor?: string;
+  defaultElementBorderColor?: string;
 
   cardBorderColor?: string;
   cardBorderWidth?: string;
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
   cardBorderRadius?: string;
   appearance?: FreeformAppearance;
+  fieldContracts?: TemplateFieldContract[];
 
   freeformCanvas?: FreeformCanvas;
 }
@@ -181,17 +210,14 @@ export interface PaperSize {
   heightMm: number;
 }
 
-// Represents the structure stored in localStorage for generated cards
 export interface StoredDisplayCard {
-  templateId: string; // Was frontTemplateId
-  data: CardData;    // Was frontData
+  templateId: string;
+  data: CardData;
   uniqueId: string;
 }
 
-// Represents the runtime structure used in the application
 export interface DisplayCard {
-  template: TCGCardTemplate; // Was frontTemplate
-  data: CardData;        // Was frontData
+  template: TCGCardTemplate;
+  data: CardData;
   uniqueId: string;
 }
-

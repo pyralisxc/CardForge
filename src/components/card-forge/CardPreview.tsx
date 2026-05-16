@@ -7,9 +7,18 @@ import { appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearan
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { buildTextElementStyle, RichTextContent } from '@/lib/textTools';
+import {
+  AutoFitRichTextContent,
+  AutoFitRichTextSegmentsContent,
+  buildTextElementStyle,
+  RichTextContent,
+  RichTextSegmentsContent,
+  textFontSizePx,
+} from '@/lib/textTools';
 import { useAppStore } from '@/store/appStore';
 import * as LucideIcons from 'lucide-react';
+import { buildStaticSegmentFieldKey, parseTemplateTextSegments, parseTextBinding, resolveTemplateTextSegments } from '@/lib/textBindings';
+import { getElementFieldContract, getPrimaryElementContract, inferTextElementContentModel, shouldAutoFitTextElement } from '@/lib/textElementContracts';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -17,9 +26,6 @@ interface CardPreviewProps {
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
   isEditorPreview?: boolean;
-  hideEmptySections?: boolean;
-  onSectionClick?: (sectionId: string) => void;
-  onRowClick?: (rowId: string) => void;
   onEdit?: (card: DisplayCard) => void;
   targetWidthPx?: number;
 }
@@ -76,15 +82,134 @@ const shapeClipPath = (shapeKind?: FreeformCardElement['shapeKind']): string | u
   return undefined;
 };
 
+const applyContractRichTextStyle = (
+  value: string,
+  contract?: NonNullable<TCGCardTemplate['fieldContracts']>[number]
+): string => {
+  let next = value;
+  if (!next || !contract) return next;
+  if (contract.textColor && !next.includes('[color:')) next = `[color:${contract.textColor}]${next}[/color]`;
+  if (contract.textDecoration === 'underline' && !/^__[\s\S]*__$/.test(next)) next = `__${next}__`;
+  if (contract.fontStyle === 'italic' && !/^_[\s\S]*_$/.test(next)) next = `_${next}_`;
+  if (contract.fontWeight === 'font-bold' && !/^\*\*[\s\S]*\*\*$/.test(next)) next = `**${next}**`;
+  return next;
+};
+
+const fontWeightToCss = (fontWeight?: FreeformCardElement['fontWeight']): React.CSSProperties['fontWeight'] | undefined => {
+  if (fontWeight === 'font-medium') return 500;
+  if (fontWeight === 'font-semibold') return 600;
+  if (fontWeight === 'font-bold') return 700;
+  if (fontWeight === 'font-normal') return 400;
+  return undefined;
+};
+
+const buildContractSegmentStyle = (
+  contract: NonNullable<TCGCardTemplate['fieldContracts']>[number] | undefined,
+  scaleX: number
+): React.CSSProperties | undefined => {
+  if (!contract) return undefined;
+  const style: React.CSSProperties = {};
+  if (contract.textColor) style.color = contract.textColor;
+  if (contract.fontSizePx) style.fontSize = `${contract.fontSizePx * scaleX}px`;
+  const fontWeight = fontWeightToCss(contract.fontWeight);
+  if (fontWeight) style.fontWeight = fontWeight;
+  if (contract.fontStyle && contract.fontStyle !== 'normal') style.fontStyle = contract.fontStyle;
+  if (contract.textDecoration && contract.textDecoration !== 'none') style.textDecoration = contract.textDecoration;
+  if (contract.lineHeight) style.lineHeight = contract.lineHeight;
+  if (contract.letterSpacing) style.letterSpacing = contract.letterSpacing;
+  if (contract.textAlign) {
+    style.display = 'inline-block';
+    style.width = '100%';
+    style.textAlign = contract.textAlign;
+  }
+  if (contract.writingMode && contract.writingMode !== 'horizontal-tb') {
+    style.display = 'inline-block';
+    style.writingMode = contract.writingMode;
+    style.textOrientation = 'upright';
+  }
+
+  return Object.keys(style).length > 0 ? style : undefined;
+};
+
+const buildResolvedTextSegments = (
+  template: TCGCardTemplate,
+  element: FreeformCardElement,
+  data: CardData,
+  scaleX: number
+) => {
+  const simple = parseTextBinding(element.content);
+  if (simple.field) {
+    const value = data[simple.field] ?? simple.fallback;
+    return [{
+      text: applyContractRichTextStyle(
+        String(value ?? ''),
+        getElementFieldContract(template, element, simple.field)
+      ),
+      style: buildContractSegmentStyle(getElementFieldContract(template, element, simple.field), scaleX),
+    }];
+  }
+
+  return parseTemplateTextSegments(element.content).map((segment, index) => {
+    const key = segment.type === 'variable'
+      ? segment.key
+      : buildStaticSegmentFieldKey(element.id, index);
+    const contract = getElementFieldContract(template, element, key);
+    const value = key ? data[key] : undefined;
+    return {
+      text: applyContractRichTextStyle(
+        String(value ?? segment.text ?? ''),
+        contract
+      ),
+      style: buildContractSegmentStyle(contract, scaleX),
+    };
+  });
+};
+
+const buildStyledSegmentData = (
+  template: TCGCardTemplate,
+  element: FreeformCardElement,
+  data: CardData
+): CardData => {
+  const nextData: CardData = { ...data };
+  const simple = parseTextBinding(element.content);
+
+  if (simple.field) {
+    const value = data[simple.field] ?? simple.fallback;
+    nextData[simple.field] = applyContractRichTextStyle(
+      String(value ?? ''),
+      getElementFieldContract(template, element, simple.field)
+    );
+    return nextData;
+  }
+
+  parseTemplateTextSegments(element.content).forEach((segment, index) => {
+    if (segment.type === 'variable') {
+      if (!segment.key) return;
+      const value = data[segment.key] ?? segment.text;
+      nextData[segment.key] = applyContractRichTextStyle(
+        String(value ?? ''),
+        getElementFieldContract(template, element, segment.key)
+      );
+      return;
+    }
+
+    const staticKey = buildStaticSegmentFieldKey(element.id, index);
+    const value = data[staticKey] ?? segment.text;
+    nextData[staticKey] = applyContractRichTextStyle(
+      String(value ?? ''),
+      getElementFieldContract(template, element, staticKey)
+    );
+  });
+
+  return nextData;
+};
+
 export function CardPreview({
   card,
   className,
   isPrintMode = false,
   showSizeInfo = false,
   isEditorPreview = false,
-  hideEmptySections = true,
-  onSectionClick,
-  onRowClick,
   onEdit,
   targetWidthPx,
 }: CardPreviewProps) {
@@ -328,7 +453,7 @@ export function CardPreview({
           backgroundColor: element.backgroundColor || 'transparent',
           borderStyle: borderWidth > 0 ? 'solid' : undefined,
           borderWidth: borderWidth > 0 ? borderWidth : undefined,
-          borderColor: element.borderColor || templateToRender.defaultSectionBorderColor || undefined,
+          borderColor: element.borderColor || templateToRender.defaultElementBorderColor || undefined,
           borderRadius: radiusClassToPixels(element.borderRadius) || element.borderRadius || undefined,
           backgroundImage: resolvedBgUrl && (resolvedBgUrl.startsWith('linear-gradient') || resolvedBgUrl.startsWith('radial-gradient'))
             ? resolvedBgUrl
@@ -422,44 +547,77 @@ export function CardPreview({
           return <div key={element.id} style={shapeStyle} data-freeform-element-id={element.id} />;
         }
 
-        const processedText = replacePlaceholdersLocal(element.content, dataToRender, true);
+        const processedText = resolveTemplateTextSegments(
+          element.id,
+          element.content,
+          buildStyledSegmentData(templateToRender, element, dataToRender),
+          true
+        );
+        const processedSegments = buildResolvedTextSegments(templateToRender, element, dataToRender, scaleX);
         const textStyle: React.CSSProperties = {
           ...baseStyle,
           ...buildTextElementStyle(element, scaleX),
         };
+        const contract = getPrimaryElementContract(templateToRender, element);
+        const contentModel = inferTextElementContentModel(templateToRender, element);
+        const autoFit = shouldAutoFitTextElement(templateToRender, element);
+        const contentStyle: React.CSSProperties = { lineHeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', textDecoration: 'inherit', fontStyle: 'inherit' };
+        const baseFontSizePx = textFontSizePx(element) * scaleX;
+        const textContainerStyle = { ...textStyle, fontSize: undefined as unknown as React.CSSProperties['fontSize'] };
         return (
           <div
             key={element.id}
             className={cn(element.padding || 'p-1', element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
-            style={textStyle}
+            style={textContainerStyle}
             data-freeform-element-id={element.id}
           >
-            <RichTextContent
-              text={processedText}
-              className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
-              highlightColor={richTextHighlightColor}
-            />
+            {autoFit ? (
+              processedSegments.length > 1 ? (
+              <AutoFitRichTextSegmentsContent
+                segments={processedSegments}
+                className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
+                style={contentStyle}
+                highlightColor={richTextHighlightColor}
+                contentModel={contentModel}
+                enabled
+                baseFontSizePx={baseFontSizePx}
+                minFontSizePx={((contract?.minFontSizePx ?? element.textMinFontSizePx ?? 8)) * scaleX}
+              />
+              ) : (
+              <AutoFitRichTextContent
+                text={processedText}
+                className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
+                style={contentStyle}
+                highlightColor={richTextHighlightColor}
+                contentModel={contentModel}
+                enabled
+                baseFontSizePx={baseFontSizePx}
+                minFontSizePx={((contract?.minFontSizePx ?? element.textMinFontSizePx ?? 8)) * scaleX}
+              />
+              )
+            ) : (
+              processedSegments.length > 1 ? (
+              <RichTextSegmentsContent
+                segments={processedSegments}
+                className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
+                style={{ ...contentStyle, fontSize: `${baseFontSizePx}px` }}
+                highlightColor={richTextHighlightColor}
+                contentModel={contentModel}
+              />
+              ) : (
+              <RichTextContent
+                text={processedText}
+                className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
+                style={{ ...contentStyle, fontSize: `${baseFontSizePx}px` }}
+                highlightColor={richTextHighlightColor}
+                contentModel={contentModel}
+              />
+              )
+            )}
           </div>
         );
       });
   }, [cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, effectiveWidthPx, isEditorPreview, templateToRender]);
-
-
-  const shouldHideSection = (section: { sectionContentType?: string; contentPlaceholder?: string; backgroundImageUrl?: string }, processedContent: string): boolean => {
-    if (isEditorPreview) return false;
-    if (hideEmptySections) {
-      if (section.sectionContentType === 'image') {
-        const imageKey = section.contentPlaceholder;
-        const imageUrl = dataToRender && imageKey ? (dataToRender[imageKey] as string || '') : '';
-        return !imageUrl || !(imageUrl.startsWith('http') || imageUrl.startsWith('data:'));
-      }
-      const hasTextContent = processedContent.trim() !== '';
-      const resolvedBgUrl = section.backgroundImageUrl ? replacePlaceholdersLocal(section.backgroundImageUrl, dataToRender, false) : '';
-      const hasValidBgImage = !!resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'));
-      return !hasTextContent && !hasValidBgImage;
-    }
-    return false;
-  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (onEdit && !isEditorPreview) {
@@ -487,7 +645,7 @@ export function CardPreview({
         {freeformElements}
       </div>
       {showSizeInfo && !isPrintMode && (
-        <div className="text-xs text-muted-foreground mt-1" data-html2canvas-ignore="true">
+        <div className="text-xs text-muted-foreground mt-1">
           {calculatedPrintSize}
         </div>
       )}

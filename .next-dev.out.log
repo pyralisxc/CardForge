@@ -1,0 +1,23 @@
+
+> nextn@0.1.0 dev
+> next dev -p 9002 -H 0.0.0.0
+
+   ▲ Next.js 15.2.8
+   - Local:        http://localhost:9002
+   - Network:      http://0.0.0.0:9002
+
+ ✓ Starting...
+ ✓ Ready in 4.9s
+ ○ Compiling / ...
+ ✓ Compiled / in 32.6s (4865 modules)
+ GET / 200 in 37897ms
+ ✓ Compiled in 7.8s (2315 modules)
+ ✓ Compiled in 535ms (2301 modules)
+ GET / 200 in 2778ms
+ ○ Compiling /api/styles ...
+ ✓ Compiled /api/styles in 7.5s (4840 modules)
+ GET /api/styles 200 in 11933ms
+ GET /api/templates 200 in 11962ms
+ GET / 200 in 8916ms
+ GET /api/styles 200 in 28ms
+ GET /api/templates 200 in 41ms

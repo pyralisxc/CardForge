@@ -4,9 +4,41 @@ import { NextResponse } from 'next/server';
 
 import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/types';
 import { DEFAULT_APPEARANCE_LIBRARY } from '@/lib/appearance';
+import {
+  DEFAULT_MAX_JSON_BODY_BYTES,
+  formatZodIssues,
+  parseJsonBodyWithLimit,
+  stylePresetPayloadSchema,
+} from '@/lib/apiValidation';
 
 const STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
 const STYLE_LIBRARY_FILE = path.join(STYLE_LIBRARY_DIR, 'appearance-library.json');
+
+const createErrorResponse = (
+  status: number,
+  code: string,
+  message: string,
+  details?: string[]
+) => {
+  const correlationId = crypto.randomUUID();
+  return NextResponse.json(
+    {
+      ok: false,
+      error: {
+        code,
+        message,
+        details,
+      },
+      correlationId,
+    },
+    {
+      status,
+      headers: {
+        'x-correlation-id': correlationId,
+      },
+    }
+  );
+};
 
 const ensureStyleDirectory = async () => {
   await fs.mkdir(STYLE_LIBRARY_DIR, { recursive: true });
@@ -45,13 +77,44 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+  if (!parsedBody.ok) {
+    return createErrorResponse(
+      parsedBody.code === 'payload_too_large' ? 413 : 400,
+      parsedBody.code,
+      parsedBody.message
+    );
+  }
+
+  const body = parsedBody.data;
   const current = await readLibrary();
-  const incomingStyles: unknown[] = Array.isArray(body?.styles) ? body.styles : [body];
-  const validStyles = incomingStyles.filter(isStylePreset);
+  const bodyRecord = typeof body === 'object' && body !== null
+    ? body as Record<string, unknown>
+    : null;
+  const incomingStyles: unknown[] = bodyRecord && Array.isArray(bodyRecord.styles)
+    ? bodyRecord.styles
+    : [body];
+  const invalidStyleDetails: string[] = [];
+  const validStyles: AppearanceStylePreset[] = [];
+
+  incomingStyles.forEach((entry, index) => {
+    const parsed = stylePresetPayloadSchema.safeParse(entry);
+    if (!parsed.success) {
+      invalidStyleDetails.push(...formatZodIssues(parsed.error.issues).map((message) => `styles[${index}].${message}`));
+      return;
+    }
+    if (isStylePreset(parsed.data)) {
+      validStyles.push(parsed.data);
+    }
+  });
 
   if (validStyles.length === 0) {
-    return NextResponse.json({ error: 'A valid style preset is required.' }, { status: 400 });
+    return createErrorResponse(
+      400,
+      'invalid_style_payload',
+      'A valid style preset is required.',
+      invalidStyleDetails.length > 0 ? invalidStyleDetails : undefined
+    );
   }
 
   const merged = [...current.styles];
@@ -67,8 +130,19 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const body = await request.json().catch(() => null) as { id?: string } | null;
-  if (!body?.id) return NextResponse.json({ error: 'Style id is required.' }, { status: 400 });
+  const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+  if (!parsedBody.ok) {
+    return createErrorResponse(
+      parsedBody.code === 'payload_too_large' ? 413 : 400,
+      parsedBody.code,
+      parsedBody.message
+    );
+  }
+
+  const body = parsedBody.data as { id?: unknown };
+  if (typeof body?.id !== 'string' || body.id.trim().length === 0) {
+    return createErrorResponse(400, 'invalid_style_id', 'Style id is required.');
+  }
   const current = await readLibrary();
   const next = { ...current, styles: current.styles.filter(style => style.id !== body.id) };
   await fs.writeFile(STYLE_LIBRARY_FILE, `${JSON.stringify(next, null, 2)}\n`, 'utf8');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { appearanceToLegacyElementFields, appearanceToStyle, gradientToCss, normalizeAppearanceForElement, textureToCss } from '@/lib/appearance';
+import { appearanceToElementRenderFields, appearanceToStyle, gradientToCss, normalizeAppearanceForElement, textureToCss } from '@/lib/appearance';
 import type { FreeformCardElement } from '@/types';
 
 const baseElement: FreeformCardElement = {
@@ -85,7 +85,7 @@ describe('structured appearance helpers', () => {
     expect(dividerStyle.backgroundRepeat).toBe('no-repeat');
   });
 
-  it('migrates legacy raw element styling into a structured default', () => {
+  it('derives structured appearance from flat element styling', () => {
     const appearance = normalizeAppearanceForElement({
       ...baseElement,
       backgroundColor: '#15100b',
@@ -102,7 +102,7 @@ describe('structured appearance helpers', () => {
     expect(appearance.border?.radius).toBe(8);
   });
 
-  it('preserves content fields while applying structured appearance to legacy render fields', () => {
+  it('preserves content fields while applying structured appearance render fields', () => {
     const element = {
       ...baseElement,
       content: '{{cardName:"Emberclaw"}}',
@@ -112,7 +112,7 @@ describe('structured appearance helpers', () => {
       },
     };
 
-    const updates = appearanceToLegacyElementFields(element);
+    const updates = appearanceToElementRenderFields(element);
 
     expect(element.content).toBe('{{cardName:"Emberclaw"}}');
     expect(updates.backgroundColor).toBe('#160d25');

@@ -47,8 +47,8 @@ const makeCard = (data: Record<string, string>): DisplayCard => ({
 
 describe('print validation', () => {
   it('provides profile defaults for physical and virtual exports', () => {
-    expect(getExportProfile('physical')).toMatchObject({ dpi: 300, renderWidthPx: 744, canvasPixelRatio: 3 });
-    expect(getExportProfile('virtual')).toMatchObject({ dpi: 150, renderWidthPx: 372, canvasPixelRatio: 2 });
+    expect(getExportProfile('physical')).toMatchObject({ dpi: 300, renderWidthPx: 744, canvasPixelRatio: 3, colorSpace: 'rgb', recommendedFormat: 'png' });
+    expect(getExportProfile('virtual')).toMatchObject({ dpi: 150, renderWidthPx: 372, canvasPixelRatio: 2, colorSpace: 'rgb', recommendedFormat: 'png' });
   });
 
   it('supports configurable dpi while preserving profile semantics', () => {
@@ -77,5 +77,12 @@ describe('print validation', () => {
 
     expect(validation.critical.some((message) => message.includes('Missing required field'))).toBe(false);
     expect(validation.warnings.some((message) => message.includes('Missing required field'))).toBe(true);
+  });
+
+  it('warns when physical export DPI is below print standard', () => {
+    const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://example.com/image.png' });
+    const validation = validateCardExportQuality(card, 'physical', 150);
+
+    expect(validation.warnings.some((message) => message.includes('at least 300 DPI'))).toBe(true);
   });
 });

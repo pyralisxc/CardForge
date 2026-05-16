@@ -63,9 +63,9 @@ export function getImageFieldKeyForElement(
 
 /**
  * Extracts unique placeholder keys and their optional default values from a template's structure.
- * Placeholders are scanned from contentPlaceholder (if sectionContentType is 'placeholder')
- * and backgroundImageUrl fields. For image sections, contentPlaceholder is the key itself.
- * e.g., "{{cardName}}", "{{manaCost:"3"}}", "artworkUrl" (for image section)
+ * Placeholders are scanned from freeform element content, image sources,
+ * background image URLs, and template-level image fields.
+ * e.g., "{{cardName}}", "{{manaCost:"3"}}", "artworkUrl" (for image elements)
  * Default values must be enclosed in double quotes.
  * @param template The TCGCardTemplate to parse.
  * @returns An array of unique placeholder objects { key: string; defaultValue?: string; }.
@@ -112,6 +112,18 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
   });
 
   return Array.from(placeholderMap.values());
+}
+
+export function extractPlaceholderKeysFromText(text?: string): string[] {
+  if (!text) return [];
+  const keys: string[] = [];
+  let match;
+  PLACEHOLDER_REGEX.lastIndex = 0;
+  while ((match = PLACEHOLDER_REGEX.exec(text)) !== null) {
+    const key = match[1]?.trim();
+    if (key && !keys.includes(key)) keys.push(key);
+  }
+  return keys;
 }
 
 

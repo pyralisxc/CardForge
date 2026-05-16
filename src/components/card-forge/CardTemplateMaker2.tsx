@@ -53,7 +53,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AVAILABLE_FONTS,
@@ -61,19 +60,16 @@ import {
   BORDER_WIDTH_OPTIONS,
   CARD_BORDER_STYLES,
   DIMENSION_UNITS,
-  FONT_STYLES,
-  FONT_WEIGHTS,
   FRAME_STYLES,
   PADDING_OPTIONS,
   TCG_ASPECT_RATIO,
-  TEXT_ALIGNS,
 } from '@/lib/constants';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils';
-import { appearanceToLegacyElementFields, appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
+import { cn, replacePlaceholdersLocal, toTitleCase } from '@/lib/utils';
+import { appearanceToElementRenderFields, appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
 import { CARD_DIVIDER_ASSETS, SEAMLESS_TEXTURE_ASSETS } from '@/lib/cardAssets';
 import type { CardAssetOption } from '@/lib/cardAssets';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
-import { buildTextElementStyle, RichTextContent, textFontSizePx } from '@/lib/textTools';
+import { AutoFitRichTextContent, buildTextElementStyle, RichTextContent, textFontSizePx } from '@/lib/textTools';
 import { createDefaultFreeformCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate, useAppStore } from '@/store/appStore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -91,7 +87,6 @@ import {
   SHAPE_ROLE_PRESETS,
   TEXT_FRAME_PRESETS,
   ColorField,
-  RichTextToolbar,
   makeNewFreeformTemplate,
   mmConversion,
   borderWidthClassToPixels,
@@ -100,12 +95,15 @@ import {
   shapeClipPath,
 } from './makerConstants';
 import {
-  buildTextBinding,
   escapeTemplateText,
-  isSimpleTextBinding,
   parseTextBinding,
+  renamePlaceholderKeyInText,
   unescapeTemplateText,
 } from '@/lib/textBindings';
+import { withNextStep } from '@/lib/userFacingErrors';
+import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
+import { TextExpressionEditor, TextFieldSettingsList } from './TextElementInspector';
+import { getPrimaryElementContract, inferTextElementContentModel, shouldAutoFitTextElement } from '@/lib/textElementContracts';
 
 interface CardTemplateMaker2Props {
   onSaveTemplate: (template: TCGCardTemplate) => string;
@@ -122,7 +120,6 @@ interface CardTemplateMaker2Props {
 type DragState =
   | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> }
   | { mode: 'resize'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> };
-
 
 export function CardTemplateMaker2({
   onSaveTemplate,
@@ -145,8 +142,8 @@ export function CardTemplateMaker2({
   const iconUploadInputRef = useRef<HTMLInputElement | null>(null);
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const dividerAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
-  const defaultTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const expressionTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const variableKeyInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const variableCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dragStateRef = useRef<DragState | null>(null);
   const [assetSearch, setAssetSearch] = useState('');
   const [customTextureAssets, setCustomTextureAssets] = useState<CardAssetOption[]>([]);
@@ -161,7 +158,7 @@ export function CardTemplateMaker2({
   const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(initialTemplate);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(initialTemplate.freeformCanvas?.elements[0]?.id || null);
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
-  const [textBindingMode, setTextBindingMode] = useState<'field' | 'expression'>('field');
+  const [activeVariableKey, setActiveVariableKey] = useState<string | null>(null);
 
   const selectElement = useCallback((id: string | null) => {
     setSelectedElementId(id);
@@ -224,6 +221,12 @@ export function CardTemplateMaker2({
   const canUseShapeControls = hasElementCapability(selectedElement, 'shape');
   const canUseDividerControls = hasElementCapability(selectedElement, 'divider');
   const canUseImageSource = hasElementCapability(selectedElement, 'image');
+  const canUseElementBorder = hasElementCapability(selectedElement, 'border') && !canUseDividerControls;
+  const canUseAppearanceStudio = Boolean(selectedElement && selectedElement.type !== 'image');
+  const selectedAppearance = useMemo(
+    () => selectedElement ? normalizeAppearanceForElement(selectedElement) : undefined,
+    [selectedElement]
+  );
   const compatibleAppearanceStyles = useMemo(() => {
     if (!selectedElement) return [];
     const elementTarget = isDividerElement(selectedElement) ? 'divider' : selectedElement.type;
@@ -249,11 +252,17 @@ export function CardTemplateMaker2({
       .filter(asset => asset.allowedTargets.includes('divider'))
       .filter(asset => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customDividerAssets]);
-
+  const templateFieldDefinitions = useMemo(() => extractTemplateFieldDefinitions(currentTemplate), [currentTemplate]);
+  const textTemplateFields = useMemo(() => templateFieldDefinitions.filter(field => !field.isImage), [templateFieldDefinitions]);
+  const selectedElementTemplateFields = useMemo(
+    () => selectedElement?.type === 'text'
+      ? textTemplateFields.filter((field) => field.sourceElementId === selectedElement.id)
+      : [],
+    [selectedElement, textTemplateFields]
+  );
   useEffect(() => {
-    if (!selectedElement || selectedElement.type !== 'text') return;
-    setTextBindingMode(isSimpleTextBinding(selectedElement.content) ? 'field' : 'expression');
-  }, [selectedElement?.content, selectedElement?.id, selectedElement?.type]);
+    setActiveVariableKey(null);
+  }, [selectedElement?.id]);
 
   useEffect(() => {
     if (!autoFitCanvas || !stageRef.current) return;
@@ -341,13 +350,149 @@ export function CardTemplateMaker2({
     if (!element) return;
     const appearance = updater(normalizeAppearanceForElement(element));
     const nextElement = { ...element, appearance };
-    updateElement(elementId, { appearance, ...appearanceToLegacyElementFields(nextElement) }, trackHistory);
+    updateElement(elementId, { appearance, ...appearanceToElementRenderFields(nextElement) }, trackHistory);
   }, [canvas.elements, updateElement]);
+
+  const upsertFieldContract = useCallback((
+    key: string,
+    updates: Partial<NonNullable<TCGCardTemplate['fieldContracts']>[number]>
+  ) => {
+    const cleanKey = key.trim();
+    if (!cleanKey) return;
+    commitTemplate((template) => {
+      const contracts = [...(template.fieldContracts || [])];
+      const scopedElementId = typeof updates.elementId === 'string' && updates.elementId.trim() !== ''
+        ? updates.elementId.trim()
+        : undefined;
+      const index = contracts.findIndex((contract) =>
+        contract.key === cleanKey && (!scopedElementId || contract.elementId === scopedElementId)
+      );
+      const nextContract = {
+        key: cleanKey,
+        ...(index >= 0 ? contracts[index] : {}),
+        ...updates,
+      };
+      if (index >= 0) contracts[index] = nextContract;
+      else contracts.push(nextContract);
+      return {
+        ...template,
+        fieldContracts: contracts,
+      };
+    }, false);
+  }, [commitTemplate]);
+
+  const focusVariableCard = useCallback((key: string) => {
+    setActiveVariableKey(key);
+    requestAnimationFrame(() => {
+      variableCardRefs.current[key]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      variableKeyInputRefs.current[key]?.focus();
+      variableKeyInputRefs.current[key]?.select();
+    });
+  }, []);
+
+  const renameSelectedElementVariable = useCallback((oldKey: string, nextKeyRaw: string) => {
+    if (!selectedElement || selectedElement.type !== 'text') return;
+    const nextKey = nextKeyRaw.trim().replace(/[^\w.-]/g, '');
+    if (!nextKey || oldKey === nextKey) return;
+
+    const hasConflict = (currentTemplate.fieldContracts || []).some((contract) =>
+      contract.elementId === selectedElement.id && contract.key === nextKey && contract.key !== oldKey
+    );
+    if (hasConflict) {
+      toast({
+        title: 'Variable name already used',
+        description: `This element already has a variable named "${nextKey}". Choose a different name.`,
+        variant: 'destructive',
+      });
+      focusVariableCard(oldKey);
+      return;
+    }
+
+    commitTemplate((template) => {
+      const nextContracts = (template.fieldContracts || []).map((contract) =>
+        contract.elementId === selectedElement.id && contract.key === oldKey
+          ? { ...contract, key: nextKey, label: toTitleCase(nextKey) }
+          : contract
+      );
+      const nextElements = (template.freeformCanvas?.elements || []).map((element) =>
+        element.id === selectedElement.id
+          ? { ...element, content: renamePlaceholderKeyInText(element.content || '', oldKey, nextKey) }
+          : element
+      );
+      return {
+        ...template,
+        fieldContracts: nextContracts,
+        freeformCanvas: reconstructFreeformCanvas({
+          ...(template.freeformCanvas || canvas),
+          elements: nextElements,
+        }),
+      };
+    }, false);
+
+    focusVariableCard(nextKey);
+  }, [canvas, commitTemplate, currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast]);
+
+  const removeSelectedElementVariableContract = useCallback((key: string) => {
+    if (!selectedElement) return;
+    commitTemplate((template) => ({
+      ...template,
+      fieldContracts: (template.fieldContracts || []).filter((contract) =>
+        !(contract.key === key && contract.elementId === selectedElement.id)
+      ),
+    }), false);
+    setActiveVariableKey(null);
+  }, [commitTemplate, selectedElement]);
+
+  const getNextScopedVariableKey = useCallback((existingKey?: string) => {
+    if (!selectedElement) return '';
+    const elementSlug = (selectedElement.name || 'text')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 20) || 'text';
+    const existingContractsForElement = (currentTemplate.fieldContracts || []).filter(
+      (contract) => contract.elementId === selectedElement.id
+    );
+    return existingKey || `${elementSlug}_var_${existingContractsForElement.length + 1}`;
+  }, [currentTemplate.fieldContracts, selectedElement]);
+
+  const createEditorVariableFromSelection = useCallback((selectedText: string, existingKey?: string): string | undefined => {
+    if (!selectedElement || selectedElement.type !== 'text') return;
+    const cleanSelectedText = selectedText.trim();
+    if (!cleanSelectedText) {
+      toast({
+        title: 'Select text first',
+        description: 'Highlight the text you want to turn into a variable, then use the variable button.',
+      });
+      return;
+    }
+
+    const nextKey = getNextScopedVariableKey(existingKey);
+    if (!nextKey) return;
+
+    const inferredType = inferTextElementContentModel(currentTemplate, selectedElement);
+    upsertFieldContract(nextKey, {
+      key: nextKey,
+      elementId: selectedElement.id,
+      label: toTitleCase(nextKey),
+      type: inferredType === 'rulesBlocks' ? 'rules' : 'richText',
+      required: false,
+      multiline: cleanSelectedText.includes('\n'),
+      example: cleanSelectedText,
+    });
+    toast({
+      title: 'Variable created',
+      description: `"${nextKey}" was added to this text element. You can adjust its rich text behavior below.`,
+    });
+    focusVariableCard(nextKey);
+    return nextKey;
+  }, [currentTemplate, focusVariableCard, getNextScopedVariableKey, selectedElement, toast, upsertFieldContract]);
 
   const applyAppearancePreset = useCallback((style: AppearanceStylePreset) => {
     if (!selectedElement) return;
     const nextElement = { ...selectedElement, appearance: style.appearance };
-    updateElement(selectedElement.id, { appearance: style.appearance, ...appearanceToLegacyElementFields(nextElement) });
+    updateElement(selectedElement.id, { appearance: style.appearance, ...appearanceToElementRenderFields(nextElement) });
   }, [selectedElement, updateElement]);
 
   // ── Group / ungroup ───────────────────────────────────────────────────────
@@ -633,12 +778,20 @@ export function CardTemplateMaker2({
 
   const handleSave = useCallback(() => {
     if (!currentTemplate.name?.trim() || currentTemplate.name === 'New 2.0 Template') {
-      toast({ title: 'Validation Error', description: 'Template name must be set.', variant: 'destructive' });
+      toast({
+        title: 'Template name is required',
+        description: withNextStep('Template name must be set before saving.', 'Enter a template name in Template Settings, then save again.'),
+        variant: 'destructive',
+      });
       return;
     }
     const parts = currentTemplate.aspectRatio.split(':').map(Number);
     if (parts.length !== 2 || parts.some(part => !part || part <= 0 || Number.isNaN(part))) {
-      toast({ title: 'Validation Error', description: 'Aspect Ratio must be in W:H format with positive numbers.', variant: 'destructive' });
+      toast({
+        title: 'Aspect ratio format is invalid',
+        description: withNextStep('Aspect Ratio must use W:H with positive numbers (example: 63:88).', 'Correct the Aspect Ratio field, then save again.'),
+        variant: 'destructive',
+      });
       return;
     }
     const savedId = onSaveTemplate({ ...currentTemplate, freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas) });
@@ -832,7 +985,7 @@ export function CardTemplateMaker2({
       baseBackgroundColor: preset.id === 'soul-portrait' ? '#160d25' : '#f4e4bd',
       baseTextColor: preset.id === 'soul-portrait' ? '#f4eaff' : '#21180d',
       cardBorderColor: preset.accent,
-      defaultSectionBorderColor: preset.accent,
+      defaultElementBorderColor: preset.accent,
       freeformCanvas: updatedCanvas,
     });
     setCurrentTemplate(fresh);
@@ -857,7 +1010,11 @@ export function CardTemplateMaker2({
     const width = parseFloat(customWidthValue);
     const height = parseFloat(customHeightValue);
     if (!width || !height || width <= 0 || height <= 0) {
-      toast({ title: 'Invalid Dimensions', description: 'Please enter positive width and height values.', variant: 'destructive' });
+      toast({
+        title: 'Dimensions are invalid',
+        description: withNextStep('Width and height must be positive numbers.', 'Update Width and Height values, then apply dimensions again.'),
+        variant: 'destructive',
+      });
       return;
     }
     const factor = mmConversion[customUnit] ?? 1;
@@ -948,7 +1105,7 @@ export function CardTemplateMaker2({
       backgroundPosition: 'center',
       borderStyle: borderWidth > 0 ? 'solid' : undefined,
       borderWidth: borderWidth > 0 ? borderWidth : undefined,
-      borderColor: element.borderColor || currentTemplate.defaultSectionBorderColor || undefined,
+      borderColor: element.borderColor || currentTemplate.defaultElementBorderColor || undefined,
       borderRadius: radiusClassToPixels(element.borderRadius) || element.borderRadius || undefined,
       boxSizing: 'border-box',
       overflow: 'hidden',
@@ -988,12 +1145,41 @@ export function CardTemplateMaker2({
       Object.assign(baseStyle, structuredAppearanceStyle);
     } else {
       const resolved = replacePlaceholdersLocal(element.content, livePreviewData, true);
-      body = <RichTextContent text={resolved} highlightColor={richTextHighlightColor} />;
+      const contract = getPrimaryElementContract(currentTemplate, element);
+      const contentModel = inferTextElementContentModel(currentTemplate, element);
+      const autoFit = shouldAutoFitTextElement(currentTemplate, element);
+      const baseFontPx = textFontSizePx(element);
+      body = autoFit ? (
+        <AutoFitRichTextContent
+          text={resolved}
+          highlightColor={richTextHighlightColor}
+          contentModel={contentModel}
+          enabled
+          baseFontSizePx={baseFontPx}
+          minFontSizePx={contract?.minFontSizePx ?? element.textMinFontSizePx ?? 8}
+          style={{ lineHeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', textDecoration: 'inherit', fontStyle: 'inherit' }}
+        />
+      ) : (
+        <RichTextContent
+          text={resolved}
+          highlightColor={richTextHighlightColor}
+          contentModel={contentModel}
+          style={{ fontSize: `${baseFontPx}px`, lineHeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', textDecoration: 'inherit', fontStyle: 'inherit' }}
+        />
+      );
     }
+
+    const textElementStyle = element.type === 'text' ? buildTextElementStyle(element) : null;
+    const renderedTextStyle = element.type === 'text' && textElementStyle
+      ? { ...textElementStyle, fontSize: undefined as unknown as React.CSSProperties['fontSize'] }
+      : null;
 
     return (
       <div
         key={element.id}
+        data-freeform-element-id={element.id}
+        data-selected={selected ? 'true' : 'false'}
+        data-element-locked={element.locked ? 'true' : 'false'}
         className={cn(
           element.type === 'text' && [element.padding || 'p-1', element.fontFamily || 'font-sans', element.fontWeight || 'font-normal'],
           element.type === 'text' && 'whitespace-pre-wrap break-words',
@@ -1003,7 +1189,7 @@ export function CardTemplateMaker2({
         )}
         style={{
           ...baseStyle,
-          ...(element.type === 'text' ? buildTextElementStyle(element) : null),
+          ...renderedTextStyle,
         }}
         onPointerDown={(event) => handleElementPointerDown(event, element)}
       >
@@ -1095,7 +1281,7 @@ export function CardTemplateMaker2({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button type="button" onClick={handleSave} size="sm" className="h-8 rounded-[4px] border border-[#7f6225] bg-[#d5ad54] px-3 text-xs font-semibold text-[#11100c] hover:bg-[#f0ca71]">
+                <Button type="button" onClick={handleSave} size="sm" aria-keyshortcuts="Control+S Meta+S" className="h-8 rounded-[4px] border border-[#7f6225] bg-[#d5ad54] px-3 text-xs font-semibold text-[#11100c] hover:bg-[#f0ca71]">
                   <Save className="h-4 w-4" /> Save
                 </Button>
               </TooltipTrigger>
@@ -1317,7 +1503,15 @@ export function CardTemplateMaker2({
                                 <button
                                   type="button"
                                   className="shrink-0 text-[#757d8c] hover:text-[#d5ad54]"
-                                  onClick={(e) => { e.stopPropagation(); setCollapsedGroups(prev => { const next = new Set(prev); next.has(el.id) ? next.delete(el.id) : next.add(el.id); return next; }); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCollapsedGroups(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(el.id)) next.delete(el.id);
+                                      else next.add(el.id);
+                                      return next;
+                                    });
+                                  }}
                                 >
                                   {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                                 </button>
@@ -1347,6 +1541,7 @@ export function CardTemplateMaker2({
                               <button
                                 type="button"
                                 title={el.visible === false ? 'Show element' : 'Hide element'}
+                                aria-label={el.visible === false ? `Show layer ${el.name}` : `Hide layer ${el.name}`}
                                 onClick={(e) => { e.stopPropagation(); updateElement(el.id, { visible: el.visible === false ? true : false }); }}
                                 className="shrink-0 text-[#454d5c] hover:text-[#d5ad54]"
                               >
@@ -1356,6 +1551,7 @@ export function CardTemplateMaker2({
                               <button
                                 type="button"
                                 title={el.locked ? 'Unlock element' : 'Lock element'}
+                                aria-label={el.locked ? `Unlock layer ${el.name}` : `Lock layer ${el.name}`}
                                 onClick={(e) => { e.stopPropagation(); updateElement(el.id, { locked: !el.locked }); }}
                                 className="shrink-0 text-[#454d5c] hover:text-[#d5ad54]"
                               >
@@ -1518,10 +1714,20 @@ export function CardTemplateMaker2({
                     />
 
                     {/* Card canvas */}
+                    <p id="maker2-canvas-help" className="sr-only">
+                      Template canvas editor. Select an element, then use arrow keys to move it. Hold Shift to move by grid size. Use Delete or Backspace to remove the selected element.
+                    </p>
+                    <p id="maker2-selection-status" className="sr-only" role="status" aria-live="polite">
+                      {selectedElement ? `Selected ${selectedElement.name || selectedElement.type} element.` : 'No element selected.'}
+                    </p>
                     <div
                       ref={canvasRef}
                       data-cardforge-canvas="true"
                       tabIndex={0}
+                      role="region"
+                      aria-label="Template canvas"
+                      aria-describedby="maker2-canvas-help maker2-selection-status maker2-shortcuts-help"
+                      aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete Backspace Escape"
                       className="relative shadow-[0_24px_70px_rgba(0,0,0,0.75),0_0_0_1px_rgba(213,173,84,0.2)] focus:outline-none focus:ring-2 focus:ring-[#d5ad54]"
                       style={canvasStyle}
                       onKeyDown={handleCanvasKeyDown}
@@ -1601,8 +1807,8 @@ export function CardTemplateMaker2({
                             <ColorField id="maker2-border-color" value={currentTemplate.cardBorderColor || '#c89f42'} onChange={value => updateTemplate({ cardBorderColor: value }, false)} />
                           </div>
                           <div>
-                            <Label htmlFor="maker2-section-border" className="text-xs">Section Border</Label>
-                            <ColorField id="maker2-section-border" value={currentTemplate.defaultSectionBorderColor || '#c89f42'} onChange={value => updateTemplate({ defaultSectionBorderColor: value }, false)} />
+                            <Label htmlFor="maker2-element-border" className="text-xs">Default Element Border</Label>
+                            <ColorField id="maker2-element-border" value={currentTemplate.defaultElementBorderColor || '#c89f42'} onChange={value => updateTemplate({ defaultElementBorderColor: value }, false)} />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -1694,6 +1900,7 @@ export function CardTemplateMaker2({
                             <Slider value={[Math.round((selectedElement.opacity ?? 1) * 100)]} min={0} max={100} step={1} onValueChange={value => updateElement(selectedElement.id, { opacity: value[0] / 100 }, false)} />
                           </div>
 
+                          {canUseAppearanceStudio && (
                           <div className="space-y-3 rounded-[6px] border border-[#3a2e17] bg-[#100d08] p-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Appearance Studio</Label>
@@ -1701,7 +1908,7 @@ export function CardTemplateMaker2({
                                 <Save className="mr-1 h-3.5 w-3.5" /> Save Style
                               </Button>
                             </div>
-                            {!canUseImageSource && (
+                            {!canUseImageSource && !canUseDividerControls && (selectedElement.type === 'text' || selectedElement.type === 'shape') && (
                             <div>
                               <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Quick Styles</Label>
                               <div className="grid grid-cols-2 gap-1">
@@ -1743,24 +1950,24 @@ export function CardTemplateMaker2({
                             <div className="grid grid-cols-3 gap-2">
                               <div>
                                 <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Material</Label>
-                                <ColorField value={normalizeAppearanceForElement(selectedElement).material?.baseColor || '#111720'} onChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, baseColor: value } }), false)} />
+                                <ColorField value={selectedAppearance?.material?.baseColor || '#111720'} onChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, baseColor: value } }), false)} />
                               </div>
                               {!canUseDividerControls && selectedElement.type !== 'image' && (
                               <div>
                                 <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Text</Label>
-                                <ColorField value={normalizeAppearanceForElement(selectedElement).material?.textColor || selectedElement.textColor || '#f5d27b'} onChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, textColor: value, strokeColor: selectedElement.type === 'icon' ? value : appearance.material?.strokeColor } }), false)} />
+                                <ColorField value={selectedAppearance?.material?.textColor || selectedElement.textColor || '#f5d27b'} onChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, textColor: value, strokeColor: selectedElement.type === 'icon' ? value : appearance.material?.strokeColor } }), false)} />
                               </div>
                               )}
                               <div>
                                 <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">{canUseDividerControls ? 'Tint' : 'Border'}</Label>
-                                <ColorField value={normalizeAppearanceForElement(selectedElement).border?.color || selectedElement.borderColor || '#d5ad54'} onChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, border: { ...appearance.border, kind: appearance.border?.kind || 'solid', color: value } }), false)} />
+                                <ColorField value={selectedAppearance?.border?.color || selectedElement.borderColor || '#d5ad54'} onChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, border: { ...appearance.border, kind: appearance.border?.kind || 'solid', color: value } }), false)} />
                               </div>
                             </div>
                             {!canUseDividerControls && (
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Gradient</Label>
-                                <Select value={normalizeAppearanceForElement(selectedElement).material?.gradient?.type || 'none'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({
+                                <Select value={selectedAppearance?.material?.gradient?.type || 'none'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({
                                   ...appearance,
                                   material: {
                                     ...appearance.material,
@@ -1781,7 +1988,7 @@ export function CardTemplateMaker2({
                               </div>
                               <div>
                                 <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Angle</Label>
-                                <Input className={makerTheme.control} type="number" value={normalizeAppearanceForElement(selectedElement).material?.gradient?.angle ?? 135} onChange={event => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, gradient: { ...(appearance.material?.gradient || { type: 'linear', stops: [] }), angle: Number(event.target.value) } } }), false)} />
+                                <Input className={makerTheme.control} type="number" value={selectedAppearance?.material?.gradient?.angle ?? 135} onChange={event => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, gradient: { ...(appearance.material?.gradient || { type: 'linear', stops: [] }), angle: Number(event.target.value) } } }), false)} />
                               </div>
                             </div>
                             )}
@@ -1789,7 +1996,7 @@ export function CardTemplateMaker2({
                               {canUseBackgroundTexture && (
                               <div>
                                 <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Texture</Label>
-                                <Select value={normalizeAppearanceForElement(selectedElement).material?.texture?.kind || 'none'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || {}), kind: value as AppearanceTextureKind, intensity: appearance.material?.texture?.intensity ?? 40, scale: appearance.material?.texture?.scale ?? 12 } } }))}>
+                                <Select value={selectedAppearance?.material?.texture?.kind || 'none'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || {}), kind: value as AppearanceTextureKind, intensity: appearance.material?.texture?.intensity ?? 40, scale: appearance.material?.texture?.scale ?? 12 } } }))}>
                                   <SelectTrigger><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="none">None</SelectItem>
@@ -1806,7 +2013,7 @@ export function CardTemplateMaker2({
                               {!canUseDividerControls && (
                               <div>
                                 <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Border Style</Label>
-                                <Select value={normalizeAppearanceForElement(selectedElement).border?.kind || 'none'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, border: { ...appearance.border, kind: value as AppearanceBorderKind, width: appearance.border?.width ?? 1, radius: appearance.border?.radius ?? 6 } }))}>
+                                <Select value={selectedAppearance?.border?.kind || 'none'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, border: { ...appearance.border, kind: value as AppearanceBorderKind, width: appearance.border?.width ?? 1, radius: appearance.border?.radius ?? 6 } }))}>
                                   <SelectTrigger><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="none">None</SelectItem>
@@ -1911,16 +2118,17 @@ export function CardTemplateMaker2({
                             <div className="grid grid-cols-2 gap-3">
                               {canUseBackgroundTexture && (
                               <div>
-                                <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Texture</span><span>{normalizeAppearanceForElement(selectedElement).material?.texture?.intensity ?? 0}%</span></div>
-                                <Slider value={[normalizeAppearanceForElement(selectedElement).material?.texture?.intensity ?? 0]} min={0} max={100} step={1} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value[0] } } }), false)} />
+                                <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Texture</span><span>{selectedAppearance?.material?.texture?.intensity ?? 0}%</span></div>
+                                <Slider value={[selectedAppearance?.material?.texture?.intensity ?? 0]} min={0} max={100} step={1} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value[0] } } }), false)} />
                               </div>
                               )}
                               <div>
-                                <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Glow</span><span>{normalizeAppearanceForElement(selectedElement).effects?.glow ?? 0}</span></div>
-                                <Slider value={[normalizeAppearanceForElement(selectedElement).effects?.glow ?? 0]} min={0} max={60} step={1} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, effects: { ...appearance.effects, glow: value[0] } }), false)} />
+                                <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Glow</span><span>{selectedAppearance?.effects?.glow ?? 0}</span></div>
+                                <Slider value={[selectedAppearance?.effects?.glow ?? 0]} min={0} max={60} step={1} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, effects: { ...appearance.effects, glow: value[0] } }), false)} />
                               </div>
                             </div>
                           </div>
+                          )}
                           <div className="grid grid-cols-3 gap-2">
                             <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => alignSelected('left')} className={makerTheme.button}><AlignLeft className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Align left edge to canvas</TooltipContent></Tooltip>
                             <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => alignSelected('center')} className={makerTheme.button}><AlignCenter className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Center horizontally on canvas</TooltipContent></Tooltip>
@@ -1929,98 +2137,37 @@ export function CardTemplateMaker2({
                             <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('up')} className={makerTheme.button}><AlignHorizontalSpaceAround className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Move up one layer</TooltipContent></Tooltip>
                             <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" onClick={() => arrangeSelected('back')} className={makerTheme.button}><ArrowDownToLine className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Send to back (bottom layer)</TooltipContent></Tooltip>
                           </div>
-
                           {(canUseTypography || canUseImageSource) && (
                             <div>
                               {selectedElement.type === 'text' ? (
-                                <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
-                                  <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Text Data Binding</Label>
-                                  <div className="grid grid-cols-2 gap-1">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className={cn(makerTheme.button, textBindingMode === 'field' && 'border-[#d5ad54] text-[#f5d27b]')}
-                                      onClick={() => setTextBindingMode('field')}
-                                    >
-                                      Field Binding
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className={cn(makerTheme.button, textBindingMode === 'expression' && 'border-[#d5ad54] text-[#f5d27b]')}
-                                      onClick={() => setTextBindingMode('expression')}
-                                    >
-                                      Template Expression
-                                    </Button>
-                                  </div>
-                                  {textBindingMode === 'field' ? (
-                                    <>
-                                      <div>
-                                        <Label htmlFor="element-field-key" className="text-xs">Generator Field</Label>
-                                        <Input
-                                          id="element-field-key"
-                                          className={makerTheme.control}
-                                          placeholder="cardName"
-                                          value={parseTextBinding(selectedElement.content).field}
-                                          onChange={event => {
-                                            const parsed = parseTextBinding(selectedElement.content);
-                                            updateElement(selectedElement.id, { content: buildTextBinding(event.target.value, parsed.fallback) }, false);
-                                          }}
-                                        />
-                                      </div>
-                                      <div>
-                                        <Label htmlFor="element-default-text" className="text-xs">Default Text</Label>
-                                        <RichTextToolbar
-                                          textareaRef={defaultTextareaRef}
-                                          value={parseTextBinding(selectedElement.content).fallback}
-                                          highlightColor={richTextHighlightColor}
-                                          onHighlightColorChange={setRichTextHighlightColorAction}
-                                          onChange={value => {
-                                            const parsed = parseTextBinding(selectedElement.content);
-                                            updateElement(selectedElement.id, { content: buildTextBinding(parsed.field || 'text', value) }, false);
-                                          }}
-                                        />
-                                        <Textarea
-                                          id="element-default-text"
-                                          ref={defaultTextareaRef}
-                                          value={parseTextBinding(selectedElement.content).fallback}
-                                          onChange={event => {
-                                            const parsed = parseTextBinding(selectedElement.content);
-                                            updateElement(selectedElement.id, { content: buildTextBinding(parsed.field || 'text', event.target.value) }, false);
-                                          }}
-                                          rows={4}
-                                          className="mt-1 font-mono text-xs"
-                                        />
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div>
-                                        <Label htmlFor="element-template-expression" className="text-xs">Template Expression</Label>
-                                        <RichTextToolbar
-                                          textareaRef={expressionTextareaRef}
-                                          value={selectedElement.content || ''}
-                                          highlightColor={richTextHighlightColor}
-                                          onHighlightColorChange={setRichTextHighlightColorAction}
-                                          onChange={value => updateElement(selectedElement.id, { content: value }, false)}
-                                        />
-                                        <Textarea
-                                          id="element-template-expression"
-                                          ref={expressionTextareaRef}
-                                          value={selectedElement.content || ''}
-                                          onChange={event => updateElement(selectedElement.id, { content: event.target.value }, false)}
-                                          rows={6}
-                                          className="mt-1 font-mono text-xs"
-                                        />
-                                      </div>
-                                      <p className="text-[10px] text-[#8f95a3]">
-                                        Mix static text and placeholder tokens in one sentence, then fill them from generator fields.
-                                      </p>
-                                    </>
-                                  )}
-                                </div>
+                                <>
+                                  <TextExpressionEditor
+                                    element={selectedElement}
+                                    fieldCount={selectedElementTemplateFields.length}
+                                    highlightColor={richTextHighlightColor}
+                                    onHighlightColorChange={setRichTextHighlightColorAction}
+                                    onContentChange={value => updateElement(selectedElement.id, { content: value }, false)}
+                                    onElementChange={updates => updateElement(selectedElement.id, updates, false)}
+                                    activeVariableKey={activeVariableKey}
+                                    onActiveVariableChange={setActiveVariableKey}
+                                    onCreateVariable={text => createEditorVariableFromSelection(text)}
+                                    onEditVariable={focusVariableCard}
+                                    onRenameVariable={focusVariableCard}
+                                    onRemoveVariable={removeSelectedElementVariableContract}
+                                    showRulesHint={inferTextElementContentModel(currentTemplate, selectedElement) === 'rulesBlocks'}
+                                  />
+                                  <TextFieldSettingsList
+                                    fields={selectedElementTemplateFields}
+                                    element={selectedElement}
+                                    fieldContracts={currentTemplate.fieldContracts}
+                                    activeVariableKey={activeVariableKey}
+                                    variableKeyInputRefs={variableKeyInputRefs}
+                                    variableCardRefs={variableCardRefs}
+                                    onFocusField={setActiveVariableKey}
+                                    onRenameField={renameSelectedElementVariable}
+                                    onUpdateContract={upsertFieldContract}
+                                  />
+                                </>
                               ) : (
                                 <>
                                 <Label htmlFor="element-content">Image URL or Data Key</Label>
@@ -2133,7 +2280,7 @@ export function CardTemplateMaker2({
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <Label htmlFor="divider-mode" className="text-xs">Stretch Mode</Label>
-                                  <Select value={normalizeAppearanceForElement(selectedElement).tileMode || 'stretch'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, tileMode: value as FreeformAppearance['tileMode'] }))}>
+                                  <Select value={selectedAppearance?.tileMode || 'stretch'} onValueChange={value => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, tileMode: value as FreeformAppearance['tileMode'] }))}>
                                     <SelectTrigger id="divider-mode"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="stretch">Stretch</SelectItem>
@@ -2143,7 +2290,7 @@ export function CardTemplateMaker2({
                                 </div>
                                 <div className="flex items-end justify-between gap-2 rounded-[5px] border border-[#252b35] bg-[#111720] px-2 py-2">
                                   <Label htmlFor="divider-flip" className="text-xs">Flip</Label>
-                                  <Switch id="divider-flip" checked={Boolean(normalizeAppearanceForElement(selectedElement).assetFlipX)} onCheckedChange={checked => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, assetFlipX: checked }))} />
+                                  <Switch id="divider-flip" checked={Boolean(selectedAppearance?.assetFlipX)} onCheckedChange={checked => updateElementAppearance(selectedElement.id, appearance => ({ ...appearance, assetFlipX: checked }))} />
                                 </div>
                               </div>
                             </div>
@@ -2299,7 +2446,9 @@ export function CardTemplateMaker2({
                           )}
 
                           {canUseTypography && (
-                            <>
+                            <details className="rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
+                              <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f95a3]">Text Details</summary>
+                              <div className="mt-2 space-y-2">
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <Label htmlFor="element-font">Font</Label>
@@ -2308,40 +2457,8 @@ export function CardTemplateMaker2({
                                     <SelectContent>{AVAILABLE_FONTS.map(font => <SelectItem key={font.value} value={font.value}>{font.name}</SelectItem>)}</SelectContent>
                                   </Select>
                                 </div>
-                                <div>
-                                  <Label htmlFor="element-font-size-px">Size (px)</Label>
-                                  <Input
-                                    id="element-font-size-px"
-                                    type="number"
-                                    min="6"
-                                    max="96"
-                                    value={textFontSizePx(selectedElement)}
-                                    onChange={event => updateElement(selectedElement.id, { fontSizePx: clamp(Number(event.target.value) || 14, 6, 96) }, false)}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="element-font-weight">Weight</Label>
-                                  <Select value={selectedElement.fontWeight || 'font-normal'} onValueChange={value => updateElement(selectedElement.id, { fontWeight: value as FreeformCardElement['fontWeight'] })}>
-                                    <SelectTrigger id="element-font-weight"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{FONT_WEIGHTS.map(weight => <SelectItem key={weight} value={weight}>{weight}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="element-font-style">Style</Label>
-                                  <Select value={selectedElement.fontStyle || 'normal'} onValueChange={value => updateElement(selectedElement.id, { fontStyle: value as FreeformCardElement['fontStyle'] })}>
-                                    <SelectTrigger id="element-font-style"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{FONT_STYLES.map(style => <SelectItem key={style} value={style}>{style}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <Label htmlFor="element-align">Align</Label>
-                                  <Select value={selectedElement.textAlign || 'left'} onValueChange={value => updateElement(selectedElement.id, { textAlign: value as FreeformCardElement['textAlign'] })}>
-                                    <SelectTrigger id="element-align"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{TEXT_ALIGNS.map(align => <SelectItem key={align} value={align}>{align}</SelectItem>)}</SelectContent>
-                                  </Select>
-                                </div>
                                 <div>
                                   <Label htmlFor="element-padding">Padding</Label>
                                   <Select value={selectedElement.padding || 'p-1'} onValueChange={value => updateElement(selectedElement.id, { padding: value })}>
@@ -2374,17 +2491,6 @@ export function CardTemplateMaker2({
                                       <SelectItem value="uppercase">UPPERCASE</SelectItem>
                                       <SelectItem value="lowercase">lowercase</SelectItem>
                                       <SelectItem value="capitalize">Capitalize</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="element-text-decoration">Decoration</Label>
-                                  <Select value={selectedElement.textDecoration || 'none'} onValueChange={value => updateElement(selectedElement.id, { textDecoration: value as FreeformCardElement['textDecoration'] })}>
-                                    <SelectTrigger id="element-text-decoration"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none">None</SelectItem>
-                                      <SelectItem value="underline">Underline</SelectItem>
-                                      <SelectItem value="line-through">Strikethrough</SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -2425,10 +2531,55 @@ export function CardTemplateMaker2({
                                   />
                                 </div>
                               </div>
-                            </>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <Label htmlFor="element-text-autofit">Shrink to Fit</Label>
+                                  <div className="flex h-10 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#090d13] px-3">
+                                    <span className="text-[11px] text-[#d8d1c4]">Reduce text size if it overflows</span>
+                                    <Switch
+                                      id="element-text-autofit"
+                                      checked={shouldAutoFitTextElement(currentTemplate, selectedElement)}
+                                      onCheckedChange={checked => {
+                                        const boundField = parseTextBinding(selectedElement.content).field;
+                                        if (boundField) {
+                                          upsertFieldContract(boundField, {
+                                            elementId: selectedElement.id,
+                                            textAutoFit: checked,
+                                          });
+                                        }
+                                        updateElement(selectedElement.id, { textAutoFit: checked }, false);
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label htmlFor="element-min-font-size">Min Size (px)</Label>
+                                  <Input
+                                    id="element-min-font-size"
+                                    type="number"
+                                    min="6"
+                                    max={textFontSizePx(selectedElement)}
+                                    value={selectedElement.textMinFontSizePx || 8}
+                                    onChange={event => {
+                                      const nextMin = clamp(Number(event.target.value) || 8, 6, textFontSizePx(selectedElement));
+                                      const boundField = parseTextBinding(selectedElement.content).field;
+                                      if (boundField) {
+                                        upsertFieldContract(boundField, {
+                                          elementId: selectedElement.id,
+                                          minFontSizePx: nextMin,
+                                        });
+                                      }
+                                      updateElement(selectedElement.id, { textMinFontSizePx: nextMin }, false);
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              </div>
+                            </details>
                           )}
 
-                          <div>
+                          {canUseElementBorder && (
+                          <div className="space-y-2">
                             <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Border Presets</Label>
                             <div className="grid grid-cols-2 gap-1">
                               {BORDER_PRESETS.map(preset => (
@@ -2444,7 +2595,6 @@ export function CardTemplateMaker2({
                                 </Button>
                               ))}
                             </div>
-                          </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <Label htmlFor="element-border-width">Border Width</Label>
@@ -2461,6 +2611,8 @@ export function CardTemplateMaker2({
                               </Select>
                             </div>
                           </div>
+                          </div>
+                          )}
                         </CardContent>
                       </Card>
                     )}
@@ -2470,7 +2622,7 @@ export function CardTemplateMaker2({
             </ScrollArea>
           </aside>
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#252b35] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">
+        <div id="maker2-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#252b35] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">
           <span className="text-[#d5ad54]">Shortcuts</span>
           <span>Ctrl+S Save</span>
           <span>Ctrl+Z Undo</span>

@@ -10,6 +10,8 @@ export interface ExportProfile {
   dpi: number;
   renderWidthPx: number;
   canvasPixelRatio: number;
+  colorSpace: 'rgb';
+  recommendedFormat: 'png';
 }
 
 export interface ExportValidationResult {
@@ -24,6 +26,8 @@ const EXPORT_PROFILES: Record<ExportMode, ExportProfile> = {
     dpi: 300,
     renderWidthPx: 744,
     canvasPixelRatio: 3,
+    colorSpace: 'rgb',
+    recommendedFormat: 'png',
   },
   virtual: {
     mode: 'virtual',
@@ -31,6 +35,8 @@ const EXPORT_PROFILES: Record<ExportMode, ExportProfile> = {
     dpi: 150,
     renderWidthPx: 420,
     canvasPixelRatio: 2,
+    colorSpace: 'rgb',
+    recommendedFormat: 'png',
   },
 };
 
@@ -77,10 +83,23 @@ export const getExportProfile = (mode: ExportMode, dpiOverride?: number): Export
   };
 };
 
-export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode): ExportValidationResult => {
+export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, dpiOverride?: number): ExportValidationResult => {
   const critical: string[] = [];
   const warnings: string[] = [];
   const fieldDefinitions = extractTemplateFieldDefinitions(card.template);
+  const exportProfile = getExportProfile(mode, dpiOverride);
+
+  if (mode === 'physical' && exportProfile.dpi < 300) {
+    warnings.push('Physical print exports should use at least 300 DPI for standard print workflows.');
+  }
+
+  if (mode === 'virtual' && exportProfile.dpi < 96) {
+    warnings.push('Virtual exports below 96 DPI may look soft on common displays.');
+  }
+
+  if (mode === 'physical') {
+    warnings.push('Browser image exports are RGB. If your print vendor requires CMYK or PDF/X, convert the exported PNG/PDF in a prepress tool before final production.');
+  }
 
   fieldDefinitions.forEach((field) => {
     const value = String(card.data[field.key] ?? '').trim();

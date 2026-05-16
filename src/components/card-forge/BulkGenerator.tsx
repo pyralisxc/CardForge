@@ -16,11 +16,16 @@ import { nanoid } from 'nanoid';
 import { Download, PackagePlus, UploadCloud, FileText, ArrowRight } from 'lucide-react';
 import { parseCSV } from '@/lib/utils';
 import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
+import { TemplateContractSummary } from '@/components/card-forge/TemplateContractSummary';
+import { GeneratorFieldInput } from '@/components/card-forge/GeneratorFieldInput';
 import {
   buildInitialColumnMapping,
   shouldBlockBulkGeneration,
   updateColumnMapping,
 } from '@/lib/bulkGeneration';
+import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
+import { ERROR_COPY } from '@/lib/errorCopy';
+import { useAppStore } from '@/store/appStore';
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
@@ -55,9 +60,13 @@ export function BulkGenerator({
   const [previewOverrides, setPreviewOverrides] = useState<Record<number, Record<string, string>>>({});
   const [previewFilter, setPreviewFilter] = useState<PreviewFilter>('all');
   const [showAdvancedMapping, setShowAdvancedMapping] = useState(false);
+  const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
+  const [conflictFocusField, setConflictFocusField] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
+  const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
 
   // selectedTemplate is derived from selectedTemplateIdProp (from Zustand) and templates prop.
   const selectedTemplate = useMemo(() => {
@@ -83,6 +92,7 @@ export function BulkGenerator({
       const keyLower = field.key.toLowerCase();
       if (field.defaultValue) return `"${field.defaultValue.replace(/"/g, '""')}"`;
       if (field.isImage) return 'https://placehold.co/600x400.png?text=Artwork';
+      if (field.contentModel === 'rulesBlocks') return '"[ability] Flying\n[effect] Deal 3 damage to any target.\n[reminder] (This can hit creatures.)"';
       if (keyLower.includes('name') || keyLower.includes('title')) return 'Sample Card';
       if (keyLower.includes('cost') || keyLower.includes('value')) return '3';
       if (keyLower.includes('type')) return 'Sample Type';
@@ -125,6 +135,13 @@ export function BulkGenerator({
     const unmappedRequiredFields = requiredFieldKeys.filter((key) => !mappedFieldKeys.has(key));
     if (unmappedRequiredFields.length > 0) {
       globalWarnings.push(`Required template fields are not mapped: ${unmappedRequiredFields.join(', ')}`);
+    }
+
+    const duplicateRequiredFields = requiredFieldKeys.filter((key) => {
+      return Object.values(columnMapping).filter((mappedKey) => mappedKey === key).length > 1;
+    });
+    if (duplicateRequiredFields.length > 0) {
+      globalWarnings.push(`Required fields mapped multiple times: ${duplicateRequiredFields.join(', ')}`);
     }
 
     const requiredFieldSet = new Set(requiredFieldKeys);
@@ -174,6 +191,47 @@ export function BulkGenerator({
     return bulkPreview.rows.reduce((acc, row) => acc + row.warnings.length, 0);
   }, [bulkPreview.rows]);
 
+  const mappedColumnCount = useMemo(() => {
+    return csvHeaders.filter((header) => !!columnMapping[header]).length;
+  }, [columnMapping, csvHeaders]);
+
+  const requiredFieldKeySet = useMemo(() => {
+    return new Set(fieldDefinitions.filter((field) => field.required).map((field) => field.key));
+  }, [fieldDefinitions]);
+
+  const duplicateRequiredFieldCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    Object.values(columnMapping)
+      .map((value) => value?.trim())
+      .filter((value): value is string => !!value)
+      .forEach((fieldKey) => {
+        counts.set(fieldKey, (counts.get(fieldKey) ?? 0) + 1);
+      });
+
+    const duplicateCounts = new Map<string, number>();
+    counts.forEach((count, fieldKey) => {
+      if (count > 1 && requiredFieldKeySet.has(fieldKey)) {
+        duplicateCounts.set(fieldKey, count);
+      }
+    });
+    return duplicateCounts;
+  }, [columnMapping, requiredFieldKeySet]);
+
+  const duplicateRequiredFields = useMemo(() => {
+    return Array.from(duplicateRequiredFieldCounts.keys());
+  }, [duplicateRequiredFieldCounts]);
+
+  const visibleCsvHeaders = useMemo(() => {
+    let headers = csvHeaders;
+    if (showUnmappedOnly) {
+      headers = headers.filter((header) => !columnMapping[header]);
+    }
+    if (conflictFocusField) {
+      headers = headers.filter((header) => columnMapping[header] === conflictFocusField);
+    }
+    return headers;
+  }, [columnMapping, conflictFocusField, csvHeaders, showUnmappedOnly]);
+
   const hasBlockingWarnings = shouldBlockBulkGeneration(
     strictMode,
     bulkPreview.globalWarnings.length,
@@ -204,7 +262,26 @@ export function BulkGenerator({
     setPreviewOverrides({});
     setPreviewFilter('all');
     setShowAdvancedMapping(false);
+    setShowUnmappedOnly(false);
+    setConflictFocusField(null);
   }, [bulkDataInput, selectedTemplateIdProp]);
+
+  useEffect(() => {
+    if (!conflictFocusField) return;
+    if (!duplicateRequiredFieldCounts.has(conflictFocusField)) {
+      setConflictFocusField(null);
+    }
+  }, [conflictFocusField, duplicateRequiredFieldCounts]);
+
+  const handleAutoMapAgain = useCallback(() => {
+    if (csvHeaders.length === 0 || fieldDefinitions.length === 0) return;
+    const keys = fieldDefinitions.map((field) => field.key);
+    setColumnMapping(buildInitialColumnMapping(csvHeaders, keys));
+    toast({
+      title: 'Auto-mapping refreshed',
+      description: 'Column mappings were rebuilt from CSV headers. Next step: review mapping conflicts before generating.',
+    });
+  }, [csvHeaders, fieldDefinitions, toast]);
 
   const applyPreviewOverride = useCallback((rowNumber: number, fieldKey: string, value: string) => {
     setPreviewOverrides((prev) => ({
@@ -223,17 +300,25 @@ export function BulkGenerator({
 
   const handleGenerate = async () => {
     if (!selectedTemplate) {
-      toast({ title: "Template Required", description: "Please select a TCG template for the cards.", variant: "destructive" });
+      toast({
+        title: ERROR_COPY.selectTemplateFirst.title,
+        description: withNextStep('Bulk generation requires a selected template.', 'Pick a template in step 1, then generate again.'),
+        variant: "destructive",
+      });
       return;
     }
     if (!bulkDataInput.trim()) {
-      toast({ title: "Error", description: "Please provide data for card generation.", variant: "destructive" });
+      toast({
+        title: ERROR_COPY.csvRequired.title,
+        description: withNextStep('No CSV data was found.', 'Paste CSV content or upload a .csv file, then generate again.'),
+        variant: "destructive",
+      });
       return;
     }
     if (hasBlockingWarnings) {
       toast({
-        title: "Strict Mode Prevented Generation",
-        description: "Resolve mapping and required-field warnings, or disable Strict Mode to continue.",
+        title: ERROR_COPY.strictModeBlocked.title,
+        description: withNextStep('Warnings are still present in mapping or required fields.', 'Use Preview & Validation quick fixes, or disable Strict Mode to continue.'),
         variant: "destructive",
       });
       return;
@@ -243,7 +328,11 @@ export function BulkGenerator({
     try {
       const parsedRows = parseCSV(bulkDataInput.trim());
       if (parsedRows.length < 2) {
-        toast({ title: "Error", description: "CSV data must include a header row and at least one data row.", variant: "destructive" });
+        toast({
+          title: ERROR_COPY.csvFormatIncomplete.title,
+          description: withNextStep('A header row and at least one data row are required.', 'Check your CSV format or download the example CSV template and try again.'),
+          variant: "destructive",
+        });
         setIsLoading(false);
         return;
       }
@@ -276,14 +365,22 @@ export function BulkGenerator({
 
       onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
-        toast({ title: "Success", description: `${generatedCards.length} TCG cards generated.` });
+        toast({ title: "Bulk generation complete", description: `${generatedCards.length} cards were added. Next step: review cards and export.` });
       } else {
-        toast({ title: "No Cards Generated", description: "No data was processed to generate cards.", variant: "default" });
+        toast({
+          title: 'No cards were generated',
+          description: withNextStep('No rows produced card output.', 'Check column mapping and row data in Preview & Validation, then try again.'),
+          variant: "default",
+        });
       }
 
     } catch (error) {
       console.error("Error generating TCG cards:", error);
-      toast({ title: "Generation Error", description: `Failed to generate TCG cards: ${(error as Error).message}`, variant: "destructive" });
+      toast({
+        title: 'Bulk generation failed',
+        description: withNextStep(extractErrorMessage(error), 'Review CSV structure and mapped fields, then retry.'),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -297,7 +394,11 @@ export function BulkGenerator({
     const file = event.target.files?.[0];
     if (file) {
       if (selectedFileType === 'csv' && !file.name.toLowerCase().endsWith('.csv')) {
-        toast({ title: "Invalid File", description: "Please upload a .csv file.", variant: "destructive" });
+        toast({
+          title: ERROR_COPY.unsupportedFileType.title,
+          description: withNextStep('Only .csv files are supported for bulk import.', 'Choose a .csv file and upload again.'),
+          variant: "destructive",
+        });
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
@@ -305,10 +406,14 @@ export function BulkGenerator({
       reader.onload = (e) => {
         const text = e.target?.result as string;
         setBulkDataInput(text);
-        toast({ title: "File Loaded", description: `Content of "${file.name}" loaded.` });
+        toast({ title: 'CSV loaded', description: `Loaded ${file.name}. Next step: review mapping and generate cards.` });
       };
       reader.onerror = () => {
-         toast({ title: "File Read Error", description: `Could not read file "${file.name}".`, variant: "destructive" });
+         toast({
+          title: ERROR_COPY.fileReadError.title,
+          description: withNextStep(`Unable to read ${file.name}.`, 'Check file encoding or re-save as UTF-8 CSV, then retry.'),
+          variant: "destructive",
+        });
       };
       reader.readAsText(file);
     }
@@ -319,12 +424,20 @@ export function BulkGenerator({
 
   const handleDownloadTemplateCSV = () => {
     if (!selectedTemplate) {
-      toast({ title: "Template Required", description: "Please select a TCG template first.", variant: "default" });
+      toast({
+        title: ERROR_COPY.selectTemplateFirst.title,
+        description: withNextStep('A template is required before downloading example CSV.', 'Choose a template in step 1 and try again.'),
+        variant: "default",
+      });
       return;
     }
     const csvContent = exampleCSV;
     if (!csvContent.trim() || !csvContent.includes('\n') || csvContent.startsWith("Select a template first.")) {
-       toast({ title: "Template Error", description: "Could not generate CSV template. Ensure template has placeholders.", variant: "destructive" });
+       toast({
+        title: 'Example CSV unavailable',
+        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Template Maker, save, then download again.'),
+        variant: "destructive",
+      });
        return;
     }
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -339,8 +452,47 @@ export function BulkGenerator({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast({ title: "Template Downloaded", description: `${fileName} downloaded.` });
+    toast({ title: 'Example CSV downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
   };
+
+  const handleDownloadContractJson = useCallback(() => {
+    if (!selectedTemplate) {
+      toast({
+        title: ERROR_COPY.selectTemplateFirst.title,
+        description: withNextStep('A template is required before downloading contract JSON.', 'Choose a template in step 1 and try again.'),
+        variant: 'default',
+      });
+      return;
+    }
+
+    const contract = {
+      templateId: selectedTemplate.id,
+      templateName: selectedTemplate.name,
+      generatedAt: new Date().toISOString(),
+      fields: fieldDefinitions.map((field) => ({
+        key: field.key,
+        label: field.label,
+        type: field.isImage ? 'image' : field.contentModel === 'rulesBlocks' ? 'rulesBlocks' : field.supportsRichText ? 'richText' : field.isMultiline ? 'multilineText' : 'text',
+        required: field.required,
+        multiline: field.isMultiline,
+        supportsRichText: field.supportsRichText,
+        defaultValue: field.defaultValue ?? '',
+        helperText: field.helperText ?? '',
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(contract, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeTemplateName = selectedTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0, 20);
+    link.href = url;
+    link.download = `contract_${safeTemplateName || 'template'}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: 'Contract JSON downloaded', description: 'Use this contract as the source of truth for bulk validation and external pipelines.' });
+  }, [fieldDefinitions, selectedTemplate, toast]);
 
   const handleTemplateSelectChange = useCallback((id: string | null) => {
     onTemplateSelectionChange(id);
@@ -351,7 +503,7 @@ export function BulkGenerator({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Bulk Card Generation</CardTitle>
-        <CardDescription>Generate multiple cards using CSV data, based on a selected template.</CardDescription>
+        <CardDescription>Run a contract-driven CSV workflow with mapping, preview, validation, and export-ready output.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
@@ -361,7 +513,7 @@ export function BulkGenerator({
               onValueChange={handleTemplateSelectChange} // Calls Zustand action via prop
               disabled={templates.length === 0}
             >
-              <SelectTrigger id="bulkTemplateSelect">
+              <SelectTrigger id="bulkTemplateSelect" aria-describedby="bulk-template-help">
                 <SelectValue placeholder="Choose template (Required)" />
               </SelectTrigger>
               <SelectContent>
@@ -372,7 +524,19 @@ export function BulkGenerator({
                 )}
               </SelectContent>
             </Select>
+            <p id="bulk-template-help" className="text-xs text-muted-foreground mt-1">
+              Choose a template to enable CSV mapping and generation.
+            </p>
           </div>
+
+        {selectedTemplate && (
+          <TemplateContractSummary
+            fieldDefinitions={fieldDefinitions}
+            templateName={selectedTemplate.name}
+            onDownloadExampleCsv={handleDownloadTemplateCSV}
+            onDownloadContractJson={handleDownloadContractJson}
+          />
+        )}
 
         <div className="flex flex-col sm:flex-row gap-2">
             <Button
@@ -392,14 +556,10 @@ export function BulkGenerator({
                 style={{ display: 'none' }}
                 id="bulk-file-upload-csv"
             />
-            <Button
-                onClick={handleDownloadTemplateCSV}
-                variant="outline"
-                disabled={!selectedTemplateIdProp}
-                className="w-full sm:w-auto flex-grow sm:flex-grow-0"
-            >
-                <FileText className="mr-2 h-4 w-4" /> Download Example CSV
-            </Button>
+            <div className="flex items-center rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              <FileText className="mr-2 h-4 w-4 text-primary" />
+              Download the example CSV and contract JSON from the panel above.
+            </div>
         </div>
 
         <div>
@@ -414,73 +574,139 @@ export function BulkGenerator({
             rows={8}
             className="font-mono text-sm"
             disabled={!selectedTemplateIdProp}
+            aria-describedby="bulk-data-help"
           />
-          {selectedTemplate && <p className="text-xs text-muted-foreground mt-1">
+          {selectedTemplate && <p id="bulk-data-help" className="text-xs text-muted-foreground mt-1">
             Your CSV headers should be: <strong>{fieldDefinitions.map(field => field.key).join(',') || "No placeholders found in selected template"}</strong>.
-            {fieldDefinitions.some(field => field.isMultiline || field.supportsRichText) ? ' Quote multiline cells, and rich-text markers will be preserved.' : ''}
+            {fieldDefinitions.some(field => field.isMultiline || field.supportsRichText) ? ' Quote multiline cells. Rich text fields use the same visual editor in quick fixes and single-card entry.' : ''}
           </p>}
-           {!selectedTemplateIdProp && <p className="text-xs text-muted-foreground mt-1">Select a template first.</p>}
+           {!selectedTemplateIdProp && <p id="bulk-data-help" className="text-xs text-muted-foreground mt-1" role="status" aria-live="polite">Select a template first.</p>}
         </div>
+
+        {selectedTemplate && !bulkDataInput.trim() && (
+          <div className="rounded-md border p-3 text-xs bg-muted/20" role="status" aria-live="polite">
+            <p className="font-medium">Quick Start: Bulk Generation</p>
+            <p className="mt-1 text-muted-foreground">1. Download Example CSV. 2. Add your rows. 3. Upload or paste CSV. 4. Review mapping. 5. Generate cards.</p>
+          </div>
+        )}
 
         {/* Column Mapping Table */}
         {csvHeaders.length > 0 && selectedTemplate && (
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center gap-1.5">
-              <ArrowRight className="h-4 w-4" /> Column Mapping
+              <ArrowRight className="h-4 w-4" /> 3. Review Column Mapping
             </Label>
             <p className="text-xs text-muted-foreground">
-              Columns are auto-matched to template fields. Use Advanced mapping only when headers do not match.
+              We auto-match CSV columns to template fields. Open Mapping Editor when a column needs manual assignment.
             </p>
+            <p className="text-xs text-muted-foreground">Auto-mapped {mappedColumnCount} of {csvHeaders.length} columns.</p>
+            {showUnmappedOnly && (
+              <p className="text-xs text-muted-foreground">Showing {visibleCsvHeaders.length} unmapped columns.</p>
+            )}
             <div className="rounded-md border overflow-hidden text-xs">
               <div className="grid grid-cols-[1fr_16px_1fr] gap-0 bg-muted/50 px-3 py-1.5 font-semibold text-muted-foreground">
                 <span>CSV Column</span>
                 <span />
-                <span>Auto Match Result</span>
+                <span>Mapped Template Field</span>
               </div>
-              {csvHeaders.map(header => (
+              {visibleCsvHeaders.map(header => (
                 <div key={header} className="grid grid-cols-[1fr_16px_1fr] items-center gap-0 border-t px-3 py-1">
                   <span className="font-mono truncate pr-1">{header}</span>
                   <ArrowRight className="h-3 w-3 text-muted-foreground" />
                   <span className={columnMapping[header] ? 'font-mono' : 'text-muted-foreground'}>
-                    {columnMapping[header] || 'Unmapped (ignored)'}
+                    {columnMapping[header] || 'Not mapped (ignored)'}
                   </span>
                 </div>
               ))}
+              {visibleCsvHeaders.length === 0 && (
+                <div className="border-t px-3 py-2 text-muted-foreground">No columns in the current filter.</div>
+              )}
             </div>
-            <Button type="button" size="sm" variant="outline" onClick={() => setShowAdvancedMapping((prev) => !prev)}>
-              {showAdvancedMapping ? 'Hide Advanced Mapping' : 'Advanced Mapping'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setShowAdvancedMapping((prev) => !prev)}>
+                {showAdvancedMapping ? 'Hide Mapping Editor' : 'Mapping Editor'}
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={handleAutoMapAgain}>
+                Auto-map Again
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setShowUnmappedOnly((prev) => !prev)}>
+                {showUnmappedOnly ? 'Show All Columns' : 'Show Unmapped Only'}
+              </Button>
+            </div>
+            {duplicateRequiredFields.length > 0 && (
+              <div className="rounded border border-amber-300/60 bg-amber-50/60 p-2 text-xs space-y-2" role="alert">
+                <p className="font-medium text-amber-900">Conflict Summary</p>
+                <div className="flex flex-wrap gap-2">
+                  {duplicateRequiredFields.map((fieldKey) => (
+                    <Button
+                      key={`conflict-focus-${fieldKey}`}
+                      type="button"
+                      size="sm"
+                      variant={conflictFocusField === fieldKey ? 'default' : 'outline'}
+                      onClick={() => setConflictFocusField(fieldKey)}
+                      className="h-7"
+                    >
+                      {fieldKey} ({duplicateRequiredFieldCounts.get(fieldKey)})
+                    </Button>
+                  ))}
+                  {conflictFocusField && (
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setConflictFocusField(null)} className="h-7">
+                      Clear Conflict Focus
+                    </Button>
+                  )}
+                </div>
+                <p className="text-amber-800">Choose one conflicting required field to isolate affected columns in Mapping Editor.</p>
+              </div>
+            )}
             {showAdvancedMapping && (
               <div className="rounded-md border overflow-hidden text-xs">
                 <div className="grid grid-cols-[1fr_16px_1fr] gap-0 bg-muted/50 px-3 py-1.5 font-semibold text-muted-foreground">
                   <span>CSV Column</span>
                   <span />
-                  <span>Template Field</span>
+                  <span>Template Field Choice</span>
                 </div>
-                {csvHeaders.map(header => (
+                {visibleCsvHeaders.map(header => (
                   <div key={`${header}-advanced`} className="grid grid-cols-[1fr_16px_1fr] items-center gap-0 border-t px-3 py-1">
                     <span className="font-mono truncate pr-1">{header}</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <Select
-                      value={columnMapping[header] || '__unmapped__'}
-                      onValueChange={val => setColumnMapping(prev => updateColumnMapping(prev, header, val))}
-                    >
-                      <SelectTrigger className="h-7 text-xs border-muted bg-transparent shadow-none focus:ring-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__unmapped__">— ignore —</SelectItem>
-                        {fieldDefinitions.map(field => (
-                          <SelectItem key={`${header}-${field.key}`} value={field.key}>{field.key}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1">
+                      <Select
+                        value={columnMapping[header] || '__unmapped__'}
+                        onValueChange={val => setColumnMapping(prev => updateColumnMapping(prev, header, val))}
+                      >
+                        <SelectTrigger className="h-7 text-xs border-muted bg-transparent shadow-none focus:ring-1" aria-label={`Map CSV column ${header} to template field`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__unmapped__">— ignore —</SelectItem>
+                          {fieldDefinitions.map(field => (
+                            <SelectItem key={`${header}-${field.key}`} value={field.key}>{field.key}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {columnMapping[header] && duplicateRequiredFieldCounts.has(columnMapping[header]) && (
+                        <p className="text-[11px] text-amber-600" role="alert">
+                          Conflict: {columnMapping[header]} is selected by {duplicateRequiredFieldCounts.get(columnMapping[header])} columns.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
+                {visibleCsvHeaders.length === 0 && (
+                  <div className="border-t px-3 py-2 text-muted-foreground">No columns in the current filter.</div>
+                )}
               </div>
             )}
             {csvHeaders.some(h => !columnMapping[h]) && (
-              <p className="text-xs text-amber-500 flex items-center gap-1">⚠ Some columns are unmapped and will be skipped.</p>
+              <p className="text-xs text-amber-500 flex items-center gap-1" role="alert">⚠ Some columns are unmapped and will be skipped.</p>
+            )}
+            {duplicateRequiredFields.length > 0 && (
+              <p className="text-xs text-amber-600 flex items-center gap-1" role="alert">
+                ⚠ Required field conflicts detected: {duplicateRequiredFields.join(', ')}. Keep only one CSV column per required field.
+              </p>
+            )}
+            {conflictFocusField && (
+              <p className="text-xs text-muted-foreground">Focused on conflict field: <span className="font-mono">{conflictFocusField}</span>.</p>
             )}
           </div>
         )}
@@ -501,9 +727,9 @@ export function BulkGenerator({
               </Button>
             </div>
             {bulkPreview.globalWarnings.map((warning) => (
-              <p key={warning} className="text-xs text-amber-600">⚠ {warning}</p>
+              <p key={warning} className="text-xs text-amber-600" role="alert">⚠ {warning}</p>
             ))}
-            <div className="space-y-2">
+            <div className="space-y-2" aria-live="polite">
               {filteredPreviewRows.map((row) => (
                 <div key={row.rowNumber} className="rounded border bg-muted/30 p-2">
                   <p className="text-xs font-semibold">Row {row.rowNumber}</p>
@@ -522,13 +748,27 @@ export function BulkGenerator({
                       {row.missingRequiredKeys.map((fieldKey) => (
                         <div key={`${row.rowNumber}-${fieldKey}-quickfix`} className="mt-1 rounded border bg-background p-2">
                           <p className="text-xs font-medium">Quick fix: {fieldKey}</p>
-                          <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <div className="mt-1 flex flex-col gap-2">
+                            {fieldDefinitionMap.get(fieldKey) ? (
+                              <GeneratorFieldInput
+                                field={fieldDefinitionMap.get(fieldKey)!}
+                                value={row.mappedData[fieldKey] ?? ''}
+                                onChange={(value) => applyPreviewOverride(row.rowNumber, fieldKey, value)}
+                                highlightColor={richTextHighlightColor}
+                                onHighlightColorChange={setRichTextHighlightColorAction}
+                                compact
+                                showLabel={false}
+                                showDefaultText={false}
+                              />
+                            ) : (
                               <Input
-                              className="h-8 rounded border px-2 text-xs"
-                              value={row.mappedData[fieldKey] ?? ''}
-                              onChange={(e) => applyPreviewOverride(row.rowNumber, fieldKey, e.target.value)}
-                              placeholder={`Enter value for ${fieldKey}`}
-                            />
+                                className="h-8 rounded border px-2 text-xs"
+                                value={row.mappedData[fieldKey] ?? ''}
+                                onChange={(e) => applyPreviewOverride(row.rowNumber, fieldKey, e.target.value)}
+                                placeholder={`Enter value for ${fieldKey}`}
+                              />
+                            )}
+                            <div className="flex flex-wrap gap-2">
                             {fieldDefinitionMap.get(fieldKey)?.defaultValue && (
                               <Button
                                 type="button"
@@ -547,6 +787,7 @@ export function BulkGenerator({
                             >
                               Fill with TBD
                             </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -566,7 +807,7 @@ export function BulkGenerator({
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <Label htmlFor="bulk-strict-mode" className="text-sm font-medium">Strict Mode</Label>
-                <p className="text-xs text-muted-foreground">
+                <p id="bulk-strict-mode-help" className="text-xs text-muted-foreground">
                   When enabled, generation is blocked until all mapping and required-field warnings are resolved.
                 </p>
               </div>
@@ -575,10 +816,11 @@ export function BulkGenerator({
                 checked={strictMode}
                 onCheckedChange={setStrictMode}
                 aria-label="Toggle strict mode for bulk generation"
+                aria-describedby="bulk-strict-mode-help"
               />
             </div>
             {strictMode && hasBlockingWarnings && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-amber-600" role="alert">
                 Strict Mode is on. Resolve warnings in Preview & Validation or disable Strict Mode to generate.
               </p>
             )}
@@ -589,6 +831,7 @@ export function BulkGenerator({
           onClick={handleGenerate}
           disabled={isLoading || !selectedTemplateIdProp || !bulkDataInput.trim() || hasBlockingWarnings}
           className="w-full"
+          aria-busy={isLoading}
         >
           {isLoading ? 'Generating...' : <> <Download className="mr-2 h-4 w-4" /> Generate Cards from Data</>}
         </Button>

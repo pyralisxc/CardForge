@@ -211,7 +211,7 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
   };
 };
 
-export const appearanceToLegacyElementFields = (element: FreeformCardElement): Partial<FreeformCardElement> => {
+export const appearanceToElementRenderFields = (element: FreeformCardElement): Partial<FreeformCardElement> => {
   const style = appearanceToStyle(element.appearance);
   return {
     backgroundColor: typeof style.backgroundColor === 'string' ? style.backgroundColor : element.backgroundColor,

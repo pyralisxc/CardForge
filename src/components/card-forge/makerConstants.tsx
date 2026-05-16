@@ -8,33 +8,24 @@
  * the main component file focused on rendering and interaction logic.
  */
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Badge,
-  Bold,
   BoxSelect,
   Crown,
   Frame,
   Gem,
-  Highlighter,
   Image as ImageIcon,
-  Italic,
   LineChart,
-  List,
-  ListOrdered,
   MinusIcon,
-  Palette,
   Sparkles,
   Square,
   Type,
-  Underline,
 } from 'lucide-react';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { buildTextBinding, escapeTemplateText, isSimpleTextBinding, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
-import { textFontSizePx } from '@/lib/textTools';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/store/appStore';
 
 // ─── Frame Visual Properties ──────────────────────────────────────────────────
@@ -748,157 +739,6 @@ export const FONT_CLASS_TO_CSS: Record<string, string> = {
 // ─── ColorField Component ─────────────────────────────────────────────────────
 
 // ─── Rich Text Toolbar ────────────────────────────────────────────────────────
-
-function applyFormat(
-  el: HTMLTextAreaElement,
-  value: string,
-  before: string,
-  after: string,
-  onChange: (v: string) => void,
-) {
-  const start = el.selectionStart;
-  const end = el.selectionEnd;
-  const selected = value.slice(start, end) || 'text';
-  const next = value.slice(0, start) + before + selected + after + value.slice(end);
-  onChange(next);
-  requestAnimationFrame(() => {
-    el.focus();
-    el.setSelectionRange(start + before.length, start + before.length + selected.length);
-  });
-}
-
-function applyListPrefix(
-  el: HTMLTextAreaElement,
-  value: string,
-  prefix: string,
-  onChange: (v: string) => void,
-) {
-  const start = el.selectionStart;
-  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-  const lineEnd = value.indexOf('\n', start);
-  const end = lineEnd === -1 ? value.length : lineEnd;
-  const line = value.slice(lineStart, end);
-  if (line.startsWith(prefix)) {
-    onChange(value.slice(0, lineStart) + line.slice(prefix.length) + value.slice(end));
-  } else {
-    const next = value.slice(0, lineStart) + prefix + line + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(start + prefix.length, start + prefix.length);
-    });
-  }
-}
-
-export interface RichTextToolbarProps {
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  value: string;
-  onChange: (v: string) => void;
-  highlightColor: string;
-  onHighlightColorChange: (color: string) => void;
-}
-
-export function RichTextToolbar({ textareaRef, value, onChange, highlightColor, onHighlightColorChange }: RichTextToolbarProps) {
-  const [colorOpen, setColorOpen] = useState(false);
-  const [highlightOpen, setHighlightOpen] = useState(false);
-  const [pickedColor, setPickedColor] = useState('#f5d27b');
-
-  const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[#111720] text-[#d8d1c4] hover:border-[#d5ad54] hover:text-[#f5d27b] transition-colors';
-
-  const handle = (before: string, after: string) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    applyFormat(el, value, before, after, onChange);
-  };
-
-  const handleList = (prefix: string) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    applyListPrefix(el, value, prefix, onChange);
-  };
-
-  const handleColor = () => {
-    const el = textareaRef.current;
-    if (!el) return;
-    applyFormat(el, value, `[color:${pickedColor}]`, '[/color]', onChange);
-    setColorOpen(false);
-  };
-
-  const handleHighlightColor = (value: string) => {
-    onHighlightColorChange(value);
-  };
-
-  return (
-    <div className="flex flex-wrap items-center gap-1 rounded-[5px] border border-[#252b35] bg-[#0b0f15] px-1.5 py-1">
-      <button type="button" className={btn} aria-label="Bold" title="Bold — **text**" onClick={() => handle('**', '**')}>
-        <Bold className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" className={btn} aria-label="Italic" title="Italic — _text_" onClick={() => handle('_', '_')}>
-        <Italic className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" className={btn} aria-label="Underline" title="Underline — __text__" onClick={() => handle('__', '__')}>
-        <Underline className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" className={btn} aria-label="Highlight" title="Highlight — ==text==" onClick={() => handle('==', '==')}>
-        <Highlighter className="h-3.5 w-3.5" style={{ color: highlightColor }} />
-      </button>
-      <Popover open={highlightOpen} onOpenChange={setHighlightOpen}>
-        <PopoverTrigger asChild>
-          <button type="button" className={btn} aria-label="Highlight color" title="Global highlight color">
-            <span className="h-3.5 w-3.5 rounded-[2px] border border-[#2d3340]" style={{ backgroundColor: highlightColor }} />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2 bg-[#0d1117] border-[#252b35]" side="left" align="start">
-          <HexColorPicker color={highlightColor} onChange={handleHighlightColor} />
-          <input
-            type="text"
-            value={highlightColor}
-            title="Highlight color"
-            onChange={e => {
-              const next = e.target.value;
-              if (/^(rgba?\([^)]*\)|#[0-9a-fA-F]{0,8})$/.test(next) || next === '') handleHighlightColor(next || '#ffd70059');
-            }}
-            className="mt-2 h-7 w-full rounded-[4px] border border-[#2d3340] bg-[#080b10] px-2 text-center font-mono text-xs text-[#d8d1c4] focus:outline-none focus:ring-1 focus:ring-[#d5ad54]"
-          />
-        </PopoverContent>
-      </Popover>
-      <div className="h-4 w-px bg-[#2d3340]" />
-      <button type="button" className={btn} aria-label="Bullet list" title="Bullet list — - item" onClick={() => handleList('- ')}>
-        <List className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" className={btn} aria-label="Numbered list" title="Numbered list — 1. item" onClick={() => handleList('1. ')}>
-        <ListOrdered className="h-3.5 w-3.5" />
-      </button>
-      <div className="h-4 w-px bg-[#2d3340]" />
-      <Popover open={colorOpen} onOpenChange={setColorOpen}>
-        <PopoverTrigger asChild>
-          <button type="button" className={btn} aria-label="Text color" title="Colored text — [color:#hex]text[/color]">
-            <Palette className="h-3.5 w-3.5" style={{ color: pickedColor }} />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2 bg-[#0d1117] border-[#252b35]" side="left" align="start">
-          <HexColorPicker color={pickedColor} onChange={setPickedColor} />
-          <input
-            type="text"
-            value={pickedColor}
-            title="Hex color"
-            onChange={e => { if (/^#[0-9a-fA-F]{0,6}$/.test(e.target.value)) setPickedColor(e.target.value); }}
-            className="mt-2 h-7 w-full rounded-[4px] border border-[#2d3340] bg-[#080b10] px-2 text-center font-mono text-xs text-[#d8d1c4] focus:outline-none focus:ring-1 focus:ring-[#d5ad54]"
-            maxLength={7}
-          />
-          <button
-            type="button"
-            className="mt-2 w-full rounded-[4px] border border-[#7a52cc] bg-[#1a1230] py-1 text-xs font-semibold text-[#d5ad54] hover:bg-[#21183d]"
-            onClick={handleColor}
-          >
-            Apply Color
-          </button>
-        </PopoverContent>
-      </Popover>
-      <span className="ml-auto text-[9px] uppercase tracking-[0.14em] text-[#757d8c]">**bold** _italic_ ==hi==</span>
-    </div>
-  );
-}
 
 export function ColorField({ value, onChange, id }: { value: string; onChange: (v: string) => void; id?: string }) {
   const [open, setOpen] = useState(false);

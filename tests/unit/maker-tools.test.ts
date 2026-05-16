@@ -39,14 +39,14 @@ describe('Maker 2.0 tool capability map', () => {
     expect(SEAMLESS_TEXTURE_ASSETS.every(asset => asset.tileMode === 'repeat')).toBe(true);
   });
 
-  it('migrates legacy line shapes into divider elements without destroying payload data', () => {
+  it('normalizes divider line shapes without destroying payload data', () => {
     const canvas = reconstructFreeformCanvas({
       width: 400,
       height: 560,
       elements: [{
-        id: 'legacy-line',
+        id: 'divider-line',
         type: 'shape',
-        name: 'Old Line',
+        name: 'Divider Line',
         shapeKind: 'line',
         content: '{{dividerLabel:"Act II"}}',
         x: 10,

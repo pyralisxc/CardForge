@@ -26,8 +26,28 @@
   },
   "baseBackgroundColor": "#282828",
   "baseTextColor": "#c0c0c0",
-  "defaultSectionBorderColor": "#d5ad54",
+  "defaultElementBorderColor": "#d5ad54",
   "cardBorderColor": "#4a4a4a",
+  "fieldContracts": [
+    {
+      "key": "Ability",
+      "elementId": "ember-rules-box",
+      "label": "Ability",
+      "type": "rules",
+      "required": false,
+      "multiline": false,
+      "example": "Flying"
+    },
+    {
+      "key": "SubText",
+      "elementId": "ember-rules-box",
+      "label": "SubText",
+      "type": "rules",
+      "required": false,
+      "multiline": false,
+      "example": "\"Small in size, fierce in spirit.\""
+    }
+  ],
   "freeformCanvas": {
     "width": 699,
     "height": 953,
@@ -341,7 +361,7 @@
         "id": "ember-rules-box",
         "type": "text",
         "name": "Rules Box",
-        "x": 70,
+        "x": 60,
         "y": 520,
         "width": 550,
         "height": 260,
@@ -349,7 +369,7 @@
         "opacity": 1,
         "zIndex": 5,
         "locked": false,
-        "content": "{{rulesText:\"Flying\\nWhen Emberclaw Whelp enters the battlefield, it deals 1 damage to any target.\\n\\n\\\"Small in size, fierce in spirit.\\\"\"}}",
+        "content": "{{Ability:\"**Flying**\"}}\nWhen Emberclaw Whelp enters the battlefield, it deals 1 damage to any target.\n\n{{SubText:\"_\\\"Small in size, fierce in spirit.\\\"_\"}}",
         "textColor": "#20140a",
         "backgroundColor": "rgba(244,226,186,0.94)",
         "fontFamily": "font-lato",
@@ -883,8 +903,8 @@
         "id": "1FEtBSw_VT6pH6oq6pYHZ",
         "type": "shape",
         "name": "Divider",
-        "x": 60,
-        "y": 640,
+        "x": 80,
+        "y": 740,
         "width": 470,
         "height": 36,
         "rotation": 0,
@@ -980,85 +1000,6 @@
             "overlayOpacity": 100
           }
         }
-      },
-      {
-        "id": "9xBQGDnjfQWLIgD3KjFAy",
-        "type": "text",
-        "name": "Text Layer",
-        "x": 82,
-        "y": 82,
-        "width": 260,
-        "height": 72,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 11,
-        "locked": false,
-        "content": "{{newText:\"New Text\"}}",
-        "textColor": "#221407",
-        "backgroundColor": "rgba(235,211,159,0.96)",
-        "fontFamily": "font-sans",
-        "fontSize": "text-base",
-        "fontSizePx": 16,
-        "fontWeight": "font-semibold",
-        "textAlign": "center",
-        "fontStyle": "normal",
-        "padding": "p-2",
-        "borderColor": "#5a3410",
-        "borderWidth": "border-4",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "fillColor": "rgba(235,211,159,0.96)",
-        "strokeColor": "#5a3410",
-        "strokeWidth": 4,
-        "appearance": {
-          "material": {
-            "baseColor": "rgba(235,211,159,0.96)",
-            "textColor": "#221407",
-            "gradient": {
-              "type": "linear",
-              "angle": 180,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#fff6d8",
-                  "position": 0,
-                  "opacity": 0.96
-                },
-                {
-                  "id": "b",
-                  "color": "#c69343",
-                  "position": 100,
-                  "opacity": 0.36
-                }
-              ]
-            },
-            "texture": {
-              "kind": "uploaded",
-              "imageSource": "/card-assets/textures/parchment-grain.svg",
-              "assetSource": "/card-assets/textures/parchment-grain.svg",
-              "assetKind": "texture",
-              "intensity": 55,
-              "scale": 8,
-              "textureOpacity": 42,
-              "textureScale": 160,
-              "blendMode": "multiply"
-            }
-          },
-          "border": {
-            "kind": "relic",
-            "color": "#5a3410",
-            "secondaryColor": "#d5ad54",
-            "width": 4,
-            "radius": 6,
-            "innerWidth": 1
-          },
-          "effects": {
-            "innerHighlight": 35,
-            "bevel": 25
-          }
-        },
-        "backgroundImageUrl": "url(/card-assets/textures/parchment-grain.svg), linear-gradient(180deg, rgba(255,246,216,0.96) 0%, rgba(198,147,67,0.36) 100%)"
       }
     ]
   }

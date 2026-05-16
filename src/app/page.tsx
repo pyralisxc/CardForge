@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Trash2, FolderDown, FolderUp, MenuIcon, EyeOff, PackageOpen, Scissors, ArrowLeftRight, BringToFront, Search, Download, PenTool } from 'lucide-react';
+import { Trash2, FolderDown, FolderUp, MenuIcon, PackageOpen, Scissors, ArrowLeftRight, BringToFront, Search, Download, PenTool } from 'lucide-react';
 
 import { useAppStore, selectGeneratedDisplayCards, selectEditingCard } from '@/store/appStore';
 import { TABS_CONFIG } from '@/lib/constants';
@@ -55,7 +55,6 @@ export default function CardForgePage() {
   
   const selectedPaperSize = useAppStore((state) => state.selectedPaperSize);
   const activeTab = useAppStore((state) => state.activeTab);
-  const hideEmptySections = useAppStore((state) => state.hideEmptySections);
   const singleCardGeneratorSelectedTemplateId = useAppStore((state) => state.singleCardGeneratorSelectedTemplateId);
   const generatorSelectedTemplateId = freeformTemplatesForGenerator.some(template => template.id === singleCardGeneratorSelectedTemplateId)
     ? singleCardGeneratorSelectedTemplateId
@@ -82,7 +81,6 @@ export default function CardForgePage() {
   const setStoredCardsFromFileAction = useAppStore((state) => state.setStoredCardsFromFile);
   const setSelectedPaperSizeAction = useAppStore((state) => state.setSelectedPaperSize);
   const setActiveTabAction = useAppStore((state) => state.setActiveTab);
-  const setHideEmptySectionsAction = useAppStore((state) => state.setHideEmptySections);
   const setSingleCardGeneratorSelectedTemplateIdAction = useAppStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
   const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
   const setExportModeAction = useAppStore((state) => state.setExportMode);
@@ -315,35 +313,13 @@ export default function CardForgePage() {
     try {
       const exportProfile = getExportProfile(exportMode, exportDpi);
       const JSZip = (await import('jszip')).default;
-      const html2canvas = (await import('html2canvas')).default;
+      const { renderCardToCanvasWithProfile } = await import('@/lib/cardPreviewExport');
       const zip = new JSZip();
       const folder = zip.folder('cards')!;
 
       for (let i = 0; i < generatedDisplayCards.length; i++) {
         const card = generatedDisplayCards[i];
-        const container = document.createElement('div');
-        container.style.position = 'fixed';
-        container.style.left = '-9999px';
-        container.style.top = '-9999px';
-        container.style.width = `${exportProfile.renderWidthPx}px`;
-        document.body.appendChild(container);
-
-        const { createRoot } = await import('react-dom/client');
-        const { createElement } = await import('react');
-        const { CardPreview } = await import('@/components/card-forge/CardPreview');
-        const root = createRoot(container);
-        root.render(createElement(CardPreview, { card, targetWidthPx: exportProfile.renderWidthPx, isPrintMode: true }));
-
-        await new Promise(r => setTimeout(r, 120));
-
-        const canvas = await html2canvas(container, {
-          scale: exportProfile.canvasPixelRatio,
-          useCORS: true,
-          logging: false,
-          backgroundColor: null,
-        });
-        root.unmount();
-        document.body.removeChild(container);
+        const canvas = await renderCardToCanvasWithProfile(card, exportProfile);
 
         const blob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
         const safeName = (card.data?.cardName || card.data?.name || `card-${i + 1}`).toString().replace(/[^a-z0-9_-]/gi, '_').substring(0, 40);
@@ -560,17 +536,6 @@ export default function CardForgePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-2 pt-2 border-t">
-                            <Switch
-                                id="hide-empty-sections"
-                                checked={hideEmptySections}
-                                onCheckedChange={setHideEmptySectionsAction}
-                                aria-label="Toggle visibility of empty sections in card previews"
-                            />
-                            <Label htmlFor="hide-empty-sections" className="flex items-center gap-1 cursor-pointer">
-                                <EyeOff className="h-4 w-4" /> Hide empty sections
-                            </Label>
-                        </div>
                         <div className="flex flex-col gap-2 pt-2 border-t">
                            <div className="grid grid-cols-2 gap-2">
                              <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
@@ -672,7 +637,6 @@ export default function CardForgePage() {
                             isPrintMode={false}
                             className="mx-auto"
                             showSizeInfo={index === 0}
-                            hideEmptySections={hideEmptySections}
                             onEdit={handleEditCardRequest}
                           />
                           <div className="absolute bottom-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">

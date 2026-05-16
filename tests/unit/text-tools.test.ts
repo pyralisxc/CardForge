@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { RichTextContent, buildTextElementStyle } from '@/lib/textTools';
+import { RichTextContent, buildTextElementStyle, parseSemanticRulesBlocks } from '@/lib/textTools';
 import type { FreeformCardElement } from '@/types';
 
 describe('text tools', () => {
@@ -18,6 +18,27 @@ describe('text tools', () => {
     const html = renderToStaticMarkup(createElement(RichTextContent, { text: '==Beta==', highlightColor: '#66ccff' }));
 
     expect(html).toContain('background-color:#66ccff');
+  });
+
+  it('parses semantic rules blocks from one textarea field', () => {
+    const blocks = parseSemanticRulesBlocks('[ability] Flying\n[effect] Deal 3 damage.\n[reminder] (Can target creatures.)');
+
+    expect(blocks).toEqual([
+      { kind: 'ability', text: 'Flying' },
+      { kind: 'effect', text: 'Deal 3 damage.' },
+      { kind: 'reminder', text: '(Can target creatures.)' },
+    ]);
+  });
+
+  it('renders semantic rules blocks with distinct styling', () => {
+    const html = renderToStaticMarkup(createElement(RichTextContent, {
+      text: '[ability] Flying\n[flavor] "The fire remembers."',
+      contentModel: 'rulesBlocks',
+    }));
+
+    expect(html).toContain('font-weight:700');
+    expect(html).toContain('font-style:italic');
+    expect(html).toContain('The fire remembers.');
   });
 
   it('builds scaled text element styles for preview rendering', () => {

@@ -1,14 +1,10 @@
 "use client";
 
-import { useState, createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { toCanvas } from 'html-to-image';
+import { useState } from 'react';
 import type { DisplayCard } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, ImageDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { CardPreview } from './CardPreview';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/lib/printValidation';
+import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
+import { ERROR_COPY } from '@/lib/errorCopy';
+import { renderCardToCanvas } from '@/lib/cardPreviewExport';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;
@@ -25,49 +24,6 @@ interface ExportCardImageButtonProps {
   className?: string;
 }
 
-async function renderCardToCanvas(card: DisplayCard, exportMode: ExportMode, exportDpi: number): Promise<HTMLCanvasElement> {
-  const exportProfile = getExportProfile(exportMode, exportDpi);
-  const container = document.createElement('div');
-  container.style.cssText = 'position:fixed;left:-9999px;top:-9999px;z-index:-1;';
-  document.body.appendChild(container);
-
-  const [aspectW, aspectH] = (card.template.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
-  const exportHeight = Math.round((exportProfile.renderWidthPx / (aspectW || 63)) * (aspectH || 88));
-
-  const mountEl = createElement(CardPreview, {
-    card,
-    isPrintMode: true,
-    targetWidthPx: exportProfile.renderWidthPx,
-  });
-
-  const mountedRoots: Root[] = [];
-  const root = createRoot(container);
-  mountedRoots.push(root);
-  root.render(mountEl);
-
-  await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-
-  const cardEl = container.firstChild as HTMLElement | null;
-  if (!cardEl) {
-    document.body.removeChild(container);
-    throw new Error('Card element did not render.');
-  }
-
-  const canvas = await toCanvas(cardEl as HTMLElement, {
-    pixelRatio: exportProfile.canvasPixelRatio,
-    width: exportProfile.renderWidthPx,
-    height: exportHeight,
-    skipFonts: false,
-    fetchRequestInit: { mode: 'cors' },
-  });
-
-  mountedRoots.forEach((r) => r.unmount());
-  document.body.removeChild(container);
-  return canvas;
-}
-
 export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = false, className }: ExportCardImageButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -75,14 +31,14 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
   const handleExport = async (format: 'png' | 'webp' | 'jpeg' | 'tiff') => {
     setIsLoading(true);
     try {
-      const validation = validateCardExportQuality(card, exportMode);
+      const validation = validateCardExportQuality(card, exportMode, exportDpi);
       if (validation.critical.length > 0) {
         throw new Error(validation.critical.slice(0, 2).join(' '));
       }
       if (validation.warnings.length > 0) {
         toast({
-          title: 'Export quality warnings',
-          description: validation.warnings.slice(0, 2).join(' '),
+          title: ERROR_COPY.exportWarnings.title,
+          description: withNextStep(validation.warnings.slice(0, 2).join(' '), 'Review the card preview for quality issues before sharing or printing.'),
           duration: 7000,
         });
       }
@@ -110,10 +66,14 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
       const exportProfile = getExportProfile(exportMode, exportDpi);
       toast({
         title: 'Card exported',
-        description: `Saved as ${format.toUpperCase()} using ${exportProfile.label} profile (${exportProfile.dpi} DPI target).`,
+        description: `Saved as ${format.toUpperCase()} using ${exportProfile.label} (${exportProfile.dpi} DPI). Next step: review output quality before final delivery.`,
       });
     } catch (err) {
-      toast({ title: 'Export failed', description: String(err), variant: 'destructive' });
+      toast({
+        title: ERROR_COPY.exportFailed.title,
+        description: withNextStep(extractErrorMessage(err), 'Check quality warnings, then retry with PNG if the selected format is not supported.'),
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }

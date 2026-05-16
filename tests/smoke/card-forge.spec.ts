@@ -90,8 +90,19 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
 
   await page.locator('#bulkData').fill('rulesText,typeLine,setCode,cardNumber,cost,power,toughness,Title\n"",CREATURE - DRAGON,DRK,001/100,3,2,2,Ember-Claw');
 
-  await expect(page.getByText('Auto Match Result', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Advanced Mapping', exact: true })).toBeVisible();
+  await expect(page.getByText('Mapped Template Field', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mapping Editor', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Auto-map Again', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show Unmapped Only', exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Mapping Editor', exact: true }).click();
+  await page.getByLabel('Map CSV column rulesText to template field').click();
+  await page.getByRole('option', { name: '— ignore —', exact: true }).click();
+  await page.getByRole('button', { name: 'Show Unmapped Only', exact: true }).click();
+  await expect(page.getByText(/Showing \d+ unmapped columns\./i)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Auto-map Again', exact: true }).click();
+  await expect(page.getByText('Auto-mapping refreshed', { exact: true })).toBeVisible();
 
   const generateButton = page.getByRole('button', { name: /Generate Cards from Data/i });
   await expect(generateButton).toBeEnabled();
@@ -102,4 +113,107 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
 
   await page.getByRole('button', { name: 'Fill with TBD', exact: true }).click();
   await expect(page.getByText('Missing value for rulesText', { exact: true })).toBeHidden();
+});
+
+test('supports keyboard-first generation and strict mode toggle', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('card-forge-app-storage-v2');
+  });
+
+  await page.goto('/');
+  await page.getByRole('tab', { name: /Card Generator/i }).click();
+
+  const templateTrigger = page.locator('#singleTemplateSelect');
+  await templateTrigger.focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+
+  const addCardButton = page.getByRole('button', { name: /Add Card to Preview List/i });
+  await addCardButton.focus();
+  await page.keyboard.press('Enter');
+
+  await expect(page.getByRole('heading', { name: /Generated Cards \(1\)/i })).toBeVisible();
+
+  await page.locator('#bulkData').fill('rulesText,typeLine\n"",CREATURE - DRAGON');
+
+  const strictModeToggle = page.getByLabel('Toggle strict mode for bulk generation');
+  await expect(strictModeToggle).toBeVisible();
+  await strictModeToggle.focus();
+  await page.keyboard.press('Space');
+
+  await expect(page.getByText(/Strict Mode is on\./i)).toBeVisible();
+});
+
+test('supports keyboard save shortcut in template creator', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('card-forge-app-storage-v2');
+  });
+
+  await page.goto('/');
+  await page.getByRole('tab', { name: /Card Template Maker 2\.0/i }).click();
+  await expect(page.getByRole('heading', { name: /Card Template Maker 2\.0/i })).toBeVisible();
+
+  await page.getByRole('tab', { name: 'Template', exact: true }).click();
+  await page.getByLabel('Template Name').fill('Keyboard Save Template');
+
+  await page.keyboard.press('Control+s');
+  await expect(page.getByText('Template Saved', { exact: true })).toBeVisible();
+});
+
+test('supports keyboard arrow movement on template canvas', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('card-forge-app-storage-v2');
+  });
+
+  await page.goto('/');
+  await page.getByRole('tab', { name: /Card Template Maker 2\.0/i }).click();
+
+  const canvas = page.locator('[data-cardforge-canvas="true"]');
+  await expect(canvas).toBeVisible();
+
+  const selectedElement = canvas.locator('[data-selected="true"][data-element-locked="false"]').first();
+  await expect(selectedElement).toBeVisible();
+  const beforeLeft = await selectedElement.evaluate((element) => parseFloat((element as HTMLElement).style.left || '0'));
+
+  await canvas.focus();
+  await page.keyboard.press('ArrowRight');
+
+  await expect.poll(async () => {
+    return selectedElement.evaluate((element) => parseFloat((element as HTMLElement).style.left || '0'));
+  }).toBeGreaterThan(beforeLeft);
+});
+
+test('supports keyboard lock toggle in layer tree', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('card-forge-app-storage-v2');
+  });
+
+  await page.goto('/');
+  await page.getByRole('tab', { name: /Card Template Maker 2\.0/i }).click();
+
+  const lockButton = page.locator('button[aria-label^="Lock layer "]').first();
+  await expect(lockButton).toBeVisible();
+  await lockButton.focus();
+  await page.keyboard.press('Enter');
+
+  const unlockButton = page.locator('button[aria-label^="Unlock layer "]').first();
+  await expect(unlockButton).toBeVisible();
+});
+
+test('supports keyboard visibility toggle in layer tree', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('card-forge-app-storage-v2');
+  });
+
+  await page.goto('/');
+  await page.getByRole('tab', { name: /Card Template Maker 2\.0/i }).click();
+
+  const hideButton = page.locator('button[aria-label^="Hide layer "]').first();
+  await expect(hideButton).toBeVisible();
+  await hideButton.focus();
+  await page.keyboard.press('Enter');
+
+  const showButton = page.locator('button[aria-label^="Show layer "]').first();
+  await expect(showButton).toBeVisible();
 });

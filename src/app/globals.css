@@ -94,15 +94,16 @@ body {
   * {
     @apply border-border;
   }
+
+  :where(button, [role="button"], a, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
 }
-
-.no-pdf-export {
-  display: none !important; /* This class is still global for specific PDF exclusion if ever needed by manually adding/removing before html2canvas */
-}
-
 
 /* Base Frame Styles - these are the ultimate fallback if no template styles or frame styles are applied */
 .tcg-card-preview {
@@ -138,18 +139,6 @@ body {
   border-radius: 0.75rem; /* Slightly more rounded */
   box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 0 5px rgba(255,223,186,0.5);
 }
-/* Example styling for sections within the classic-gold frame */
-.tcg-card-preview.frame-classic-gold .tcg-section-cardname,
-.tcg-card-preview.frame-classic-gold .tcg-section-typeline {
-  background-color: rgba(180, 140, 50, 0.1); /* Faint gold tint */
-  border-bottom: 1px solid rgba(170, 119, 28, 0.3);
-  color: #5D4037; /* Slightly richer brown */
-}
-.tcg-card-preview.frame-classic-gold .tcg-section-rulestext,
-.tcg-card-preview.frame-classic-gold .tcg-section-flavortext {
-  background-color: rgba(253, 244, 216, 0.7); /* Lighter parchment for text boxes */
-}
-
 .tcg-card-preview.frame-minimal-dark {
   border: 2px solid #4a4a4a;
   background-color: #282828;
@@ -157,16 +146,6 @@ body {
   border-radius: 0.25rem; /* Sharper corners */
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
-.tcg-card-preview.frame-minimal-dark .tcg-section-typeline {
-  background-color: #333;
-  border-top: 1px solid #4a4a4a;
-  border-bottom: 1px solid #4a4a4a;
-}
-.tcg-card-preview.frame-minimal-dark .tcg-section-cardname {
-  color: #e0e0e0; /* Brighter text for name */
-}
-
-
 .tcg-card-preview.frame-arcane-purple {
   border: 5px solid hsl(var(--primary-foreground));
   background: linear-gradient(135deg, hsl(var(--primary) / 0.9), hsl(var(--primary) / 0.6));
@@ -174,25 +153,6 @@ body {
   color: hsl(var(--primary-foreground));
   border-radius: 0.6rem;
 }
-.tcg-card-preview.frame-arcane-purple .tcg-section-cardname,
-.tcg-card-preview.frame-arcane-purple .tcg-section-typeline {
-  background-color: hsl(var(--primary) / 0.4); /* Translucent purple */
-  border-bottom: 1px solid hsl(var(--primary-foreground) / 0.5);
-  text-shadow: 0 0 5px hsl(var(--primary-foreground) / 0.5);
-}
-.tcg-card-preview.frame-arcane-purple .tcg-section-rulestext,
-.tcg-card-preview.frame-arcane-purple .tcg-section-flavortext {
-   background-color: hsl(var(--background) / 0.6); /* Darker, more translucent text box */
-   color: hsl(var(--foreground));
-   border-radius: 0.25rem;
-   margin: 2px 4px; /* Slight inset for text boxes */
-   padding: 4px 6px;
-}
-.tcg-card-preview.frame-arcane-purple .tcg-section-artwork {
-  /* Example: give artwork a slight inner glow or border within this frame */
-  box-shadow: inset 0 0 10px hsl(var(--primary) / 0.5);
-}
-
 /* Scoped .no-print class for browser printing */
 @media print {
   .no-print {

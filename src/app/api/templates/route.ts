@@ -3,8 +3,40 @@ import path from 'path';
 import { NextResponse } from 'next/server';
 
 import type { TCGCardTemplate } from '@/types';
+import {
+  DEFAULT_MAX_JSON_BODY_BYTES,
+  formatZodIssues,
+  parseJsonBodyWithLimit,
+  templatePayloadSchema,
+} from '@/lib/apiValidation';
 
 const TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'templates');
+
+const createErrorResponse = (
+  status: number,
+  code: string,
+  message: string,
+  details?: string[]
+) => {
+  const correlationId = crypto.randomUUID();
+  return NextResponse.json(
+    {
+      ok: false,
+      error: {
+        code,
+        message,
+        details,
+      },
+      correlationId,
+    },
+    {
+      status,
+      headers: {
+        'x-correlation-id': correlationId,
+      },
+    }
+  );
+};
 
 const ensureTemplateDirectory = async () => {
   await fs.mkdir(TEMPLATE_LIBRARY_DIR, { recursive: true });
@@ -52,13 +84,22 @@ export async function GET() {
 
 export async function POST(request: Request) {
   await ensureTemplateDirectory();
-  const body = await request.json();
-
-  if (!isTemplateLike(body)) {
-    return NextResponse.json({ error: 'Invalid template payload.' }, { status: 400 });
+  const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+  if (!parsedBody.ok) {
+    return createErrorResponse(
+      parsedBody.code === 'payload_too_large' ? 413 : 400,
+      parsedBody.code,
+      parsedBody.message
+    );
   }
 
-  const template = body as TCGCardTemplate;
+  const validation = templatePayloadSchema.safeParse(parsedBody.data);
+  if (!validation.success || !isTemplateLike(validation.data)) {
+    const details = validation.success ? ['Template payload is missing required fields.'] : formatZodIssues(validation.error.issues);
+    return createErrorResponse(400, 'invalid_template_payload', 'Invalid template payload.', details);
+  }
+
+  const template = validation.data as TCGCardTemplate;
   const fileName = `${toSafeFileName(template.id || template.name)}.json`;
   const filePath = path.join(TEMPLATE_LIBRARY_DIR, fileName);
   await fs.writeFile(filePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
@@ -68,11 +109,20 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   await ensureTemplateDirectory();
-  const body = await request.json().catch(() => null) as { id?: string } | null;
-  const id = body?.id;
+  const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+  if (!parsedBody.ok) {
+    return createErrorResponse(
+      parsedBody.code === 'payload_too_large' ? 413 : 400,
+      parsedBody.code,
+      parsedBody.message
+    );
+  }
 
-  if (!id || typeof id !== 'string') {
-    return NextResponse.json({ error: 'Template id is required.' }, { status: 400 });
+  const body = parsedBody.data as { id?: unknown };
+  const id = typeof body?.id === 'string' ? body.id : null;
+
+  if (!id || id.trim().length === 0) {
+    return createErrorResponse(400, 'invalid_template_id', 'Template id is required.');
   }
 
   const fileName = `${toSafeFileName(id)}.json`;

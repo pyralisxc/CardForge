@@ -15,7 +15,7 @@ A professional-grade Trading Card Game design tool. Build layered card templates
 - **Framework**: Next.js 15 (App Router)
 - **UI**: Shadcn/UI & Tailwind CSS
 - **State**: Zustand with localStorage persistence
-- **PDF Export**: jsPDF & html2canvas
+- **PDF Export**: jsPDF with shared `CardPreview` capture through `html-to-image`
 
 ## Getting Started
 
@@ -87,7 +87,26 @@ npm run lint       # Lint the codebase
 npm run typecheck  # TypeScript type-check (no emit)
 npm run test:watch # Unit tests (Vitest watch mode)
 npm run smoke      # Browser smoke test against the local app
+npm run bulk:generate # Generate large CSV batches for prefab testing
 ```
+
+## Large Batch CSV Generation
+
+Use the built-in generator to create batch files for prefab stress testing.
+
+Generate 500 cards for the Emberclaw prefab:
+
+```bash
+npm run bulk:generate -- --template data/templates/default-emberclaw-hd-freeform.json --count 500 --out data/bulk-samples/emberclaw-500.csv
+```
+
+Generate 10,000 cards (same prefab):
+
+```bash
+npm run bulk:generate -- --template data/templates/default-emberclaw-hd-freeform.json --count 10000 --out data/bulk-samples/emberclaw-10000.csv
+```
+
+You can point `--template` to any prefab JSON in `data/templates`.
 
 ## Troubleshooting
 

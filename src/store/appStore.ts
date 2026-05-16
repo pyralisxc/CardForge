@@ -37,6 +37,7 @@ export const getFreshDefaultTemplateObject = (id?: string | null, nameProp?: str
     cardBorderStyle: 'solid',
     cardBorderRadius: '0.5rem',
     cardBorderImageSource: undefined,
+    fieldContracts: [],
     freeformCanvas: createDefaultFreeformCanvas(),
   };
 };
@@ -57,8 +58,8 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
     appearance: normalizeTemplateAppearance(t_loaded),
   };
 
-  const optionalStringFields: (keyof Pick<TCGCardTemplate, 'cardBackgroundImageUrl' | 'baseBackgroundColor' | 'baseTextColor' | 'defaultSectionBorderColor' | 'cardBorderColor' | 'cardBorderImageSource'>)[] = [
-    'cardBackgroundImageUrl', 'baseBackgroundColor', 'baseTextColor', 'defaultSectionBorderColor', 'cardBorderColor', 'cardBorderImageSource'
+  const optionalStringFields: (keyof Pick<TCGCardTemplate, 'cardBackgroundImageUrl' | 'baseBackgroundColor' | 'baseTextColor' | 'defaultElementBorderColor' | 'cardBorderColor' | 'cardBorderImageSource'>)[] = [
+    'cardBackgroundImageUrl', 'baseBackgroundColor', 'baseTextColor', 'defaultElementBorderColor', 'cardBorderColor', 'cardBorderImageSource'
   ];
 
   optionalStringFields.forEach(fieldKey => {
@@ -70,8 +71,16 @@ export const reconstructMinimalTemplateObject = (t_loaded_partial: Partial<TCGCa
       delete baseRecord[fieldKey];
     }
   });
-
   const newT = base as TCGCardTemplate;
+  newT.fieldContracts = Array.isArray(t_loaded.fieldContracts)
+    ? t_loaded.fieldContracts
+        .filter(contract => contract?.key && String(contract.key).trim() !== '')
+        .map(contract => ({
+          ...contract,
+          key: String(contract.key).trim(),
+          elementId: contract.elementId ? String(contract.elementId) : undefined,
+        }))
+    : [];
   newT.freeformCanvas = reconstructFreeformCanvas(t_loaded.freeformCanvas);
 
   return newT;
@@ -137,7 +146,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
   ...overrides,
   elements: overrides.elements && overrides.elements.length > 0 ? overrides.elements : [
     createDefaultFreeformElement('shape', {
-      id: nanoid(),
+      id: 'default-frame',
       name: 'Card Frame',
       x: 28,
       y: 28,
@@ -152,7 +161,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
       borderRadius: 'rounded-xl',
     }),
     createDefaultFreeformElement('text', {
-      id: nanoid(),
+      id: 'default-card-name',
       name: 'Card Name',
       x: 64,
       y: 58,
@@ -163,7 +172,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
       textColor: '#2f2414',
     }),
     createDefaultFreeformElement('text', {
-      id: nanoid(),
+      id: 'default-cost',
       name: 'Cost',
       x: 502,
       y: 58,
@@ -178,7 +187,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
       borderRadius: 'rounded-full',
     }),
     createDefaultFreeformElement('image', {
-      id: nanoid(),
+      id: 'default-artwork',
       name: 'Artwork',
       x: 64,
       y: 132,
@@ -189,7 +198,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
       content: 'artworkUrl',
     }),
     createDefaultFreeformElement('text', {
-      id: nanoid(),
+      id: 'default-rules-text',
       name: 'Rules Text',
       x: 64,
       y: 548,
@@ -217,9 +226,9 @@ export const reconstructFreeformCanvas = (canvas?: Partial<FreeformCanvas>): Fre
     height: Number(canvas?.height) > 0 ? Number(canvas?.height) : defaults.height,
     gridSize: Number(canvas?.gridSize) > 0 ? Number(canvas?.gridSize) : defaults.gridSize,
     elements: sourceElements.map((element, index) => {
-      const isLegacyDivider = element.type === 'shape' && (element.shapeKind === 'line' || element.shapeRole === 'divider' || element.appearance?.shapeRole === 'divider');
+      const isDivider = element.type === 'shape' && (element.shapeKind === 'line' || element.shapeRole === 'divider');
       const normalizedShapeKind = element.shapeKind === 'capsule' ? 'rectangle' : element.shapeKind;
-      const normalizedAppearance = isLegacyDivider
+      const normalizedAppearance = isDivider
         ? {
             ...element.appearance,
             dividerAsset: element.appearance?.dividerAsset || '/card-assets/dividers/gilded-filigree.svg',
@@ -241,8 +250,8 @@ export const reconstructFreeformCanvas = (canvas?: Partial<FreeformCanvas>): Fre
         zIndex: Number.isFinite(Number(element.zIndex)) ? Number(element.zIndex) : index,
         opacity: Number.isFinite(Number(element.opacity)) ? Math.min(1, Math.max(0, Number(element.opacity))) : 1,
         rotation: Number.isFinite(Number(element.rotation)) ? Number(element.rotation) : 0,
-        shapeKind: isLegacyDivider ? 'line' : normalizedShapeKind,
-        shapeRole: isLegacyDivider ? 'divider' : element.shapeRole,
+        shapeKind: isDivider ? 'line' : normalizedShapeKind,
+        shapeRole: isDivider ? 'divider' : element.shapeRole,
         borderRadius: element.shapeKind === 'capsule' ? 'rounded-full' : element.borderRadius,
         appearance: normalizedAppearance,
       });
@@ -257,7 +266,6 @@ interface AppState {
 
   selectedPaperSize: PaperSize;
   activeTab: string;
-  hideEmptySections: boolean;
   richTextHighlightColor: string;
   singleCardGeneratorSelectedTemplateId: string | null;
 
@@ -286,7 +294,6 @@ interface AppState {
 
   setSelectedPaperSize: (size: PaperSize) => void;
   setActiveTab: (tab: string) => void;
-  setHideEmptySections: (hide: boolean) => void;
   setRichTextHighlightColor: (color: string) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean }) => void;
@@ -309,7 +316,6 @@ export const useAppStore = create<AppState>()(
 
         selectedPaperSize: PAPER_SIZES[0],
         activeTab: TABS_CONFIG[0].value,
-        hideEmptySections: true,
         richTextHighlightColor: 'rgba(255,215,0,0.35)',
         singleCardGeneratorSelectedTemplateId: null,
 
@@ -483,7 +489,6 @@ export const useAppStore = create<AppState>()(
 
         setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
         setActiveTab: (tab) => set({ activeTab: tab }),
-        setHideEmptySections: (hide) => set({ hideEmptySections: hide }),
         setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
         setSingleCardGeneratorSelectedTemplateId: (id) => set({ singleCardGeneratorSelectedTemplateId: id }),
         setPdfOptions: (options) => set((state) => ({
@@ -524,7 +529,6 @@ export const useAppStore = create<AppState>()(
           storedCards: state.storedCards,
           selectedPaperSize: state.selectedPaperSize,
           activeTab: state.activeTab,
-          hideEmptySections: state.hideEmptySections,
           richTextHighlightColor: state.richTextHighlightColor,
           singleCardGeneratorSelectedTemplateId: state.singleCardGeneratorSelectedTemplateId,
           pdfMarginMm: state.pdfMarginMm,
@@ -543,43 +547,7 @@ export const useAppStore = create<AppState>()(
             }
           };
         },
-        // Increment this version number whenever the persisted state shape changes.
-        // Add a corresponding migration case below to keep existing user data intact.
-        version: 7,
-        migrate: (persistedState: unknown, fromVersion: number) => {
-          const s = persistedState as Record<string, unknown>;
-
-          // v2 → v3: storedCards used templateId/frontTemplateId inconsistently across early builds.
-          // Normalise any cards that still carry the old `frontTemplateId` key.
-          if (fromVersion < 3 && Array.isArray(s.storedCards)) {
-            s.storedCards = (s.storedCards as Array<Record<string, unknown>>).map((card) => {
-              if (!card.templateId && card.frontTemplateId) {
-                return { ...card, templateId: card.frontTemplateId };
-              }
-              return card;
-            });
-          }
-
-          // v3 → v4: removed hasSeededDefaultTemplates — templates are loaded from data/templates/
-          // at app startup, not seeded from a hardcoded in-memory array.
-          if (fromVersion < 4) {
-            delete s.hasSeededDefaultTemplates;
-          }
-
-          if (fromVersion < 5 || typeof s.richTextHighlightColor !== 'string') {
-            s.richTextHighlightColor = 'rgba(255,215,0,0.35)';
-          }
-
-          if (fromVersion < 6 || (s.exportMode !== 'physical' && s.exportMode !== 'virtual')) {
-            s.exportMode = 'physical';
-          }
-
-          if (fromVersion < 7 || typeof s.exportDpi !== 'number' || !Number.isFinite(s.exportDpi)) {
-            s.exportDpi = 300;
-          }
-
-          return s;
-        },
+        version: 1,
       }
     )
   )
