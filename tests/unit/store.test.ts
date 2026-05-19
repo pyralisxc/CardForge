@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   reconstructMinimalTemplateObject,
   createDefaultFreeformCanvas,
+  selectAllTemplates,
   selectGeneratedDisplayCards,
   useAppStore,
 } from '@/store/appStore';
@@ -10,11 +11,13 @@ import type { StoredDisplayCard, TCGCardTemplate } from '@/types';
 describe('app store helpers', () => {
   beforeEach(() => {
     useAppStore.setState({
-      templates: [],
+      defaultTemplates: [],
+      userTemplates: [],
       storedCards: [],
       singleCardGeneratorSelectedTemplateId: null,
       editingCardUniqueId: null,
       isEditDialogOpen: false,
+      pdfDuplexLayout: 'separate-pages',
     });
   });
 
@@ -65,6 +68,28 @@ describe('app store helpers', () => {
     expect(freeformTemplate.freeformCanvas?.elements[0].content).toBe('{{title:"Name"}}');
   });
 
+  it('preserves a duplex back canvas when reconstructing templates', () => {
+    const template = reconstructMinimalTemplateObject({
+      id: 'duplex-template',
+      name: 'Duplex',
+      aspectRatio: '63:88',
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [{ id: 'front-el', type: 'text', name: 'Front Title', x: 0, y: 0, width: 200, height: 50, zIndex: 1, content: 'Front' }],
+      },
+      backCanvas: {
+        width: 630,
+        height: 880,
+        elements: [{ id: 'back-el', type: 'text', name: 'Back Title', x: 10, y: 10, width: 200, height: 50, zIndex: 1, content: 'Back' }],
+      },
+    });
+
+    expect(template.freeformCanvas?.elements[0].content).toBe('Front');
+    expect(template.backCanvas?.elements[0].content).toBe('Back');
+    expect(template.backCanvas?.width).toBe(630);
+  });
+
   it('selects generated cards only when their template still exists', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'template-1',
@@ -76,9 +101,10 @@ describe('app store helpers', () => {
     ];
 
     const cards = selectGeneratedDisplayCards({
-      templates: [template],
+      defaultTemplates: [],
+      userTemplates: [template],
       storedCards,
-    } as Parameters<typeof selectGeneratedDisplayCards>[0]);
+    } as unknown as Parameters<typeof selectGeneratedDisplayCards>[0]);
 
     expect(cards).toHaveLength(1);
     expect(cards[0].uniqueId).toBe('card-1');
@@ -97,12 +123,37 @@ describe('app store helpers', () => {
     ];
 
     const cards = selectGeneratedDisplayCards({
-      templates: [template],
+      defaultTemplates: [template],
+      userTemplates: [],
       storedCards,
-    } as Parameters<typeof selectGeneratedDisplayCards>[0]);
+    } as unknown as Parameters<typeof selectGeneratedDisplayCards>[0]);
 
     expect(cards).toHaveLength(1);
     expect(cards[0].template.freeformCanvas).toBeDefined();
+  });
+
+  it('retains and selects at least 1000 generated cards for the release batch floor', () => {
+    const template: TCGCardTemplate = reconstructMinimalTemplateObject({
+      id: 'bulk-floor-template',
+      name: 'Bulk Floor',
+      aspectRatio: '63:88',
+      freeformCanvas: createDefaultFreeformCanvas(),
+    });
+    const storedCards: StoredDisplayCard[] = Array.from({ length: 1000 }, (_, index) => ({
+      uniqueId: `bulk-floor-${index + 1}`,
+      templateId: 'bulk-floor-template',
+      data: { cardName: `Bulk Card ${index + 1}` },
+    }));
+
+    const cards = selectGeneratedDisplayCards({
+      defaultTemplates: [template],
+      userTemplates: [],
+      storedCards,
+    } as unknown as Parameters<typeof selectGeneratedDisplayCards>[0]);
+
+    expect(cards).toHaveLength(1000);
+    expect(cards[0].data.cardName).toBe('Bulk Card 1');
+    expect(cards[999].data.cardName).toBe('Bulk Card 1000');
   });
 
   it('deleting a template also removes generated cards that depend on it', () => {
@@ -116,7 +167,8 @@ describe('app store helpers', () => {
     });
 
     useAppStore.setState({
-      templates: [keptTemplate, deletedTemplate],
+      defaultTemplates: [],
+      userTemplates: [keptTemplate, deletedTemplate],
       storedCards: [
         { uniqueId: 'card-kept', templateId: 'template-kept', data: {} },
         { uniqueId: 'card-deleted', templateId: 'template-deleted', data: {} },
@@ -128,22 +180,69 @@ describe('app store helpers', () => {
 
     useAppStore.getState().deleteTemplate('template-deleted');
 
-    expect(useAppStore.getState().templates.map(t => t.id)).toEqual(['template-kept']);
+    expect(selectAllTemplates(useAppStore.getState()).map(t => t.id)).toEqual(['template-kept']);
     expect(useAppStore.getState().storedCards.map(card => card.uniqueId)).toEqual(['card-kept']);
     expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('template-kept');
     expect(useAppStore.getState().editingCardUniqueId).toBeNull();
     expect(useAppStore.getState().isEditDialogOpen).toBe(false);
   });
 
+  it('retargets generated cards when a saved default becomes a user template copy', () => {
+    const defaultTemplate = reconstructMinimalTemplateObject({
+      id: 'default-template',
+      name: 'Default',
+      templateSource: 'default',
+    });
+    const userCopy = reconstructMinimalTemplateObject({
+      id: 'user-copy-template',
+      name: 'Default Copy',
+      templateSource: 'user',
+    });
+
+    useAppStore.setState({
+      defaultTemplates: [defaultTemplate],
+      userTemplates: [userCopy],
+      storedCards: [
+        { uniqueId: 'card-retargeted', templateId: 'default-template', data: { cardName: 'Updated' } },
+        { uniqueId: 'card-untouched', templateId: 'other-template', data: { cardName: 'Other' } },
+      ],
+    });
+
+    useAppStore.getState().retargetGeneratedCardsTemplate('default-template', 'user-copy-template');
+
+    expect(useAppStore.getState().storedCards).toEqual([
+      { uniqueId: 'card-retargeted', templateId: 'user-copy-template', data: { cardName: 'Updated' } },
+      { uniqueId: 'card-untouched', templateId: 'other-template', data: { cardName: 'Other' } },
+    ]);
+  });
+
   it('_rehydrateCallback fixes selectedTemplateId if the template no longer exists', () => {
     const template = reconstructMinimalTemplateObject({ id: 'only-template', name: 'Only' });
     useAppStore.setState({
-      templates: [template],
+      defaultTemplates: [template],
+      userTemplates: [],
       singleCardGeneratorSelectedTemplateId: 'stale-id-that-no-longer-exists',
     });
 
     useAppStore.getState()._rehydrateCallback();
 
     expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('only-template');
+  });
+
+  it('normalizes the old template maker tab id for persisted browser state', () => {
+    useAppStore.getState().setActiveTab('template-maker-2');
+
+    expect(useAppStore.getState().activeTab).toBe('template-maker');
+  });
+
+  it('persists the selected physical PDF front/back layout option', () => {
+    useAppStore.getState().setPdfOptions({ duplexLayout: 'same-page' });
+
+    expect(useAppStore.getState().pdfDuplexLayout).toBe('same-page');
+
+    useAppStore.getState().setPdfOptions({ margin: 8 });
+
+    expect(useAppStore.getState().pdfMarginMm).toBe(8);
+    expect(useAppStore.getState().pdfDuplexLayout).toBe('same-page');
   });
 });

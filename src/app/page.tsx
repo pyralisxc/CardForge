@@ -3,25 +3,11 @@
 
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/card-forge/Header';
-import { CardTemplateMaker2 } from '@/components/card-forge/CardTemplateMaker2';
-import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
-import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
-import { CardPreview } from '@/components/card-forge/CardPreview';
-import { EditCardDialog } from '@/components/card-forge/EditCardDialog';
-import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
-import { SaveAsPdfButton } from '@/components/card-forge/SaveAsPdfButton';
-import { ExportCardImageButton } from '@/components/card-forge/ExportCardImageButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,23 +18,49 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Trash2, FolderDown, FolderUp, MenuIcon, PackageOpen, Scissors, ArrowLeftRight, BringToFront, Search, Download, PenTool } from 'lucide-react';
+import { MenuIcon } from 'lucide-react';
 
-import { useAppStore, selectGeneratedDisplayCards, selectEditingCard } from '@/store/appStore';
+import { useAppStore } from '@/store/appStore';
+import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/store/selectors';
 import { TABS_CONFIG } from '@/lib/constants';
-import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
-import { Progress } from '@/components/ui/progress';
+import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard, CardFace } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 import { nanoid } from 'nanoid';
 import { getExportProfile, type ExportMode } from '@/lib/printValidation';
+import { loadBootstrapStyles, loadBootstrapTemplates } from '@/lib/clientBootstrapData';
+
+const WorkspaceLoadingState = () => (
+  <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" aria-label="Loading workspace" />
+  </div>
+);
+
+const CardTemplateMaker = dynamic(
+  () => import('@/components/card-forge/CardTemplateMaker').then((module) => module.CardTemplateMaker),
+  { ssr: false, loading: WorkspaceLoadingState },
+);
+
+const GenerationWorkspace = dynamic(
+  () => import('@/features/card-generator/components/GenerationWorkspace').then((module) => module.GenerationWorkspace),
+  { ssr: false, loading: WorkspaceLoadingState },
+);
+
+const EditCardDialog = dynamic(
+  () => import('@/components/card-forge/EditCardDialog').then((module) => module.EditCardDialog),
+  { ssr: false },
+);
 
 export default function CardForgePage() {
   const { toast } = useToast();
 
   // Zustand store selectors
-  const templatesFromStore = useAppStore((state) => state.templates);
-  const freeformTemplatesForGenerator = templatesFromStore;
+  const defaultTemplatesFromStore = useAppStore((state) => state.defaultTemplates);
+  const userTemplatesFromStore = useAppStore((state) => state.userTemplates);
+  const templatesFromStore = useAppStore(selectAllTemplates);
+  const standardDefaultTemplates = defaultTemplatesFromStore.filter((template) => template.templateUsage !== 'back-preset');
+  const backFacePresetTemplates = defaultTemplatesFromStore.filter((template) => template.templateUsage === 'back-preset');
+  const freeformTemplatesForGenerator = templatesFromStore.filter((template) => template.templateUsage !== 'back-preset');
   const appearanceStyles = useAppStore((state) => state.appearanceStyles);
   const storedCards = useAppStore((state) => state.storedCards);
   const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards);
@@ -62,6 +74,7 @@ export default function CardForgePage() {
   const pdfMarginMm = useAppStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useAppStore((state) => state.pdfCardSpacingMm);
   const pdfIncludeCutLines = useAppStore((state) => state.pdfIncludeCutLines);
+  const pdfDuplexLayout = useAppStore((state) => state.pdfDuplexLayout);
   const exportMode = useAppStore((state) => state.exportMode);
   const exportDpi = useAppStore((state) => state.exportDpi);
   const editingCardFromStore = useAppStore(selectEditingCard);
@@ -69,7 +82,8 @@ export default function CardForgePage() {
   
   // Zustand store actions
   const addOrUpdateTemplateAction = useAppStore((state) => state.addOrUpdateTemplate);
-  const mergeTemplatesFromFilesAction = useAppStore((state) => state.mergeTemplatesFromFiles);
+  const setDefaultTemplatesFromFilesAction = useAppStore((state) => state.setDefaultTemplatesFromFiles);
+  const setUserTemplatesFromFilesAction = useAppStore((state) => state.setUserTemplatesFromFiles);
   const deleteTemplateAction = useAppStore((state) => state.deleteTemplate);
   const cloneTemplateAction = useAppStore((state) => state.cloneTemplate);
   const setAppearanceStylesFromFilesAction = useAppStore((state) => state.setAppearanceStylesFromFiles);
@@ -78,6 +92,7 @@ export default function CardForgePage() {
   const addGeneratedCardsAction = useAppStore((state) => state.addGeneratedCards);
   const clearGeneratedCardsAction = useAppStore((state) => state.clearGeneratedCards);
   const updateGeneratedCardAction = useAppStore((state) => state.updateGeneratedCard);
+  const retargetGeneratedCardsTemplateAction = useAppStore((state) => state.retargetGeneratedCardsTemplate);
   const setStoredCardsFromFileAction = useAppStore((state) => state.setStoredCardsFromFile);
   const setSelectedPaperSizeAction = useAppStore((state) => state.setSelectedPaperSize);
   const setActiveTabAction = useAppStore((state) => state.setActiveTab);
@@ -103,11 +118,10 @@ export default function CardForgePage() {
 
     const loadFileBackedTemplates = async () => {
       try {
-        const response = await fetch('/api/templates', { cache: 'no-store' });
-        if (!response.ok) return;
-        const payload = await response.json() as { templates?: Partial<TCGCardTemplate>[] };
-        if (cancelled || !Array.isArray(payload.templates) || payload.templates.length === 0) return;
-        mergeTemplatesFromFilesAction(payload.templates);
+        const payload = await loadBootstrapTemplates();
+        if (cancelled) return;
+        setDefaultTemplatesFromFilesAction(Array.isArray(payload.defaults) ? payload.defaults : []);
+        setUserTemplatesFromFilesAction(Array.isArray(payload.userTemplates) ? payload.userTemplates : []);
       } catch (error) {
         console.warn('Unable to load file-backed templates:', error);
       } finally {
@@ -119,16 +133,14 @@ export default function CardForgePage() {
     return () => {
       cancelled = true;
     };
-  }, [mergeTemplatesFromFilesAction]);
+  }, [setDefaultTemplatesFromFilesAction, setUserTemplatesFromFilesAction]);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadFileBackedStyles = async () => {
       try {
-        const response = await fetch('/api/styles', { cache: 'no-store' });
-        if (!response.ok) return;
-        const payload = await response.json() as Partial<AppearanceStyleLibrary>;
+        const payload = await loadBootstrapStyles() as Partial<AppearanceStyleLibrary>;
         if (cancelled || !Array.isArray(payload.styles)) return;
         setAppearanceStylesFromFilesAction(payload.styles);
       } catch (error) {
@@ -167,10 +179,27 @@ export default function CardForgePage() {
   }, [deleteAppearanceStyleAction]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
+    const sourceTemplateId = template.id;
+    const templateToSave = template.templateSource === 'default'
+      ? {
+          ...template,
+          id: nanoid(),
+          templateSource: 'user' as const,
+        }
+      : template;
     // The addOrUpdateTemplateAction in the store handles reconstruction.
-    const savedTemplateId = addOrUpdateTemplateAction(template);
-    toast({ title: "Template Saved", description: `"${template.name || savedTemplateId}" has been saved.` });
-    const templateForFile = useAppStore.getState().templates.find(t => t.id === savedTemplateId);
+    const savedTemplateId = addOrUpdateTemplateAction(templateToSave, templateToSave.templateSource);
+    if (sourceTemplateId && savedTemplateId !== sourceTemplateId) {
+      retargetGeneratedCardsTemplateAction(sourceTemplateId, savedTemplateId);
+      setSingleCardGeneratorSelectedTemplateIdAction(savedTemplateId);
+    }
+    toast({
+      title: "Template Saved",
+      description: template.templateSource === 'default'
+        ? `"${templateToSave.name || savedTemplateId}" has been saved as a user template so shipped defaults stay clean.`
+        : `"${templateToSave.name || savedTemplateId}" has been saved.`,
+    });
+    const templateForFile = selectAllTemplates(useAppStore.getState()).find(t => t.id === savedTemplateId);
     if (templateForFile) {
       void fetch('/api/templates', {
         method: 'POST',
@@ -181,7 +210,7 @@ export default function CardForgePage() {
       });
     }
     return savedTemplateId;
-  }, [addOrUpdateTemplateAction, toast]);
+  }, [addOrUpdateTemplateAction, retargetGeneratedCardsTemplateAction, setSingleCardGeneratorSelectedTemplateIdAction, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     setTemplatePendingDeleteId(templateId);
@@ -192,11 +221,11 @@ export default function CardForgePage() {
     const templateId = templatePendingDeleteId;
     const templateToDelete = templatesFromStore.find(t => t.id === templateId);
     const dependentCardCount = storedCards.filter(card => card.templateId === templateId).length;
-    deleteTemplateAction(templateId);
+    deleteTemplateAction(templateId, templateToDelete?.templateSource);
     void fetch('/api/templates', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: templateId }),
+      body: JSON.stringify({ id: templateId, source: templateToDelete?.templateSource }),
     }).catch((error) => {
       console.warn('Unable to delete template file:', error);
     });
@@ -308,37 +337,47 @@ export default function CardForgePage() {
 
   const handleExportAllAsZip = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
+    const exportItems: Array<{ card: DisplayCard; cardIndex: number; face: CardFace }> = generatedDisplayCards.flatMap((card, index) => {
+      const faces: CardFace[] = card.template.backCanvas ? ['front', 'back'] : ['front'];
+      return faces.map((face) => ({ card, cardIndex: index, face }));
+    });
+    const outputLabel = exportMode === 'physical' ? 'physical print card faces' : 'digital card images';
+    const folderName = exportMode === 'physical' ? 'physical-print-card-faces' : 'digital-card-images';
+    const fileNamePrefix = exportMode === 'physical' ? 'cardforge-physical-print-card-faces' : 'cardforge-digital-card-images';
     setIsZipExporting(true);
-    setZipProgress({ done: 0, total: generatedDisplayCards.length });
+    setZipProgress({ done: 0, total: exportItems.length });
     try {
       const exportProfile = getExportProfile(exportMode, exportDpi);
       const JSZip = (await import('jszip')).default;
-      const { renderCardToCanvasWithProfile } = await import('@/lib/cardPreviewExport');
+      const { createCardFaceExportRenderer } = await import('@/lib/cardPreviewExport');
       const zip = new JSZip();
-      const folder = zip.folder('cards')!;
+      const folder = zip.folder(folderName)!;
+      const renderer = createCardFaceExportRenderer(exportProfile);
 
-      for (let i = 0; i < generatedDisplayCards.length; i++) {
-        const card = generatedDisplayCards[i];
-        const canvas = await renderCardToCanvasWithProfile(card, exportProfile);
-
-        const blob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
-        const safeName = (card.data?.cardName || card.data?.name || `card-${i + 1}`).toString().replace(/[^a-z0-9_-]/gi, '_').substring(0, 40);
-        folder.file(`${String(i + 1).padStart(3, '0')}_${safeName}.png`, blob);
-        setZipProgress({ done: i + 1, total: generatedDisplayCards.length });
+      try {
+        for (let i = 0; i < exportItems.length; i++) {
+          const { card, cardIndex, face } = exportItems[i];
+          const safeName = (card.data?.cardName || card.data?.name || `card-${cardIndex + 1}`).toString().replace(/[^a-z0-9_-]/gi, '_').substring(0, 40);
+          const blob = await renderer.renderToBlob(card, face);
+          folder.file(`${String(cardIndex + 1).padStart(3, '0')}_${safeName}_${face}.png`, blob);
+          setZipProgress({ done: i + 1, total: exportItems.length });
+        }
+      } finally {
+        renderer.cleanup();
       }
 
       const content = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'card-set.zip';
+      link.download = `${fileNamePrefix}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       toast({
         title: 'ZIP Exported',
-        description: `${generatedDisplayCards.length} cards saved to card-set.zip using ${exportProfile.label} profile.`,
+        description: `${exportItems.length} ${outputLabel} saved to ${fileNamePrefix}.zip using ${exportProfile.label} profile.`,
       });
     } catch (err) {
       toast({ title: 'Export Failed', description: (err as Error).message, variant: 'destructive' });
@@ -400,10 +439,13 @@ export default function CardForgePage() {
             ))}
           </TabsList>
 
-          <TabsContent value="template-maker-2">
-            <CardTemplateMaker2
+          <TabsContent value="template-maker">
+            <CardTemplateMaker
               onSaveTemplate={handleSaveTemplate}
               templates={templatesFromStore}
+              defaultTemplates={standardDefaultTemplates}
+              backFaceTemplates={backFacePresetTemplates}
+              userTemplates={userTemplatesFromStore}
               appearanceStyles={appearanceStyles}
               onSaveAppearanceStyle={handleSaveAppearanceStyle}
               onDeleteAppearanceStyle={handleDeleteAppearanceStyle}
@@ -415,241 +457,39 @@ export default function CardForgePage() {
           </TabsContent>
 
           <TabsContent value="generator">
-            {isLoadingTemplates ? (
-              <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" aria-label="Loading templates" />
-                <p className="text-muted-foreground text-sm">Loading templates…</p>
-              </div>
-            ) : freeformTemplatesForGenerator.length === 0 ? (
-              <div className="flex flex-col items-center justify-center min-h-[60vh] border rounded-xl bg-card/30 text-center p-12 space-y-5 shadow-inner">
-                <PenTool className="h-16 w-16 text-primary/60" />
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-bold">No Templates Yet</h2>
-                  <p className="text-muted-foreground max-w-sm">Create a template in the Card Maker first, then come back here to fill in data and generate your cards.</p>
-                </div>
-                <Button size="lg" onClick={() => setActiveTabAction('template-maker-2')} className="gap-2">
-                  <PenTool className="h-5 w-5" /> Open Card Maker
-                </Button>
-              </div>
-            ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="lg:col-span-1 space-y-6">
-                 <SingleCardGenerator
-                    templates={freeformTemplatesForGenerator}
-                    onSingleCardAdded={handleSingleCardAdded}
-                    onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
-                    selectedTemplateIdProp={generatorSelectedTemplateId}
-                 />
-                <BulkGenerator
-                  templates={freeformTemplatesForGenerator}
-                  onCardsGenerated={handleBulkCardsGenerated}
-                  selectedTemplateIdProp={generatorSelectedTemplateId}
-                  onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
-                />
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-xl flex items-center gap-2"> Manage & Export</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={setSelectedPaperSizeAction} />
-                        <div className="space-y-3 pt-2 border-t">
-                          <div className="space-y-1">
-                            <Label htmlFor="exportMode" className="text-md font-medium">Export Profile</Label>
-                            <Select
-                              value={exportMode}
-                              onValueChange={(value) => setExportModeAction(value as ExportMode)}
-                            >
-                              <SelectTrigger id="exportMode" className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="physical">Physical Print (300 DPI, strict checks)</SelectItem>
-                                <SelectItem value="virtual">Virtual Export (faster, warning-first)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground">
-                              Physical mode is recommended for print companies. Virtual mode is optimized for digital sharing.
-                            </p>
-                            <div className="space-y-1">
-                              <Label htmlFor="exportDpi" className="text-xs">Export DPI</Label>
-                              <Select
-                                value={String(exportDpi)}
-                                onValueChange={(value) => setExportDpiAction(parseInt(value, 10))}
-                              >
-                                <SelectTrigger id="exportDpi" className="h-8 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="150">150 DPI</SelectItem>
-                                  <SelectItem value="300">300 DPI (industry standard)</SelectItem>
-                                  <SelectItem value="600">600 DPI</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <Label className="text-md font-medium">PDF Options</Label>
-                          <TooltipProvider>
-                    <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Label htmlFor="pdfMargin" className="text-xs flex items-center gap-1 cursor-help"><BringToFront className="h-3 w-3"/>Margins (mm)</Label>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Space from paper edge to first card. Typical: 5–10 mm.</TooltipContent>
-                                  </Tooltip>
-                                  <Input
-                                      id="pdfMargin"
-                                      type="number"
-                                      value={pdfMarginMm}
-                                      onChange={(e) => setPdfOptionsAction({ margin: parseInt(e.target.value, 10) || 0 })}
-                                      className="h-8 text-xs"
-                                      min="0"
-                                  />
-                              </div>
-                              <div>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1 cursor-help"><ArrowLeftRight className="h-3 w-3"/>Card Spacing (mm)</Label>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Gap between each card. 0 = no gap, 2–4 mm is typical for cutting.</TooltipContent>
-                                  </Tooltip>
-                                  <Input
-                                      id="pdfCardSpacing"
-                                      type="number"
-                                      value={pdfCardSpacingMm}
-                                      onChange={(e) => setPdfOptionsAction({ spacing: parseInt(e.target.value, 10) || 0 })}
-                                      className="h-8 text-xs"
-                                      min="0"
-                                  />
-                              </div>
-                          </div>
-                    </TooltipProvider>
-                          <div className="flex items-center space-x-2 pt-1">
-                              <Switch
-                                  id="pdfIncludeCutLines"
-                                  checked={pdfIncludeCutLines}
-                                  onCheckedChange={(checked) => setPdfOptionsAction({ cutLines: checked })}
-                                  aria-label="Toggle cut lines in PDF"
-                              />
-                              <Label htmlFor="pdfIncludeCutLines" className="flex items-center gap-1 cursor-pointer text-xs"><Scissors className="h-3 w-3"/>Include Cut Lines</Label>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2 pt-2 border-t">
-                           <div className="grid grid-cols-2 gap-2">
-                             <Button variant="outline" onClick={handleSaveCardSet} disabled={generatedDisplayCards.length === 0} className="flex items-center gap-2">
-                                <FolderDown className="h-4 w-4" /> Save Set
-                             </Button>
-                             <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
-                                <FolderUp className="h-4 w-4" /> Load Set
-                             </Button>
-                             <input type="file" ref={fileInputRef} onChange={handleLoadCardSet} accept=".json" aria-hidden="true" style={{ display: 'none' }} />
-                           </div>
-                            <SaveAsPdfButton
-                              generatedDisplayCards={generatedDisplayCards}
-                              selectedPaperSize={selectedPaperSize}
-                              pdfMarginMm={pdfMarginMm}
-                              pdfCardSpacingMm={pdfCardSpacingMm}
-                              pdfIncludeCutLines={pdfIncludeCutLines}
-                              exportMode={exportMode}
-                              exportDpi={exportDpi}
-                              disabled={generatedDisplayCards.length === 0}
-                              templateName={generatedDisplayCards[0]?.template?.name}
-                            />
-                            <Button variant="outline" onClick={handleExportAllAsZip} disabled={generatedDisplayCards.length === 0 || isZipExporting} className="flex items-center gap-2">
-                              <Download className="h-4 w-4" /> {isZipExporting ? `Exporting… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : `Export PNG ZIP (${generatedDisplayCards.length})`}
-                            </Button>
-                            {zipProgress && (
-                              <Progress value={(zipProgress.done / zipProgress.total) * 100} className="h-1.5 mt-1" />
-                            )}
-                            {generatedDisplayCards.length > 0 && (
-                                <Button variant="destructive" onClick={() => setIsClearCardsDialogOpen(true)} className="flex items-center gap-2">
-                                    <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
-              </div>
-              <div className="lg:col-span-2">
-                <div className="sticky top-0 z-10 bg-background pb-2 flex items-center justify-between mb-2 gap-3 flex-wrap">
-                  <h2 className="text-2xl font-semibold text-foreground shrink-0">
-                    Generated Cards ({generatedDisplayCards.length})
-                    {generatorSelectedTemplateId && freeformTemplatesForGenerator.find(t => t.id === generatorSelectedTemplateId) && (
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
-                        — {freeformTemplatesForGenerator.find(t => t.id === generatorSelectedTemplateId)?.name}
-                      </span>
-                    )}
-                  </h2>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        placeholder="Search cards..."
-                        value={gallerySearch}
-                        onChange={(e) => setGallerySearch(e.target.value)}
-                        className="pl-8 h-8 text-sm w-40"
-                      />
-                    </div>
-                    <Select value={gallerySort} onValueChange={value => setGallerySort(value as typeof gallerySort)}>
-                      <SelectTrigger className="h-8 text-sm w-36" aria-label="Sort gallery">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">Order added</SelectItem>
-                        <SelectItem value="name-asc">Name A→Z</SelectItem>
-                        <SelectItem value="name-desc">Name Z→A</SelectItem>
-                        <SelectItem value="template">By Template</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {generatedDisplayCards.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
-                     <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
-                    <p className="text-lg font-medium">No cards generated yet.</p>
-                    <p className="text-sm">Use the panels on the left to add cards or load a set.</p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-                      {generatedDisplayCards
-                        .filter(card => {
-                          if (!gallerySearch.trim()) return true;
-                          const q = gallerySearch.toLowerCase();
-                          return (
-                            card.template.name?.toLowerCase().includes(q) ||
-                            Object.values(card.data).some(v => String(v).toLowerCase().includes(q))
-                          );
-                        })
-                        .sort((a, b) => {
-                          if (gallerySort === 'name-asc') return String(a.data.cardName || a.data.name || '').localeCompare(String(b.data.cardName || b.data.name || ''));
-                          if (gallerySort === 'name-desc') return String(b.data.cardName || b.data.name || '').localeCompare(String(a.data.cardName || a.data.name || ''));
-                          if (gallerySort === 'template') return (a.template.name || '').localeCompare(b.template.name || '');
-                          return 0;
-                        })
-                        .map((cardItem, index) => (
-                        <div key={cardItem.uniqueId} className="relative group/card">
-                          <CardPreview
-                            card={cardItem}
-                            isPrintMode={false}
-                            className="mx-auto"
-                            showSizeInfo={index === 0}
-                            onEdit={handleEditCardRequest}
-                          />
-                          <div className="absolute bottom-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
-                            <ExportCardImageButton card={cardItem} exportMode={exportMode} exportDpi={exportDpi} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-              </div>
-            </div>
-            )}
+            <GenerationWorkspace
+              isLoadingTemplates={isLoadingTemplates}
+              templates={freeformTemplatesForGenerator}
+              generatorSelectedTemplateId={generatorSelectedTemplateId}
+              selectedPaperSize={selectedPaperSize}
+              pdfMarginMm={pdfMarginMm}
+              pdfCardSpacingMm={pdfCardSpacingMm}
+              pdfIncludeCutLines={pdfIncludeCutLines}
+              pdfDuplexLayout={pdfDuplexLayout}
+              exportMode={exportMode}
+              exportDpi={exportDpi}
+              generatedDisplayCards={generatedDisplayCards}
+              fileInputRef={fileInputRef}
+              zipProgress={zipProgress}
+              gallerySearch={gallerySearch}
+              gallerySort={gallerySort}
+              isZipExporting={isZipExporting}
+              onOpenTemplateMaker={() => setActiveTabAction('template-maker')}
+              onSingleCardAdded={handleSingleCardAdded}
+              onBulkCardsGenerated={handleBulkCardsGenerated}
+              onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
+              onSelectPaperSize={setSelectedPaperSizeAction}
+              onSetPdfOptions={setPdfOptionsAction}
+              onSetExportMode={setExportModeAction}
+              onSetExportDpi={setExportDpiAction}
+              onSaveCardSet={handleSaveCardSet}
+              onLoadCardSet={handleLoadCardSet}
+              onExportAllAsZip={handleExportAllAsZip}
+              onClearCardsRequest={() => setIsClearCardsDialogOpen(true)}
+              onGallerySearchChange={setGallerySearch}
+              onGallerySortChange={setGallerySort}
+              onEditCardRequest={handleEditCardRequest}
+            />
           </TabsContent>
 
         </Tabs>
@@ -707,3 +547,4 @@ export default function CardForgePage() {
 }
 
     
+

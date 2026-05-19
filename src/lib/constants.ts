@@ -86,9 +86,7 @@ export const DIMENSION_UNITS: Array<{ label: string; value: string }> = [
   { label: 'Pixels – print (300 dpi)', value: 'px300' },
 ];
 
-// DEFAULT_TEMPLATES has been moved to appStore.ts as DEFAULT_TEMPLATES_DATA to avoid circular deps.
-
 export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
-  { value: "template-maker-2", label: "Card Template Maker 2.0", icon: PenTool },
+  { value: "template-maker", label: "Card Template Maker", icon: PenTool },
   { value: "generator", label: "Card Generator", icon: PackageOpen },
 ];

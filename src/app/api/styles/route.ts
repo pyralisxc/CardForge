@@ -3,7 +3,6 @@ import path from 'path';
 import { NextResponse } from 'next/server';
 
 import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/types';
-import { DEFAULT_APPEARANCE_LIBRARY } from '@/lib/appearance';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
@@ -12,7 +11,7 @@ import {
 } from '@/lib/apiValidation';
 
 const STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
-const STYLE_LIBRARY_FILE = path.join(STYLE_LIBRARY_DIR, 'appearance-library.json');
+const STYLE_FILE_EXTENSION = '.json';
 
 const createErrorResponse = (
   status: number,
@@ -44,6 +43,18 @@ const ensureStyleDirectory = async () => {
   await fs.mkdir(STYLE_LIBRARY_DIR, { recursive: true });
 };
 
+const toSafeFileName = (value: string): string => {
+  const safe = value
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  return safe || 'style';
+};
+
+const styleFilePathForId = (id: string) =>
+  path.join(STYLE_LIBRARY_DIR, `${toSafeFileName(id)}${STYLE_FILE_EXTENSION}`);
+
 const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<AppearanceStylePreset>;
@@ -54,22 +65,32 @@ const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
     && !!candidate.appearance;
 };
 
+const writeStylePresetFiles = async (styles: AppearanceStylePreset[]) => {
+  await Promise.all(styles.map((style) =>
+    fs.writeFile(styleFilePathForId(style.id), `${JSON.stringify(style, null, 2)}\n`, 'utf8')
+  ));
+};
+
 const readLibrary = async (): Promise<AppearanceStyleLibrary> => {
   await ensureStyleDirectory();
-  try {
-    const contents = await fs.readFile(STYLE_LIBRARY_FILE, 'utf8');
-    const parsed = JSON.parse(contents) as Partial<AppearanceStyleLibrary>;
-    if (Array.isArray(parsed.styles) && parsed.styles.every(isStylePreset)) {
-      return { version: Number(parsed.version) || 1, styles: parsed.styles };
+  const entries = await fs.readdir(STYLE_LIBRARY_DIR, { withFileTypes: true });
+  const styles: AppearanceStylePreset[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!entry.name.endsWith(STYLE_FILE_EXTENSION)) continue;
+
+    const filePath = path.join(STYLE_LIBRARY_DIR, entry.name);
+    try {
+      const contents = await fs.readFile(filePath, 'utf8');
+      const parsed = JSON.parse(contents);
+      if (isStylePreset(parsed)) styles.push(parsed);
+    } catch (error) {
+      console.warn(`Skipping invalid style file ${entry.name}:`, error);
     }
-  } catch (error) {
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code !== 'ENOENT') console.warn('Unable to read style library:', error);
   }
 
-  const fallback = { version: 1, styles: DEFAULT_APPEARANCE_LIBRARY };
-  await fs.writeFile(STYLE_LIBRARY_FILE, `${JSON.stringify(fallback, null, 2)}\n`, 'utf8');
-  return fallback;
+  return { version: 1, styles: styles.sort((a, b) => a.name.localeCompare(b.name)) };
 };
 
 export async function GET() {
@@ -124,8 +145,8 @@ export async function POST(request: Request) {
     else merged.push(style);
   });
 
-  const next = { version: current.version || 1, styles: merged };
-  await fs.writeFile(STYLE_LIBRARY_FILE, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+  await writeStylePresetFiles(validStyles);
+  const next = { version: current.version || 1, styles: merged.sort((a, b) => a.name.localeCompare(b.name)) };
   return NextResponse.json(next);
 }
 
@@ -143,8 +164,12 @@ export async function DELETE(request: Request) {
   if (typeof body?.id !== 'string' || body.id.trim().length === 0) {
     return createErrorResponse(400, 'invalid_style_id', 'Style id is required.');
   }
-  const current = await readLibrary();
-  const next = { ...current, styles: current.styles.filter(style => style.id !== body.id) };
-  await fs.writeFile(STYLE_LIBRARY_FILE, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
+  try {
+    await fs.unlink(styleFilePathForId(body.id));
+  } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code !== 'ENOENT') throw error;
+  }
+  const next = await readLibrary();
   return NextResponse.json(next);
 }

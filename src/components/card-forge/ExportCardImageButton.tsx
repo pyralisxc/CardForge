@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import type { DisplayCard } from '@/types';
+import type { CardFace, DisplayCard } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Loader2, ImageDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +28,9 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleExport = async (format: 'png' | 'webp' | 'jpeg' | 'tiff') => {
+  const hasBackFace = Boolean(card.template.backCanvas);
+
+  const handleExport = async (format: 'png' | 'webp' | 'jpeg' | 'tiff', face: CardFace = 'front') => {
     setIsLoading(true);
     try {
       const validation = validateCardExportQuality(card, exportMode, exportDpi);
@@ -43,7 +45,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
         });
       }
 
-      const canvas = await renderCardToCanvas(card, exportMode, exportDpi);
+      const canvas = await renderCardToCanvas(card, exportMode, exportDpi, face);
       const mimeType = format === 'webp'
         ? 'image/webp'
         : format === 'jpeg'
@@ -60,7 +62,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
       const link = document.createElement('a');
       const cardName = (card.data?.cardName || card.data?.title || card.data?.name || 'card') as string;
       link.href = url;
-      link.download = `${String(cardName).replace(/\s+/g, '-').toLowerCase()}.${format === 'jpeg' ? 'jpg' : format}`;
+      link.download = `${String(cardName).replace(/\s+/g, '-').toLowerCase()}-${face}.${format === 'jpeg' ? 'jpg' : format}`;
       link.click();
       URL.revokeObjectURL(url);
       const exportProfile = getExportProfile(exportMode, exportDpi);
@@ -88,10 +90,14 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleExport('png')}>Export as PNG</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('jpeg')}>Export as JPEG</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('webp')}>Export as WebP</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('tiff')}>Export as TIFF (beta)</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport('png', 'front')}>Export front as PNG</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('png', 'back')}>Export back as PNG</DropdownMenuItem> : null}
+        <DropdownMenuItem onClick={() => handleExport('jpeg', 'front')}>Export front as JPEG</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('jpeg', 'back')}>Export back as JPEG</DropdownMenuItem> : null}
+        <DropdownMenuItem onClick={() => handleExport('webp', 'front')}>Export front as WebP</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('webp', 'back')}>Export back as WebP</DropdownMenuItem> : null}
+        <DropdownMenuItem onClick={() => handleExport('tiff', 'front')}>Export front as TIFF (beta)</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('tiff', 'back')}>Export back as TIFF (beta)</DropdownMenuItem> : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

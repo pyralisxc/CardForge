@@ -1,7 +1,7 @@
 "use client";
 
 import type { MutableRefObject } from 'react';
-import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,6 +116,7 @@ interface TextFieldSettingsListProps {
   variableCardRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
   onFocusField: (key: string) => void;
   onRenameField: (oldKey: string, nextKey: string) => void;
+  onRemoveField: (key: string) => void;
   onUpdateContract: (key: string, updates: Partial<FieldContract>) => void;
 }
 
@@ -128,6 +129,7 @@ export function TextFieldSettingsList({
   variableCardRefs,
   onFocusField,
   onRenameField,
+  onRemoveField,
   onUpdateContract,
 }: TextFieldSettingsListProps) {
   return (
@@ -166,6 +168,13 @@ export function TextFieldSettingsList({
                       readOnly={isBaseTextField}
                       className={cn(makerTheme.control, 'mt-1 h-8 font-mono text-xs')}
                       onFocus={() => onFocusField(field.key)}
+                      onKeyDown={(event) => {
+                        if (!isBaseTextField && event.key === 'Enter') {
+                          event.preventDefault();
+                          onRenameField(field.key, event.currentTarget.value);
+                          event.currentTarget.blur();
+                        }
+                      }}
                       onBlur={(event) => {
                         if (!isBaseTextField) onRenameField(field.key, event.target.value);
                       }}
@@ -173,6 +182,21 @@ export function TextFieldSettingsList({
                   </div>
                   {field.required && <span className="rounded-full border border-[#6d5323] px-2 py-0.5 text-[10px] text-[#d5ad54]">Required</span>}
                 </div>
+
+                {!isBaseTextField && (
+                  <div className="mt-2 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 px-2 text-[11px] text-[#8f95a3] hover:bg-[#141b24] hover:text-[#ffb4ae]"
+                      onClick={() => onRemoveField(field.key)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove Variable
+                    </Button>
+                  </div>
+                )}
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="space-y-1">

@@ -2,6 +2,7 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { TCGCardTemplate, CardData, FreeformCardElement } from "@/types";
+import Papa from "papaparse";
 import { TCG_ASPECT_RATIO } from "@/lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
@@ -261,56 +262,20 @@ export function simplifyRatio(w: number, h: number): string {
 }
 
 export function parseCSV(raw: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let current = '';
-  let inQuotes = false;
+  const result = Papa.parse<string[]>(raw, {
+    skipEmptyLines: 'greedy',
+    transform: (value) => value.trim(),
+  });
 
-  const pushField = () => {
-    row.push(current.trim());
-    current = '';
-  };
-
-  const pushRow = () => {
-    pushField();
-    if (row.some((field) => field.trim() !== '')) {
-      rows.push(row);
-    }
-    row = [];
-  };
-
-  for (let index = 0; index < raw.length; index++) {
-    const char = raw[index];
-
-    if (char === '"') {
-      if (inQuotes && raw[index + 1] === '"') {
-        current += '"';
-        index++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === ',' && !inQuotes) {
-      pushField();
-      continue;
-    }
-
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && raw[index + 1] === '\n') {
-        index++;
-      }
-      pushRow();
-      continue;
-    }
-
-    current += char;
+  if (result.errors.length > 0) {
+    throw new Error(result.errors.map((error) => error.message).join('; '));
   }
 
-  if (current.length > 0 || row.length > 0) {
-    pushRow();
-  }
+  return result.data.filter((row) => row.some((field) => field.trim() !== ''));
+}
 
-  return rows;
+export function unparseCSV(rows: Array<Array<string | number | null | undefined>>): string {
+  return Papa.unparse(rows, {
+    newline: '\n',
+  });
 }

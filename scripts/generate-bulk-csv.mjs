@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import Papa from 'papaparse';
 
 const PLACEHOLDER_REGEX = /\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
 
 function parseArgs(argv) {
   const args = {
-    template: 'data/templates/default-emberclaw-hd-freeform.json',
+    template: 'data/default-templates/default-playing-card-theme.json',
     count: 500,
-    out: 'data/bulk-samples/emberclaw-500.csv',
+    out: 'data/bulk-samples/playing-card-500.csv',
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -130,18 +131,8 @@ function makeValueForKey(key, index, count, defaultValue, templateName) {
   return `${key}_${index}`;
 }
 
-function escapeCsvValue(value) {
-  const str = String(value ?? '');
-  if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
 function buildCsv(headers, rows) {
-  const headerLine = headers.map(escapeCsvValue).join(',');
-  const body = rows.map((row) => row.map(escapeCsvValue).join(',')).join('\n');
-  return `${headerLine}\n${body}\n`;
+  return `${Papa.unparse([headers, ...rows], { newline: '\n' })}\n`;
 }
 
 function main() {

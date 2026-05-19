@@ -20,6 +20,20 @@ export const stylePresetPayloadSchema = z.object({
   }),
 }).passthrough();
 
+const cardAssetAllowedTargetSchema = z.enum(['text', 'shape', 'divider', 'template', 'imageFrame']);
+const tileModeSchema = z.enum(['repeat', 'stretch', 'contain']);
+
+export const cardAssetMetadataOverrideSchema = z.object({
+  id: nonEmptyStringSchema.optional(),
+  name: nonEmptyStringSchema.optional(),
+  tileMode: tileModeSchema.optional(),
+  seamless: z.boolean().optional(),
+  allowedTargets: z.array(cardAssetAllowedTargetSchema).min(1).optional(),
+  defaultBlendMode: nonEmptyStringSchema.optional(),
+  defaultOpacity: z.number().finite().min(0).max(100).optional(),
+  defaultScale: z.number().finite().min(1).max(1000).optional(),
+}).strict();
+
 export const getUtf8ByteLength = (value: string): number => {
   return new TextEncoder().encode(value).length;
 };

@@ -1,0 +1,9 @@
+{
+  "name": "Parchment Grain",
+  "tileMode": "repeat",
+  "seamless": true,
+  "allowedTargets": ["text", "shape", "template"],
+  "defaultBlendMode": "multiply",
+  "defaultOpacity": 42,
+  "defaultScale": 160
+}

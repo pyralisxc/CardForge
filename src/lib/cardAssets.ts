@@ -11,6 +11,18 @@ export interface CardAssetOption {
   defaultScale?: number;
 }
 
+export type CardAssetMetadataOverride = Partial<Pick<
+  CardAssetOption,
+  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale'
+>>;
+
+export interface CardAssetDiscoveryInput {
+  url: string;
+  kind: 'texture' | 'divider';
+  relativePath?: string;
+  metadata?: CardAssetMetadataOverride;
+}
+
 export const CARD_TEXTURE_ASSETS: CardAssetOption[] = [
   { id: 'parchment-grain', name: 'Parchment Grain', url: '/card-assets/textures/parchment-grain.svg', kind: 'texture', tileMode: 'repeat', seamless: true, allowedTargets: ['text', 'shape', 'template'], defaultBlendMode: 'multiply', defaultOpacity: 42, defaultScale: 160 },
   { id: 'dark-leather', name: 'Dark Leather', url: '/card-assets/textures/dark-leather.svg', kind: 'texture', tileMode: 'repeat', seamless: true, allowedTargets: ['text', 'shape', 'template'], defaultBlendMode: 'overlay', defaultOpacity: 46, defaultScale: 180 },
@@ -37,3 +49,73 @@ export const SEAMLESS_TEXTURE_ASSETS = CARD_TEXTURE_ASSETS.filter(asset =>
 
 export const findCardAsset = (idOrUrl?: string): CardAssetOption | undefined =>
   [...CARD_TEXTURE_ASSETS, ...CARD_DIVIDER_ASSETS].find(asset => asset.id === idOrUrl || asset.url === idOrUrl);
+
+const toTitleCase = (value: string) =>
+  value
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+
+const slugifyAssetId = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9/_-]+/g, '-')
+    .replace(/\\/g, '/')
+    .replace(/\//g, '-')
+    .replace(/^-+|-+$/g, '');
+
+export const buildDiscoveredCardAsset = ({
+  url,
+  kind,
+  relativePath,
+  metadata,
+}: CardAssetDiscoveryInput): CardAssetOption => {
+  const normalizedRelativePath = (relativePath || url)
+    .replace(/^\/card-assets\/(?:textures|dividers)\//, '')
+    .replace(/\\/g, '/');
+  const stem = normalizedRelativePath.replace(/\.[^.]+$/, '');
+  const derivedId = metadata?.id || slugifyAssetId(stem);
+  const known = findCardAsset(metadata?.id || url || derivedId);
+  const defaults: CardAssetOption = kind === 'texture'
+    ? {
+        id: derivedId,
+        name: toTitleCase(stem.split('/').pop() || stem),
+        url,
+        kind,
+        tileMode: 'repeat',
+        seamless: true,
+        allowedTargets: ['text', 'shape', 'template'],
+        defaultBlendMode: 'multiply',
+        defaultOpacity: 42,
+        defaultScale: 160,
+      }
+    : {
+        id: derivedId,
+        name: toTitleCase(stem.split('/').pop() || stem),
+        url,
+        kind,
+        tileMode: 'stretch',
+        seamless: false,
+        allowedTargets: ['divider'],
+        defaultBlendMode: 'normal',
+        defaultOpacity: 100,
+        defaultScale: 100,
+      };
+
+  return {
+    ...defaults,
+    ...known,
+    ...metadata,
+    id: derivedId,
+    name: metadata?.name || known?.name || defaults.name,
+    url,
+    kind,
+    tileMode: metadata?.tileMode || known?.tileMode || defaults.tileMode,
+    seamless: metadata?.seamless ?? known?.seamless ?? defaults.seamless,
+    allowedTargets: metadata?.allowedTargets || known?.allowedTargets || defaults.allowedTargets,
+    defaultBlendMode: metadata?.defaultBlendMode || known?.defaultBlendMode || defaults.defaultBlendMode,
+    defaultOpacity: metadata?.defaultOpacity ?? known?.defaultOpacity ?? defaults.defaultOpacity,
+    defaultScale: metadata?.defaultScale ?? known?.defaultScale ?? defaults.defaultScale,
+  };
+};

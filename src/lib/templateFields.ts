@@ -22,6 +22,7 @@ export interface TemplateFieldDefinition {
   sourceElementName?: string;
   sourceElementPreview?: string;
   sourceElementContent?: string;
+  isStaticBaseText?: boolean;
 }
 
 const MULTILINE_HINTS = ['rules', 'text', 'effect', 'abilit', 'description', 'flavor'];
@@ -161,11 +162,12 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
     const supportsRichText = !isImage && fieldSupportsRichText(template, placeholder.key);
     const textElements = !isImage ? getTextElementsForField(template, placeholder.key) : [];
     const primaryTextElement = textElements[0];
-    const explicitKind = pickFieldKind(
-      textElements
-        .map((element) => element.generatorFieldKind)
-        .filter((kind): kind is GeneratorFieldKind => Boolean(kind))
-    ) || (contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' ? contract.type : undefined);
+    const explicitKind = (contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' ? contract.type : undefined)
+      || pickFieldKind(
+        textElements
+          .map((element) => element.generatorFieldKind)
+          .filter((kind): kind is GeneratorFieldKind => Boolean(kind))
+      );
     const fieldKind = isImage ? undefined : inferFieldKind(placeholder.key, isMultiline, supportsRichText, explicitKind);
     const explicitRequiredValues = textElements
       .map((element) => element.generatorFieldRequired)
@@ -234,7 +236,12 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
 
     const nonEmptyStaticSegments = segments
       .map((segment, index) => ({ segment, index }))
-      .filter(({ segment }) => segment.type === 'text' && segment.text.trim().length > 0);
+      .filter(({ segment }) => {
+        if (segment.type !== 'text') return false;
+        const trimmed = segment.text.trim();
+        if (!trimmed) return false;
+        return (trimmed.match(/[a-z0-9]/gi) || []).length >= 3;
+      });
 
     const contentModel: TemplateFieldContentModel = inferTextContentModelFromElement(element);
     nonEmptyStaticSegments.forEach(({ segment, index }, staticSegmentPosition) => {
@@ -259,6 +266,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         sourceElementName: element.name,
         sourceElementPreview: element.name,
         sourceElementContent: element.content,
+        isStaticBaseText: true,
         helperText: contentModel === 'rulesBlocks'
           ? 'This is the base rules-box copy that sits between inline variables.'
           : 'This is the base text segment that sits between inline variables.',

@@ -9,6 +9,12 @@ describe('rich text document serialization', () => {
     expect(tiptapDocToTemplateText(templateTextToTiptapDoc(source))).toBe(source);
   });
 
+  it('round-trips every supported inline rich text marker', () => {
+    const source = '**bold** _italic_ __underline__ ==highlight== [color:#d5ad54]gold[/color]';
+
+    expect(tiptapDocToTemplateText(templateTextToTiptapDoc(source))).toBe(source);
+  });
+
   it('keeps normal text visual while preserving template variables', () => {
     const doc = templateTextToTiptapDoc('Alpha {{Beta:"==Gamma=="}} Omega');
 

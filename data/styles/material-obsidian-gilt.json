@@ -1,0 +1,32 @@
+{
+  "id": "material-obsidian-gilt",
+  "name": "Obsidian Gilt",
+  "kind": "material",
+  "targets": ["text", "shape", "element"],
+  "appearance": {
+    "material": {
+      "baseColor": "#120f0b",
+      "textColor": "#f7e6b0",
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          { "id": "a", "color": "#d5ad54", "position": 0, "opacity": 0.22 },
+          { "id": "b", "color": "#120f0b", "position": 100, "opacity": 1 }
+        ]
+      },
+      "texture": {
+        "kind": "uploaded",
+        "imageSource": "/card-assets/textures/dark-leather.svg",
+        "assetSource": "/card-assets/textures/dark-leather.svg",
+        "assetKind": "texture",
+        "intensity": 42,
+        "scale": 9,
+        "textureOpacity": 46,
+        "textureScale": 180,
+        "blendMode": "overlay"
+      }
+    },
+    "border": { "kind": "etched", "color": "#d5ad54", "secondaryColor": "#5f4216", "width": 4, "radius": 8, "innerWidth": 1 },
+    "effects": { "shadow": 28, "glow": 14, "bevel": 35 }
+  }
+}

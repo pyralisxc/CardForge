@@ -1,0 +1,34 @@
+{
+  "id": "material-purple-foil",
+  "name": "Purple Foil",
+  "kind": "material",
+  "targets": ["text", "shape", "icon", "element"],
+  "appearance": {
+    "material": {
+      "baseColor": "#160d25",
+      "textColor": "#f4eaff",
+      "gradient": {
+        "type": "linear",
+        "angle": 135,
+        "stops": [
+          { "id": "a", "color": "#7a52cc", "position": 0, "opacity": 0.92 },
+          { "id": "b", "color": "#260e4a", "position": 52, "opacity": 0.96 },
+          { "id": "c", "color": "#d5ad54", "position": 100, "opacity": 0.24 }
+        ]
+      },
+      "texture": {
+        "kind": "uploaded",
+        "imageSource": "/card-assets/textures/purple-foil.svg",
+        "assetSource": "/card-assets/textures/purple-foil.svg",
+        "assetKind": "texture",
+        "intensity": 60,
+        "scale": 16,
+        "textureOpacity": 44,
+        "textureScale": 190,
+        "blendMode": "screen"
+      }
+    },
+    "border": { "kind": "foil", "color": "#7a52cc", "secondaryColor": "#d5ad54", "width": 3, "radius": 10 },
+    "effects": { "glow": 24, "innerHighlight": 28 }
+  }
+}

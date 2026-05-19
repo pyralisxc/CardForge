@@ -2,7 +2,6 @@
 "use client";
 
 import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
-import { cn } from '@/lib/utils';
 import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/lib/templateFields';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -14,7 +13,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Layers } from 'lucide-react';
-import { CardPreview } from '@/components/card-forge/CardPreview';
 import { GeneratorFieldGroups } from '@/components/card-forge/GeneratorFieldGroups';
 import { useAppStore } from '@/store/appStore';
 import { withNextStep } from '@/lib/userFacingErrors';
@@ -38,9 +36,11 @@ export function SingleCardGenerator({
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>([]);
   const [hasAddedCardInSession, setHasAddedCardInSession] = useState(false);
+  const [isAddingCard, setIsAddingCard] = useState(false);
   
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const addCardCooldownRef = useRef<number | null>(null);
   const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
   const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
 
@@ -61,6 +61,14 @@ export function SingleCardGenerator({
     setDynamicFields(newFields);
     setCardData(newGeneratedData); // This resets the form to the new template's structure/defaults.
   }, [selectedTemplate]); // Depend on the derived selectedTemplate
+
+  useEffect(() => {
+    return () => {
+      if (addCardCooldownRef.current !== null) {
+        window.clearTimeout(addCardCooldownRef.current);
+      }
+    };
+  }, []);
 
   const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
     const file = event.target.files?.[0];
@@ -84,6 +92,10 @@ export function SingleCardGenerator({
   }, [toast]);
 
   const handleAddCard = useCallback(() => {
+    if (isAddingCard) {
+      return;
+    }
+
     if (!selectedTemplate) { // Use the memoized selectedTemplate
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
@@ -103,12 +115,14 @@ export function SingleCardGenerator({
         title: ERROR_COPY.requiredFieldsMissing.title,
         description: withNextStep(
           `Missing: ${missingRequiredFields.slice(0, 3).join(', ')}${missingRequiredFields.length > 3 ? ', ...' : ''}.`,
-          'Fill in required fields, then click Add Card to Preview List again.'
+          'Fill in required fields, then create the generated card again.'
         ),
         variant: 'destructive',
       });
       return;
     }
+
+    setIsAddingCard(true);
 
     const finalCardData = completeCardDataWithTemplateDefaults(dynamicFields, cardData);
 
@@ -120,13 +134,21 @@ export function SingleCardGenerator({
     onSingleCardAdded(displayCard);
     setHasAddedCardInSession(true);
 
-    toast({ title: "Card added", description: 'Your card is now in the preview list. Next step: export or add another card.' });
+    toast({ title: "Card generated", description: 'Your card is now in the generated reference gallery. Next step: review, edit, export, or add another card.' });
     
     // Reset form fields to defaults for the currently selected template after adding a card
     const [, resetData] = initializeCardDataFromTemplate(selectedTemplate); // Use memoized selectedTemplate
     setCardData(resetData);
 
-  }, [selectedTemplate, cardData, dynamicFields, onSingleCardAdded, toast]); // Use memoized selectedTemplate
+    if (addCardCooldownRef.current !== null) {
+      window.clearTimeout(addCardCooldownRef.current);
+    }
+    addCardCooldownRef.current = window.setTimeout(() => {
+      setIsAddingCard(false);
+      addCardCooldownRef.current = null;
+    }, 300);
+
+  }, [selectedTemplate, cardData, dynamicFields, isAddingCard, onSingleCardAdded, toast]); // Use memoized selectedTemplate
 
   const handleTemplateSelectChange = useCallback((id: string | null) => {
     onTemplateSelectionChange(id); // Calls Zustand action via prop
@@ -159,11 +181,7 @@ export function SingleCardGenerator({
     );
   };
 
-  // Build a live DisplayCard for the mini-preview
-  const liveDisplayCard = useMemo<DisplayCard | null>(() => {
-    if (!selectedTemplate) return null;
-    return { template: selectedTemplate, data: cardData, uniqueId: 'live-preview' };
-  }, [selectedTemplate, cardData]);
+  const richTextFieldCount = dynamicFields.filter((field) => field.supportsRichText).length;
 
   return (
     <Card>
@@ -195,19 +213,17 @@ export function SingleCardGenerator({
           </p>
         </div>
 
-        {/* Live mini-preview */}
-        {liveDisplayCard && (
-          <div className="flex justify-center py-1">
-            <div className="rounded-md overflow-hidden shadow-md" style={{ width: 160 }}>
-              <CardPreview card={liveDisplayCard} targetWidthPx={160} />
-            </div>
-          </div>
-        )}
-
         {selectedTemplateIdProp && !hasAddedCardInSession && (
           <div className="rounded-md border p-3 text-xs bg-muted/20" role="status" aria-live="polite">
-            <p className="font-medium">Quick Start: First Card</p>
-            <p className="mt-1 text-muted-foreground">1. Fill required fields first. 2. Use the mini preview to confirm layout. 3. Click Add Card to Preview List.</p>
+            <p className="font-medium">Quick Start: Generate a reference card</p>
+            <p className="mt-1 text-muted-foreground">
+              Fill required fields, use rich-text tools when available, then create the card. Visual review happens in Generated Reference Cards so preview, edit, and export all share one source of truth.
+            </p>
+            {richTextFieldCount > 0 && (
+              <p className="mt-2 font-medium text-primary">
+                {richTextFieldCount} rich text {richTextFieldCount === 1 ? 'field' : 'fields'} available in this template.
+              </p>
+            )}
           </div>
         )}
 
@@ -230,11 +246,11 @@ export function SingleCardGenerator({
           <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Select a template above to start entering card data.</p>
         )}
          {templates.length === 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No Maker 2.0 templates available. Please create one in "Card Template Maker 2.0" first.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No Card Template Maker templates available. Please create one in "Card Template Maker" first.</p>
         )}
 
-        <Button onClick={handleAddCard} disabled={!selectedTemplateIdProp} className="w-full">
-          <PlusSquare className="mr-2 h-4 w-4" /> Add Card to Preview List
+        <Button onClick={handleAddCard} disabled={!selectedTemplateIdProp || isAddingCard} className="w-full">
+          <PlusSquare className="mr-2 h-4 w-4" /> {isAddingCard ? 'Generating Card...' : 'Create Generated Card'}
         </Button>
       </CardContent>
     </Card>

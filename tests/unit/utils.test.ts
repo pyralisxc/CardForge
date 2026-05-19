@@ -9,6 +9,7 @@ import {
   replacePlaceholdersLocal,
   simplifyRatio,
   toTitleCase,
+  unparseCSV,
 } from '@/lib/utils';
 import { buildTextBinding, isSimpleTextBinding, parseTextBinding } from '@/lib/textBindings';
 import type { TCGCardTemplate } from '@/types';
@@ -205,6 +206,23 @@ describe('utils', () => {
       ['name', 'text'],
       ['Dragon, Elder', 'Says "hello"'],
       ['Scout', 'Line one\nLine two'],
+    ]);
+  });
+
+  it('throws on malformed CSV instead of guessing through broken quotes', () => {
+    expect(() => parseCSV('name,text\n"Dragon, Elder,Says hello')).toThrow();
+  });
+
+  it('generates CSV with quoted multiline and comma-bearing cells', () => {
+    const csv = unparseCSV([
+      ['name', 'text'],
+      ['Dragon, Elder', 'Line one\nLine two'],
+    ]);
+
+    expect(csv).toBe('name,text\n"Dragon, Elder","Line one\nLine two"');
+    expect(parseCSV(csv)).toEqual([
+      ['name', 'text'],
+      ['Dragon, Elder', 'Line one\nLine two'],
     ]);
   });
 });

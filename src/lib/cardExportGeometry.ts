@@ -21,6 +21,11 @@ export const getCardExportHeightPx = (card: DisplayCard, renderWidthPx: number):
   return Math.round((renderWidthPx / width) * height);
 };
 
+export interface CardExportDimensionsPx {
+  widthPx: number;
+  heightPx: number;
+}
+
 export const getCardPhysicalSizeMm = (
   card: DisplayCard,
   printableWidthMm?: number,
@@ -49,4 +54,14 @@ export const getCardPhysicalSizeMm = (
   }
 
   return { widthMm, heightMm };
+};
+
+export const getCardExportDimensionsPx = (
+  card: DisplayCard,
+  dpi: number
+): CardExportDimensionsPx => {
+  const { widthMm, heightMm } = getCardPhysicalSizeMm(card);
+  const widthPx = Math.max(1, Math.round((widthMm / 25.4) * dpi));
+  const heightPx = Math.max(1, Math.round((heightMm / 25.4) * dpi));
+  return { widthPx, heightPx };
 };

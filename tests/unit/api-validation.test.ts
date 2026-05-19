@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cardAssetMetadataOverrideSchema,
   formatZodIssues,
   parseJsonBodyWithLimit,
   stylePresetPayloadSchema,
@@ -82,5 +83,30 @@ describe('apiValidation', () => {
 
     const issueMessages = formatZodIssues(invalid.error.issues);
     expect(issueMessages.some((message) => message.includes('appearance'))).toBe(true);
+  });
+
+  it('validates asset metadata sidecar shape and rejects unknown keys', () => {
+    const valid = cardAssetMetadataOverrideSchema.safeParse({
+      name: 'Marble Vein',
+      tileMode: 'repeat',
+      seamless: true,
+      allowedTargets: ['shape', 'template'],
+      defaultBlendMode: 'multiply',
+      defaultOpacity: 35,
+      defaultScale: 180,
+    });
+    expect(valid.success).toBe(true);
+
+    const invalid = cardAssetMetadataOverrideSchema.safeParse({
+      name: 'Bad Metadata',
+      tileMode: 'tile',
+      ignoredField: true,
+    });
+    expect(invalid.success).toBe(false);
+    if (invalid.success) return;
+
+    const issueMessages = formatZodIssues(invalid.error.issues);
+    expect(issueMessages.some((message) => message.includes('tileMode'))).toBe(true);
+    expect(issueMessages.some((message) => message.includes('ignoredField'))).toBe(true);
   });
 });

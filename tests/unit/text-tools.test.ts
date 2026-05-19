@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { RichTextContent, buildTextElementStyle, parseSemanticRulesBlocks } from '@/lib/textTools';
-import type { FreeformCardElement } from '@/types';
+import { CardTextContent } from '@/lib/cardTextRender';
+import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 
 describe('text tools', () => {
   it('renders multiline rich text with highlight spans', () => {
@@ -58,5 +59,107 @@ describe('text tools', () => {
     expect(style.letterSpacing).toBe('2px');
     expect(style.textOrientation).toBe('upright');
     expect(style.lineHeight).toBe('1.6');
+  });
+
+  it('renders rich markers on plain text contracts when template text contains rich markup', () => {
+    const element = {
+      id: 'name-element',
+      type: 'text',
+      name: 'Card Name',
+      content: '{{CardName:"**Emberclaw Whelp**"}}',
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 40,
+      zIndex: 1,
+      fontSizePx: 18,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{ key: 'CardName', label: 'Card Name', type: 'text', elementId: 'name-element' }],
+    } as TCGCardTemplate;
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: {},
+    }));
+
+    expect(html).toContain('Emberclaw Whelp');
+    expect(html).toContain('font-weight:bold');
+    expect(html).not.toContain('**Emberclaw Whelp**');
+  });
+
+  it('preserves mixed variable formatting through the shared card text renderer', () => {
+    const element = {
+      id: 'rules-element',
+      type: 'text',
+      name: 'Rules',
+      content: 'Lead {{headline:"Hero"}} tail',
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 80,
+      zIndex: 1,
+      fontSizePx: 16,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{ key: 'headline', label: 'Headline', type: 'richText', elementId: 'rules-element' }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: { headline: '**Hero** [color:#22aa66]Glow[/color]' },
+    }));
+
+    expect(html).toContain('Lead');
+    expect(html).toContain('Hero');
+    expect(html).toContain('Glow');
+    expect(html).toContain('font-weight:bold');
+    expect(html).toContain('color:#22aa66');
+  });
+
+  it('renders list formatting through the shared card text renderer path', () => {
+    const element = {
+      id: 'rules-preview',
+      type: 'text',
+      name: 'Rules Preview',
+      content: '{{rulesText:"**Hero**\\n- First\\n- Second"}}',
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 120,
+      zIndex: 1,
+      fontSizePx: 16,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{ key: 'rulesText', label: 'Rules Text', type: 'richText', elementId: 'rules-preview' }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: { rulesText: '**Hero**\n- First\n- Second' },
+    }));
+
+    expect(html).toContain('Hero');
+    expect(html).toContain('font-weight:bold');
+    expect(html).toContain('<ul');
+    expect(html).toContain('First');
+    expect(html).toContain('Second');
   });
 });

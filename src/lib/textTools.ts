@@ -33,7 +33,7 @@ export const scalePixelLength = (value: string | undefined, scale: number): stri
   return `${Math.round(scaled * 1000) / 1000}px`;
 };
 
-const renderInlineRichText = (text: string, highlightColor = DEFAULT_HIGHLIGHT_COLOR): ReactNode[] => {
+const renderInlineRichText = (text: string, highlightColor = DEFAULT_HIGHLIGHT_COLOR, keyPrefix = ''): ReactNode[] => {
   const spans = parseRichText(text);
 
   return spans.map((span, index) => {
@@ -45,15 +45,15 @@ const renderInlineRichText = (text: string, highlightColor = DEFAULT_HIGHLIGHT_C
     if (span.color) style.color = span.color;
 
     if (Object.keys(style).length === 0) {
-      return createElement(Fragment, { key: index }, span.text);
+      return createElement(Fragment, { key: `${keyPrefix}${index}` }, span.text);
     }
 
-    return createElement('span', { key: index, style }, span.text);
+    return createElement('span', { key: `${keyPrefix}${index}`, style }, span.text);
   });
 };
 
-const renderInlineText = (text: string, highlightColor: string, parseInlineFormatting: boolean): ReactNode[] =>
-  parseInlineFormatting ? renderInlineRichText(text, highlightColor) : [text];
+const renderInlineText = (text: string, highlightColor: string, parseInlineFormatting: boolean, keyPrefix = ''): ReactNode[] =>
+  parseInlineFormatting ? renderInlineRichText(text, highlightColor, keyPrefix) : [text];
 
 const renderInlineTextWithBreaks = (
   text: string,
@@ -62,7 +62,7 @@ const renderInlineTextWithBreaks = (
 ): ReactNode[] => {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   return lines.flatMap((line, index) => {
-    const nodes = renderInlineText(line, highlightColor, parseInlineFormatting);
+    const nodes = renderInlineText(line, highlightColor, parseInlineFormatting, `line-${index}-`);
     return index < lines.length - 1
       ? [...nodes, createElement('br', { key: `br-${index}` })]
       : nodes;

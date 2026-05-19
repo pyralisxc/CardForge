@@ -8,7 +8,7 @@ import type { FreeformCardElement } from '@/types';
 const shapeElement: Partial<FreeformCardElement> = { type: 'shape', shapeKind: 'rectangle' };
 const dividerElement: Partial<FreeformCardElement> = { type: 'shape', shapeKind: 'line', shapeRole: 'divider' };
 
-describe('Maker 2.0 tool capability map', () => {
+describe('Card Template Maker tool capability map', () => {
   it('keeps shape primitives geometric and excludes line choices', () => {
     const values = SHAPE_PRIMITIVE_OPTIONS.map(option => option.value);
 

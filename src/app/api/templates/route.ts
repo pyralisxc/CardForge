@@ -10,7 +10,8 @@ import {
   templatePayloadSchema,
 } from '@/lib/apiValidation';
 
-const TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'templates');
+const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
+const USER_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'user-templates');
 
 const createErrorResponse = (
   status: number,
@@ -39,7 +40,10 @@ const createErrorResponse = (
 };
 
 const ensureTemplateDirectory = async () => {
-  await fs.mkdir(TEMPLATE_LIBRARY_DIR, { recursive: true });
+  await Promise.all([
+    fs.mkdir(DEFAULT_TEMPLATE_LIBRARY_DIR, { recursive: true }),
+    fs.mkdir(USER_TEMPLATE_LIBRARY_DIR, { recursive: true }),
+  ]);
 };
 
 const toSafeFileName = (value: string): string => {
@@ -61,25 +65,45 @@ const isTemplateLike = (value: unknown): value is TCGCardTemplate => {
     && typeof candidate.aspectRatio === 'string';
 };
 
-export async function GET() {
-  await ensureTemplateDirectory();
-  const entries = await fs.readdir(TEMPLATE_LIBRARY_DIR, { withFileTypes: true });
+const readTemplatesFromDirectory = async (
+  directory: string,
+  templateSource: NonNullable<TCGCardTemplate['templateSource']>
+): Promise<TCGCardTemplate[]> => {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
   const templates: TCGCardTemplate[] = [];
 
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-    const filePath = path.join(TEMPLATE_LIBRARY_DIR, entry.name);
+    const filePath = path.join(directory, entry.name);
     try {
       const contents = await fs.readFile(filePath, 'utf8');
       const parsed = JSON.parse(contents);
-      if (isTemplateLike(parsed)) templates.push(parsed);
+      if (isTemplateLike(parsed)) templates.push({ ...parsed, templateSource });
     } catch (error) {
       console.warn(`Skipping invalid template file ${entry.name}:`, error);
     }
   }
 
-  templates.sort((a, b) => a.name.localeCompare(b.name));
-  return NextResponse.json({ templates });
+  return templates.sort((a, b) => {
+    const orderA = typeof a.templateOrder === 'number' ? a.templateOrder : Number.MAX_SAFE_INTEGER;
+    const orderB = typeof b.templateOrder === 'number' ? b.templateOrder : Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.name.localeCompare(b.name);
+  });
+};
+
+const getTemplateDirectory = (source?: TCGCardTemplate['templateSource']) => (
+  source === 'default' ? DEFAULT_TEMPLATE_LIBRARY_DIR : USER_TEMPLATE_LIBRARY_DIR
+);
+
+export async function GET() {
+  await ensureTemplateDirectory();
+  const [defaults, userTemplates] = await Promise.all([
+    readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
+    readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
+  ]);
+
+  return NextResponse.json({ defaults, userTemplates });
 }
 
 export async function POST(request: Request) {
@@ -100,11 +124,13 @@ export async function POST(request: Request) {
   }
 
   const template = validation.data as TCGCardTemplate;
+  const source = template.templateSource === 'default' ? 'default' : 'user';
+  const directory = getTemplateDirectory(source);
   const fileName = `${toSafeFileName(template.id || template.name)}.json`;
-  const filePath = path.join(TEMPLATE_LIBRARY_DIR, fileName);
-  await fs.writeFile(filePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
+  const filePath = path.join(directory, fileName);
+  await fs.writeFile(filePath, `${JSON.stringify({ ...template, templateSource: source }, null, 2)}\n`, 'utf8');
 
-  return NextResponse.json({ ok: true, fileName, template });
+  return NextResponse.json({ ok: true, fileName, template: { ...template, templateSource: source } });
 }
 
 export async function DELETE(request: Request) {
@@ -118,15 +144,16 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const body = parsedBody.data as { id?: unknown };
+  const body = parsedBody.data as { id?: unknown; source?: unknown };
   const id = typeof body?.id === 'string' ? body.id : null;
+  const source = body?.source === 'default' ? 'default' : 'user';
 
   if (!id || id.trim().length === 0) {
     return createErrorResponse(400, 'invalid_template_id', 'Template id is required.');
   }
 
   const fileName = `${toSafeFileName(id)}.json`;
-  const filePath = path.join(TEMPLATE_LIBRARY_DIR, fileName);
+  const filePath = path.join(getTemplateDirectory(source), fileName);
 
   try {
     await fs.unlink(filePath);

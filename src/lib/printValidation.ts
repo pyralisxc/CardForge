@@ -98,7 +98,8 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
   }
 
   if (mode === 'physical') {
-    warnings.push('Browser image exports are RGB. If your print vendor requires CMYK or PDF/X, convert the exported PNG/PDF in a prepress tool before final production.');
+    warnings.push('Physical ZIP exports produce individual front/back card-face PNGs. Use Save as PDF when you need the selected paper size, cut lines, and sheet layout.');
+    warnings.push('Browser exports are RGB. If your print vendor requires CMYK, spot colors, bleed boxes, or PDF/X, convert the exported PNG/PDF in a prepress tool before final production.');
   }
 
   fieldDefinitions.forEach((field) => {
@@ -132,7 +133,10 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
   });
 
   const customFontClasses = new Set(
-    (card.template.freeformCanvas?.elements || [])
+    [
+      ...(card.template.freeformCanvas?.elements || []),
+      ...(card.template.backCanvas?.elements || []),
+    ]
       .map((element) => element.fontFamily)
       .filter((fontFamily): fontFamily is string => !!fontFamily && fontFamily.trim().length > 0)
       .filter((fontFamily) => !KNOWN_FONT_VALUES.has(fontFamily))

@@ -4,6 +4,9 @@ export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' 
 export type FreeformShapeRole = 'basic' | 'panel' | 'artFrame' | 'rulesBox' | 'titlePlate' | 'statGem' | 'costOrb' | 'divider';
 export type GeneratorFieldKind = 'text' | 'richText' | 'rules';
 export type TemplateFieldContractType = GeneratorFieldKind | 'image';
+export type TemplateSource = 'default' | 'user';
+export type TemplateUsage = 'standard' | 'back-preset';
+export type PdfDuplexLayout = 'separate-pages' | 'same-page';
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
 export type AppearanceStyleKind = 'material' | 'textFrame' | 'border' | 'divider' | 'icon' | 'theme';
@@ -156,6 +159,8 @@ export interface FreeformCanvas {
   elements: FreeformCardElement[];
 }
 
+export type CardFace = 'front' | 'back';
+
 export interface TemplateFieldContract {
   key: string;
   elementId?: string;
@@ -182,6 +187,12 @@ export interface TCGCardTemplate {
   id: string | null; 
   name: string; 
   aspectRatio: string;
+  templateSource?: TemplateSource;
+  templateUsage?: TemplateUsage;
+  templateCategory?: string;
+  templateDescription?: string;
+  templateOrder?: number;
+  templatePreviewData?: CardData;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
   cardBorderImageSource?: string; // New property for border image/gradient
@@ -198,6 +209,7 @@ export interface TCGCardTemplate {
   fieldContracts?: TemplateFieldContract[];
 
   freeformCanvas?: FreeformCanvas;
+  backCanvas?: FreeformCanvas;
 }
 
 export interface CardData {

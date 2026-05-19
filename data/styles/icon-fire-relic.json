@@ -1,0 +1,16 @@
+{
+  "id": "icon-fire-relic",
+  "name": "Fire Relic Icon",
+  "kind": "icon",
+  "targets": ["icon"],
+  "appearance": {
+    "material": {
+      "baseColor": "#210b06",
+      "textColor": "#ffb35f",
+      "fillColor": "rgba(132,37,15,0.72)",
+      "strokeColor": "#ffb35f"
+    },
+    "border": { "kind": "solid", "color": "#d67425", "width": 1, "radius": 999 },
+    "effects": { "glow": 20 }
+  }
+}

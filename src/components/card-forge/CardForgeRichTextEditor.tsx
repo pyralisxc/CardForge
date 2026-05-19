@@ -124,7 +124,23 @@ export function CardForgeRichTextEditor({
         contextmenu: (_view, event) => {
           const target = event.target as HTMLElement | null;
           const variableElement = target?.closest?.('[data-cardforge-variable-key]') as HTMLElement | null;
-          if (!variableElement) return false;
+          if (!variableElement) {
+            const { from, to, empty } = _view.state.selection;
+            if (empty || !onCreateVariable) return false;
+
+            const selectedText = _view.state.doc.textBetween(from, to, '\n').trim();
+            const key = onCreateVariable(selectedText || 'Variable');
+            const variableNode = _view.state.schema.nodes.cardForgeVariable;
+            if (!key || !variableNode) return false;
+
+            const content = selectedText
+              ? _view.state.schema.text(selectedText)
+              : _view.state.schema.text(key);
+            _view.dispatch(_view.state.tr.replaceSelectionWith(variableNode.create({ key }, content), false));
+            event.preventDefault();
+            onActiveVariableChange?.(key);
+            return true;
+          }
 
           const key = variableElement.getAttribute('data-cardforge-variable-key') || '';
           if (!key) return false;
@@ -171,6 +187,18 @@ export function CardForgeRichTextEditor({
 
   const insertVariableFromSelection = useCallback(() => {
     if (!editor || !onCreateVariable) return;
+    const { $from } = editor.state.selection;
+    for (let depth = $from.depth; depth >= 0; depth--) {
+      const node = $from.node(depth);
+      if (node.type.name === 'cardForgeVariable') {
+        const currentKey = node.attrs.key || null;
+        if (currentKey) {
+          onActiveVariableChange?.(currentKey);
+          onEditVariable?.(currentKey);
+        }
+        return;
+      }
+    }
     const selectedText = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '\n').trim();
     const key = onCreateVariable(selectedText || 'Variable');
     if (!key) return;

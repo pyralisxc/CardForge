@@ -1,0 +1,563 @@
+{
+  "id": "default-name-card-theme",
+  "name": "Name Card Theme",
+  "aspectRatio": "35:20",
+  "templateSource": "default",
+  "templateCategory": "Business",
+  "templateDescription": "A business/name card for staff cards, networking cards, and branded handouts.",
+  "templateOrder": 4,
+  "templatePreviewData": {
+    "CompanyLogo": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20400%20400%22%3E%3Crect%20width%3D%22400%22%20height%3D%22400%22%20rx%3D%2258%22%20fill%3D%22%23111827%22%2F%3E%3Cpath%20d%3D%22M200%2054%20L238%20160%20L350%20160%20L260%20228%20L294%20344%20L200%20276%20L106%20344%20L140%20228%20L50%20160%20L162%20160Z%22%20fill%3D%22%23e6c85f%22%2F%3E%3Ccircle%20cx%3D%22200%22%20cy%3D%22200%22%20r%3D%2258%22%20fill%3D%22%23f8fafc%22%20opacity%3D%22.92%22%2F%3E%3Cpath%20d%3D%22M166%20218%20L200%20132%20L234%20218%20Z%22%20fill%3D%22%23111827%22%2F%3E%3C%2Fsvg%3E",
+    "CompanyName": "Northstar Studio",
+    "FullName": "Avery Quinn",
+    "Role": "Creative Director",
+    "Email": "avery@northstar.example",
+    "Phone": "(555) 014-2219",
+    "Website": "northstar.example",
+    "Tagline": "Design systems for games and teams."
+  },
+  "frameStyle": "custom",
+  "cardBorderWidth": "2px",
+  "cardBorderStyle": "solid",
+  "cardBorderRadius": "0.4rem",
+  "appearance": {
+    "material": {
+      "baseColor": "#f8fafc",
+      "textColor": "#111827",
+      "texture": {
+        "kind": "none"
+      }
+    },
+    "border": {
+      "kind": "solid",
+      "color": "#0f172a",
+      "width": 2,
+      "radius": 0
+    }
+  },
+  "baseBackgroundColor": "#f8fafc",
+  "baseTextColor": "#111827",
+  "defaultElementBorderColor": "#0f172a",
+  "cardBorderColor": "#0f172a",
+  "fieldContracts": [
+    {
+      "key": "CompanyLogo",
+      "elementId": "bc-logo",
+      "label": "Company Logo",
+      "type": "image",
+      "required": false,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "CompanyName",
+      "elementId": "bc-company",
+      "label": "Company Name",
+      "type": "text",
+      "required": true,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "FullName",
+      "elementId": "bc-name",
+      "label": "Full Name",
+      "type": "text",
+      "required": true,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Role",
+      "elementId": "bc-role",
+      "label": "Role",
+      "type": "text",
+      "required": false,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Email",
+      "elementId": "bc-contact",
+      "label": "Email",
+      "type": "text",
+      "required": false,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Phone",
+      "elementId": "bc-contact",
+      "label": "Phone",
+      "type": "text",
+      "required": false,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Website",
+      "elementId": "bc-contact",
+      "label": "Website",
+      "type": "text",
+      "required": false,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Tagline",
+      "elementId": "bc-tagline",
+      "label": "Tagline",
+      "type": "text",
+      "required": false,
+      "multiline": false,
+      "example": "",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    }
+  ],
+  "freeformCanvas": {
+    "width": 1050,
+    "height": 600,
+    "gridSize": 20,
+    "elements": [
+      {
+        "id": "bc-bg",
+        "type": "shape",
+        "name": "Card Background",
+        "x": 0,
+        "y": 0,
+        "width": 1050,
+        "height": 600,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 0,
+        "locked": false,
+        "content": "",
+        "shapeKind": "rectangle",
+        "textColor": "#111827",
+        "backgroundColor": "#f8fafc",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontSizePx": 14,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#d1d5db",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "#f8fafc",
+        "strokeColor": "#fbbf24",
+        "strokeWidth": 0,
+        "shapeRole": "basic",
+        "backgroundImageUrl": "linear-gradient(120deg,#f8fafc 0%,#f8fafc 55%,#e6c85f 55%,#111827 56%,#111827 100%)",
+        "appearance": {
+          "material": {
+            "baseColor": "#f8fafc",
+            "textColor": "#111827",
+            "fillColor": "#f8fafc",
+            "strokeColor": "#fbbf24",
+            "gradient": {
+              "type": "linear",
+              "angle": 180,
+              "stops": [
+                {
+                  "id": "a",
+                  "color": "#fff6d8",
+                  "position": 0,
+                  "opacity": 0.96
+                },
+                {
+                  "id": "b",
+                  "color": "#c69343",
+                  "position": 100,
+                  "opacity": 0.36
+                }
+              ]
+            },
+            "texture": {
+              "kind": "parchment",
+              "intensity": 25,
+              "scale": 10
+            }
+          },
+          "border": {
+            "kind": "none",
+            "color": "#d1d5db",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "bc-logo",
+        "type": "image",
+        "name": "Company Logo",
+        "x": 62,
+        "y": 68,
+        "width": 170,
+        "height": 170,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "CompanyLogo",
+        "textColor": "#111827",
+        "backgroundColor": "#1f2937",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontSizePx": 14,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#d1d5db",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "imageSource": "CompanyLogo",
+        "backgroundImageUrl": "linear-gradient(135deg,#111827,#e6c85f)",
+        "appearance": {
+          "material": {
+            "baseColor": "#1f2937",
+            "textColor": "#111827",
+            "gradient": {
+              "type": "linear",
+              "angle": 180,
+              "stops": [
+                {
+                  "id": "a",
+                  "color": "#fff6d8",
+                  "position": 0,
+                  "opacity": 0.96
+                },
+                {
+                  "id": "b",
+                  "color": "#c69343",
+                  "position": 100,
+                  "opacity": 0.36
+                }
+              ]
+            },
+            "texture": {
+              "kind": "parchment",
+              "intensity": 25,
+              "scale": 10
+            }
+          },
+          "border": {
+            "kind": "none",
+            "color": "#d1d5db",
+            "width": 0,
+            "radius": 6
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "bc-company",
+        "type": "text",
+        "name": "Company Name",
+        "x": 260,
+        "y": 76,
+        "width": 420,
+        "height": 44,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{CompanyName:\"Northstar Studio\"}}",
+        "textColor": "#161616",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontSizePx": 24,
+        "fontWeight": "font-bold",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "letterSpacing": "0.08em",
+        "lineHeight": "1.15",
+        "textTransform": "uppercase",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#161616",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "bc-name",
+        "type": "text",
+        "name": "Person Name",
+        "x": 62,
+        "y": 270,
+        "width": 530,
+        "height": 70,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{FullName:\"Avery Quinn\"}}",
+        "textColor": "#161616",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontSizePx": 48,
+        "fontWeight": "font-bold",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#161616",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "bc-role",
+        "type": "text",
+        "name": "Role",
+        "x": 66,
+        "y": 342,
+        "width": 520,
+        "height": 40,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Role:\"Creative Director\"}}",
+        "textColor": "#475569",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontSizePx": 24,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": false,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#475569",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "bc-contact",
+        "type": "text",
+        "name": "Contact Block",
+        "x": 66,
+        "y": 430,
+        "width": 520,
+        "height": 96,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Email:\"avery@northstar.example\"}}\n{{Phone:\"(555) 014-2219\"}}\n{{Website:\"northstar.example\"}}",
+        "textColor": "#161616",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontSizePx": 20,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.35",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": false,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#161616",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "bc-tagline",
+        "type": "text",
+        "name": "Tagline",
+        "x": 694,
+        "y": 374,
+        "width": 290,
+        "height": 96,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Tagline:\"Design systems for games and teams.\"}}",
+        "textColor": "#182b3e",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontSizePx": 24,
+        "fontWeight": "font-semibold",
+        "textAlign": "right",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "transparent",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": false,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#182b3e",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      }
+    ]
+  }
+}

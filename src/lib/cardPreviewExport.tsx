@@ -2,12 +2,12 @@
 
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { toCanvas } from 'html-to-image';
+import { toBlob, toCanvas } from 'html-to-image';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
-import { getCardExportHeightPx } from '@/lib/cardExportGeometry';
+import { getCardExportDimensionsPx } from '@/lib/cardExportGeometry';
 import { getExportProfile, type ExportMode, type ExportProfile } from '@/lib/printValidation';
-import type { DisplayCard } from '@/types';
+import type { CardFace, DisplayCard } from '@/types';
 
 const RENDER_WAIT_TIMEOUT_MS = 1800;
 
@@ -41,18 +41,27 @@ export interface MountedCardPreview {
   cleanup: () => void;
 }
 
+export interface CardFaceExportRenderer {
+  renderToBlob: (card: DisplayCard, face?: CardFace) => Promise<Blob>;
+  renderToCanvas: (card: DisplayCard, face?: CardFace) => Promise<HTMLCanvasElement>;
+  cleanup: () => void;
+}
+
 export async function mountCardPreviewForExport(
   card: DisplayCard,
   exportProfile: ExportProfile,
+  face: CardFace = 'front',
   className = 'export-render-card'
 ): Promise<MountedCardPreview> {
+  const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi);
   const container = document.createElement('div');
   container.style.cssText = [
     'position:fixed',
     'left:-100000px',
     'top:-100000px',
     'z-index:-1',
-    `width:${exportProfile.renderWidthPx}px`,
+    `width:${widthPx}px`,
+    `height:${heightPx}px`,
     'pointer-events:none',
   ].join(';');
   document.body.appendChild(container);
@@ -60,8 +69,9 @@ export async function mountCardPreviewForExport(
   const root = createRoot(container);
   root.render(createElement(CardPreview, {
     card,
+    face,
     isPrintMode: true,
-    targetWidthPx: exportProfile.renderWidthPx,
+    targetWidthPx: widthPx,
     className,
   }));
 
@@ -91,28 +101,96 @@ export async function mountCardPreviewForExport(
   };
 }
 
+export function createCardFaceExportRenderer(exportProfile: ExportProfile): CardFaceExportRenderer {
+  const container = document.createElement('div');
+  container.style.cssText = [
+    'position:fixed',
+    'left:-100000px',
+    'top:-100000px',
+    'z-index:-1',
+    'pointer-events:none',
+  ].join(';');
+  document.body.appendChild(container);
+
+  const root = createRoot(container);
+
+  const renderPreview = async (card: DisplayCard, face: CardFace = 'front') => {
+    const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi);
+    container.style.width = `${widthPx}px`;
+    container.style.height = `${heightPx}px`;
+    root.render(createElement(CardPreview, {
+      card,
+      face,
+      isPrintMode: true,
+      targetWidthPx: widthPx,
+      className: 'export-render-card',
+    }));
+
+    await waitForFrame();
+    await waitForFrame();
+    const started = performance.now();
+    let element = container.firstElementChild as HTMLElement | null;
+    while (!element && performance.now() - started < RENDER_WAIT_TIMEOUT_MS) {
+      await waitForFrame();
+      element = container.firstElementChild as HTMLElement | null;
+    }
+
+    if (!element) {
+      throw new Error('Card preview did not render for export.');
+    }
+
+    await waitForPreviewReady(element);
+    return { element, widthPx, heightPx };
+  };
+
+  return {
+    renderToBlob: async (card, face = 'front') => {
+      const { element, widthPx, heightPx } = await renderPreview(card, face);
+      const blob = await toBlob(element, {
+        pixelRatio: exportProfile.canvasPixelRatio,
+        width: widthPx,
+        height: heightPx,
+        skipFonts: false,
+        fetchRequestInit: { mode: 'cors' },
+      });
+      if (!blob) throw new Error('Card preview did not produce a PNG blob.');
+      return blob;
+    },
+    renderToCanvas: async (card, face = 'front') => {
+      const { element, widthPx, heightPx } = await renderPreview(card, face);
+      return toCanvas(element, {
+        pixelRatio: exportProfile.canvasPixelRatio,
+        width: widthPx,
+        height: heightPx,
+        skipFonts: false,
+        fetchRequestInit: { mode: 'cors' },
+      });
+    },
+    cleanup: () => {
+      root.unmount();
+      if (document.body.contains(container)) document.body.removeChild(container);
+    },
+  };
+}
+
 export async function renderCardToCanvasWithProfile(
   card: DisplayCard,
-  exportProfile: ExportProfile
+  exportProfile: ExportProfile,
+  face: CardFace = 'front'
 ): Promise<HTMLCanvasElement> {
-  const mounted = await mountCardPreviewForExport(card, exportProfile);
+  const renderer = createCardFaceExportRenderer(exportProfile);
   try {
-    return await toCanvas(mounted.element, {
-      pixelRatio: exportProfile.canvasPixelRatio,
-      width: exportProfile.renderWidthPx,
-      height: getCardExportHeightPx(card, exportProfile.renderWidthPx),
-      skipFonts: false,
-      fetchRequestInit: { mode: 'cors' },
-    });
+    return await renderer.renderToCanvas(card, face);
   } finally {
-    mounted.cleanup();
+    renderer.cleanup();
   }
 }
 
 export async function renderCardToCanvas(
   card: DisplayCard,
   exportMode: ExportMode,
-  exportDpi: number
+  exportDpi: number,
+  face: CardFace = 'front'
 ): Promise<HTMLCanvasElement> {
-  return renderCardToCanvasWithProfile(card, getExportProfile(exportMode, exportDpi));
+  return renderCardToCanvasWithProfile(card, getExportProfile(exportMode, exportDpi), face);
 }

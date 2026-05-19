@@ -4,7 +4,7 @@
  * makerConstants.tsx
  *
  * All static data, presets, element kits, utility functions, and the
- * ColorField component extracted from CardTemplateMaker2.tsx to keep
+ * ColorField component extracted from CardTemplateMaker.tsx to keep
  * the main component file focused on rendering and interaction logic.
  */
 
@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/store/appStore';
+import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
 
 // ─── Frame Visual Properties ──────────────────────────────────────────────────
 
@@ -115,54 +115,6 @@ export const makerTheme = {
 };
 
 // ─── Template Presets ─────────────────────────────────────────────────────────
-
-export const templatePresets = [
-  {
-    id: 'emberclaw',
-    templateId: 'default-emberclaw-hd-freeform',
-    name: 'Emberclaw HD',
-    caption: 'Fantasy creature',
-    accent: '#c9872a',
-    bg: '#140e09',
-    art: 'radial-gradient(circle at 50% 18%, #f5d27b55, transparent 34%), linear-gradient(135deg, #3a140d, #8c3e16 45%, #1b1f27)',
-  },
-  {
-    id: 'arcane-spell',
-    templateId: 'default-arcane-spell-freeform',
-    name: 'Arcane Spell',
-    caption: 'Spell showcase',
-    accent: '#7a52cc',
-    bg: '#120b20',
-    art: 'radial-gradient(circle at 40% 20%, #d8c4ff88, transparent 28%), linear-gradient(135deg, #22113d, #7a52cc 55%, #d5ad54)',
-  },
-  {
-    id: 'relic-artifact',
-    templateId: 'default-relic-artifact-freeform',
-    name: 'Relic Artifact',
-    caption: 'Artifact showcase',
-    accent: '#b6a36d',
-    bg: '#101419',
-    art: 'radial-gradient(circle at 50% 20%, #fff2b855, transparent 28%), linear-gradient(135deg, #232a34, #987a37 55%, #0b0f15)',
-  },
-  {
-    id: 'quest',
-    templateId: 'default-quest-adventure-freeform',
-    name: 'Quest Template',
-    caption: 'Adventure showcase',
-    accent: '#4fb286',
-    bg: '#0d1813',
-    art: 'radial-gradient(circle at 42% 22%, #a6f4ce88, transparent 30%), linear-gradient(135deg, #0f2a20, #4fb286 45%, #d5ad54)',
-  },
-  {
-    id: 'portrait-token',
-    templateId: 'default-portrait-token-freeform',
-    name: 'Portrait Token',
-    caption: 'Token showcase',
-    accent: '#7a52cc',
-    bg: '#101419',
-    art: 'radial-gradient(circle at 50% 18%, #d8c4ff88, transparent 32%), linear-gradient(135deg, #120b20, #7a52cc 56%, #d5ad54)',
-  },
-];
 
 // ─── Element Kits ─────────────────────────────────────────────────────────────
 
@@ -772,9 +724,10 @@ export function ColorField({ value, onChange, id }: { value: string; onChange: (
 
 // ─── Template Factory ─────────────────────────────────────────────────────────
 
-export const makeNewFreeformTemplate = (name = 'New 2.0 Template'): TCGCardTemplate => reconstructMinimalTemplate({
+export const makeNewFreeformTemplate = (name = 'New Card Template'): TCGCardTemplate => reconstructMinimalTemplate({
   id: null,
   name,
+  templateSource: 'user',
   aspectRatio: TCG_ASPECT_RATIO,
   frameStyle: 'custom',
   baseBackgroundColor: '#f7ead0',
@@ -796,33 +749,4 @@ export const mmConversion: Record<string, number> = {
   px300: 25.4 / 300,
 };
 
-export const borderWidthClassToPixels = (value?: string): number => {
-  if (!value || value === '_none_') return 0;
-  if (value === 'border') return 1;
-  const match = value.match(/border-(\d+)/);
-  return match ? Number(match[1]) : 1;
-};
-
-export const radiusClassToPixels = (value?: string): string | undefined => {
-  switch (value) {
-    case 'rounded-sm': return '2px';
-    case 'rounded-md': return '6px';
-    case 'rounded-lg': return '8px';
-    case 'rounded-xl': return '12px';
-    case 'rounded-full': return '9999px';
-    default: return undefined;
-  }
-};
-
 export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-export const shapeClipPath = (shapeKind?: FreeformCardElement['shapeKind']): string | undefined => {
-  if (shapeKind === 'diamond') return 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
-  if (shapeKind === 'hexagon') return 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)';
-  if (shapeKind === 'banner') return 'polygon(0% 0%, 92% 0%, 100% 50%, 92% 100%, 0% 100%, 8% 50%)';
-  if (shapeKind === 'capsule') return undefined; // handled by borderRadius: 9999px
-  if (shapeKind === 'notch-panel') return 'polygon(6% 0%, 94% 0%, 100% 14%, 100% 86%, 94% 100%, 6% 100%, 0% 86%, 0% 14%)';
-  if (shapeKind === 'bracket-frame') return 'polygon(0% 0%, 18% 0%, 18% 8%, 8% 8%, 8% 92%, 18% 92%, 18% 100%, 0% 100%, 0% 0%, 82% 0%, 100% 0%, 100% 100%, 82% 100%, 82% 92%, 92% 92%, 92% 8%, 82% 8%)';
-  if (shapeKind === 'corner-frame') return 'polygon(0% 0%, 28% 0%, 28% 6%, 6% 6%, 6% 28%, 0% 28%, 0% 0%, 72% 0%, 100% 0%, 100% 28%, 94% 28%, 94% 6%, 72% 6%, 72% 0%, 100% 72%, 100% 100%, 72% 100%, 72% 94%, 94% 94%, 94% 72%, 100% 72%, 28% 100%, 0% 100%, 0% 72%, 6% 72%, 6% 94%, 28% 94%)';
-  return undefined;
-};

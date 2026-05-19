@@ -90,6 +90,69 @@ npm run smoke      # Browser smoke test against the local app
 npm run bulk:generate # Generate large CSV batches for prefab testing
 ```
 
+## Current Code Shape
+
+The repo is organized around a few clear ownership areas:
+
+- `src/features/template-editor/components`
+  Deep reusable editor tools used by the Card Template Maker
+- `src/features/card-generator/components`
+  Generator workspace and bulk-generation tool surfaces
+- `src/lib/templateModel.ts`
+  Shared template and freeform-canvas construction helpers
+- `src/store/appStore.ts`
+  Persisted app state and actions
+- `src/store/selectors.ts`
+  Shared derived selectors for templates and generated cards
+
+For the main project references, use `docs/blueprint.md` for architecture and `docs/release-checklist.md` for ship readiness.
+
+## Content and Asset Discovery
+
+CardForge intentionally keeps server-read content and browser-served assets separate:
+
+- `data/default-templates/**/*.json`
+  Shipped default templates
+- `data/user-templates/**/*.json`
+  User-created or cloned templates
+- `data/styles/**/*.json`
+  One JSON file per appearance style preset
+- `data/assets/textures/**/*.json`
+  Optional metadata sidecars for discovered textures
+- `data/assets/dividers/**/*.json`
+  Optional metadata sidecars for discovered dividers
+- `public/card-assets/textures/**/*.{svg,png,jpg,jpeg,webp}`
+  Browser-served texture assets
+- `public/card-assets/dividers/**/*.{svg,png,jpg,jpeg,webp}`
+  Browser-served divider assets
+
+### Auto-Discovery Rules
+
+- Templates are loaded by `src/app/api/templates/route.ts`.
+- Styles are loaded by `src/app/api/styles/route.ts`.
+- Texture and divider assets are discovered recursively by `src/app/api/assets/route.ts`.
+- Dropping a new texture into `public/card-assets/textures/` or a new divider into `public/card-assets/dividers/` will make it appear in the app automatically.
+- Optional metadata can be added by creating a matching JSON file under `data/assets/textures/` or `data/assets/dividers/` with the same relative path as the asset file.
+
+Example:
+
+```text
+public/card-assets/textures/marble/white-vein.png
+data/assets/textures/marble/white-vein.json
+```
+
+Use metadata sidecars when you want to override the auto-derived defaults for:
+- display name
+- id
+- tile mode
+- seamless behavior
+- allowed targets
+- blend mode
+- default opacity
+- default scale
+
+Keep `data/` and `public/` separate. `data/` is the server-read content/config layer, while `public/` is the browser-served asset layer.
+
 ## Large Batch CSV Generation
 
 Use the built-in generator to create batch files for prefab stress testing.
@@ -97,16 +160,16 @@ Use the built-in generator to create batch files for prefab stress testing.
 Generate 500 cards for the Emberclaw prefab:
 
 ```bash
-npm run bulk:generate -- --template data/templates/default-emberclaw-hd-freeform.json --count 500 --out data/bulk-samples/emberclaw-500.csv
+npm run bulk:generate -- --template data/default-templates/default-playing-card-theme.json --count 500 --out data/bulk-samples/playing-card-500.csv
 ```
 
 Generate 10,000 cards (same prefab):
 
 ```bash
-npm run bulk:generate -- --template data/templates/default-emberclaw-hd-freeform.json --count 10000 --out data/bulk-samples/emberclaw-10000.csv
+npm run bulk:generate -- --template data/default-templates/default-playing-card-theme.json --count 10000 --out data/bulk-samples/playing-card-10000.csv
 ```
 
-You can point `--template` to any prefab JSON in `data/templates`.
+You can point `--template` to any shipped default in `data/default-templates` or any user-authored JSON in `data/user-templates`.
 
 ## Troubleshooting
 

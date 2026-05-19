@@ -14,6 +14,7 @@
 /coverage
 /playwright-report
 /test-results
+/tests/examples
 
 # next.js
 /.next/
@@ -26,6 +27,9 @@
 # misc
 .DS_Store
 *.pem
+.venv/
+.idx/
+build-output.log
 
 # debug
 npm-debug.log*
@@ -33,6 +37,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .next-dev-server*.log
+.next-*.log
+.next-*.err.log
+dev-server.log
+.tmp-*
 
 # vercel
 .vercel

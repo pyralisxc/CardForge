@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCardExportHeightPx, getCardPhysicalSizeMm } from '@/lib/cardExportGeometry';
+import { getCardExportDimensionsPx, getCardExportHeightPx, getCardPhysicalSizeMm } from '@/lib/cardExportGeometry';
 import type { DisplayCard } from '@/types';
 
 const makeCard = (aspectRatio: string): DisplayCard => ({
@@ -20,6 +20,12 @@ describe('card preview export sizing', () => {
 
   it('treats standard mm-like ratios as physical millimeters', () => {
     expect(getCardPhysicalSizeMm(makeCard('63:88'))).toEqual({ widthMm: 63, heightMm: 88 });
+  });
+
+  it('derives raster dimensions from each template physical size at the requested dpi', () => {
+    expect(getCardExportDimensionsPx(makeCard('63:88'), 300)).toEqual({ widthPx: 744, heightPx: 1039 });
+    expect(getCardExportDimensionsPx(makeCard('35:20'), 300)).toEqual({ widthPx: 413, heightPx: 236 });
+    expect(getCardExportDimensionsPx(makeCard('85:110'), 300)).toEqual({ widthPx: 1004, heightPx: 1299 });
   });
 
   it('normalizes proportion-only ratios to standard card height', () => {

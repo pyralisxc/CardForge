@@ -1,0 +1,725 @@
+{
+  "id": "default-playing-card-theme",
+  "name": "Playing Card Theme",
+  "aspectRatio": "63:88",
+  "templateSource": "default",
+  "templateUsage": "standard",
+  "templateCategory": "Playing card",
+  "templateDescription": "A poker-card layout for ranks, suits, custom game decks, and branded standard cards.",
+  "templateOrder": 2,
+  "templatePreviewData": {
+    "Rank": "A",
+    "Suit": "?",
+    "CenterMark": "?"
+  },
+  "frameStyle": "custom",
+  "cardBorderWidth": "4px",
+  "cardBorderStyle": "solid",
+  "cardBorderRadius": "1.1rem",
+  "appearance": {
+    "material": {
+      "baseColor": "#f7f4ec",
+      "textColor": "#111111",
+      "texture": {
+        "kind": "none"
+      }
+    },
+    "border": {
+      "kind": "solid",
+      "color": "#111111",
+      "width": 4,
+      "radius": 1
+    }
+  },
+  "baseBackgroundColor": "#f7f4ec",
+  "baseTextColor": "#111111",
+  "defaultElementBorderColor": "#1a1a1a",
+  "cardBorderColor": "#111111",
+  "fieldContracts": [
+    {
+      "key": "Rank",
+      "elementId": "pc-top-rank",
+      "label": "Rank",
+      "type": "text",
+      "required": true,
+      "multiline": false,
+      "example": "A",
+      "textAutoFit": true,
+      "minFontSizePx": 8,
+      "fontWeight": "font-bold"
+    },
+    {
+      "key": "Suit",
+      "elementId": "pc-top-suit",
+      "label": "Suit",
+      "type": "text",
+      "required": true,
+      "multiline": false,
+      "example": "♥",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "CenterMark",
+      "elementId": "pc-center",
+      "label": "Center Mark",
+      "type": "text",
+      "required": true,
+      "multiline": false,
+      "example": "♥",
+      "textAutoFit": true,
+      "minFontSizePx": 8,
+      "fontSizePx": 210,
+      "textAlign": "center"
+    }
+  ],
+  "freeformCanvas": {
+    "width": 630,
+    "height": 880,
+    "gridSize": 20,
+    "elements": [
+      {
+        "id": "pc-bg",
+        "type": "shape",
+        "name": "Card Face",
+        "x": 22,
+        "y": 22,
+        "width": 586,
+        "height": 836,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 0,
+        "locked": false,
+        "content": "",
+        "shapeKind": "rectangle",
+        "textColor": "#111827",
+        "backgroundColor": "#fbfaf5",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontSizePx": 14,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#101010",
+        "borderWidth": "border-4",
+        "borderRadius": "rounded-xl",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "#fbfaf5",
+        "strokeColor": "#101010",
+        "strokeWidth": 0,
+        "shapeRole": "basic",
+        "appearance": {
+          "material": {
+            "baseColor": "#fbfaf5",
+            "textColor": "#111827",
+            "fillColor": "#fbfaf5",
+            "strokeColor": "#101010",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "solid",
+            "color": "#101010",
+            "width": 4,
+            "radius": 12
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "pc-top-rank",
+        "type": "text",
+        "name": "Top Rank",
+        "x": 44,
+        "y": 42,
+        "width": 70,
+        "height": 58,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Rank:\"A\"}}",
+        "textColor": "#b91c1c",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-base",
+        "fontSizePx": 44,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#b91c1c",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "pc-top-suit",
+        "type": "text",
+        "name": "Top Suit",
+        "x": 50,
+        "y": 96,
+        "width": 58,
+        "height": 52,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Suit:\"?\"}}",
+        "textColor": "#b91c1c",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-base",
+        "fontSizePx": 38,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#b91c1c",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "pc-center",
+        "type": "text",
+        "name": "Center Mark",
+        "x": 166,
+        "y": 256,
+        "width": 298,
+        "height": 290,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{CenterMark:\"?\"}}",
+        "textColor": "#b91c1c",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-base",
+        "fontSizePx": 210,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#b91c1c",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "pc-bottom-rank",
+        "type": "text",
+        "name": "Bottom Rank",
+        "x": 516,
+        "y": 780,
+        "width": 70,
+        "height": 58,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Rank:\"A\"}}",
+        "textColor": "#b91c1c",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-base",
+        "fontSizePx": 44,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": false,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#b91c1c",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "pc-bottom-suit",
+        "type": "text",
+        "name": "Bottom Suit",
+        "x": 522,
+        "y": 728,
+        "width": 58,
+        "height": 52,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Suit:\"?\"}}",
+        "textColor": "#b91c1c",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-base",
+        "fontSizePx": 38,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "lineHeight": "1.15",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": false,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#b91c1c",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      }
+    ]
+  },
+  "backCanvas": {
+    "width": 630,
+    "height": 880,
+    "gridSize": 20,
+    "elements": [
+      {
+        "id": "default-frame",
+        "type": "shape",
+        "name": "Card Frame",
+        "x": 28,
+        "y": 28,
+        "width": 574,
+        "height": 824,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 0,
+        "locked": false,
+        "content": "",
+        "shapeKind": "rectangle",
+        "textColor": "#111827",
+        "backgroundColor": "rgba(255,255,255,0.08)",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontSizePx": 14,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#c89f42",
+        "borderWidth": "border-2",
+        "borderRadius": "rounded-xl",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "fillColor": "rgba(255,255,255,0.08)",
+        "strokeColor": "#c89f42",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "rgba(255,255,255,0.08)",
+            "textColor": "#111827",
+            "fillColor": "rgba(255,255,255,0.08)",
+            "strokeColor": "#c89f42",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "solid",
+            "color": "#c89f42",
+            "width": 2,
+            "radius": 12
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "default-artwork",
+        "type": "image",
+        "name": "Artwork",
+        "x": 64,
+        "y": 132,
+        "width": 502,
+        "height": 338,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 1,
+        "locked": false,
+        "content": "artworkUrl",
+        "textColor": "#111827",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontSizePx": 14,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#d1d5db",
+        "borderWidth": "border",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "imageSource": "artworkUrl",
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#111827",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "solid",
+            "color": "#d1d5db",
+            "width": 1,
+            "radius": 6
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "default-card-name",
+        "type": "text",
+        "name": "Card Name",
+        "x": 64,
+        "y": 58,
+        "width": 420,
+        "height": 54,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "content": "{{cardName:\"Astral Relic\"}}",
+        "textColor": "#2f2414",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-xl",
+        "fontSizePx": 20,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#2f2414",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 2,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "default-rules-text",
+        "type": "text",
+        "name": "Rules Text",
+        "x": 64,
+        "y": 548,
+        "width": 502,
+        "height": 166,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "content": "{{rulesText:\"When Astral Relic enters play, draw a card.\"}}",
+        "textColor": "#2f2414",
+        "backgroundColor": "rgba(255,255,255,0.72)",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontSizePx": 20,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderColor": "#d7b86c",
+        "borderWidth": "border",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "rgba(255,255,255,0.72)",
+            "textColor": "#2f2414",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "solid",
+            "color": "#d7b86c",
+            "width": 1,
+            "radius": 6
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "default-cost",
+        "type": "text",
+        "name": "Cost",
+        "x": 502,
+        "y": 58,
+        "width": 62,
+        "height": 54,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{cost:\"3\"}}",
+        "textColor": "#111827",
+        "backgroundColor": "rgba(255,255,255,0.76)",
+        "fontFamily": "font-sans",
+        "fontSize": "text-xl",
+        "fontSizePx": 20,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderColor": "#c89f42",
+        "borderWidth": "border",
+        "borderRadius": "rounded-full",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "rgba(255,255,255,0.76)",
+            "textColor": "#111827",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "solid",
+            "color": "#c89f42",
+            "width": 1,
+            "radius": 999
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      },
+      {
+        "id": "5DZU-fgyg8sFmaiuS6Zaz",
+        "type": "text",
+        "name": "Text Layer",
+        "x": 82,
+        "y": 82,
+        "width": 260,
+        "height": 72,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 4,
+        "locked": false,
+        "content": "{{newText:\"New Text\"}}",
+        "textColor": "#21180d",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-base",
+        "fontSizePx": 16,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-2",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 2,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#21180d",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 2,
+            "radius": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0,
+            "innerHighlight": 0,
+            "overlayOpacity": 100
+          }
+        }
+      }
+    ]
+  }
+}

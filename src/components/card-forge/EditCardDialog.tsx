@@ -95,9 +95,9 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     if (card) { // Ensure card prop is still valid
       const finalData = completeCardDataWithTemplateDefaults(dynamicFields, editedData);
       onDuplicate({ ...card, data: finalData }); // Calls Zustand action via prop
-      // Dialog closing depends on desired UX. Here, assuming it might stay open or be handled by onDuplicate.
+      onClose();
     }
-  }, [card, editedData, dynamicFields, onDuplicate]);
+  }, [card, editedData, dynamicFields, onClose, onDuplicate]);
 
   if (!card) return null; // Don't render if no card is provided (or if isOpen is false, Dialog handles that)
 
