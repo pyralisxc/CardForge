@@ -23,12 +23,13 @@ import { MenuIcon } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/store/selectors';
 import { TABS_CONFIG } from '@/lib/constants';
-import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard, CardFace } from '@/types';
+import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate, PaperSize, DisplayCard, StoredDisplayCard } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 import { nanoid } from 'nanoid';
-import { getExportProfile, type ExportMode } from '@/lib/printValidation';
+import type { ExportMode } from '@/lib/printValidation';
 import { loadBootstrapStyles, loadBootstrapTemplates } from '@/lib/clientBootstrapData';
+import { downloadBlob } from '@/lib/browserDownload';
 
 const WorkspaceLoadingState = () => (
   <div className="flex min-h-[60vh] items-center justify-center">
@@ -288,14 +289,7 @@ export default function CardForgePage() {
     }
     const jsonString = JSON.stringify(storedCards, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'tcg-card-set.json';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, 'tcg-card-set.json');
     toast({ title: "Set Saved", description: "Card set downloaded as tcg-card-set.json" });
   }, [storedCards, toast]);
 
@@ -337,47 +331,18 @@ export default function CardForgePage() {
 
   const handleExportAllAsZip = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
-    const exportItems: Array<{ card: DisplayCard; cardIndex: number; face: CardFace }> = generatedDisplayCards.flatMap((card, index) => {
-      const faces: CardFace[] = card.template.backCanvas ? ['front', 'back'] : ['front'];
-      return faces.map((face) => ({ card, cardIndex: index, face }));
-    });
-    const outputLabel = exportMode === 'physical' ? 'physical print card faces' : 'digital card images';
-    const folderName = exportMode === 'physical' ? 'physical-print-card-faces' : 'digital-card-images';
-    const fileNamePrefix = exportMode === 'physical' ? 'cardforge-physical-print-card-faces' : 'cardforge-digital-card-images';
     setIsZipExporting(true);
-    setZipProgress({ done: 0, total: exportItems.length });
     try {
-      const exportProfile = getExportProfile(exportMode, exportDpi);
-      const JSZip = (await import('jszip')).default;
-      const { createCardFaceExportRenderer } = await import('@/lib/cardPreviewExport');
-      const zip = new JSZip();
-      const folder = zip.folder(folderName)!;
-      const renderer = createCardFaceExportRenderer(exportProfile);
-
-      try {
-        for (let i = 0; i < exportItems.length; i++) {
-          const { card, cardIndex, face } = exportItems[i];
-          const safeName = (card.data?.cardName || card.data?.name || `card-${cardIndex + 1}`).toString().replace(/[^a-z0-9_-]/gi, '_').substring(0, 40);
-          const blob = await renderer.renderToBlob(card, face);
-          folder.file(`${String(cardIndex + 1).padStart(3, '0')}_${safeName}_${face}.png`, blob);
-          setZipProgress({ done: i + 1, total: exportItems.length });
-        }
-      } finally {
-        renderer.cleanup();
-      }
-
-      const content = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(content);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${fileNamePrefix}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const { exportGeneratedCardsToZip } = await import('@/lib/zipExport');
+      const result = await exportGeneratedCardsToZip({
+        generatedDisplayCards,
+        exportMode,
+        exportDpi,
+        onProgress: setZipProgress,
+      });
       toast({
         title: 'ZIP Exported',
-        description: `${exportItems.length} ${outputLabel} saved to ${fileNamePrefix}.zip using ${exportProfile.label} profile.`,
+        description: `${result.totalFaces} ${result.outputLabel} saved to ${result.fileName}.`,
       });
     } catch (err) {
       toast({ title: 'Export Failed', description: (err as Error).message, variant: 'destructive' });

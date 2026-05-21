@@ -132,6 +132,32 @@ describe('app store helpers', () => {
     expect(cards[0].template.freeformCanvas).toBeDefined();
   });
 
+  it('preserves per-card style overrides on generated card selectors', () => {
+    const template: TCGCardTemplate = reconstructMinimalTemplateObject({
+      id: 'style-template',
+      name: 'Style Template',
+      aspectRatio: '63:88',
+      freeformCanvas: createDefaultFreeformCanvas(),
+    });
+    const storedCards: StoredDisplayCard[] = [
+      {
+        uniqueId: 'styled-card',
+        templateId: 'style-template',
+        data: { cardName: 'Styled' },
+        styleOverrides: { cardName: { fontSizePx: 44, fontFamily: 'font-serif' } },
+      },
+    ];
+
+    const cards = selectGeneratedDisplayCards({
+      defaultTemplates: [template],
+      userTemplates: [],
+      storedCards,
+    } as unknown as Parameters<typeof selectGeneratedDisplayCards>[0]);
+
+    expect(cards[0].styleOverrides?.cardName?.fontSizePx).toBe(44);
+    expect(cards[0].styleOverrides?.cardName?.fontFamily).toBe('font-serif');
+  });
+
   it('retains and selects at least 1000 generated cards for the release batch floor', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'bulk-floor-template',
@@ -214,6 +240,69 @@ describe('app store helpers', () => {
       { uniqueId: 'card-retargeted', templateId: 'user-copy-template', data: { cardName: 'Updated' } },
       { uniqueId: 'card-untouched', templateId: 'other-template', data: { cardName: 'Other' } },
     ]);
+  });
+
+  it('keeps persisted-only user templates as fallback when loading file-backed templates', () => {
+    const persistedOnlyTemplate = reconstructMinimalTemplateObject({
+      id: 'persisted-only-template',
+      name: 'Persisted Only',
+      templateSource: 'user',
+    });
+    const fileBackedTemplate = reconstructMinimalTemplateObject({
+      id: 'file-backed-template',
+      name: 'File Backed',
+      templateSource: 'user',
+    });
+
+    useAppStore.setState({
+      userTemplates: [persistedOnlyTemplate],
+      singleCardGeneratorSelectedTemplateId: 'persisted-only-template',
+    });
+
+    useAppStore.getState().setUserTemplatesFromFiles([fileBackedTemplate]);
+
+    const state = useAppStore.getState();
+    expect(state.userTemplates.map(template => template.id)).toEqual([
+      'file-backed-template',
+      'persisted-only-template',
+    ]);
+    expect(state.singleCardGeneratorSelectedTemplateId).toBe('persisted-only-template');
+  });
+
+  it('lets file-backed user templates win conflicts over persisted fallbacks', () => {
+    const cachedTemplate = reconstructMinimalTemplateObject({
+      id: 'shared-template',
+      name: 'Cached Draft',
+      templateSource: 'user',
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [{ id: 'cached-el', type: 'text', name: 'Cached', x: 0, y: 0, width: 120, height: 40, zIndex: 1, content: 'Cached' }],
+      },
+    });
+    const fileTemplate = reconstructMinimalTemplateObject({
+      id: 'shared-template',
+      name: 'Server Copy',
+      templateSource: 'user',
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [{ id: 'file-el', type: 'text', name: 'File', x: 0, y: 0, width: 120, height: 40, zIndex: 1, content: 'File' }],
+      },
+    });
+
+    useAppStore.setState({
+      userTemplates: [cachedTemplate],
+      singleCardGeneratorSelectedTemplateId: 'shared-template',
+    });
+
+    useAppStore.getState().setUserTemplatesFromFiles([fileTemplate]);
+
+    const [mergedTemplate] = useAppStore.getState().userTemplates;
+    expect(useAppStore.getState().userTemplates).toHaveLength(1);
+    expect(mergedTemplate.name).toBe('Server Copy');
+    expect(mergedTemplate.freeformCanvas?.elements[0].id).toBe('file-el');
+    expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('shared-template');
   });
 
   it('_rehydrateCallback fixes selectedTemplateId if the template no longer exists', () => {

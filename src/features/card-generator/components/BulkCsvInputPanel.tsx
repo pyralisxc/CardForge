@@ -31,6 +31,8 @@ export function BulkCsvInputPanel({
   onDataInputChange,
   onFileUpload,
 }: BulkCsvInputPanelProps) {
+  const structuredFields = bulkFieldDefinitions.filter((field) => field.contentModel === 'structuredList');
+
   return (
     <Card>
       <CardHeader>
@@ -62,8 +64,16 @@ export function BulkCsvInputPanel({
         </div>
 
         {selectedTemplate ? (
-          <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            Expected fields: {bulkFieldDefinitions.map((field) => field.label).join(', ')}
+          <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <p>Expected fields: {bulkFieldDefinitions.map((field) => field.label).join(', ')}</p>
+            {structuredFields.length > 0 && (
+              <p>
+                Structured rows use indexed CSV columns, for example{' '}
+                <code className="rounded bg-background/70 px-1 py-0.5">{structuredFields[0].key}[1].Position</code>{' '}
+                and{' '}
+                <code className="rounded bg-background/70 px-1 py-0.5">{structuredFields[0].key}[1].Description</code>.
+              </p>
+            )}
           </div>
         ) : null}
 

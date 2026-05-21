@@ -15,10 +15,12 @@
 /playwright-report
 /test-results
 /tests/examples
+/storage/
 
 # next.js
 /.next/
 /.next-dev/
+/.next-smoke/
 /out/
 
 # production

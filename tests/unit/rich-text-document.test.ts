@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/lib/richTextDocument';
 
 describe('rich text document serialization', () => {
+  it('represents blank rich-text values as an empty paragraph without invalid empty text nodes', () => {
+    const doc = templateTextToTiptapDoc('');
+
+    expect(doc).toEqual({
+      type: 'doc',
+      content: [{ type: 'paragraph' }],
+    });
+    expect(tiptapDocToTemplateText(doc)).toBe('');
+  });
+
   it('round-trips inline variables with rich fallback text', () => {
     const source = '{{Ability:"**Flying**"}}\nWhen this enters, draw a card.\n{{SubText:"_\\"Small but fierce.\\"_"}}';
 
@@ -35,5 +45,29 @@ describe('rich text document serialization', () => {
         },
       ],
     })).toBe('- First\n- Second');
+  });
+
+  it('serializes hard-broken Maker list items as separate marker lines', () => {
+    expect(tiptapDocToTemplateText({
+      type: 'doc',
+      content: [
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [{
+                type: 'paragraph',
+                content: [
+                  { type: 'text', text: 'First action' },
+                  { type: 'hardBreak' },
+                  { type: 'text', text: 'Second action' },
+                ],
+              }],
+            },
+          ],
+        },
+      ],
+    })).toBe('- First action\n- Second action');
   });
 });

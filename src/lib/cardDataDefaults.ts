@@ -27,7 +27,7 @@ export const initializeCardDataFromTemplate = (
     const previewValue = template.templatePreviewData?.[field.key];
     acc[field.key] = valueForTemplateField(field, existingData ?? (previewValue !== undefined ? { [field.key]: previewValue } : null));
     return acc;
-  }, {});
+  }, { ...(existingData ?? {}) });
 
   return [fields, data];
 };

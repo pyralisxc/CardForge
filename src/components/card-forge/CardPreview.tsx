@@ -5,7 +5,7 @@ import type { CardFace, DisplayCard, TCGCardTemplate } from '@/types';
 import { cn, replacePlaceholdersLocal } from '@/lib/utils';
 import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 import {
   buildTextElementStyle,
@@ -14,6 +14,7 @@ import { useAppStore } from '@/store/appStore';
 import * as LucideIcons from 'lucide-react';
 import { CardTextContent } from '@/lib/cardTextRender';
 import { borderWidthClassToPixels, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
+import { measureRenderedTextFit, type RenderedTextFit } from '@/lib/textCapacity';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -29,6 +30,81 @@ interface CardPreviewProps {
 const PREVIEW_WIDTH_PX = 280;
 const STANDARD_TCG_WIDTH_MM = 63;
 const MM_TO_INCHES = 1 / 25.4;
+
+interface MeasuredTextLayerProps {
+  elementId: string;
+  className?: string;
+  style: React.CSSProperties;
+  showOverflowBadge: boolean;
+  children: React.ReactNode;
+}
+
+function MeasuredTextLayer({
+  elementId,
+  className,
+  style,
+  showOverflowBadge,
+  children,
+}: MeasuredTextLayerProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [fit, setFit] = useState<RenderedTextFit | null>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    let frame = 0;
+
+    const measure = () => {
+      const contentNode = node.firstElementChild as HTMLElement | null;
+      const nextFit = measureRenderedTextFit({
+        clientWidth: node.clientWidth,
+        clientHeight: node.clientHeight,
+        scrollWidth: Math.max(node.scrollWidth, contentNode?.scrollWidth || 0),
+        scrollHeight: Math.max(node.scrollHeight, contentNode?.scrollHeight || 0),
+      });
+      setFit((previous) => (
+        previous
+          && previous.fits === nextFit.fits
+          && previous.overflowX === nextFit.overflowX
+          && previous.overflowY === nextFit.overflowY
+          ? previous
+          : nextFit
+      ));
+    };
+
+    frame = requestAnimationFrame(() => {
+      requestAnimationFrame(measure);
+    });
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    observer?.observe(node);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  });
+
+  const status = fit && !fit.fits ? 'overflow' : 'fit';
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={style}
+      data-freeform-element-id={elementId}
+      data-text-fit-status={status}
+      data-text-overflow-x={fit?.overflowsX ? 'true' : 'false'}
+      data-text-overflow-y={fit?.overflowsY ? 'true' : 'false'}
+    >
+      {children}
+      {showOverflowBadge && fit && !fit.fits && (
+        <span className="pointer-events-none absolute right-1 top-1 z-[2] rounded-full border border-red-300/60 bg-red-950/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-red-100 shadow-sm">
+          Text clipping
+        </span>
+      )}
+    </div>
+  );
+}
 
 const toRenderableBackground = (value?: string): string | undefined => {
   if (!value) return undefined;
@@ -417,11 +493,12 @@ export function CardPreview({
         const contentStyle: React.CSSProperties = { lineHeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', textDecoration: 'inherit', fontStyle: 'inherit' };
         const textContainerStyle = { ...textStyle, fontSize: undefined as unknown as React.CSSProperties['fontSize'] };
         return (
-          <div
+          <MeasuredTextLayer
             key={element.id}
             className={cn(element.padding || 'p-1', element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
             style={textContainerStyle}
-            data-freeform-element-id={element.id}
+            elementId={element.id}
+            showOverflowBadge={!isPrintMode}
           >
             <CardTextContent
               template={templateToRender}
@@ -431,11 +508,12 @@ export function CardPreview({
               className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
               style={contentStyle}
               highlightColor={richTextHighlightColor}
+              styleOverrides={card.styleOverrides}
             />
-          </div>
+          </MeasuredTextLayer>
         );
       });
-  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, effectiveWidthPx, isEditorPreview, templateToRender]);
+  }, [canvasToRender, card.styleOverrides, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, effectiveWidthPx, isEditorPreview, templateToRender]);
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (onEdit && !isEditorPreview) {

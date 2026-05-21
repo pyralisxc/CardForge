@@ -1,10 +1,12 @@
 import type { FreeformCardElement, GeneratorFieldKind, TCGCardTemplate } from '@/types';
 import { extractUniquePlaceholderKeys, getImageFieldKeyForElement, toTitleCase } from '@/lib/utils';
 import { buildStaticSegmentFieldKey, parseTemplateTextSegments, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
+import { normalizeStructuredListColumns } from '@/lib/structuredList';
+import { estimateTextBlockCapacity, type TextBlockCapacityEstimate } from '@/lib/textCapacity';
 
 export type TemplateFieldControl = 'input' | 'textarea';
-export type TemplateFieldEditor = 'plain-input' | 'plain-textarea' | 'rich-textarea' | 'rules-textarea';
-export type TemplateFieldContentModel = 'image' | 'plainText' | 'richText' | 'rulesBlocks';
+export type TemplateFieldEditor = 'plain-input' | 'plain-textarea' | 'rich-textarea' | 'rules-textarea' | 'structured-list';
+export type TemplateFieldContentModel = 'image' | 'plainText' | 'richText' | 'rulesBlocks' | 'structuredList';
 
 export interface TemplateFieldDefinition {
   key: string;
@@ -22,7 +24,9 @@ export interface TemplateFieldDefinition {
   sourceElementName?: string;
   sourceElementPreview?: string;
   sourceElementContent?: string;
+  sourceTextCapacity?: TextBlockCapacityEstimate;
   isStaticBaseText?: boolean;
+  structuredListColumns?: NonNullable<TCGCardTemplate['fieldContracts']>[number]['structuredListColumns'];
 }
 
 const MULTILINE_HINTS = ['rules', 'text', 'effect', 'abilit', 'description', 'flavor'];
@@ -124,6 +128,7 @@ const buildSourceElementPreview = (
 
 const pickFieldKind = (kinds: GeneratorFieldKind[]): GeneratorFieldKind | undefined => {
   if (kinds.includes('rules')) return 'rules';
+  if (kinds.includes('structuredList')) return 'structuredList';
   if (kinds.includes('richText')) return 'richText';
   if (kinds.includes('text')) return 'text';
   return undefined;
@@ -162,7 +167,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
     const supportsRichText = !isImage && fieldSupportsRichText(template, placeholder.key);
     const textElements = !isImage ? getTextElementsForField(template, placeholder.key) : [];
     const primaryTextElement = textElements[0];
-    const explicitKind = (contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' ? contract.type : undefined)
+    const explicitKind = (contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' || contract?.type === 'structuredList' ? contract.type : undefined)
       || pickFieldKind(
         textElements
           .map((element) => element.generatorFieldKind)
@@ -179,6 +184,8 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       : fieldIsRequired(placeholder.key, isImage, placeholder.defaultValue);
     const contentModel: TemplateFieldContentModel = isImage
       ? 'image'
+      : fieldKind === 'structuredList'
+        ? 'structuredList'
       : fieldKind === 'rules'
         ? 'rulesBlocks'
         : fieldKind === 'richText'
@@ -187,6 +194,8 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
     const richTextEnabled = contentModel === 'rulesBlocks' || contentModel === 'richText';
     const editor: TemplateFieldEditor = isImage
       ? 'plain-input'
+      : contentModel === 'structuredList'
+        ? 'structured-list'
       : contentModel === 'rulesBlocks'
         ? 'rules-textarea'
         : contentModel === 'richText'
@@ -210,12 +219,16 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       isImage,
       isMultiline,
       supportsRichText: richTextEnabled,
+      structuredListColumns: contentModel === 'structuredList' ? normalizeStructuredListColumns(contract?.structuredListColumns) : undefined,
       sourceElementId: primaryTextElement?.id,
       sourceElementName: primaryTextElement?.name,
       sourceElementPreview: buildSourceElementPreview(primaryTextElement, placeholder.key, contractMap),
       sourceElementContent: primaryTextElement?.content,
+      sourceTextCapacity: primaryTextElement ? estimateTextBlockCapacity(primaryTextElement, contract) : undefined,
       helperText: contentModel === 'rulesBlocks'
         ? 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.'
+        : contentModel === 'structuredList'
+        ? 'Add, remove, and reorder rows for this one card. Rows render inside the template text block.'
         : richTextEnabled
         ? editor === 'rich-textarea'
           ? 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.'
@@ -266,6 +279,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         sourceElementName: element.name,
         sourceElementPreview: element.name,
         sourceElementContent: element.content,
+        sourceTextCapacity: estimateTextBlockCapacity(element, contract),
         isStaticBaseText: true,
         helperText: contentModel === 'rulesBlocks'
           ? 'This is the base rules-box copy that sits between inline variables.'

@@ -26,6 +26,19 @@ function buildStackSignature(stack: FreeformCardElement[]) {
   return stack.map((element) => element.id).join('|');
 }
 
+export function projectCanvasDeltaToElementLocal(deltaX: number, deltaY: number, rotationDeg = 0) {
+  if (!rotationDeg) return { x: deltaX, y: deltaY };
+
+  const radians = rotationDeg * Math.PI / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+
+  return {
+    x: deltaX * cos + deltaY * sin,
+    y: -deltaX * sin + deltaY * cos,
+  };
+}
+
 export function getElementDepthStack(elements: FreeformCardElement[], point: CanvasPoint) {
   return elements
     .filter((element) => element.visible !== false)

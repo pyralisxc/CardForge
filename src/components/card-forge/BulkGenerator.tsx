@@ -15,10 +15,12 @@ import {
   createBulkPreview,
   getBulkGenerationBlockingIssues,
   normalizeCsvHeaders,
+  parseIndexedStructuredHeader,
   shouldBlockBulkGeneration,
 } from '@/lib/bulkGeneration';
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
+import { downloadBlob } from '@/lib/browserDownload';
 import { useAppStore } from '@/store/appStore';
 import { BulkTemplateSetupPanel } from '@/features/card-generator/components/BulkTemplateSetupPanel';
 import { BulkCsvInputPanel } from '@/features/card-generator/components/BulkCsvInputPanel';
@@ -133,8 +135,9 @@ export function BulkGenerator({
 
   const duplicateRequiredFieldCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    Object.values(columnMapping)
-      .map((value) => value?.trim())
+    Object.entries(columnMapping)
+      .filter(([header]) => !parseIndexedStructuredHeader(header, bulkFieldDefinitions))
+      .map(([, value]) => value?.trim())
       .filter((value): value is string => !!value)
       .forEach((fieldKey) => {
         counts.set(fieldKey, (counts.get(fieldKey) ?? 0) + 1);
@@ -148,7 +151,7 @@ export function BulkGenerator({
     });
 
     return duplicateCounts;
-  }, [columnMapping, requiredFieldKeySet]);
+  }, [bulkFieldDefinitions, columnMapping, requiredFieldKeySet]);
 
   const duplicateRequiredFields = useMemo(
     () => Array.from(duplicateRequiredFieldCounts.keys()),
@@ -190,7 +193,7 @@ export function BulkGenerator({
       const headers = normalizeCsvHeaders(rows[0]);
       setCsvHeaders(headers);
       const keys = bulkFieldDefinitions.map((field) => field.key);
-      setColumnMapping(buildInitialColumnMapping(headers, keys));
+      setColumnMapping(buildInitialColumnMapping(headers, keys, bulkFieldDefinitions));
     } catch {
       setCsvHeaders([]);
       setColumnMapping({});
@@ -215,7 +218,7 @@ export function BulkGenerator({
   const handleAutoMapAgain = useCallback(() => {
     if (csvHeaders.length === 0 || bulkFieldDefinitions.length === 0) return;
     const keys = bulkFieldDefinitions.map((field) => field.key);
-    setColumnMapping(buildInitialColumnMapping(csvHeaders, keys));
+    setColumnMapping(buildInitialColumnMapping(csvHeaders, keys, bulkFieldDefinitions));
     toast({
       title: 'Auto-mapping refreshed',
       description: 'Column mappings were rebuilt from CSV headers. Next step: review mapping conflicts before generating.',
@@ -365,17 +368,9 @@ export function BulkGenerator({
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
     const safeTemplateName = selectedTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0, 20);
     const fileName = `template_${safeTemplateName}.csv`;
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, fileName);
     toast({ title: 'Example CSV downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
   };
 
@@ -396,25 +391,32 @@ export function BulkGenerator({
       fields: bulkFieldDefinitions.map((field) => ({
         key: field.key,
         label: field.label,
-        type: field.isImage ? 'image' : field.contentModel === 'rulesBlocks' ? 'rulesBlocks' : field.supportsRichText ? 'richText' : field.isMultiline ? 'multilineText' : 'text',
+        type: field.isImage
+          ? 'image'
+          : field.contentModel === 'structuredList'
+            ? 'structuredList'
+            : field.contentModel === 'rulesBlocks'
+              ? 'rulesBlocks'
+              : field.supportsRichText
+                ? 'richText'
+                : field.isMultiline
+                  ? 'multilineText'
+                  : 'text',
         required: field.required,
         multiline: field.isMultiline,
         supportsRichText: field.supportsRichText,
+        structuredListColumns: field.structuredListColumns ?? undefined,
+        bulkCsvPattern: field.contentModel === 'structuredList'
+          ? `${field.key}[1].${field.structuredListColumns?.[0]?.label ?? 'Column'}`
+          : field.key,
         defaultValue: field.defaultValue ?? '',
         helperText: field.helperText ?? '',
       })),
     };
 
     const blob = new Blob([JSON.stringify(contract, null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
     const safeTemplateName = selectedTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0, 20);
-    link.href = url;
-    link.download = `contract_${safeTemplateName || 'template'}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `contract_${safeTemplateName || 'template'}.json`);
     toast({ title: 'Contract JSON downloaded', description: 'Use this contract as the source of truth for bulk validation and external pipelines.' });
   }, [bulkFieldDefinitions, selectedTemplate, toast]);
 
@@ -474,6 +476,7 @@ export function BulkGenerator({
         <BulkPreviewValidationPanel
           rows={bulkPreview.rows}
           filteredRows={filteredPreviewRows}
+          totalParsedRowCount={Math.max(0, parsedRows.length - 1)}
           blockingIssues={blockingIssues}
           globalWarnings={bulkPreview.globalWarnings}
           previewFilter={previewFilter}

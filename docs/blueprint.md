@@ -30,6 +30,7 @@
 - **Canvas**: Freeform pointer-based drag/resize in `CardTemplateMaker.tsx`
 - **Library policy**: Prefer commercial-friendly, industry-standard libraries for generic editor infrastructure and keep custom code focused on CardForge-specific template, generation, and export behavior.
 - **Template library direction**: Keep shipped defaults separate from user templates, with live previews generated from file-backed templates.
+- **Build cache separation**: production builds use `.next`, the local editor dev server uses `.next-dev`, and Playwright smoke uses `.next-smoke` so builds/tests do not invalidate chunks for an open development editor session.
 
 ---
 
@@ -77,7 +78,7 @@ Text elements can now mix static copy with element-scoped inline variables.
 
 ### Preview and Export Truth
 
-`CardPreview` is the visual source of truth for generated cards. The generated-card gallery, PNG export, ZIP export, and PDF export must all render through the same preview component rather than rebuilding the card in separate export-only code paths. Single-card entry intentionally does not keep a competing live preview; users create a generated card, then review/edit/export from the generated reference gallery. Rich text element rendering is centralized in `src/lib/cardTextRender.tsx` so the Maker canvas and preview/export path use the same segment, contract, and auto-fit behavior.
+`CardPreview` is the visual source of truth for generated cards and remains the browser export fallback. The production-scale worker path is a second deterministic renderer that must prove parity before it replaces browser export for all cases. Single-card entry intentionally does not keep a competing live preview; users create a generated card, then review/edit/export from the generated reference gallery. Rich text element rendering is centralized in `src/lib/cardTextRender.tsx` so the Maker canvas and preview/export path use the same segment, contract, and auto-fit behavior.
 
 - Export rendering is centralized in `src/lib/cardPreviewExport.tsx`.
 - Aspect and physical-size math is centralized in `src/lib/cardExportGeometry.ts`.
@@ -118,10 +119,13 @@ Templates have **two storage layers** that work together:
 
 Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a derived combined list for Maker, Generator, previews, and exports. Persisted localStorage stores user-owned template work plus cards, styles, PDF options, and UI state.
 
+The current file-backed template API is the stand-in for the future hosted service. Treat file/API user templates as authoritative, but keep localStorage user templates as a recovery cache. On startup, file-backed user templates win conflicts by ID, while persisted-only user templates remain available so generated cards do not disappear if a save request failed, a sync is delayed, or a future hosted session has not fully reconnected yet.
+
 #### Load flow on app start
 1. Zustand rehydrates from localStorage (user's saved templates + cards)
 2. `_rehydrateCallback` fires → fixes `singleCardGeneratorSelectedTemplateId` if its template was deleted
 3. `page.tsx` `useEffect` fires → `GET /api/templates` → `setDefaultTemplatesFromFiles()` and `setUserTemplatesFromFiles()`
+4. `setUserTemplatesFromFiles()` merges file-backed user templates over persisted localStorage fallbacks; matching file/API IDs win.
 
 #### Save flow when user saves a template
 1. `handleSaveTemplate` in `page.tsx` → default templates are saved as user-owned copies so shipped defaults stay clean
@@ -156,6 +160,18 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 | `src/lib/freeformElementRender.ts` | Shared freeform element geometry, clipping, and image-source resolution helpers |
 | `src/lib/cardPreviewExport.tsx` | Shared offscreen `CardPreview` renderer for PNG, ZIP, and PDF export |
 | `src/lib/cardExportGeometry.ts` | Shared card aspect, pixel-height, and physical-size calculations |
+| `src/lib/exportPreflight.ts` | Shared worker export estimates, face counts, duration class, and warning decisions |
+| `src/lib/pdfExportLayout.ts` | Pure PDF sheet layout, chunking, and filename decisions |
+| `src/lib/pdfExport.ts` | Browser PDF assembly and download path backed by `pdf-lib` |
+| `src/lib/zipExportLayout.ts` | Pure ZIP face manifest, naming, and face-count decisions |
+| `src/lib/zipExport.ts` | Browser ZIP rendering, archive assembly, progress, and download path |
+| `src/lib/zipArchive.ts` | Browser ZIP archive wrapper backed by zip.js |
+| `src/lib/browserDownload.ts` | Shared browser file-download helper |
+| `src/lib/konvaTemplateAdapter.ts` | Template-to-Konva stage adapter seam for the future editor engine |
+| `src/lib/server/sharpRaster.ts` | Server-side Sharp rasterization seam |
+| `src/lib/server/serverCardRenderer.ts` | Worker-side template-to-SVG/PNG renderer backed by Sharp |
+| `src/lib/server/exportJobStore.ts` | File-backed export job storage under ignored `storage/export-jobs/` |
+| `src/lib/server/exportWorkerEngine.ts` | Worker ZIP/PDF processing engine |
 | `src/lib/cardDataDefaults.ts` | Shared card-data initialization and fallback completion for generator/edit flows |
 | `src/lib/textElementContracts.ts` | Shared text element contract, content-model, and auto-fit decisions for Maker and preview |
 | `src/components/card-forge/makerConstants.tsx` | Presets, kits, theme tokens, maker helper UI, `makeNewFreeformTemplate()` |
@@ -261,6 +277,7 @@ Persisted keys:
 - `pdfMarginMm`
 - `pdfCardSpacingMm`
 - `pdfIncludeCutLines`
+- `pdfDuplexLayout`
 - `exportMode`
 - `exportDpi`
 
@@ -352,15 +369,17 @@ Quality gates to keep watching:
 - Reduce ambiguous repeated control names where that improves clarity and lowers automation/test fragility.
 - Re-run export-focused browser QA after the next generator/input polish pass.
 
-Rich text and variable editing still need a dedicated deep verification pass. Current browser QA covered general workflow stability, selection/deselection, generator entry, and bulk generation pressure, but it did **not** fully validate:
+Rich text and variable editing are now covered by a stronger automated baseline. Browser smoke verifies seeded mixed-format content through generated preview, edit dialog, single generation, bulk import, generated gallery, and per-card PNG export. Unit coverage also protects the shared renderer path used by preview/export.
+
+The remaining deep verification should focus on direct Maker toolbar authoring and rushed editing:
 
 - creating inline variables from selected text
-- deleting or renaming inline variables
-- editing rich text formatting across mixed static and variable content
-- confirming seamless preview updates in Maker, Single, Bulk, and generated card output
-- confirming generator fields preserve authored template rich text while remaining easy to edit intentionally
+- deleting or renaming inline variables under repeated edits
+- applying toolbar-driven bold, italic, underline, highlight, list, and color changes before saving the template
+- confirming live Maker preview updates stay in sync with inspector and generator state
+- stress-testing longer multiline rules-style content
 
-That deep pass should be treated as a first-class QA milestone before calling text authoring fully polished.
+That remaining pass should stay a first-class QA milestone before calling text authoring fully polished.
 
 ### 1. Field Contract System (Highest Priority)
 - Move from inferred placeholders to explicit field contracts.
@@ -384,6 +403,7 @@ Why this matters:
 - Keep the current marker system, but formalize support by field type.
 - Add a shared command layer for formatting operations.
 - Support native-feel text interactions including right-click context actions.
+- Single-card generation can now store optional per-card field style overrides for font, size, weight, and color. These overrides are intentionally card-local and do not mutate the source template or bulk defaults.
 - Short-term display target:
   - markup entry surface,
   - live formatted preview,
@@ -402,6 +422,7 @@ Why this matters:
   - multiline quoting examples
   - rich text examples
 - Allow download of example CSV and machine-readable contract JSON.
+- Structured text blocks now support repeatable row/column data, such as exits, abilities, ingredients, or encounter options. The supported bulk CSV pattern is indexed columns like `Exits[1].Position` and `Exits[1].Description`; Single Generator uses add/remove/reorder controls, while Maker defines visual controls for column/sub-variable typography, column divider text, and between-row text.
 
 Why this matters:
 - Faster onboarding for bulk users.
@@ -427,7 +448,7 @@ Why this matters:
 - Speeds future iteration.
 
 ### 5. Quality and Accessibility Gates
-- Add parity tests for rich text rendering across surfaces.
+- Keep expanding parity tests for rich text rendering across surfaces.
 - Add keyboard and accessibility smoke tests for core workflows.
 - Add regression tests for mapping and strict-mode behavior.
 
@@ -497,6 +518,25 @@ When adopting new libraries, prefer options that are:
 - stable in Next.js, React, TypeScript, and browser export workflows
 
 Use libraries for generic infrastructure such as rich text editing, drag/resize/ordering, CSV parsing, runtime validation, and export packaging. Keep CardForge-owned code focused on template semantics, field contracts, preview truth, and print/export behavior.
+
+#### Commercial Library Spike Baseline
+
+Current isolated spike results, run outside the app dependency tree before adoption:
+
+- Editor/canvas engine: Konva + React Konva. Current packages are MIT licensed. Browser spike confirmed JSON serialization/restoration, stack hit detection for depth-style selection, group movement carrying children, and 4x PNG export at the expected 2520×3520 raster size for a 630×880 stage. CardForge now has a first adapter seam in `src/lib/konvaTemplateAdapter.ts` plus a reusable React Konva stage component in `src/features/template-editor/components/KonvaTemplateStage.tsx`.
+- Editor/canvas alternate: Fabric.js was evaluated but not adopted. It is MIT licensed and strong for object interaction, serialization, SVG, and image export, but grouped parent/child transform behavior needs more adapter work to match CardForge's current transform-group expectations.
+- Export/render foundation: Sharp is installed for server-side raster work. Current package is Apache-2.0 licensed. Node spike rendered 50 print-size PNGs from SVG in one batch and preserved the expected 744×1039 physical card raster. The first server-side raster seam lives in `src/lib/server/sharpRaster.ts`.
+- Large archive engine: zip.js replaced JSZip for generated-card ZIP export. Current package is BSD-3-Clause licensed and supports streams, workers, and Zip64. Browser smoke now downloads a real generated-card ZIP and verifies separate front/back PNG entries.
+- PDF engine: pdf-lib replaced jsPDF for PDF sheet assembly. Current package is MIT licensed and preserves explicit page sizing through point-based page geometry. Browser smoke now downloads a real physical print PDF and verifies two US Letter front/back pages for a duplex template.
+
+Recommended next integration path:
+
+1. Continue moving editor rendering and interaction into the Konva adapter without changing the persisted `TCGCardTemplate` model.
+2. Keep Fabric as an evaluated non-production fallback only if Konva fails a hard requirement later.
+3. Continue hardening the worker export pipeline now that export job APIs, local file storage, `npm run export:worker`, Sharp rasterization, zip.js archives, and pdf-lib sheet assembly are in place.
+4. Prove feature parity against selection, grouping, front/back faces, rich text, 1000-card review, and 2000-face export targets before removing the current DOM preview/export path.
+
+Current prerelease stance: the browser export path is accurate and shippable as a fallback, but it is not the final commercial-scale export engine. A live 1000-card / 2000-face physical ZIP completed with correct front/back PNG entries, but took about 23 minutes and produced a roughly 579 MB archive. The worker queue is now the intended production path for large jobs, but it still needs production-scale parity certification before release: 1000 complex cards, 2000 physical faces, correct dimensions, exact archive counts, PDF page-size checks, and visual comparison against `CardPreview`.
 
 ### Future Entry Architecture
 

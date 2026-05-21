@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
+import type { TCGCardTemplate, CardData, CardFieldStyleOverride, CardFieldStyleOverrides, DisplayCard } from '@/types';
 import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/lib/templateFields';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -34,6 +34,7 @@ export function SingleCardGenerator({
 }: SingleCardGeneratorProps) {
   // Local state for the form fields and data for the single card being generated.
   const [cardData, setCardData] = useState<CardData>({});
+  const [styleOverrides, setStyleOverrides] = useState<CardFieldStyleOverrides>({});
   const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>([]);
   const [hasAddedCardInSession, setHasAddedCardInSession] = useState(false);
   const [isAddingCard, setIsAddingCard] = useState(false);
@@ -60,6 +61,7 @@ export function SingleCardGenerator({
     
     setDynamicFields(newFields);
     setCardData(newGeneratedData); // This resets the form to the new template's structure/defaults.
+    setStyleOverrides({});
   }, [selectedTemplate]); // Depend on the derived selectedTemplate
 
   useEffect(() => {
@@ -125,11 +127,15 @@ export function SingleCardGenerator({
     setIsAddingCard(true);
 
     const finalCardData = completeCardDataWithTemplateDefaults(dynamicFields, cardData);
+    const finalStyleOverrides = Object.fromEntries(
+      Object.entries(styleOverrides).filter(([, value]) => value && Object.keys(value).length > 0)
+    ) as CardFieldStyleOverrides;
 
     const displayCard: DisplayCard = {
       template: selectedTemplate, // Use the memoized selectedTemplate
       data: finalCardData,
       uniqueId: nanoid(),
+      styleOverrides: Object.keys(finalStyleOverrides).length > 0 ? finalStyleOverrides : undefined,
     };
     onSingleCardAdded(displayCard);
     setHasAddedCardInSession(true);
@@ -139,6 +145,7 @@ export function SingleCardGenerator({
     // Reset form fields to defaults for the currently selected template after adding a card
     const [, resetData] = initializeCardDataFromTemplate(selectedTemplate); // Use memoized selectedTemplate
     setCardData(resetData);
+    setStyleOverrides({});
 
     if (addCardCooldownRef.current !== null) {
       window.clearTimeout(addCardCooldownRef.current);
@@ -148,7 +155,7 @@ export function SingleCardGenerator({
       addCardCooldownRef.current = null;
     }, 300);
 
-  }, [selectedTemplate, cardData, dynamicFields, isAddingCard, onSingleCardAdded, toast]); // Use memoized selectedTemplate
+  }, [selectedTemplate, cardData, dynamicFields, isAddingCard, onSingleCardAdded, styleOverrides, toast]); // Use memoized selectedTemplate
 
   const handleTemplateSelectChange = useCallback((id: string | null) => {
     onTemplateSelectionChange(id); // Calls Zustand action via prop
@@ -176,6 +183,15 @@ export function SingleCardGenerator({
         onHighlightColorChange={setRichTextHighlightColorAction}
         fileInputRefs={fileRefs}
         onImageUpload={handleImageUpload}
+        styleOverrides={styleOverrides}
+        onFieldStyleOverrideChange={(fieldKey, value: CardFieldStyleOverride | undefined) => {
+          setStyleOverrides((previous) => {
+            const next = { ...previous };
+            if (value && Object.keys(value).length > 0) next[fieldKey] = value;
+            else delete next[fieldKey];
+            return next;
+          });
+        }}
         emptyMessage="This template has no recognized placeholder fields."
       />
     );

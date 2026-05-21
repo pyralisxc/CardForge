@@ -37,6 +37,16 @@ interface AppearanceStudioPanelProps {
   onUpdateAppearance: (updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory?: boolean) => void;
 }
 
+const uniqueBy = <T,>(items: T[], getKey: (item: T) => string): T[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = getKey(item).trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export function AppearanceStudioPanel({
   element,
   selectedAppearance,
@@ -59,6 +69,8 @@ export function AppearanceStudioPanel({
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const dividerAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const uniqueElementStylePresets = uniqueBy(elementStylePresets, (preset) => preset.label);
+  const uniqueCompatibleAppearanceStyles = uniqueBy(compatibleAppearanceStyles, (style) => style.id || style.name);
 
   return (
     <div className="space-y-3 rounded-[6px] border border-[#3a2e17] bg-[#100d08] p-2">
@@ -72,7 +84,7 @@ export function AppearanceStudioPanel({
         <div>
           <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Quick Styles</Label>
           <div className="grid grid-cols-2 gap-1">
-            {elementStylePresets.map((preset) => (
+            {uniqueElementStylePresets.map((preset) => (
               <Button
                 key={preset.label}
                 type="button"
@@ -89,7 +101,7 @@ export function AppearanceStudioPanel({
         </div>
       )}
       <div className="grid grid-cols-2 gap-1.5">
-        {compatibleAppearanceStyles.map((style) => (
+        {uniqueCompatibleAppearanceStyles.map((style) => (
           <Tooltip key={style.id}>
             <TooltipTrigger asChild>
               <Button

@@ -2,7 +2,7 @@
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
 export type FreeformShapeRole = 'basic' | 'panel' | 'artFrame' | 'rulesBox' | 'titlePlate' | 'statGem' | 'costOrb' | 'divider';
-export type GeneratorFieldKind = 'text' | 'richText' | 'rules';
+export type GeneratorFieldKind = 'text' | 'richText' | 'rules' | 'structuredList';
 export type TemplateFieldContractType = GeneratorFieldKind | 'image';
 export type TemplateSource = 'default' | 'user';
 export type TemplateUsage = 'standard' | 'back-preset';
@@ -173,6 +173,7 @@ export interface TemplateFieldContract {
   textAutoFit?: boolean;
   minFontSizePx?: number;
   textColor?: string;
+  fontFamily?: FreeformCardElement['fontFamily'];
   fontSizePx?: number;
   fontWeight?: FreeformCardElement['fontWeight'];
   fontStyle?: FreeformCardElement['fontStyle'];
@@ -181,6 +182,38 @@ export interface TemplateFieldContract {
   writingMode?: FreeformCardElement['writingMode'];
   lineHeight?: string;
   letterSpacing?: string;
+  structuredListColumns?: StructuredListColumn[];
+  structuredListColumnSeparator?: string;
+  structuredListColumnStyles?: Record<string, StructuredListPartStyle | undefined>;
+  structuredListRowSeparatorText?: string;
+  structuredListRowSeparatorStyle?: StructuredListPartStyle;
+  structuredListRowTemplate?: string;
+  structuredListRowSeparator?: string;
+}
+
+export interface StructuredListColumn {
+  key: string;
+  label: string;
+  placeholder?: string;
+}
+
+export interface StructuredListPartStyle {
+  fontFamily?: FreeformCardElement['fontFamily'];
+  fontSizePx?: number;
+  fontWeight?: FreeformCardElement['fontWeight'];
+  fontStyle?: FreeformCardElement['fontStyle'];
+  textDecoration?: FreeformCardElement['textDecoration'];
+  textColor?: string;
+  letterSpacing?: string;
+}
+
+export type CardFieldStyleOverride = Pick<
+  TemplateFieldContract,
+  'fontFamily' | 'fontSizePx' | 'fontWeight' | 'fontStyle' | 'textDecoration' | 'textAlign' | 'writingMode' | 'lineHeight' | 'letterSpacing' | 'textColor' | 'minFontSizePx'
+>;
+
+export interface CardFieldStyleOverrides {
+  [fieldKey: string]: CardFieldStyleOverride | undefined;
 }
 
 export interface TCGCardTemplate {
@@ -226,10 +259,12 @@ export interface StoredDisplayCard {
   templateId: string;
   data: CardData;
   uniqueId: string;
+  styleOverrides?: CardFieldStyleOverrides;
 }
 
 export interface DisplayCard {
   template: TCGCardTemplate;
   data: CardData;
   uniqueId: string;
+  styleOverrides?: CardFieldStyleOverrides;
 }

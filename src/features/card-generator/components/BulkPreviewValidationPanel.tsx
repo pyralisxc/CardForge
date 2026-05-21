@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 
+const colorInputValue = (value: string): string => /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#ffd700';
+
 interface BulkPreviewRow {
   rowNumber: number;
   mappedData: Record<string, string>;
@@ -20,6 +22,7 @@ interface BulkPreviewRow {
 interface BulkPreviewValidationPanelProps {
   rows: BulkPreviewRow[];
   filteredRows: BulkPreviewRow[];
+  totalParsedRowCount: number;
   blockingIssues: string[];
   globalWarnings: string[];
   previewFilter: 'all' | 'warnings' | 'clean';
@@ -37,6 +40,7 @@ interface BulkPreviewValidationPanelProps {
 export function BulkPreviewValidationPanel({
   rows,
   filteredRows,
+  totalParsedRowCount,
   blockingIssues,
   globalWarnings,
   previewFilter,
@@ -55,7 +59,8 @@ export function BulkPreviewValidationPanel({
       <CardHeader>
         <CardTitle className="text-base">4. Preview & Validation</CardTitle>
         <CardDescription>
-          Review mapped rows before generating. {rows.length} row{rows.length === 1 ? '' : 's'} parsed.
+          Review mapped rows before generating. {totalParsedRowCount} row{totalParsedRowCount === 1 ? '' : 's'} parsed
+          {totalParsedRowCount > rows.length ? `; previewing first ${rows.length}.` : '.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -78,7 +83,7 @@ export function BulkPreviewValidationPanel({
             <Input
               id="bulk-rich-text-highlight"
               type="color"
-              value={richTextHighlightColor}
+              value={colorInputValue(richTextHighlightColor)}
               onChange={(event) => onSetRichTextHighlightColor(event.target.value)}
               className="h-10 w-20 p-1"
             />

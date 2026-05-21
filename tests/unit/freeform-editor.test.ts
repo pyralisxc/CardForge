@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FreeformCardElement } from '@/types';
-import { getElementDepthStack, resolveDepthSelection, scaleElementWithParentResize } from '@/lib/freeformEditor';
+import { getElementDepthStack, projectCanvasDeltaToElementLocal, resolveDepthSelection, scaleElementWithParentResize } from '@/lib/freeformEditor';
 
 function makeElement(overrides: Partial<FreeformCardElement>): FreeformCardElement {
   return {
@@ -84,5 +84,12 @@ describe('freeform editor helpers', () => {
       fontSizePx: 24,
       strokeWidth: 3,
     });
+  });
+
+  it('projects pointer movement into a rotated element local resize axis', () => {
+    const projected = projectCanvasDeltaToElementLocal(10, 10, 45);
+
+    expect(Math.round(projected.x)).toBe(14);
+    expect(Math.round(projected.y)).toBe(0);
   });
 });

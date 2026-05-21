@@ -202,19 +202,31 @@ export interface RichTextSpan {
 export function parseRichText(text: string): RichTextSpan[] {
   if (!text) return [{ text: '' }];
   const spans: RichTextSpan[] = [];
-  // Tokenize by rich markers in order of precedence
-  const regex = /(\*\*([^*]+)\*\*|_([^_]+)_|__([^_]+)__|==([^=]+)==|\[color:([^\]]+)\]([\s\S]*?)\[\/color\])/g;
+  const regex = /(\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|_([^_\n]+?)_|==([\s\S]+?)==|\[color:([^\]]+)\]([\s\S]+?)\[\/color\])/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  const appendMarkedSpans = (innerText: string, marker: Omit<RichTextSpan, 'text'>) => {
+    parseRichText(innerText).forEach((span) => {
+      spans.push({
+        ...span,
+        bold: span.bold || marker.bold,
+        italic: span.italic || marker.italic,
+        underline: span.underline || marker.underline,
+        highlight: marker.highlight || span.highlight,
+        color: marker.color || span.color,
+      });
+    });
+  };
+
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       spans.push({ text: text.slice(lastIndex, match.index) });
     }
-    if (match[2] !== undefined) spans.push({ text: match[2], bold: true });
-    else if (match[3] !== undefined) spans.push({ text: match[3], italic: true });
-    else if (match[4] !== undefined) spans.push({ text: match[4], underline: true });
-    else if (match[5] !== undefined) spans.push({ text: match[5], highlight: 'rgba(255,215,0,0.35)' });
-    else if (match[6] !== undefined && match[7] !== undefined) spans.push({ text: match[7], color: match[6] });
+    if (match[2] !== undefined) appendMarkedSpans(match[2], { bold: true });
+    else if (match[3] !== undefined) appendMarkedSpans(match[3], { underline: true });
+    else if (match[4] !== undefined) appendMarkedSpans(match[4], { italic: true });
+    else if (match[5] !== undefined) appendMarkedSpans(match[5], { highlight: 'rgba(255,215,0,0.35)' });
+    else if (match[6] !== undefined && match[7] !== undefined) appendMarkedSpans(match[7], { color: match[6] });
     lastIndex = regex.lastIndex;
   }
   if (lastIndex < text.length) {

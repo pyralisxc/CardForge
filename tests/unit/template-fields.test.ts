@@ -54,7 +54,7 @@ describe('extractTemplateFieldDefinitions', () => {
 
     const fields = extractTemplateFieldDefinitions(template);
 
-    expect(fields).toEqual([
+    expect(fields).toMatchObject([
       {
         key: 'rulesText',
         label: 'Rules Text',
@@ -70,6 +70,10 @@ describe('extractTemplateFieldDefinitions', () => {
         sourceElementName: 'Rules',
         sourceElementPreview: 'Deal 1 damage.',
         sourceElementContent: '{{rulesText:"Deal 1 damage."}}',
+        sourceTextCapacity: expect.objectContaining({
+          maxRowsAtBaseFont: expect.any(Number),
+          maxCharactersAtBaseFont: expect.any(Number),
+        }),
         helperText: 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.',
       },
       {
@@ -87,6 +91,10 @@ describe('extractTemplateFieldDefinitions', () => {
         sourceElementName: 'Title',
         sourceElementPreview: 'Astral Relic',
         sourceElementContent: '{{cardName:"Astral Relic"}}',
+        sourceTextCapacity: expect.objectContaining({
+          maxRowsAtBaseFont: expect.any(Number),
+          maxCharactersAtBaseFont: expect.any(Number),
+        }),
         helperText: 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.',
       },
       {
@@ -255,6 +263,55 @@ describe('extractTemplateFieldDefinitions', () => {
     const field = extractTemplateFieldDefinitions(template).find((item) => item.key === 'headline_var_1');
     expect(field?.label).toBe('Headline Var 1');
     expect(field?.sourceElementPreview).toBe('Ability: [Headline Var 1]');
+  });
+
+  it('exposes structured list contracts as repeatable row fields for the generator', () => {
+    const template: TCGCardTemplate = {
+      id: 'template-structured',
+      name: 'Structured Template',
+      aspectRatio: '63:88',
+      fieldContracts: [
+        {
+          key: 'Exits',
+          elementId: 'text-structured',
+          label: 'Exits',
+          type: 'structuredList',
+          structuredListColumns: [
+            { key: 'position', label: 'Position' },
+            { key: 'description', label: 'Description' },
+          ],
+        },
+      ],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'text-structured',
+            type: 'text',
+            name: 'Exit Rows',
+            x: 0,
+            y: 0,
+            width: 240,
+            height: 120,
+            zIndex: 1,
+            content: '{{Exits:""}}',
+          },
+        ],
+      },
+    };
+
+    const [field] = extractTemplateFieldDefinitions(template);
+
+    expect(field.key).toBe('Exits');
+    expect(field.contentModel).toBe('structuredList');
+    expect(field.editor).toBe('structured-list');
+    expect(field.structuredListColumns).toEqual([
+      { key: 'position', label: 'Position', placeholder: undefined },
+      { key: 'description', label: 'Description', placeholder: undefined },
+    ]);
+    expect(field.sourceTextCapacity?.maxRowsAtBaseFont).toBeGreaterThan(0);
+    expect(field.sourceTextCapacity?.maxCharactersAtBaseFont).toBeGreaterThan(0);
   });
 
   it('adds a base text field for mixed static and variable text elements', () => {

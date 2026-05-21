@@ -1,7 +1,8 @@
 "use client";
 
 import type { ChangeEvent, RefObject } from 'react';
-import { ArrowLeftRight, BringToFront, Download, FilePlus2, FolderDown, FolderUp, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, ArrowLeftRight, BringToFront, Download, FilePlus2, FolderDown, FolderUp, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
 
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
@@ -19,6 +20,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
 import type { DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
 import type { ExportMode } from '@/lib/printValidation';
+import { buildExportJobPreflight } from '@/lib/exportPreflight';
+import type { ExportArtifactType, ExportJobRecord } from '@/lib/exportJobTypes';
+import { getZipExportFaceCount, getZipExportLabels } from '@/lib/zipExportLayout';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
@@ -54,7 +58,10 @@ interface GenerationWorkspaceProps {
   onEditCardRequest: (card: DisplayCard) => void;
 }
 
-const BASELINE_PRINT_ZIP_BYTES_PER_FACE_AT_300_DPI = 226_884;
+const BASELINE_PRINT_ZIP_BYTES_PER_FACE_AT_300_DPI = 290_000;
+const BROWSER_EXPORT_SECONDS_PER_PRINT_FACE_AT_300_DPI = 0.7;
+const LARGE_EXPORT_FACE_THRESHOLD = 1000;
+const LARGE_EXPORT_BYTE_THRESHOLD = 250 * 1024 * 1024;
 
 const formatBytes = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
@@ -66,6 +73,18 @@ const formatBytes = (bytes: number) => {
     unitIndex += 1;
   }
   return `${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
+};
+
+const formatDuration = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return 'under a minute';
+  if (seconds < 90) return 'about 1 minute';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `about ${minutes} minutes`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0
+    ? `about ${hours}h ${remainingMinutes}m`
+    : `about ${hours}h`;
 };
 
 export function GenerationWorkspace({
@@ -101,18 +120,106 @@ export function GenerationWorkspace({
   onGallerySortChange,
   onEditCardRequest,
 }: GenerationWorkspaceProps) {
-  const exportFaceCount = generatedDisplayCards.reduce(
-    (count, card) => count + (card.template.backCanvas ? 2 : 1),
-    0
-  );
+  const [workerJob, setWorkerJob] = useState<ExportJobRecord | null>(null);
+  const [workerJobError, setWorkerJobError] = useState<string | null>(null);
+  const exportFaceCount = getZipExportFaceCount(generatedDisplayCards);
   const dpiScale = Math.max(0.1, (exportDpi / 300) ** 2);
   const estimatedZipBytes = exportFaceCount * BASELINE_PRINT_ZIP_BYTES_PER_FACE_AT_300_DPI * dpiScale;
+  const estimatedBrowserExportSeconds = exportMode === 'physical'
+    ? exportFaceCount * BROWSER_EXPORT_SECONDS_PER_PRINT_FACE_AT_300_DPI * dpiScale
+    : Math.max(10, exportFaceCount * 0.18 * dpiScale);
+  const isLargeBrowserExport = exportFaceCount >= LARGE_EXPORT_FACE_THRESHOLD || estimatedZipBytes >= LARGE_EXPORT_BYTE_THRESHOLD;
   const exportProgressPercent = zipProgress && zipProgress.total > 0
     ? Math.round((zipProgress.done / zipProgress.total) * 100)
     : 0;
   const zipExportLabel = exportMode === 'physical'
     ? `Export Print PNG ZIP (${exportFaceCount} faces)`
     : `Export Digital PNG ZIP (${exportFaceCount} images)`;
+  const zipOutputLabel = getZipExportLabels(exportMode).outputLabel;
+  const workerPreflight = useMemo(() => buildExportJobPreflight({
+    cards: generatedDisplayCards,
+    artifactType: 'zip',
+    exportMode,
+    exportDpi,
+    paperSize: selectedPaperSize,
+    pdfMarginMm,
+    pdfCardSpacingMm,
+    pdfIncludeCutLines,
+    pdfDuplexLayout,
+  }), [
+    exportDpi,
+    exportMode,
+    generatedDisplayCards,
+    pdfCardSpacingMm,
+    pdfDuplexLayout,
+    pdfIncludeCutLines,
+    pdfMarginMm,
+    selectedPaperSize,
+  ]);
+  const workerProgressPercent = workerJob?.progress.total
+    ? Math.round((workerJob.progress.done / workerJob.progress.total) * 100)
+    : 0;
+  const isWorkerJobActive = workerJob?.status === 'queued' || workerJob?.status === 'running';
+
+  useEffect(() => {
+    if (!workerJob || !isWorkerJobActive) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/export-jobs/${workerJob.id}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Unable to read export job ${workerJob.id}.`);
+        const payload = await response.json() as { job?: ExportJobRecord };
+        if (!cancelled && payload.job) setWorkerJob(payload.job);
+      } catch (error) {
+        if (!cancelled) setWorkerJobError((error as Error).message);
+      }
+    };
+    const interval = window.setInterval(() => void poll(), 1500);
+    void poll();
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [isWorkerJobActive, workerJob]);
+
+  const startWorkerExport = async (artifactType: ExportArtifactType) => {
+    if (generatedDisplayCards.length === 0 || isWorkerJobActive) return;
+    setWorkerJobError(null);
+    const response = await fetch('/api/export-jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cards: generatedDisplayCards,
+        artifactType,
+        exportMode,
+        exportDpi,
+        paperSize: selectedPaperSize,
+        pdfMarginMm,
+        pdfCardSpacingMm,
+        pdfIncludeCutLines,
+        pdfDuplexLayout,
+      }),
+    });
+    const payload = await response.json() as { job?: ExportJobRecord; error?: { message?: string } };
+    if (!response.ok || !payload.job) {
+      setWorkerJobError(payload.error?.message || 'Unable to queue export job.');
+      return;
+    }
+    setWorkerJob(payload.job);
+  };
+
+  const cancelWorkerExport = async () => {
+    if (!workerJob || !isWorkerJobActive) return;
+    const response = await fetch(`/api/export-jobs/${workerJob.id}/cancel`, { method: 'POST' });
+    const payload = await response.json() as { job?: ExportJobRecord };
+    if (payload.job) setWorkerJob(payload.job);
+    if (!response.ok) setWorkerJobError('Unable to cancel export job.');
+  };
+
+  const downloadWorkerArtifact = () => {
+    if (!workerJob?.artifact) return;
+    window.location.href = `/api/export-jobs/${workerJob.id}/download`;
+  };
 
   if (isLoadingTemplates) {
     return (
@@ -308,12 +415,88 @@ export function GenerationWorkspace({
                     disabled={generatedDisplayCards.length === 0}
                     templateName={generatedDisplayCards[0]?.template?.name}
                   />
-                  <Button variant="outline" onClick={onExportAllAsZip} disabled={generatedDisplayCards.length === 0 || isZipExporting} className="flex items-center gap-2">
-                    <Download className="h-4 w-4" /> {isZipExporting ? `Exporting... ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : zipExportLabel}
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (isLargeBrowserExport) {
+                        void startWorkerExport('zip');
+                        return;
+                      }
+                      onExportAllAsZip();
+                    }}
+                    disabled={generatedDisplayCards.length === 0 || isZipExporting || isWorkerJobActive}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" /> {isZipExporting ? `Exporting... ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : isLargeBrowserExport ? `Queue Worker ZIP (${exportFaceCount} faces)` : zipExportLabel}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void startWorkerExport('pdf')}
+                    disabled={generatedDisplayCards.length === 0 || isWorkerJobActive}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" /> Queue Worker PDF
                   </Button>
                   {generatedDisplayCards.length > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Estimated ZIP size: about {formatBytes(estimatedZipBytes)}. Large print batches can take several minutes; keep this tab open while exporting.
+                      Estimated ZIP size: about {formatBytes(estimatedZipBytes)}. Estimated browser render time: {formatDuration(estimatedBrowserExportSeconds)}.
+                    </p>
+                  )}
+                  {generatedDisplayCards.length > 0 && (
+                    <div className="rounded-md border bg-muted/40 p-3 text-xs">
+                      <div className="mb-1 font-semibold">Worker export preflight</div>
+                      <p>
+                        {workerPreflight.cardCount} cards / {workerPreflight.faceCount} faces at {workerPreflight.dimensionsPx.widthPx} x {workerPreflight.dimensionsPx.heightPx}px.
+                        Estimated worker artifact: {formatBytes(workerPreflight.estimatedBytes)} over {formatDuration(workerPreflight.estimatedSeconds)}.
+                      </p>
+                      {workerPreflight.warnings.length > 0 && (
+                        <ul className="mt-2 list-disc space-y-1 pl-4">
+                          {workerPreflight.warnings.map((warning) => (
+                            <li key={warning.code}>{warning.message}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                  {generatedDisplayCards.length > 0 && isLargeBrowserExport && (
+                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-950 dark:text-amber-100">
+                      <div className="mb-1 flex items-center gap-2 font-semibold">
+                        <AlertTriangle className="h-4 w-4" />
+                        Large export uses worker queue
+                      </div>
+                      <p>
+                        CardForge will queue large ZIPs to the local export worker by default so the browser stays responsive.
+                        Run <code className="rounded bg-background/70 px-1">npm run export:worker</code> while production jobs are queued.
+                      </p>
+                    </div>
+                  )}
+                  {workerJob && (
+                    <div className="rounded-md border bg-card p-3 text-xs">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold">Worker job: {workerJob.status}</p>
+                          <p className="text-muted-foreground">{workerJob.progress.label || workerJob.id}</p>
+                        </div>
+                        <p className="font-semibold tabular-nums">{workerProgressPercent}%</p>
+                      </div>
+                      <Progress value={workerProgressPercent} className="h-1.5" />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {isWorkerJobActive && (
+                          <Button type="button" variant="outline" size="sm" onClick={() => void cancelWorkerExport()}>
+                            Cancel Worker Job
+                          </Button>
+                        )}
+                        {workerJob.status === 'completed' && workerJob.artifact && (
+                          <Button type="button" variant="default" size="sm" onClick={downloadWorkerArtifact}>
+                            Download {workerJob.artifact.fileName}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {(workerJobError || workerJob?.error) && (
+                    <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                      {workerJobError || workerJob?.error}
                     </p>
                   )}
                   {zipProgress && (
@@ -361,7 +544,33 @@ export function GenerationWorkspace({
         </div>
         <Progress value={exportProgressPercent} className="h-2" />
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Keep CardForge open until the download begins. For 1000 front/back cards, current print-quality exports can be hundreds of MB.
+          Keep CardForge open until the download begins. Large {zipOutputLabel} batches can take a long time in-browser; split jobs if the machine feels strained.
+        </p>
+      </div>
+    )}
+    {workerJob && isWorkerJobActive && (
+      <div
+        className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-4xl rounded-xl border bg-background/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Worker export {workerJob.status}</p>
+            <p className="text-xs text-muted-foreground">
+              {workerJob.progress.done} of {workerJob.progress.total} faces. {workerJob.progress.label || 'Waiting for the local worker.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold tabular-nums">{workerProgressPercent}%</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => void cancelWorkerExport()}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+        <Progress value={workerProgressPercent} className="h-2" />
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Worker jobs are stored in <code>storage/export-jobs</code>. Run <code>npm run export:worker</code> if this remains queued.
         </p>
       </div>
     )}

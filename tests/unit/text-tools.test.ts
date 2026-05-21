@@ -21,6 +21,19 @@ describe('text tools', () => {
     expect(html).toContain('background-color:#66ccff');
   });
 
+  it('renders nested rich text marks from Maker-authored toolbar combinations', () => {
+    const html = renderToStaticMarkup(createElement(RichTextContent, {
+      text: '==**Variable**== [color:#f5d27b]_tail_[/color]',
+    }));
+
+    expect(html).toContain('Variable');
+    expect(html).toContain('font-weight:bold');
+    expect(html).toContain('background-color:rgba(255,215,0,0.35)');
+    expect(html).toContain('tail');
+    expect(html).toContain('font-style:italic');
+    expect(html).toContain('color:#f5d27b');
+  });
+
   it('parses semantic rules blocks from one textarea field', () => {
     const blocks = parseSemanticRulesBlocks('[ability] Flying\n[effect] Deal 3 damage.\n[reminder] (Can target creatures.)');
 
@@ -126,6 +139,317 @@ describe('text tools', () => {
     expect(html).toContain('Glow');
     expect(html).toContain('font-weight:bold');
     expect(html).toContain('color:#22aa66');
+  });
+
+  it('applies variable contract typography without wrapping user rich text markers', () => {
+    const element = {
+      id: 'title-element',
+      type: 'text',
+      name: 'Title',
+      content: '{{CardName:"Hero"}}',
+      x: 0,
+      y: 0,
+      width: 260,
+      height: 72,
+      zIndex: 1,
+      fontSizePx: 16,
+      fontFamily: 'font-sans',
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{
+        key: 'CardName',
+        label: 'Card Name',
+        type: 'richText',
+        elementId: 'title-element',
+        fontFamily: 'font-serif',
+        fontSizePx: 28,
+        fontWeight: 'font-bold',
+        fontStyle: 'italic',
+        textDecoration: 'underline',
+        textColor: '#38bdf8',
+        letterSpacing: '1px',
+      }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: { CardName: '**Azure** _Blade_' },
+    }));
+
+    expect(html).toContain('Azure');
+    expect(html).toContain('Blade');
+    expect(html).toContain('font-serif');
+    expect(html).toContain('font-size:28px');
+    expect(html).not.toContain('font-size:16px');
+    expect(html).toContain('font-weight:700');
+    expect(html).toContain('font-style:italic');
+    expect(html).toContain('text-decoration:underline');
+    expect(html).toContain('color:#38bdf8');
+    expect(html).toContain('letter-spacing:1px');
+    expect(html).toContain('font-weight:bold');
+    expect(html).not.toContain('**Azure**');
+    expect(html).not.toContain('_Blade_');
+  });
+
+  it('lets a generated card override template variable typography for one card', () => {
+    const element = {
+      id: 'name-element',
+      type: 'text',
+      name: 'Name',
+      content: '{{Name:"Fallback"}}',
+      x: 0,
+      y: 0,
+      width: 260,
+      height: 72,
+      zIndex: 1,
+      fontSizePx: 16,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{ key: 'Name', label: 'Name', type: 'richText', elementId: 'name-element', fontSizePx: 20 }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: { Name: 'Override Hero' },
+      styleOverrides: {
+        Name: {
+          fontSizePx: 44,
+          fontFamily: 'font-serif',
+          textColor: '#ef4444',
+          fontWeight: 'font-bold',
+        },
+      },
+    }));
+
+    expect(html).toContain('Override Hero');
+    expect(html).toContain('font-size:44px');
+    expect(html).toContain('font-serif');
+    expect(html).toContain('color:#ef4444');
+    expect(html).toContain('font-weight:700');
+    expect(html).not.toContain('font-size:20px');
+  });
+
+  it('reuses one variable value and style each time the key appears in a text block', () => {
+    const element = {
+      id: 'route-element',
+      type: 'text',
+      name: 'Routes',
+      content: 'Exit {{Position:"North"}} opens.\nReturn to {{Position:"North"}} gate.',
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 120,
+      zIndex: 1,
+      fontSizePx: 14,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{ key: 'Position', label: 'Position', type: 'richText', elementId: 'route-element', fontSizePx: 22, fontWeight: 'font-bold' }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: { Position: 'East' },
+    }));
+
+    expect((html.match(/East/g) || []).length).toBe(2);
+    expect((html.match(/font-size:22px/g) || []).length).toBe(2);
+    expect((html.match(/font-weight:700/g) || []).length).toBe(2);
+  });
+
+  it('renders structured list rows inside a variable text block', () => {
+    const element = {
+      id: 'exits-element',
+      type: 'text',
+      name: 'Exits',
+      content: '{{Exits:""}}',
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 160,
+      zIndex: 1,
+      fontSizePx: 14,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{
+        key: 'Exits',
+        label: 'Exits',
+        type: 'structuredList',
+        elementId: 'exits-element',
+        fontSizePx: 18,
+        structuredListColumns: [
+          { key: 'position', label: 'Position' },
+          { key: 'description', label: 'Description' },
+        ],
+      }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: {
+        Exits: JSON.stringify([
+          { id: 'north', values: { position: 'North', description: 'Market road' } },
+          { id: 'east', values: { position: 'East', description: 'Broken bridge' } },
+        ]),
+      },
+    }));
+
+    expect(html).toContain('North - Market road');
+    expect(html).toContain('East - Broken bridge');
+    expect(html).toContain('font-size:18px');
+  });
+
+  it('renders structured list rows with template-owned rich row and separator formatting', () => {
+    const element = {
+      id: 'exits-element',
+      type: 'text',
+      name: 'Exits',
+      content: '{{Exits:""}}',
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 160,
+      zIndex: 1,
+      fontSizePx: 14,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{
+        key: 'Exits',
+        label: 'Exits',
+        type: 'structuredList',
+        elementId: 'exits-element',
+        structuredListColumns: [
+          { key: 'position', label: 'Position' },
+          { key: 'description', label: 'Description' },
+        ],
+        structuredListRowTemplate: '**{{position}}**: [color:#22aa66]{{description}}[/color]',
+        structuredListRowSeparator: '\\n==Choose carefully==\\n',
+      }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: {
+        Exits: JSON.stringify([
+          { id: 'north', values: { position: 'North', description: 'Market road' } },
+          { id: 'east', values: { position: 'East', description: 'Broken bridge' } },
+        ]),
+      },
+    }));
+
+    expect(html).toContain('North');
+    expect(html).toContain('Market road');
+    expect(html).toContain('Choose carefully');
+    expect(html).toContain('East');
+    expect(html).toContain('font-weight:bold');
+    expect(html).toContain('color:#22aa66');
+    expect(html).toContain('background-color:rgba(255,215,0,0.35)');
+    expect(html).not.toContain('{{position}}');
+  });
+
+  it('renders structured list sub-variable styles without raw row format markers', () => {
+    const element = {
+      id: 'exits-element',
+      type: 'text',
+      name: 'Exits',
+      content: '{{Exits:""}}',
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 160,
+      zIndex: 1,
+      fontSizePx: 14,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{
+        key: 'Exits',
+        label: 'Exits',
+        type: 'structuredList',
+        elementId: 'exits-element',
+        structuredListColumns: [
+          { key: 'position', label: 'Position' },
+          { key: 'description', label: 'Description' },
+        ],
+        structuredListColumnSeparator: ': ',
+        structuredListRowSeparatorText: 'Choose carefully',
+        structuredListRowSeparatorStyle: {
+          fontSizePx: 10,
+          fontWeight: 'font-bold',
+          textColor: '#f59e0b',
+        },
+        structuredListColumnStyles: {
+          position: {
+            fontSizePx: 22,
+            fontFamily: 'font-serif',
+            fontWeight: 'font-bold',
+            textColor: '#38bdf8',
+          },
+          description: {
+            fontSizePx: 16,
+            fontStyle: 'italic',
+            textColor: '#22aa66',
+          },
+        },
+      }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: {
+        Exits: JSON.stringify([
+          { id: 'north', values: { position: 'North', description: 'Market road' } },
+          { id: 'east', values: { position: 'East', description: 'Broken bridge' } },
+        ]),
+      },
+    }));
+
+    expect(html).toContain('North');
+    expect(html).toContain('Market road');
+    expect(html).toContain('Choose carefully');
+    expect(html).toContain('font-serif');
+    expect(html).toContain('font-size:22px');
+    expect(html).toContain('font-size:16px');
+    expect(html).toContain('font-size:10px');
+    expect(html).toContain('color:#38bdf8');
+    expect(html).toContain('color:#22aa66');
+    expect(html).toContain('color:#f59e0b');
+    expect(html).not.toContain('{{position}}');
+    expect(html).not.toContain('**{{position}}**');
   });
 
   it('renders list formatting through the shared card text renderer path', () => {

@@ -15,6 +15,7 @@ import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { renderCardToCanvas } from '@/lib/cardPreviewExport';
+import { downloadBlob } from '@/lib/browserDownload';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;
@@ -58,13 +59,8 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
         throw new Error('TIFF export is not supported by this browser. Use PNG for print-vendor workflows or convert externally.');
       }
       if (!blob) throw new Error('Failed to create image blob.');
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const cardName = (card.data?.cardName || card.data?.title || card.data?.name || 'card') as string;
-      link.href = url;
-      link.download = `${String(cardName).replace(/\s+/g, '-').toLowerCase()}-${face}.${format === 'jpeg' ? 'jpg' : format}`;
-      link.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `${String(cardName).replace(/\s+/g, '-').toLowerCase()}-${face}.${format === 'jpeg' ? 'jpg' : format}`);
       const exportProfile = getExportProfile(exportMode, exportDpi);
       toast({
         title: 'Card exported',

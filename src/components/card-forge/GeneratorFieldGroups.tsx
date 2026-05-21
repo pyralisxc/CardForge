@@ -3,7 +3,7 @@
 import type { ChangeEvent, MutableRefObject } from 'react';
 import { Layers } from 'lucide-react';
 
-import type { CardData } from '@/types';
+import type { CardData, CardFieldStyleOverride, CardFieldStyleOverrides } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/lib/textBindings';
 import { RichTextContent } from '@/lib/textTools';
@@ -25,6 +25,8 @@ interface GeneratorFieldGroupsProps {
   onHighlightColorChange: (color: string) => void;
   fileInputRefs: MutableRefObject<Record<string, HTMLInputElement | null>>;
   onImageUpload: (event: ChangeEvent<HTMLInputElement>, fieldKey: string) => void;
+  styleOverrides?: CardFieldStyleOverrides;
+  onFieldStyleOverrideChange?: (fieldKey: string, value: CardFieldStyleOverride | undefined) => void;
   emptyMessage?: string;
 }
 
@@ -81,6 +83,8 @@ export function GeneratorFieldGroups({
   onHighlightColorChange,
   fileInputRefs,
   onImageUpload,
+  styleOverrides,
+  onFieldStyleOverrideChange,
   emptyMessage = 'No editable fields were detected for this template.',
 }: GeneratorFieldGroupsProps) {
   if (fields.length === 0) {
@@ -141,6 +145,10 @@ export function GeneratorFieldGroups({
                     }}
                     onImageUpload={onImageUpload}
                     showDefaultText={false}
+                    styleOverride={styleOverrides?.[field.key]}
+                    onStyleOverrideChange={onFieldStyleOverrideChange
+                      ? (value) => onFieldStyleOverrideChange(field.key, value)
+                      : undefined}
                   />
                 </div>
               ))}

@@ -15,6 +15,7 @@ export const selectGeneratedDisplayCards = (state: AppState): DisplayCard[] => {
         uniqueId: storedCard.uniqueId,
         template,
         data: storedCard.data,
+        styleOverrides: storedCard.styleOverrides,
       });
     }
     return acc;

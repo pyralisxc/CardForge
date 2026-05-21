@@ -80,6 +80,8 @@ export function TemplateEditorTopBar({
                 size="icon"
                 onClick={item.action}
                 disabled={item.disabled}
+                aria-label={item.label}
+                title={item.label}
                 className="h-7 w-7 rounded-[4px] text-[#aeb4c0] hover:bg-[#171d29] hover:text-[#f3ead7]"
               >
                 <item.icon className="h-4 w-4" />

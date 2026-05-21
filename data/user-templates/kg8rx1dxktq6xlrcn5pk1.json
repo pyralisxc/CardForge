@@ -1,6 +1,6 @@
 {
   "id": "Kg8Rx1DXKTQ6xlRCn5pk1",
-  "name": "MTG Theme",
+  "name": "test",
   "aspectRatio": "63:88",
   "templateSource": "user",
   "templateUsage": "standard",
@@ -90,18 +90,6 @@
       "fontWeight": "font-bold"
     },
     {
-      "key": "SubText",
-      "elementId": "mtg-rules",
-      "label": "SubText",
-      "type": "richText",
-      "required": false,
-      "multiline": false,
-      "example": "Small in size, fierce in spirit.",
-      "textAutoFit": true,
-      "minFontSizePx": 8,
-      "fontStyle": "italic"
-    },
-    {
       "key": "Power",
       "elementId": "mtg-pt",
       "label": "Power",
@@ -124,6 +112,36 @@
       "textAutoFit": true,
       "minFontSizePx": 8,
       "fontWeight": "font-bold"
+    },
+    {
+      "key": "__segment_text__mtg-rules__1",
+      "elementId": "mtg-rules",
+      "type": "rules"
+    },
+    {
+      "key": "Transitions",
+      "elementId": "mtg-rules",
+      "label": "Transitions",
+      "type": "structuredList",
+      "required": false,
+      "multiline": false,
+      "example": "Flying heel Kick    :   908",
+      "structuredListColumns": [
+        {
+          "key": "description",
+          "label": "Description"
+        },
+        {
+          "key": "position",
+          "label": "Position"
+        }
+      ],
+      "textAutoFit": true,
+      "structuredListColumnStyles": {
+        "position": {
+          "textColor": "#8b0707"
+        }
+      }
     }
   ],
   "freeformCanvas": {
@@ -135,8 +153,8 @@
         "id": "mtg-bg",
         "type": "shape",
         "name": "Parchment Frame",
-        "x": 8,
-        "y": 8,
+        "x": 0,
+        "y": 0,
         "width": 597,
         "height": 851,
         "rotation": 0,
@@ -552,15 +570,15 @@
         "id": "mtg-rules",
         "type": "text",
         "name": "Rules Box",
-        "x": 64,
-        "y": 522,
+        "x": 60,
+        "y": 520,
         "width": 502,
         "height": 188,
         "rotation": 0,
         "opacity": 1,
         "zIndex": 5,
         "locked": false,
-        "content": "{{Ability:\"**Flying**\"}}\nWhen Emberclaw Whelp enters the battlefield, it deals 1 damage to any target.\n\n{{SubText:\"_Small in size, fierce in spirit._\"}}",
+        "content": "{{Transitions:\"Flying heel Kick    :   908\"}}",
         "textColor": "#1c1308",
         "backgroundColor": "rgba(250,238,205,0.94)",
         "fontFamily": "font-book",

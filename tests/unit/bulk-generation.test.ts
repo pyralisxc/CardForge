@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildInitialColumnMapping,
+  buildBulkMappedData,
   createBulkDisplayCards,
   createBulkExampleCsv,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
+  parseIndexedStructuredHeader,
   shouldBlockBulkGeneration,
   updateColumnMapping,
 } from '@/lib/bulkGeneration';
+import { parseStructuredListValue } from '@/lib/structuredList';
 import type { TCGCardTemplate } from '@/types';
 
 describe('bulk generation helpers', () => {
@@ -116,6 +119,81 @@ describe('bulk generation helpers', () => {
         },
       ],
     })).toContain('Preview Name');
+  });
+
+  it('creates indexed CSV columns for structured row fields', () => {
+    const template: TCGCardTemplate = {
+      id: 'structured-example-template',
+      name: 'Structured Example Template',
+      aspectRatio: '63:88',
+    };
+
+    const csv = createBulkExampleCsv({
+      template,
+      fieldDefinitions: [
+        {
+          key: 'Exits',
+          label: 'Exits',
+          control: 'textarea',
+          editor: 'structured-list',
+          contentModel: 'structuredList',
+          required: false,
+          isImage: false,
+          isMultiline: true,
+          supportsRichText: true,
+          structuredListColumns: [
+            { key: 'position', label: 'Position' },
+            { key: 'description', label: 'Description' },
+          ],
+        },
+      ],
+    });
+
+    expect(csv).toContain('Exits[1].Position');
+    expect(csv).toContain('Exits[1].Description');
+    expect(csv).toContain('Exits[2].Position');
+    expect(csv).toContain('Market road');
+    expect(csv).toContain('Broken bridge');
+  });
+
+  it('maps indexed structured row headers into serialized structured list data', () => {
+    const fieldDefinitions = [
+      {
+        key: 'Exits',
+        label: 'Exits',
+        control: 'textarea' as const,
+        editor: 'structured-list' as const,
+        contentModel: 'structuredList' as const,
+        required: false,
+        isImage: false,
+        isMultiline: true,
+        supportsRichText: true,
+        structuredListColumns: [
+          { key: 'position', label: 'Position' },
+          { key: 'description', label: 'Description' },
+        ],
+      },
+    ];
+    const headers = ['Exits[1].Position', 'Exits[1].Description', 'Exits[2].Position', 'Exits[2].Description'];
+    const mapping = buildInitialColumnMapping(headers, ['Exits'], fieldDefinitions);
+
+    expect(parseIndexedStructuredHeader('Exits[2].Description', fieldDefinitions)).toEqual({
+      fieldKey: 'Exits',
+      rowIndex: 1,
+      columnKey: 'description',
+    });
+    expect(mapping).toEqual({
+      'Exits[1].Position': 'Exits',
+      'Exits[1].Description': 'Exits',
+      'Exits[2].Position': 'Exits',
+      'Exits[2].Description': 'Exits',
+    });
+
+    const mappedData = buildBulkMappedData(headers, ['North', 'Market road', 'East', 'Broken bridge'], mapping, fieldDefinitions);
+    expect(parseStructuredListValue(mappedData.Exits, fieldDefinitions[0].structuredListColumns)).toEqual([
+      { id: 'row-1', values: { position: 'North', description: 'Market road' } },
+      { id: 'row-2', values: { position: 'East', description: 'Broken bridge' } },
+    ]);
   });
 
   it('creates preview warnings and row overrides from mapped CSV data', () => {
@@ -258,5 +336,61 @@ describe('bulk generation helpers', () => {
         RulesText: 'Rules line 1000',
       },
     });
+  });
+
+  it('generates cards from indexed structured row CSV columns', () => {
+    const template: TCGCardTemplate = {
+      id: 'bulk-structured-template',
+      name: 'Bulk Structured Template',
+      aspectRatio: '63:88',
+      freeformCanvas: { width: 630, height: 880, elements: [] },
+    };
+    const fieldDefinitions = [
+      {
+        key: 'Name',
+        label: 'Name',
+        control: 'input' as const,
+        editor: 'plain-input' as const,
+        contentModel: 'plainText' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'Exits',
+        label: 'Exits',
+        control: 'textarea' as const,
+        editor: 'structured-list' as const,
+        contentModel: 'structuredList' as const,
+        required: true,
+        isImage: false,
+        isMultiline: true,
+        supportsRichText: true,
+        structuredListColumns: [
+          { key: 'position', label: 'Position' },
+          { key: 'description', label: 'Description' },
+        ],
+      },
+    ];
+    const rows = [
+      ['Name', 'Exits[1].Position', 'Exits[1].Description', 'Exits[2].Position', 'Exits[2].Description'],
+      ['Gatehouse', 'North', 'Market road', 'East', 'Broken bridge'],
+    ];
+    const columnMapping = buildInitialColumnMapping(rows[0], ['Name', 'Exits'], fieldDefinitions);
+
+    const [card] = createBulkDisplayCards({
+      template,
+      fieldDefinitions,
+      rows,
+      columnMapping,
+      createId: () => 'structured-card',
+    });
+
+    expect(card.data.Name).toBe('Gatehouse');
+    expect(parseStructuredListValue(card.data.Exits, fieldDefinitions[1].structuredListColumns)).toEqual([
+      { id: 'row-1', values: { position: 'North', description: 'Market road' } },
+      { id: 'row-2', values: { position: 'East', description: 'Broken bridge' } },
+    ]);
   });
 });

@@ -66,9 +66,18 @@ export function TemplateLibraryPanel({
           </SelectContent>
         </Select>
         <div className="grid grid-cols-3 gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onCreateNew} aria-label="Create new template" className={buttonClassName}><Plus className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="sm" onClick={onClone} disabled={!currentTemplateId} aria-label="Clone selected template" className={buttonClassName}><Copy className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="sm" onClick={onDelete} disabled={!currentTemplateId} aria-label="Delete selected template" className={buttonClassName}><Trash2 className="h-4 w-4 text-[#ff554a]" /></Button>
+          <Button type="button" variant="outline" size="sm" onClick={onCreateNew} aria-label="Create new template" title="Create new template" className={cn(buttonClassName, 'gap-1 px-2')}>
+            <Plus className="h-4 w-4" />
+            <span className="text-[10px]">New</span>
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onClone} disabled={!currentTemplateId} aria-label="Clone selected template" title="Clone selected template" className={cn(buttonClassName, 'gap-1 px-2')}>
+            <Copy className="h-4 w-4" />
+            <span className="text-[10px]">Clone</span>
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onDelete} disabled={!currentTemplateId} aria-label="Delete selected template" title="Delete selected template" className={cn(buttonClassName, 'gap-1 px-2')}>
+            <Trash2 className="h-4 w-4 text-[#ff554a]" />
+            <span className="text-[10px]">Delete</span>
+          </Button>
         </div>
         <div className="space-y-1.5 pt-1">
           {defaultTemplates.map((template) => (

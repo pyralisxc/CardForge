@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Node, mergeAttributes, type JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -92,6 +92,7 @@ export function CardForgeRichTextEditor({
   const [highlightOpen, setHighlightOpen] = useState(false);
   const [pickedColor, setPickedColor] = useState('#f5d27b');
   const [variableMenu, setVariableMenu] = useState<VariableMenuState | null>(null);
+  const lastTextSelectionRef = useRef<{ from: number; to: number } | null>(null);
 
   const initialContent = useMemo(() => templateTextToTiptapDoc(value), [value]);
 
@@ -136,7 +137,7 @@ export function CardForgeRichTextEditor({
             const content = selectedText
               ? _view.state.schema.text(selectedText)
               : _view.state.schema.text(key);
-            _view.dispatch(_view.state.tr.replaceSelectionWith(variableNode.create({ key }, content), false));
+            _view.dispatch(_view.state.tr.replaceWith(from, to, variableNode.create({ key }, content)));
             event.preventDefault();
             onActiveVariableChange?.(key);
             return true;
@@ -156,7 +157,8 @@ export function CardForgeRichTextEditor({
       onChange(tiptapDocToTemplateText(editor.getJSON()));
     },
     onSelectionUpdate: ({ editor }) => {
-      const { $from } = editor.state.selection;
+      const { $from, from, to, empty } = editor.state.selection;
+      if (!empty) lastTextSelectionRef.current = { from, to };
       let currentKey: string | null = null;
       for (let depth = $from.depth; depth >= 0; depth--) {
         const node = $from.node(depth);
@@ -183,6 +185,9 @@ export function CardForgeRichTextEditor({
   }, []);
 
   const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[#111720] text-[#d8d1c4] transition-colors hover:border-[#d5ad54] hover:text-[#f5d27b] disabled:cursor-not-allowed disabled:opacity-45';
+  const preserveEditorSelection = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  };
   const isActive = useCallback((name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false, [editor]);
 
   const insertVariableFromSelection = useCallback(() => {
@@ -199,22 +204,22 @@ export function CardForgeRichTextEditor({
         return;
       }
     }
-    const selectedText = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '\n').trim();
+    const { from, to, empty } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to, '\n').trim();
     const key = onCreateVariable(selectedText || 'Variable');
     if (!key) return;
 
-    editor
-      .chain()
-      .focus()
-      .deleteSelection()
-      .insertContent({
-        type: 'cardForgeVariable',
-        attrs: { key },
-        content: [{ type: 'text', text: selectedText || key }],
-      })
-      .run();
+    const variableNode = editor.state.schema.nodes.cardForgeVariable;
+    const content = editor.state.schema.text(selectedText || key);
+    if (!variableNode) return;
+
+    const transaction = empty
+      ? editor.state.tr.insert(from, variableNode.create({ key }, content))
+      : editor.state.tr.replaceWith(from, to, variableNode.create({ key }, content));
+    editor.view.dispatch(transaction);
+    onChange(tiptapDocToTemplateText(editor.getJSON()));
     onActiveVariableChange?.(key);
-  }, [editor, onActiveVariableChange, onCreateVariable]);
+  }, [editor, onActiveVariableChange, onChange, onCreateVariable, onEditVariable]);
 
   const findVariableRange = useCallback((key: string): { from: number; to: number } | null => {
     if (!editor) return null;
@@ -228,6 +233,23 @@ export function CardForgeRichTextEditor({
     });
     return found;
   }, [editor]);
+
+  const restoreEditorSelection = useCallback(() => {
+    if (!editor) return editor;
+    if (!editor.state.selection.empty) return editor.chain().focus();
+
+    if (activeVariableKey) {
+      const variableRange = findVariableRange(activeVariableKey);
+      if (variableRange) return editor.chain().focus().setTextSelection(variableRange);
+    }
+
+    const lastSelection = lastTextSelectionRef.current;
+    if (lastSelection && lastSelection.from < lastSelection.to && lastSelection.to <= editor.state.doc.content.size) {
+      return editor.chain().focus().setTextSelection(lastSelection);
+    }
+
+    return editor.chain().focus();
+  }, [activeVariableKey, editor, findVariableRange]);
 
   const selectVariableText = useCallback((key: string) => {
     if (!editor) return;
@@ -257,14 +279,14 @@ export function CardForgeRichTextEditor({
 
   const applyHighlight = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().toggleHighlight({ color: highlightColor }).run();
-  }, [editor, highlightColor]);
+    restoreEditorSelection()?.toggleHighlight({ color: highlightColor }).run();
+  }, [editor, highlightColor, restoreEditorSelection]);
 
   const applyColor = useCallback(() => {
     if (!editor) return;
-    editor.chain().focus().setColor(pickedColor).run();
+    restoreEditorSelection()?.setColor(pickedColor).run();
     setTextColorOpen(false);
-  }, [editor, pickedColor]);
+  }, [editor, pickedColor, restoreEditorSelection]);
 
   const variableMenuStyle = variableMenu
     ? {
@@ -278,21 +300,21 @@ export function CardForgeRichTextEditor({
       <div className="flex flex-wrap items-center gap-1 rounded-[5px] border border-[#252b35] bg-[#0b0f15] px-1.5 py-1">
         {children}
         {children && <div className="h-4 w-px bg-[#2d3340]" />}
-        <button type="button" className={cn(btn, isActive('bold') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bold" title="Bold" onClick={() => editor?.chain().focus().toggleBold().run()}>
+        <button type="button" className={cn(btn, isActive('bold') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bold" title="Bold" onMouseDown={preserveEditorSelection} onClick={() => restoreEditorSelection()?.toggleBold().run()}>
           <Bold className="h-3.5 w-3.5" />
         </button>
-        <button type="button" className={cn(btn, isActive('italic') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Italic" title="Italic" onClick={() => editor?.chain().focus().toggleItalic().run()}>
+        <button type="button" className={cn(btn, isActive('italic') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Italic" title="Italic" onMouseDown={preserveEditorSelection} onClick={() => restoreEditorSelection()?.toggleItalic().run()}>
           <Italic className="h-3.5 w-3.5" />
         </button>
-        <button type="button" className={cn(btn, isActive('underline') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Underline" title="Underline" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
+        <button type="button" className={cn(btn, isActive('underline') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Underline" title="Underline" onMouseDown={preserveEditorSelection} onClick={() => restoreEditorSelection()?.toggleUnderline().run()}>
           <UnderlineIcon className="h-3.5 w-3.5" />
         </button>
-        <button type="button" className={cn(btn, isActive('highlight') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Highlight" title="Highlight" onClick={applyHighlight}>
+        <button type="button" className={cn(btn, isActive('highlight') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Highlight" title="Highlight" onMouseDown={preserveEditorSelection} onClick={applyHighlight}>
           <Highlighter className="h-3.5 w-3.5" style={{ color: highlightColor }} />
         </button>
         <Popover open={highlightOpen} onOpenChange={setHighlightOpen}>
           <PopoverTrigger asChild>
-            <button type="button" className={btn} aria-label="Highlight color" title="Highlight color">
+            <button type="button" className={btn} aria-label="Highlight color" title="Highlight color" onMouseDown={preserveEditorSelection}>
               <span className="h-3.5 w-3.5 rounded-[2px] border border-[#2d3340]" style={{ backgroundColor: highlightColor }} />
             </button>
           </PopoverTrigger>
@@ -302,37 +324,37 @@ export function CardForgeRichTextEditor({
           </PopoverContent>
         </Popover>
         <div className="h-4 w-px bg-[#2d3340]" />
-        <button type="button" className={cn(btn, isActive('bulletList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bullet list" title="Bullet list" onClick={() => editor?.chain().focus().toggleBulletList().run()}>
+        <button type="button" className={cn(btn, isActive('bulletList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bullet list" title="Bullet list" onMouseDown={preserveEditorSelection} onClick={() => restoreEditorSelection()?.toggleBulletList().run()}>
           <List className="h-3.5 w-3.5" />
         </button>
-        <button type="button" className={cn(btn, isActive('orderedList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Numbered list" title="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
+        <button type="button" className={cn(btn, isActive('orderedList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Numbered list" title="Numbered list" onMouseDown={preserveEditorSelection} onClick={() => restoreEditorSelection()?.toggleOrderedList().run()}>
           <ListOrdered className="h-3.5 w-3.5" />
         </button>
         <Popover open={textColorOpen} onOpenChange={setTextColorOpen}>
           <PopoverTrigger asChild>
-            <button type="button" className={btn} aria-label="Text color" title="Text color">
+            <button type="button" className={btn} aria-label="Text color" title="Text color" onMouseDown={preserveEditorSelection}>
               <Palette className="h-3.5 w-3.5" style={{ color: pickedColor }} />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
             <HexColorPicker color={pickedColor} onChange={setPickedColor} />
             <Input value={pickedColor} onChange={event => setPickedColor(event.target.value)} className="mt-2 h-7 font-mono text-xs" maxLength={7} />
-            <Button type="button" className="mt-2 h-7 w-full text-xs" onClick={applyColor}>Apply Color</Button>
+            <Button type="button" className="mt-2 h-7 w-full text-xs" onMouseDown={preserveEditorSelection} onClick={applyColor}>Apply Color</Button>
           </PopoverContent>
         </Popover>
         {onCreateVariable && (
           <>
             <div className="h-4 w-px bg-[#2d3340]" />
-            <button type="button" className={btn} aria-label="Make variable" title="Make selected text a variable" onClick={insertVariableFromSelection}>
+            <button type="button" className={btn} aria-label="Make variable" title="Make selected text a variable" onMouseDown={preserveEditorSelection} onClick={insertVariableFromSelection}>
               <Variable className="h-3.5 w-3.5" />
             </button>
           </>
         )}
         <div className="h-4 w-px bg-[#2d3340]" />
-        <button type="button" className={btn} aria-label="Undo" title="Undo" onClick={() => editor?.chain().focus().undo().run()}>
+        <button type="button" className={btn} aria-label="Undo" title="Undo" onMouseDown={preserveEditorSelection} onClick={() => editor?.chain().focus().undo().run()}>
           <Undo2 className="h-3.5 w-3.5" />
         </button>
-        <button type="button" className={btn} aria-label="Redo" title="Redo" onClick={() => editor?.chain().focus().redo().run()}>
+        <button type="button" className={btn} aria-label="Redo" title="Redo" onMouseDown={preserveEditorSelection} onClick={() => editor?.chain().focus().redo().run()}>
           <Redo2 className="h-3.5 w-3.5" />
         </button>
         {activeVariableKey && (

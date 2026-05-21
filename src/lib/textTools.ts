@@ -33,6 +33,16 @@ export const scalePixelLength = (value: string | undefined, scale: number): stri
   return `${Math.round(scaled * 1000) / 1000}px`;
 };
 
+const richTextMarkerKind = (span: ReturnType<typeof parseRichText>[number]): string | undefined => {
+  const kinds: string[] = [];
+  if (span.bold) kinds.push('bold');
+  if (span.italic) kinds.push('italic');
+  if (span.underline) kinds.push('underline');
+  if (span.highlight) kinds.push('highlight');
+  if (span.color) kinds.push('color');
+  return kinds.length > 0 ? kinds.join(' ') : undefined;
+};
+
 const renderInlineRichText = (text: string, highlightColor = DEFAULT_HIGHLIGHT_COLOR, keyPrefix = ''): ReactNode[] => {
   const spans = parseRichText(text);
 
@@ -48,7 +58,7 @@ const renderInlineRichText = (text: string, highlightColor = DEFAULT_HIGHLIGHT_C
       return createElement(Fragment, { key: `${keyPrefix}${index}` }, span.text);
     }
 
-    return createElement('span', { key: `${keyPrefix}${index}`, style }, span.text);
+    return createElement('span', { key: `${keyPrefix}${index}`, style, 'data-rich-text-mark': richTextMarkerKind(span) }, span.text);
   });
 };
 

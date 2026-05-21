@@ -57,7 +57,7 @@ import type { CardAssetOption } from '@/lib/cardAssets';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
 import { buildTextElementStyle } from '@/lib/textTools';
 import { CardTextContent } from '@/lib/cardTextRender';
-import { getElementDepthStack, resolveDepthSelection, scaleElementWithParentResize, type DepthSelectionState } from '@/lib/freeformEditor';
+import { getElementDepthStack, projectCanvasDeltaToElementLocal, resolveDepthSelection, scaleElementWithParentResize, type DepthSelectionState } from '@/lib/freeformEditor';
 import { loadBootstrapAssets } from '@/lib/clientBootstrapData';
 import { useAppStore } from '@/store/appStore';
 import { createDefaultFreeformCanvas, getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate, scaleCanvasToSize } from '@/lib/templateModel';
@@ -138,6 +138,15 @@ const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: s
   { handle: 'sw', className: 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2', cursor: 'nesw-resize', label: 'Resize selected element from center' },
   { handle: 'se', className: 'bottom-0 right-0 translate-x-1/2 translate-y-1/2', cursor: 'nwse-resize', label: 'Resize selected element from center' },
 ];
+
+const EDGE_RESIZE_ZONES: Array<{ handle: ResizeHandle; cursor: string; label: string }> = [
+  { handle: 'n', cursor: 'ns-resize', label: 'Resize selected element from top edge' },
+  { handle: 's', cursor: 'ns-resize', label: 'Resize selected element from bottom edge' },
+  { handle: 'e', cursor: 'ew-resize', label: 'Resize selected element from right edge' },
+  { handle: 'w', cursor: 'ew-resize', label: 'Resize selected element from left edge' },
+];
+
+const RESIZE_EDGE_HIT_SIZE = 18;
 
 const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
 const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
@@ -850,6 +859,7 @@ export function CardTemplateMaker({
     if (previewMode || element.locked) return;
     event.preventDefault();
     event.stopPropagation();
+    depthSelectionRef.current = null;
     selectElement(element.id);
     setHistory(items => [...items.slice(-39), currentTemplate]);
     setFuture([]);
@@ -885,14 +895,15 @@ export function CardTemplateMaker({
     } else {
       const horizontalFactor = dragState.handle.includes('e') ? 1 : dragState.handle.includes('w') ? -1 : 0;
       const verticalFactor = dragState.handle.includes('s') ? 1 : dragState.handle.includes('n') ? -1 : 0;
+      const localDelta = projectCanvasDeltaToElementLocal(deltaX, deltaY, dragState.original.rotation || 0);
       const centerX = dragState.original.x + dragState.original.width / 2;
       const centerY = dragState.original.y + dragState.original.height / 2;
       const nextWidth = horizontalFactor === 0
         ? dragState.original.width
-        : clamp(snapValue(dragState.original.width + horizontalFactor * deltaX * 2), 20, canvas.width * 2);
+        : clamp(snapValue(dragState.original.width + horizontalFactor * localDelta.x * 2), 20, canvas.width * 2);
       const nextHeight = verticalFactor === 0
         ? dragState.original.height
-        : clamp(snapValue(dragState.original.height + verticalFactor * deltaY * 2), 12, canvas.height * 2);
+        : clamp(snapValue(dragState.original.height + verticalFactor * localDelta.y * 2), 12, canvas.height * 2);
       const nextX = horizontalFactor === 0 ? dragState.original.x : snapValue(centerX - nextWidth / 2);
       const nextY = verticalFactor === 0 ? dragState.original.y : snapValue(centerY - nextHeight / 2);
       const nextParentBounds = {
@@ -1268,19 +1279,65 @@ export function CardTemplateMaker({
         onPointerDown={(event) => handleElementPointerDown(event, element)}
       >
         {body}
-        {selected && !previewMode && !element.locked && (
+      </div>
+    );
+  };
+
+  const renderSelectionOverlay = () => {
+    if (!selectedElement || previewMode || selectedElement.visible === false) return null;
+
+    const getEdgeResizeZoneStyle = (handle: ResizeHandle): React.CSSProperties => {
+      const bleed = RESIZE_EDGE_HIT_SIZE / 2;
+      if (handle === 'n') return { left: -bleed, top: -bleed, width: selectedElement.width + RESIZE_EDGE_HIT_SIZE, height: RESIZE_EDGE_HIT_SIZE };
+      if (handle === 's') return { left: -bleed, top: selectedElement.height - bleed, width: selectedElement.width + RESIZE_EDGE_HIT_SIZE, height: RESIZE_EDGE_HIT_SIZE };
+      if (handle === 'e') return { left: selectedElement.width - bleed, top: -bleed, width: RESIZE_EDGE_HIT_SIZE, height: selectedElement.height + RESIZE_EDGE_HIT_SIZE };
+      return { left: -bleed, top: -bleed, width: RESIZE_EDGE_HIT_SIZE, height: selectedElement.height + RESIZE_EDGE_HIT_SIZE };
+    };
+
+    const overlayZIndex = Math.max(10000, ...canvas.elements.map((element) => element.zIndex + 100));
+    const overlayStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: selectedElement.x,
+      top: selectedElement.y,
+      width: selectedElement.width,
+      height: selectedElement.height,
+      transform: `rotate(${selectedElement.rotation || 0}deg)`,
+      transformOrigin: 'center',
+      zIndex: overlayZIndex,
+      pointerEvents: 'none',
+    };
+
+    return (
+      <div
+        data-selection-overlay-for={selectedElement.id}
+        className="absolute outline outline-2 outline-offset-2 outline-[#d5ad54]"
+        style={overlayStyle}
+      >
+        {!selectedElement.locked && (
           <>
+            {EDGE_RESIZE_ZONES.map((resizeZone) => (
+              <button
+                key={`edge-${resizeZone.handle}`}
+                type="button"
+                aria-label={resizeZone.label}
+                data-resize-zone={resizeZone.handle}
+                className="absolute pointer-events-auto rounded-[2px] bg-transparent"
+                style={{ ...getEdgeResizeZoneStyle(resizeZone.handle), cursor: resizeZone.cursor }}
+                onPointerDown={(event) => handleResizePointerDown(event, selectedElement, resizeZone.handle)}
+              />
+            ))}
             {RESIZE_HANDLES.map((resizeHandle) => (
               <button
                 key={resizeHandle.handle}
                 type="button"
                 aria-label={resizeHandle.label}
+                data-resize-handle={resizeHandle.handle}
                 className={cn(
-                  'absolute h-3.5 w-3.5 rounded-[2px] border border-[#d5ad54] bg-[#090b0f] shadow-[0_0_12px_rgba(213,173,84,0.45)]',
+                  'absolute pointer-events-auto h-3.5 w-3.5 rounded-[2px] border border-[#d5ad54] bg-[#090b0f] shadow-[0_0_12px_rgba(213,173,84,0.45)]',
                   resizeHandle.className
                 )}
                 style={{ cursor: resizeHandle.cursor }}
-                onPointerDown={(event) => handleResizePointerDown(event, element, resizeHandle.handle)}
+                onPointerDown={(event) => handleResizePointerDown(event, selectedElement, resizeHandle.handle)}
               />
             ))}
           </>
@@ -1569,7 +1626,10 @@ export function CardTemplateMaker({
                           targetWidthPx={canvas.width}
                         />
                       ) : (
-                        [...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)
+                        <>
+                          {[...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)}
+                          {renderSelectionOverlay()}
+                        </>
                       )}
                     </div>
                   </div>

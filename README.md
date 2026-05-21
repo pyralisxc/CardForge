@@ -15,7 +15,8 @@ A professional-grade Trading Card Game design tool. Build layered card templates
 - **Framework**: Next.js 15 (App Router)
 - **UI**: Shadcn/UI & Tailwind CSS
 - **State**: Zustand with localStorage persistence
-- **PDF Export**: jsPDF with shared `CardPreview` capture through `html-to-image`
+- **Canvas/Editor Foundation**: Current DOM editor with Konva/React Konva adapter seam for the next interaction-engine migration
+- **Export Foundation**: Shared `CardPreview` capture remains the browser fallback, with worker-backed Sharp rasterization, zip.js archives, and `pdf-lib` PDF assembly for production-scale export jobs
 
 ## Getting Started
 
@@ -63,6 +64,8 @@ npm run dev
 
 Then open **http://localhost:9002** in your browser.
 
+Development output is isolated in `.next-dev`, while production builds use `.next` and smoke tests use `.next-smoke`. This prevents `npm run build` or smoke tests from invalidating the chunks used by an already-open local editor.
+
 To access from another device on the same WiFi, find your machine's local IP address:
 
 ```bash
@@ -88,7 +91,26 @@ npm run typecheck  # TypeScript type-check (no emit)
 npm run test:watch # Unit tests (Vitest watch mode)
 npm run smoke      # Browser smoke test against the local app
 npm run bulk:generate # Generate large CSV batches for prefab testing
+npm run export:worker # Process queued ZIP/PDF export jobs from storage/export-jobs
 ```
+
+## Production Export Worker
+
+Large ZIP/PDF jobs are queued through local file-backed export jobs so the browser does not have to render 1000-card production batches by itself.
+
+1. Start the app with `npm run dev`.
+2. In a second terminal, run `npm run export:worker`.
+3. Generate cards, open `Export & Sets`, review the worker preflight, then queue a worker ZIP or PDF.
+4. The app writes job JSON and artifacts under `storage/export-jobs/`, which is ignored by git.
+
+Worker APIs:
+
+- `POST /api/export-jobs` creates a queued ZIP/PDF job.
+- `GET /api/export-jobs/:id` returns status, progress, warnings, artifact metadata, and errors.
+- `GET /api/export-jobs/:id/download` downloads a completed artifact.
+- `POST /api/export-jobs/:id/cancel` requests cancellation.
+
+The existing browser export path remains available for small jobs and parity fallback. Production certification should prefer the worker path for large print ZIP/PDF runs.
 
 ## Current Code Shape
 
@@ -170,6 +192,8 @@ npm run bulk:generate -- --template data/default-templates/default-playing-card-
 ```
 
 You can point `--template` to any shipped default in `data/default-templates` or any user-authored JSON in `data/user-templates`.
+
+Structured repeatable fields use indexed CSV columns, for example `Exits[1].Position`, `Exits[1].Description`, `Exits[2].Position`, and `Exits[2].Description`.
 
 ## Troubleshooting
 

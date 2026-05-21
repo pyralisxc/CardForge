@@ -56,7 +56,7 @@ export const templateTextToTiptapDoc = (value?: string): JSONContent => {
     content: [
       {
         type: 'paragraph',
-        content: inlineContent.length > 0 ? inlineContent : [{ type: 'text', text: '' }],
+        ...(inlineContent.length > 0 ? { content: inlineContent } : {}),
       },
     ],
   };
@@ -97,17 +97,24 @@ export const tiptapDocToTemplateText = (doc: JSONContent): string => {
   return blocks.map((block, index) => blockToTemplateText(block, index)).join('\n');
 };
 
+const splitListItemLines = (item: JSONContent): string[] =>
+  blockToTemplateText(item)
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => line.length > 0);
+
 const blockToTemplateText = (block: JSONContent, index = 0): string => {
   if (block.type === 'bulletList') {
     return (block.content || [])
-      .map((item) => `- ${blockToTemplateText(item)}`)
+      .flatMap((item) => splitListItemLines(item).map((line) => `- ${line}`))
       .join('\n');
   }
 
   if (block.type === 'orderedList') {
-    return (block.content || [])
-      .map((item, itemIndex) => `${itemIndex + 1}. ${blockToTemplateText(item)}`)
-      .join('\n');
+    let itemNumber = 1;
+    return (block.content || []).flatMap((item) =>
+      splitListItemLines(item).map((line) => `${itemNumber++}. ${line}`)
+    ).join('\n');
   }
 
   if (block.type === 'listItem') {

@@ -23,6 +23,18 @@ const normalizeActiveTab = (tab: string): string => {
   return TABS_CONFIG.some(config => config.value === tab) ? tab : TABS_CONFIG[0].value;
 };
 
+const mergeUserTemplatesWithFileAuthority = (
+  persistedTemplates: TCGCardTemplate[],
+  fileTemplates: TCGCardTemplate[]
+): TCGCardTemplate[] => {
+  const fileIds = new Set(fileTemplates.map(template => template.id).filter(Boolean));
+  const persistedFallbacks = persistedTemplates.filter(template => template.id && !fileIds.has(template.id));
+  return [...fileTemplates, ...persistedFallbacks].map(template => reconstructMinimalTemplateObject({
+    ...template,
+    templateSource: 'user',
+  }));
+};
+
 interface AppState {
   defaultTemplates: TCGCardTemplate[];
   userTemplates: TCGCardTemplate[];
@@ -85,7 +97,7 @@ export const useAppStore = create<AppState>()(
 
         selectedPaperSize: PAPER_SIZES[0],
         activeTab: TABS_CONFIG[0].value,
-        richTextHighlightColor: 'rgba(255,215,0,0.35)',
+        richTextHighlightColor: '#ffd700',
         singleCardGeneratorSelectedTemplateId: null,
 
         pdfMarginMm: 5,
@@ -155,13 +167,14 @@ export const useAppStore = create<AppState>()(
             .filter(template => template.id && template.id.trim() !== '');
 
           set((state) => {
-            const allTemplates = [...state.defaultTemplates, ...reconstructedTemplates];
+            const userTemplates = mergeUserTemplatesWithFileAuthority(state.userTemplates, reconstructedTemplates);
+            const allTemplates = [...state.defaultTemplates, ...userTemplates];
             const selectedStillExists = state.singleCardGeneratorSelectedTemplateId
               ? allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
               : false;
 
             return {
-              userTemplates: reconstructedTemplates,
+              userTemplates,
               singleCardGeneratorSelectedTemplateId: selectedStillExists
                 ? state.singleCardGeneratorSelectedTemplateId
                 : (allTemplates[0]?.id ?? null),
@@ -246,6 +259,7 @@ export const useAppStore = create<AppState>()(
             uniqueId: card.uniqueId,
             templateId: card.template.id!,
             data: card.data,
+            styleOverrides: card.styleOverrides,
           }));
           set((state) => ({
             storedCards: [...state.storedCards, ...newStoredCards],
@@ -255,7 +269,12 @@ export const useAppStore = create<AppState>()(
         updateGeneratedCard: (updatedCard) => set((state) => ({
           storedCards: state.storedCards.map(sc =>
             sc.uniqueId === updatedCard.uniqueId
-              ? { uniqueId: updatedCard.uniqueId, templateId: updatedCard.template.id!, data: updatedCard.data }
+              ? {
+                  uniqueId: updatedCard.uniqueId,
+                  templateId: updatedCard.template.id!,
+                  data: updatedCard.data,
+                  styleOverrides: updatedCard.styleOverrides,
+                }
               : sc
           ),
         })),

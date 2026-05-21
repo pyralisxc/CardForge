@@ -4,6 +4,12 @@ import type { CardData, DisplayCard, TCGCardTemplate } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { completeCardDataWithTemplateDefaults } from '@/lib/cardDataDefaults';
 import { unparseCSV } from '@/lib/utils';
+import {
+  createStructuredListRow,
+  normalizeStructuredListColumns,
+  serializeStructuredListRows,
+  type StructuredListRow,
+} from '@/lib/structuredList';
 
 export interface BulkPreviewRow {
   rowNumber: number;
@@ -30,8 +36,113 @@ export interface CreateBulkPreviewOptions {
   maxPreviewRows?: number;
 }
 
+interface IndexedStructuredHeader {
+  fieldKey: string;
+  rowIndex: number;
+  columnKey: string;
+}
+
 export const normalizeCsvHeaders = (headers: string[]): string[] =>
   headers.map((header) => header.replace(/^"|"$/g, '').trim());
+
+export const parseIndexedStructuredHeader = (
+  header: string,
+  fieldDefinitions: TemplateFieldDefinition[]
+): IndexedStructuredHeader | null => {
+  const match = header.trim().match(/^(.+?)\[(\d+)\]\.([^.\[\]]+)$/);
+  if (!match) return null;
+
+  const [, rawFieldKey, rawIndex, rawColumn] = match;
+  const field = fieldDefinitions.find((definition) =>
+    definition.contentModel === 'structuredList' && definition.key.toLowerCase() === rawFieldKey.trim().toLowerCase()
+  );
+  if (!field) return null;
+
+  const columns = normalizeStructuredListColumns(field.structuredListColumns);
+  const normalizedColumn = rawColumn.trim().toLowerCase();
+  const column = columns.find((candidate) =>
+    candidate.key.toLowerCase() === normalizedColumn || candidate.label.toLowerCase() === normalizedColumn
+  );
+  if (!column) return null;
+
+  return {
+    fieldKey: field.key,
+    rowIndex: Math.max(0, Number(rawIndex) - 1),
+    columnKey: column.key,
+  };
+};
+
+const createStructuredRowsFromIndexedColumns = (
+  field: TemplateFieldDefinition,
+  entries: Array<{ rowIndex: number; columnKey: string; value: string }>
+): string => {
+  const columns = normalizeStructuredListColumns(field.structuredListColumns);
+  const rowsByIndex = new Map<number, StructuredListRow>();
+
+  entries.forEach((entry) => {
+    const row = rowsByIndex.get(entry.rowIndex) ?? createStructuredListRow(columns);
+    row.id = `row-${entry.rowIndex + 1}`;
+    row.values = { ...row.values, [entry.columnKey]: entry.value };
+    rowsByIndex.set(entry.rowIndex, row);
+  });
+
+  const rows = Array.from(rowsByIndex.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([, row]) => row)
+    .filter((row) => columns.some((column) => row.values[column.key]?.trim()));
+
+  return serializeStructuredListRows(rows);
+};
+
+export const buildBulkMappedData = (
+  headers: string[],
+  values: string[],
+  columnMapping: Record<string, string>,
+  fieldDefinitions: TemplateFieldDefinition[],
+  rowOverrides?: Record<string, string>
+): Record<string, string> => {
+  const fieldDefinitionMap = new Map(fieldDefinitions.map((field) => [field.key, field]));
+  const mappedData: Record<string, string> = {};
+  const structuredEntries = new Map<string, Array<{ rowIndex: number; columnKey: string; value: string }>>();
+
+  headers.forEach((header, index) => {
+    const mappedKey = columnMapping[header] || '';
+    if (!mappedKey) return;
+
+    const field = fieldDefinitionMap.get(mappedKey);
+    const indexedStructuredHeader = field?.contentModel === 'structuredList'
+      ? parseIndexedStructuredHeader(header, fieldDefinitions)
+      : null;
+    const value = String(values[index] ?? '');
+
+    if (indexedStructuredHeader && indexedStructuredHeader.fieldKey === mappedKey) {
+      const entries = structuredEntries.get(mappedKey) ?? [];
+      entries.push({
+        rowIndex: indexedStructuredHeader.rowIndex,
+        columnKey: indexedStructuredHeader.columnKey,
+        value,
+      });
+      structuredEntries.set(mappedKey, entries);
+      return;
+    }
+
+    mappedData[mappedKey] = value;
+  });
+
+  structuredEntries.forEach((entries, fieldKey) => {
+    const field = fieldDefinitionMap.get(fieldKey);
+    if (!field) return;
+    mappedData[fieldKey] = createStructuredRowsFromIndexedColumns(field, entries);
+  });
+
+  if (rowOverrides) {
+    Object.entries(rowOverrides).forEach(([key, value]) => {
+      mappedData[key] = value;
+    });
+  }
+
+  return mappedData;
+};
 
 export const createBulkExampleCsv = ({
   template,
@@ -39,9 +150,25 @@ export const createBulkExampleCsv = ({
 }: CreateBulkExampleCsvOptions): string => {
   if (!template) return 'Select a template first.';
 
-  const headers = fieldDefinitions.map((field) => field.key);
-  const exampleDataLine = fieldDefinitions.map((field) => {
+  const headers = fieldDefinitions.flatMap((field) => {
+    if (field.contentModel !== 'structuredList') return [field.key];
+    const columns = normalizeStructuredListColumns(field.structuredListColumns);
+    return [1, 2].flatMap((rowNumber) =>
+      columns.map((column) => `${field.key}[${rowNumber}].${column.label}`)
+    );
+  });
+  const exampleDataLine = fieldDefinitions.flatMap((field) => {
     const keyLower = field.key.toLowerCase();
+    if (field.contentModel === 'structuredList') {
+      const columns = normalizeStructuredListColumns(field.structuredListColumns);
+      return [1, 2].flatMap((rowNumber) =>
+        columns.map((column) => (
+          column.key.includes('position')
+            ? rowNumber === 1 ? 'North' : 'East'
+            : rowNumber === 1 ? 'Market road' : 'Broken bridge'
+        ))
+      );
+    }
     if (field.isImage) return 'https://placehold.co/600x400.png?text=Artwork';
     const previewValue = template.templatePreviewData?.[field.key];
     if (previewValue !== undefined) return String(previewValue);
@@ -59,12 +186,16 @@ export const createBulkExampleCsv = ({
 
 export const buildInitialColumnMapping = (
   headers: string[],
-  fieldKeys: string[]
+  fieldKeys: string[],
+  fieldDefinitions: TemplateFieldDefinition[] = []
 ): Record<string, string> => {
   const mapping: Record<string, string> = {};
   headers.forEach((header) => {
     const normalized = header.trim().toLowerCase();
-    mapping[header] = fieldKeys.find((key) => key.toLowerCase() === normalized) ?? '';
+    const indexedStructuredHeader = parseIndexedStructuredHeader(header, fieldDefinitions);
+    mapping[header] = indexedStructuredHeader?.fieldKey
+      ?? fieldKeys.find((key) => key.toLowerCase() === normalized)
+      ?? '';
   });
   return mapping;
 };
@@ -163,7 +294,10 @@ export const createBulkPreview = ({
   }
 
   const duplicateRequiredFields = requiredFieldKeys.filter((key) => (
-    Object.values(columnMapping).filter((mappedKey) => mappedKey === key).length > 1
+    Object.entries(columnMapping).filter(([header, mappedKey]) => {
+      if (mappedKey !== key) return false;
+      return !parseIndexedStructuredHeader(header, fieldDefinitions);
+    }).length > 1
   ));
   if (duplicateRequiredFields.length > 0) {
     globalWarnings.push(`Required fields mapped multiple times: ${duplicateRequiredFields.join(', ')}`);
@@ -181,14 +315,13 @@ export const createBulkPreview = ({
     const rowNumber = i + 1;
     const rowOverrides = previewOverrides[rowNumber] || {};
 
-    headers.forEach((header, index) => {
-      const mappedKey = columnMapping[header] || '';
-      if (!mappedKey) return;
-      const value = String(rowOverrides[mappedKey] ?? values[index] ?? '');
-      mappedData[mappedKey] = value;
-      if (requiredFieldSet.has(mappedKey) && value.trim() === '') {
-        missingRequiredKeys.push(mappedKey);
-        warnings.push(`Missing value for ${mappedKey}`);
+    Object.assign(mappedData, buildBulkMappedData(headers, values, columnMapping, fieldDefinitions, rowOverrides));
+
+    requiredFieldSet.forEach((requiredKey) => {
+      const value = mappedData[requiredKey] ?? '';
+      if (String(value).trim() === '' || String(value).trim() === '[]') {
+        missingRequiredKeys.push(requiredKey);
+        warnings.push(`Missing value for ${requiredKey}`);
       }
     });
 
@@ -229,19 +362,8 @@ export const createBulkDisplayCards = ({
     const values = rows[i];
     const cardData: CardData = {};
 
-    headers.forEach((header: string, index: number) => {
-      const mappedKey = columnMapping[header] || '';
-      if (!mappedKey) return;
-      cardData[mappedKey] = values[index] ?? '';
-    });
-
     const rowNumber = i + 1;
-    const rowOverrides = previewOverrides[rowNumber];
-    if (rowOverrides) {
-      Object.entries(rowOverrides).forEach(([key, value]) => {
-        cardData[key] = value;
-      });
-    }
+    Object.assign(cardData, buildBulkMappedData(headers, values, columnMapping, fieldDefinitions, previewOverrides[rowNumber]));
 
     generatedCards.push({
       template,

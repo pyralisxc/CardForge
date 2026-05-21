@@ -4,9 +4,9 @@ Last updated: May 19, 2026
 
 ## Release Status
 
-Current recommendation: `CONDITIONAL GO`
+Current recommendation: `NO-GO UNTIL WORKER EXPORT CERTIFICATION`
 
-The application is in a strong release state for functionality, structure, and performance. The only known unresolved issue is an upstream dependency audit finding tied to Next.js bundling `postcss@8.4.31`.
+The application is in a strong release state for core authoring, generation, structure, and browser fallback export. Production launch should still block on certifying the new worker-backed export path against the 1000-card / 2000-face requirement.
 
 ## Go / No-Go Summary
 
@@ -22,11 +22,15 @@ The application is in a strong release state for functionality, structure, and p
 
 ### Remaining Go Decision
 
-Release can proceed if the team accepts:
-- `2` moderate `npm audit` findings tied to `next -> postcss`
-- those findings are currently upstream/framework-pinned and not safely fixable in-repo
+Release can proceed after:
+- worker ZIP export passes the 1000-card / 2000-face acceptance run
+- worker PDF export passes page-size/page-count checks for physical duplex and same-sheet modes
+- preview-vs-worker output comparison is accepted for the current visual baseline
+- the team accepts remaining moderate audit findings if they are still framework-pinned
 
 Release should pause if:
+- worker export does not materially improve stability over the browser fallback
+- worker output drifts from current `CardPreview` expectations in a user-visible way
 - policy requires zero known audit findings
 - a customer, marketplace, or deployment target blocks shipment with moderate framework advisories
 
@@ -39,11 +43,20 @@ These checks currently pass:
 - `npm run test`
 - `npm run build`
 - `npm run smoke`
+- focused worker foundation: `npm run test -- tests/unit/export-worker.test.ts`
 
 Current production build snapshot:
 
 - `/` route size: `33.2 kB`
 - first-load JS: `155 kB`
+
+Worker export foundation snapshot:
+
+- `POST /api/export-jobs` queues local file-backed jobs under ignored `storage/export-jobs/`.
+- `GET /api/export-jobs/:id`, `GET /download`, and `POST /cancel` expose status, artifact download, and cancellation.
+- `npm run export:worker` processes queued jobs outside the browser UI.
+- Unit coverage verifies preflight estimates, job state transitions, Sharp PNG dimensions, and a physical ZIP with exact front/back entries.
+- Production-scale certification is still pending and remains the launch blocker.
 
 ## Future Architecture Note
 
@@ -95,14 +108,14 @@ This gradebook is meant to support a true strengthening pass of current function
   - `src/app/page.tsx`
   - `src/components/card-forge/Header.tsx`
   - `src/lib/constants.ts`
-- Current grade: `9.2/10`
+- Current grade: `9.5/10`
 - Verified:
   - repeated tab switching stayed stable
   - no relevant console errors or framework overlays
   - page identity and visible structure matched expectations
+  - mobile sheet navigation now has browser smoke coverage for repeated open/close stress and switching between Maker and Generator
 - Remaining focus:
-  - mobile sheet navigation pass
-  - repeated open/close stress on the mobile menu
+  - continue watching small-screen layout density during visual/default polish
 
 ### 2. Template Library and Template Ownership Flow
 
@@ -115,13 +128,14 @@ This gradebook is meant to support a true strengthening pass of current function
   - `src/components/card-forge/TemplateThumbnail.tsx`
   - `src/app/api/templates/route.ts`
   - `src/store/appStore.ts`
-- Current grade: `8.9/10`
+- Current grade: `9.1/10`
 - Verified:
   - file-backed default templates load
   - template selection works in Maker and Generator
   - delete flow is protected by confirmation
+  - Maker template action buttons expose visible `New`, `Clone`, and `Delete` labels plus accessible names/titles
 - Findings:
-  - the template action row in Maker still relies too heavily on unlabeled icon buttons, which weakens discoverability and makes the workflow feel less self-explanatory than it should
+  - template actions are now discoverable enough for launch; future polish can still improve explanatory empty states around default vs user-owned templates
 - Remaining focus:
   - stress test rapid template switching
   - verify clone/save/delete expectations against both default and user templates
@@ -139,7 +153,7 @@ This gradebook is meant to support a true strengthening pass of current function
   - `src/components/card-forge/CardTemplateMaker.tsx`
   - `src/lib/freeformElementRender.ts`
   - `src/features/template-editor/components/LayerTreePanel.tsx`
-- Current grade: `9.3/10`
+- Current grade: `9.5/10`
 - Verified:
   - `Esc` deselection clears selected state and resize handle
   - rapid add/select/hide/lock flow stayed stable
@@ -151,13 +165,19 @@ This gradebook is meant to support a true strengthening pass of current function
   - live drag movement on a grouped parent moved both grouped children with it
   - live parent resize scaled and repositioned grouped children proportionally
   - repeated clicks on an overlapped grouped area cycled from the top child to the group and then to the deeper underlying layer
+  - selected-element resize controls now render in a topmost canvas overlay, so an active lower layer can still be resized when a larger glaze/border/decorative layer sits above it
+  - browser smoke now verifies edge-resizing an overlapped lower element and then depth-cycling back through the stacked layers
+  - rotated selected elements now project pointer movement into the element's local axes during resize, so diagonal/rotated edge drags feel aligned to the object instead of the page grid
+  - tiny selected elements now use explicit edge hit-zone geometry so small runes, icons, pips, and divider handles remain targetable inside dense stacks
+  - browser smoke now verifies resizing a `10 x 10` rotated selected element underneath multiple higher layers
+  - browser smoke now verifies undo/redo after a mixed keyboard move plus edge resize
 - Findings:
   - keyboard movement previously felt too focus-sensitive; the canvas now re-focuses on selection, but this should stay under active regression watch in future passes
   - grouped-parent visibility and re-selection in the layer tree improved with a clearer group badge, but the grouped parent still deserves continued discoverability review under denser real templates
 - Remaining focus:
-  - drag/resize abuse pass
+  - extended real-template abuse pass for very large canvases and mixed rotation angles
   - multi-select/grouping edge cases
-  - undo/redo abuse pass after mixed canvas operations
+  - longer undo/redo bursts after several mixed canvas operations
 
 Required completion criteria for this area:
 
@@ -183,7 +203,7 @@ Required completion criteria for this area:
   - `src/features/template-editor/components/IconInspectorPanel.tsx`
   - `src/features/template-editor/components/ShapeInspectorPanel.tsx`
   - `src/features/template-editor/components/DividerStudioPanel.tsx`
-- Current grade: `9/10`
+- Current grade: `9.3/10`
 - Verified:
   - inspector survives rapid selection changes
   - asset discovery is live and file-backed
@@ -210,7 +230,7 @@ Required completion criteria for this area:
   - `src/lib/textElementContracts.ts`
   - `src/components/card-forge/GeneratorFieldInput.tsx`
   - `src/components/card-forge/GeneratorFieldGroups.tsx`
-- Current grade: `8.7/10`
+- Current grade: `9.4/10`
 - Verified:
   - shared rich-text surfaces are present
   - grouped field model is wired into generator flows
@@ -226,14 +246,27 @@ Required completion criteria for this area:
   - variable rename now commits on `Enter`, not only on blur
   - nested variable creation is now guarded so selecting text that already belongs to a variable does not create another variable inside it
   - unit coverage now proves mixed variable formatting and list-style formatting survive through the shared card text renderer path used by preview/export
+  - browser smoke now covers rich-text parity from seeded generated card -> edit dialog -> single generation -> bulk import -> populated gallery PNG export
+  - browser smoke now covers direct Maker-authored selected text -> scoped inline variable -> toolbar bold/highlight/color -> save -> Single Generator -> generated preview parity
+  - Maker rich-text toolbar now restores the active variable or last non-empty editor selection before applying formatting, preventing focus jumps into the inspector from silently dropping the intended selection
+  - browser smoke now covers direct Maker-authored bullet list toolbar formatting -> save -> Single Generator -> generated preview as real list items
+  - browser smoke now covers direct Maker-authored ordered list toolbar formatting -> save -> Single Generator -> generated preview as real ordered list items
+  - Maker list serialization now converts hard-broken selected lines into separate saved list markers, matching the way users expect multi-line selected text to become a list
+  - text fields now expose conservative capacity feedback based on source text box width, height, font size, line height, and minimum shrink-to-fit size
+  - structured rows now expose row-pressure feedback so one row can show as comfortable while abuse cases such as `30` rows warn that they will likely overflow the text block
+  - generated card previews now measure rendered text block fit from real DOM geometry and show a `Text clipping` badge when content actually overflows after layout
+  - unit coverage defines text capacity estimates for base font size vs shrink-to-fit minimum, including character pressure and structured-row pressure
+  - template contract typography is applied as render-layer CSS instead of nesting extra marker syntax, so bold/italic/color/highlight/list content stays parseable in generated previews and export capture
+  - structured row fields now support template-owned row formatting and between-row rich text, with visual inspector controls for column font, size, weight, color, style, decoration, column divider text, and between-row text
+  - edit-dialog save now preserves non-template card metadata such as `cardName`, keeping exported filenames meaningful after edits
 - Findings:
   - variable rename still feels commit-based rather than truly live while typing, which is acceptable but not the most luxurious editing feel yet
 - Still not fully closed:
-  - full browser parity for highlight/list/color formatting across Maker, Single, Bulk, generated card gallery, and export interactions
   - rushed-editing and mixed-format edge cases in longer rules-style content
+  - export preflight does not yet block or summarize measured clipping before long PDF/ZIP jobs
 - Remaining focus:
-  - full browser parity pass for formatted export output
   - longer multiline rules-text abuse pass
+  - export/download parity for capacity warnings so users know before long PDF/ZIP jobs when text is likely to clip
 
 ### 6. Single Card Entry
 
@@ -254,8 +287,12 @@ Required completion criteria for this area:
   - generator tools are separated into `Single`, `Bulk Import`, and `Export & Sets` task tabs instead of one long mixed-purpose column
   - rich-text backed fields stayed editable through a full create -> generated-card flow
   - double-clicking `Create Generated Card` now adds only one card instead of stamping duplicates into the set
+  - edit/save round trips preserve extra card metadata instead of narrowing data down to template-only fields
+  - Single Generator now supports optional per-card style overrides for non-image fields so users can tune font, size, weight, and color on one generated card without changing the template or bulk defaults
+  - structured row fields now let Single Generator users add, remove, and reorder repeatable row/column content such as exits or options, while Maker controls define the row layout and sub-variable styling without raw token authoring
 - Remaining focus:
   - rush-edit a partially completed card and confirm generated output still reflects the submitted field state
+  - add bulk-specific structured row helpers, such as indexed columns or JSON examples
 
 ### 7. Bulk Card Generation
 
@@ -277,6 +314,13 @@ Required completion criteria for this area:
   - mocked large-batch generation now explicitly covers the `1000` card prerelease floor
   - generated-card selectors now explicitly retain `1000` generated cards without dropping first/last row data
   - browser smoke coverage now seeds `1000` generated cards and verifies the gallery renders in bounded preview batches instead of painting every card at once
+  - bulk smoke now includes rich-text markers, multiline rules blocks, and generated-gallery verification
+  - bulk structured rows now support the documented indexed CSV pattern, such as `Exits[1].Position` and `Exits[1].Description`
+  - example CSV and contract JSON now expose structured-row patterns instead of requiring users to reverse-engineer serialized row JSON
+  - browser smoke now verifies indexed structured-row CSV input through bulk generation into the generated-card preview
+  - live 1000-card bulk import generated a complex structured-row set from CSV with varied row counts of `0`, `1`, `2`, `3`, `5`, `8`, `13`, `21`, and `30` rows
+  - the saved 1000-card set preserved all generated cards and structured row distributions; artifact size was about `2.1 MB`
+  - Preview & Validation now reports the true total parsed CSV rows while clearly stating that only the first preview rows are rendered, which keeps large imports understandable without painting every row
   - bulk contract/help content is visible
   - strict-mode and advanced mapping behavior were already covered by smoke tests
   - malformed CSV rows now surface explicit blocking issues instead of staying actionable deep into the flow
@@ -286,6 +330,7 @@ Required completion criteria for this area:
 - Remaining focus:
   - verify quick-fix and preview states more aggressively
   - run multiline and rich-text heavy bulk samples
+  - extend bulk structured-row examples into downloadable sample fixtures if launch onboarding needs more hand-holding
 
 ### 8. Generated Card Gallery and Edit Flow
 
@@ -382,7 +427,34 @@ Required completion criteria for this area:
     - physical duplex PDF produced `2` pages: one front sheet and one matching back sheet
     - digital PDF produced `1` review/share sheet
   - same-sheet duplex artifact pass produced a `print-same-sheet` PDF with `1` page containing the front/back sheet flow
+  - browser smoke now downloads and inspects a real `pdf-lib` physical PDF:
+    - filename uses the `print-duplex-sheets` mode slug
+    - duplex template produces `2` pages
+    - page geometry remains true US Letter at approximately `612 x 792 pt`
+  - browser smoke now downloads and inspects a real zip.js physical ZIP:
+    - archive filename is `cardforge-physical-print-card-faces.zip`
+    - archive contains distinct `front` and `back` PNG entries
+  - `SaveAsPdfButton.tsx` is now a thin UI wrapper over reusable `pdfExport` and pure `pdfExportLayout` modules
+  - generated-card ZIP export is now behind reusable `zipExport` and pure `zipExportLayout` modules instead of being owned by `src/app/page.tsx`
+  - browser file-download plumbing is centralized in `src/lib/browserDownload.ts`
+  - live 1000-card / 2000-face physical ZIP export completed at `300 DPI` from a complex structured-row set:
+    - output: `cardforge-physical-print-card-faces.zip`
+    - entries: `2000` PNG files, front and back for each card
+    - size: about `579 MB`
+    - duration: about `22m 53s` in browser export
+    - progress UI remained visible and counted faces throughout the job
+  - export polish now preflights large jobs with estimated artifact size, duration class, dimensions, face counts, and missing-back warnings
+  - worker-backed export foundation is implemented:
+    - local job storage under `storage/export-jobs/`
+    - create/status/download/cancel APIs
+    - `npm run export:worker`
+    - Sharp-backed server PNG rendering
+    - zip.js physical ZIP assembly with front/back entries
+    - pdf-lib PDF assembly using existing paper, spacing, cut-line, and duplex layout seams
+  - focused unit coverage verifies worker preflight, job lifecycle, server PNG dimensions, and exact ZIP front/back manifest entries
 - Remaining focus:
+  - run the full worker-backed 1000-card / 2000-face certification and compare timing/file counts/dimensions against the old browser path before calling export launch-complete
+  - compare worker-rendered output against `CardPreview`; the worker renderer is deterministic and server-safe, but still needs rich-text/appearance parity review before it can replace the browser fallback
   - compare preview vs exported output after rich-text deep pass
   - printer-specific duplex flip/imposition rules if production partners require mirrored back placement
   - CMYK/PDF-X conversion remains a documented prepress step outside native browser export
@@ -447,19 +519,29 @@ To avoid losing track, the recommended no-stone-unturned order is:
 - Confirm ZIP export works for generated card sets.
 - Confirm PDF export works for current paper-size options.
 - Confirm duplex templates export both front and back assets when a back face exists.
+- Confirm worker ZIP export processes queued jobs and produces downloadable artifacts.
+- Confirm worker PDF export processes queued jobs and preserves selected paper/duplex settings.
+- Confirm 1000-card / 2000-face worker export meets production-scale acceptance before public launch.
 
-Status: `PASS`
+Status: `PASS FOR CORE APP, BLOCKED FOR PRODUCTION EXPORT CERTIFICATION`
 
 Functional verification snapshot:
 
 - Template editor keyboard flows: `PASS`
 - Layer lock/visibility toggles: `PASS`
+- Mobile navigation stress: `PASS`
+- Mixed canvas transform undo/redo: `PASS`
 - Freeform template creation flow: `PASS`
 - Single-card generation: `PASS`
 - Bulk generator strict-mode and advanced mapping flow: `PASS`
+- Bulk structured-row indexed CSV flow: `PASS`
+- Direct Maker-authored list parity: `PASS`
+- Text/structured-row capacity pressure feedback: `PASS`
 - `/api/styles` one-file-per-style read path: `PASS`
 - `/api/assets` recursive texture/divider discovery: `PASS`
 - Export surfaces present and wired: `PASS`
+- Browser-level PDF/ZIP downloads inspectable as real files: `PASS`
+- Deep launch checkpoint: `PASS` on `lint`, `typecheck`, full unit tests, production build, smoke, and a fresh isolated localhost mount across Maker, Generator, Bulk Import, and Export & Sets with no console/page errors.
 
 ### 2. Code Health
 
