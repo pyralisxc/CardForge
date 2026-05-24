@@ -8,6 +8,7 @@ import {
   buildDeveloperAssetProgramView,
   mapDeveloperAssetSubmissionRow,
   mapDeveloperProgramSettingsRow,
+  normalizeDeveloperAssetSubmissionEditInput,
   normalizeDeveloperAssetSubmissionInput,
 } from '@/lib/developerAssetStore';
 
@@ -100,6 +101,28 @@ describe('developer asset store helpers', () => {
     });
   });
 
+  it('normalizes developer-owned submission edits', () => {
+    expect(normalizeDeveloperAssetSubmissionEditInput({
+      name: '  Moon Sigil v2  ',
+      description: '  brighter export preview  ',
+      previewUrl: '  https://example.test/moon-v2.svg  ',
+    })).toEqual({
+      ok: true,
+      value: {
+        name: 'Moon Sigil v2',
+        description: 'brighter export preview',
+        previewUrl: 'https://example.test/moon-v2.svg',
+      },
+    });
+
+    expect(normalizeDeveloperAssetSubmissionEditInput({
+      description: 'No name',
+    })).toEqual({
+      ok: false,
+      message: 'Asset name is required.',
+    });
+  });
+
   it('maps submission rows with vote counts and current user vote', () => {
     expect(mapDeveloperAssetSubmissionRow({
       id: 'asset-1',
@@ -147,7 +170,7 @@ describe('developer asset store helpers', () => {
     });
   });
 
-  it('builds developer views with monthly stats, remaining submissions, and voting queue', () => {
+  it('builds developer views with monthly stats, remaining submissions, and continuous peer review queue', () => {
     const view = buildDeveloperAssetProgramView({
       configured: true,
       settings,
@@ -156,12 +179,31 @@ describe('developer asset store helpers', () => {
         { id: 'own-1', developerId: 'dev-1', developerEmail: 'dev@example.test', assetType: 'icons', name: 'Mine', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'submitted', calculatedAccessTier: 'developer', ownerAccessTierOverride: null, qualityScore: 0, tierDecisionReason: 'needs_more_votes', positiveVotes: 0, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-01T00:00:00.000Z', updatedAt: '2026-05-01T00:00:00.000Z' },
         { id: 'own-2', developerId: 'dev-1', developerEmail: 'dev@example.test', assetType: 'icons', name: 'Mine Published', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'published', calculatedAccessTier: 'paid', ownerAccessTierOverride: null, qualityScore: 100, tierDecisionReason: 'paid_candidate', positiveVotes: 5, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-02T00:00:00.000Z', updatedAt: '2026-05-02T00:00:00.000Z' },
         { id: 'peer-1', developerId: 'dev-2', developerEmail: 'peer@example.test', assetType: 'textures', name: 'Peer', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'voting', calculatedAccessTier: 'developer', ownerAccessTierOverride: null, qualityScore: 100, tierDecisionReason: 'needs_more_votes', positiveVotes: 1, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-03T00:00:00.000Z', updatedAt: '2026-05-03T00:00:00.000Z' },
+        { id: 'peer-2', developerId: 'dev-2', developerEmail: 'peer@example.test', assetType: 'icons', name: 'Peer Published', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: 'developer-icons-peer-2', status: 'published', calculatedAccessTier: 'free', ownerAccessTierOverride: null, qualityScore: 80, tierDecisionReason: 'free_candidate', positiveVotes: 4, negativeVotes: 1, currentUserVote: 'positive', submittedAt: '2026-05-04T00:00:00.000Z', updatedAt: '2026-05-04T00:00:00.000Z' },
+        { id: 'official-1', developerId: 'cardforge-official', developerEmail: null, assetType: 'dividers', name: 'Official Default', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: 'official-divider', status: 'published', calculatedAccessTier: 'official', ownerAccessTierOverride: null, qualityScore: 0, tierDecisionReason: 'owner_forced_official', positiveVotes: 0, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
+        { id: 'archived-1', developerId: 'dev-2', developerEmail: 'peer@example.test', assetType: 'icons', name: 'Archived', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'archived', calculatedAccessTier: 'hidden', ownerAccessTierOverride: null, qualityScore: 20, tierDecisionReason: 'hidden_status', positiveVotes: 1, negativeVotes: 4, currentUserVote: null, submittedAt: '2026-05-06T00:00:00.000Z', updatedAt: '2026-05-06T00:00:00.000Z' },
       ],
       now: new Date('2026-05-23T00:00:00.000Z'),
     });
 
     expect(view.developerStats).toEqual({ submitted: 2, published: 1, archived: 0, rejected: 0 });
     expect(view.remainingSubmissions).toBe(1);
-    expect(view.votingQueue.map((submission) => submission.id)).toEqual(['peer-1']);
+    expect(view.votingQueue.map((submission) => submission.id)).toEqual(['peer-1', 'peer-2', 'official-1']);
+    expect(view.assetTypeSummaries.find((summary) => summary.assetType === 'icons')).toMatchObject({
+      publishedCount: 2,
+      officialCount: 0,
+      candidateCount: 0,
+      archiveCount: 1,
+    });
+    expect(view.developerContributions.find((contribution) => contribution.developerId === 'dev-1')).toMatchObject({
+      submitted: 2,
+      published: 1,
+      remainingSubmissions: 1,
+      requiredPublished: 2,
+      missingPublished: 1,
+    });
+    expect(view.developerContributions.find((contribution) => contribution.developerId === 'cardforge-official')).toMatchObject({
+      isOwnerDefaultContributor: true,
+    });
   });
 });

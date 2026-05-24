@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MenuIcon } from 'lucide-react';
+import { CheckCircle2, MenuIcon, X } from 'lucide-react';
 
 import { TABS_CONFIG } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -63,6 +63,15 @@ const formatAccessExpiration = (value: string | null) => {
     year: 'numeric',
   }).format(date);
 };
+
+const STUDIO_GUIDE_STORAGE_KEY = 'cardforge-studio-guide-dismissed';
+
+const firstRunSteps = [
+  'Pick or clone a template',
+  'Edit the layout and variables',
+  'Generate one card or import rows',
+  'Export previews or save a project file',
+] as const;
 
 export function CardForgeStudioShell() {
   const { toast } = useToast();
@@ -134,6 +143,11 @@ export function CardForgeStudioShell() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showFirstRunGuide, setShowFirstRunGuide] = useState(() => (
+    typeof window === 'undefined'
+      ? true
+      : window.localStorage.getItem(STUDIO_GUIDE_STORAGE_KEY) !== 'dismissed'
+  ));
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
 
@@ -238,6 +252,11 @@ export function CardForgeStudioShell() {
     setIsMobileMenuOpen(false);
   }, [setActiveTabAction]);
 
+  const handleDismissFirstRunGuide = useCallback(() => {
+    setShowFirstRunGuide(false);
+    window.localStorage.setItem(STUDIO_GUIDE_STORAGE_KEY, 'dismissed');
+  }, []);
+
   const effectiveActiveTab = TABS_CONFIG.some(tab => tab.value === activeTab) ? activeTab : TABS_CONFIG[0].value;
 
   // Comment: Initial selection of template for single card generator (and now bulk generator)
@@ -252,6 +271,40 @@ export function CardForgeStudioShell() {
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
       />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
+        {showFirstRunGuide ? (
+          <section className="mb-4 border border-[#6d4f2b] bg-[#15100a] p-4 no-print md:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">First run path</p>
+                <h1 className="mt-2 font-serif text-2xl font-semibold text-[#fff1c7]">Make one card before tuning everything.</h1>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbb58b]">
+                  CardForge is local-first: design work stays in this browser until you export a project file, card images, or submit an asset for review.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="self-start text-[#c8b07f] hover:bg-[#24180e] hover:text-[#fff3ca]"
+                onClick={handleDismissFirstRunGuide}
+                aria-label="Dismiss first run guide"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="mt-4 grid gap-2 md:grid-cols-4">
+              {firstRunSteps.map((step, index) => (
+                <div key={step} className="flex gap-3 border border-[#4a3823] bg-[#100c08] p-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#e2aa4a]" />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">{String(index + 1).padStart(2, '0')}</p>
+                    <p className="text-sm leading-5 text-[#d8c49a]">{step}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full">
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>

@@ -7,6 +7,7 @@ import {
 } from '@/lib/billing';
 import { isClerkAuthConfigured } from '@/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+import { getPublicAppUrl } from '@/lib/siteUrl';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,7 @@ export async function POST() {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     const primaryEmail = user.emailAddresses[0]?.emailAddress ?? null;
     const session = await stripe.checkout.sessions.create(buildCheckoutSessionParams({
-      appUrl: process.env.NEXT_PUBLIC_APP_URL!,
+      appUrl: getPublicAppUrl(),
       email: primaryEmail,
       priceId: process.env.STRIPE_PRICE_ID!,
       userId: user.id,

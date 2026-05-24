@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { UserButton, useUser } from '@clerk/nextjs';
-import { Hammer, History } from 'lucide-react';
+import { History } from 'lucide-react';
 
+import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
 import { RoadmapPanel } from '@/features/account/components/RoadmapPanel';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 
@@ -32,25 +32,13 @@ export function RoadmapPage({
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
-      <header className="border-b border-[#5f4526] bg-[#120e09]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-          <Link href="/" prefetch={false} className="flex items-center gap-3 text-[#f9e7b7]">
-            <span className="grid h-9 w-9 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d]">
-              <Hammer className="h-4 w-4" />
-            </span>
-            <span className="font-serif text-xl font-semibold">CardForge Studio</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm text-[#dbc79e] md:flex">
-            <Link href="/studio" prefetch={false} className="hover:text-[#fff3ca]">Studio</Link>
-            <Link href="/developer" prefetch={false} className="hover:text-[#fff3ca]">Developer</Link>
-            <Link href="/account" prefetch={false} className="hover:text-[#fff3ca]">Account</Link>
-            {entitlement.ownerAccess.isOwner ? <Link href="/owner" prefetch={false} className="hover:text-[#fff3ca]">Owner</Link> : null}
-          </nav>
-          {entitlement.authConfigured && effectiveSignedIn ? (
-            <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
-          ) : null}
-        </div>
-      </header>
+      <PublicSiteHeader
+        currentPath="/roadmap"
+        showOwnerLink={entitlement.ownerAccess.isOwner}
+        rightSlot={entitlement.authConfigured && effectiveSignedIn ? (
+          <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
+        ) : null}
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6">
         <div className="border border-[#6d4f2b] bg-[#15100a] p-4 md:p-5">
@@ -62,7 +50,7 @@ export function RoadmapPage({
             Vote for the CardForge tools you want next.
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
-            Add compact ideas, vote on what matters, and follow the next milestones without digging through your account page.
+            Add compact ideas, vote on what matters, and follow the next milestones without digging through your account page. Suggestions and votes are shared public beta signals, not private project notes.
           </p>
         </div>
       </section>

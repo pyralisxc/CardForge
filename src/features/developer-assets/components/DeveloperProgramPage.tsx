@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
-import { ArrowRight, CheckCircle2, FileCheck2, Hammer, ShieldCheck, Sparkles, UploadCloud, Vote } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FileCheck2, ShieldCheck, Sparkles, UploadCloud, Vote } from 'lucide-react';
 
+import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeveloperAssetHubPanel } from '@/features/developer-assets/components/DeveloperAssetHubPanel';
@@ -68,30 +68,42 @@ export function DeveloperProgramPage({
     && (entitlement.accessMode === 'dev' || entitlement.ownerAccess.isOwner);
   const developerRequestMailto = useMemo(() => createDeveloperRequestMailto(accountEmail), [accountEmail]);
 
+  if (!isDeveloper) {
+    return (
+      <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+        {entitlement.authConfigured ? (
+          <ClerkIdentityBridge onChange={setClerkIdentity} />
+        ) : null}
+        <PublicSiteHeader
+          currentPath="/developer"
+          showOwnerLink={entitlement.ownerAccess.isOwner}
+          rightSlot={entitlement.authConfigured && effectiveSignedIn ? (
+            <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
+          ) : null}
+        />
+
+        <PublicDeveloperRecruitment
+          accountEmail={accountEmail}
+          authConfigured={entitlement.authConfigured}
+          developerRequestMailto={developerRequestMailto}
+          isSignedIn={effectiveSignedIn}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
-      <header className="border-b border-[#5f4526] bg-[#120e09]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-          <Link href="/" prefetch={false} className="flex items-center gap-3 text-[#f9e7b7]">
-            <span className="grid h-9 w-9 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d]">
-              <Hammer className="h-4 w-4" />
-            </span>
-            <span className="font-serif text-xl font-semibold">CardForge Studio</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm text-[#dbc79e] md:flex">
-            <Link href="/studio" prefetch={false} className="hover:text-[#fff3ca]">Studio</Link>
-            <Link href="/roadmap" prefetch={false} className="hover:text-[#fff3ca]">Roadmap</Link>
-            <Link href="/account" prefetch={false} className="hover:text-[#fff3ca]">Account</Link>
-            {entitlement.ownerAccess.isOwner ? <Link href="/owner" prefetch={false} className="hover:text-[#fff3ca]">Owner</Link> : null}
-          </nav>
-          {entitlement.authConfigured && effectiveSignedIn ? (
-            <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
-          ) : null}
-        </div>
-      </header>
+      <PublicSiteHeader
+        currentPath="/developer"
+        showOwnerLink={entitlement.ownerAccess.isOwner}
+        rightSlot={entitlement.authConfigured && effectiveSignedIn ? (
+          <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
+        ) : null}
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6">
         <div className="border border-[#6d4f2b] bg-[#15100a] p-4 md:p-5">
@@ -235,6 +247,97 @@ function ClerkIdentityBridge({
   }, [isLoaded, isSignedIn, onChange, user?.primaryEmailAddress?.emailAddress]);
 
   return null;
+}
+
+function PublicDeveloperRecruitment({
+  accountEmail,
+  authConfigured,
+  developerRequestMailto,
+  isSignedIn,
+}: {
+  accountEmail: string | null;
+  authConfigured: boolean;
+  developerRequestMailto: string;
+  isSignedIn: boolean;
+}) {
+  return (
+    <section className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="border border-[#6d4f2b] bg-[#15100a] p-5 md:p-7">
+          <div className="flex items-center gap-3 text-[#e2aa4a]">
+            <Sparkles className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Developer recruitment</span>
+          </div>
+          <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-[#fff1c7] md:text-5xl">
+            Become a CardForge developer.
+          </h1>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
+            Help shape the shared CardForge library by contributing templates, frame parts, icons, dividers, textures, and element presets. Approved developers get a private asset hub for submissions, continuous voting, and pipeline status.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            {!authConfigured ? (
+              <Button disabled className="border-[#755632] bg-transparent text-[#bea97f]" variant="outline">
+                Clerk setup incomplete
+              </Button>
+            ) : !isSignedIn ? (
+              <>
+                <SignInButton mode="modal">
+                  <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">Sign in first</Button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <Button variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">Create account</Button>
+                </SignUpButton>
+              </>
+            ) : (
+              <Button asChild className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                <a href={developerRequestMailto}>
+                  Request developer access <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <aside className="border border-[#5f4526] bg-[#100c08] p-4">
+          <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Current account</p>
+          <p className="mt-2 break-words text-sm text-[#ffe7ad]">{accountEmail ?? 'No signed-in account'}</p>
+          <p className="mt-2 text-xs leading-5 text-[#c7b288]">
+            Participation is approval-gated so the shared library stays curated. Normal users can still upload local art inside their own browser workspace.
+          </p>
+        </aside>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        {developerSteps.map((step, index) => (
+          <article key={step.title} className="border border-[#5f4526] bg-[#15100a] p-4">
+            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{String(index + 1).padStart(2, '0')}</span>
+            <h2 className="mt-2 font-serif text-lg text-[#fff1c7]">{step.title}</h2>
+            <p className="mt-2 text-sm leading-5 text-[#c7b288]">{step.copy}</p>
+          </article>
+        ))}
+      </div>
+
+      <section className="mt-5 border border-[#5f4526] bg-[#15100a] p-5">
+        <div className="flex items-center gap-3 text-[#e2aa4a]">
+          <Vote className="h-5 w-5" />
+          <h2 className="font-serif text-2xl text-[#fff1c7]">What approved developers do</h2>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {[
+            'Submit useful source assets into the shared CardForge review pipeline.',
+            'Vote continuously on uploaded, published, and official default assets until they land in archive.',
+            'Keep local personal uploads separate from site-library candidates.',
+            'Help decide which assets belong in Starter Library, Creator Pass, or official defaults.',
+          ].map((standard) => (
+            <div key={standard} className="flex gap-3 border border-[#4a3823] bg-[#100c08] p-3">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#8be0a4]" />
+              <p className="text-sm leading-5 text-[#d8c49a]">{standard}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </section>
+  );
 }
 
 function LockedDeveloperPanel() {

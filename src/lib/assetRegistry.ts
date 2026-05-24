@@ -23,9 +23,10 @@ const ICON_METADATA_DIR = path.join(ASSET_METADATA_DIR, 'icons');
 const IMAGE_METADATA_DIR = path.join(ASSET_METADATA_DIR, 'images');
 const ALLOWED_ASSET_EXTENSIONS = new Set(['.svg', '.png', '.jpg', '.jpeg', '.webp']);
 
-type RegistryAssetKind = 'texture' | 'divider' | 'part' | 'icon' | 'image';
+type RegistryAssetKind = CardAssetOption['kind'];
+type FileBackedRegistryAssetKind = Extract<RegistryAssetKind, 'texture' | 'divider' | 'part' | 'icon' | 'image'>;
 
-type AssetRegistryRow = {
+export type AssetRegistryRow = {
   asset_id: string;
   name: string;
   asset_type: string;
@@ -43,6 +44,8 @@ export interface AssetRegistryPayload {
   parts: CardAssetOption[];
   icons: CardAssetOption[];
   imageAssets: CardAssetOption[];
+  templates: CardAssetOption[];
+  elementPresets: CardAssetOption[];
   registry: {
     configured: boolean;
     source: 'database' | 'shipped-files';
@@ -51,7 +54,21 @@ export interface AssetRegistryPayload {
 }
 
 const isRegistryAssetKind = (value: unknown): value is RegistryAssetKind =>
-  value === 'texture' || value === 'divider' || value === 'part' || value === 'icon' || value === 'image';
+  value === 'texture'
+  || value === 'divider'
+  || value === 'part'
+  || value === 'icon'
+  || value === 'image'
+  || value === 'template'
+  || value === 'elementPreset';
+
+const registryAssetFolderByKind: Record<FileBackedRegistryAssetKind, string> = {
+  texture: 'textures',
+  divider: 'dividers',
+  part: 'parts',
+  icon: 'icons',
+  image: 'images',
+};
 
 const walkAssetFiles = async (directory: string, baseDirectory: string): Promise<string[]> => {
   try {
@@ -107,7 +124,7 @@ const readMetadataOverride = async (
 const discoverFileBackedAssets = async (
   assetDirectory: string,
   metadataDirectory: string,
-  kind: RegistryAssetKind,
+  kind: FileBackedRegistryAssetKind,
 ): Promise<CardAssetOption[]> => {
   const relativePaths = await walkAssetFiles(assetDirectory, assetDirectory);
   const assets = await Promise.all(relativePaths.map(async (relativePath) => {
@@ -116,7 +133,7 @@ const discoverFileBackedAssets = async (
     const stats = await fs.stat(path.join(assetDirectory, relativePath)).catch(() => null);
     return {
       ...buildDiscoveredCardAsset({
-        url: `/card-assets/${kind === 'texture' ? 'textures' : kind === 'divider' ? 'dividers' : 'parts'}/${normalizedRelativePath}`,
+        url: `/card-assets/${registryAssetFolderByKind[kind]}/${normalizedRelativePath}`,
         kind,
         relativePath: normalizedRelativePath,
         metadata,
@@ -146,6 +163,8 @@ const getFileBackedAssetRegistry = async (): Promise<AssetRegistryPayload> => {
     parts,
     icons,
     imageAssets,
+    templates: [],
+    elementPresets: [],
     registry: {
       configured: false,
       source: 'shipped-files',
@@ -156,7 +175,7 @@ const getFileBackedAssetRegistry = async (): Promise<AssetRegistryPayload> => {
 
 const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null => {
   if (!isRegistryAssetKind(row.asset_type)) return null;
-  const parsedMetadata = cardAssetMetadataOverrideSchema.safeParse(row.metadata ?? {});
+  const parsedMetadata = cardAssetMetadataOverrideSchema.passthrough().safeParse(row.metadata ?? {});
   const metadata = parsedMetadata.success ? parsedMetadata.data : undefined;
   const asset = buildDiscoveredCardAsset({
     url: row.url,
@@ -175,7 +194,11 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
       ? 'icon'
       : row.asset_type === 'image'
         ? 'image'
-        : asset.kind,
+        : row.asset_type === 'template'
+          ? 'template'
+          : row.asset_type === 'elementPreset'
+            ? 'elementPreset'
+            : asset.kind,
     librarySource: row.library_source === 'developer' ? 'developer' : 'official',
     accessTier: row.access_tier === 'paid'
       ? 'paid'
@@ -198,6 +221,32 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
   };
 };
 
+export const mapAssetRegistryRowsToPayload = (
+  rows: AssetRegistryRow[],
+  configured = true,
+): AssetRegistryPayload | null => {
+  const assets = rows
+    .map((row) => mapRegistryRowToAsset(row))
+    .filter((asset): asset is CardAssetOption => Boolean(asset));
+
+  if (assets.length === 0) return null;
+
+  return {
+    textures: assets.filter((asset) => asset.kind === 'texture'),
+    dividers: assets.filter((asset) => asset.kind === 'divider'),
+    parts: assets.filter((asset) => asset.kind === 'part'),
+    icons: assets.filter((asset) => asset.kind === 'icon'),
+    imageAssets: assets.filter((asset) => asset.kind === 'image'),
+    templates: assets.filter((asset) => asset.kind === 'template'),
+    elementPresets: assets.filter((asset) => asset.kind === 'elementPreset'),
+    registry: {
+      configured,
+      source: 'database',
+      total: assets.length,
+    },
+  };
+};
+
 const getDatabaseAssetRegistry = async (): Promise<AssetRegistryPayload | null> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return null;
@@ -217,24 +266,7 @@ const getDatabaseAssetRegistry = async (): Promise<AssetRegistryPayload | null> 
     return null;
   }
 
-  const assets = (data ?? [])
-    .map((row) => mapRegistryRowToAsset(row as AssetRegistryRow))
-    .filter((asset): asset is CardAssetOption => Boolean(asset));
-
-  if (assets.length === 0) return null;
-
-  return {
-    textures: assets.filter((asset) => asset.kind === 'texture'),
-    dividers: assets.filter((asset) => asset.kind === 'divider'),
-    parts: assets.filter((asset) => asset.kind === 'part'),
-    icons: assets.filter((asset) => asset.kind === 'icon'),
-    imageAssets: assets.filter((asset) => asset.kind === 'image'),
-    registry: {
-      configured: true,
-      source: 'database',
-      total: assets.length,
-    },
-  };
+  return mapAssetRegistryRowsToPayload((data ?? []) as AssetRegistryRow[]);
 };
 
 export const getAssetRegistryPayload = async (): Promise<AssetRegistryPayload> => {

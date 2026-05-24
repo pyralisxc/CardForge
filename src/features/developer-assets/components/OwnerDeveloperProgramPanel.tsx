@@ -66,6 +66,11 @@ const formatBytes = (value: number): string => {
   return `${amount >= 10 || exponent === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[exponent]}`;
 };
 
+const getContributorLabel = (developerId: string, developerEmail: string | null) => {
+  if (developerId === 'cardforge-official') return 'CardForge Owner';
+  return developerEmail ?? developerId;
+};
+
 export function OwnerDeveloperProgramPanel() {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
@@ -188,6 +193,7 @@ export function OwnerDeveloperProgramPanel() {
   }
 
   const storageForecast = estimateDeveloperAssetStorage(settings, program.activeDeveloperCount);
+  const overCapSummaries = program.assetTypeSummaries.filter((summary) => summary.overPublishCapBy > 0);
 
   return (
     <TooltipProvider>
@@ -197,27 +203,28 @@ export function OwnerDeveloperProgramPanel() {
         <h2 className="font-serif text-2xl text-[#fff1c7]">Developer asset program</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-        Control developer slots, monthly contribution rules, vote thresholds, tier visibility, archive visibility, and per-type caps before financial launch.
+        Control developer slots, monthly contribution rules, vote thresholds, tier visibility, archive visibility, and per-type caps before financial launch. Current site defaults are owner-contributed official assets: they stay live until the owner archives or hides them, while developer votes keep adding quality signal.
       </p>
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
         <DecisionCard label="Program status" body={program.configured ? 'Supabase developer tables are connected and accepting submissions.' : 'Developer tables are not configured yet.'} />
         <DecisionCard label="Submissions" body={`${program.submissions.length} total developer asset submission${program.submissions.length === 1 ? '' : 's'} in the review system.`} />
-        <DecisionCard label="Voting queue" body={`${program.votingQueue.length} asset${program.votingQueue.length === 1 ? '' : 's'} currently need peer review.`} />
+        <DecisionCard label="Review queue" body={`${program.votingQueue.length} active asset${program.votingQueue.length === 1 ? '' : 's'} remain open for developer voting until archived or rejected.`} />
         <DecisionCard label="Active developers" body={`${program.activeDeveloperCount} active developer${program.activeDeveloperCount === 1 ? '' : 's'} currently count toward voting presets.`} />
-        <DecisionCard label="Asset registry" body="Official shipped assets are visible without votes; developer assets publish into the same registry after approval." />
+        <DecisionCard label="Default policy" body="Owner defaults are protected by Official visibility. Clear that override or archive/hide a default when votes show it should leave the live library." />
+        <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; candidates wait until room opens.`} />
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-serif text-xl text-[#fff1c7]">Roster and contribution rules</h3>
+            <h3 className="font-serif text-xl text-[#fff1c7]">Monthly developer contract</h3>
             <FieldHelp text="These controls define who can participate, how often developers can upload, and the monthly contribution expectation before payments launch." />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <NumberField label="Max developers" help="Total active developer slots in the curated program." value={settings.maxActiveDevelopers} onChange={(value) => setSettings({ ...settings, maxActiveDevelopers: value })} />
-            <NumberField label="Monthly uploads" help="Maximum site-submitted assets one developer can upload each month." value={settings.monthlySubmissionLimit} onChange={(value) => setSettings({ ...settings, monthlySubmissionLimit: value })} />
-            <NumberField label="Monthly published goal" help="Minimum monthly published assets expected from an active developer." value={settings.monthlyPublishedRequirement} onChange={(value) => setSettings({ ...settings, monthlyPublishedRequirement: value })} />
+            <NumberField label="Submission allowance" help="Maximum site-submitted assets one developer can upload each calendar month. Submissions left is calculated from this." value={settings.monthlySubmissionLimit} onChange={(value) => setSettings({ ...settings, monthlySubmissionLimit: value })} />
+            <NumberField label="Required published" help="Minimum published assets expected from each active developer per calendar month." value={settings.monthlyPublishedRequirement} onChange={(value) => setSettings({ ...settings, monthlyPublishedRequirement: value })} />
             <NumberField label="Creator pool %" help="Reserved profit-share pool placeholder for financial launch accounting." value={settings.profitSharePoolPercent} onChange={(value) => setSettings({ ...settings, profitSharePoolPercent: value })} />
           </div>
         </div>
@@ -349,6 +356,70 @@ export function OwnerDeveloperProgramPanel() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+        <div className="border border-[#5f4526] bg-[#100c08] p-4">
+          <h3 className="font-serif text-xl text-[#fff1c7]">Published cap pressure</h3>
+          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+            Caps control future graduation and expose over-cap pressure. Reducing a cap does not silently archive live owner defaults; archive or hide assets intentionally from the review queue.
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[42rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-[#5f4526] text-left text-xs uppercase tracking-[0.14em] text-[#a98a55]">
+                  <th className="py-3 pr-3 font-medium">Asset type</th>
+                  <th className="px-3 py-3 font-medium">Live</th>
+                  <th className="px-3 py-3 font-medium">Cap</th>
+                  <th className="px-3 py-3 font-medium">Open</th>
+                  <th className="px-3 py-3 font-medium">Candidates</th>
+                  <th className="px-3 py-3 font-medium">Archive</th>
+                </tr>
+              </thead>
+              <tbody>
+                {program.assetTypeSummaries.map((summary) => (
+                  <tr key={summary.assetType} className="border-b border-[#342719] last:border-b-0">
+                    <td className="py-3 pr-3 text-[#ffe7ad]">{assetTypeLabels[summary.assetType]}</td>
+                    <td className="px-3 py-3 text-[#c7b288]">{summary.publishedCount} live / {summary.officialCount} owner</td>
+                    <td className="px-3 py-3 text-[#c7b288]">{summary.publishCap}</td>
+                    <td className={`px-3 py-3 ${summary.overPublishCapBy > 0 ? 'text-[#ffd0c6]' : 'text-[#bde3a8]'}`}>
+                      {summary.overPublishCapBy > 0 ? `${summary.overPublishCapBy} over` : `${summary.openPublishSlots} open`}
+                    </td>
+                    <td className="px-3 py-3 text-[#c7b288]">{summary.candidateCount}</td>
+                    <td className="px-3 py-3 text-[#c7b288]">{summary.archiveCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="border border-[#5f4526] bg-[#100c08] p-4">
+          <h3 className="font-serif text-xl text-[#fff1c7]">Developer monthly ledger</h3>
+          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+            Submission allowance and required published counts are owner-set above; remaining and missing counts are calculated per contributor.
+          </p>
+          <div className="mt-4 space-y-2">
+            {program.developerContributions.map((contribution) => (
+              <div key={contribution.developerId} className="border border-[#3c2c1b] bg-[#15100a] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium text-[#ffe7ad]">{getContributorLabel(contribution.developerId, contribution.developerEmail)}</p>
+                  {contribution.isOwnerDefaultContributor ? (
+                    <span className="border border-[#d8b365] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#ffe7ad]">Owner defaults</span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[#c7b288]">
+                  {contribution.submitted} submitted / {contribution.remainingSubmissions} left - {contribution.published} published / {contribution.requiredPublished} required
+                </p>
+                {contribution.missingPublished > 0 ? (
+                  <p className="mt-1 text-xs text-[#f0bd75]">{contribution.missingPublished} more published asset{contribution.missingPublished === 1 ? '' : 's'} needed this month.</p>
+                ) : (
+                  <p className="mt-1 text-xs text-[#bde3a8]">Monthly published requirement met.</p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

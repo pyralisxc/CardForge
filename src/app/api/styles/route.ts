@@ -10,6 +10,10 @@ import {
 } from '@/lib/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { canCurrentAccountWriteShippedLibrary } from '@/lib/serverProjectAccess';
+import {
+  getPublishedRegistryContentRows,
+  readRegistryContentAsset,
+} from '@/lib/registryContentAssets';
 
 const STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
 const STYLE_FILE_EXTENSION = '.json';
@@ -65,7 +69,37 @@ const readLibrary = async (): Promise<AppearanceStyleLibrary> => {
     }
   }
 
-  return { version: 1, styles: styles.sort((a, b) => a.name.localeCompare(b.name)) };
+  const registryStyles = await readStylesFromRegistry();
+  const stylesById = new Map<string, AppearanceStylePreset>();
+  styles.forEach((style) => stylesById.set(style.id, style));
+  registryStyles.forEach((style) => stylesById.set(style.id, style));
+
+  return {
+    version: 1,
+    styles: Array.from(stylesById.values()).sort((a, b) => a.name.localeCompare(b.name)),
+  };
+};
+
+const readStylesFromRegistry = async (): Promise<AppearanceStylePreset[]> => {
+  const rows = await getPublishedRegistryContentRows('elementPreset');
+  if (rows.length === 0) return [];
+
+  const styles = await Promise.all(rows.map(async (row) => {
+    const style = await readRegistryContentAsset<AppearanceStylePreset>(
+      row,
+      ['style', 'elementPreset', 'payload'],
+      isStylePreset,
+    );
+
+    if (!style) return null;
+    return {
+      ...style,
+      id: style.id || row.asset_id,
+      name: style.name || row.name,
+    };
+  }));
+
+  return styles.filter((style): style is AppearanceStylePreset => Boolean(style));
 };
 
 export async function GET() {

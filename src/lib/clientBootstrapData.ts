@@ -9,6 +9,8 @@ type AssetsPayload = {
   parts?: CardAssetOption[];
   icons?: CardAssetOption[];
   imageAssets?: CardAssetOption[];
+  templates?: CardAssetOption[];
+  elementPresets?: CardAssetOption[];
   registry?: {
     configured: boolean;
     source: 'database' | 'shipped-files';

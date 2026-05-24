@@ -26,6 +26,7 @@ Release can proceed only after the team resolves or formally accepts:
 - `2` moderate production `npm audit --omit=dev` findings through `next -> postcss`
 - the currently large dirty worktree, including untracked feature directories, asset scaffolds, docs, and tests
 - the Stripe webhook or billing-owned entitlement store for production paid-account activation
+- production `NEXT_PUBLIC_APP_URL` points at the deployed app/custom domain, not Supabase
 
 Release should pause if:
 - policy requires zero known audit findings
@@ -45,6 +46,7 @@ These checks passed after the launch-readiness consolidation pass:
 - API bootstrap/account/billing failures now use no-store JSON error envelopes with correlation ids
 - tracked local-only user template JSON and the empty `.modified` marker were removed from the release tree
 - `/` now renders the public CardForge landing page, `/studio` renders the maker/generator workspace, `/account` renders profile/export/dev-tool status, and `/profile` renders Clerk-backed profile management
+- canonical app URL resolution now rejects Supabase project hosts and falls back to Vercel deployment URLs for metadata, robots/sitemap, and Stripe return URLs
 
 Current production build snapshot:
 
@@ -587,9 +589,14 @@ Current finding:
 - Publish Total is derived from Starter plus Creator Pass caps so owners cannot create conflicting per-type library limits.
 - Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe should later own real coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks.
 - `/api/assets` now exposes one asset registry payload. Before the online registry migration is applied it falls back to shipped files; after `202605230002_asset_registry.sql` is applied it reads `cardforge_asset_registry`.
-- Official shipped textures and dividers are seeded as `published` and `official`, so they remain visible in the app without developer votes.
+- Official shipped textures, dividers, templates, and element presets are seeded as `published` and `official`, so they remain visible in the app. After the official-review/content seed migrations, they also have developer review records so approved developers can keep voting on defaults.
 - `202605230003_asset_registry_all_creation_assets.sql` expands the registry to all reusable creation asset classes: textures, dividers, parts, icons, images, templates, and element presets.
 - `202605230004_developer_asset_upload_bridge.sql` adds the public `cardforge-developer-assets` storage bucket and source-file metadata columns that let approved developer submissions publish into the same live registry.
+- `202605240001_official_asset_review_submissions.sql` backfills official registry assets into `cardforge_developer_asset_submissions` and links them back to the registry, making default assets part of the continuous developer voting surface.
+- `202605240002_official_layout_registry_content.sql` backfills official templates and element presets into `cardforge_asset_registry` with embedded JSON payloads, then links those records into developer submissions so Layout Studio defaults are also database-backed and voteable.
+- The developer Asset Hub review queue is split into Site Defaults, Candidate Uploads, and Archive, with filtering, paging, expanded previews, archive voting, and uploader edits for unpublished/non-rejected submissions.
+- Owner Developer Program now exposes cap pressure by asset type and a developer monthly ledger. Owners set the per-developer submission allowance and required published count; the app calculates submissions left and missing published work per contributor.
+- Cap changes are intentionally non-destructive: lowering a cap blocks future graduation and shows over-cap pressure, but current owner defaults stay published until the owner archives, hides, or clears the Official override.
 - Owner Developer Program now includes voting presets for solo owner testing, current roster review, launch roster review, and full council review.
 - Owner Developer Program now includes a storage forecast based on publish caps, one month of possible voting submissions, and visible archive capacity.
 - Owner Launch Readiness now includes database footprint metrics after the asset-registry migration function is applied.
@@ -602,10 +609,14 @@ Recommended handling:
 - run `supabase/migrations/202605230002_asset_registry.sql` before treating the database registry and owner footprint metrics as the online source of truth
 - run `supabase/migrations/202605230003_asset_registry_all_creation_assets.sql` before submitting icons, images, templates, or element presets into the registry
 - run `supabase/migrations/202605230004_developer_asset_upload_bridge.sql` before testing developer file uploads or owner publish-to-library actions
+- run `supabase/migrations/202605240001_official_asset_review_submissions.sql` before expecting approved developers to vote on official default assets
+- run `supabase/migrations/202605240002_official_layout_registry_content.sql` before expecting official templates and element presets to load from the registry-backed asset pipeline
 - rerun `supabase/migrations/202605220003_owner_console.sql` or apply its `cardforge_owner_settings` `alter table ... add column if not exists` block before testing Site Mechanics
 - confirm owner settings in `/owner` before inviting developers
 - verify the owner account sees Library Command, the developer account sees Forge Review, paid accounts see Creator Pass Library, and free users see Starter Library messaging
-- verify `/api/assets` reports `registry.source = "database"` after the asset registry migration is applied
+- verify `/api/assets` includes the expected official registry counts: 18 textures, 12 dividers, 6 templates, and 10 element presets after all official seed migrations are applied
+- verify the developer review queue includes active/published official default assets, separates candidate uploads from current defaults and archive, and keeps defaults/archive assets voteable until rejected or owner-hidden
+- verify Owner Developer Program shows cap pressure, owner default counts, per-developer submissions left, and required published progress
 - verify the owner can complete an official roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
 - verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
 - verify a developer can upload an SVG/PNG/JPG/WEBP/JSON source file, submit it to voting, and have an owner-published submission appear through `/api/assets`
@@ -643,3 +654,4 @@ After release, track these items:
 3. Revisit `makerConstants.tsx` if another maintainability pass is scheduled.
 4. Continue with optional UX polish and bundle micro-optimizations only if they do not destabilize the app.
 5. Restart any already-running local `next dev` server after `npm run build`; production builds rewrite `.next`, and a stale dev server can throw missing chunk errors until restarted.
+6. Before demos, confirm `localhost:9002` is served by `npm run dev`, not `npm run start` / `next start`; a stale production server on the dev port can serve old chunks and unstyled pages.

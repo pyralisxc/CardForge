@@ -190,6 +190,8 @@ STRIPE_PRICE_ID=price_...
 NEXT_PUBLIC_APP_URL=https://your-dev-or-production-domain.example
 ```
 
+For the current Vercel preview/production deployment, set `NEXT_PUBLIC_APP_URL` to `https://card-forge-snowy.vercel.app` or your final custom domain. Do not set it to the Supabase project URL; CardForge uses the app URL for metadata, `robots.txt`, `sitemap.xml`, and Stripe return URLs. Hosted Vercel builds can fall back to Vercel's deployment URL if this value is missing or accidentally points at Supabase.
+
 Stripe hosted Checkout can display Apple Pay and Google Pay when wallet payment methods are enabled in Stripe, the app is served over HTTPS, the domain is registered as required by Stripe, and the customer's browser/device has a supported wallet configured.
 
 Template library writes are disabled by default for hosted-style runs. To test server-side template save/delete locally, sign in with dev access or use local fallback dev access, then set:
@@ -356,5 +358,6 @@ You can point `--template` to any shipped default in `data/default-templates` or
 | `node: command not found` | Install Node.js from https://nodejs.org and restart your terminal |
 | `npm install` fails with engine errors | Your Node version is too old - run `nvm use` or reinstall Node 20+ |
 | `npm run dev` cannot find Node | Install Node.js from the Windows installer so `C:\Program Files\nodejs\node.exe` exists, or update the package scripts to your Node path |
-| Port 9002 already in use | Kill the process using that port, or edit `package.json` `dev` script to use a different port |
+| Port 9002 already in use | Stop the process using that port before starting a new dev server. On Windows, `Get-NetTCPConnection -LocalPort 9002` shows the owning process id. |
 | Blank page after `npm run dev` | Open the browser console and terminal output; most likely a missing env var or build error |
+| Missing CSS, stale chunks, or `ChunkLoadError` on `localhost:9002` | Confirm `localhost:9002` is running `npm run dev`, not an old `npm run start` / `next start` production server. Stop the stale process, then restart `npm run dev`. |

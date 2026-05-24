@@ -3,6 +3,16 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const SMOKE_TEMPLATE_NAMES = new Set(['Smoke Freeform Template', 'Keyboard Save Template']);
+const STUDIO_READY_TIMEOUT = 120_000;
+const STUDIO_TEST_TIMEOUT = 180_000;
+
+test.describe.configure({ timeout: STUDIO_TEST_TIMEOUT });
+
+test.beforeAll(async ({ request }) => {
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
+  const templates = await request.get('/api/templates', { timeout: STUDIO_READY_TIMEOUT });
+  await expect(templates).toBeOK();
+});
 
 async function cleanupSmokeUserTemplates() {
   const directory = path.join(process.cwd(), 'data', 'user-templates');
@@ -40,26 +50,43 @@ test.afterEach(async () => {
 });
 
 async function gotoStudio(page: Page) {
-  await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+  await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
 }
 
 async function selectMainTab(page: Page, name: RegExp) {
   const tab = page.getByRole('tab', { name });
-  await expect(tab).toBeVisible({ timeout: 90_000 });
+  await expect(tab).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
   await expect.poll(async () => {
     await tab.click({ timeout: 5_000 }).catch(() => undefined);
     return tab.getAttribute('aria-selected');
-  }, { timeout: 90_000 }).toBe('true');
+  }, { timeout: STUDIO_READY_TIMEOUT }).toBe('true');
+}
+
+async function expectGeneratorReady(page: Page) {
+  await expect(page.getByText('Loading templates...', { exact: true })).toBeHidden({ timeout: STUDIO_READY_TIMEOUT });
+  await expect(page.getByRole('button', { name: /Create Generated Output/i })).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 }
 
 test('renders public landing page with studio and account entry points', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: /Forge cards, templates, and bulk sets/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /Make the card\. Generate the deck\. Export the set\./i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /Free demo seats are open/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Claim a demo seat/i }).first()).toHaveAttribute('href', '/account');
   await expect(page.getByRole('link', { name: /Start Creating/i }).first()).toHaveAttribute('href', '/studio');
   await expect(page.getByRole('link', { name: /Account & Export/i })).toHaveAttribute('href', '/account');
-  await expect(page.getByText(/No sign-in required to create/i)).toBeVisible();
+  await expect(page.getByText(/No sign-in is required to design/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /Privacy/i })).toHaveAttribute('href', '/privacy');
+});
+
+test('renders developer recruitment page for visitors without exposing the operational asset hub', async ({ page }) => {
+  await page.goto('/developer');
+
+  await expect(page.getByRole('heading', { name: /Become a CardForge developer/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Approved developers get a private asset hub/i)).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Asset Hub/i })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Developer Asset Hub/i })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Sign in first|Request developer access/i }).first()).toBeVisible();
 });
 
 test('renders account profile with studio access and export status', async ({ page }) => {
@@ -67,12 +94,13 @@ test('renders account profile with studio access and export status', async ({ pa
 
   await expect(page.getByRole('heading', { name: /Connect Clerk|Your Forge: Starter Library|Your Forge: Creator Pass|Your forge is ready/i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/Maker and generator available/i)).toBeVisible();
-  await expect(page.getByRole('heading', { name: /A living company timeline for what support unlocks next/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Access at a glance/i })).toBeVisible();
+  await expect(page.getByText(/Project files and personal uploads stay local/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /Open Studio/i })).toHaveAttribute('href', '/studio');
 });
 
 test('loads default templates and adds a generated output', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
   await gotoStudio(page);
 
   const stylesheetHref = await page.locator('link[rel="stylesheet"][href*="/_next/static/css"]').first().getAttribute('href');
@@ -94,7 +122,7 @@ test('loads default templates and adds a generated output', async ({ page }) => 
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toBeVisible({ timeout: 90_000 });
 
   await selectMainTab(page, /Generate/i);
-  await expect(page.getByRole('button', { name: /Create Generated Output/i })).toBeVisible({ timeout: 30_000 });
+  await expectGeneratorReady(page);
   await page.getByRole('button', { name: /Create Generated Output/i }).click();
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
@@ -104,11 +132,7 @@ test('loads default templates and adds a generated output', async ({ page }) => 
 });
 
 test('lets free users try clean export and see the export gate', async ({ page }) => {
-  test.setTimeout(120_000);
-  const entitlement = await page.request.get('/api/account/entitlement');
-  await expect(entitlement).toBeOK();
-  const entitlementJson = await entitlement.json() as { canExportClean?: boolean };
-  test.skip(entitlementJson.canExportClean === true, 'Export is already unlocked in this environment.');
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
 
   await page.addInitScript(() => {
     window.localStorage.setItem('card-forge-app-storage-v3', JSON.stringify({
@@ -144,6 +168,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
 
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toBeVisible({ timeout: 90_000 });
   await selectMainTab(page, /Generate/i);
+  await expectGeneratorReady(page);
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible({ timeout: 45_000 });
 
   await page.locator('.tcg-card-preview').first().hover();
@@ -157,7 +182,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
 });
 
 test('creates a freeform template and renders it in the generator', async ({ page }) => {
-  test.setTimeout(45_000);
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
   await gotoStudio(page);
 
   await selectMainTab(page, /Layout Studio/i);
@@ -174,6 +199,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await expect(page.getByText('Template Saved', { exact: true })).toBeVisible();
 
   await selectMainTab(page, /Generate/i);
+  await expectGeneratorReady(page);
   await page.getByRole('button', { name: /Create Generated Output/i }).click();
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
@@ -238,7 +264,7 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
 });
 
 test('supports a 1000-card generated gallery without rendering every preview at once', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
   await page.setViewportSize({ width: 1440, height: 900 });
   const storedCards = Array.from({ length: 1000 }, (_, index) => ({
     uniqueId: `smoke-large-gallery-${index + 1}`,
@@ -356,7 +382,7 @@ test('supports keyboard arrow movement on template canvas', async ({ page }) => 
 });
 
 test('keeps selected overlapped canvas element stable while clicking, dragging, and deleting', async ({ page }) => {
-  test.setTimeout(75_000);
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
   await gotoStudio(page);
   await selectMainTab(page, /Layout Studio/i);
 

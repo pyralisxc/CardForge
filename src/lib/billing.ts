@@ -1,7 +1,14 @@
 import type Stripe from 'stripe';
 
+import { getConfiguredPublicAppUrl } from '@/lib/siteUrl';
+
 type BillingEnvironment = Partial<Record<
-  'STRIPE_SECRET_KEY' | 'STRIPE_PRICE_ID' | 'STRIPE_WEBHOOK_SECRET' | 'NEXT_PUBLIC_APP_URL',
+  | 'STRIPE_SECRET_KEY'
+  | 'STRIPE_PRICE_ID'
+  | 'STRIPE_WEBHOOK_SECRET'
+  | 'NEXT_PUBLIC_APP_URL'
+  | 'VERCEL_PROJECT_PRODUCTION_URL'
+  | 'VERCEL_URL',
   string
 >>;
 
@@ -23,14 +30,17 @@ const readEnvironment = (env?: BillingEnvironment): BillingEnvironment => env ??
   STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  VERCEL_URL: process.env.VERCEL_URL,
 };
 
 export const getBillingConfigStatus = (env?: BillingEnvironment): BillingConfigStatus => {
   const source = readEnvironment(env);
+  const appUrl = getConfiguredPublicAppUrl(source);
   const requiredValues: Array<[string, string | undefined]> = [
     ['STRIPE_SECRET_KEY', source.STRIPE_SECRET_KEY],
     ['STRIPE_PRICE_ID', source.STRIPE_PRICE_ID],
-    ['NEXT_PUBLIC_APP_URL', source.NEXT_PUBLIC_APP_URL],
+    ['NEXT_PUBLIC_APP_URL', appUrl ?? undefined],
   ];
   const missing = requiredValues
     .filter(([, value]) => !value)

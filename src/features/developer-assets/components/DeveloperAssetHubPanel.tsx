@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
-import { Archive, Check, Info, ThumbsDown, ThumbsUp, UploadCloud } from 'lucide-react';
+import { Archive, Check, ChevronLeft, ChevronRight, Eye, Info, Pencil, Save, Search, ThumbsDown, ThumbsUp, UploadCloud, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetType } from '@/lib/developerAssets';
+import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
 
 interface DeveloperAssetsResponse {
@@ -25,6 +25,10 @@ interface UploadedDeveloperAsset {
   fileName: string;
 }
 
+type DeveloperAssetSubmission = DeveloperAssetProgramView['submissions'][number];
+type ReviewLane = 'defaults' | 'uploads' | 'archive';
+type VoteFilter = 'all' | 'unvoted' | 'upvoted' | 'downvoted';
+
 const assetTypeLabels: Record<DeveloperAssetType, string> = {
   templates: 'Template',
   elementPresets: 'Element Preset',
@@ -33,6 +37,28 @@ const assetTypeLabels: Record<DeveloperAssetType, string> = {
   icons: 'Icon',
   imageAssets: 'Image Asset',
   parts: 'Part',
+};
+
+const statusLabels: Record<DeveloperAssetStatus, string> = {
+  draft: 'Draft',
+  submitted: 'Submitted',
+  voting: 'Voting',
+  publish_candidate: 'Publish Candidate',
+  published: 'Published',
+  archived: 'Archived',
+  rejected: 'Rejected',
+};
+
+const reviewLaneLabels: Record<ReviewLane, string> = {
+  defaults: 'Site Defaults',
+  uploads: 'Candidate Uploads',
+  archive: 'Archive',
+};
+
+const reviewLaneHelp: Record<ReviewLane, string> = {
+  defaults: 'Published and official assets currently available to the site library. Developers can keep voting on them while they remain live.',
+  uploads: 'New uploads and candidates gathering enough signal to fill open library caps or graduate into the default library.',
+  archive: 'Retired or underperforming assets. Votes still count here so a strong recovery signal can surface them again.',
 };
 
 const tierLabels: Record<DeveloperAssetAccessTier, string> = {
@@ -60,6 +86,28 @@ const getApiErrorMessage = async (response: Response, fallback: string) => {
   }
 };
 
+const isEditableSubmission = (submission: DeveloperAssetSubmission, currentUserId: string) => (
+  submission.developerId === currentUserId
+  && submission.status !== 'published'
+  && submission.status !== 'rejected'
+);
+
+const getSearchableSubmissionText = (submission: DeveloperAssetSubmission) => [
+  submission.name,
+  submission.description,
+  submission.developerEmail ?? '',
+  assetTypeLabels[submission.assetType],
+  statusLabels[submission.status],
+  tierLabels[submission.calculatedAccessTier],
+  submission.tierDecisionReason ?? '',
+  submission.decisionReason ?? '',
+].join(' ').toLowerCase();
+
+const getContributorLabel = (submission: DeveloperAssetSubmission) => {
+  if (submission.developerId === 'cardforge-official') return 'CardForge Owner';
+  return submission.developerEmail ?? submission.developerId;
+};
+
 export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
@@ -73,10 +121,61 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [reviewLane, setReviewLane] = useState<ReviewLane>('uploads');
+  const [reviewSearch, setReviewSearch] = useState('');
+  const [reviewType, setReviewType] = useState<DeveloperAssetType | 'all'>('all');
+  const [reviewStatus, setReviewStatus] = useState<DeveloperAssetStatus | 'all'>('all');
+  const [reviewTier, setReviewTier] = useState<DeveloperAssetAccessTier | 'all'>('all');
+  const [reviewVoteFilter, setReviewVoteFilter] = useState<VoteFilter>('all');
+  const [reviewPageSize, setReviewPageSize] = useState(10);
+  const [reviewPage, setReviewPage] = useState(1);
+  const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
+  const [editingSubmissionId, setEditingSubmissionId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPreviewUrl, setEditPreviewUrl] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
 
   const ownSubmissions = useMemo(() => (
     program?.submissions.filter((submission) => submission.developerId === program.currentUserId) ?? []
   ), [program]);
+
+  const reviewLaneSubmissions = useMemo(() => {
+    if (!program) return [];
+    const nonOwnSubmissions = program.submissions.filter((submission) => submission.developerId !== program.currentUserId);
+    if (reviewLane === 'archive') return nonOwnSubmissions.filter((submission) => submission.status === 'archived');
+    if (reviewLane === 'defaults') return nonOwnSubmissions.filter((submission) => submission.status === 'published');
+    return nonOwnSubmissions.filter((submission) => (
+      submission.status !== 'published'
+      && submission.status !== 'archived'
+      && submission.status !== 'rejected'
+      && submission.calculatedAccessTier !== 'official'
+    ));
+  }, [program, reviewLane]);
+
+  const filteredReviewSubmissions = useMemo(() => {
+    const query = reviewSearch.trim().toLowerCase();
+    return reviewLaneSubmissions.filter((submission) => {
+      if (query && !getSearchableSubmissionText(submission).includes(query)) return false;
+      if (reviewType !== 'all' && submission.assetType !== reviewType) return false;
+      if (reviewStatus !== 'all' && submission.status !== reviewStatus) return false;
+      if (reviewTier !== 'all' && submission.calculatedAccessTier !== reviewTier) return false;
+      if (reviewVoteFilter === 'unvoted' && submission.currentUserVote) return false;
+      if (reviewVoteFilter === 'upvoted' && submission.currentUserVote !== 'positive') return false;
+      if (reviewVoteFilter === 'downvoted' && submission.currentUserVote !== 'negative') return false;
+      return true;
+    });
+  }, [reviewLaneSubmissions, reviewSearch, reviewStatus, reviewTier, reviewType, reviewVoteFilter]);
+
+  const reviewPageCount = Math.max(1, Math.ceil(filteredReviewSubmissions.length / reviewPageSize));
+  const visibleReviewSubmissions = filteredReviewSubmissions.slice(
+    (Math.min(reviewPage, reviewPageCount) - 1) * reviewPageSize,
+    Math.min(reviewPage, reviewPageCount) * reviewPageSize
+  );
+
+  useEffect(() => {
+    setReviewPage(1);
+  }, [reviewLane, reviewPageSize, reviewSearch, reviewStatus, reviewTier, reviewType, reviewVoteFilter]);
 
   const loadProgram = useCallback(async (attempt = 0) => {
     setIsLoading(true);
@@ -196,6 +295,49 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
     }
   };
 
+  const beginEdit = (submission: DeveloperAssetSubmission) => {
+    setEditingSubmissionId(submission.id);
+    setEditName(submission.name);
+    setEditDescription(submission.description);
+    setEditPreviewUrl(submission.previewUrl);
+    setExpandedSubmissionId(submission.id);
+  };
+
+  const cancelEdit = () => {
+    setEditingSubmissionId(null);
+    setEditName('');
+    setEditDescription('');
+    setEditPreviewUrl('');
+  };
+
+  const saveEdit = async (submissionId: string) => {
+    setIsEditing(true);
+    try {
+      const response = await fetch(`/api/developer-assets/${submissionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          description: editDescription,
+          previewUrl: editPreviewUrl,
+        }),
+      });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to edit asset.'));
+      const body = await response.json() as DeveloperAssetsResponse;
+      setProgram(body.program);
+      cancelEdit();
+      toast({ title: 'Asset updated', description: 'Your submission details were saved.' });
+    } catch (error) {
+      toast({
+        title: 'Asset not updated',
+        description: error instanceof Error ? error.message : 'Unable to edit asset.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <section className={compact ? '' : 'mx-auto max-w-7xl px-5 pb-14 md:px-8'}>
@@ -239,14 +381,20 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         <div className="mt-5 grid gap-4 md:grid-cols-4">
           <Stat label="Submitted this month" value={program.developerStats.submitted} help="Assets you uploaded into the site pipeline this calendar month." />
           <Stat label="Published this month" value={program.developerStats.published} help="Your assets that reached published status this calendar month." />
-          <Stat label="Requirement" value={program.settings.monthlyPublishedRequirement} help="Owner-set monthly published asset expectation for active developers." />
-          <Stat label="Submissions left" value={program.remainingSubmissions} help="Uploads remaining before your monthly site-submission cap is reached." />
+          <Stat label="Required published" value={program.settings.monthlyPublishedRequirement} help="Owner-set monthly published asset expectation for active developers." />
+          <Stat label="Uploads left" value={program.remainingSubmissions} help="Uploads remaining before your monthly site-submission allowance is reached." />
+        </div>
+
+        <div className="mt-4 grid gap-3 border border-[#5f4526] bg-[#100c08] p-4 md:grid-cols-3">
+          <ProgramRule label="Current defaults" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0)} body="Published assets currently feeding the site library from the registry." />
+          <ProgramRule label="Open default slots" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0)} body="Available published slots across all asset types before candidates have to wait." />
+          <ProgramRule label="Owner defaults" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.officialCount, 0)} body="Current site defaults credited to the CardForge Owner and protected by Official visibility." />
         </div>
 
         <Tabs defaultValue="submit" className="mt-6">
           <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
             <TabsTrigger value="submit" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Submit</TabsTrigger>
-            <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Voting Queue</TabsTrigger>
+            <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Review Queue</TabsTrigger>
             <TabsTrigger value="pipeline" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">My Pipeline</TabsTrigger>
             <TabsTrigger value="program" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Program</TabsTrigger>
           </TabsList>
@@ -323,21 +471,83 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
           <TabsContent value="voting" className="mt-4">
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
-              <h3 className="font-serif text-xl text-[#fff1c7]">Peer voting queue</h3>
+              <h3 className="font-serif text-xl text-[#fff1c7]">Continuous review queue</h3>
+              <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+                Vote on candidate uploads, current site defaults, and archived assets. Assets graduate into defaults when there is room or enough vote signal, and archive votes can surface recovery candidates.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(Object.keys(reviewLaneLabels) as ReviewLane[]).map((lane) => (
+                  <Button
+                    key={lane}
+                    size="sm"
+                    variant="outline"
+                    className={`border-[#5f4526] bg-transparent text-[#c7b288] hover:border-[#d8b365] hover:bg-[#1e160d] ${reviewLane === lane ? 'border-[#d8b365] bg-[#2a1b0d] text-[#ffe7ad]' : ''}`}
+                    onClick={() => setReviewLane(lane)}
+                  >
+                    {reviewLaneLabels[lane]}
+                  </Button>
+                ))}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-[#a98a55]">{reviewLaneHelp[reviewLane]}</p>
+              <div className="mt-4 grid gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 lg:grid-cols-[minmax(14rem,1fr)_repeat(5,minmax(8rem,auto))]">
+                <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                  Search
+                  <span className="flex items-center gap-2 border border-[#5f4526] bg-[#100c08] px-3">
+                    <Search className="h-4 w-4 text-[#d7b469]" />
+                    <input
+                      className="min-h-10 w-full bg-transparent text-sm normal-case tracking-normal text-[#ffe7ad] outline-none"
+                      value={reviewSearch}
+                      onChange={(event) => setReviewSearch(event.target.value)}
+                    />
+                  </span>
+                </label>
+                <QueueSelect label="Type" value={reviewType} onChange={(value) => setReviewType(value as DeveloperAssetType | 'all')}>
+                  <option value="all">All types</option>
+                  {DEVELOPER_ASSET_TYPES.map((type) => <option key={type} value={type}>{assetTypeLabels[type]}</option>)}
+                </QueueSelect>
+                <QueueSelect label="Status" value={reviewStatus} onChange={(value) => setReviewStatus(value as DeveloperAssetStatus | 'all')}>
+                  <option value="all">All statuses</option>
+                  {DEVELOPER_ASSET_STATUSES.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+                </QueueSelect>
+                <QueueSelect label="Tier" value={reviewTier} onChange={(value) => setReviewTier(value as DeveloperAssetAccessTier | 'all')}>
+                  <option value="all">All tiers</option>
+                  {(Object.keys(tierLabels) as DeveloperAssetAccessTier[]).map((tier) => <option key={tier} value={tier}>{tierLabels[tier]}</option>)}
+                </QueueSelect>
+                <QueueSelect label="Vote" value={reviewVoteFilter} onChange={(value) => setReviewVoteFilter(value as VoteFilter)}>
+                  <option value="all">All votes</option>
+                  <option value="unvoted">Unvoted</option>
+                  <option value="upvoted">Upvoted</option>
+                  <option value="downvoted">Downvoted</option>
+                </QueueSelect>
+                <QueueSelect label="Per page" value={String(reviewPageSize)} onChange={(value) => setReviewPageSize(Number(value))}>
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                </QueueSelect>
+              </div>
               <div className="mt-4 space-y-3">
-                {program.votingQueue.length === 0 ? (
-                  <p className="text-sm text-[#c7b288]">No peer submissions need your vote right now.</p>
-                ) : program.votingQueue.map((submission) => (
-                  <AssetRow key={submission.id} submission={submission}>
-                    <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => vote(submission.id, 'positive')}>
-                      <ThumbsUp className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" className="border-[#7d3d32] bg-transparent text-[#ffd0c6]" onClick={() => vote(submission.id, 'negative')}>
-                      <ThumbsDown className="h-4 w-4" />
-                    </Button>
+                {visibleReviewSubmissions.length === 0 ? (
+                  <p className="text-sm text-[#c7b288]">No assets match this queue view.</p>
+                ) : visibleReviewSubmissions.map((submission) => (
+                  <AssetRow
+                    key={submission.id}
+                    submission={submission}
+                    expanded={expandedSubmissionId === submission.id}
+                    onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
+                  >
+                    <VoteButtons submission={submission} onVote={vote} />
                   </AssetRow>
                 ))}
               </div>
+              <QueuePager
+                page={Math.min(reviewPage, reviewPageCount)}
+                pageCount={reviewPageCount}
+                total={filteredReviewSubmissions.length}
+                pageSize={reviewPageSize}
+                onPrevious={() => setReviewPage((page) => Math.max(1, page - 1))}
+                onNext={() => setReviewPage((page) => Math.min(reviewPageCount, page + 1))}
+              />
             </div>
           </TabsContent>
 
@@ -347,8 +557,38 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
               <div className="mt-4 space-y-3">
                 {ownSubmissions.length === 0 ? (
                   <p className="text-sm text-[#c7b288]">Your submitted assets will appear here.</p>
-                ) : ownSubmissions.slice(0, 8).map((submission) => (
-                  <AssetRow key={submission.id} submission={submission} />
+                ) : ownSubmissions.map((submission) => (
+                  <AssetRow
+                    key={submission.id}
+                    submission={submission}
+                    expanded={expandedSubmissionId === submission.id}
+                    onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
+                    editForm={editingSubmissionId === submission.id ? (
+                      <EditSubmissionForm
+                        name={editName}
+                        description={editDescription}
+                        previewUrl={editPreviewUrl}
+                        isSaving={isEditing}
+                        onNameChange={setEditName}
+                        onDescriptionChange={setEditDescription}
+                        onPreviewUrlChange={setEditPreviewUrl}
+                        onCancel={cancelEdit}
+                        onSave={() => saveEdit(submission.id)}
+                      />
+                    ) : null}
+                  >
+                    {isEditableSubmission(submission, program.currentUserId) ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
+                        onClick={() => beginEdit(submission)}
+                        aria-label={`Edit ${submission.name}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    ) : submission.status === 'published' ? <Check className="h-5 w-5 text-[#8be0a4]" /> : null}
+                  </AssetRow>
                 ))}
               </div>
             </div>
@@ -356,9 +596,12 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
           <TabsContent value="program" className="mt-4">
             <div className="grid gap-3 md:grid-cols-3">
-              <ProgramRule label="Monthly uploads" value={program.settings.monthlySubmissionLimit} body="Site-library candidates each developer can submit per calendar month." />
-              <ProgramRule label="Monthly published goal" value={program.settings.monthlyPublishedRequirement} body="Owner-set monthly expectation for active developers." />
+              <ProgramRule label="Submission allowance" value={program.settings.monthlySubmissionLimit} body="Site-library candidates each developer can submit per calendar month." />
+              <ProgramRule label="Required published" value={program.settings.monthlyPublishedRequirement} body="Owner-set monthly published expectation for active developers." />
               <ProgramRule label="Minimum tier votes" value={program.settings.minimumVotesForTierAssignment} body="Votes required before an asset can move beyond Forge Review." />
+            </div>
+            <div className="mt-3 border border-[#5f4526] bg-[#100c08] p-4 text-sm leading-6 text-[#c7b288]">
+              Current owner defaults are part of the same review surface, but Official visibility protects them from automatic removal. Your votes update quality signal; owners decide when a default should be hidden, archived, or have its Official override cleared.
             </div>
           </TabsContent>
         </Tabs>
@@ -409,45 +652,238 @@ function ProgramRule({ label, value, body }: { label: string; value: number; bod
   );
 }
 
+function QueueSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+      {label}
+      <select
+        className="min-h-10 border border-[#5f4526] bg-[#100c08] px-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function VoteButtons({
+  submission,
+  onVote,
+}: {
+  submission: DeveloperAssetSubmission;
+  onVote: (submissionId: string, voteValue: 'positive' | 'negative') => void;
+}) {
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className={`border-[#5f7f54] bg-transparent text-[#bde3a8] ${submission.currentUserVote === 'positive' ? 'bg-[#142416]' : ''}`}
+        onClick={() => onVote(submission.id, 'positive')}
+        aria-label={`Upvote ${submission.name}`}
+      >
+        <ThumbsUp className="h-4 w-4" />
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className={`border-[#7d3d32] bg-transparent text-[#ffd0c6] ${submission.currentUserVote === 'negative' ? 'bg-[#2a120d]' : ''}`}
+        onClick={() => onVote(submission.id, 'negative')}
+        aria-label={`Downvote ${submission.name}`}
+      >
+        <ThumbsDown className="h-4 w-4" />
+      </Button>
+    </>
+  );
+}
+
+function QueuePager({
+  page,
+  pageCount,
+  total,
+  pageSize,
+  onPrevious,
+  onNext,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  pageSize: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
+  const end = Math.min(total, page * pageSize);
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#3c2c1b] pt-4 text-xs text-[#a98a55]">
+      <span>{start}-{end} of {total} assets</span>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
+          disabled={page <= 1}
+          onClick={onPrevious}
+          aria-label="Previous queue page"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="min-w-20 text-center text-[#c7b288]">Page {page} / {pageCount}</span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
+          disabled={page >= pageCount}
+          onClick={onNext}
+          aria-label="Next queue page"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EditSubmissionForm({
+  name,
+  description,
+  previewUrl,
+  isSaving,
+  onNameChange,
+  onDescriptionChange,
+  onPreviewUrlChange,
+  onCancel,
+  onSave,
+}: {
+  name: string;
+  description: string;
+  previewUrl: string;
+  isSaving: boolean;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onPreviewUrlChange: (value: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="mt-3 grid gap-3 border border-[#5f4526] bg-[#100c08] p-3">
+      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+        Name
+        <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={name} onChange={(event) => onNameChange(event.target.value)} />
+      </label>
+      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+        Preview URL
+        <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={previewUrl} onChange={(event) => onPreviewUrlChange(event.target.value)} />
+      </label>
+      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+        Notes
+        <textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={onSave}>
+          <Save className="mr-2 h-4 w-4" />
+          {isSaving ? 'Saving...' : 'Save'}
+        </Button>
+        <Button variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={isSaving} onClick={onCancel}>
+          <X className="mr-2 h-4 w-4" />
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function AssetRow({
   submission,
   children,
+  expanded = false,
+  onToggleExpanded,
+  editForm,
 }: {
-  submission: DeveloperAssetProgramView['submissions'][number];
+  submission: DeveloperAssetSubmission;
   children?: ReactNode;
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
+  editForm?: ReactNode;
 }) {
   return (
-    <div className="grid gap-3 border border-[#4a3823] bg-[#0c0b09] p-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
-      <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
-        {submission.previewUrl ? (
-          <img src={submission.previewUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <Archive className="h-5 w-5 text-[#a98a55]" />
-        )}
-      </div>
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium text-[#ffe7ad]">{submission.name}</p>
-          <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">
-            {submission.status.replace('_', ' ')}
-          </span>
-          <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
-            Submitted
-          </span>
-          <span className={`border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${tierClasses[submission.calculatedAccessTier]}`}>
-            {tierLabels[submission.calculatedAccessTier]}
-          </span>
+    <div className="border border-[#4a3823] bg-[#0c0b09] p-3">
+      <div className="grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
+        <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
+          {submission.previewUrl ? (
+            <img src={submission.previewUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Archive className="h-5 w-5 text-[#a98a55]" />
+          )}
         </div>
-        <p className="mt-1 text-xs text-[#c7b288]">
-          {assetTypeLabels[submission.assetType]} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
-        </p>
-        <p className="mt-1 text-xs text-[#a98a55]">
-          {(submission.tierDecisionReason ?? submission.decisionReason ?? 'developer_review').replaceAll('_', ' ')}
-        </p>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium text-[#ffe7ad]">{submission.name}</p>
+            <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">
+              {statusLabels[submission.status]}
+            </span>
+            <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
+              {submission.developerId === 'cardforge-official' ? 'Owner default' : 'Submitted'}
+            </span>
+            <span className={`border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${tierClasses[submission.calculatedAccessTier]}`}>
+              {tierLabels[submission.calculatedAccessTier]}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-[#c7b288]">
+            {assetTypeLabels[submission.assetType]} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
+          </p>
+          <p className="mt-1 text-xs text-[#a98a55]">
+            {(submission.tierDecisionReason ?? submission.decisionReason ?? 'developer_review').replaceAll('_', ' ')}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {onToggleExpanded ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
+              onClick={onToggleExpanded}
+              aria-label={`${expanded ? 'Hide' : 'Show'} ${submission.name} preview`}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          ) : null}
+          {children ?? (submission.status === 'published' ? <Check className="h-5 w-5 text-[#8be0a4]" /> : null)}
+        </div>
       </div>
-      <div className="flex gap-2">
-        {children ?? (submission.status === 'published' ? <Check className="h-5 w-5 text-[#8be0a4]" /> : null)}
-      </div>
+      {expanded ? (
+        <div className="mt-3 grid gap-3 border-t border-[#3c2c1b] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
+          <div className="grid min-h-48 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
+            {submission.previewUrl ? (
+              <img src={submission.previewUrl} alt="" className="max-h-80 w-full object-contain" />
+            ) : (
+              <Archive className="h-8 w-8 text-[#a98a55]" />
+            )}
+          </div>
+          <div className="text-sm leading-6 text-[#c7b288]">
+            <p>{submission.description || 'No notes were provided for this asset.'}</p>
+            <dl className="mt-3 grid gap-2 text-xs text-[#a98a55] sm:grid-cols-2">
+              <div><dt className="uppercase tracking-[0.12em]">Contributor</dt><dd className="break-all text-[#c7b288]">{getContributorLabel(submission)}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Source</dt><dd className="break-all text-[#c7b288]">{submission.sourceUrl ?? 'Not attached'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Registry</dt><dd className="break-all text-[#c7b288]">{submission.registryAssetId ?? 'Not published'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Submitted</dt><dd className="text-[#c7b288]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Updated</dt><dd className="text-[#c7b288]">{submission.updatedAt ? new Date(submission.updatedAt).toLocaleDateString() : 'Not updated'}</dd></div>
+            </dl>
+            {editForm}
+          </div>
+        </div>
+      ) : editForm}
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
@@ -66,6 +67,45 @@ const formatAccessExpiration = (value: string | null) => {
     year: 'numeric',
   }).format(date);
 };
+
+const getFounderBetaStatusCopy = ({
+  campaign,
+  isSignedIn,
+  slotsRemaining,
+}: {
+  campaign: FounderBetaCampaign;
+  isSignedIn: boolean;
+  slotsRemaining: number;
+}) => {
+  if (!campaign.enabled) return 'Founder Beta is currently paused.';
+  if (!campaign.autoGrant) return 'Founder Beta is being granted manually by the CardForge team.';
+  if (slotsRemaining <= 0) {
+    return campaign.waitlistEnabled
+      ? 'The current Founder Beta wave is full. Join the waitlist or check back when the next wave opens.'
+      : 'The current Founder Beta wave is full.';
+  }
+  if (!isSignedIn) return 'Sign in to claim a Founder Beta export pass for this account.';
+  return `Claiming Founder Beta grants ${campaign.accessDays} days of clean export access for this account.`;
+};
+
+const accessExplainerRows = [
+  {
+    label: 'Free preview',
+    value: 'Design templates, import data, generate previews, and export/import project files locally.',
+  },
+  {
+    label: 'Founder Beta',
+    value: 'A time-boxed clean export grant while billing and the shared library are still being proven.',
+  },
+  {
+    label: 'Creator Pass',
+    value: 'The paid or beta export tier for clean PDF, PNG, ZIP, and stronger library assets.',
+  },
+  {
+    label: 'Developer',
+    value: 'Approved contributors can submit and vote on shared library assets without paying for access.',
+  },
+] as const;
 
 function LibraryLaneRow({
   icon: Icon,
@@ -175,6 +215,13 @@ export function AccountProfilePage({
   const founderBetaSlotsRemaining = founderBetaCampaign
     ? Math.max(0, founderBetaCampaign.releaseSlotCap - founderBetaCampaign.claimedSlots)
     : 0;
+  const founderBetaStatusCopy = founderBetaCampaign
+    ? getFounderBetaStatusCopy({
+      campaign: founderBetaCampaign,
+      isSignedIn: effectiveSignedIn,
+      slotsRemaining: founderBetaSlotsRemaining,
+    })
+    : null;
   const canClaimFounderBeta = Boolean(
     entitlement.authConfigured
     && effectiveSignedIn
@@ -264,26 +311,13 @@ export function AccountProfilePage({
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
-      <header className="border-b border-[#5f4526] bg-[#120e09]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-          <Link href="/" prefetch={false} className="flex items-center gap-3 text-[#f9e7b7]">
-            <span className="grid h-9 w-9 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d]">
-              <Hammer className="h-4 w-4" />
-            </span>
-            <span className="font-serif text-xl font-semibold">CardForge Studio</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm text-[#dbc79e] md:flex">
-            <Link href="/" prefetch={false} className="hover:text-[#fff3ca]">Landing</Link>
-            <Link href="/studio" prefetch={false} className="hover:text-[#fff3ca]">Studio</Link>
-            <Link href="/roadmap" prefetch={false} className="hover:text-[#fff3ca]">Roadmap</Link>
-            <Link href="/developer" prefetch={false} className="hover:text-[#fff3ca]">Developer</Link>
-            {isOwner ? <Link href="/owner" prefetch={false} className="hover:text-[#fff3ca]">Owner</Link> : null}
-          </nav>
-          {entitlement.authConfigured && effectiveSignedIn ? (
-            <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
-          ) : null}
-        </div>
-      </header>
+      <PublicSiteHeader
+        currentPath="/account"
+        showOwnerLink={isOwner}
+        rightSlot={entitlement.authConfigured && effectiveSignedIn ? (
+          <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
+        ) : null}
+      />
 
       <section className="mx-auto grid max-w-7xl gap-4 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
@@ -416,6 +450,24 @@ export function AccountProfilePage({
         </div>
 
         <aside className="space-y-4">
+          <div className="border border-[#5f4526] bg-[#15100a] p-4">
+            <div className="flex items-center gap-3 text-[#e2aa4a]">
+              <ShieldCheck className="h-5 w-5" />
+              <h2 className="font-serif text-xl text-[#fff1c7]">Access at a glance</h2>
+            </div>
+            <div className="mt-3">
+              {accessExplainerRows.map((row) => (
+                <div key={row.label} className="border-b border-[#4a3823] py-3 last:border-b-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#a98a55]">{row.label}</p>
+                  <p className="mt-1 text-sm leading-5 text-[#d8c49a]">{row.value}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs uppercase tracking-[0.14em] text-[#a98a55]">
+              Project files and personal uploads stay local unless you choose to export files or submit assets.
+            </p>
+          </div>
+
           {isOwner ? (
             <div className="border border-[#8a642f] bg-[#1b1209] p-4 shadow-[inset_0_0_0_1px_rgba(255,224,157,0.08)]">
               <div className="flex items-center gap-3 text-[#f0c568]">
@@ -447,8 +499,13 @@ export function AccountProfilePage({
               <p className="mt-3 text-sm leading-5 text-[#c7b288]">
                 {founderBetaCampaign.landingMessage}
               </p>
+              {founderBetaStatusCopy ? (
+                <p className="mt-2 text-sm leading-5 text-[#d8c49a]">
+                  {founderBetaStatusCopy}
+                </p>
+              ) : null}
               <div className="mt-3 border border-[#5f4526] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">
-                {founderBetaSlotsRemaining} of {founderBetaCampaign.releaseSlotCap} current wave slots remain. Public cap: {founderBetaCampaign.publicSlotCap}.
+                {founderBetaSlotsRemaining} of {founderBetaCampaign.releaseSlotCap} current wave slots remain. Public cap: {founderBetaCampaign.publicSlotCap}. Access lasts {founderBetaCampaign.accessDays} days.
               </div>
             </div>
           ) : null}

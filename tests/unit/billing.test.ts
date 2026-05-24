@@ -25,6 +25,17 @@ describe('billing', () => {
       webhookConfigured: false,
       missing: ['STRIPE_PRICE_ID', 'NEXT_PUBLIC_APP_URL'],
     });
+
+    expect(getBillingConfigStatus({
+      STRIPE_SECRET_KEY: 'sk_test_123',
+      STRIPE_PRICE_ID: 'price_123',
+      NEXT_PUBLIC_APP_URL: 'https://mpmmhjjhdxjedbmuctiv.supabase.co',
+      VERCEL_PROJECT_PRODUCTION_URL: 'card-forge-snowy.vercel.app',
+    })).toEqual({
+      checkoutConfigured: true,
+      webhookConfigured: false,
+      missing: [],
+    });
   });
 
   it('builds a subscription Checkout session that returns to the local-first app', () => {

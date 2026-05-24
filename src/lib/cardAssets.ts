@@ -25,7 +25,7 @@ export type CardAssetMetadataOverride = Partial<Pick<
 
 export interface CardAssetDiscoveryInput {
   url: string;
-  kind: 'texture' | 'divider' | 'part' | 'icon' | 'image';
+  kind: CardAssetOption['kind'];
   relativePath?: string;
   metadata?: CardAssetMetadataOverride;
 }
@@ -79,7 +79,7 @@ export const buildDiscoveredCardAsset = ({
   metadata,
 }: CardAssetDiscoveryInput): CardAssetOption => {
   const normalizedRelativePath = (relativePath || url)
-    .replace(/^\/card-assets\/(?:textures|dividers)\//, '')
+    .replace(/^\/card-assets\/(?:textures|dividers|parts|icons|images|templates|element-presets)\//, '')
     .replace(/\\/g, '/');
   const stem = normalizedRelativePath.replace(/\.[^.]+$/, '');
   const derivedId = metadata?.id || slugifyAssetId(stem);
@@ -143,6 +143,32 @@ export const buildDiscoveredCardAsset = ({
             defaultWidth: 300,
             defaultHeight: 180,
           }
+      : kind === 'template'
+        ? {
+            id: derivedId,
+            name: toTitleCase(stem.split('/').pop() || stem),
+            url,
+            kind,
+            tileMode: 'contain',
+            seamless: false,
+            allowedTargets: ['template'],
+            defaultBlendMode: 'normal',
+            defaultOpacity: 100,
+            defaultScale: 100,
+          }
+        : kind === 'elementPreset'
+          ? {
+              id: derivedId,
+              name: toTitleCase(stem.split('/').pop() || stem),
+              url,
+              kind,
+              tileMode: 'contain',
+              seamless: false,
+              allowedTargets: ['shape', 'text', 'template'],
+              defaultBlendMode: 'normal',
+              defaultOpacity: 100,
+              defaultScale: 100,
+            }
     : {
         id: derivedId,
         name: toTitleCase(stem.split('/').pop() || stem),

@@ -10,9 +10,14 @@ import {
 } from '@/lib/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { canCurrentAccountWriteShippedLibrary } from '@/lib/serverProjectAccess';
+import {
+  getPublishedRegistryContentRows,
+  readRegistryContentAsset,
+} from '@/lib/registryContentAssets';
 
 const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
 const USER_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'user-templates');
+type TemplateWithRequiredIdentity = TCGCardTemplate & { id: string; name: string; aspectRatio: string };
 
 const ensureTemplateDirectory = async () => {
   await Promise.all([
@@ -30,7 +35,7 @@ const toSafeFileName = (value: string): string => {
   return safe || 'template';
 };
 
-const isTemplateLike = (value: unknown): value is TCGCardTemplate => {
+const isTemplateLike = (value: unknown): value is TemplateWithRequiredIdentity => {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<TCGCardTemplate>;
   return typeof candidate.id === 'string'
@@ -67,6 +72,37 @@ const readTemplatesFromDirectory = async (
   });
 };
 
+const readTemplatesFromRegistry = async (): Promise<TCGCardTemplate[]> => {
+  const rows = await getPublishedRegistryContentRows('template');
+  if (rows.length === 0) return [];
+
+  const templates: TCGCardTemplate[] = [];
+
+  await Promise.all(rows.map(async (row) => {
+    const template = await readRegistryContentAsset<TCGCardTemplate>(
+      row,
+      ['template', 'payload'],
+      isTemplateLike,
+    );
+
+    if (!template) return;
+    templates.push({
+      ...template,
+      id: template.id || row.asset_id,
+      name: template.name || row.name,
+      templateSource: 'default' as const,
+    });
+  }));
+
+  return templates
+    .sort((a, b) => {
+      const orderA = typeof a.templateOrder === 'number' ? a.templateOrder : Number.MAX_SAFE_INTEGER;
+      const orderB = typeof b.templateOrder === 'number' ? b.templateOrder : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name);
+    });
+};
+
 const getTemplateDirectory = (source?: TCGCardTemplate['templateSource']) => (
   source === 'default' ? DEFAULT_TEMPLATE_LIBRARY_DIR : USER_TEMPLATE_LIBRARY_DIR
 );
@@ -74,12 +110,20 @@ const getTemplateDirectory = (source?: TCGCardTemplate['templateSource']) => (
 export async function GET() {
   try {
     await ensureTemplateDirectory();
-    const [defaults, userTemplates] = await Promise.all([
+    const [fileDefaults, registryDefaults, userTemplates] = await Promise.all([
       readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
+      readTemplatesFromRegistry(),
       readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
     ]);
+    const defaultsById = new Map<string, TCGCardTemplate>();
+    fileDefaults.forEach((template) => {
+      if (template.id) defaultsById.set(template.id, template);
+    });
+    registryDefaults.forEach((template) => {
+      if (template.id) defaultsById.set(template.id, template);
+    });
 
-    return createNoStoreJsonResponse({ defaults, userTemplates });
+    return createNoStoreJsonResponse({ defaults: Array.from(defaultsById.values()), userTemplates });
   } catch (error) {
     console.error('Failed to load template library:', error);
     return createApiErrorResponse(

@@ -62,6 +62,36 @@ export interface DeveloperAssetMonthlyStats {
   rejected: number;
 }
 
+export interface DeveloperAssetTypePipelineSummary {
+  assetType: DeveloperAssetType;
+  publishedCount: number;
+  officialCount: number;
+  starterCount: number;
+  creatorPassCount: number;
+  candidateCount: number;
+  archiveCount: number;
+  publishCap: number;
+  starterCap: number;
+  creatorPassCap: number;
+  openPublishSlots: number;
+  overPublishCapBy: number;
+  overStarterCapBy: number;
+  overCreatorPassCapBy: number;
+}
+
+export interface DeveloperContributionSummary {
+  developerId: string;
+  developerEmail: string | null;
+  submitted: number;
+  published: number;
+  archived: number;
+  rejected: number;
+  remainingSubmissions: number;
+  requiredPublished: number;
+  missingPublished: number;
+  isOwnerDefaultContributor: boolean;
+}
+
 export interface DeveloperAssetStorageForecast {
   publishSlotCount: number;
   monthlyVotingSlotCount: number;
@@ -120,6 +150,7 @@ export interface DeveloperAssetAccessTierInput {
   freeTieredThisPeriodForType?: number;
   paidTieredThisPeriodForType?: number;
   ownerAccessTierOverride?: DeveloperAssetAccessTierOverride | null;
+  ignoreTierCaps?: boolean;
 }
 
 export interface DeveloperAssetAccessTierDecision {
@@ -353,6 +384,7 @@ export const evaluateDeveloperAssetAccessTier = ({
   freeTieredThisPeriodForType,
   paidTieredThisPeriodForType,
   ownerAccessTierOverride,
+  ignoreTierCaps = false,
 }: DeveloperAssetAccessTierInput): DeveloperAssetAccessTierDecision => {
   const { totalVotes, qualityScore } = calculateVoteStats(positiveVotes, negativeVotes);
   const fallbackTieredCount = tieredThisPeriodForType ?? 0;
@@ -387,13 +419,13 @@ export const evaluateDeveloperAssetAccessTier = ({
   }
 
   if (qualityScore >= settings.paidAssetMinimumPositiveVotePercent) {
-    if (paidTierCount >= settings.tierCapsByType[assetType].paid) {
+    if (!ignoreTierCaps && paidTierCount >= settings.tierCapsByType[assetType].paid) {
       return { accessTier: 'developer', reason: 'tier_cap_full', qualityScore, totalVotes };
     }
     return { accessTier: 'paid', reason: 'paid_candidate', qualityScore, totalVotes };
   }
 
-  if (freeTierCount >= settings.tierCapsByType[assetType].free) {
+  if (!ignoreTierCaps && freeTierCount >= settings.tierCapsByType[assetType].free) {
     return { accessTier: 'developer', reason: 'tier_cap_full', qualityScore, totalVotes };
   }
 

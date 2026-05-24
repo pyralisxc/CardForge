@@ -236,6 +236,28 @@ describe('developer asset program rules', () => {
     });
   });
 
+  it('can ignore tier caps when refreshing already-published assets', () => {
+    expect(evaluateDeveloperAssetAccessTier({
+      settings: {
+        ...DEFAULT_DEVELOPER_PROGRAM_SETTINGS,
+        tierCapsByType: {
+          ...DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType,
+          icons: { free: 10, paid: 1 },
+        },
+      },
+      status: 'published',
+      assetType: 'icons',
+      positiveVotes: 4,
+      negativeVotes: 1,
+      paidTieredThisPeriodForType: 12,
+      ignoreTierCaps: true,
+    })).toMatchObject({
+      accessTier: 'paid',
+      reason: 'paid_candidate',
+      qualityScore: 80,
+    });
+  });
+
   it('uses the free tier cap only for Starter Library candidates', () => {
     expect(evaluateDeveloperAssetAccessTier({
       settings: {

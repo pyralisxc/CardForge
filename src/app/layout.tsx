@@ -6,6 +6,7 @@ import { Cinzel, Lato } from 'next/font/google'; // Added Cinzel and Lato
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
+import { getPublicAppUrl } from '@/lib/siteUrl';
 
 const geistSans = Geist({ 
   variable: '--font-geist-sans',
@@ -32,7 +33,7 @@ const lato = Lato({
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002'),
+  metadataBase: new URL(getPublicAppUrl()),
   title: {
     default: 'CardForge Studio | Local-First Card Maker and Bulk Generator',
     template: '%s | CardForge Studio',

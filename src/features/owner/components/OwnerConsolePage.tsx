@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Database, ExternalLink, FileText, Gift, Hammer, Info, KeyRound, Rocket, Save, Settings2, ShieldCheck, Users } from 'lucide-react';
+import { CheckCircle2, Database, ExternalLink, FileText, Gift, Info, KeyRound, Rocket, Save, Settings2, ShieldCheck, Users } from 'lucide-react';
 
+import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -356,22 +357,7 @@ export function OwnerConsolePage() {
   return (
     <TooltipProvider>
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
-      <header className="border-b border-[#5f4526] bg-[#120e09]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 md:px-8">
-          <Link href="/" prefetch={false} className="flex items-center gap-3 text-[#f9e7b7]">
-            <span className="grid h-10 w-10 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d]">
-              <Hammer className="h-5 w-5" />
-            </span>
-            <span className="font-serif text-xl font-semibold">Owner Forge</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm text-[#dbc79e] md:flex">
-            <Link href="/account" prefetch={false} className="hover:text-[#fff3ca]">Account</Link>
-            <Link href="/studio" prefetch={false} className="hover:text-[#fff3ca]">Studio</Link>
-            <Link href="/developer" prefetch={false} className="hover:text-[#fff3ca]">Developer</Link>
-            <Link href="/roadmap" prefetch={false} className="hover:text-[#fff3ca]">Roadmap</Link>
-          </nav>
-        </div>
-      </header>
+      <PublicSiteHeader currentPath="/owner" showOwnerLink title="Owner Forge" />
 
       <section className="mx-auto max-w-7xl px-5 py-10 md:px-8">
         {!payload ? (
