@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { NextResponse } from 'next/server';
 
 import type { TCGCardTemplate } from '@/types';
 import {
@@ -9,35 +8,11 @@ import {
   parseJsonBodyWithLimit,
   templatePayloadSchema,
 } from '@/lib/apiValidation';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+import { canCurrentAccountWriteShippedLibrary } from '@/lib/serverProjectAccess';
 
 const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
 const USER_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'user-templates');
-
-const createErrorResponse = (
-  status: number,
-  code: string,
-  message: string,
-  details?: string[]
-) => {
-  const correlationId = crypto.randomUUID();
-  return NextResponse.json(
-    {
-      ok: false,
-      error: {
-        code,
-        message,
-        details,
-      },
-      correlationId,
-    },
-    {
-      status,
-      headers: {
-        'x-correlation-id': correlationId,
-      },
-    }
-  );
-};
 
 const ensureTemplateDirectory = async () => {
   await Promise.all([
@@ -97,70 +72,113 @@ const getTemplateDirectory = (source?: TCGCardTemplate['templateSource']) => (
 );
 
 export async function GET() {
-  await ensureTemplateDirectory();
-  const [defaults, userTemplates] = await Promise.all([
-    readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
-    readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
-  ]);
+  try {
+    await ensureTemplateDirectory();
+    const [defaults, userTemplates] = await Promise.all([
+      readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
+      readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
+    ]);
 
-  return NextResponse.json({ defaults, userTemplates });
+    return createNoStoreJsonResponse({ defaults, userTemplates });
+  } catch (error) {
+    console.error('Failed to load template library:', error);
+    return createApiErrorResponse(
+      500,
+      'template_library_unavailable',
+      'Unable to load template library.'
+    );
+  }
 }
 
 export async function POST(request: Request) {
-  await ensureTemplateDirectory();
-  const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
-  if (!parsedBody.ok) {
-    return createErrorResponse(
-      parsedBody.code === 'payload_too_large' ? 413 : 400,
-      parsedBody.code,
-      parsedBody.message
+  try {
+    if (!await canCurrentAccountWriteShippedLibrary()) {
+      return createApiErrorResponse(
+        403,
+        'library_writes_disabled',
+        'Template library writes are disabled.'
+      );
+    }
+
+    await ensureTemplateDirectory();
+    const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+    if (!parsedBody.ok) {
+      return createApiErrorResponse(
+        parsedBody.code === 'payload_too_large' ? 413 : 400,
+        parsedBody.code,
+        parsedBody.message
+      );
+    }
+
+    const validation = templatePayloadSchema.safeParse(parsedBody.data);
+    if (!validation.success || !isTemplateLike(validation.data)) {
+      const details = validation.success ? ['Template payload is missing required fields.'] : formatZodIssues(validation.error.issues);
+      return createApiErrorResponse(400, 'invalid_template_payload', 'Invalid template payload.', details);
+    }
+
+    const template = validation.data as TCGCardTemplate;
+    const source = template.templateSource === 'default' ? 'default' : 'user';
+    const directory = getTemplateDirectory(source);
+    const fileName = `${toSafeFileName(template.id || template.name)}.json`;
+    const filePath = path.join(directory, fileName);
+    await fs.writeFile(filePath, `${JSON.stringify({ ...template, templateSource: source }, null, 2)}\n`, 'utf8');
+
+    return createNoStoreJsonResponse({ ok: true, fileName, template: { ...template, templateSource: source } });
+  } catch (error) {
+    console.error('Failed to save template:', error);
+    return createApiErrorResponse(
+      500,
+      'template_library_unavailable',
+      'Unable to save template.'
     );
   }
-
-  const validation = templatePayloadSchema.safeParse(parsedBody.data);
-  if (!validation.success || !isTemplateLike(validation.data)) {
-    const details = validation.success ? ['Template payload is missing required fields.'] : formatZodIssues(validation.error.issues);
-    return createErrorResponse(400, 'invalid_template_payload', 'Invalid template payload.', details);
-  }
-
-  const template = validation.data as TCGCardTemplate;
-  const source = template.templateSource === 'default' ? 'default' : 'user';
-  const directory = getTemplateDirectory(source);
-  const fileName = `${toSafeFileName(template.id || template.name)}.json`;
-  const filePath = path.join(directory, fileName);
-  await fs.writeFile(filePath, `${JSON.stringify({ ...template, templateSource: source }, null, 2)}\n`, 'utf8');
-
-  return NextResponse.json({ ok: true, fileName, template: { ...template, templateSource: source } });
 }
 
 export async function DELETE(request: Request) {
-  await ensureTemplateDirectory();
-  const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
-  if (!parsedBody.ok) {
-    return createErrorResponse(
-      parsedBody.code === 'payload_too_large' ? 413 : 400,
-      parsedBody.code,
-      parsedBody.message
+  try {
+    if (!await canCurrentAccountWriteShippedLibrary()) {
+      return createApiErrorResponse(
+        403,
+        'library_writes_disabled',
+        'Template library writes are disabled.'
+      );
+    }
+
+    await ensureTemplateDirectory();
+    const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+    if (!parsedBody.ok) {
+      return createApiErrorResponse(
+        parsedBody.code === 'payload_too_large' ? 413 : 400,
+        parsedBody.code,
+        parsedBody.message
+      );
+    }
+
+    const body = parsedBody.data as { id?: unknown; source?: unknown };
+    const id = typeof body?.id === 'string' ? body.id : null;
+    const source = body?.source === 'default' ? 'default' : 'user';
+
+    if (!id || id.trim().length === 0) {
+      return createApiErrorResponse(400, 'invalid_template_id', 'Template id is required.');
+    }
+
+    const fileName = `${toSafeFileName(id)}.json`;
+    const filePath = path.join(getTemplateDirectory(source), fileName);
+
+    try {
+      await fs.unlink(filePath);
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code !== 'ENOENT') throw error;
+    }
+
+    return createNoStoreJsonResponse({ ok: true, fileName });
+  } catch (error) {
+    console.error('Failed to delete template:', error);
+    return createApiErrorResponse(
+      500,
+      'template_library_unavailable',
+      'Unable to delete template.'
     );
   }
-
-  const body = parsedBody.data as { id?: unknown; source?: unknown };
-  const id = typeof body?.id === 'string' ? body.id : null;
-  const source = body?.source === 'default' ? 'default' : 'user';
-
-  if (!id || id.trim().length === 0) {
-    return createErrorResponse(400, 'invalid_template_id', 'Template id is required.');
-  }
-
-  const fileName = `${toSafeFileName(id)}.json`;
-  const filePath = path.join(getTemplateDirectory(source), fileName);
-
-  try {
-    await fs.unlink(filePath);
-  } catch (error) {
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code !== 'ENOENT') throw error;
-  }
-
-  return NextResponse.json({ ok: true, fileName });
 }

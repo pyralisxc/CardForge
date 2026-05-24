@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-back-obsidian-neon-premium",
+  "name": "Obsidian Neon Full Back",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["shape", "template", "imageFrame"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

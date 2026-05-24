@@ -21,16 +21,26 @@ interface ExportCardImageButtonProps {
   exportMode: ExportMode;
   exportDpi: number;
   disabled?: boolean;
+  gateMessage?: string | null;
   className?: string;
 }
 
-export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = false, className }: ExportCardImageButtonProps) {
+export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = false, gateMessage, className }: ExportCardImageButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const hasBackFace = Boolean(card.template.backCanvas);
 
   const handleExport = async (format: 'png' | 'webp' | 'jpeg' | 'tiff', face: CardFace = 'front') => {
+    if (gateMessage) {
+      toast({
+        title: 'Clean export locked',
+        description: withNextStep(gateMessage, 'Sign in with an active paid or dev account when auth is enabled, or use dev mode for local validation.'),
+        variant: 'default',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const validation = validateCardExportQuality(card, exportMode, exportDpi);
@@ -40,7 +50,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
       if (validation.warnings.length > 0) {
         toast({
           title: ERROR_COPY.exportWarnings.title,
-          description: withNextStep(validation.warnings.slice(0, 2).join(' '), 'Review the card preview for quality issues before sharing or printing.'),
+          description: withNextStep(validation.warnings.slice(0, 2).join(' '), 'Review the output preview for quality issues before sharing or printing.'),
           duration: 7000,
         });
       }
@@ -60,14 +70,14 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
       if (!blob) throw new Error('Failed to create image blob.');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const cardName = (card.data?.cardName || card.data?.title || card.data?.name || 'card') as string;
+      const cardName = (card.data?.cardName || card.data?.title || card.data?.name || 'output') as string;
       link.href = url;
       link.download = `${String(cardName).replace(/\s+/g, '-').toLowerCase()}-${face}.${format === 'jpeg' ? 'jpg' : format}`;
       link.click();
       URL.revokeObjectURL(url);
       const exportProfile = getExportProfile(exportMode, exportDpi);
       toast({
-        title: 'Card exported',
+        title: 'Output exported',
         description: `Saved as ${format.toUpperCase()} using ${exportProfile.label} (${exportProfile.dpi} DPI). Next step: review output quality before final delivery.`,
       });
     } catch (err) {

@@ -30,6 +30,7 @@
 - **Canvas**: Freeform pointer-based drag/resize in `CardTemplateMaker.tsx`
 - **Library policy**: Prefer commercial-friendly, industry-standard libraries for generic editor infrastructure and keep custom code focused on CardForge-specific template, generation, and export behavior.
 - **Template library direction**: Keep shipped defaults separate from user templates, with live previews generated from file-backed templates.
+- **Entry model**: `/` is the public landing page, `/studio` is the maker/generator workspace, `/account` is a compact My Forge account overview, `/roadmap` hosts public feature voting and the Forge Chronicle, `/developer` hosts the developer application / Forge Review asset hub, and `/owner` hosts the tabbed Library Command console.
 
 ---
 
@@ -81,6 +82,7 @@ Text elements can now mix static copy with element-scoped inline variables.
 
 - Export rendering is centralized in `src/lib/cardPreviewExport.tsx`.
 - Aspect and physical-size math is centralized in `src/lib/cardExportGeometry.ts`.
+- On-screen thumbnails and generated-card gallery previews should render from the template/canvas coordinate space and scale the whole card down for display. Do not rebuild them as tiny independent layouts; fixed CSS padding, borders, radii, and text fitting must preserve the same proportions users will get from the template/export path.
 - The generator workspace is organized as task tabs: `Single`, `Bulk Import`, and `Export & Sets`. The generated reference gallery stays visible beside those tools so the output remains the constant review surface.
 - Large generated sets use paged responsive browsing instead of unlimited grid expansion. Users choose cards per page, the grid adapts columns to available width, and the app renders only the active page.
 - Duplex card support now starts from the same source-of-truth model:
@@ -115,6 +117,7 @@ Templates have **two storage layers** that work together:
 - One JSON file per user-created, cloned, or saved template.
 - User templates carry `templateSource: "user"`.
 - This is the expected home for saved customer/user work.
+- Release expectation: this folder should contain `.gitkeep` only unless a JSON file is intentionally promoted to shipped sample or fixture content. Any committed user-template JSON needs a named release decision.
 
 Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a derived combined list for Maker, Generator, previews, and exports. Persisted localStorage stores user-owned template work plus cards, styles, PDF options, and UI state.
 
@@ -126,11 +129,11 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 #### Save flow when user saves a template
 1. `handleSaveTemplate` in `page.tsx` → default templates are saved as user-owned copies so shipped defaults stay clean
 2. User templates continue through `addOrUpdateTemplate()` in the source-specific store collection
-3. Immediately fires `POST /api/templates` to write the JSON file to the matching source folder
+3. When library writes are explicitly enabled with `CARDFORGE_ALLOW_LIBRARY_WRITES=true` and the user has dev access, `POST /api/templates` writes the JSON file to the matching source folder. Otherwise the API returns `403` and browser-local state remains the normal MVP persistence layer.
 
 #### Delete flow
 1. `handleConfirmDeleteTemplate` → `deleteTemplate()` in store
-2. Immediately fires `DELETE /api/templates` to remove the file
+2. When library writes are explicitly enabled with `CARDFORGE_ALLOW_LIBRARY_WRITES=true` and the user has dev access, `DELETE /api/templates` removes the file. Otherwise the API returns `403` and server-side library files stay protected.
 
 ---
 
@@ -138,12 +141,39 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 
 | File | Purpose |
 |------|---------|
+| `src/app/page.tsx` | Public CardForge landing page with soft-gated studio/account entry |
+| `src/app/studio/page.tsx` | Studio route that renders the maker/generator workspace |
+| `src/app/account/page.tsx` | Compact My Forge account overview for entitlement, beta access, local asset status, and role-specific links |
+| `src/app/roadmap/page.tsx` | Public Forge Chronicle and feature voting route with developer Chronicle controls |
+| `src/app/developer/page.tsx` | Developer application and Forge Review asset hub route |
+| `src/app/owner/page.tsx` | Owner-only Library Command console route |
+| `src/app/profile/page.tsx` | Signed-in profile-management route powered by Clerk's user profile component |
 | `src/store/appStore.ts` | Zustand store implementation — persisted state and actions |
 | `src/store/selectors.ts` | Shared derived selectors for templates, generated cards, and edit state |
-| `src/app/page.tsx` | Root page shell — orchestrates template/style load/save/delete and composes feature workspaces |
+| `src/features/app-shell/components/CardForgeStudioShell.tsx` | Studio shell — orchestrates template/style load/save/delete and composes feature workspaces |
 | `src/app/api/templates/route.ts` | REST API for `data/default-templates/` and `data/user-templates/` |
 | `src/app/api/styles/route.ts` | REST API for one-style-per-file presets in `data/styles/` |
 | `src/app/api/assets/route.ts` | Recursive asset discovery for textures and dividers plus optional metadata sidecars |
+| `src/app/api/account/entitlement/route.ts` | Account entitlement snapshot for export gating |
+| `src/app/api/billing/checkout/route.ts` | Stripe Checkout session entrypoint for paid export |
+| `src/app/api/billing/status/route.ts` | Safe billing/auth/library-write configuration status and public Founder Beta campaign status for account/dev tooling |
+| `src/app/api/founder-beta/claim/route.ts` | Signed-in Founder Beta claim endpoint that records Supabase claim state and writes trusted Clerk private metadata |
+| `src/app/api/roadmap/route.ts` | Supabase-backed Forge Chronicle read endpoint, compact public feature suggestion endpoint, and dev-managed timeline creation endpoint |
+| `src/app/api/roadmap/votes/route.ts` | Supabase-backed one-vote-per-Clerk-user Chronicle voting endpoint |
+| `src/app/api/roadmap/items/[itemId]/route.ts` | Dev-only Chronicle item delete endpoint |
+| `src/app/api/developer-assets/route.ts` | Developer asset program read/create/settings endpoint for submissions, voting queues, and owner rules |
+| `src/app/api/developer-assets/upload/route.ts` | Developer-only Supabase Storage upload endpoint for site-library candidate source files |
+| `src/app/api/developer-assets/[submissionId]/route.ts` | Owner-only submission status and access-tier override endpoint |
+| `src/app/api/developer-assets/[submissionId]/vote/route.ts` | Developer peer-vote endpoint that recalculates submission status and access tier |
+| `src/app/api/owner/console/route.ts` | Owner-only business profile, legal document, integration status, and maintenance-link endpoint |
+| `src/lib/apiResponses.ts` | Shared no-store JSON responses and correlation-id error envelopes for API routes |
+| `src/lib/accountEntitlement.ts` | Server-side entitlement resolution from Clerk private metadata, allowlists, or local fallback mode |
+| `src/lib/ownerAccess.ts` | Owner-role resolution from Clerk private metadata or server-only owner email allowlist |
+| `src/lib/ownerConsoleStore.ts` | Supabase-backed owner settings, legal document, and Founder Beta promo store |
+| `src/lib/roadmapStore.ts` | Server-side roadmap storage adapter, vote aggregation, and auto-archive workflow |
+| `src/lib/developerAssets.ts` | Pure developer asset program rules for status, vote thresholds, monthly stats, tier caps, and access-tier decisions |
+| `src/lib/developerAssetStore.ts` | Supabase-backed developer asset program adapter and submission mapping |
+| `src/lib/supabaseServer.ts` | Server-only Supabase client and configuration status helper |
 | `src/components/card-forge/CardTemplateMaker.tsx` | Freeform canvas template editor coordinator |
 | `src/features/template-editor/components/` | Feature-local template editor panels and inspector tools |
 | `src/features/card-generator/components/` | Generation workspace plus reusable bulk-generation surfaces |
@@ -168,8 +198,10 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 | `data/styles/` | One JSON file per appearance style preset |
 | `data/assets/textures/` | Optional metadata sidecars for discovered textures |
 | `data/assets/dividers/` | Optional metadata sidecars for discovered dividers |
+| `data/assets/parts/` | Optional metadata sidecars for discovered premium card parts |
 | `public/card-assets/textures/` | Browser-served texture assets discovered recursively |
 | `public/card-assets/dividers/` | Browser-served divider assets discovered recursively |
+| `public/card-assets/parts/` | Browser-served premium card parts discovered recursively |
 
 ---
 
@@ -217,12 +249,14 @@ Future library swaps should happen at clear seams rather than through broad rewr
 #### Textures and Dividers
 
 - `src/app/api/assets/route.ts` recursively scans:
-  - `public/card-assets/textures/**/*.{svg,png,jpg,jpeg,webp}`
-  - `public/card-assets/dividers/**/*.{svg,png,jpg,jpeg,webp}`
+- `public/card-assets/textures/**/*.{svg,png,jpg,jpeg,webp}`
+- `public/card-assets/dividers/**/*.{svg,png,jpg,jpeg,webp}`
+- `public/card-assets/parts/**/*.{svg,png,jpg,jpeg,webp}`
 - New files placed in those directories are available to the app automatically without a code change.
 - Optional metadata overrides are read from matching JSON sidecars in:
-  - `data/assets/textures/**/*.json`
-  - `data/assets/dividers/**/*.json`
+- `data/assets/textures/**/*.json`
+- `data/assets/dividers/**/*.json`
+- `data/assets/parts/**/*.json`
 - Sidecars can override auto-derived values such as `id`, `name`, `tileMode`, `seamless`, `allowedTargets`, `defaultBlendMode`, `defaultOpacity`, and `defaultScale`.
 
 #### Storage Boundary
@@ -236,13 +270,77 @@ Future library swaps should happen at clear seams rather than through broad rewr
 The launch inventory should stay small and intentional:
 
 - `data/default-templates/`: six shipped templates, including one optional back preset (`default-obsidian-neon-card-back.json`)
-- `data/styles/`: six one-file style presets
-- `data/assets/`: two metadata sidecars today (`textures/parchment-grain.json`, `dividers/gem-center.json`)
+- `data/styles/`: ten one-file style presets, including the premium Arcane Forge material/frame presets
+- `data/assets/`: eighteen metadata sidecars, including the Arcane Forge premium texture, full-frame, and divider kit
 - `data/user-templates/`: `.gitkeep` only before release; user-created JSON files should not be committed accidentally
-- `public/card-assets/textures/`: eight shipped SVG textures
-- `public/card-assets/dividers/`: six shipped SVG dividers
+- `public/card-assets/textures/`: eighteen shipped texture/frame assets
+- `public/card-assets/dividers/`: twelve shipped SVG dividers
+- `public/card-assets/parts/`: scaffold for human-added premium part packs
 
 Generated QA artifacts, smoke outputs, local logs, and `tests/examples/` are intentionally ignored. Recreate them during QA; do not ship them as repo assets.
+
+#### Premium Launch Art Layer
+
+The Arcane Forge premium kit is a reusable product-art layer, not only decoration for the default examples. Landing/account imagery, editor style presets, and default templates should all draw from the same fantasy-forge asset language so the public promise matches what users can actually build. The current premium pass upgrades:
+
+- `default-mtg-theme.json`
+- `default-ttrpg-stat-sheet.json`
+- `default-playing-card-theme.json`
+- `default-obsidian-neon-card-back.json`
+- `src/lib/cardFrameKits.ts` exposes one-click full-frame kits so users can swap the premium foundation before fine-tuning textures, colors, and element styles
+- `public/card-assets/parts/` exposes human-added premium parts so creators can build cards from title plates, art windows, rules boxes, orbs, corners, and panels
+
+Keep the launch back-face inventory to the single Obsidian Neon card back unless product direction changes.
+
+---
+
+### Account and Billing Boundary
+
+CardForge accounts are entitlement-only for the current release. Project files, imported data, generated sets, uploaded assets, and user-authored templates stay local to the browser or downloaded project files unless a future cloud workspace is explicitly added.
+
+Trusted export entitlement sources are:
+
+- Clerk private user metadata: `cardforgeAccess: "paid"` or `cardforgeAccess: "dev"`
+- optional paid-beta expiration metadata: `cardforgeAccessExpiresAt` as an ISO date on paid private metadata
+- server-only email allowlists: `CARDFORGE_PAID_ACCOUNT_EMAILS` and `CARDFORGE_DEV_ACCOUNT_EMAILS`
+- local fallback access mode when Clerk is not configured
+- a future Stripe webhook or billing-owned entitlement store
+
+Public Clerk metadata is intentionally ignored for paid/dev unlocks because it is client-readable. API routes should return shared no-store JSON error envelopes from `src/lib/apiResponses.ts` so account, billing, template, style, and asset bootstrap failures have correlation ids instead of raw framework errors.
+
+Clerk is wired through `src/app/layout.tsx` and `middleware.ts` only when Clerk keys are present. The middleware matcher includes Clerk's `__clerk` proxy path, but all user-facing routes remain public until an account-aware action requests sign-in. Developers use the same `/account` Clerk sign-in path as customers; dev mode is granted by setting Clerk private metadata to `cardforgeAccess: "dev"` and refreshing the account entitlement.
+
+Early beta users can be granted export access before Stripe is live by setting Clerk private metadata to `cardforgeAccess: "paid"` and, when the grant should expire, `cardforgeAccessExpiresAt` to an ISO timestamp. Expired paid metadata resolves back to free access. The checkout CTA should explain that beta access is manual when Stripe checkout configuration is missing.
+
+Founder Beta is a CardForge-owned promo entitlement, not a Stripe coupon in the MVP. The owner console controls campaign status, public slot cap, current release cap, 90-day access duration, auto-grant behavior, waitlist mode, public copy, and optional Stripe coupon/promotion-code references for the later billing launch. The default public cap is 300 founder slots and the initial release wave is 100. A signed-in user can claim an available slot through `/api/founder-beta/claim`; the API records the claim in Supabase and writes trusted Clerk private metadata so existing entitlement resolution unlocks clean export.
+
+For MVP QA, account UI should distinguish incomplete setup from real account entitlement. A publishable Clerk key without `CLERK_SECRET_KEY` is treated as setup-incomplete, not as a signed-in, paid, or dev user. Local development may still use fallback export behavior, but the visible account path must tell testers to add the missing secret and restart the dev server.
+
+Shipped library writes are additionally protected by `src/lib/serverProjectAccess.ts`: the host must opt in with `CARDFORGE_ALLOW_LIBRARY_WRITES=true`, and when Clerk is configured the current signed-in account must resolve to `dev`. UI visibility is convenience only; template/style write APIs enforce the server gate before touching shipped files.
+
+The `/account` route also acts as the beta command center and Forge Chronicle. It can read a public living timeline, exact MRR unlock checkpoints, public roadmap votes, and compact feature suggestions from Supabase while keeping user card projects local-first. The timeline ends at the last populated checkpoint instead of inventing a fixed multi-year horizon. Clerk identity is still the user boundary: Next.js API routes read the signed-in Clerk user, then perform server-side Supabase writes with the secret key. Browser-direct Supabase writes are out of scope for the MVP Chronicle.
+
+Roadmap voting rules:
+
+- official Chronicle items are controlled by CardForge and remain visible independent of vote sentiment
+- owner-controlled Site Mechanics set the active user-suggestion cap, suggestion length, archive vote floor, and downvote percentage
+- user-created suggestions default to 50 active public items
+- each suggestion defaults to 200 normalized characters
+- each signed-in Clerk user gets one thumbs up or one "not for me" vote per item
+- user-created suggestions are archived from the active board once they meet both the configured vote floor and downvote percentage
+- developer-account requests are routed to email and are not granted automatically by voting or suggestion activity
+- developer accounts can add Chronicle ROI checkpoints, shipped progress entries, feature-board items, and delete public roadmap items
+- public feature-board sorting supports most votes, least votes, newest, and oldest
+
+Owner role is separate from developer roster membership, but trusted owner access implies developer-grade export/tools. `cardforgeRole: "owner"` in Clerk private metadata or `CARDFORGE_OWNER_ACCOUNT_EMAILS` grants `/owner`, clean export, and developer-grade account tools without a paid subscription. Owner tools can edit business profile variables, public feature-voting mechanics, legal documents, Founder Beta promo settings, integration status, and maintenance links. Owner tools must not expose raw secret keys in browser UI; secrets remain in environment variables and provider dashboards.
+
+The developer asset program is the financial-launch-ready content pipeline, not a payout system yet. Developer and owner accounts can submit candidate templates, element presets, textures, dividers, icons, image assets, and parts from `/account`; eligible peer developers can vote on submitted assets. Owner tools in `/owner` control max active developer slots, monthly submission limits, monthly published requirements, voting thresholds, visible archive size, future creator-pool percentage, paid-preview behavior, owner access-tier overrides, and one consolidated asset-type cap row for Starter Library and Creator Pass. Publish Total is derived from Starter plus Creator Pass, so owners do not manage a conflicting third cap. The default launch settings are 25 active developers, 25 monthly submissions per developer, 5 monthly published assets, 5 votes before grading, 70% positive vote threshold, 5 votes before tier assignment, 60% positive for Starter Library, 80% positive for Creator Pass, 100 visible archived assets, and a 10% future creator-pool placeholder. Owner voting presets can temporarily reduce review thresholds for a solo owner test account, then scale back up for current-roster, launch-roster, or full-council review.
+
+Developer submissions move through `draft`, `submitted`, `voting`, `publish_candidate`, `published`, `archived`, or `rejected`. Access tier is stored separately as `hidden`, `free`, `paid`, `developer`, or `official`; votes recalculate `qualityScore`, `calculatedAccessTier`, and `tierDecisionReason`, while owners can force Starter, Pass, Official, or Hidden visibility. Only `published` submissions count toward monthly developer requirements and future contribution eligibility. Signed-in paid/free user uploads remain browser/project-local and are visibly separate from the site/developer submission pipeline; anonymous visitors can explore but must sign in before adding custom art to their local asset library.
+
+The live asset library should be consumed through one registry contract. `/api/assets` reads the `cardforge_asset_registry` table when the asset-registry migration is applied; local development falls back to shipped file discovery only so the editor stays usable before online setup is complete. The registry stores metadata, access tier, status, source, and file/storage pointers. Official shipped assets are seeded as `official` and `published`, so they are visible in the app without developer voting. Registry asset types cover uploadable/resizable creation assets: textures, dividers, parts, icons, images, templates, and element presets. Developer submissions upload their source file to the public `cardforge-developer-assets` storage bucket first; owner-published submissions then upsert into `cardforge_asset_registry`, while archived or rejected submissions are hidden from the live library. Executable `.tsx` assets are not live-executed from uploads in the MVP; they need a future sandbox/review build path before becoming runtime components.
+
+Owner asset management should be predictable before it is fully automated. Developer Program storage forecasting estimates the maximum managed footprint from published slot caps, a full month of voting submissions, and visible archive capacity. The forecast is planning math, not billing truth: actual uploaded binaries belong in object storage, while database rows keep metadata and source pointers. Archive automation should move extra or failed assets out of active library visibility first; permanent deletion should remain an owner-controlled cleanup action until retention rules and developer/user-facing terms are final.
 
 ---
 
@@ -498,25 +596,18 @@ When adopting new libraries, prefer options that are:
 
 Use libraries for generic infrastructure such as rich text editing, drag/resize/ordering, CSV parsing, runtime validation, and export packaging. Keep CardForge-owned code focused on template semantics, field contracts, preview truth, and print/export behavior.
 
-### Future Entry Architecture
+### Entry Architecture
 
-The current app still opens directly into the main CardForge workspace, which means local development cold-start cost is shaped heavily by the editor and generator compile graph.
+The current app opens at a public CardForge landing page. Users can enter `/studio` without signing in, use Template Maker and Generator immediately, and only hit hard account/payment gating when they try clean export or development-only shipped-library writes.
 
-Planned later-phase architecture:
+Routes:
 
-- move the primary app entry toward a landing page and authenticated user flow
-- introduce user profiles and user-owned workspace context
-- defer the heavy editor workspace until the user intentionally enters it
+- `/`: public landing page with fantasy CardForge positioning and CTAs.
+- `/studio`: heavy maker/generator workspace.
+- `/account`: personal Forge status, export entitlement, checkout CTA, Forge Chronicle timeline, sortable feature voting, developer-account request CTA, and development-status tooling.
+- `/profile`: signed-in profile management for sign-in methods, profile details, and user-controlled account deletion where Clerk self-delete is enabled.
 
-This is not part of the current release gate.
-
-Do this only after:
-
-- the current release checklist is complete
-- current functionality is fully stabilized
-- any chosen refactor toward stronger commercial-safe open source libraries is complete enough to avoid redoing the entry architecture twice
-
-Until then, treat the current cold dev-load cost primarily as a developer-experience concern, not a blocker for the present product release.
+Future account work should add user-owned cloud workspace context only as an explicit product phase. The current storage model remains local-first.
 
 ---
 

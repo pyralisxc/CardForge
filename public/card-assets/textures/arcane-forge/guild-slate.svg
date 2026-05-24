@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720">
+  <defs>
+    <linearGradient id="slate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#303946"/>
+      <stop offset=".46" stop-color="#181f2a"/>
+      <stop offset="1" stop-color="#0b0f15"/>
+    </linearGradient>
+    <pattern id="guild" width="120" height="120" patternUnits="userSpaceOnUse">
+      <path d="M12 12h96v96H12z" fill="none" stroke="#86a8c7" stroke-opacity=".12" stroke-width="2"/>
+      <path d="M60 20 96 60 60 100 24 60Z" fill="none" stroke="#d0a85a" stroke-opacity=".2" stroke-width="3"/>
+      <path d="M60 38v44M38 60h44" stroke="#91d6c7" stroke-opacity=".16" stroke-width="2"/>
+    </pattern>
+    <filter id="noise">
+      <feTurbulence type="fractalNoise" baseFrequency=".02" numOctaves="3" seed="52"/>
+      <feColorMatrix type="saturate" values=".2"/>
+      <feBlend mode="overlay" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+  <rect width="720" height="720" fill="url(#slate)"/>
+  <rect width="720" height="720" fill="url(#guild)" opacity=".82"/>
+  <rect width="720" height="720" filter="url(#noise)" opacity=".3"/>
+</svg>

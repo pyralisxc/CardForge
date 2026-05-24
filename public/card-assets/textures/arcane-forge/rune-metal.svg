@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720">
+  <defs>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a1f27"/>
+      <stop offset=".28" stop-color="#65707d"/>
+      <stop offset=".52" stop-color="#202631"/>
+      <stop offset=".72" stop-color="#a8843d"/>
+      <stop offset="1" stop-color="#11151c"/>
+    </linearGradient>
+    <filter id="hammered">
+      <feTurbulence type="fractalNoise" baseFrequency=".055" numOctaves="3" seed="19"/>
+      <feDisplacementMap in="SourceGraphic" scale="14"/>
+    </filter>
+    <pattern id="etch" width="90" height="90" patternUnits="userSpaceOnUse">
+      <path d="M45 8v74M8 45h74" stroke="#f4cf78" stroke-opacity=".18" stroke-width="2"/>
+      <path d="M24 24h42v42H24z" fill="none" stroke="#07090d" stroke-opacity=".32" stroke-width="3"/>
+      <circle cx="45" cy="45" r="10" fill="none" stroke="#f4cf78" stroke-opacity=".28" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="720" height="720" fill="url(#metal)"/>
+  <rect width="720" height="720" fill="url(#etch)" filter="url(#hammered)" opacity=".9"/>
+  <path d="M0 0h720v720H0z" fill="none" stroke="#f2cb74" stroke-opacity=".2" stroke-width="10"/>
+</svg>

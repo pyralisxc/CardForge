@@ -1,33 +1,18 @@
 {
   "id": "default-mtg-theme",
-  "name": "MTG Theme",
+  "name": "Arcane Creature Card",
   "aspectRatio": "63:88",
   "templateSource": "default",
   "templateCategory": "Game card",
-  "templateDescription": "A fantasy trading-card layout with nested rules text variables and print-friendly proportions.",
+  "templateDescription": "A premium fantasy trading-card layout with forged parchment, relic frames, and reusable arcane assets.",
   "frameStyle": "custom",
-  "cardBorderWidth": "8px",
-  "cardBorderStyle": "solid",
-  "cardBorderRadius": "0.75rem",
-  "appearance": {
-    "material": {
-      "baseColor": "#ead39b",
-      "textColor": "#20140a",
-      "texture": {
-        "kind": "none"
-      }
-    },
-    "border": {
-      "kind": "solid",
-      "color": "#15100b",
-      "width": 8,
-      "radius": 0
-    }
-  },
-  "baseBackgroundColor": "#ead39b",
-  "baseTextColor": "#20140a",
-  "defaultElementBorderColor": "#5a3410",
-  "cardBorderColor": "#15100b",
+  "cardBorderWidth": "0px",
+  "cardBorderStyle": "none",
+  "cardBorderRadius": "18px",
+  "baseBackgroundColor": "#17120d",
+  "baseTextColor": "#2a170b",
+  "defaultElementBorderColor": "transparent",
+  "cardBorderColor": "transparent",
   "fieldContracts": [
     {
       "key": "CardName",
@@ -61,7 +46,7 @@
       "type": "image",
       "required": false,
       "multiline": false,
-      "example": "https://placehold.co/600x400.png?text=Artwork",
+      "example": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
       "textAutoFit": true,
       "minFontSizePx": 8
     },
@@ -131,266 +116,30 @@
     "gridSize": 20,
     "elements": [
       {
-        "id": "mtg-bg",
-        "type": "shape",
-        "name": "Parchment Frame",
-        "x": 20,
-        "y": 20,
-        "width": 582,
-        "height": 832,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 0,
-        "locked": false,
-        "content": "",
-        "shapeKind": "rectangle",
-        "textColor": "#111827",
-        "backgroundColor": "#e6c983",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 14,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-0",
-        "borderColor": "#211407",
-        "borderWidth": "border-4",
-        "borderRadius": "rounded-xl",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "fillColor": "#e6c983",
-        "strokeColor": "#211407",
-        "strokeWidth": 0,
-        "shapeRole": "basic",
-        "backgroundImageUrl": "radial-gradient(circle at 50% 0%, rgba(255,255,255,0.44), transparent 28%), linear-gradient(180deg, #f4dfab, #c99d4d)",
-        "appearance": {
-          "material": {
-            "baseColor": "#e6c983",
-            "textColor": "#111827",
-            "fillColor": "#e6c983",
-            "strokeColor": "#211407",
-            "gradient": {
-              "type": "linear",
-              "angle": 180,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#fff6d8",
-                  "position": 0,
-                  "opacity": 0.96
-                },
-                {
-                  "id": "b",
-                  "color": "#c69343",
-                  "position": 100,
-                  "opacity": 0.36
-                }
-              ]
-            },
-            "texture": {
-              "kind": "parchment",
-              "intensity": 25,
-              "scale": 10
-            }
-          },
-          "border": {
-            "kind": "solid",
-            "color": "#211407",
-            "width": 4,
-            "radius": 12
-          },
-          "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
-          }
-        }
-      },
-      {
-        "id": "mtg-title-panel",
-        "type": "shape",
-        "name": "Title Plate",
-        "x": 54,
-        "y": 54,
-        "width": 430,
-        "height": 48,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 2,
-        "locked": false,
-        "content": "",
-        "shapeKind": "rectangle",
-        "textColor": "#111827",
-        "backgroundColor": "#211407",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 14,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-0",
-        "borderColor": "#d9b45d",
-        "borderWidth": "border-2",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "fillColor": "#211407",
-        "strokeColor": "#d9b45d",
-        "strokeWidth": 0,
-        "shapeRole": "basic",
-        "backgroundImageUrl": "linear-gradient(90deg, #0c0805, #5a3410, #0c0805)",
-        "appearance": {
-          "material": {
-            "baseColor": "#211407",
-            "textColor": "#111827",
-            "fillColor": "#211407",
-            "strokeColor": "#d9b45d",
-            "gradient": {
-              "type": "linear",
-              "angle": 180,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#fff6d8",
-                  "position": 0,
-                  "opacity": 0.96
-                },
-                {
-                  "id": "b",
-                  "color": "#c69343",
-                  "position": 100,
-                  "opacity": 0.36
-                }
-              ]
-            },
-            "texture": {
-              "kind": "parchment",
-              "intensity": 25,
-              "scale": 10
-            }
-          },
-          "border": {
-            "kind": "solid",
-            "color": "#d9b45d",
-            "width": 2,
-            "radius": 6
-          },
-          "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
-          }
-        }
-      },
-      {
-        "id": "mtg-type-panel",
-        "type": "shape",
-        "name": "Type Line Panel",
-        "x": 64,
-        "y": 466,
-        "width": 502,
-        "height": 36,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 2,
-        "locked": false,
-        "content": "",
-        "shapeKind": "rectangle",
-        "textColor": "#111827",
-        "backgroundColor": "#2a1a0c",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 14,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-0",
-        "borderColor": "#d9b45d",
-        "borderWidth": "border",
-        "borderRadius": "rounded-sm",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "fillColor": "#2a1a0c",
-        "strokeColor": "#d9b45d",
-        "strokeWidth": 0,
-        "shapeRole": "basic",
-        "backgroundImageUrl": "linear-gradient(90deg,#140d07,#8c6423,#140d07)",
-        "appearance": {
-          "material": {
-            "baseColor": "#2a1a0c",
-            "textColor": "#111827",
-            "fillColor": "#2a1a0c",
-            "strokeColor": "#d9b45d",
-            "gradient": {
-              "type": "linear",
-              "angle": 180,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#fff6d8",
-                  "position": 0,
-                  "opacity": 0.96
-                },
-                {
-                  "id": "b",
-                  "color": "#c69343",
-                  "position": 100,
-                  "opacity": 0.36
-                }
-              ]
-            },
-            "texture": {
-              "kind": "parchment",
-              "intensity": 25,
-              "scale": 10
-            }
-          },
-          "border": {
-            "kind": "solid",
-            "color": "#d9b45d",
-            "width": 1,
-            "radius": 2
-          },
-          "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
-          }
-        }
-      },
-      {
         "id": "mtg-card-name",
         "type": "text",
         "name": "Card Name",
-        "x": 66,
-        "y": 60,
-        "width": 404,
-        "height": 36,
+        "x": 100,
+        "y": 66,
+        "width": 350,
+        "height": 34,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{CardName:\"Emberclaw Whelp\"}}",
-        "textColor": "#2a2410",
-        "backgroundColor": "transparent",
+        "textColor": "#261407",
         "fontFamily": "font-cinzel",
         "fontSize": "text-base",
-        "fontSizePx": 21,
+        "fontSizePx": 23,
         "fontWeight": "font-bold",
         "textAlign": "left",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
-        "fillColor": "transparent",
         "strokeWidth": 0,
         "lineHeight": "1.15",
         "generatorFieldKind": "text",
@@ -400,40 +149,35 @@
         "appearance": {
           "material": {
             "baseColor": "transparent",
-            "textColor": "#2a2410",
+            "textColor": "#261407",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
             "kind": "none",
-            "width": 0,
-            "radius": 0
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 3
           }
-        }
+        },
+        "textTransform": "uppercase"
       },
       {
         "id": "mtg-artwork",
         "type": "image",
         "name": "Artwork",
-        "x": 64,
-        "y": 124,
-        "width": 502,
-        "height": 330,
+        "x": 58,
+        "y": 126,
+        "width": 514,
+        "height": 322,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 4,
+        "zIndex": 1,
         "locked": false,
         "content": "Artwork",
-        "textColor": "#111827",
-        "backgroundColor": "#1f2937",
+        "backgroundColor": "transparent",
         "fontFamily": "font-sans",
         "fontSize": "text-sm",
         "fontSizePx": 14,
@@ -441,54 +185,27 @@
         "textAlign": "left",
         "fontStyle": "normal",
         "padding": "p-0",
-        "borderColor": "#3f2910",
-        "borderWidth": "border-4",
+        "borderWidth": "0px",
         "borderRadius": "rounded-md",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
         "strokeWidth": 0,
         "imageSource": "Artwork",
-        "backgroundImageUrl": "linear-gradient(135deg,#58200d,#d87a2a,#281610)",
         "appearance": {
           "material": {
-            "baseColor": "#1f2937",
-            "textColor": "#111827",
-            "gradient": {
-              "type": "linear",
-              "angle": 180,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#fff6d8",
-                  "position": 0,
-                  "opacity": 0.96
-                },
-                {
-                  "id": "b",
-                  "color": "#c69343",
-                  "position": 100,
-                  "opacity": 0.36
-                }
-              ]
-            },
+            "baseColor": "transparent",
             "texture": {
-              "kind": "parchment",
-              "intensity": 25,
-              "scale": 10
+              "kind": "none"
             }
           },
           "border": {
-            "kind": "solid",
-            "color": "#3f2910",
-            "width": 4,
-            "radius": 6
+            "kind": "none",
+            "width": 0
           },
           "effects": {
             "shadow": 0,
             "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "bevel": 0
           }
         }
       },
@@ -496,29 +213,27 @@
         "id": "mtg-type-line",
         "type": "text",
         "name": "Type Line",
-        "x": 60,
-        "y": 460,
-        "width": 480,
-        "height": 40,
+        "x": 110,
+        "y": 500,
+        "width": 394,
+        "height": 28,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 5,
+        "zIndex": 2,
         "locked": false,
         "content": "{{TypeLine:\"Creature - Dragon\"}}",
-        "textColor": "#322b12",
-        "backgroundColor": "transparent",
+        "textColor": "#261407",
         "fontFamily": "font-cinzel",
         "fontSize": "text-base",
-        "fontSizePx": 62,
+        "fontSizePx": 15,
         "fontWeight": "font-semibold",
-        "textAlign": "left",
+        "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
-        "fillColor": "transparent",
         "strokeWidth": 0,
         "lineHeight": "1.15",
         "generatorFieldKind": "text",
@@ -528,22 +243,17 @@
         "appearance": {
           "material": {
             "baseColor": "transparent",
-            "textColor": "#322b12",
+            "textColor": "#261407",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
             "kind": "none",
-            "width": 0,
-            "radius": 0
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 1
           }
         }
       },
@@ -551,26 +261,24 @@
         "id": "mtg-rules",
         "type": "text",
         "name": "Rules Box",
-        "x": 64,
-        "y": 522,
-        "width": 502,
-        "height": 188,
+        "x": 76,
+        "y": 590,
+        "width": 470,
+        "height": 176,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 5,
+        "zIndex": 2,
         "locked": false,
         "content": "{{Ability:\"**Flying**\"}}\nWhen Emberclaw Whelp enters the battlefield, it deals 1 damage to any target.\n\n{{SubText:\"_Small in size, fierce in spirit._\"}}",
-        "textColor": "#1c1308",
-        "backgroundColor": "rgba(250,238,205,0.94)",
+        "textColor": "#261407",
         "fontFamily": "font-book",
         "fontSize": "text-base",
         "fontSizePx": 17,
         "fontWeight": "font-normal",
         "textAlign": "left",
         "fontStyle": "normal",
-        "padding": "p-4",
-        "borderColor": "#5a3410",
-        "borderWidth": "border-2",
+        "padding": "p-3",
+        "borderWidth": "0px",
         "borderRadius": "rounded-md",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
@@ -583,44 +291,18 @@
         "textMinFontSizePx": 8,
         "appearance": {
           "material": {
-            "baseColor": "rgba(250,238,205,0.94)",
-            "textColor": "#1c1308",
-            "gradient": {
-              "type": "linear",
-              "angle": 180,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#fff6d8",
-                  "position": 0,
-                  "opacity": 0.96
-                },
-                {
-                  "id": "b",
-                  "color": "#c69343",
-                  "position": 100,
-                  "opacity": 0.36
-                }
-              ]
-            },
+            "baseColor": "transparent",
+            "textColor": "#261407",
             "texture": {
-              "kind": "parchment",
-              "intensity": 25,
-              "scale": 10
+              "kind": "none"
             }
           },
           "border": {
-            "kind": "solid",
-            "color": "#5a3410",
-            "width": 2,
-            "radius": 6
+            "kind": "none",
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 1
           }
         }
       },
@@ -628,26 +310,24 @@
         "id": "mtg-pt",
         "type": "text",
         "name": "Power Toughness",
-        "x": 492,
-        "y": 768,
-        "width": 76,
-        "height": 48,
+        "x": 488,
+        "y": 770,
+        "width": 82,
+        "height": 50,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 8,
+        "zIndex": 3,
         "locked": false,
         "content": "{{Power:\"2\"}} / {{Toughness:\"2\"}}",
-        "textColor": "#1d160c",
-        "backgroundColor": "#f0d890",
+        "textColor": "#f6dc97",
         "fontFamily": "font-serif",
         "fontSize": "text-base",
-        "fontSizePx": 20,
+        "fontSizePx": 22,
         "fontWeight": "font-bold",
         "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderColor": "#5a3410",
-        "borderWidth": "border-2",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-full",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
@@ -659,24 +339,18 @@
         "textMinFontSizePx": 8,
         "appearance": {
           "material": {
-            "baseColor": "#f0d890",
-            "textColor": "#1d160c",
+            "baseColor": "transparent",
+            "textColor": "#f6dc97",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
-            "kind": "solid",
-            "color": "#5a3410",
-            "width": 2,
-            "radius": 999
+            "kind": "none",
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 1
           }
         }
       },
@@ -684,26 +358,24 @@
         "id": "mtg-cost",
         "type": "text",
         "name": "Cost",
-        "x": 520,
-        "y": 40,
-        "width": 57,
-        "height": 51,
+        "x": 512,
+        "y": 54,
+        "width": 58,
+        "height": 52,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 9,
+        "zIndex": 3,
         "locked": false,
         "content": "{{Cost:\"3\"}}",
-        "textColor": "#1d160c",
-        "backgroundColor": "#f3dfad",
+        "textColor": "#f6dc97",
         "fontFamily": "font-serif",
         "fontSize": "text-base",
         "fontSizePx": 24,
         "fontWeight": "font-bold",
         "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderColor": "#6b4918",
-        "borderWidth": "border-2",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-full",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
@@ -716,47 +388,25 @@
         "textMinFontSizePx": 8,
         "appearance": {
           "material": {
-            "baseColor": "#f3dfad",
-            "textColor": "#1d160c",
-            "gradient": {
-              "type": "linear",
-              "angle": 180,
-              "stops": [
-                {
-                  "id": "a",
-                  "color": "#fff6d8",
-                  "position": 0,
-                  "opacity": 0.96
-                },
-                {
-                  "id": "b",
-                  "color": "#c69343",
-                  "position": 100,
-                  "opacity": 0.36
-                }
-              ]
-            },
+            "baseColor": "transparent",
+            "textColor": "#f6dc97",
             "texture": {
-              "kind": "parchment",
-              "intensity": 25,
-              "scale": 10
+              "kind": "none"
             }
           },
           "border": {
-            "kind": "solid",
-            "color": "#6b4918",
-            "width": 2,
-            "radius": 999
+            "kind": "none",
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 1
           }
         }
       }
     ]
+  },
+  "cardBackgroundImageUrl": "/card-assets/textures/arcane-forge/frame-creature-premium.webp",
+  "templatePreviewData": {
+    "Artwork": "data:image/gif;base64,R0lGODlhAQABAAAAACw="
   }
 }

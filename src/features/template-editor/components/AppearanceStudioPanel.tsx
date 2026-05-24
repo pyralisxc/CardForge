@@ -29,6 +29,7 @@ interface AppearanceStudioPanelProps {
   controlClassName: string;
   buttonClassName: string;
   assetSearch: string;
+  canUploadCustomAssets: boolean;
   onAssetSearchChange: (value: string) => void;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider') => void;
   onSaveStyle: () => void;
@@ -50,6 +51,7 @@ export function AppearanceStudioPanel({
   controlClassName,
   buttonClassName,
   assetSearch,
+  canUploadCustomAssets,
   onAssetSearchChange,
   onHandleAssetUpload,
   onSaveStyle,
@@ -191,8 +193,15 @@ export function AppearanceStudioPanel({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Texture Assets</Label>
-            <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={() => textureAssetUploadInputRef.current?.click()}>
-              <Upload className="mr-1 h-3.5 w-3.5" /> Upload
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={cn(buttonClassName, 'h-7 px-2 text-[10px]')}
+              title={canUploadCustomAssets ? 'Upload custom texture' : 'Sign in to add custom art'}
+              onClick={() => textureAssetUploadInputRef.current?.click()}
+            >
+              <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Upload' : 'Sign in'}
             </Button>
             <input ref={textureAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'texture')} />
           </div>
@@ -204,7 +213,12 @@ export function AppearanceStudioPanel({
                   <button
                     type="button"
                     className="h-16 overflow-hidden rounded-[4px] border border-[#2d3340] bg-[#111720] hover:border-[#d5ad54]"
-                    style={{ backgroundImage: `url(${asset.url})`, backgroundSize: '52px 52px', backgroundRepeat: 'repeat' }}
+                    style={{
+                      backgroundImage: `url(${asset.url})`,
+                      backgroundSize: asset.tileMode === 'contain' ? 'contain' : asset.tileMode === 'stretch' ? '100% 100%' : '52px 52px',
+                      backgroundRepeat: asset.tileMode === 'repeat' ? 'repeat' : 'no-repeat',
+                      backgroundPosition: 'center',
+                    }}
                     aria-label={asset.name}
                     onClick={() => onUpdateAppearance((appearance) => ({
                       ...appearance,
@@ -241,8 +255,15 @@ export function AppearanceStudioPanel({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Divider Assets</Label>
-            <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={() => dividerAssetUploadInputRef.current?.click()}>
-              <Upload className="mr-1 h-3.5 w-3.5" /> Upload
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={cn(buttonClassName, 'h-7 px-2 text-[10px]')}
+              title={canUploadCustomAssets ? 'Upload custom divider' : 'Sign in to add custom art'}
+              onClick={() => dividerAssetUploadInputRef.current?.click()}
+            >
+              <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Upload' : 'Sign in'}
             </Button>
             <input ref={dividerAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'divider')} />
           </div>

@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-corner-flourish",
+  "name": "Corner Flourish",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["divider", "shape", "template"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

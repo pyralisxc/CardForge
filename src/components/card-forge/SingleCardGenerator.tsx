@@ -115,7 +115,7 @@ export function SingleCardGenerator({
         title: ERROR_COPY.requiredFieldsMissing.title,
         description: withNextStep(
           `Missing: ${missingRequiredFields.slice(0, 3).join(', ')}${missingRequiredFields.length > 3 ? ', ...' : ''}.`,
-          'Fill in required fields, then create the generated card again.'
+          'Fill in required fields, then create the generated output again.'
         ),
         variant: 'destructive',
       });
@@ -134,7 +134,7 @@ export function SingleCardGenerator({
     onSingleCardAdded(displayCard);
     setHasAddedCardInSession(true);
 
-    toast({ title: "Card generated", description: 'Your card is now in the generated reference gallery. Next step: review, edit, export, or add another card.' });
+    toast({ title: "Output generated", description: 'Your output is now in the generated outputs gallery. Next step: review, edit, export, or add another output.' });
     
     // Reset form fields to defaults for the currently selected template after adding a card
     const [, resetData] = initializeCardDataFromTemplate(selectedTemplate); // Use memoized selectedTemplate
@@ -186,8 +186,8 @@ export function SingleCardGenerator({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Single Card Entry</CardTitle>
-        <CardDescription>Fill one card against the same field contract that drives bulk generation and export.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Single Output Entry</CardTitle>
+        <CardDescription>Fill one output against the same field contract that drives bulk generation and export.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -209,15 +209,15 @@ export function SingleCardGenerator({
             </SelectContent>
           </Select>
           <p id="single-template-help" className="text-xs text-muted-foreground mt-1">
-            Choose a template before entering card data.
+            Choose a template before entering data.
           </p>
         </div>
 
         {selectedTemplateIdProp && !hasAddedCardInSession && (
           <div className="rounded-md border p-3 text-xs bg-muted/20" role="status" aria-live="polite">
-            <p className="font-medium">Quick Start: Generate a reference card</p>
+            <p className="font-medium">Quick Start: Generate a reference output</p>
             <p className="mt-1 text-muted-foreground">
-              Fill required fields, use rich-text tools when available, then create the card. Visual review happens in Generated Reference Cards so preview, edit, and export all share one source of truth.
+              Fill required fields, use rich-text tools when available, then create the output. Visual review happens in Generated Outputs so preview, edit, and export all share one source of truth.
             </p>
             {richTextFieldCount > 0 && (
               <p className="mt-2 font-medium text-primary">
@@ -232,7 +232,7 @@ export function SingleCardGenerator({
             <AccordionItem value="card-data-item">
               <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
                 <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4" /> Card Data
+                  <Layers className="h-4 w-4" /> Output Data
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3 pt-3 border-t">
@@ -243,14 +243,14 @@ export function SingleCardGenerator({
         )}
 
          {!selectedTemplateIdProp && templates.length > 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Select a template above to start entering card data.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Select a template above to start entering data.</p>
         )}
          {templates.length === 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No Card Template Maker templates available. Please create one in "Card Template Maker" first.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No Layout Studio templates available. Please create one in Layout Studio first.</p>
         )}
 
         <Button onClick={handleAddCard} disabled={!selectedTemplateIdProp || isAddingCard} className="w-full">
-          <PlusSquare className="mr-2 h-4 w-4" /> {isAddingCard ? 'Generating Card...' : 'Create Generated Card'}
+          <PlusSquare className="mr-2 h-4 w-4" /> {isAddingCard ? 'Generating Output...' : 'Create Generated Output'}
         </Button>
       </CardContent>
     </Card>

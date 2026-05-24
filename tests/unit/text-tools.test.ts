@@ -162,4 +162,93 @@ describe('text tools', () => {
     expect(html).toContain('First');
     expect(html).toContain('Second');
   });
+
+  it('renders independent contract styles for each variable in the same text element', () => {
+    const element = {
+      id: 'mixed-element',
+      type: 'text',
+      name: 'Mixed Line',
+      content: '{{Name:"Hero"}} {{Stat:"12"}}',
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 80,
+      zIndex: 1,
+      fontSizePx: 16,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [
+        { key: 'Name', elementId: 'mixed-element', type: 'richText', textColor: '#ffcc66', fontWeight: 'font-bold' },
+        { key: 'Stat', elementId: 'mixed-element', type: 'richText', textColor: '#66ccff', fontSizePx: 24, textDecoration: 'underline' },
+      ],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: { Name: 'Kaela', Stat: '17' },
+    }));
+
+    expect(html).toContain('Kaela');
+    expect(html).toContain('17');
+    expect(html).toContain('color:#ffcc66');
+    expect(html).toContain('font-weight:700');
+    expect(html).toContain('color:#66ccff');
+    expect(html).toContain('font-size:24px');
+    expect(html).toContain('text-decoration:underline');
+  });
+
+  it('lets generated row data override each variable contract style independently', () => {
+    const element = {
+      id: 'styled-row-element',
+      type: 'text',
+      name: 'Styled Row',
+      content: '{{Name:"Hero"}} {{Stat:"12"}}',
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 80,
+      zIndex: 1,
+      fontSizePx: 16,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [
+        { key: 'Name', elementId: 'styled-row-element', type: 'richText', textColor: '#ffcc66', fontWeight: 'font-bold' },
+        { key: 'Stat', elementId: 'styled-row-element', type: 'richText', textColor: '#66ccff', fontSizePx: 24 },
+      ],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: {
+        Name: 'Avery',
+        Stat: '17',
+        '__cardforgeFieldStyle.Name.textColor': '#00ffaa',
+        '__cardforgeFieldStyle.Name.fontWeight': 'font-semibold',
+        '__cardforgeFieldStyle.Stat.fontSizePx': '28',
+        '__cardforgeFieldStyle.Stat.textDecoration': 'underline',
+      },
+    }));
+
+    expect(html).toContain('Avery');
+    expect(html).toContain('17');
+    expect(html).toContain('color:#00ffaa');
+    expect(html).toContain('font-weight:600');
+    expect(html).toContain('color:#66ccff');
+    expect(html).toContain('font-size:28px');
+    expect(html).toContain('text-decoration:underline');
+    expect(html).not.toContain('color:#ffcc66');
+    expect(html).not.toContain('font-size:24px');
+  });
 });

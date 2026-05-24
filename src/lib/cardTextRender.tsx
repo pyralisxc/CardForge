@@ -13,6 +13,7 @@ import {
 } from '@/lib/textTools';
 import {
   buildStaticSegmentFieldKey,
+  buildScopedFieldDataKey,
   parseTemplateTextSegments,
   parseTextBinding,
   resolveTemplateTextSegments,
@@ -24,6 +25,7 @@ import {
   inferTextElementContentModel,
   shouldAutoFitTextElement,
 } from '@/lib/textElementContracts';
+import { resolveFieldContractStyleOverrides } from '@/lib/fieldStyleOverrides';
 
 const RICH_TEXT_MARKER_PATTERN = /(\*\*[\s\S]+?\*\*|__[\s\S]+?__|_[\s\S]+?_|==[\s\S]+?==|\[color:[^\]]+\][\s\S]+?\[\/color\])/;
 
@@ -97,8 +99,13 @@ export const buildResolvedTextSegments = (
 ) => {
   const simple = parseTextBinding(element.content);
   if (simple.field) {
-    const value = data[simple.field] ?? simple.fallback;
-    const contract = getElementFieldContract(template, element, simple.field);
+    const dataKey = buildScopedFieldDataKey(element.id, simple.field);
+    const value = data[dataKey] ?? data[simple.field] ?? simple.fallback;
+    const contract = resolveFieldContractStyleOverrides(
+      getElementFieldContract(template, element, simple.field),
+      data,
+      data[dataKey] !== undefined ? dataKey : simple.field
+    );
     return [{
       text: applyContractRichTextStyle(String(value ?? ''), contract),
       style: buildContractSegmentStyle(contract, scale),
@@ -109,8 +116,15 @@ export const buildResolvedTextSegments = (
     const key = segment.type === 'variable'
       ? segment.key
       : buildStaticSegmentFieldKey(element.id, index);
-    const contract = getElementFieldContract(template, element, key);
-    const value = key ? data[key] : undefined;
+    const dataKey = segment.type === 'variable' && key
+      ? buildScopedFieldDataKey(element.id, key)
+      : key;
+    const contract = resolveFieldContractStyleOverrides(
+      getElementFieldContract(template, element, key),
+      data,
+      dataKey && data[dataKey] !== undefined ? dataKey : key
+    );
+    const value = key ? data[dataKey ?? key] ?? data[key] : undefined;
     return {
       text: applyContractRichTextStyle(String(value ?? segment.text ?? ''), contract),
       style: buildContractSegmentStyle(contract, scale),
@@ -127,10 +141,16 @@ export const buildStyledSegmentData = (
   const simple = parseTextBinding(element.content);
 
   if (simple.field) {
-    const value = data[simple.field] ?? simple.fallback;
-    nextData[simple.field] = applyContractRichTextStyle(
+    const dataKey = buildScopedFieldDataKey(element.id, simple.field);
+    const resolvedKey = data[dataKey] !== undefined ? dataKey : simple.field;
+    const value = data[resolvedKey] ?? simple.fallback;
+    nextData[resolvedKey] = applyContractRichTextStyle(
       String(value ?? ''),
-      getElementFieldContract(template, element, simple.field)
+      resolveFieldContractStyleOverrides(
+        getElementFieldContract(template, element, simple.field),
+        data,
+        resolvedKey
+      )
     );
     return nextData;
   }
@@ -138,10 +158,16 @@ export const buildStyledSegmentData = (
   parseTemplateTextSegments(element.content).forEach((segment, index) => {
     if (segment.type === 'variable') {
       if (!segment.key) return;
-      const value = data[segment.key] ?? segment.text;
-      nextData[segment.key] = applyContractRichTextStyle(
+      const dataKey = buildScopedFieldDataKey(element.id, segment.key);
+      const resolvedKey = data[dataKey] !== undefined ? dataKey : segment.key;
+      const value = data[resolvedKey] ?? segment.text;
+      nextData[resolvedKey] = applyContractRichTextStyle(
         String(value ?? ''),
-        getElementFieldContract(template, element, segment.key)
+        resolveFieldContractStyleOverrides(
+          getElementFieldContract(template, element, segment.key),
+          data,
+          resolvedKey
+        )
       );
       return;
     }
@@ -150,7 +176,11 @@ export const buildStyledSegmentData = (
     const value = data[staticKey] ?? segment.text;
     nextData[staticKey] = applyContractRichTextStyle(
       String(value ?? ''),
-      getElementFieldContract(template, element, staticKey)
+      resolveFieldContractStyleOverrides(
+        getElementFieldContract(template, element, staticKey),
+        data,
+        staticKey
+      )
     );
   });
 

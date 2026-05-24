@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseTemplateTextSegments, parseTextBinding, renamePlaceholderKeyInText } from '@/lib/textBindings';
+import {
+  buildScopedFieldDataKey,
+  parseTemplateTextSegments,
+  parseTextBinding,
+  renamePlaceholderKeyInText,
+  resolveTemplateTextSegments,
+} from '@/lib/textBindings';
 
 describe('text bindings helpers', () => {
   it('parses mixed static text and inline variable placeholders into segments', () => {
@@ -26,5 +32,27 @@ describe('text bindings helpers', () => {
       field: '',
       fallback: '{{setCode:"DRK"}} - {{cardNumber:"001/100"}}',
     });
+  });
+
+  it('resolves scoped field data before falling back to raw placeholder data', () => {
+    expect(resolveTemplateTextSegments(
+      'rules-text',
+      '{{title:"Fallback"}}',
+      {
+        title: 'Shared Title',
+        [buildScopedFieldDataKey('rules-text', 'title')]: 'Scoped Title',
+      },
+      true
+    )).toBe('Scoped Title');
+
+    expect(resolveTemplateTextSegments(
+      'other-text',
+      '{{title:"Fallback"}}',
+      {
+        title: 'Shared Title',
+        [buildScopedFieldDataKey('rules-text', 'title')]: 'Scoped Title',
+      },
+      true
+    )).toBe('Shared Title');
   });
 });

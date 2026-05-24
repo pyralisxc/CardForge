@@ -85,4 +85,11 @@ describe('print validation', () => {
 
     expect(validation.warnings.some((message) => message.includes('at least 300 DPI'))).toBe(true);
   });
+
+  it('warns when text content sits inside the physical safe area', () => {
+    const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://example.com/image.png' });
+    const validation = validateCardExportQuality(card, 'physical');
+
+    expect(validation.warnings.some((message) => message.includes('inside the print safe area'))).toBe(true);
+  });
 });

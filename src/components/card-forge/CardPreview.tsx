@@ -13,6 +13,7 @@ import {
 import { useAppStore } from '@/store/appStore';
 import * as LucideIcons from 'lucide-react';
 import { CardTextContent } from '@/lib/cardTextRender';
+import { getCardPreviewLayout } from '@/lib/cardPreviewLayout';
 import { borderWidthClassToPixels, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
 
 interface CardPreviewProps {
@@ -59,18 +60,14 @@ export function CardPreview({
     : templateToRender.freeformCanvas;
 
   const effectiveWidthPx = targetWidthPx || PREVIEW_WIDTH_PX;
-  const [aspectW, aspectH] = (templateToRender.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
-
-  let cardPixelHeight: number;
-  if (aspectW > 0 && aspectH > 0 && effectiveWidthPx > 0 && isFinite(effectiveWidthPx) && isFinite(aspectW) && isFinite(aspectH)) {
-    cardPixelHeight = (effectiveWidthPx / aspectW) * aspectH;
-  } else {
-    const defaultRatioParts = TCG_ASPECT_RATIO.split(':').map(Number);
-    cardPixelHeight = (effectiveWidthPx / (defaultRatioParts[0] || 63)) * (defaultRatioParts[1] || 88);
-  }
-  if (!isFinite(cardPixelHeight)) { 
-      cardPixelHeight = (effectiveWidthPx / (63/88));
-  }
+  const previewLayout = getCardPreviewLayout({
+    targetWidthPx: effectiveWidthPx,
+    aspectRatio: templateToRender.aspectRatio,
+    canvas: canvasToRender,
+    isPrintMode,
+  });
+  const { renderWidthPx, visualScale } = previewLayout;
+  const cardPixelHeight = previewLayout.renderHeightPx;
 
   const tb = templateToRender;
   const templateAppearanceStyle = useMemo(
@@ -90,7 +87,7 @@ export function CardPreview({
   const finalEffectiveBorderWidthWithUnit = `${numericBorderWidth}${effectiveBorderWidthUnit}`;
 
   const cardContainerStyle: React.CSSProperties = {
-    width: `${effectiveWidthPx}px`,
+    width: `${renderWidthPx}px`,
     height: `${cardPixelHeight}px`,
     boxSizing: 'border-box',
     position: 'relative',
@@ -279,7 +276,7 @@ export function CardPreview({
   const freeformElements = useMemo(() => {
     if (!canvasToRender) return null;
     const canvas = canvasToRender;
-    const scaleX = effectiveWidthPx / Math.max(1, canvas.width);
+    const scaleX = renderWidthPx / Math.max(1, canvas.width);
     const scaleY = cardPixelHeight / Math.max(1, canvas.height);
     const elementById = new Map((canvas.elements || []).map(el => [el.id, el]));
     return [...(canvas.elements || [])]
@@ -435,7 +432,7 @@ export function CardPreview({
           </div>
         );
       });
-  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, effectiveWidthPx, isEditorPreview, templateToRender]);
+  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, renderWidthPx, isEditorPreview, templateToRender]);
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (onEdit && !isEditorPreview) {
@@ -451,16 +448,28 @@ export function CardPreview({
       className={cn("flex flex-col items-center group relative", className)}
     >
       <div
-        className={cn(
-          "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden",
-          onEdit && !isEditorPreview ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
-          `frame-${templateToRender.frameStyle || 'standard'}`
-        )}
-        style={cardContainerStyle}
-        data-ai-hint="tcg card custom"
-        onClick={handleCardClick}
+        style={{
+          width: `${effectiveWidthPx}px`,
+          height: `${previewLayout.visualHeightPx}px`,
+          position: 'relative',
+        }}
       >
-        {freeformElements}
+        <div
+          className={cn(
+            "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden",
+            onEdit && !isEditorPreview ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
+            `frame-${templateToRender.frameStyle || 'standard'}`
+          )}
+          style={{
+            ...cardContainerStyle,
+            transform: visualScale === 1 ? cardContainerStyle.transform : `scale(${visualScale})`,
+            transformOrigin: 'top left',
+          }}
+          data-ai-hint="tcg card custom"
+          onClick={handleCardClick}
+        >
+          {freeformElements}
+        </div>
       </div>
       {showSizeInfo && !isPrintMode && (
         <div className="text-xs text-muted-foreground mt-1">

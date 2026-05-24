@@ -1,6 +1,6 @@
 import type { FreeformCardElement, GeneratorFieldKind, TCGCardTemplate } from '@/types';
 import { extractUniquePlaceholderKeys, getImageFieldKeyForElement, toTitleCase } from '@/lib/utils';
-import { buildStaticSegmentFieldKey, parseTemplateTextSegments, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
+import { buildScopedFieldDataKey, buildStaticSegmentFieldKey, parseTemplateTextSegments, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
 
 export type TemplateFieldControl = 'input' | 'textarea';
 export type TemplateFieldEditor = 'plain-input' | 'plain-textarea' | 'rich-textarea' | 'rules-textarea';
@@ -94,6 +94,15 @@ const getTextElementsForField = (template: TCGCardTemplate, key: string) =>
     (element) => element.type === 'text' && typeof element.content === 'string' && element.content.includes(`{{${key}`)
   ) || [];
 
+const getPlaceholderFallbackForElement = (element: FreeformCardElement | undefined, key: string): string | undefined => {
+  if (!element?.content) return undefined;
+  const simple = parseTextBinding(element.content);
+  if (simple.field === key) return simple.fallback;
+  return parseTemplateTextSegments(element.content).find((segment) => (
+    segment.type === 'variable' && segment.key === key
+  ))?.text;
+};
+
 const buildSourceElementPreview = (
   element: FreeformCardElement | undefined,
   currentKey: string,
@@ -154,14 +163,75 @@ const fieldIsRequired = (key: string, isImage: boolean, defaultValue?: string): 
 export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): TemplateFieldDefinition[] {
   if (!template) return [];
   const imageFieldKeys = getTemplateImageFieldKeys(template);
-  const contractMap = new Map((template.fieldContracts || []).map((contract) => [contract.key, contract]));
+  const contracts = template.fieldContracts || [];
+  const contractMap = new Map(contracts.map((contract) => [contract.key, contract]));
+  const scopedContractsByKey = contracts.reduce<Map<string, typeof contracts>>((groups, contract) => {
+    if (!contract.elementId) return groups;
+    const group = groups.get(contract.key) ?? [];
+    group.push(contract);
+    groups.set(contract.key, group);
+    return groups;
+  }, new Map());
+  const scopedCollisionKeys = new Set(
+    Array.from(scopedContractsByKey.entries())
+      .filter(([, group]) => new Set(group.map((contract) => contract.elementId)).size > 1)
+      .map(([key]) => key)
+  );
+  const getContract = (key: string, elementId?: string) => (
+    (elementId ? contracts.find((contract) => contract.key === key && contract.elementId === elementId) : undefined)
+    || contracts.find((contract) => contract.key === key && !contract.elementId)
+    || contractMap.get(key)
+  );
+  const scopedCollisionFields: TemplateFieldDefinition[] = Array.from(scopedCollisionKeys).flatMap((key) => (
+    (scopedContractsByKey.get(key) || []).flatMap((contract): TemplateFieldDefinition[] => {
+      if (!contract.elementId) return [];
+      const element = template.freeformCanvas?.elements?.find((candidate) => candidate.id === contract.elementId);
+      if (!element || element.type !== 'text') return [];
+      const isMultiline = typeof contract.multiline === 'boolean'
+        ? contract.multiline
+        : Boolean(getPlaceholderFallbackForElement(element, key)?.includes('\n'));
+      const contentModel: TemplateFieldContentModel = contract.type === 'rules'
+        ? 'rulesBlocks'
+        : contract.type === 'text'
+          ? 'plainText'
+          : 'richText';
+      const richTextEnabled = contentModel === 'rulesBlocks' || contentModel === 'richText';
+      return [{
+        key: buildScopedFieldDataKey(element.id, key),
+        label: resolveFieldLabel(key, contract),
+        control: contentModel === 'plainText' ? (isMultiline ? 'textarea' : 'input') : 'textarea',
+        editor: contentModel === 'rulesBlocks'
+          ? 'rules-textarea'
+          : contentModel === 'richText'
+            ? 'rich-textarea'
+            : isMultiline
+              ? 'plain-textarea'
+              : 'plain-input',
+        contentModel,
+        defaultValue: getPlaceholderFallbackForElement(element, key) ?? contract.example,
+        required: typeof contract.required === 'boolean' ? contract.required : fieldIsRequired(key, false, contract.example),
+        isImage: false,
+        isMultiline,
+        supportsRichText: richTextEnabled,
+        sourceElementId: element.id,
+        sourceElementName: element.name,
+        sourceElementPreview: buildSourceElementPreview(element, key, new Map([[key, contract]])),
+        sourceElementContent: element.content,
+        helperText: contentModel === 'rulesBlocks'
+          ? 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.'
+          : richTextEnabled
+            ? 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.'
+            : undefined,
+      }];
+    })
+  ));
   const placeholderFields: TemplateFieldDefinition[] = extractUniquePlaceholderKeys(template).map((placeholder): TemplateFieldDefinition => {
-    const contract = contractMap.get(placeholder.key);
     const isImage = imageFieldKeys.has(placeholder.key);
-    const isMultiline = !isImage && (typeof contract?.multiline === 'boolean' ? contract.multiline : fieldLooksMultiline(placeholder.key));
     const supportsRichText = !isImage && fieldSupportsRichText(template, placeholder.key);
     const textElements = !isImage ? getTextElementsForField(template, placeholder.key) : [];
     const primaryTextElement = textElements[0];
+    const contract = getContract(placeholder.key, primaryTextElement?.id);
+    const isMultiline = !isImage && (typeof contract?.multiline === 'boolean' ? contract.multiline : fieldLooksMultiline(placeholder.key));
     const explicitKind = (contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' ? contract.type : undefined)
       || pickFieldKind(
         textElements
@@ -222,7 +292,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
           : 'This field supports rich text through the shared visual editor.'
         : undefined,
     };
-  });
+  }).filter((field) => !scopedCollisionKeys.has(field.key));
 
   const staticSegmentFields: TemplateFieldDefinition[] = [];
   (template.freeformCanvas?.elements || []).forEach((element) => {
@@ -274,7 +344,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
     });
   });
 
-  return [...staticSegmentFields, ...placeholderFields];
+  return [...staticSegmentFields, ...scopedCollisionFields, ...placeholderFields];
 }
 
 const inferTextContentModelFromElement = (element: FreeformCardElement): TemplateFieldContentModel => {

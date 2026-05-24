@@ -66,7 +66,7 @@ export function TemplateEditorTopBar({
           <PenTool className="h-4 w-4 text-[#d5ad54]" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold tracking-wide text-[#f3ead7]">Card Template Maker</h2>
+          <h2 className="text-sm font-semibold tracking-wide text-[#f3ead7]">Layout Studio</h2>
           <p className="text-[10px] uppercase tracking-[0.18em] text-[#8f95a3]">Freeform arcane layout studio</p>
         </div>
       </div>

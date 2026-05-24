@@ -35,6 +35,7 @@ interface SaveAsPdfButtonProps {
   exportMode: ExportMode;
   exportDpi: number;
   disabled?: boolean;
+  gateMessage?: string | null;
   templateName?: string;
 }
 
@@ -48,16 +49,26 @@ export function SaveAsPdfButton({
   exportMode,
   exportDpi,
   disabled = false,
+  gateMessage,
   templateName,
 }: SaveAsPdfButtonProps) {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const { toast } = useToast();
 
   const handleSaveAsPdf = async () => {
+    if (gateMessage) {
+      toast({
+        title: 'Clean export locked',
+        description: withNextStep(gateMessage, 'Sign in with an active paid or dev account when auth is enabled, or use dev mode for local validation.'),
+        variant: 'default',
+      });
+      return;
+    }
+
     if (generatedDisplayCards.length === 0) {
       toast({
         title: ERROR_COPY.pdfNoCards.title,
-        description: withNextStep('PDF export requires at least one generated card.', 'Generate a card first, then try Save as PDF again.'),
+        description: withNextStep('PDF export requires at least one generated output.', 'Generate an output first, then try Save as PDF again.'),
         variant: "default",
       });
       return;
@@ -67,7 +78,7 @@ export function SaveAsPdfButton({
       toast({
         title: 'PDF export size limit reached',
         description: withNextStep(
-          `PDF export is limited to ${MAX_TOTAL_PDF_EXPORT_CARDS} cards per run (current: ${generatedDisplayCards.length}).`,
+          `PDF export is limited to ${MAX_TOTAL_PDF_EXPORT_CARDS} outputs per run (current: ${generatedDisplayCards.length}).`,
           'Reduce the batch size and export again in multiple runs.'
         ),
         variant: 'destructive',
@@ -90,7 +101,7 @@ export function SaveAsPdfButton({
     if (criticalIssues.size > 0) {
       toast({
         title: "Export Blocked by Quality Checks",
-        description: withNextStep(Array.from(criticalIssues).slice(0, 2).join(' '), 'Fix these card issues in the generator or template, then export again.'),
+        description: withNextStep(Array.from(criticalIssues).slice(0, 2).join(' '), 'Fix these output issues in the generator or template, then export again.'),
         variant: "destructive",
       });
       setIsLoadingPdf(false);
@@ -106,10 +117,10 @@ export function SaveAsPdfButton({
     }
 
     const totalChunks = Math.ceil(generatedDisplayCards.length / MAX_PDF_CARDS_PER_FILE);
-    const safeName = (templateName || generatedDisplayCards[0]?.template?.name || 'tcg-cards')
+    const safeName = (templateName || generatedDisplayCards[0]?.template?.name || 'cardforge-outputs')
       .replace(/[^a-zA-Z0-9_\- ]/g, '')
       .trim()
-      .replace(/\s+/g, '-') || 'tcg-cards';
+      .replace(/\s+/g, '-') || 'cardforge-outputs';
     const pdfModeSlug = exportMode === 'physical'
       ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : 'print-duplex-sheets')
       : 'digital-sheet';
@@ -132,7 +143,7 @@ export function SaveAsPdfButton({
         if (totalChunks > 1) {
           toast({
             title: `Generating PDF chunk ${chunkIndex + 1}/${totalChunks}`,
-            description: `Cards ${chunkStart + 1}-${chunkEnd} of ${generatedDisplayCards.length}.`,
+            description: `Outputs ${chunkStart + 1}-${chunkEnd} of ${generatedDisplayCards.length}.`,
           });
         }
 

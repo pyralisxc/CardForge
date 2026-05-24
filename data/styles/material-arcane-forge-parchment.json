@@ -1,0 +1,47 @@
+{
+  "id": "material-arcane-forge-parchment",
+  "name": "Arcane Forge Parchment",
+  "kind": "material",
+  "targets": ["text", "shape", "element"],
+  "appearance": {
+    "material": {
+      "baseColor": "rgba(239, 210, 143, 0.96)",
+      "textColor": "#211407",
+      "gradient": {
+        "type": "linear",
+        "angle": 180,
+        "stops": [
+          { "id": "top", "color": "#fff1c4", "position": 0, "opacity": 0.96 },
+          { "id": "mid", "color": "#d5a95a", "position": 58, "opacity": 0.58 },
+          { "id": "bottom", "color": "#7c5224", "position": 100, "opacity": 0.3 }
+        ]
+      },
+      "texture": {
+        "kind": "uploaded",
+        "imageSource": "/card-assets/textures/arcane-forge/forged-parchment.svg",
+        "assetSource": "/card-assets/textures/arcane-forge/forged-parchment.svg",
+        "assetKind": "texture",
+        "intensity": 70,
+        "scale": 10,
+        "textureOpacity": 52,
+        "textureScale": 220,
+        "blendMode": "multiply",
+        "tileMode": "repeat"
+      }
+    },
+    "border": {
+      "kind": "relic",
+      "color": "#5f3712",
+      "secondaryColor": "#f4d37a",
+      "width": 4,
+      "radius": 8,
+      "innerWidth": 1
+    },
+    "effects": {
+      "shadow": 18,
+      "glow": 8,
+      "bevel": 28,
+      "innerHighlight": 38
+    }
+  }
+}

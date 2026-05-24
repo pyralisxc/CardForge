@@ -1,11 +1,11 @@
 {
   "id": "default-playing-card-theme",
-  "name": "Playing Card Theme",
+  "name": "Arcane Playing Card",
   "aspectRatio": "63:88",
   "templateSource": "default",
   "templateUsage": "standard",
   "templateCategory": "Playing card",
-  "templateDescription": "A poker-card layout for ranks, suits, custom game decks, and branded standard cards.",
+  "templateDescription": "A premium classic playing-card layout with forged parchment, gilded ornaments, and a sigil-ready center mark.",
   "templateOrder": 2,
   "templatePreviewData": {
     "Rank": "A",
@@ -13,28 +13,13 @@
     "CenterMark": "?"
   },
   "frameStyle": "custom",
-  "cardBorderWidth": "4px",
-  "cardBorderStyle": "solid",
-  "cardBorderRadius": "1.1rem",
-  "appearance": {
-    "material": {
-      "baseColor": "#f7f4ec",
-      "textColor": "#111111",
-      "texture": {
-        "kind": "none"
-      }
-    },
-    "border": {
-      "kind": "solid",
-      "color": "#111111",
-      "width": 4,
-      "radius": 1
-    }
-  },
-  "baseBackgroundColor": "#f7f4ec",
-  "baseTextColor": "#111111",
-  "defaultElementBorderColor": "#1a1a1a",
-  "cardBorderColor": "#111111",
+  "cardBorderWidth": "0px",
+  "cardBorderStyle": "none",
+  "cardBorderRadius": "22px",
+  "baseBackgroundColor": "#f4e2bb",
+  "baseTextColor": "#2b1609",
+  "defaultElementBorderColor": "transparent",
+  "cardBorderColor": "transparent",
   "fieldContracts": [
     {
       "key": "Rank",
@@ -79,85 +64,27 @@
     "gridSize": 20,
     "elements": [
       {
-        "id": "pc-bg",
-        "type": "shape",
-        "name": "Card Face",
-        "x": 22,
-        "y": 22,
-        "width": 586,
-        "height": 836,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 0,
-        "locked": false,
-        "content": "",
-        "shapeKind": "rectangle",
-        "textColor": "#111827",
-        "backgroundColor": "#fbfaf5",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 14,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-0",
-        "borderColor": "#101010",
-        "borderWidth": "border-4",
-        "borderRadius": "rounded-xl",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "fillColor": "#fbfaf5",
-        "strokeColor": "#101010",
-        "strokeWidth": 0,
-        "shapeRole": "basic",
-        "appearance": {
-          "material": {
-            "baseColor": "#fbfaf5",
-            "textColor": "#111827",
-            "fillColor": "#fbfaf5",
-            "strokeColor": "#101010",
-            "texture": {
-              "kind": "none"
-            }
-          },
-          "border": {
-            "kind": "solid",
-            "color": "#101010",
-            "width": 4,
-            "radius": 12
-          },
-          "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
-          }
-        }
-      },
-      {
         "id": "pc-top-rank",
         "type": "text",
         "name": "Top Rank",
-        "x": 44,
-        "y": 42,
-        "width": 70,
+        "x": 48,
+        "y": 62,
+        "width": 80,
         "height": 58,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{Rank:\"A\"}}",
-        "textColor": "#b91c1c",
-        "backgroundColor": "transparent",
-        "fontFamily": "font-serif",
+        "textColor": "#2b1609",
+        "fontFamily": "font-cinzel",
         "fontSize": "text-base",
-        "fontSizePx": 44,
+        "fontSizePx": 42,
         "fontWeight": "font-bold",
         "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
@@ -170,22 +97,17 @@
         "appearance": {
           "material": {
             "baseColor": "transparent",
-            "textColor": "#b91c1c",
+            "textColor": "#2b1609",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
             "kind": "none",
-            "width": 0,
-            "radius": 0
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 2
           }
         }
       },
@@ -193,25 +115,24 @@
         "id": "pc-top-suit",
         "type": "text",
         "name": "Top Suit",
-        "x": 50,
-        "y": 96,
+        "x": 58,
+        "y": 122,
         "width": 58,
-        "height": 52,
+        "height": 50,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{Suit:\"?\"}}",
-        "textColor": "#b91c1c",
-        "backgroundColor": "transparent",
+        "textColor": "#2b1609",
         "fontFamily": "font-serif",
         "fontSize": "text-base",
         "fontSizePx": 38,
         "fontWeight": "font-bold",
         "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
@@ -224,22 +145,17 @@
         "appearance": {
           "material": {
             "baseColor": "transparent",
-            "textColor": "#b91c1c",
+            "textColor": "#2b1609",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
             "kind": "none",
-            "width": 0,
-            "radius": 0
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 2
           }
         }
       },
@@ -247,26 +163,25 @@
         "id": "pc-center",
         "type": "text",
         "name": "Center Mark",
-        "x": 166,
-        "y": 256,
-        "width": 298,
-        "height": 290,
+        "x": 158,
+        "y": 264,
+        "width": 314,
+        "height": 300,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{CenterMark:\"?\"}}",
-        "textColor": "#b91c1c",
-        "backgroundColor": "transparent",
+        "textColor": "#2b1609",
         "fontFamily": "font-serif",
         "fontSize": "text-base",
-        "fontSizePx": 210,
+        "fontSizePx": 168,
         "fontWeight": "font-bold",
         "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
-        "borderRadius": "rounded-none",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-full",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
         "strokeWidth": 0,
@@ -278,22 +193,17 @@
         "appearance": {
           "material": {
             "baseColor": "transparent",
-            "textColor": "#b91c1c",
+            "textColor": "#2b1609",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
             "kind": "none",
-            "width": 0,
-            "radius": 0
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 2
           }
         }
       },
@@ -301,25 +211,24 @@
         "id": "pc-bottom-rank",
         "type": "text",
         "name": "Bottom Rank",
-        "x": 516,
-        "y": 780,
-        "width": 70,
+        "x": 502,
+        "y": 758,
+        "width": 80,
         "height": 58,
-        "rotation": 0,
+        "rotation": 180,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{Rank:\"A\"}}",
-        "textColor": "#b91c1c",
-        "backgroundColor": "transparent",
-        "fontFamily": "font-serif",
+        "textColor": "#2b1609",
+        "fontFamily": "font-cinzel",
         "fontSize": "text-base",
-        "fontSizePx": 44,
+        "fontSizePx": 42,
         "fontWeight": "font-bold",
         "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
@@ -332,22 +241,17 @@
         "appearance": {
           "material": {
             "baseColor": "transparent",
-            "textColor": "#b91c1c",
+            "textColor": "#2b1609",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
             "kind": "none",
-            "width": 0,
-            "radius": 0
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 2
           }
         }
       },
@@ -355,25 +259,24 @@
         "id": "pc-bottom-suit",
         "type": "text",
         "name": "Bottom Suit",
-        "x": 522,
-        "y": 728,
+        "x": 512,
+        "y": 702,
         "width": 58,
-        "height": 52,
-        "rotation": 0,
+        "height": 50,
+        "rotation": 180,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{Suit:\"?\"}}",
-        "textColor": "#b91c1c",
-        "backgroundColor": "transparent",
+        "textColor": "#2b1609",
         "fontFamily": "font-serif",
         "fontSize": "text-base",
         "fontSizePx": 38,
         "fontWeight": "font-bold",
         "textAlign": "center",
         "fontStyle": "normal",
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
@@ -386,22 +289,17 @@
         "appearance": {
           "material": {
             "baseColor": "transparent",
-            "textColor": "#b91c1c",
+            "textColor": "#2b1609",
             "texture": {
               "kind": "none"
             }
           },
           "border": {
             "kind": "none",
-            "width": 0,
-            "radius": 0
+            "width": 0
           },
           "effects": {
-            "shadow": 0,
-            "glow": 0,
-            "bevel": 0,
-            "innerHighlight": 0,
-            "overlayOpacity": 100
+            "shadow": 2
           }
         }
       }
@@ -721,5 +619,6 @@
         }
       }
     ]
-  }
+  },
+  "cardBackgroundImageUrl": "/card-assets/textures/arcane-forge/frame-playing-premium.webp"
 }

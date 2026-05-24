@@ -3,7 +3,18 @@ import type { CardAssetOption } from '@/lib/cardAssets';
 
 type TemplatesPayload = { defaults?: Partial<TCGCardTemplate>[]; userTemplates?: Partial<TCGCardTemplate>[] };
 type StylesPayload = Partial<AppearanceStyleLibrary>;
-type AssetsPayload = { textures?: CardAssetOption[]; dividers?: CardAssetOption[] };
+type AssetsPayload = {
+  textures?: CardAssetOption[];
+  dividers?: CardAssetOption[];
+  parts?: CardAssetOption[];
+  icons?: CardAssetOption[];
+  imageAssets?: CardAssetOption[];
+  registry?: {
+    configured: boolean;
+    source: 'database' | 'shipped-files';
+    total: number;
+  };
+};
 
 let templatesPromise: Promise<TemplatesPayload> | null = null;
 let stylesPromise: Promise<StylesPayload> | null = null;

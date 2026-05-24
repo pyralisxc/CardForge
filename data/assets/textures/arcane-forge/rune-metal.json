@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-rune-metal",
+  "name": "Rune-Etched Metal",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["shape", "template", "imageFrame"],
+  "defaultBlendMode": "overlay",
+  "defaultOpacity": 46,
+  "defaultScale": 190
+}

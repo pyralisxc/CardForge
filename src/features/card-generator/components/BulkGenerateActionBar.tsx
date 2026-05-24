@@ -25,7 +25,7 @@ export function BulkGenerateActionBar({
       <div className="flex justify-end">
         <Button type="button" size="lg" onClick={onGenerate} disabled={disabled}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          Generate Cards from Data
+          Generate Outputs from Data
         </Button>
       </div>
     </div>

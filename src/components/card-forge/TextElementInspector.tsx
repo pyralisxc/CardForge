@@ -17,6 +17,15 @@ import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTe
 import { clamp, makerTheme } from './makerConstants';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
+type TextFieldContractType = 'text' | 'richText' | 'rules';
+
+const textContractTypeOptions: Array<{ value: TextFieldContractType; label: string }> = [
+  { value: 'richText', label: 'Rich Text' },
+  { value: 'rules', label: 'Rules Blocks' },
+  { value: 'text', label: 'Plain Text' },
+];
+
+const fieldSelectClassName = 'h-8 rounded-md border border-[#252b35] bg-[#090d13] px-2 text-xs text-[#d8d1c4] outline-none focus:border-[#d5ad54]';
 
 interface TextExpressionEditorProps {
   element: FreeformCardElement;
@@ -221,6 +230,139 @@ export function TextFieldSettingsList({
                         onCheckedChange={(checked) => onUpdateContract(field.key, {
                           elementId: element.id,
                           textAutoFit: checked,
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-2 space-y-2 rounded-[6px] border border-[#252b35] bg-[#090d13] p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Variable Typography</Label>
+                    <span className="text-[10px] text-[#6f7684]">Applies only to this field</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-[#8f95a3]">Field Type</Label>
+                      <select
+                        value={(contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules') ? contract.type : field.contentModel === 'rulesBlocks' ? 'rules' : field.contentModel === 'plainText' ? 'text' : 'richText'}
+                        onChange={(event) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          type: event.target.value as TextFieldContractType,
+                        })}
+                        className={fieldSelectClassName}
+                      >
+                        {textContractTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-[#8f95a3]">Font Size</Label>
+                      <Input
+                        type="number"
+                        min="6"
+                        max="96"
+                        value={contract?.fontSizePx ?? ''}
+                        placeholder={`${textFontSizePx(element)}`}
+                        onChange={(event) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          fontSizePx: event.target.value === '' ? undefined : clamp(Number(event.target.value) || textFontSizePx(element), 6, 96),
+                        })}
+                        className={cn(makerTheme.control, 'h-8 text-xs')}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-[#8f95a3]">Text Color</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="color"
+                          value={contract?.textColor || '#f3ead7'}
+                          onChange={(event) => onUpdateContract(field.key, {
+                            elementId: element.id,
+                            textColor: event.target.value,
+                          })}
+                          className="h-8 w-10 shrink-0 rounded-md border-[#252b35] bg-[#090d13] p-1"
+                          aria-label={`Text color for ${field.label}`}
+                        />
+                        <Input
+                          value={contract?.textColor || ''}
+                          placeholder="Inherited"
+                          onChange={(event) => onUpdateContract(field.key, {
+                            elementId: element.id,
+                            textColor: event.target.value.trim() || undefined,
+                          })}
+                          className={cn(makerTheme.control, 'h-8 text-xs')}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-[#8f95a3]">Weight</Label>
+                      <select
+                        value={contract?.fontWeight || ''}
+                        onChange={(event) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          fontWeight: (event.target.value || undefined) as FieldContract['fontWeight'],
+                        })}
+                        className={fieldSelectClassName}
+                      >
+                        <option value="">Inherited</option>
+                        <option value="font-normal">Normal</option>
+                        <option value="font-medium">Medium</option>
+                        <option value="font-semibold">Semibold</option>
+                        <option value="font-bold">Bold</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-[#8f95a3]">Line Height</Label>
+                      <Input
+                        value={contract?.lineHeight || ''}
+                        placeholder="Inherited"
+                        onChange={(event) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          lineHeight: event.target.value.trim() || undefined,
+                        })}
+                        className={cn(makerTheme.control, 'h-8 text-xs')}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-[#8f95a3]">Letter Space</Label>
+                      <Input
+                        value={contract?.letterSpacing || ''}
+                        placeholder="Inherited"
+                        onChange={(event) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          letterSpacing: event.target.value.trim() || undefined,
+                        })}
+                        className={cn(makerTheme.control, 'h-8 text-xs')}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex h-9 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#0b0f15] px-3">
+                      <Label className="text-[11px] text-[#d8d1c4]">Italic</Label>
+                      <Switch
+                        checked={contract?.fontStyle === 'italic'}
+                        onCheckedChange={(checked) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          fontStyle: checked ? 'italic' : 'normal',
+                        })}
+                      />
+                    </div>
+                    <div className="flex h-9 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#0b0f15] px-3">
+                      <Label className="text-[11px] text-[#d8d1c4]">Underline</Label>
+                      <Switch
+                        checked={contract?.textDecoration === 'underline'}
+                        onCheckedChange={(checked) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          textDecoration: checked ? 'underline' : 'none',
                         })}
                       />
                     </div>

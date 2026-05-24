@@ -87,6 +87,6 @@ export const DIMENSION_UNITS: Array<{ label: string; value: string }> = [
 ];
 
 export const TABS_CONFIG: Array<{ value: string; label: string; icon: ElementType }> = [
-  { value: "template-maker", label: "Card Template Maker", icon: PenTool },
-  { value: "generator", label: "Card Generator", icon: PackageOpen },
+  { value: "template-maker", label: "Layout Studio", icon: PenTool },
+  { value: "generator", label: "Generate", icon: PackageOpen },
 ];

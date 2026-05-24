@@ -1,0 +1,167 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  DEFAULT_DEVELOPER_PROGRAM_SETTINGS,
+  type DeveloperProgramSettings,
+} from '@/lib/developerAssets';
+import {
+  buildDeveloperAssetProgramView,
+  mapDeveloperAssetSubmissionRow,
+  mapDeveloperProgramSettingsRow,
+  normalizeDeveloperAssetSubmissionInput,
+} from '@/lib/developerAssetStore';
+
+const settings: DeveloperProgramSettings = {
+  ...DEFAULT_DEVELOPER_PROGRAM_SETTINGS,
+  monthlySubmissionLimit: 3,
+  monthlyPublishedRequirement: 2,
+};
+
+describe('developer asset store helpers', () => {
+  it('maps database settings rows into normalized program settings', () => {
+    expect(mapDeveloperProgramSettingsRow({
+      max_active_developers: 25,
+      monthly_submission_limit: 25,
+      monthly_published_requirement: 5,
+      minimum_votes_for_grading: 6,
+      minimum_positive_vote_percent: 75,
+      free_asset_minimum_positive_vote_percent: 60,
+      paid_asset_minimum_positive_vote_percent: 82,
+      minimum_votes_for_tier_assignment: 5,
+      show_paid_preview_to_free_users: true,
+      allow_paid_early_access_to_candidates: true,
+      archive_visible_limit: 100,
+      profit_share_pool_percent: 10,
+      owner_final_review_required: true,
+      publish_caps_by_type: { templates: 2, icons: 9 },
+      tier_caps_by_type: { templates: { free: 10, paid: 4 } },
+    })).toMatchObject({
+      maxActiveDevelopers: 25,
+      monthlySubmissionLimit: 25,
+      monthlyPublishedRequirement: 5,
+      minimumVotesForGrading: 6,
+      minimumPositiveVotePercent: 75,
+      freeAssetMinimumPositiveVotePercent: 60,
+      paidAssetMinimumPositiveVotePercent: 82,
+      minimumVotesForTierAssignment: 5,
+      showPaidPreviewToFreeUsers: true,
+      allowPaidEarlyAccessToCandidates: true,
+      publishCapsByType: {
+        templates: 14,
+        icons: DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.icons.free
+          + DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.icons.paid,
+      },
+      tierCapsByType: {
+        templates: { free: 10, paid: 4 },
+      },
+    });
+  });
+
+  it('normalizes developer submission input and rejects unsupported asset types', () => {
+    expect(normalizeDeveloperAssetSubmissionInput({
+      assetType: 'icons',
+      name: '  Moon Sigil  ',
+      description: '  clean vector icon  ',
+      previewUrl: '  https://example.test/moon.svg  ',
+      sourceUrl: '  https://storage.example.test/moon.svg  ',
+      sourceFileSizeBytes: '2048',
+      sourceMimeType: ' image/svg+xml ',
+      sourceStorageBucket: ' cardforge-developer-assets ',
+      sourceStoragePath: ' dev-1/icons/moon.svg ',
+    })).toEqual({
+      ok: true,
+      value: {
+        assetType: 'icons',
+        name: 'Moon Sigil',
+        description: 'clean vector icon',
+        previewUrl: 'https://example.test/moon.svg',
+        sourceUrl: 'https://storage.example.test/moon.svg',
+        sourceFileSizeBytes: 2048,
+        sourceMimeType: 'image/svg+xml',
+        sourceStorageBucket: 'cardforge-developer-assets',
+        sourceStoragePath: 'dev-1/icons/moon.svg',
+      },
+    });
+
+    expect(normalizeDeveloperAssetSubmissionInput({
+      assetType: 'icons',
+      name: 'Moon Sigil',
+    })).toEqual({
+      ok: false,
+      message: 'Upload a source file before submitting this asset.',
+    });
+
+    expect(normalizeDeveloperAssetSubmissionInput({
+      assetType: 'tsx',
+      name: 'Executable',
+    })).toEqual({
+      ok: false,
+      message: 'Choose a supported asset type.',
+    });
+  });
+
+  it('maps submission rows with vote counts and current user vote', () => {
+    expect(mapDeveloperAssetSubmissionRow({
+      id: 'asset-1',
+      developer_id: 'dev-1',
+      developer_email: 'dev@example.test',
+      asset_type: 'icons',
+      name: 'Moon Sigil',
+      description: 'Icon',
+      preview_url: 'https://example.test/moon.svg',
+      source_url: 'https://storage.example.test/moon.svg',
+      source_file_size_bytes: 2048,
+      source_mime_type: 'image/svg+xml',
+      source_storage_bucket: 'cardforge-developer-assets',
+      source_storage_path: 'dev-1/icons/moon.svg',
+      registry_asset_id: 'developer-icons-asset-1',
+      status: 'voting',
+      owner_note: null,
+      decision_reason: 'needs_more_votes',
+      calculated_access_tier: 'developer',
+      owner_access_tier_override: null,
+      quality_score: 80,
+      tier_decision_reason: 'needs_more_votes',
+      positive_votes: 4,
+      negative_votes: 1,
+      submitted_at: '2026-05-01T00:00:00.000Z',
+      updated_at: '2026-05-02T00:00:00.000Z',
+    }, { 'asset-1': 'positive' })).toMatchObject({
+      id: 'asset-1',
+      developerId: 'dev-1',
+      assetType: 'icons',
+      status: 'voting',
+      positiveVotes: 4,
+      negativeVotes: 1,
+      currentUserVote: 'positive',
+      calculatedAccessTier: 'developer',
+      ownerAccessTierOverride: null,
+      qualityScore: 80,
+      tierDecisionReason: 'needs_more_votes',
+      sourceUrl: 'https://storage.example.test/moon.svg',
+      sourceFileSizeBytes: 2048,
+      sourceMimeType: 'image/svg+xml',
+      sourceStorageBucket: 'cardforge-developer-assets',
+      sourceStoragePath: 'dev-1/icons/moon.svg',
+      registryAssetId: 'developer-icons-asset-1',
+    });
+  });
+
+  it('builds developer views with monthly stats, remaining submissions, and voting queue', () => {
+    const view = buildDeveloperAssetProgramView({
+      configured: true,
+      settings,
+      currentUserId: 'dev-1',
+      submissions: [
+        { id: 'own-1', developerId: 'dev-1', developerEmail: 'dev@example.test', assetType: 'icons', name: 'Mine', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'submitted', calculatedAccessTier: 'developer', ownerAccessTierOverride: null, qualityScore: 0, tierDecisionReason: 'needs_more_votes', positiveVotes: 0, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-01T00:00:00.000Z', updatedAt: '2026-05-01T00:00:00.000Z' },
+        { id: 'own-2', developerId: 'dev-1', developerEmail: 'dev@example.test', assetType: 'icons', name: 'Mine Published', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'published', calculatedAccessTier: 'paid', ownerAccessTierOverride: null, qualityScore: 100, tierDecisionReason: 'paid_candidate', positiveVotes: 5, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-02T00:00:00.000Z', updatedAt: '2026-05-02T00:00:00.000Z' },
+        { id: 'peer-1', developerId: 'dev-2', developerEmail: 'peer@example.test', assetType: 'textures', name: 'Peer', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'voting', calculatedAccessTier: 'developer', ownerAccessTierOverride: null, qualityScore: 100, tierDecisionReason: 'needs_more_votes', positiveVotes: 1, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-03T00:00:00.000Z', updatedAt: '2026-05-03T00:00:00.000Z' },
+      ],
+      now: new Date('2026-05-23T00:00:00.000Z'),
+    });
+
+    expect(view.developerStats).toEqual({ submitted: 2, published: 1, archived: 0, rejected: 0 });
+    expect(view.remainingSubmissions).toBe(1);
+    expect(view.votingQueue.map((submission) => submission.id)).toEqual(['peer-1']);
+  });
+});

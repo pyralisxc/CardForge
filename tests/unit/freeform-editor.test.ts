@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FreeformCardElement } from '@/types';
-import { getElementDepthStack, resolveDepthSelection, scaleElementWithParentResize } from '@/lib/freeformEditor';
+import { getElementDepthStack, resolveDepthSelection, resolvePointerSelection, scaleElementWithParentResize } from '@/lib/freeformEditor';
 
 function makeElement(overrides: Partial<FreeformCardElement>): FreeformCardElement {
   return {
@@ -56,6 +56,51 @@ describe('freeform editor helpers', () => {
 
     expect(first.nextSelectedId).toBe('top');
     expect(second.nextSelectedId).toBe('middle');
+  });
+
+  it('keeps normal pointer selection on the clicked element so dragging does not cycle to a lower layer', () => {
+    const stack = [
+      makeElement({ id: 'top', zIndex: 6 }),
+      makeElement({ id: 'middle', zIndex: 3 }),
+      makeElement({ id: 'base', zIndex: 1 }),
+    ];
+    const previous = {
+      point: { x: 40, y: 40 },
+      stackSignature: 'top|middle|base',
+    };
+
+    const next = resolvePointerSelection({
+      clickedElementId: 'top',
+      currentSelectedId: 'top',
+      hitStack: stack,
+      point: { x: 42, y: 41 },
+      previousState: previous,
+    });
+
+    expect(next.nextSelectedId).toBe('top');
+  });
+
+  it('allows explicit depth cycling when requested', () => {
+    const stack = [
+      makeElement({ id: 'top', zIndex: 6 }),
+      makeElement({ id: 'middle', zIndex: 3 }),
+      makeElement({ id: 'base', zIndex: 1 }),
+    ];
+    const previous = {
+      point: { x: 40, y: 40 },
+      stackSignature: 'top|middle|base',
+    };
+
+    const next = resolvePointerSelection({
+      clickedElementId: 'top',
+      currentSelectedId: 'top',
+      cycleDepth: true,
+      hitStack: stack,
+      point: { x: 42, y: 41 },
+      previousState: previous,
+    });
+
+    expect(next.nextSelectedId).toBe('middle');
   });
 
   it('scales child bounds and type-specific sizing with parent resize', () => {

@@ -20,8 +20,21 @@ export const stylePresetPayloadSchema = z.object({
   }),
 }).passthrough();
 
-const cardAssetAllowedTargetSchema = z.enum(['text', 'shape', 'divider', 'template', 'imageFrame']);
+const cardAssetAllowedTargetSchema = z.enum(['text', 'shape', 'divider', 'template', 'imageFrame', 'icon', 'image']);
 const tileModeSchema = z.enum(['repeat', 'stretch', 'contain']);
+const cardPartRoleSchema = z.enum([
+  'outerFrame',
+  'frameRail',
+  'corner',
+  'titlePlate',
+  'artWindow',
+  'rulesBox',
+  'statGem',
+  'costOrb',
+  'panel',
+  'overlay',
+  'ornament',
+]);
 
 export const cardAssetMetadataOverrideSchema = z.object({
   id: nonEmptyStringSchema.optional(),
@@ -32,6 +45,9 @@ export const cardAssetMetadataOverrideSchema = z.object({
   defaultBlendMode: nonEmptyStringSchema.optional(),
   defaultOpacity: z.number().finite().min(0).max(100).optional(),
   defaultScale: z.number().finite().min(1).max(1000).optional(),
+  partRole: cardPartRoleSchema.optional(),
+  defaultWidth: z.number().finite().min(1).max(5000).optional(),
+  defaultHeight: z.number().finite().min(1).max(5000).optional(),
 }).strict();
 
 export const getUtf8ByteLength = (value: string): number => {

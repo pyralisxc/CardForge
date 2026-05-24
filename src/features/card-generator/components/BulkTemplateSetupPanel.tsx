@@ -16,6 +16,7 @@ interface BulkTemplateSetupPanelProps {
   bulkFieldDefinitions: TemplateFieldDefinition[];
   onTemplateSelectionChange: (templateId: string | null) => void;
   onDownloadExampleCsv: () => void;
+  onDownloadExampleJson: () => void;
   onDownloadContractJson: () => void;
 }
 
@@ -26,13 +27,14 @@ export function BulkTemplateSetupPanel({
   bulkFieldDefinitions,
   onTemplateSelectionChange,
   onDownloadExampleCsv,
+  onDownloadExampleJson,
   onDownloadContractJson,
 }: BulkTemplateSetupPanelProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">1. Template Contract</CardTitle>
-        <CardDescription>Select the template the CSV should populate.</CardDescription>
+        <CardDescription>Select the layout template your data source should populate.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -68,6 +70,10 @@ export function BulkTemplateSetupPanel({
           <Button type="button" variant="outline" onClick={onDownloadExampleCsv} disabled={!selectedTemplate}>
             <Download className="mr-2 h-4 w-4" />
             Example CSV
+          </Button>
+          <Button type="button" variant="outline" onClick={onDownloadExampleJson} disabled={!selectedTemplate}>
+            <FileJson className="mr-2 h-4 w-4" />
+            Example JSON
           </Button>
           <Button type="button" variant="outline" onClick={onDownloadContractJson} disabled={!selectedTemplate}>
             <FileJson className="mr-2 h-4 w-4" />

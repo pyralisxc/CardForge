@@ -3,7 +3,13 @@ import { nanoid } from 'nanoid';
 import type { CardData, DisplayCard, TCGCardTemplate } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { completeCardDataWithTemplateDefaults } from '@/lib/cardDataDefaults';
-import { unparseCSV } from '@/lib/utils';
+import {
+  FIELD_STYLE_PROPERTIES,
+  buildFieldStyleDataKey,
+  isRecognizedFieldStyleColumn,
+  parseFieldStyleColumnHeader,
+} from '@/lib/fieldStyleOverrides';
+import { parseCSV, unparseCSV } from '@/lib/utils';
 
 export interface BulkPreviewRow {
   rowNumber: number;
@@ -22,6 +28,8 @@ export interface CreateBulkExampleCsvOptions {
   fieldDefinitions: TemplateFieldDefinition[];
 }
 
+export type BulkDataSourceHint = 'auto' | 'csv' | 'json' | 'structured';
+
 export interface CreateBulkPreviewOptions {
   rows: string[][];
   columnMapping: Record<string, string>;
@@ -30,8 +38,31 @@ export interface CreateBulkPreviewOptions {
   maxPreviewRows?: number;
 }
 
+export interface CreateBulkImportContractOptions {
+  template: TCGCardTemplate;
+  fieldDefinitions: TemplateFieldDefinition[];
+  generatedAt?: string;
+}
+
 export const normalizeCsvHeaders = (headers: string[]): string[] =>
   headers.map((header) => header.replace(/^"|"$/g, '').trim());
+
+const createBulkExampleDataLine = (
+  template: TCGCardTemplate,
+  fieldDefinitions: TemplateFieldDefinition[]
+): string[] => fieldDefinitions.map((field) => {
+  const keyLower = field.key.toLowerCase();
+  if (field.isImage) return 'https://placehold.co/600x400.png?text=Artwork';
+  const previewValue = template.templatePreviewData?.[field.key];
+  if (previewValue !== undefined) return String(previewValue);
+  if (field.defaultValue) return field.defaultValue;
+  if (field.contentModel === 'rulesBlocks') return '[ability] Flying\n[effect] Deal 3 damage to any target.\n[reminder] (This can hit creatures.)';
+  if (keyLower.includes('name') || keyLower.includes('title')) return 'Sample Card';
+  if (keyLower.includes('cost') || keyLower.includes('value')) return '3';
+  if (keyLower.includes('type')) return 'Sample Type';
+  if (field.isMultiline) return 'Sample effect text.\nSecond line of text.';
+  return 'value';
+});
 
 export const createBulkExampleCsv = ({
   template,
@@ -40,21 +71,195 @@ export const createBulkExampleCsv = ({
   if (!template) return 'Select a template first.';
 
   const headers = fieldDefinitions.map((field) => field.key);
-  const exampleDataLine = fieldDefinitions.map((field) => {
-    const keyLower = field.key.toLowerCase();
-    if (field.isImage) return 'https://placehold.co/600x400.png?text=Artwork';
-    const previewValue = template.templatePreviewData?.[field.key];
-    if (previewValue !== undefined) return String(previewValue);
-    if (field.defaultValue) return field.defaultValue;
-    if (field.contentModel === 'rulesBlocks') return '[ability] Flying\n[effect] Deal 3 damage to any target.\n[reminder] (This can hit creatures.)';
-    if (keyLower.includes('name') || keyLower.includes('title')) return 'Sample Card';
-    if (keyLower.includes('cost') || keyLower.includes('value')) return '3';
-    if (keyLower.includes('type')) return 'Sample Type';
-    if (field.isMultiline) return 'Sample effect text.\nSecond line of text.';
-    return 'value';
-  });
+  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions);
 
   return unparseCSV([headers, exampleDataLine]);
+};
+
+export const createBulkExampleJson = ({
+  template,
+  fieldDefinitions,
+}: CreateBulkExampleCsvOptions): string => {
+  if (!template) return '[]';
+  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions);
+  const row = fieldDefinitions.reduce<Record<string, string>>((accumulator, field, index) => {
+    accumulator[field.key] = exampleDataLine[index] ?? '';
+    return accumulator;
+  }, {});
+  return JSON.stringify([row], null, 2);
+};
+
+const fieldTypeLabel = (field: TemplateFieldDefinition): string => {
+  if (field.isImage) return 'image';
+  if (field.contentModel === 'rulesBlocks') return 'rulesBlocks';
+  if (field.supportsRichText) return 'richText';
+  if (field.isMultiline) return 'multilineText';
+  return 'text';
+};
+
+const createFieldStyleOverrideColumns = (field: TemplateFieldDefinition): string[] => {
+  if (field.isImage) return [];
+  return FIELD_STYLE_PROPERTIES.map((property) => `${field.key}.${property}`);
+};
+
+export const createBulkImportContract = ({
+  template,
+  fieldDefinitions,
+  generatedAt = new Date().toISOString(),
+}: CreateBulkImportContractOptions) => ({
+  templateId: template.id,
+  templateName: template.name,
+  generatedAt,
+  styleOverrideSyntax: {
+    summary: 'Optional row-level styling columns can override template variable typography for a single generated output.',
+    supportedProperties: FIELD_STYLE_PROPERTIES,
+    examples: ['Name.textColor', 'Name.style.fontWeight'],
+  },
+  fields: fieldDefinitions.map((field) => ({
+    key: field.key,
+    label: field.label,
+    type: fieldTypeLabel(field),
+    required: field.required,
+    multiline: field.isMultiline,
+    supportsRichText: field.supportsRichText,
+    defaultValue: field.defaultValue ?? '',
+    helperText: field.helperText ?? '',
+    styleOverrideColumns: createFieldStyleOverrideColumns(field),
+  })),
+});
+
+const isPlainJsonRecord = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null;
+};
+
+const stringifyJsonCell = (value: unknown, rowNumber: number, key: string): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  throw new Error(`JSON row ${rowNumber} field "${key}" must be a string, number, boolean, or empty value.`);
+};
+
+export const normalizeJsonObjectsToRows = (value: unknown): string[][] => {
+  if (!Array.isArray(value)) {
+    throw new Error('JSON data source must be an array of objects.');
+  }
+  if (value.length === 0) {
+    throw new Error('JSON data source must contain at least one row object.');
+  }
+
+  const headers: string[] = [];
+  value.forEach((row, index) => {
+    if (!isPlainJsonRecord(row)) {
+      throw new Error(`JSON row ${index + 1} must be an object.`);
+    }
+    Object.keys(row).forEach((key) => {
+      const trimmedKey = key.trim();
+      if (trimmedKey && !headers.includes(trimmedKey)) headers.push(trimmedKey);
+    });
+  });
+
+  if (headers.length === 0) {
+    throw new Error('JSON data source must include at least one field.');
+  }
+
+  const dataRows = value.map((row, rowIndex) => {
+    const record = row as Record<string, unknown>;
+    return headers.map((header) => stringifyJsonCell(record[header], rowIndex + 1, header).trim());
+  });
+
+  return [headers, ...dataRows];
+};
+
+const FIELD_LINE_REGEX = /^([^:\n]+):\s*(.*)$/;
+
+const pushStructuredRecord = (
+  records: Array<Record<string, string>>,
+  currentRecord: Record<string, string>,
+  activeKeyRef: { value: string | null }
+) => {
+  if (Object.keys(currentRecord).length > 0) {
+    records.push({ ...currentRecord });
+    Object.keys(currentRecord).forEach((key) => delete currentRecord[key]);
+  }
+  activeKeyRef.value = null;
+};
+
+export const parseStructuredTextToRows = (raw: string): string[][] => {
+  const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const records: Array<Record<string, string>> = [];
+  const currentRecord: Record<string, string> = {};
+  const activeKeyRef: { value: string | null } = { value: null };
+  let blankLineCount = 0;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed === '---') {
+      pushStructuredRecord(records, currentRecord, activeKeyRef);
+      blankLineCount = 0;
+      return;
+    }
+    if (!trimmed) {
+      blankLineCount += 1;
+      if (blankLineCount >= 2) {
+        pushStructuredRecord(records, currentRecord, activeKeyRef);
+      } else if (activeKeyRef.value && currentRecord[activeKeyRef.value]) {
+        currentRecord[activeKeyRef.value] = `${currentRecord[activeKeyRef.value]}\n`;
+      }
+      return;
+    }
+
+    blankLineCount = 0;
+    const fieldMatch = FIELD_LINE_REGEX.exec(line);
+    if (fieldMatch) {
+      const key = fieldMatch[1].trim();
+      if (!key) return;
+      activeKeyRef.value = key;
+      currentRecord[key] = fieldMatch[2] ?? '';
+      return;
+    }
+
+    if (activeKeyRef.value) {
+      const previous = currentRecord[activeKeyRef.value] ?? '';
+      currentRecord[activeKeyRef.value] = previous ? `${previous}\n${line}` : line;
+    }
+  });
+
+  pushStructuredRecord(records, currentRecord, activeKeyRef);
+
+  if (records.length === 0) {
+    throw new Error('Structured text must include at least one Field: value pair.');
+  }
+
+  return normalizeJsonObjectsToRows(records);
+};
+
+const looksLikeStructuredText = (raw: string): boolean => {
+  const meaningfulLines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (meaningfulLines.length === 0) return false;
+  const fieldLineCount = meaningfulLines.filter((line) => FIELD_LINE_REGEX.test(line)).length;
+  return fieldLineCount > 0 && !meaningfulLines[0].includes(',');
+};
+
+export const parseBulkDataSource = (
+  raw: string,
+  hint: BulkDataSourceHint = 'auto'
+): string[][] => {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  const effectiveHint = hint === 'auto'
+    ? (/^[\[{]/.test(trimmed) ? 'json' : looksLikeStructuredText(trimmed) ? 'structured' : 'csv')
+    : hint;
+
+  if (effectiveHint === 'json') {
+    const parsed = JSON.parse(trimmed);
+    return normalizeJsonObjectsToRows(parsed);
+  }
+  if (effectiveHint === 'structured') {
+    return parseStructuredTextToRows(trimmed);
+  }
+  return parseCSV(trimmed);
 };
 
 export const buildInitialColumnMapping = (
@@ -144,7 +349,10 @@ export const createBulkPreview = ({
   }
 
   const headers = normalizeCsvHeaders(parsedRows[0]);
-  const unmappedHeaders = headers.filter((header) => !columnMapping[header]);
+  const fieldKeySet = new Set(fieldDefinitions.map((field) => field.key));
+  const unmappedHeaders = headers.filter((header) => (
+    !columnMapping[header] && !isRecognizedFieldStyleColumn(header, fieldKeySet)
+  ));
   const globalWarnings: string[] = [];
 
   if (unmappedHeaders.length > 0) {
@@ -224,6 +432,7 @@ export const createBulkDisplayCards = ({
 
   const headers = normalizeCsvHeaders(rows[0]);
   const generatedCards: DisplayCard[] = [];
+  const fieldKeySet = new Set(fieldDefinitions.map((field) => field.key));
 
   for (let i = 1; i < rows.length; i += 1) {
     const values = rows[i];
@@ -231,8 +440,18 @@ export const createBulkDisplayCards = ({
 
     headers.forEach((header: string, index: number) => {
       const mappedKey = columnMapping[header] || '';
-      if (!mappedKey) return;
-      cardData[mappedKey] = values[index] ?? '';
+      if (mappedKey) {
+        cardData[mappedKey] = values[index] ?? '';
+        return;
+      }
+
+      const styleColumn = parseFieldStyleColumnHeader(header, fieldKeySet);
+      if (!styleColumn) return;
+
+      const value = values[index] ?? '';
+      if (String(value).trim()) {
+        cardData[buildFieldStyleDataKey(styleColumn.fieldKey, styleColumn.property)] = value;
+      }
     });
 
     const rowNumber = i + 1;

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -52,13 +52,10 @@ import {
 } from '@/lib/constants';
 import { cn, replacePlaceholdersLocal, toTitleCase } from '@/lib/utils';
 import { appearanceToElementRenderFields, appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
-import { CARD_DIVIDER_ASSETS, CARD_TEXTURE_ASSETS } from '@/lib/cardAssets';
-import type { CardAssetOption } from '@/lib/cardAssets';
+import { CARD_FRAME_KITS, getFrameKitForTemplate, getFrameKitTemplateUpdates } from '@/lib/cardFrameKits';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
 import { buildTextElementStyle } from '@/lib/textTools';
 import { CardTextContent } from '@/lib/cardTextRender';
-import { getElementDepthStack, resolveDepthSelection, scaleElementWithParentResize, type DepthSelectionState } from '@/lib/freeformEditor';
-import { loadBootstrapAssets } from '@/lib/clientBootstrapData';
 import { useAppStore } from '@/store/appStore';
 import { createDefaultFreeformCanvas, getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate, scaleCanvasToSize } from '@/lib/templateModel';
 import { useToast } from '@/hooks/use-toast';
@@ -105,7 +102,11 @@ import { DividerStudioPanel } from '@/features/template-editor/components/Divide
 import { TypographyInspectorPanel } from '@/features/template-editor/components/TypographyInspectorPanel';
 import { ImageInspectorPanel } from '@/features/template-editor/components/ImageInspectorPanel';
 import { BorderInspectorPanel } from '@/features/template-editor/components/BorderInspectorPanel';
-import { LayerTreePanel, type LayerTreeNode } from '@/features/template-editor/components/LayerTreePanel';
+import { LayerTreePanel } from '@/features/template-editor/components/LayerTreePanel';
+import { useCanvasPointerInteractions, type ResizeHandle } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
+import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
+import { useTemplateAssetLibrary } from '@/features/template-editor/hooks/useTemplateAssetLibrary';
+import { buildLayerTree } from '@/features/template-editor/lib/layerTree';
 
 interface CardTemplateMakerProps {
   onSaveTemplate: (template: TCGCardTemplate) => string;
@@ -120,13 +121,8 @@ interface CardTemplateMakerProps {
   onDeleteAppearanceStyle: (styleId: string) => void;
   selectedTemplateIdForEditing: string | null;
   onSelectTemplateForEditing: (templateId: string | null) => void;
+  canUploadCustomAssets: boolean;
 }
-
-type DragState =
-  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> }
-  | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> };
-
-type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
 
 const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: string; label: string }> = [
   { handle: 'n', className: 'left-1/2 top-0 -translate-x-1/2 -translate-y-1/2', cursor: 'ns-resize', label: 'Resize selected element vertically from center' },
@@ -140,10 +136,6 @@ const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: s
 ];
 
 const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
-const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
-const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
-const LEGACY_CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker2-custom-textures';
-const LEGACY_CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker2-custom-dividers';
 
 export function CardTemplateMaker({
   onSaveTemplate,
@@ -158,6 +150,7 @@ export function CardTemplateMaker({
   onDeleteAppearanceStyle,
   selectedTemplateIdForEditing,
   onSelectTemplateForEditing,
+  canUploadCustomAssets,
 }: CardTemplateMakerProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -166,13 +159,6 @@ export function CardTemplateMaker({
   const borderImageInputRef = useRef<HTMLInputElement | null>(null);
   const variableKeyInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const variableCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const dragStateRef = useRef<DragState | null>(null);
-  const depthSelectionRef = useRef<DepthSelectionState | null>(null);
-  const [assetSearch, setAssetSearch] = useState('');
-  const [discoveredTextureAssets, setDiscoveredTextureAssets] = useState<CardAssetOption[]>(CARD_TEXTURE_ASSETS);
-  const [discoveredDividerAssets, setDiscoveredDividerAssets] = useState<CardAssetOption[]>(CARD_DIVIDER_ASSETS);
-  const [customTextureAssets, setCustomTextureAssets] = useState<CardAssetOption[]>([]);
-  const [customDividerAssets, setCustomDividerAssets] = useState<CardAssetOption[]>([]);
 
   const freeformTemplates = templates;
   const initialTemplate = useMemo(() => {
@@ -180,119 +166,74 @@ export function CardTemplateMaker({
     return reconstructMinimalTemplate(selected || freeformTemplates[0] || makeNewFreeformTemplate());
   }, [freeformTemplates, selectedTemplateIdForEditing, templates]);
 
-  const [currentTemplate, setCurrentTemplate] = useState<TCGCardTemplate>(initialTemplate);
-  const [activeFace, setActiveFace] = useState<'front' | 'back'>('front');
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(initialTemplate.freeformCanvas?.elements[0]?.id || null);
+  const {
+    activeFace,
+    canvas,
+    checkedLayerIds,
+    clearCheckedLayers,
+    commitTemplate,
+    createBackFace: createBackFaceInController,
+    currentTemplate,
+    deleteSelected: deleteSelectedInController,
+    duplicateSelected: duplicateSelectedInController,
+    future,
+    groupChecked: groupCheckedInController,
+    history,
+    moveSelectionByDelta,
+    recordTemplateHistory,
+    redo,
+    reorderLayer,
+    resetTemplate,
+    selectedElement,
+    selectedElementId,
+    selectElement: selectElementInController,
+    setActiveFace,
+    setSelectedElementId,
+    toggleCheckedLayer,
+    undo,
+    ungroupSelected: ungroupSelectedInController,
+    updateCanvas,
+    updateElement,
+    updateTemplate,
+    arrangeSelected: arrangeSelectedInController,
+  } = useTemplateEditorController(initialTemplate);
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
   const [activeVariableKey, setActiveVariableKey] = useState<string | null>(null);
+  const frameKitsForCurrentTemplate = useMemo(() => {
+    const recommendedKit = getFrameKitForTemplate(currentTemplate.id);
+    return recommendedKit
+      ? [recommendedKit, ...CARD_FRAME_KITS.filter((kit) => kit.id !== recommendedKit.id)]
+      : CARD_FRAME_KITS;
+  }, [currentTemplate.id]);
+
+  const applyFrameKit = useCallback((kitId: string) => {
+    const kit = CARD_FRAME_KITS.find((candidate) => candidate.id === kitId);
+    if (!kit) return;
+    updateTemplate(getFrameKitTemplateUpdates(kit));
+  }, [updateTemplate]);
 
   const selectElement = useCallback((id: string | null) => {
-    setSelectedElementId(id);
+    selectElementInController(id);
     if (id !== null) {
       setActiveInspectorTab('element');
       requestAnimationFrame(() => {
         canvasRef.current?.focus();
       });
     }
-  }, []);
+  }, [selectElementInController]);
   const [zoom, setZoom] = useState(0.62);
   const [autoFitCanvas, setAutoFitCanvas] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
-  const [history, setHistory] = useState<TCGCardTemplate[]>([]);
-  const [future, setFuture] = useState<TCGCardTemplate[]>([]);
   const [customWidthValue, setCustomWidthValue] = useState('');
   const [customHeightValue, setCustomHeightValue] = useState('');
   const [customUnit, setCustomUnit] = useState('mm');
   // Layers panel state
-  const [checkedLayerIds, setCheckedLayerIds] = useState<string[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [layerDragId, setLayerDragId] = useState<string | null>(null);
   const [layerDropTarget, setLayerDropTarget] = useState<{ id: string; pos: 'before' | 'after' | 'child' } | null>(null);
-
-  useEffect(() => {
-    setCurrentTemplate(initialTemplate);
-    setActiveFace('front');
-    setSelectedElementId(initialTemplate.freeformCanvas?.elements[0]?.id || null);
-    setHistory([]);
-    setFuture([]);
-  }, [initialTemplate]);
-
-  useEffect(() => {
-    try {
-      const texturePayload = localStorage.getItem(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY)
-        ?? localStorage.getItem(LEGACY_CUSTOM_TEXTURE_ASSETS_STORAGE_KEY)
-        ?? '[]';
-      const dividerPayload = localStorage.getItem(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY)
-        ?? localStorage.getItem(LEGACY_CUSTOM_DIVIDER_ASSETS_STORAGE_KEY)
-        ?? '[]';
-      const textures = JSON.parse(texturePayload) as CardAssetOption[];
-      const dividers = JSON.parse(dividerPayload) as CardAssetOption[];
-      setCustomTextureAssets(Array.isArray(textures) ? textures : []);
-      setCustomDividerAssets(Array.isArray(dividers) ? dividers : []);
-      if (Array.isArray(textures)) localStorage.setItem(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, JSON.stringify(textures));
-      if (Array.isArray(dividers)) localStorage.setItem(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, JSON.stringify(dividers));
-    } catch {
-      setCustomTextureAssets([]);
-      setCustomDividerAssets([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadDiscoveredAssets = async () => {
-      try {
-        const payload = await loadBootstrapAssets();
-        if (cancelled) return;
-        if (Array.isArray(payload.textures) && payload.textures.length > 0) {
-          setDiscoveredTextureAssets(payload.textures);
-        }
-        if (Array.isArray(payload.dividers) && payload.dividers.length > 0) {
-          setDiscoveredDividerAssets(payload.dividers);
-        }
-      } catch (error) {
-        console.warn('Unable to load discovered card assets:', error);
-      }
-    };
-
-    loadDiscoveredAssets();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const canvas = (activeFace === 'back'
-    ? currentTemplate.backCanvas
-    : currentTemplate.freeformCanvas) || createDefaultFreeformCanvas();
-
-  useEffect(() => {
-    const firstElementId = canvas.elements[0]?.id || null;
-    setSelectedElementId((previous) => (
-      previous && canvas.elements.some((element) => element.id === previous) ? previous : firstElementId
-    ));
-  }, [activeFace, canvas.elements]);
   const sortedElements = useMemo(() => [...(canvas.elements || [])].sort((a, b) => b.zIndex - a.zIndex), [canvas.elements]);
-  const groupedElementKits = useMemo(() => {
-    const groups: Record<'Core' | 'Card Parts' | 'Ornaments', typeof elementKits> = {
-      Core: [],
-      'Card Parts': [],
-      Ornaments: [],
-    };
-    CONSOLIDATED_ELEMENT_KITS.forEach(item => groups[item.category].push(item));
-    return groups;
-  }, []);
-  const elementLibrarySections = useMemo(() => (
-    (Object.keys(groupedElementKits) as Array<keyof typeof groupedElementKits>).map((category) => ({
-      category,
-      items: groupedElementKits[category].map((item) => ({
-        ...item,
-        dragKitIndex: CONSOLIDATED_ELEMENT_KITS.findIndex((kit) => kit.label === item.label),
-      })),
-    }))
-  ), [groupedElementKits]);
-  const selectedElement = canvas.elements.find(element => element.id === selectedElementId) || null;
   const gridSize = canvas.gridSize || 20;
   const selectedElementIsDivider = isDividerElement(selectedElement);
   const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
@@ -305,6 +246,38 @@ export function CardTemplateMaker({
   const canUseImageSource = hasElementCapability(selectedElement, 'image');
   const canUseElementBorder = hasElementCapability(selectedElement, 'border') && !canUseDividerControls;
   const canUseAppearanceStudio = Boolean(selectedElement && selectedElement.type !== 'image');
+  const {
+    assetSearch,
+    compatibleDividerAssets,
+    compatibleIconAssets,
+    compatiblePartAssets,
+    compatibleTextureAssets,
+    handleAssetUpload,
+    setAssetSearch,
+  } = useTemplateAssetLibrary({
+    selectedElement,
+    canUseBackgroundTexture,
+    canUploadCustomAssets,
+    toast,
+  });
+  const groupedElementKits = useMemo(() => {
+    const groups: Record<string, typeof elementKits> = {
+      Core: [],
+      'Card Parts': [],
+      Ornaments: [],
+    };
+    CONSOLIDATED_ELEMENT_KITS.forEach(item => groups[item.category].push(item));
+    return groups;
+  }, []);
+  const elementLibrarySections = useMemo(() => (
+    Object.keys(groupedElementKits).map((category) => ({
+      category,
+      items: groupedElementKits[category].map((item) => ({
+        ...item,
+        dragKitIndex: CONSOLIDATED_ELEMENT_KITS.findIndex((kit) => kit.label === item.label),
+      })),
+    }))
+  ), [groupedElementKits]);
   const selectedAppearance = useMemo(
     () => selectedElement ? normalizeAppearanceForElement(selectedElement) : undefined,
     [selectedElement]
@@ -320,20 +293,6 @@ export function CardTemplateMaker({
     });
     return Array.from(byId.values());
   }, [appearanceStyles, selectedElement]);
-  const compatibleTextureAssets = useMemo(() => {
-    if (!selectedElement || !canUseBackgroundTexture) return [];
-    const target = selectedElement.type === 'shape' ? 'shape' : 'text';
-    const search = assetSearch.trim().toLowerCase();
-    return [...discoveredTextureAssets, ...customTextureAssets]
-      .filter(asset => asset.allowedTargets.includes(target))
-      .filter(asset => !search || asset.name.toLowerCase().includes(search));
-  }, [assetSearch, canUseBackgroundTexture, customTextureAssets, discoveredTextureAssets, selectedElement]);
-  const compatibleDividerAssets = useMemo(() => {
-    const search = assetSearch.trim().toLowerCase();
-    return [...discoveredDividerAssets, ...customDividerAssets]
-      .filter(asset => asset.allowedTargets.includes('divider'))
-      .filter(asset => !search || asset.name.toLowerCase().includes(search));
-  }, [assetSearch, customDividerAssets, discoveredDividerAssets]);
   const templateFieldDefinitions = useMemo(() => extractTemplateFieldDefinitions(currentTemplate), [currentTemplate]);
   const textTemplateFields = useMemo(() => templateFieldDefinitions.filter(field => !field.isImage), [templateFieldDefinitions]);
   const selectedElementTemplateFields = useMemo(
@@ -362,31 +321,7 @@ export function CardTemplateMaker({
   }, [autoFitCanvas, canvas.height, canvas.width]);
 
   // ── Layer tree helpers ─────────────────────────────────────────────────────
-  const buildLayerTree = useCallback((elements: FreeformCardElement[]): LayerTreeNode[] => {
-    const byId = new Map(elements.map(e => [e.id, e]));
-    const roots: LayerTreeNode[] = [];
-    const nodeMap = new Map<string, LayerTreeNode>(elements.map(e => [e.id, { element: e, children: [] }]));
-    for (const e of elements) {
-      if (e.parentId && nodeMap.has(e.parentId)) {
-        nodeMap.get(e.parentId)!.children.push(nodeMap.get(e.id)!);
-      } else if (!e.parentId || !byId.has(e.parentId)) {
-        roots.push(nodeMap.get(e.id)!);
-      }
-    }
-    const sortDesc = (nodes: LayerTreeNode[]) => {
-      nodes.sort((a, b) => b.element.zIndex - a.element.zIndex);
-      nodes.forEach(n => sortDesc(n.children));
-    };
-    sortDesc(roots);
-    return roots;
-  }, []);
-
-  const getDescendantIds = useCallback((id: string, elements: FreeformCardElement[]): string[] => {
-    const directChildren = elements.filter(e => e.parentId === id);
-    return directChildren.flatMap(c => [c.id, ...getDescendantIds(c.id, elements)]);
-  }, []);
-
-  const layerTree = useMemo(() => buildLayerTree(canvas.elements), [buildLayerTree, canvas.elements]);
+  const layerTree = useMemo(() => buildLayerTree(canvas.elements), [canvas.elements]);
 
   const createBackFace = useCallback(() => {
     const sourceCanvas = currentTemplate.freeformCanvas || createDefaultFreeformCanvas();
@@ -395,17 +330,12 @@ export function CardTemplateMaker({
       elements: [],
     });
     const nextBackCanvas = scaleCanvasToSize(presetCanvas, sourceCanvas.width, sourceCanvas.height);
-    setCurrentTemplate((previous) => reconstructMinimalTemplate({
-      ...previous,
-      backCanvas: nextBackCanvas,
-    }));
-    setActiveFace('back');
-    setSelectedElementId(nextBackCanvas.elements[0]?.id || null);
+    createBackFaceInController(nextBackCanvas);
     toast({
       title: 'Back face added',
       description: 'The optional back face starts from the dark fantasy default back template and can now be edited.',
     });
-  }, [currentTemplate.freeformCanvas, templates, toast]);
+  }, [createBackFaceInController, currentTemplate.freeformCanvas, templates, toast]);
 
   // ── Group / ungroup ─────────────────────────────────────────────────────
   const livePreviewData = useMemo(() => ({
@@ -415,38 +345,6 @@ export function CardTemplateMaker({
     artworkUrl: 'https://placehold.co/600x400.png?text=Astral+Relic',
     ...(currentTemplate.templatePreviewData || {}),
   }), [currentTemplate.templatePreviewData]);
-
-  const commitTemplate = useCallback((updater: (template: TCGCardTemplate) => TCGCardTemplate, trackHistory = true) => {
-    setCurrentTemplate(previous => {
-      const before = reconstructMinimalTemplate(previous);
-      const next = reconstructMinimalTemplate(updater(before));
-      if (trackHistory) {
-        setHistory(items => [...items.slice(-39), before]);
-        setFuture([]);
-      }
-      return next;
-    });
-  }, []);
-
-  const updateTemplate = useCallback((updates: Partial<TCGCardTemplate>, trackHistory = true) => {
-    commitTemplate(template => ({ ...template, ...updates }), trackHistory);
-  }, [commitTemplate]);
-
-  const updateCanvas = useCallback((updates: Partial<FreeformCanvas>, trackHistory = true) => {
-    commitTemplate(template => ({
-      ...template,
-      [activeFace === 'back' ? 'backCanvas' : 'freeformCanvas']: reconstructFreeformCanvas({
-        ...((activeFace === 'back' ? template.backCanvas : template.freeformCanvas) || canvas),
-        ...updates,
-      }),
-    }), trackHistory);
-  }, [activeFace, canvas, commitTemplate]);
-
-  const updateElement = useCallback((elementId: string, updates: Partial<FreeformCardElement>, trackHistory = true) => {
-    updateCanvas({
-      elements: canvas.elements.map(element => element.id === elementId ? { ...element, ...updates } : element),
-    }, trackHistory);
-  }, [canvas.elements, updateCanvas]);
 
   const updateElementAppearance = useCallback((elementId: string, updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory = true) => {
     const element = canvas.elements.find(item => item.id === elementId);
@@ -601,54 +499,14 @@ export function CardTemplateMaker({
 
   // ── Group / ungroup ───────────────────────────────────────────────────────
   const groupChecked = useCallback(() => {
-    if (checkedLayerIds.length < 2) return;
-    const toGroup = canvas.elements.filter(e => checkedLayerIds.includes(e.id));
-    const xs = toGroup.map(e => e.x);
-    const ys = toGroup.map(e => e.y);
-    const x2s = toGroup.map(e => e.x + e.width);
-    const y2s = toGroup.map(e => e.y + e.height);
-    const bx = Math.min(...xs) - 8;
-    const by = Math.min(...ys) - 8;
-    const bw = Math.max(...x2s) - bx + 8;
-    const bh = Math.max(...y2s) - by + 8;
-    const maxZ = Math.max(0, ...toGroup.map(e => e.zIndex));
-    const groupId = nanoid();
-    const groupElement: FreeformCardElement = {
-      id: groupId,
-      type: 'shape',
-      name: 'Group',
-      x: bx,
-      y: by,
-      width: bw,
-      height: bh,
-      zIndex: maxZ,
-      locked: false,
-      visible: true,
-      shapeKind: 'rectangle',
-      fillColor: 'transparent',
-      strokeColor: 'transparent',
-      strokeWidth: 0,
-      backgroundColor: 'transparent',
-      borderWidth: '_none_',
-      appearance: normalizeAppearanceForElement({ id: groupId, type: 'shape', name: 'Group', x: bx, y: by, width: bw, height: bh, zIndex: maxZ }),
-    };
-    const updatedElements = canvas.elements.map(e =>
-      checkedLayerIds.includes(e.id) ? { ...e, parentId: groupId } : e
-    );
-    updateCanvas({ elements: [...updatedElements, groupElement] });
-    setCheckedLayerIds([]);
-    selectElement(groupId);
-  }, [canvas.elements, checkedLayerIds, selectElement, updateCanvas]);
+    const result = groupCheckedInController(nanoid);
+    if (!result.changed) return;
+    selectElement(result.selectedElementId);
+  }, [groupCheckedInController, selectElement]);
 
   const ungroupSelected = useCallback(() => {
-    if (!selectedElement) return;
-    const childIds = getDescendantIds(selectedElement.id, canvas.elements);
-    const updatedElements = canvas.elements
-      .filter(e => e.id !== selectedElement.id)
-      .map(e => childIds.includes(e.id) && e.parentId === selectedElement.id ? { ...e, parentId: undefined } : e);
-    updateCanvas({ elements: updatedElements });
-    setSelectedElementId(null);
-  }, [canvas.elements, getDescendantIds, selectedElement, updateCanvas]);
+    ungroupSelectedInController();
+  }, [ungroupSelectedInController]);
 
   const isGroupElement = selectedElement?.type === 'shape' &&
     canvas.elements.some(e => e.parentId === selectedElement?.id);
@@ -719,19 +577,10 @@ export function CardTemplateMaker({
   }, [canvas.elements, selectElement, updateCanvas]);
 
   const duplicateSelected = useCallback(() => {
-    if (!selectedElement) return;
-    const copyElement = {
-      ...selectedElement,
-      id: nanoid(),
-      name: `${selectedElement.name} Copy`,
-      x: selectedElement.x + gridSize,
-      y: selectedElement.y + gridSize,
-      zIndex: Math.max(0, ...canvas.elements.map(element => element.zIndex)) + 1,
-      locked: false,
-    };
-    updateCanvas({ elements: [...canvas.elements, copyElement] });
-    selectElement(copyElement.id);
-  }, [canvas.elements, gridSize, selectedElement, selectElement, updateCanvas]);
+    const result = duplicateSelectedInController(nanoid, gridSize);
+    if (!result.changed) return;
+    selectElement(result.selectedElementId);
+  }, [duplicateSelectedInController, gridSize, selectElement]);
 
   const handleLayerDragOver = useCallback((elementId: string, clientY: number, rect: DOMRect) => {
     if (layerDragId === elementId) return;
@@ -748,39 +597,27 @@ export function CardTemplateMaker({
     setLayerDragId(null);
     setLayerDropTarget(null);
     if (!srcId || !tgt || srcId === tgt.id) return;
-    if (tgt.pos === 'child') {
-      updateCanvas({ elements: canvas.elements.map(e => e.id === srcId ? { ...e, parentId: tgt.id } : e) });
-      return;
-    }
-
-    const flat = [...canvas.elements].sort((a, b) => b.zIndex - a.zIndex);
-    const srcIdx = flat.findIndex(e => e.id === srcId);
-    const tgtIdx = flat.findIndex(e => e.id === tgt.id);
-    if (srcIdx === -1 || tgtIdx === -1) return;
-    const reordered = flat.filter(e => e.id !== srcId);
-    const insertAt = tgt.pos === 'before' ? tgtIdx : tgtIdx + 1;
-    reordered.splice(Math.min(insertAt, reordered.length), 0, flat[srcIdx]);
-    const totalZ = reordered.length;
-    const remap = new Map(reordered.map((e, i) => [e.id, totalZ - i]));
-    updateCanvas({ elements: canvas.elements.map(e => ({ ...e, zIndex: remap.get(e.id) ?? e.zIndex })) });
-  }, [canvas.elements, layerDragId, layerDropTarget, updateCanvas]);
+    reorderLayer(srcId, tgt.id, tgt.pos);
+  }, [layerDragId, layerDropTarget, reorderLayer]);
 
   const deleteSelected = useCallback(() => {
-    if (!selectedElement) return;
-    const toDelete = new Set([selectedElement.id, ...getDescendantIds(selectedElement.id, canvas.elements)]);
-    const nextElements = canvas.elements.filter(element => !toDelete.has(element.id));
-    updateCanvas({ elements: nextElements });
-    setSelectedElementId(nextElements[0]?.id || null);
-  }, [canvas.elements, getDescendantIds, selectedElement, updateCanvas]);
+    const result = deleteSelectedInController();
+    if (!result.changed) {
+      if (result.reason === 'locked-selection' || result.reason === 'locked-descendant') {
+        toast({
+          title: 'Layer locked',
+          description: result.reason === 'locked-descendant'
+            ? 'Unlock child layers before deleting this group.'
+            : 'Unlock this layer before deleting it.',
+        });
+      }
+      return;
+    }
+  }, [deleteSelectedInController, toast]);
 
   const arrangeSelected = useCallback((direction: 'front' | 'back' | 'up' | 'down') => {
-    if (!selectedElement) return;
-    const zValues = canvas.elements.map(element => element.zIndex);
-    const minZ = Math.min(...zValues);
-    const maxZ = Math.max(...zValues);
-    const nextZ = direction === 'front' ? maxZ + 1 : direction === 'back' ? minZ - 1 : direction === 'up' ? selectedElement.zIndex + 1 : selectedElement.zIndex - 1;
-    updateElement(selectedElement.id, { zIndex: nextZ });
-  }, [canvas.elements, selectedElement, updateElement]);
+    arrangeSelectedInController(direction);
+  }, [arrangeSelectedInController]);
 
   const alignSelected = useCallback((alignment: 'left' | 'center' | 'right') => {
     if (!selectedElement) return;
@@ -788,186 +625,57 @@ export function CardTemplateMaker({
     updateElement(selectedElement.id, { x: Math.round(nextX) });
   }, [canvas.width, selectedElement, updateElement]);
 
-  const undo = useCallback(() => {
-    setHistory(items => {
-      const previous = items[items.length - 1];
-      if (!previous) return items;
-      setFuture(existing => [currentTemplate, ...existing]);
-      setCurrentTemplate(previous);
-      return items.slice(0, -1);
-    });
-  }, [currentTemplate]);
-
-  const redo = useCallback(() => {
-    setFuture(items => {
-      const next = items[0];
-      if (!next) return items;
-      setHistory(existing => [...existing, currentTemplate]);
-      setCurrentTemplate(next);
-      return items.slice(1);
-    });
-  }, [currentTemplate]);
-
   const snapValue = useCallback((value: number) => snapToGrid ? Math.round(value / gridSize) * gridSize : Math.round(value), [gridSize, snapToGrid]);
-
-  const getCanvasPoint = useCallback((event: Pick<PointerEvent | ReactPointerEvent, 'clientX' | 'clientY'>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return {
-      x: (event.clientX - rect.left) / zoom,
-      y: (event.clientY - rect.top) / zoom,
-    };
-  }, [zoom]);
-
-  const handleElementPointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement) => {
-    if (previewMode) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const point = getCanvasPoint(event);
-    const hitStack = getElementDepthStack(canvas.elements, point);
-    const { nextSelectedId, nextState } = resolveDepthSelection(
-      hitStack,
-      point,
-      selectedElementId,
-      depthSelectionRef.current,
-    );
-    depthSelectionRef.current = nextState;
-    const targetElement = canvas.elements.find((candidate) => candidate.id === (nextSelectedId || element.id)) || element;
-    selectElement(targetElement.id);
-    if (targetElement.locked) {
-      dragStateRef.current = null;
-      return;
-    }
-    setHistory(items => [...items.slice(-39), currentTemplate]);
-    setFuture([]);
-    const descendantIds = getDescendantIds(targetElement.id, canvas.elements);
-    const childOriginals = new Map(canvas.elements.filter(e => descendantIds.includes(e.id)).map(e => [e.id, { ...e }]));
-    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals };
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, currentTemplate, getCanvasPoint, getDescendantIds, previewMode, selectElement, selectedElementId]);
-
-  const handleResizePointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement, handle: ResizeHandle) => {
-    if (previewMode || element.locked) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectElement(element.id);
-    setHistory(items => [...items.slice(-39), currentTemplate]);
-    setFuture([]);
-    const point = getCanvasPoint(event);
-    const descendantIds = getDescendantIds(element.id, canvas.elements);
-    const childOriginals = new Map(canvas.elements.filter(e => descendantIds.includes(e.id)).map(e => [e.id, { ...e }]));
-    dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals };
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, currentTemplate, getCanvasPoint, getDescendantIds, previewMode, selectElement]);
-
-  const handlePointerMove = useCallback((event: ReactPointerEvent) => {
-    const dragState = dragStateRef.current;
-    if (!dragState) return;
-    const point = getCanvasPoint(event);
-    const deltaX = point.x - dragState.startX;
-    const deltaY = point.y - dragState.startY;
-    // MIN_VISIBLE: minimum px that must remain on-canvas so elements can always be grabbed back
-    const MIN_VISIBLE = 20;
-    if (dragState.mode === 'move') {
-      const newX = clamp(snapValue(dragState.original.x + deltaX), -(dragState.original.width - MIN_VISIBLE), canvas.width - MIN_VISIBLE);
-      const newY = clamp(snapValue(dragState.original.y + deltaY), -(dragState.original.height - MIN_VISIBLE), canvas.height - MIN_VISIBLE);
-      const actualDeltaX = newX - dragState.original.x;
-      const actualDeltaY = newY - dragState.original.y;
-      const { childOriginals } = dragState;
-      updateCanvas({
-        elements: canvas.elements.map(element => {
-          if (element.id === dragState.id) return { ...element, x: newX, y: newY };
-          const orig = childOriginals.get(element.id);
-          if (orig) return { ...element, x: orig.x + actualDeltaX, y: orig.y + actualDeltaY };
-          return element;
-        }),
-      }, false);
-    } else {
-      const horizontalFactor = dragState.handle.includes('e') ? 1 : dragState.handle.includes('w') ? -1 : 0;
-      const verticalFactor = dragState.handle.includes('s') ? 1 : dragState.handle.includes('n') ? -1 : 0;
-      const centerX = dragState.original.x + dragState.original.width / 2;
-      const centerY = dragState.original.y + dragState.original.height / 2;
-      const nextWidth = horizontalFactor === 0
-        ? dragState.original.width
-        : clamp(snapValue(dragState.original.width + horizontalFactor * deltaX * 2), 20, canvas.width * 2);
-      const nextHeight = verticalFactor === 0
-        ? dragState.original.height
-        : clamp(snapValue(dragState.original.height + verticalFactor * deltaY * 2), 12, canvas.height * 2);
-      const nextX = horizontalFactor === 0 ? dragState.original.x : snapValue(centerX - nextWidth / 2);
-      const nextY = verticalFactor === 0 ? dragState.original.y : snapValue(centerY - nextHeight / 2);
-      const nextParentBounds = {
-        x: nextX,
-        y: nextY,
-        width: nextWidth,
-        height: nextHeight,
-      };
-
-      updateCanvas({
-        elements: canvas.elements.map((element) => {
-          if (element.id === dragState.id) {
-            return {
-              ...element,
-              x: nextX,
-              y: nextY,
-              width: nextWidth,
-              height: nextHeight,
-            };
-          }
-
-          const originalChild = dragState.childOriginals.get(element.id);
-          if (!originalChild) return element;
-
-          const scaledChild = scaleElementWithParentResize(originalChild, dragState.original, nextParentBounds);
-          return {
-            ...element,
-            x: snapValue(scaledChild.x),
-            y: snapValue(scaledChild.y),
-            width: snapValue(scaledChild.width),
-            height: snapValue(scaledChild.height),
-            fontSizePx: scaledChild.fontSizePx,
-            strokeWidth: scaledChild.strokeWidth,
-          };
-        }),
-      }, false);
-    }
-  }, [canvas.elements, canvas.height, canvas.width, getCanvasPoint, snapValue, updateCanvas]);
-
-  const handlePointerUp = useCallback(() => {
-    dragStateRef.current = null;
-  }, []);
+  const {
+    clearDepthSelection,
+    getCanvasPoint,
+    handleElementPointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleResizePointerDown,
+  } = useCanvasPointerInteractions({
+    canvas,
+    canvasRef,
+    currentTemplate,
+    previewMode,
+    recordTemplateHistory,
+    selectedElementId,
+    selectElement,
+    snapValue,
+    updateCanvas,
+    zoom,
+  });
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const type = event.dataTransfer.getData('application/cardforge-element') as FreeformCardElement['type'];
     if (!type) return;
     const kitIndex = Number(event.dataTransfer.getData('application/cardforge-kit-index'));
-    const preset = Number.isFinite(kitIndex) ? CONSOLIDATED_ELEMENT_KITS[kitIndex]?.preset : undefined;
+    const serializedPreset = event.dataTransfer.getData('application/cardforge-preset');
+    const preset = serializedPreset
+      ? JSON.parse(serializedPreset) as Partial<FreeformCardElement>
+      : Number.isFinite(kitIndex) ? CONSOLIDATED_ELEMENT_KITS[kitIndex]?.preset : undefined;
     const point = getCanvasPoint(event);
     addElement(type, { x: snapValue(point.x), y: snapValue(point.y) }, preset);
   }, [addElement, getCanvasPoint, snapValue]);
 
   const handleCanvasKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!selectedElement || selectedElement.locked) return;
+    if (!selectedElement) return;
     const step = event.shiftKey ? gridSize : 1;
     if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
+      event.stopPropagation();
       deleteSelected();
+      return;
     }
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       event.preventDefault();
+      event.stopPropagation();
       const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
       const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
-      const childIds = getDescendantIds(selectedElement.id, canvas.elements);
-      updateCanvas({
-        elements: canvas.elements.map(element => {
-          if (element.id === selectedElement.id || childIds.includes(element.id)) {
-            return { ...element, x: element.x + dx, y: element.y + dy };
-          }
-          return element;
-        }),
-      });
+      moveSelectionByDelta(dx, dy);
     }
-  }, [deleteSelected, gridSize, selectedElement, updateElement]);
+  }, [deleteSelected, gridSize, moveSelectionByDelta, selectedElement]);
 
   const handleSave = useCallback(() => {
     if (!currentTemplate.name?.trim() || currentTemplate.name === 'New Card Template') {
@@ -997,6 +705,7 @@ export function CardTemplateMaker({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
       const isTyping = !!target && (
         ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
@@ -1045,25 +754,19 @@ export function CardTemplateMaker({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, [deleteSelected, duplicateSelected, handleSave, redo, selectedElementId, undo]);
 
   const handleNewTemplate = useCallback(() => {
     const fresh = makeNewFreeformTemplate();
-    setCurrentTemplate(fresh);
-    setActiveFace('front');
-    setSelectedElementId(fresh.freeformCanvas?.elements[0]?.id || null);
+    resetTemplate(fresh);
     onSelectTemplateForEditing(null);
-  }, [onSelectTemplateForEditing]);
+  }, [onSelectTemplateForEditing, resetTemplate]);
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
     onSelectTemplateForEditing(template.id);
-    setCurrentTemplate(reconstructMinimalTemplate(template));
-    setActiveFace('front');
-    setSelectedElementId(template.freeformCanvas?.elements[0]?.id || null);
-    setHistory([]);
-    setFuture([]);
-  }, [onSelectTemplateForEditing]);
+    resetTemplate(template);
+  }, [onSelectTemplateForEditing, resetTemplate]);
 
   const handleClone = useCallback(() => {
     if (!currentTemplate.id) return;
@@ -1128,44 +831,6 @@ export function CardTemplateMaker({
       toast({ title: 'Image Uploaded', description: `${file.name} loaded.` });
     };
     reader.onerror = () => toast({ title: 'Upload Error', description: 'Failed to read the selected image.', variant: 'destructive' });
-    reader.readAsDataURL(file);
-    event.target.value = '';
-  }, [toast]);
-
-  const handleAssetUpload = useCallback((event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider') => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      const dataUri = loadEvent.target?.result as string;
-      const asset: CardAssetOption = {
-        id: `custom-${kind}-${nanoid()}`,
-        name: file.name.replace(/\.[^.]+$/, ''),
-        url: dataUri,
-        kind,
-        tileMode: kind === 'texture' ? 'repeat' : 'stretch',
-        seamless: kind === 'texture',
-        allowedTargets: kind === 'texture' ? ['text', 'shape', 'template'] : ['divider'],
-        defaultBlendMode: kind === 'texture' ? 'multiply' : 'normal',
-        defaultOpacity: kind === 'texture' ? 45 : 100,
-        defaultScale: kind === 'texture' ? 160 : 100,
-      };
-      if (kind === 'texture') {
-        setCustomTextureAssets(previous => {
-          const next = [...previous, asset];
-          localStorage.setItem(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, JSON.stringify(next));
-          return next;
-        });
-      } else {
-        setCustomDividerAssets(previous => {
-          const next = [...previous, asset];
-          localStorage.setItem(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, JSON.stringify(next));
-          return next;
-        });
-      }
-      toast({ title: 'Asset Added', description: `${file.name} added to ${kind} assets.` });
-    };
-    reader.onerror = () => toast({ title: 'Upload Error', description: 'Failed to read the selected asset.', variant: 'destructive' });
     reader.readAsDataURL(file);
     event.target.value = '';
   }, [toast]);
@@ -1367,6 +1032,7 @@ export function CardTemplateMaker({
 
                 <ElementLibraryPanel
                   sections={elementLibrarySections}
+                  partAssets={compatiblePartAssets}
                   onAddElement={(type, preset) => addElement(type, undefined, preset)}
                   panelClassName={makerTheme.panel}
                 />
@@ -1382,7 +1048,7 @@ export function CardTemplateMaker({
                   canUngroupSelected={isGroupElement}
                   onGroupChecked={groupChecked}
                   onUngroupSelected={ungroupSelected}
-                  onClearChecked={() => setCheckedLayerIds([])}
+                  onClearChecked={clearCheckedLayers}
                   onSelectElement={selectElement}
                   onToggleGroupCollapsed={(elementId) => {
                     setCollapsedGroups(prev => {
@@ -1392,9 +1058,7 @@ export function CardTemplateMaker({
                       return next;
                     });
                   }}
-                  onToggleChecked={(elementId, checked) => {
-                    setCheckedLayerIds(prev => checked ? [...prev, elementId] : prev.filter(id => id !== elementId));
-                  }}
+                  onToggleChecked={toggleCheckedLayer}
                   onDragStart={setLayerDragId}
                   onDragEnd={() => {
                     setLayerDragId(null);
@@ -1557,7 +1221,7 @@ export function CardTemplateMaker({
                       onKeyDown={handleCanvasKeyDown}
                       onPointerDown={() => {
                         if (previewMode) return;
-                        depthSelectionRef.current = null;
+                        clearDepthSelection();
                         setSelectedElementId(null);
                       }}
                     >
@@ -1666,6 +1330,39 @@ export function CardTemplateMaker({
                             <SelectContent>{CARD_BORDER_STYLES.map(style => <SelectItem key={style.value} value={style.value}>{style.label}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
+                        <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">Frame Kits</Label>
+                            <Sparkles className="h-3.5 w-3.5 text-[#7a52cc]" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {frameKitsForCurrentTemplate.map((kit) => (
+                              <Tooltip key={kit.id}>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className={cn(
+                                      makerTheme.button,
+                                      'h-16 justify-start gap-2 overflow-hidden px-2 text-left text-[10px]',
+                                      currentTemplate.cardBackgroundImageUrl === kit.assetUrl && 'border-[#d5ad54] text-[#f5d27b]'
+                                    )}
+                                    onClick={() => applyFrameKit(kit.id)}
+                                  >
+                                    <span
+                                      className="h-12 w-9 shrink-0 rounded-[3px] border border-[#3a2e17] bg-cover bg-center"
+                                      style={{ backgroundImage: `url(${kit.assetUrl})` }}
+                                      aria-hidden="true"
+                                    />
+                                    <span className="min-w-0 truncate">{kit.name}</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Apply {kit.name}</TooltipContent>
+                              </Tooltip>
+                            ))}
+                          </div>
+                        </div>
                         <div>
                           <Label htmlFor="maker-bg-image">Card Background Image</Label>
                           <div className="flex gap-2">
@@ -1709,6 +1406,7 @@ export function CardTemplateMaker({
                             controlClassName={makerTheme.control}
                             buttonClassName={makerTheme.button}
                             assetSearch={assetSearch}
+                            canUploadCustomAssets={canUploadCustomAssets}
                             onAssetSearchChange={setAssetSearch}
                             onHandleAssetUpload={handleAssetUpload}
                             onSaveStyle={saveSelectedAppearanceStyle}
@@ -1749,11 +1447,16 @@ export function CardTemplateMaker({
                             <IconInspectorPanel
                               element={selectedElement}
                               iconOptions={ICON_OPTIONS}
+                              iconAssets={compatibleIconAssets}
+                              assetSearch={assetSearch}
+                              canUploadCustomAssets={canUploadCustomAssets}
                               symbolStylePresets={SYMBOL_STYLE_PRESETS}
                               controlClassName={makerTheme.control}
                               buttonClassName={makerTheme.button}
                               onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
                               onHandleFileUpload={handleFileUpload}
+                              onHandleAssetUpload={handleAssetUpload}
+                              onAssetSearchChange={setAssetSearch}
                             />
                           )}
 

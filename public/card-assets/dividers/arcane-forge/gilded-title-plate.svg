@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="160" viewBox="0 0 900 160">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7a4f17"/>
+      <stop offset=".28" stop-color="#f4d37a"/>
+      <stop offset=".52" stop-color="#8e5d1e"/>
+      <stop offset=".76" stop-color="#fff0a5"/>
+      <stop offset="1" stop-color="#5f3712"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-40%" width="120%" height="180%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity=".45"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M90 26h720l46 54-46 54H90L44 80Z" fill="#17100a" stroke="url(#gold)" stroke-width="8"/>
+    <path d="M124 46h652l28 34-28 34H124L96 80Z" fill="none" stroke="#f4d37a" stroke-opacity=".55" stroke-width="3"/>
+    <path d="M26 80h94M780 80h94" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="450" cy="80" r="22" fill="#2a153f" stroke="#f4d37a" stroke-width="5"/>
+    <path d="M450 52l9 19 20 9-20 9-9 19-9-19-20-9 20-9Z" fill="#b48cff"/>
+  </g>
+</svg>

@@ -1,18 +1,18 @@
 {
   "id": "default-ttrpg-stat-sheet",
-  "name": "TTRPG Stat Sheet",
+  "name": "Arcane TTRPG Stat Sheet",
   "templateSource": "default",
   "templateCategory": "Full page",
-  "templateDescription": "A letter-ratio character/stat sheet proving the maker can handle full-page game documents.",
+  "templateDescription": "A premium full-page tabletop sheet with vellum panels, stat rails, and guild-slate framing.",
   "aspectRatio": "85:110",
   "frameStyle": "custom",
-  "baseBackgroundColor": "#f2ead8",
-  "baseTextColor": "#25170c",
-  "defaultElementBorderColor": "#6a4721",
-  "cardBorderColor": "#6a4721",
-  "cardBorderWidth": "3px",
-  "cardBorderStyle": "solid",
-  "cardBorderRadius": "0.25rem",
+  "baseBackgroundColor": "#18130f",
+  "baseTextColor": "#25160b",
+  "defaultElementBorderColor": "transparent",
+  "cardBorderColor": "transparent",
+  "cardBorderWidth": "0px",
+  "cardBorderStyle": "none",
+  "cardBorderRadius": "8px",
   "fieldContracts": [
     {
       "key": "CharacterName",
@@ -43,13 +43,13 @@
       "type": "image",
       "required": false,
       "multiline": false,
-      "example": "",
+      "example": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
       "textAutoFit": true,
       "minFontSizePx": 8
     },
     {
       "key": "STR",
-      "elementId": "sheet-stats",
+      "elementId": "sheet-stat-str",
       "label": "STR",
       "type": "text",
       "required": false,
@@ -60,7 +60,7 @@
     },
     {
       "key": "DEX",
-      "elementId": "sheet-stats",
+      "elementId": "sheet-stat-dex",
       "label": "DEX",
       "type": "text",
       "required": false,
@@ -71,7 +71,7 @@
     },
     {
       "key": "CON",
-      "elementId": "sheet-stats",
+      "elementId": "sheet-stat-con",
       "label": "CON",
       "type": "text",
       "required": false,
@@ -82,7 +82,7 @@
     },
     {
       "key": "INT",
-      "elementId": "sheet-stats",
+      "elementId": "sheet-stat-int",
       "label": "INT",
       "type": "text",
       "required": false,
@@ -93,7 +93,7 @@
     },
     {
       "key": "WIS",
-      "elementId": "sheet-stats",
+      "elementId": "sheet-stat-wis",
       "label": "WIS",
       "type": "text",
       "required": false,
@@ -104,7 +104,7 @@
     },
     {
       "key": "CHA",
-      "elementId": "sheet-stats",
+      "elementId": "sheet-stat-cha",
       "label": "CHA",
       "type": "text",
       "required": false,
@@ -197,56 +197,20 @@
     "gridSize": 20,
     "elements": [
       {
-        "id": "sheet-bg",
-        "type": "shape",
-        "name": "Sheet Background",
-        "x": 22,
-        "y": 22,
-        "width": 806,
-        "height": 1056,
-        "rotation": 0,
-        "opacity": 1,
-        "zIndex": 0,
-        "locked": false,
-        "content": "",
-        "shapeKind": "rectangle",
-        "shapeRole": "basic",
-        "textColor": "#111827",
-        "backgroundColor": "#f7edd8",
-        "backgroundImageUrl": "linear-gradient(180deg,#fff7e5,#ead6af)",
-        "fontFamily": "font-sans",
-        "fontSize": "text-sm",
-        "fontSizePx": 14,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
-        "fontStyle": "normal",
-        "padding": "p-0",
-        "borderColor": "#6a4721",
-        "borderWidth": "border-2",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "fillColor": "#f7edd8",
-        "strokeColor": "#6a4721",
-        "strokeWidth": 0
-      },
-      {
         "id": "sheet-portrait",
         "type": "image",
         "name": "Portrait",
-        "x": 52,
+        "x": 70,
         "y": 126,
-        "width": 240,
-        "height": 260,
+        "width": 232,
+        "height": 306,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 2,
+        "zIndex": 1,
         "locked": false,
         "content": "Portrait",
         "imageSource": "Portrait",
-        "textColor": "#111827",
-        "backgroundColor": "#1f2937",
-        "backgroundImageUrl": "linear-gradient(135deg,#38504a,#bda16a)",
+        "backgroundColor": "transparent",
         "fontFamily": "font-sans",
         "fontSize": "text-sm",
         "fontSizePx": 14,
@@ -254,220 +218,545 @@
         "textAlign": "left",
         "fontStyle": "normal",
         "padding": "p-0",
-        "borderColor": "#6a4721",
-        "borderWidth": "border-2",
-        "borderRadius": "rounded-md",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-lg",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
-        "strokeWidth": 0
+        "strokeWidth": 0,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 0,
+            "glow": 0,
+            "bevel": 0
+          }
+        }
       },
       {
         "id": "sheet-name",
         "type": "text",
         "name": "Character Name",
-        "x": 52,
-        "y": 48,
-        "width": 440,
-        "height": 54,
+        "x": 360,
+        "y": 58,
+        "width": 330,
+        "height": 42,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{CharacterName:\"Kaela Ironvale\"}}",
-        "textColor": "#161616",
-        "backgroundColor": "transparent",
+        "textColor": "#25160b",
         "fontFamily": "font-cinzel",
         "fontSize": "text-base",
-        "fontSizePx": 34,
+        "fontSizePx": 27,
         "fontWeight": "font-bold",
-        "textAlign": "left",
+        "textAlign": "center",
         "fontStyle": "normal",
         "lineHeight": "1.15",
         "generatorFieldKind": "text",
         "generatorFieldRequired": true,
         "textAutoFit": true,
         "textMinFontSizePx": 8,
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
-        "strokeWidth": 0
+        "strokeWidth": 0,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        },
+        "textTransform": "uppercase"
       },
       {
         "id": "sheet-meta",
         "type": "text",
         "name": "Class Level",
-        "x": 510,
-        "y": 54,
-        "width": 280,
-        "height": 42,
+        "x": 486,
+        "y": 112,
+        "width": 240,
+        "height": 28,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
         "content": "{{ClassLevel:\"Ranger 5\"}}",
-        "textColor": "#161616",
-        "backgroundColor": "transparent",
+        "textColor": "#25160b",
         "fontFamily": "font-serif",
         "fontSize": "text-base",
-        "fontSizePx": 24,
-        "fontWeight": "font-normal",
-        "textAlign": "right",
+        "fontSizePx": 15,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
         "fontStyle": "normal",
         "lineHeight": "1.15",
         "generatorFieldKind": "text",
         "generatorFieldRequired": false,
         "textAutoFit": true,
         "textMinFontSizePx": 8,
-        "padding": "p-2",
-        "borderWidth": "_none_",
+        "padding": "p-1",
+        "borderWidth": "0px",
         "borderRadius": "rounded-none",
         "minHeight": "_auto_",
         "imageObjectFit": "cover",
-        "strokeWidth": 0
+        "strokeWidth": 0,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
       },
       {
-        "id": "sheet-stats",
+        "id": "sheet-stat-str",
         "type": "text",
-        "name": "Ability Scores",
-        "x": 320,
-        "y": 126,
-        "width": 470,
-        "height": 172,
+        "name": "STR Score",
+        "x": 430,
+        "y": 182,
+        "width": 68,
+        "height": 54,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
-        "content": "STR {{STR:\"12\"}}   DEX {{DEX:\"17\"}}   CON {{CON:\"14\"}}\nINT {{INT:\"10\"}}   WIS {{WIS:\"15\"}}   CHA {{CHA:\"11\"}}",
-        "textColor": "#161616",
-        "backgroundColor": "rgba(255,250,238,.82)",
-        "fontFamily": "font-mono",
-        "fontSize": "text-base",
-        "fontSizePx": 22,
+        "visible": true,
+        "content": "STR\n{{STR:\"12\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 16,
         "fontWeight": "font-semibold",
-        "textAlign": "left",
+        "textAlign": "center",
         "fontStyle": "normal",
-        "lineHeight": "1.55",
-        "generatorFieldKind": "text",
-        "generatorFieldRequired": false,
+        "lineHeight": "1.12",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
         "textAutoFit": true,
         "textMinFontSizePx": 8,
-        "padding": "p-2",
-        "borderColor": "#8a632d",
-        "borderWidth": "border",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 0
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
+      },
+      {
+        "id": "sheet-stat-dex",
+        "type": "text",
+        "name": "DEX Score",
+        "x": 558,
+        "y": 182,
+        "width": 68,
+        "height": 54,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "visible": true,
+        "content": "DEX\n{{DEX:\"17\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 16,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "lineHeight": "1.12",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
+      },
+      {
+        "id": "sheet-stat-con",
+        "type": "text",
+        "name": "CON Score",
+        "x": 690,
+        "y": 182,
+        "width": 68,
+        "height": 54,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "visible": true,
+        "content": "CON\n{{CON:\"14\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 16,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "lineHeight": "1.12",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
+      },
+      {
+        "id": "sheet-stat-int",
+        "type": "text",
+        "name": "INT Score",
+        "x": 430,
+        "y": 322,
+        "width": 68,
+        "height": 54,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "visible": true,
+        "content": "INT\n{{INT:\"10\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 16,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "lineHeight": "1.12",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
+      },
+      {
+        "id": "sheet-stat-wis",
+        "type": "text",
+        "name": "WIS Score",
+        "x": 558,
+        "y": 322,
+        "width": 68,
+        "height": 54,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "visible": true,
+        "content": "WIS\n{{WIS:\"15\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 16,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "lineHeight": "1.12",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
+      },
+      {
+        "id": "sheet-stat-cha",
+        "type": "text",
+        "name": "CHA Score",
+        "x": 690,
+        "y": 322,
+        "width": 68,
+        "height": 54,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "visible": true,
+        "content": "CHA\n{{CHA:\"11\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 16,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "lineHeight": "1.12",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
       },
       {
         "id": "sheet-details",
         "type": "text",
-        "name": "Traits",
-        "x": 320,
-        "y": 318,
-        "width": 470,
-        "height": 144,
+        "name": "Defense Details",
+        "x": 358,
+        "y": 438,
+        "width": 426,
+        "height": 50,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
-        "content": "Armor Class {{ArmorClass:\"16\"}}   HP {{HitPoints:\"42\"}}   Speed {{Speed:\"30 ft\"}}\nProficiency {{Proficiency:\"+3\"}}   Initiative {{Initiative:\"+3\"}}",
-        "textColor": "#161616",
-        "backgroundColor": "rgba(255,250,238,.82)",
-        "fontFamily": "font-mono",
-        "fontSize": "text-base",
-        "fontSizePx": 20,
-        "fontWeight": "font-normal",
-        "textAlign": "left",
+        "visible": true,
+        "content": "AC {{ArmorClass:\"16\"}}    HP {{HitPoints:\"42\"}}    SPD {{Speed:\"30 ft\"}}\nPB {{Proficiency:\"+3\"}}    INIT {{Initiative:\"+3\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 15,
+        "fontWeight": "font-medium",
+        "textAlign": "center",
         "fontStyle": "normal",
-        "lineHeight": "1.5",
-        "generatorFieldKind": "text",
-        "generatorFieldRequired": false,
+        "lineHeight": "1.25",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
         "textAutoFit": true,
         "textMinFontSizePx": 8,
-        "padding": "p-2",
-        "borderColor": "#8a632d",
-        "borderWidth": "border",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 0
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
       },
       {
         "id": "sheet-actions",
         "type": "text",
         "name": "Actions and Features",
-        "x": 52,
-        "y": 430,
-        "width": 738,
-        "height": 286,
+        "x": 72,
+        "y": 562,
+        "width": 386,
+        "height": 168,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
-        "content": "{{Actions:\"Longbow. Ranged Weapon Attack: +8 to hit, 150/600 ft., one target. Hit: 1d8+5 piercing damage.\nHunter's Mark. Mark a creature and deal an extra 1d6 damage when you hit it.\"}}",
-        "textColor": "#161616",
-        "backgroundColor": "rgba(255,250,238,.9)",
-        "fontFamily": "font-book",
-        "fontSize": "text-base",
-        "fontSizePx": 18,
+        "visible": true,
+        "content": "{{Actions:\"Longbow. Ranged Weapon Attack: +8 to hit, 150/600 ft., one target. Hit: 1d8+5 piercing damage.\n\nHunter's Mark. Mark a creature and deal an extra 1d6 damage when you hit it.\"}}",
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 17,
         "fontWeight": "font-normal",
         "textAlign": "left",
         "fontStyle": "normal",
         "lineHeight": "1.25",
-        "generatorFieldKind": "rules",
-        "generatorFieldRequired": true,
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
         "textAutoFit": true,
-        "textMinFontSizePx": 9,
-        "padding": "p-4",
-        "borderColor": "#6a4721",
-        "borderWidth": "border-2",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 0
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
       },
       {
         "id": "sheet-equipment",
         "type": "text",
         "name": "Equipment Notes",
-        "x": 52,
-        "y": 744,
-        "width": 738,
-        "height": 250,
+        "x": 538,
+        "y": 810,
+        "width": 294,
+        "height": 190,
         "rotation": 0,
         "opacity": 1,
-        "zIndex": 3,
+        "zIndex": 2,
         "locked": false,
+        "visible": true,
         "content": "{{Equipment:\"Explorer's pack, longbow, two shortswords, cloak of elvenkind, map case, 40 gp.\"}}",
-        "textColor": "#161616",
-        "backgroundColor": "rgba(255,250,238,.82)",
-        "fontFamily": "font-book",
-        "fontSize": "text-base",
-        "fontSizePx": 17,
+        "textColor": "#25160b",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-sm",
+        "fontSizePx": 15,
         "fontWeight": "font-normal",
         "textAlign": "left",
         "fontStyle": "normal",
-        "lineHeight": "1.15",
-        "generatorFieldKind": "richText",
-        "generatorFieldRequired": false,
+        "lineHeight": "1.28",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "strokeWidth": 0,
         "textAutoFit": true,
-        "textMinFontSizePx": 9,
-        "padding": "p-4",
-        "borderColor": "#8a632d",
-        "borderWidth": "border",
-        "borderRadius": "rounded-md",
-        "minHeight": "_auto_",
-        "imageObjectFit": "cover",
-        "strokeWidth": 0
+        "textMinFontSizePx": 8,
+        "appearance": {
+          "material": {
+            "baseColor": "transparent",
+            "textColor": "#25160b",
+            "texture": {
+              "kind": "none"
+            }
+          },
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          }
+        }
       }
     ]
   },
   "templateOrder": 3,
   "templatePreviewData": {
-    "Portrait": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20500%20560%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23263b36%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23c2a05e%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22500%22%20height%3D%22560%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Ccircle%20cx%3D%22250%22%20cy%3D%22172%22%20r%3D%2286%22%20fill%3D%22%23e8c78e%22%2F%3E%3Cpath%20d%3D%22M154%20168%20C180%2054%20338%2054%20362%20170%20C318%20132%20210%20132%20154%20168Z%22%20fill%3D%22%2333251b%22%2F%3E%3Cpath%20d%3D%22M92%20520%20C118%20348%20382%20348%20408%20520Z%22%20fill%3D%22%23314e45%22%2F%3E%3Cpath%20d%3D%22M140%20388%20C186%20434%20314%20434%20360%20388%22%20fill%3D%22none%22%20stroke%3D%22%23e8c78e%22%20stroke-width%3D%2222%22%2F%3E%3Cpath%20d%3D%22M76%20108%20L424%20452%22%20stroke%3D%22%23ffffff%22%20stroke-opacity%3D%22.16%22%20stroke-width%3D%2218%22%2F%3E%3C%2Fsvg%3E",
+    "Portrait": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
     "CharacterName": "Kaela Ironvale",
     "ClassLevel": "Ranger 5",
     "STR": "12",
@@ -483,5 +772,6 @@
     "Initiative": "+3",
     "Actions": "Longbow. Ranged Weapon Attack: +8 to hit, 150/600 ft., one target. Hit: 1d8+5 piercing damage.\nHunter's Mark. Mark a creature and deal an extra 1d6 damage when you hit it.",
     "Equipment": "Explorer's pack, longbow, two shortswords, cloak of elvenkind, map case, 40 gp."
-  }
+  },
+  "cardBackgroundImageUrl": "/card-assets/textures/arcane-forge/frame-ttrpg-premium.webp"
 }

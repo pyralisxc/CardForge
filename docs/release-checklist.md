@@ -1,12 +1,12 @@
 # Release Checklist
 
-Last updated: May 19, 2026
+Last updated: May 23, 2026
 
 ## Release Status
 
-Current recommendation: `CONDITIONAL GO`
+Current recommendation: `NO-GO FOR PUBLIC LAUNCH`, `GO FOR INTERNAL QA`
 
-The application is in a strong release state for functionality, structure, and performance. The only known unresolved issue is an upstream dependency audit finding tied to Next.js bundling `postcss@8.4.31`.
+The application is in a strong internal QA state for core authoring, generation, and export workflows after the Phase 1-3 AAA stabilization work. Public launch should pause until production dependency audit findings and worktree/release hygiene are resolved or formally accepted.
 
 ## Go / No-Go Summary
 
@@ -18,13 +18,14 @@ The application is in a strong release state for functionality, structure, and p
 - PNG, ZIP, and PDF export flows are present.
 - The repo has completed the cleanup and consolidation pass.
 - Route-level bundle size was materially reduced.
-- Local verification is green.
+- Local verification is green after the launch-readiness consolidation pass.
 
-### Remaining Go Decision
+### Remaining Launch Decisions
 
-Release can proceed if the team accepts:
-- `2` moderate `npm audit` findings tied to `next -> postcss`
-- those findings are currently upstream/framework-pinned and not safely fixable in-repo
+Release can proceed only after the team resolves or formally accepts:
+- `2` moderate production `npm audit --omit=dev` findings through `next -> postcss`
+- the currently large dirty worktree, including untracked feature directories, asset scaffolds, docs, and tests
+- the Stripe webhook or billing-owned entitlement store for production paid-account activation
 
 Release should pause if:
 - policy requires zero known audit findings
@@ -32,30 +33,54 @@ Release should pause if:
 
 ## Current Verification State
 
-These checks currently pass:
+These checks passed after the launch-readiness consolidation pass:
 
 - `npm run lint`
 - `npm run typecheck`
 - `npm run test`
 - `npm run build`
 - `npm run smoke`
+- `npm audit --omit=dev` does not pass
+- entitlement hardening now ignores public Clerk metadata and accepts paid/dev unlocks only from Clerk private metadata, server allowlists, local fallback mode, or a future billing-owned source
+- API bootstrap/account/billing failures now use no-store JSON error envelopes with correlation ids
+- tracked local-only user template JSON and the empty `.modified` marker were removed from the release tree
+- `/` now renders the public CardForge landing page, `/studio` renders the maker/generator workspace, `/account` renders profile/export/dev-tool status, and `/profile` renders Clerk-backed profile management
 
 Current production build snapshot:
 
-- `/` route size: `33.2 kB`
-- first-load JS: `155 kB`
+- `/` route size: `5.36 kB`
+- `/studio` route size: `34.8 kB`
+- `/account` route size: `11.4 kB`
+- `/profile` route size: `6.53 kB`
+- first-load JS: `111 kB` on `/`, `205 kB` on `/studio`, `177 kB` on `/account`, `166 kB` on `/profile`
+- unit tests: `34` files, `205` tests passed
+- smoke tests: `14` browser tests passed
 
-## Future Architecture Note
+Current production audit snapshot:
 
-The current release still enters directly into the main CardForge workspace. A later product phase is expected to shift the primary entry toward a landing page plus authenticated user profiles, with the heavy editor loading only when the user intentionally enters that workspace.
+- high: `0`
+- moderate: `2`
+- total: `2`
 
-This future architecture is intentionally out of scope for the current release checklist.
+Known audit chains:
 
-Do not treat it as a blocker before shipping unless release scope changes. It should be revisited after:
+- `next -> postcss`
 
-- the current release checklist is complete
-- core functionality and QA are fully stabilized
-- any major refactor toward stronger commercial-safe open source libraries is complete enough that the entry architecture does not need to be reworked twice
+Do not describe the release as audit-clean until `npm audit --omit=dev` exits successfully or this document records a named acceptance decision.
+
+## Entry Architecture
+
+The current release now has the intended public entry architecture:
+
+- `/` is the CardForge landing page.
+- `/studio` is the heavy maker/generator workspace.
+- `/account` is the compact My Forge overview for entitlement, local asset status, and role links.
+- `/roadmap` is the public Forge Chronicle and feature-voting surface.
+- `/developer` is the developer application and Forge Review asset hub.
+- `/owner` is the owner-only tabbed Library Command console.
+- `/profile` is the signed-in profile-management surface powered by Clerk's user profile component.
+
+The app remains soft-gated: visitors can open the studio without signing in, and the first hard account/paywall appears when clean export or development-only tooling is needed.
 
 ## Experience Standard
 
@@ -434,8 +459,9 @@ To avoid losing track, the recommended no-stone-unturned order is:
 
 - Confirm Card Template Maker opens, edits, and saves templates correctly.
 - Confirm default templates load from `data/default-templates`.
-- Confirm user templates save and delete through `/api/templates`.
-- Confirm appearance styles save and delete through `/api/styles`.
+- Confirm user templates save and delete locally in browser state.
+- Confirm `/api/templates` save/delete behavior under `CARDFORGE_ALLOW_LIBRARY_WRITES=true` plus dev access, and confirm protected `403` behavior when library writes are disabled.
+- Confirm `/api/styles` save/delete behavior under the same library-write gate, and confirm protected `403` behavior when disabled.
 - Confirm the style library is loaded from individual files in `data/styles`.
 - Confirm textures and dividers are returned by `/api/assets`.
 - Confirm single-card generation produces preview cards.
@@ -447,8 +473,9 @@ To avoid losing track, the recommended no-stone-unturned order is:
 - Confirm ZIP export works for generated card sets.
 - Confirm PDF export works for current paper-size options.
 - Confirm duplex templates export both front and back assets when a back face exists.
+- Confirm Clerk sign-up, free profile state, Founder Beta claim, profile route, and disposable profile deletion pass through authenticated smoke testing.
 
-Status: `PASS`
+Status: `PASS FOR INTERNAL QA`
 
 Functional verification snapshot:
 
@@ -467,6 +494,7 @@ Functional verification snapshot:
 - Typecheck passes.
 - Unit tests pass.
 - Smoke tests pass.
+- Authenticated Clerk/Supabase lifecycle smoke passes when Clerk dev keys and Supabase service credentials are available.
 - No obvious dead client-facing surfaces remain in active runtime code.
 
 Status: `PASS`
@@ -482,14 +510,15 @@ Status: `PASS`
 ### 4. Asset and Data Hygiene
 
 - Dev-only bulk sample CSV outputs were removed from committed release assets.
-- Stray local user template artifacts were removed.
+- `data/user-templates/` contains only `.gitkeep`; tracked local user-template artifacts were removed from the release tree.
 - Public card assets are referenced, small, and discoverable through `/api/assets`.
+- Arcane Forge premium textures, full-frame kits, dividers, ornaments, and style presets are shipped as reusable editor assets and consumed by upgraded default templates; premium parts are intentionally human-addable through the parts catalog rather than generated placeholder art.
 - Default templates are intentionally shipped.
 - Style presets are stored one-per-file in `data/styles/`.
 - Asset discovery rules are explicit and limited to approved extensions.
 - Generated proof exports and local run logs are ignored; they should be recreated as QA evidence, not shipped as repo assets.
 
-Status: `PASS`
+Status: `PASS FOR INTERNAL QA`
 
 ### 5. Dependency Hygiene
 
@@ -497,10 +526,11 @@ Status: `PASS`
 - Obvious dead runtime dependency surface was trimmed.
 - Declared Next versions are aligned with the resolved install state.
 
-Status: `PASS WITH NOTE`
+Status: `BLOCKED FOR PUBLIC RELEASE`
 
 Note:
-- `npm audit --omit=dev` still reports `2` moderate findings due to nested `postcss@8.4.31` inside `next@15.5.18`
+- `npm audit --omit=dev` currently reports `2` moderate findings through `next -> postcss`.
+- `npm audit fix --force` suggests unsafe breaking downgrade paths and must not be used without a deliberate dependency decision.
 
 ### 6. Documentation
 
@@ -513,25 +543,77 @@ Status: `PASS`
 
 ## Known Residual Risks
 
-### 1. Framework-Pinned Audit Findings
+### 1. Production Dependency Audit Findings
 
 Current finding:
-- `next -> postcss@8.4.31`
-- advisory: PostCSS XSS via unescaped `</style>` stringify output
+- `next -> postcss`
 
 What we verified:
-- upgrading from the earlier Next version to `15.5.18` did not remove the nested dependency
-- current `next@16.2.6` still declares `postcss: 8.4.31`
+- `npm audit --omit=dev --audit-level=moderate` reports `2` production findings: `0` high and `2` moderate
 - `npm audit fix --force` suggests an unsafe breaking downgrade path and must not be used
-- a local override attempt did not safely replace the nested dependency
 
 Recommended handling:
-- document this as an upstream dependency exception
 - monitor Next releases for a patched bundled `postcss`
+- do not mark dependency hygiene as passing until `npm audit --omit=dev` exits successfully or this file records a named acceptance decision
 
-Risk rating: `Moderate / Known / Upstream`
+Risk rating: `Moderate / Known / Launch Blocking if policy requires audit-clean dependencies`
 
-### 2. Large Internal Editor Coordinator
+### 2. Production Billing Entitlement Activation
+
+Current finding:
+- Stripe Checkout exists, but there is no production webhook or billing-owned entitlement store in this slice.
+- Paid/dev unlocks are intentionally server-trusted: Clerk private metadata, server-only allowlists, local fallback mode, or a future billing source.
+- Public Clerk metadata is ignored and must not be used as a paid/dev authority.
+
+What we verified:
+- focused unit tests prove public Clerk metadata no longer grants paid/dev export entitlement
+- API errors now have shared no-store JSON envelopes with correlation ids
+
+Recommended handling:
+- add a Stripe webhook before public paid launch, or record a named decision to operate manually through private Clerk metadata/server allowlists
+- keep public metadata display-only
+
+Risk rating: `High / Known / Launch Blocking for paid self-serve`
+
+### 3. Developer Asset Program Operational Readiness
+
+Current finding:
+- The developer asset pipeline now has owner-configurable rules, a Supabase schema, developer submissions, peer voting, and owner publish/archive/reject controls.
+- Owner Site Mechanics now control public feature-board caps and negative-signal archive thresholds separately from developer asset voting rules.
+- Owner Launch Readiness can now move official roadmap checkpoints through Plan, Start, Test, and Complete; Complete sets the shipped date used by the public roadmap.
+- Owner Access & Promos can now show Founder Beta wave capacity, public cap capacity, next-wave availability, and active claim records.
+- Asset lifecycle status is now separate from user-facing access tier: owner rules can place voted assets into Forge Review, Starter Library, Creator Pass, Official Default, or Hidden visibility.
+- The default access ladder is 5 votes before tier assignment, 60% positive for Starter Library, and 80% positive for Creator Pass, with owner overrides available from `/owner`.
+- Publish Total is derived from Starter plus Creator Pass caps so owners cannot create conflicting per-type library limits.
+- Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe should later own real coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks.
+- `/api/assets` now exposes one asset registry payload. Before the online registry migration is applied it falls back to shipped files; after `202605230002_asset_registry.sql` is applied it reads `cardforge_asset_registry`.
+- Official shipped textures and dividers are seeded as `published` and `official`, so they remain visible in the app without developer votes.
+- `202605230003_asset_registry_all_creation_assets.sql` expands the registry to all reusable creation asset classes: textures, dividers, parts, icons, images, templates, and element presets.
+- `202605230004_developer_asset_upload_bridge.sql` adds the public `cardforge-developer-assets` storage bucket and source-file metadata columns that let approved developer submissions publish into the same live registry.
+- Owner Developer Program now includes voting presets for solo owner testing, current roster review, launch roster review, and full council review.
+- Owner Developer Program now includes a storage forecast based on publish caps, one month of possible voting submissions, and visible archive capacity.
+- Owner Launch Readiness now includes database footprint metrics after the asset-registry migration function is applied.
+- The framework tracks contribution eligibility for a future financial launch, but it intentionally does not move money or create Stripe Connect accounts.
+- Signed-in paid/free user uploads remain local and are not promoted to site defaults without a future explicit submission flow.
+- Current shipped templates, styles, textures, dividers, icons, and image assets keep their source files in the repo/static asset layer while the registry becomes the app-facing catalog. Developer-submitted image/source assets now use the upload bridge; repo-backed official defaults should only be moved into database/storage records once versioning and owner rollback rules are finalized.
+
+Recommended handling:
+- run `supabase/migrations/202605230001_developer_asset_pipeline.sql` before testing the developer Asset Hub
+- run `supabase/migrations/202605230002_asset_registry.sql` before treating the database registry and owner footprint metrics as the online source of truth
+- run `supabase/migrations/202605230003_asset_registry_all_creation_assets.sql` before submitting icons, images, templates, or element presets into the registry
+- run `supabase/migrations/202605230004_developer_asset_upload_bridge.sql` before testing developer file uploads or owner publish-to-library actions
+- rerun `supabase/migrations/202605220003_owner_console.sql` or apply its `cardforge_owner_settings` `alter table ... add column if not exists` block before testing Site Mechanics
+- confirm owner settings in `/owner` before inviting developers
+- verify the owner account sees Library Command, the developer account sees Forge Review, paid accounts see Creator Pass Library, and free users see Starter Library messaging
+- verify `/api/assets` reports `registry.source = "database"` after the asset registry migration is applied
+- verify the owner can complete an official roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
+- verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
+- verify a developer can upload an SVG/PNG/JPG/WEBP/JSON source file, submit it to voting, and have an owner-published submission appear through `/api/assets`
+- treat payout reports as planning data until Stripe Connect, tax/legal terms, refund handling, and billing webhooks are implemented
+
+Risk rating: `Medium / Known / Launch Blocking for developer-program rollout, not for core local authoring`
+
+### 4. Large Internal Editor Coordinator
 
 File:
 - `src/components/card-forge/CardTemplateMaker.tsx`
@@ -546,7 +628,7 @@ Risk rating: `Low`
 
 Before publishing, confirm:
 
-1. The team accepts the `2` moderate upstream audit findings.
+1. The team resolves or formally accepts the `2` moderate Next/PostCSS findings.
 2. The deployment target does not block release on those findings.
 3. Final default templates and styles are the intended shipped set.
 4. No local-only user templates are committed before release.
@@ -557,6 +639,7 @@ Before publishing, confirm:
 After release, track these items:
 
 1. Watch Next releases for a version that removes the nested vulnerable `postcss`.
-2. Re-run `npm audit --omit=dev` on every framework upgrade.
+2. Re-run `npm audit --omit=dev` on every framework/auth upgrade.
 3. Revisit `makerConstants.tsx` if another maintainability pass is scheduled.
 4. Continue with optional UX polish and bundle micro-optimizations only if they do not destabilize the app.
+5. Restart any already-running local `next dev` server after `npm run build`; production builds rewrite `.next`, and a stale dev server can throw missing chunk errors until restarted.

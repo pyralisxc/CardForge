@@ -121,7 +121,7 @@ export const makerTheme = {
 export const elementKits: Array<{
   label: string;
   description: string;
-  category: 'Core' | 'Card Parts' | 'Ornaments';
+  category: 'Core' | 'Premium Parts' | 'Card Parts' | 'Ornaments';
   icon: React.ElementType;
   type: FreeformCardElement['type'];
   preset?: Partial<FreeformCardElement>;

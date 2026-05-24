@@ -34,7 +34,7 @@ export interface AppearanceTexture {
   scale?: number;
   imageSource?: string;
   assetSource?: string;
-  assetKind?: 'texture' | 'divider' | 'border' | 'frame';
+  assetKind?: 'texture' | 'divider' | 'border' | 'frame' | 'part';
   blendMode?: string;
   textureScale?: number;
   textureOpacity?: number;
@@ -61,7 +61,7 @@ export interface AppearanceEffects {
 
 export interface FreeformAppearance {
   assetSource?: string;
-  assetKind?: 'texture' | 'divider' | 'border' | 'frame';
+  assetKind?: 'texture' | 'divider' | 'border' | 'frame' | 'part';
   blendMode?: string;
   textureScale?: number;
   textureOpacity?: number;

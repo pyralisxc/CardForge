@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-gilded-title-plate",
+  "name": "Gilded Title Plate",
+  "tileMode": "stretch",
+  "seamless": false,
+  "allowedTargets": ["divider", "shape"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

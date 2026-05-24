@@ -57,6 +57,7 @@ const computeCanvasPixelRatio = (dpi: number): number => {
 };
 
 const KNOWN_FONT_VALUES = new Set(AVAILABLE_FONTS.map((font) => font.value));
+const PHYSICAL_SAFE_AREA_RATIO = 0.04;
 
 const isLikelyImageSource = (value: string): boolean => {
   return (
@@ -100,6 +101,30 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
   if (mode === 'physical') {
     warnings.push('Physical ZIP exports produce individual front/back card-face PNGs. Use Save as PDF when you need the selected paper size, cut lines, and sheet layout.');
     warnings.push('Browser exports are RGB. If your print vendor requires CMYK, spot colors, bleed boxes, or PDF/X, convert the exported PNG/PDF in a prepress tool before final production.');
+
+    [
+      { label: 'front', canvas: card.template.freeformCanvas },
+      { label: 'back', canvas: card.template.backCanvas },
+    ].forEach(({ label, canvas }) => {
+      if (!canvas) return;
+      const safeX = canvas.width * PHYSICAL_SAFE_AREA_RATIO;
+      const safeY = canvas.height * PHYSICAL_SAFE_AREA_RATIO;
+      (canvas.elements || [])
+        .filter((element) => element.type === 'text' || element.type === 'icon')
+        .forEach((element) => {
+          const tooClose =
+            element.x < safeX ||
+            element.y < safeY ||
+            element.x + element.width > canvas.width - safeX ||
+            element.y + element.height > canvas.height - safeY;
+
+          if (tooClose) {
+            warnings.push(
+              `${label === 'back' ? 'Back' : 'Front'} ${element.type} element "${element.name || element.id}" is inside the print safe area. Keep important text and icons at least 4% away from trim edges, or confirm the placement intentionally bleeds.`
+            );
+          }
+        });
+    });
   }
 
   fieldDefinitions.forEach((field) => {

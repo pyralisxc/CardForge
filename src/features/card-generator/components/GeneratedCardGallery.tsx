@@ -23,6 +23,7 @@ interface GeneratedCardGalleryProps {
   gallerySort: GeneratedGallerySort;
   exportMode: ExportMode;
   exportDpi: number;
+  exportGateMessage?: string | null;
   onGallerySearchChange: (value: string) => void;
   onGallerySortChange: (value: GeneratedGallerySort) => void;
   onEditCardRequest: (card: DisplayCard) => void;
@@ -33,7 +34,7 @@ const DEFAULT_GALLERY_PAGE_SIZE = 60;
 const GALLERY_DENSITY_OPTIONS: Record<GeneratedGalleryDensity, { label: string; previewWidthPx: number; gridMinWidthPx: number }> = {
   compact: { label: 'Compact grid', previewWidthPx: 132, gridMinWidthPx: 144 },
   comfortable: { label: 'Comfortable grid', previewWidthPx: 176, gridMinWidthPx: 188 },
-  large: { label: 'Detailed cards', previewWidthPx: 232, gridMinWidthPx: 244 },
+  large: { label: 'Detailed outputs', previewWidthPx: 232, gridMinWidthPx: 244 },
 };
 
 export function GeneratedCardGallery({
@@ -44,6 +45,7 @@ export function GeneratedCardGallery({
   gallerySort,
   exportMode,
   exportDpi,
+  exportGateMessage,
   onGallerySearchChange,
   onGallerySortChange,
   onEditCardRequest,
@@ -95,7 +97,7 @@ export function GeneratedCardGallery({
     <div className="min-w-0">
       <div className="sticky top-0 z-10 bg-background pb-2 flex items-center justify-between mb-2 gap-3 flex-wrap">
         <h2 className="text-2xl font-semibold text-foreground shrink-0">
-          Generated Reference Cards ({generatedDisplayCards.length})
+          Generated Outputs ({generatedDisplayCards.length})
           {selectedTemplate && (
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               - {selectedTemplate.name}
@@ -106,7 +108,7 @@ export function GeneratedCardGallery({
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="Search cards..."
+              placeholder="Search outputs..."
               value={gallerySearch}
               onChange={(event) => onGallerySearchChange(event.target.value)}
               className="pl-8 h-8 text-sm w-40"
@@ -124,7 +126,7 @@ export function GeneratedCardGallery({
             </SelectContent>
           </Select>
           <Select value={String(cardsPerPage)} onValueChange={(value) => setCardsPerPage(parseInt(value, 10))}>
-            <SelectTrigger className="h-8 text-sm w-36" aria-label="Cards per page">
+            <SelectTrigger className="h-8 text-sm w-36" aria-label="Outputs per page">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -150,14 +152,14 @@ export function GeneratedCardGallery({
       {generatedDisplayCards.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
           <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
-          <p className="text-lg font-medium">No cards generated yet.</p>
-          <p className="text-sm">Create a single card, generate from CSV, or load a set. This gallery is the visual review surface used before export.</p>
+          <p className="text-lg font-medium">No outputs generated yet.</p>
+          <p className="text-sm">Create a single output, generate from data, or import a project. This gallery is the visual review surface used before export.</p>
         </div>
       ) : (
         <ScrollArea className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
           <div className="mb-3 flex items-center justify-between gap-3 rounded-md border bg-background/80 px-3 py-2 text-xs text-muted-foreground">
             <span>
-              Page {boundedCurrentPage} of {totalPages} - showing {displayStartIndex}-{pageEndIndex} of {filteredSortedCards.length} matching cards
+              Page {boundedCurrentPage} of {totalPages} - showing {displayStartIndex}-{pageEndIndex} of {filteredSortedCards.length} matching outputs
               {filteredSortedCards.length !== generatedDisplayCards.length ? ` (${generatedDisplayCards.length} total generated)` : ''}
             </span>
             <div className="flex items-center gap-2">
@@ -200,7 +202,13 @@ export function GeneratedCardGallery({
                   targetWidthPx={densityConfig.previewWidthPx}
                 />
                 <div className="absolute bottom-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
-                  <ExportCardImageButton card={cardItem} exportMode={exportMode} exportDpi={exportDpi} />
+                  <ExportCardImageButton
+                    card={cardItem}
+                    exportMode={exportMode}
+                    exportDpi={exportDpi}
+                    disabled={false}
+                    gateMessage={exportGateMessage}
+                  />
                 </div>
               </div>
             ))}

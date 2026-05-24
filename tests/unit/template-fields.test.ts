@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
-import { buildStaticSegmentFieldKey } from '@/lib/textBindings';
+import { buildScopedFieldDataKey, buildStaticSegmentFieldKey } from '@/lib/textBindings';
 import type { TCGCardTemplate } from '@/types';
 
 describe('extractTemplateFieldDefinitions', () => {
@@ -255,6 +255,71 @@ describe('extractTemplateFieldDefinitions', () => {
     const field = extractTemplateFieldDefinitions(template).find((item) => item.key === 'headline_var_1');
     expect(field?.label).toBe('Headline Var 1');
     expect(field?.sourceElementPreview).toBe('Ability: [Headline Var 1]');
+  });
+
+  it('keeps scoped contracts with the same placeholder key as separate editable fields', () => {
+    const template: TCGCardTemplate = {
+      id: 'template-scoped-collision',
+      name: 'Scoped Collision Template',
+      aspectRatio: '63:88',
+      fieldContracts: [
+        {
+          key: 'title',
+          elementId: 'name-text',
+          label: 'Card Title',
+          type: 'richText',
+          required: true,
+          example: 'Ashen Crown',
+        },
+        {
+          key: 'title',
+          elementId: 'subtitle-text',
+          label: 'Subtitle',
+          type: 'text',
+          required: false,
+          example: 'Relic',
+        },
+      ],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'name-text',
+            type: 'text',
+            name: 'Name',
+            x: 0,
+            y: 0,
+            width: 200,
+            height: 40,
+            zIndex: 1,
+            content: '{{title:"Ashen Crown"}}',
+          },
+          {
+            id: 'subtitle-text',
+            type: 'text',
+            name: 'Subtitle',
+            x: 0,
+            y: 50,
+            width: 200,
+            height: 40,
+            zIndex: 2,
+            content: '{{title:"Relic"}}',
+          },
+        ],
+      },
+    };
+
+    const fields = extractTemplateFieldDefinitions(template);
+
+    expect(fields).toHaveLength(2);
+    expect(fields.map((field) => field.key)).toEqual([
+      buildScopedFieldDataKey('name-text', 'title'),
+      buildScopedFieldDataKey('subtitle-text', 'title'),
+    ]);
+    expect(fields.map((field) => field.label)).toEqual(['Card Title', 'Subtitle']);
+    expect(fields.map((field) => field.sourceElementId)).toEqual(['name-text', 'subtitle-text']);
+    expect(fields.map((field) => field.defaultValue)).toEqual(['Ashen Crown', 'Relic']);
   });
 
   it('adds a base text field for mixed static and variable text elements', () => {

@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-ember-leather",
+  "name": "Ember Leather",
+  "tileMode": "repeat",
+  "seamless": true,
+  "allowedTargets": ["text", "shape", "template"],
+  "defaultBlendMode": "soft-light",
+  "defaultOpacity": 56,
+  "defaultScale": 210
+}

@@ -34,20 +34,20 @@ export function BulkCsvInputPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">2. CSV Source</CardTitle>
-        <CardDescription>Paste CSV content or upload a file to start mapping.</CardDescription>
+        <CardTitle className="text-base">2. Data Source</CardTitle>
+        <CardDescription>Paste CSV, JSON, or structured text, or upload a data file to start mapping.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!selectedTemplateId}>
             <FileUp className="mr-2 h-4 w-4" />
-            Upload CSV
+            Upload Data
           </Button>
           <input
             id="bulk-file-upload-csv"
             ref={fileInputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.json,.txt,text/csv,application/json,text/plain"
             className="sr-only"
             onChange={onFileUpload}
           />
@@ -68,12 +68,12 @@ export function BulkCsvInputPanel({
         ) : null}
 
         <div className="space-y-2">
-          <Label htmlFor="bulkData">CSV Data</Label>
+          <Label htmlFor="bulkData">Data Source</Label>
           <Textarea
             id="bulkData"
             value={bulkDataInput}
             onChange={(event) => onDataInputChange(event.target.value)}
-            placeholder="Paste CSV data here"
+            placeholder="Paste CSV, JSON object arrays, or structured Field: value text here"
             className="min-h-[220px] font-mono text-xs"
           />
         </div>

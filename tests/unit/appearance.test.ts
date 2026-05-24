@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 import { appearanceToElementRenderFields, appearanceToStyle, gradientToCss, normalizeAppearanceForElement, textureToCss } from '@/lib/appearance';
+import { stylePresetPayloadSchema } from '@/lib/apiValidation';
 import type { FreeformCardElement } from '@/types';
 
 const baseElement: FreeformCardElement = {
@@ -118,5 +121,22 @@ describe('structured appearance helpers', () => {
     expect(updates.backgroundColor).toBe('#160d25');
     expect(updates.textColor).toBe('#f4eaff');
     expect(updates.borderColor).toBe('#d5ad54');
+  });
+
+  it('loads premium CardForge style presets that reference shipped asset URLs', async () => {
+    const styleFiles = [
+      'data/styles/material-arcane-forge-parchment.json',
+      'data/styles/material-obsidian-neon-premium.json',
+      'data/styles/frame-gilded-relic-premium.json',
+      'data/styles/frame-ttrpg-vellum-premium.json',
+    ];
+
+    await Promise.all(styleFiles.map(async (relativePath) => {
+      const raw = await fs.readFile(path.join(process.cwd(), relativePath), 'utf8');
+      const parsedJson = JSON.parse(raw);
+      const parsed = stylePresetPayloadSchema.safeParse(parsedJson);
+      expect(parsed.success, `${relativePath} should be a valid style preset`).toBe(true);
+      expect(raw).toContain('/card-assets/');
+    }));
   });
 });

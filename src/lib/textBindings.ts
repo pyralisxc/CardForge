@@ -29,6 +29,11 @@ export const buildStaticSegmentFieldKey = (elementId: string, segmentIndex: numb
 
 export const isStaticSegmentFieldKey = (key: string): boolean => key.startsWith('__segment_text__');
 
+export const buildScopedFieldDataKey = (elementId: string, key: string): string =>
+  `__scoped_field__${elementId}__${key}`;
+
+export const isScopedFieldDataKey = (key: string): boolean => key.startsWith('__scoped_field__');
+
 const TEMPLATE_PLACEHOLDER_REGEX = /\{\{\s*([A-Za-z_][\w.-]*)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
 
 export const parseTemplateTextSegments = (content?: string): TemplateTextSegment[] => {
@@ -89,6 +94,8 @@ export const resolveTemplateTextSegments = (
   const raw = content || '';
   const simple = parseTextBinding(raw);
   if (simple.field) {
+    const scopedValue = dataContext[buildScopedFieldDataKey(elementId, simple.field)];
+    if (scopedValue !== undefined && scopedValue !== null) return String(scopedValue);
     const value = dataContext[simple.field];
     if (value !== undefined && value !== null) return String(value);
     return simple.fallback;
@@ -97,7 +104,9 @@ export const resolveTemplateTextSegments = (
   const segments = parseTemplateTextSegments(raw);
   return segments.map((segment, index) => {
     if (segment.type === 'variable') {
-      const value = segment.key ? dataContext[segment.key] : undefined;
+      const value = segment.key
+        ? dataContext[buildScopedFieldDataKey(elementId, segment.key)] ?? dataContext[segment.key]
+        : undefined;
       if (value !== undefined && value !== null) return String(value);
       if (segment.text) return segment.text;
       return removeUnmatchedIfNoDefault ? '' : '';

@@ -10,6 +10,15 @@ export interface DepthSelectionState {
   stackSignature: string;
 }
 
+interface ResolvePointerSelectionInput {
+  clickedElementId: string;
+  currentSelectedId: string | null;
+  cycleDepth?: boolean;
+  hitStack: FreeformCardElement[];
+  point: CanvasPoint;
+  previousState: DepthSelectionState | null;
+}
+
 const MIN_CHILD_SIZE = 12;
 const MIN_SCALE_BASE = 1;
 
@@ -82,6 +91,35 @@ export function resolveDepthSelection(
 
   return {
     nextSelectedId: hitStack[nextIndex]?.id ?? null,
+    nextState,
+  };
+}
+
+export function resolvePointerSelection({
+  clickedElementId,
+  currentSelectedId,
+  cycleDepth = false,
+  hitStack,
+  point,
+  previousState,
+}: ResolvePointerSelectionInput) {
+  if (cycleDepth) {
+    return resolveDepthSelection(hitStack, point, currentSelectedId, previousState);
+  }
+
+  const nextState = hitStack.length > 0
+    ? {
+        point,
+        stackSignature: buildStackSignature(hitStack),
+      }
+    : null;
+  const clickedElement = hitStack.find((element) => element.id === clickedElementId);
+  const selectedElement = currentSelectedId
+    ? hitStack.find((element) => element.id === currentSelectedId)
+    : null;
+
+  return {
+    nextSelectedId: clickedElement?.id ?? selectedElement?.id ?? hitStack[0]?.id ?? null,
     nextState,
   };
 }

@@ -1,32 +1,39 @@
 "use client";
 
 import type { TCGCardTemplate } from '@/types';
-import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import { CardPreview } from '@/components/card-forge/CardPreview';
 
 export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
-  const previewWidth = 220;
-  const frameWidth = 52;
-  const frameHeight = 68;
-  const [ratioW, ratioH] = (template.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
-  const previewHeight = ratioW > 0 && ratioH > 0 ? (previewWidth / ratioW) * ratioH : 308;
-  const scale = Math.min(frameWidth / previewWidth, frameHeight / previewHeight);
+  const rawBackground = template.cardBackgroundImageUrl ?? template.appearance?.rawCss?.backgroundImage;
+  const safeBackgroundImage = rawBackground?.startsWith('linear-gradient') || rawBackground?.startsWith('radial-gradient')
+    ? rawBackground
+    : undefined;
+  const backgroundColor = template.baseBackgroundColor ?? template.appearance?.material?.baseColor ?? '#111827';
+  const borderColor = template.cardBorderColor ?? template.appearance?.border?.color ?? '#d5ad54';
+  const accent = template.baseTextColor ?? template.appearance?.material?.textColor ?? '#f5d27b';
+  const label = (template.name ?? 'CF')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'CF';
 
   return (
-    <span className="relative flex h-[72px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] border border-[#3a4252] bg-[#06080d] shadow-inner">
+    <span
+      className="relative flex h-[72px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] border bg-[#06080d] shadow-inner"
+      style={{
+        borderColor,
+        backgroundColor,
+        backgroundImage: safeBackgroundImage,
+      }}
+      aria-hidden="true"
+    >
+      <span className="absolute inset-1 rounded-[3px] border border-black/35 bg-black/10" />
+      <span className="absolute left-1/2 top-2 h-1 w-7 -translate-x-1/2 rounded-full bg-white/20" />
       <span
-        className="absolute left-1/2 top-1/2 block"
-        style={{
-          width: previewWidth,
-          height: previewHeight,
-          transform: `translate(-50%, -50%) scale(${scale})`,
-          transformOrigin: 'center',
-        }}
+        className="relative grid h-7 w-7 place-items-center rounded-full border border-black/35 bg-black/30 text-[10px] font-bold tracking-[0.08em]"
+        style={{ color: accent }}
       >
-        <CardPreview
-          card={{ template, data: template.templatePreviewData || {}, uniqueId: `${template.id}-sidebar-preview` }}
-          targetWidthPx={previewWidth}
-        />
+        {label}
       </span>
     </span>
   );

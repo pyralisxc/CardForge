@@ -1,0 +1,43 @@
+{
+  "id": "frame-ttrpg-vellum-premium",
+  "name": "TTRPG Vellum Frame",
+  "kind": "textFrame",
+  "targets": ["text", "shape", "element"],
+  "appearance": {
+    "material": {
+      "baseColor": "rgba(255, 246, 218, 0.92)",
+      "textColor": "#1f160d",
+      "gradient": {
+        "type": "linear",
+        "angle": 180,
+        "stops": [
+          { "id": "top", "color": "#fff6da", "position": 0, "opacity": 0.96 },
+          { "id": "bottom", "color": "#cda45b", "position": 100, "opacity": 0.32 }
+        ]
+      },
+      "texture": {
+        "kind": "uploaded",
+        "imageSource": "/card-assets/textures/arcane-forge/astral-paper.svg",
+        "assetSource": "/card-assets/textures/arcane-forge/astral-paper.svg",
+        "assetKind": "texture",
+        "textureOpacity": 22,
+        "textureScale": 260,
+        "blendMode": "multiply",
+        "tileMode": "repeat"
+      }
+    },
+    "border": {
+      "kind": "double",
+      "color": "#6d451a",
+      "secondaryColor": "#d0a85a",
+      "width": 4,
+      "radius": 8,
+      "innerWidth": 1
+    },
+    "effects": {
+      "shadow": 16,
+      "bevel": 20,
+      "innerHighlight": 34
+    }
+  }
+}

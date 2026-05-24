@@ -2,23 +2,30 @@ export interface CardAssetOption {
   id: string;
   name: string;
   url: string;
-  kind: 'texture' | 'divider' | 'border' | 'frame';
+  kind: 'texture' | 'divider' | 'border' | 'frame' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset';
+  librarySource?: 'official' | 'developer' | 'local';
+  accessTier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected';
+  fileSizeBytes?: number;
   tileMode: 'repeat' | 'stretch' | 'contain';
   seamless: boolean;
-  allowedTargets: Array<'text' | 'shape' | 'divider' | 'template' | 'imageFrame'>;
+  allowedTargets: Array<'text' | 'shape' | 'divider' | 'template' | 'imageFrame' | 'icon' | 'image'>;
   defaultBlendMode?: string;
   defaultOpacity?: number;
   defaultScale?: number;
+  partRole?: 'outerFrame' | 'frameRail' | 'corner' | 'titlePlate' | 'artWindow' | 'rulesBox' | 'statGem' | 'costOrb' | 'panel' | 'overlay' | 'ornament';
+  defaultWidth?: number;
+  defaultHeight?: number;
 }
 
 export type CardAssetMetadataOverride = Partial<Pick<
   CardAssetOption,
-  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale'
+  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale' | 'partRole' | 'defaultWidth' | 'defaultHeight'
 >>;
 
 export interface CardAssetDiscoveryInput {
   url: string;
-  kind: 'texture' | 'divider';
+  kind: 'texture' | 'divider' | 'part' | 'icon' | 'image';
   relativePath?: string;
   metadata?: CardAssetMetadataOverride;
 }
@@ -90,6 +97,52 @@ export const buildDiscoveredCardAsset = ({
         defaultOpacity: 42,
         defaultScale: 160,
       }
+    : kind === 'part'
+      ? {
+          id: derivedId,
+          name: toTitleCase(stem.split('/').pop() || stem),
+          url,
+          kind,
+          tileMode: 'contain',
+          seamless: false,
+          allowedTargets: ['imageFrame', 'shape', 'template'],
+          defaultBlendMode: 'normal',
+          defaultOpacity: 100,
+          defaultScale: 100,
+          partRole: 'ornament',
+          defaultWidth: 220,
+        defaultHeight: 120,
+      }
+    : kind === 'icon'
+      ? {
+          id: derivedId,
+          name: toTitleCase(stem.split('/').pop() || stem),
+          url,
+          kind,
+          tileMode: 'contain',
+          seamless: false,
+          allowedTargets: ['icon'],
+          defaultBlendMode: 'normal',
+          defaultOpacity: 100,
+          defaultScale: 100,
+          defaultWidth: 64,
+          defaultHeight: 64,
+        }
+      : kind === 'image'
+        ? {
+            id: derivedId,
+            name: toTitleCase(stem.split('/').pop() || stem),
+            url,
+            kind,
+            tileMode: 'contain',
+            seamless: false,
+            allowedTargets: ['image', 'imageFrame', 'template'],
+            defaultBlendMode: 'normal',
+            defaultOpacity: 100,
+            defaultScale: 100,
+            defaultWidth: 300,
+            defaultHeight: 180,
+          }
     : {
         id: derivedId,
         name: toTitleCase(stem.split('/').pop() || stem),
@@ -117,5 +170,8 @@ export const buildDiscoveredCardAsset = ({
     defaultBlendMode: metadata?.defaultBlendMode || known?.defaultBlendMode || defaults.defaultBlendMode,
     defaultOpacity: metadata?.defaultOpacity ?? known?.defaultOpacity ?? defaults.defaultOpacity,
     defaultScale: metadata?.defaultScale ?? known?.defaultScale ?? defaults.defaultScale,
+    partRole: metadata?.partRole ?? known?.partRole ?? defaults.partRole,
+    defaultWidth: metadata?.defaultWidth ?? known?.defaultWidth ?? defaults.defaultWidth,
+    defaultHeight: metadata?.defaultHeight ?? known?.defaultHeight ?? defaults.defaultHeight,
   };
 };

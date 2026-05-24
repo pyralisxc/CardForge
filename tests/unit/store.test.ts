@@ -156,6 +156,67 @@ describe('app store helpers', () => {
     expect(cards[999].data.cardName).toBe('Bulk Card 1000');
   });
 
+  it('preserves generated output field style metadata through local storage shape and selectors', () => {
+    const template: TCGCardTemplate = reconstructMinimalTemplateObject({
+      id: 'styled-template',
+      name: 'Styled Template',
+      aspectRatio: '63:88',
+      freeformCanvas: createDefaultFreeformCanvas(),
+    });
+
+    useAppStore.setState({
+      defaultTemplates: [template],
+      userTemplates: [],
+    });
+
+    useAppStore.getState().addGeneratedCards([{
+      template,
+      uniqueId: 'styled-card',
+      data: {
+        cardName: 'Avery',
+        '__cardforgeFieldStyle.cardName.textColor': '#00ffaa',
+      },
+    }]);
+
+    expect(useAppStore.getState().storedCards).toEqual([{
+      uniqueId: 'styled-card',
+      templateId: 'styled-template',
+      data: {
+        cardName: 'Avery',
+        '__cardforgeFieldStyle.cardName.textColor': '#00ffaa',
+      },
+    }]);
+
+    const cards = selectGeneratedDisplayCards(useAppStore.getState());
+    expect(cards[0].data['__cardforgeFieldStyle.cardName.textColor']).toBe('#00ffaa');
+  });
+
+  it('preserves generated output field style metadata when importing local stored cards', () => {
+    const template: TCGCardTemplate = reconstructMinimalTemplateObject({
+      id: 'import-template',
+      name: 'Import Template',
+      aspectRatio: '63:88',
+      freeformCanvas: createDefaultFreeformCanvas(),
+    });
+
+    useAppStore.setState({
+      defaultTemplates: [template],
+      userTemplates: [],
+    });
+
+    const result = useAppStore.getState().setStoredCardsFromFile([{
+      uniqueId: 'imported-styled-card',
+      templateId: 'import-template',
+      data: {
+        cardName: 'Imported',
+        '__cardforgeFieldStyle.cardName.fontWeight': 'font-semibold',
+      },
+    }]);
+
+    expect(result).toEqual({ successCount: 1, skippedCount: 0 });
+    expect(useAppStore.getState().storedCards[0].data['__cardforgeFieldStyle.cardName.fontWeight']).toBe('font-semibold');
+  });
+
   it('deleting a template also removes generated cards that depend on it', () => {
     const keptTemplate = reconstructMinimalTemplateObject({
       id: 'template-kept',

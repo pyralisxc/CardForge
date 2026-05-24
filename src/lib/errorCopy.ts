@@ -21,7 +21,7 @@ export const ERROR_COPY = {
     title: 'Could not read file',
   },
   pdfNoCards: {
-    title: 'No cards to export',
+    title: 'No outputs to export',
   },
   exportWarnings: {
     title: 'Export quality warnings',

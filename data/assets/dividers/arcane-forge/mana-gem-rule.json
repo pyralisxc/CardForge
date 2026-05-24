@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-mana-gem-rule",
+  "name": "Mana Gem Rule",
+  "tileMode": "stretch",
+  "seamless": false,
+  "allowedTargets": ["divider", "shape"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

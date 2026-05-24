@@ -6,15 +6,17 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { PackagePlus } from 'lucide-react';
-import { parseCSV } from '@/lib/utils';
 import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
 import {
   buildInitialColumnMapping,
-  createBulkExampleCsv,
   createBulkDisplayCards,
+  createBulkExampleCsv,
+  createBulkExampleJson,
+  createBulkImportContract,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
   normalizeCsvHeaders,
+  parseBulkDataSource,
   shouldBlockBulkGeneration,
 } from '@/lib/bulkGeneration';
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
@@ -34,7 +36,7 @@ interface BulkGeneratorProps {
 }
 
 type PreviewFilter = 'all' | 'warnings' | 'clean';
-type SupportedFileType = 'csv';
+type SupportedFileType = 'auto';
 
 export function BulkGenerator({
   templates,
@@ -44,7 +46,7 @@ export function BulkGenerator({
 }: BulkGeneratorProps) {
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFileType] = useState<SupportedFileType>('csv');
+  const [selectedFileType] = useState<SupportedFileType>('auto');
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [previewOverrides, setPreviewOverrides] = useState<Record<number, Record<string, string>>>({});
@@ -83,16 +85,21 @@ export function BulkGenerator({
     [bulkFieldDefinitions, selectedTemplate]
   );
 
+  const exampleJSON = useMemo(
+    () => createBulkExampleJson({ template: selectedTemplate, fieldDefinitions: bulkFieldDefinitions }),
+    [bulkFieldDefinitions, selectedTemplate]
+  );
+
   const parsedCsv = useMemo(() => {
     if (!bulkDataInput.trim() || !selectedTemplate) {
       return { rows: [] as string[][], error: null as string | null };
     }
     try {
-      return { rows: parseCSV(bulkDataInput.trim()), error: null as string | null };
+      return { rows: parseBulkDataSource(bulkDataInput.trim(), selectedFileType), error: null as string | null };
     } catch (error) {
       return { rows: [] as string[][], error: extractErrorMessage(error) };
     }
-  }, [bulkDataInput, selectedTemplate]);
+  }, [bulkDataInput, selectedFileType, selectedTemplate]);
 
   const parsedRows = parsedCsv.rows;
 
@@ -185,7 +192,7 @@ export function BulkGenerator({
       return;
     }
     try {
-      const rows = parseCSV(bulkDataInput.trim());
+      const rows = parseBulkDataSource(bulkDataInput.trim(), selectedFileType);
       if (rows.length < 1) return;
       const headers = normalizeCsvHeaders(rows[0]);
       setCsvHeaders(headers);
@@ -195,7 +202,7 @@ export function BulkGenerator({
       setCsvHeaders([]);
       setColumnMapping({});
     }
-  }, [bulkDataInput, selectedTemplate, bulkFieldDefinitions]);
+  }, [bulkDataInput, selectedFileType, selectedTemplate, bulkFieldDefinitions]);
 
   useEffect(() => {
     setPreviewOverrides({});
@@ -268,7 +275,7 @@ export function BulkGenerator({
 
     setIsLoading(true);
     try {
-      const rows = parseCSV(bulkDataInput.trim());
+      const rows = parseBulkDataSource(bulkDataInput.trim(), selectedFileType);
       if (rows.length < 2) {
         toast({
           title: ERROR_COPY.csvFormatIncomplete.title,
@@ -289,19 +296,19 @@ export function BulkGenerator({
 
       onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
-        toast({ title: 'Bulk generation complete', description: `${generatedCards.length} cards were added. Next step: review cards and export.` });
+        toast({ title: 'Bulk generation complete', description: `${generatedCards.length} outputs were added. Next step: review outputs and export.` });
       } else {
         toast({
-          title: 'No cards were generated',
+        title: 'No outputs were generated',
           description: withNextStep('No rows produced card output.', 'Check column mapping and row data in Preview & Validation, then try again.'),
           variant: 'default',
         });
       }
     } catch (error) {
-      console.error('Error generating TCG cards:', error);
+      console.error('Error generating outputs:', error);
       toast({
         title: 'Bulk generation failed',
-        description: withNextStep(extractErrorMessage(error), 'Review CSV structure and mapped fields, then retry.'),
+        description: withNextStep(extractErrorMessage(error), 'Review data structure and mapped fields, then retry.'),
         variant: 'destructive',
       });
     } finally {
@@ -316,10 +323,10 @@ export function BulkGenerator({
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (selectedFileType === 'csv' && !file.name.toLowerCase().endsWith('.csv')) {
+      if (!/\.(csv|json|txt)$/i.test(file.name)) {
         toast({
           title: ERROR_COPY.unsupportedFileType.title,
-          description: withNextStep('Only .csv files are supported for bulk import.', 'Choose a .csv file and upload again.'),
+          description: withNextStep('Only .csv, .json, and .txt files are supported for data import.', 'Choose a supported data file and upload again.'),
           variant: 'destructive',
         });
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -329,12 +336,12 @@ export function BulkGenerator({
       reader.onload = (loadEvent) => {
         const text = loadEvent.target?.result as string;
         setBulkDataInput(text);
-        toast({ title: 'CSV loaded', description: `Loaded ${file.name}. Next step: review mapping and generate cards.` });
+        toast({ title: 'Data source loaded', description: `Loaded ${file.name}. Next step: review mapping and generate outputs.` });
       };
       reader.onerror = () => {
         toast({
           title: ERROR_COPY.fileReadError.title,
-          description: withNextStep(`Unable to read ${file.name}.`, 'Check file encoding or re-save as UTF-8 CSV, then retry.'),
+          description: withNextStep(`Unable to read ${file.name}.`, 'Check file encoding or re-save as UTF-8 text, then retry.'),
           variant: 'destructive',
         });
       };
@@ -379,6 +386,39 @@ export function BulkGenerator({
     toast({ title: 'Example CSV downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
   };
 
+  const handleDownloadTemplateJSON = () => {
+    if (!selectedTemplate) {
+      toast({
+        title: ERROR_COPY.selectTemplateFirst.title,
+        description: withNextStep('A template is required before downloading example JSON.', 'Choose a template in step 1 and try again.'),
+        variant: 'default',
+      });
+      return;
+    }
+    if (!exampleJSON.trim() || exampleJSON === '[]') {
+      toast({
+        title: 'Example JSON unavailable',
+        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Layout Studio, save, then download again.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const blob = new Blob([exampleJSON], { type: 'application/json;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const safeTemplateName = selectedTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0, 20);
+    const fileName = `template_${safeTemplateName || 'layout'}.json`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: 'Example JSON downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
+  };
+
   const handleDownloadContractJson = useCallback(() => {
     if (!selectedTemplate) {
       toast({
@@ -389,21 +429,10 @@ export function BulkGenerator({
       return;
     }
 
-    const contract = {
-      templateId: selectedTemplate.id,
-      templateName: selectedTemplate.name,
-      generatedAt: new Date().toISOString(),
-      fields: bulkFieldDefinitions.map((field) => ({
-        key: field.key,
-        label: field.label,
-        type: field.isImage ? 'image' : field.contentModel === 'rulesBlocks' ? 'rulesBlocks' : field.supportsRichText ? 'richText' : field.isMultiline ? 'multilineText' : 'text',
-        required: field.required,
-        multiline: field.isMultiline,
-        supportsRichText: field.supportsRichText,
-        defaultValue: field.defaultValue ?? '',
-        helperText: field.helperText ?? '',
-      })),
-    };
+    const contract = createBulkImportContract({
+      template: selectedTemplate,
+      fieldDefinitions: bulkFieldDefinitions,
+    });
 
     const blob = new Blob([JSON.stringify(contract, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -426,8 +455,8 @@ export function BulkGenerator({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Bulk Card Generation</CardTitle>
-        <CardDescription>Run a contract-driven CSV workflow with mapping, preview, validation, and export-ready output.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Data Import</CardTitle>
+        <CardDescription>Run a contract-driven data workflow with mapping, preview, validation, and export-ready output.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <BulkTemplateSetupPanel
@@ -437,6 +466,7 @@ export function BulkGenerator({
           bulkFieldDefinitions={bulkFieldDefinitions}
           onTemplateSelectionChange={handleTemplateSelectChange}
           onDownloadExampleCsv={handleDownloadTemplateCSV}
+          onDownloadExampleJson={handleDownloadTemplateJSON}
           onDownloadContractJson={handleDownloadContractJson}
         />
 
