@@ -13,33 +13,19 @@ import {
   getDeveloperVotingPresetLabel,
   type DeveloperAssetAccessTier,
   type DeveloperAssetAccessTierOverride,
-  type DeveloperAssetType,
   type DeveloperProgramSettings,
   type DeveloperVotingPreset,
 } from '@/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
+import {
+  getDeveloperAssetStatusLabel,
+  getDeveloperAssetTierLabel,
+  getDeveloperAssetTypeLabel,
+} from '@/lib/pipelineAssetTaxonomy';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
 }
-
-const assetTypeLabels: Record<DeveloperAssetType, string> = {
-  templates: 'Templates',
-  elementPresets: 'Element Presets',
-  textures: 'Textures',
-  dividers: 'Dividers',
-  icons: 'Icons',
-  imageAssets: 'Image Assets',
-  parts: 'Parts',
-};
-
-const tierLabels: Record<DeveloperAssetAccessTier, string> = {
-  hidden: 'Hidden',
-  free: 'Starter Library',
-  paid: 'Creator Pass',
-  developer: 'Forge Review',
-  official: 'Official Default',
-};
 
 const tierClasses: Record<DeveloperAssetAccessTier, string> = {
   hidden: 'border-[#4a3823] text-[#8f95a3]',
@@ -201,7 +187,7 @@ export function OwnerDeveloperProgramPanel() {
     <section className="border border-[#7d5a2e] bg-[#15100a] p-6">
       <div className="flex items-center gap-3 text-[#e2aa4a]">
         <Crown className="h-5 w-5" />
-        <h2 className="font-serif text-2xl text-[#fff1c7]">Developer asset program</h2>
+        <h2 className="font-serif text-2xl text-[#fff1c7]">Asset Pipeline Command</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-[#c7b288]">
         Control developer slots, monthly contribution rules, vote thresholds, tier visibility, archive visibility, and per-type caps before financial launch. Current site defaults are owner-contributed assets in the same voting pipeline as every developer upload.
@@ -215,6 +201,7 @@ export function OwnerDeveloperProgramPanel() {
         <DecisionCard label="Default policy" body="Defaults are just published pipeline assets. If voting or cap rules push them out, they move through the same candidate/archive states as any other asset." />
         <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; rebalance moves lowest-signal live assets back to candidates.`} />
         <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads and owner defaults during solo/demo review.' : 'Only peer votes count; own assets stay out of review lanes for that contributor.'} />
+        <DecisionCard label="Owner vote mode" body={settings.ownerVoteWeight === 1 ? 'Owner votes count like one developer vote.' : `Owner votes count as ${settings.ownerVoteWeight}x signal in asset grading.`} />
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
@@ -259,6 +246,10 @@ export function OwnerDeveloperProgramPanel() {
               ))}
             </div>
           </div>
+          <VoteWeightSelector
+            value={settings.ownerVoteWeight}
+            onChange={(value) => setSettings({ ...settings, ownerVoteWeight: value })}
+          />
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <NumberField label="Grading votes" help="Votes required before an asset can be graded for publish candidacy." value={settings.minimumVotesForGrading} onChange={(value) => setSettings({ ...settings, minimumVotesForGrading: value })} />
             <NumberField label="Publish positive %" help="Positive vote percentage needed to become a publish candidate." value={settings.minimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, minimumPositiveVotePercent: value })} />
@@ -311,7 +302,7 @@ export function OwnerDeveloperProgramPanel() {
           <table className="w-full min-w-[44rem] border-collapse text-sm">
             <thead>
               <tr className="border-b border-[#5f4526] text-left text-xs uppercase tracking-[0.14em] text-[#a98a55]">
-                <th className="py-3 pr-3 font-medium">Asset type</th>
+                <th className="py-3 pr-3 font-medium">Asset family</th>
                 <th className="px-3 py-3 font-medium">Starter cap</th>
                 <th className="px-3 py-3 font-medium">Creator Pass cap</th>
                 <th className="px-3 py-3 font-medium">Publish Total</th>
@@ -320,10 +311,10 @@ export function OwnerDeveloperProgramPanel() {
             <tbody>
               {DEVELOPER_ASSET_TYPES.map((type) => (
                 <tr key={type} className="border-b border-[#342719] last:border-b-0">
-                  <td className="py-3 pr-3 text-[#ffe7ad]">{assetTypeLabels[type]}</td>
+                  <td className="py-3 pr-3 text-[#ffe7ad]">{getDeveloperAssetTypeLabel(type)}</td>
                   <td className="px-3 py-3">
                     <CompactNumberField
-                      ariaLabel={`${assetTypeLabels[type]} starter cap`}
+                      ariaLabel={`${getDeveloperAssetTypeLabel(type)} starter cap`}
                       value={settings.tierCapsByType[type].free}
                       onChange={(value) => setSettings({
                         ...settings,
@@ -340,7 +331,7 @@ export function OwnerDeveloperProgramPanel() {
                   </td>
                   <td className="px-3 py-3">
                     <CompactNumberField
-                      ariaLabel={`${assetTypeLabels[type]} creator pass cap`}
+                      ariaLabel={`${getDeveloperAssetTypeLabel(type)} creator pass cap`}
                       value={settings.tierCapsByType[type].paid}
                       onChange={(value) => setSettings({
                         ...settings,
@@ -377,7 +368,7 @@ export function OwnerDeveloperProgramPanel() {
             <table className="w-full min-w-[42rem] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-[#5f4526] text-left text-xs uppercase tracking-[0.14em] text-[#a98a55]">
-                  <th className="py-3 pr-3 font-medium">Asset type</th>
+                  <th className="py-3 pr-3 font-medium">Asset family</th>
                   <th className="px-3 py-3 font-medium">Live</th>
                   <th className="px-3 py-3 font-medium">Cap</th>
                   <th className="px-3 py-3 font-medium">Open</th>
@@ -388,7 +379,7 @@ export function OwnerDeveloperProgramPanel() {
               <tbody>
                 {program.assetTypeSummaries.map((summary) => (
                   <tr key={summary.assetType} className="border-b border-[#342719] last:border-b-0">
-                    <td className="py-3 pr-3 text-[#ffe7ad]">{assetTypeLabels[summary.assetType]}</td>
+                    <td className="py-3 pr-3 text-[#ffe7ad]">{getDeveloperAssetTypeLabel(summary.assetType)}</td>
                     <td className="px-3 py-3 text-[#c7b288]">{summary.publishedCount} live / {summary.officialCount} owner</td>
                     <td className="px-3 py-3 text-[#c7b288]">{summary.publishCap}</td>
                     <td className={`px-3 py-3 ${summary.overPublishCapBy > 0 ? 'text-[#ffd0c6]' : 'text-[#bde3a8]'}`}>
@@ -476,13 +467,13 @@ export function OwnerDeveloperProgramPanel() {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium text-[#ffe7ad]">{submission.name}</p>
                     <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">
-                      {submission.status.replace('_', ' ')}
+                      {getDeveloperAssetStatusLabel(submission.status)}
                     </span>
                     <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
-                      {assetTypeLabels[submission.assetType]}
+                      {getDeveloperAssetTypeLabel(submission.assetType, { plural: false })}
                     </span>
                     <span className={`border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${tierClasses[submission.calculatedAccessTier]}`}>
-                      {tierLabels[submission.calculatedAccessTier]}
+                      {getDeveloperAssetTierLabel(submission.calculatedAccessTier)}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-[#c7b288]">
@@ -496,12 +487,12 @@ export function OwnerDeveloperProgramPanel() {
                   <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, 'published')}>Publish</Button>
                   <Button size="sm" variant="outline" className="border-[#8c6436] bg-transparent text-[#f0bd75]" onClick={() => updateStatus(submission.id, 'archived')}>Archive</Button>
                   <Button size="sm" variant="outline" className="border-[#7d3d32] bg-transparent text-[#ffd0c6]" onClick={() => updateStatus(submission.id, 'rejected')}>Reject</Button>
-                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, submission.status, 'free')}>Force Starter</Button>
-                  <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" onClick={() => updateStatus(submission.id, submission.status, 'paid')}>Force Pass</Button>
-                  <Button size="sm" variant="outline" className="border-[#d8b365] bg-transparent text-[#ffe7ad]" onClick={() => updateStatus(submission.id, submission.status, 'official')}>Force Official</Button>
-                  <Button size="sm" variant="outline" className="border-[#4a3823] bg-transparent text-[#8f95a3]" onClick={() => updateStatus(submission.id, submission.status, 'hidden')}>Hide</Button>
+                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, submission.status, 'free')}>Set Starter</Button>
+                  <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" onClick={() => updateStatus(submission.id, submission.status, 'paid')}>Set Creator Pass</Button>
+                  <Button size="sm" variant="outline" className="border-[#d8b365] bg-transparent text-[#ffe7ad]" onClick={() => updateStatus(submission.id, submission.status, 'official')}>Set Official</Button>
+                  <Button size="sm" variant="outline" className="border-[#4a3823] bg-transparent text-[#8f95a3]" onClick={() => updateStatus(submission.id, submission.status, 'hidden')}>Set Hidden</Button>
                   {submission.ownerAccessTierOverride ? (
-                    <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#c7b288]" onClick={() => updateStatus(submission.id, submission.status, null)}>Clear Tier</Button>
+                    <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#c7b288]" onClick={() => updateStatus(submission.id, submission.status, null)}>Clear Override</Button>
                   ) : null}
                 </div>
               </div>
@@ -585,6 +576,45 @@ function CompactNumberField({
       value={value}
       onChange={(event) => onChange(Number(event.target.value) || 0)}
     />
+  );
+}
+
+function VoteWeightSelector({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="mt-4 border border-[#342719] bg-[#15100a] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.14em] text-[#a98a55]">Owner vote weight</p>
+          <p className="mt-2 text-xs leading-5 text-[#c7b288]">
+            1x keeps the owner equal with developers. Raise it only when owner taste should break close calls.
+          </p>
+        </div>
+        <FieldHelp text="This changes owner vote impact during asset grading. It does not change whether contributors can vote on their own work." />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {[1, 2, 3].map((weight) => (
+          <Button
+            key={weight}
+            type="button"
+            size="sm"
+            variant="outline"
+            className={[
+              'rounded-none border-[#5f4526] bg-transparent text-[#f8e3b0] hover:border-[#d8b365] hover:bg-[#2a1b0d]',
+              value === weight ? 'border-[#d8b365] bg-[#2a1b0d] text-[#fff1c7]' : '',
+            ].join(' ')}
+            onClick={() => onChange(weight)}
+          >
+            {weight}x
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 }
 

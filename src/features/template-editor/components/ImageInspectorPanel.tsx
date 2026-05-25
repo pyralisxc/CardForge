@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorField } from '@/components/card-forge/makerConstants';
 import type { CardAssetOption } from '@/lib/cardAssets';
+import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
 import type { FreeformCardElement } from '@/types';
 
 interface ImageInspectorPanelProps {
@@ -37,12 +38,12 @@ export function ImageInspectorPanel({
   return (
     <>
       <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Image Assets</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Image & Overlay Source Assets</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
           <Input
             className="h-8 rounded-[4px] border-[#2d3340] bg-[#0d1117] pl-7 text-xs text-[#d8d1c4]"
-            placeholder="Search image assets..."
+            placeholder="Search images and overlays..."
             value={assetSearch}
             onChange={(event) => onAssetSearchChange(event.target.value)}
           />
@@ -63,10 +64,10 @@ export function ImageInspectorPanel({
                   >
                     <span className="block h-10 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${asset.url})` }} aria-hidden="true" />
                     <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{asset.name}</span>
-                    <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{asset.librarySource ?? 'official'} - {asset.accessTier ?? 'official'}</span>
+                    <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>{asset.name}</TooltipContent>
+                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
               </Tooltip>
             ))}
           </div>

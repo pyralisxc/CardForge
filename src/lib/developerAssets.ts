@@ -40,6 +40,7 @@ export interface DeveloperProgramSettings {
   showPaidPreviewToFreeUsers: boolean;
   allowPaidEarlyAccessToCandidates: boolean;
   allowContributorSelfVoting: boolean;
+  ownerVoteWeight: number;
   archiveVisibleLimit: number;
   profitSharePoolPercent: number;
   ownerFinalReviewRequired: boolean;
@@ -194,6 +195,7 @@ export const DEFAULT_DEVELOPER_PROGRAM_SETTINGS: DeveloperProgramSettings = {
   showPaidPreviewToFreeUsers: true,
   allowPaidEarlyAccessToCandidates: false,
   allowContributorSelfVoting: true,
+  ownerVoteWeight: 1,
   archiveVisibleLimit: 100,
   profitSharePoolPercent: 10,
   ownerFinalReviewRequired: true,
@@ -362,6 +364,7 @@ export const normalizeDeveloperProgramSettingsInput = (
     showPaidPreviewToFreeUsers: normalizeBoolean(value.showPaidPreviewToFreeUsers, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.showPaidPreviewToFreeUsers),
     allowPaidEarlyAccessToCandidates: normalizeBoolean(value.allowPaidEarlyAccessToCandidates, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.allowPaidEarlyAccessToCandidates),
     allowContributorSelfVoting: normalizeBoolean(value.allowContributorSelfVoting, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.allowContributorSelfVoting),
+    ownerVoteWeight: normalizeInteger(value.ownerVoteWeight, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerVoteWeight, 1, 3),
     archiveVisibleLimit: normalizeInteger(value.archiveVisibleLimit, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.archiveVisibleLimit, 1, 500),
     profitSharePoolPercent: normalizeInteger(value.profitSharePoolPercent, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.profitSharePoolPercent, 0, 50),
     ownerFinalReviewRequired: normalizeBoolean(value.ownerFinalReviewRequired, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerFinalReviewRequired),

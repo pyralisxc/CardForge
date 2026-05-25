@@ -52,6 +52,25 @@ describe('structured appearance helpers', () => {
     expect(style.boxShadow).toContain('0 0 20px');
   });
 
+  it('renders named border styles as distinct visual treatments', () => {
+    const etched = appearanceToStyle({
+      border: { kind: 'etched', color: '#d5ad54', secondaryColor: '#5f4216', width: 3, radius: 8 },
+    });
+    const relic = appearanceToStyle({
+      border: { kind: 'relic', color: '#9f742a', secondaryColor: '#f5d27b', width: 4, radius: 10 },
+    });
+    const foil = appearanceToStyle({
+      border: { kind: 'foil', color: '#7a52cc', secondaryColor: '#d5ad54', width: 3, radius: 10 },
+    });
+
+    expect(etched.borderStyle).toBe('solid');
+    expect(etched.boxShadow).toContain('inset 0 0 0 1px #5f4216');
+    expect(relic.boxShadow).toContain('rgba(0,0,0,0.38)');
+    expect(foil.borderImageSource).toContain('linear-gradient');
+    expect(foil.borderImageSource).toContain('#d5ad54');
+    expect(foil.boxShadow).toContain('rgba(213,173,84,0.34)');
+  });
+
   it('renders asset-backed textures and dividers as file URLs', () => {
     const textureStyle = appearanceToStyle({
       material: {
@@ -121,6 +140,33 @@ describe('structured appearance helpers', () => {
     expect(updates.backgroundColor).toBe('#160d25');
     expect(updates.textColor).toBe('#f4eaff');
     expect(updates.borderColor).toBe('#d5ad54');
+  });
+
+  it('maps structured borders differently for shape strokes and icon backplates', () => {
+    const shapeUpdates = appearanceToElementRenderFields({
+      ...baseElement,
+      type: 'shape',
+      strokeColor: '#112233',
+      strokeWidth: 1,
+      appearance: {
+        border: { kind: 'relic', color: '#d5ad54', width: 4, radius: 8 },
+      },
+    });
+    const iconUpdates = appearanceToElementRenderFields({
+      ...baseElement,
+      type: 'icon',
+      strokeColor: '#112233',
+      strokeWidth: 2,
+      appearance: {
+        border: { kind: 'relic', color: '#d5ad54', width: 4, radius: 8 },
+      },
+    });
+
+    expect(shapeUpdates.strokeColor).toBe('#d5ad54');
+    expect(shapeUpdates.strokeWidth).toBe(4);
+    expect(iconUpdates.strokeColor).toBe('#112233');
+    expect(iconUpdates.strokeWidth).toBe(2);
+    expect(iconUpdates.borderColor).toBe('#d5ad54');
   });
 
   it('loads premium CardForge style presets that reference shipped asset URLs', async () => {

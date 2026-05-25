@@ -189,6 +189,32 @@ describe('project document serialization', () => {
     expect(parsed.document.storedCards).toEqual([storedCard]);
   });
 
+  it('parses standalone template JSON into a project document', () => {
+    const parsed = parseProjectDocumentFile(JSON.stringify(template));
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error(parsed.error);
+    expect(parsed.isLegacy).toBe(false);
+    expect(parsed.document.userTemplates).toEqual([template]);
+    expect(parsed.document.storedCards).toEqual([]);
+  });
+
+  it('parses standalone template array JSON into a project document', () => {
+    const secondTemplate: TCGCardTemplate = {
+      ...template,
+      id: 'user-template-2',
+      name: 'Second Template',
+    };
+
+    const parsed = parseProjectDocumentFile(JSON.stringify([template, secondTemplate]));
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error(parsed.error);
+    expect(parsed.isLegacy).toBe(false);
+    expect(parsed.document.userTemplates).toEqual([template, secondTemplate]);
+    expect(parsed.document.storedCards).toEqual([]);
+  });
+
   it('parses legacy stored card array JSON into a project document', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify([storedCard]));
 

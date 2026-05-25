@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 
 import { CARD_DIVIDER_ASSETS, CARD_TEXTURE_ASSETS, type CardAssetOption } from '@/lib/cardAssets';
 import { loadBootstrapAssets } from '@/lib/clientBootstrapData';
+import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/lib/pipelineAssetTaxonomy';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
@@ -32,8 +33,11 @@ const readStoredAssets = (primaryKey: string, legacyKey: string): CardAssetOptio
     const payload = localStorage.getItem(primaryKey) ?? localStorage.getItem(legacyKey) ?? '[]';
     const assets = JSON.parse(payload) as CardAssetOption[];
     if (!Array.isArray(assets)) return [];
-    localStorage.setItem(primaryKey, JSON.stringify(assets));
-    return assets;
+    const normalizedAssets = assets.map((asset) => (
+      asset.librarySource === 'local' ? normalizeLocalLibraryAsset(asset) : asset
+    ));
+    localStorage.setItem(primaryKey, JSON.stringify(normalizedAssets));
+    return normalizedAssets;
   } catch {
     return [];
   }
@@ -78,8 +82,12 @@ export function useTemplateAssetLibrary({
         if (Array.isArray(payload.icons) && payload.icons.length > 0) {
           setDiscoveredIconAssets(payload.icons);
         }
-        if (Array.isArray(payload.imageAssets) && payload.imageAssets.length > 0) {
-          setDiscoveredImageAssets([...payload.imageAssets, ...(payload.parts ?? [])]);
+        const nextImageAssets = [
+          ...(Array.isArray(payload.imageAssets) ? payload.imageAssets : []),
+          ...(Array.isArray(payload.parts) ? payload.parts : []),
+        ];
+        if (nextImageAssets.length > 0) {
+          setDiscoveredImageAssets(nextImageAssets);
         }
       } catch (error) {
         console.warn('Unable to load discovered card assets:', error);
@@ -127,8 +135,8 @@ export function useTemplateAssetLibrary({
     if (!canUploadCustomAssets) {
       event.target.value = '';
       toast({
-        title: 'Sign in to add custom art',
-        description: 'Custom textures and dividers are saved to your local asset library after you connect an account.',
+        title: 'Sign in to add local art',
+        description: "Custom images, icons, textures, and dividers are saved to this browser's local asset library after you connect an account.",
       });
       return;
     }
@@ -139,14 +147,11 @@ export function useTemplateAssetLibrary({
     const reader = new FileReader();
     reader.onload = (loadEvent) => {
       const dataUri = loadEvent.target?.result as string;
-      const asset: CardAssetOption = {
+      const asset = normalizeLocalLibraryAsset({
         id: `custom-${kind}-${nanoid()}`,
         name: file.name.replace(/\.[^.]+$/, ''),
         url: dataUri,
         kind,
-        librarySource: 'local',
-        accessTier: 'free',
-        registryStatus: 'published',
         fileSizeBytes: file.size,
         tileMode: kind === 'texture' ? 'repeat' : kind === 'divider' ? 'stretch' : 'contain',
         seamless: kind === 'texture',
@@ -162,7 +167,7 @@ export function useTemplateAssetLibrary({
         defaultScale: kind === 'texture' ? 160 : 100,
         defaultWidth: kind === 'icon' ? 64 : kind === 'image' ? 300 : undefined,
         defaultHeight: kind === 'icon' ? 64 : kind === 'image' ? 180 : undefined,
-      };
+      });
 
       if (kind === 'texture') {
         setCustomTextureAssets((previous) => {
@@ -190,7 +195,10 @@ export function useTemplateAssetLibrary({
         });
       }
 
-      toast({ title: 'Asset Added', description: `${file.name} added to ${kind} assets.` });
+      toast({
+        title: 'Local asset added',
+        description: `${file.name} added to ${getAssetKindLabel(kind).toLowerCase()} assets.`,
+      });
     };
     reader.onerror = () => toast({ title: 'Upload Error', description: 'Failed to read the selected asset.', variant: 'destructive' });
     reader.readAsDataURL(file);

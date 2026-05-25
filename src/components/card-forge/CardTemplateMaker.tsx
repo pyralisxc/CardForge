@@ -42,8 +42,6 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AVAILABLE_FONTS,
-  BORDER_RADIUS_OPTIONS,
-  BORDER_WIDTH_OPTIONS,
   CARD_BORDER_STYLES,
   DIMENSION_UNITS,
   FRAME_STYLES,
@@ -1043,11 +1041,8 @@ export function CardTemplateMaker({
     borderWidth: currentTemplate.cardBorderWidth || '4px',
     borderStyle: currentTemplate.cardBorderStyle && currentTemplate.cardBorderStyle !== '_default_' ? currentTemplate.cardBorderStyle : 'solid',
     borderRadius: currentTemplate.cardBorderRadius || '0.5rem',
-    backgroundImage: [
-      showGrid ? `linear-gradient(to right, rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.08) 1px, transparent 1px)` : '',
-      currentTemplate.cardBackgroundImageUrl ? `url(${replacePlaceholdersLocal(currentTemplate.cardBackgroundImageUrl, livePreviewData, false)})` : '',
-    ].filter(Boolean).join(', '),
-    backgroundSize: showGrid ? `${gridSize}px ${gridSize}px, ${gridSize}px ${gridSize}px, cover` : 'cover',
+    backgroundImage: currentTemplate.cardBackgroundImageUrl ? `url(${replacePlaceholdersLocal(currentTemplate.cardBackgroundImageUrl, livePreviewData, false)})` : undefined,
+    backgroundSize: 'cover',
     backgroundPosition: 'center center',
   };
 
@@ -1162,7 +1157,7 @@ export function CardTemplateMaker({
             <div
               ref={stageRef}
               data-cardforge-stage="true"
-              className="relative flex h-[calc(100vh-238px)] min-h-[720px] justify-center overflow-auto bg-[radial-gradient(circle_at_center,rgba(122,82,204,0.12),transparent_42%),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[length:auto,24px_24px,24px_24px] p-8"
+              className="relative flex h-[calc(100vh-238px)] min-h-[720px] justify-center overflow-auto bg-[#05080c] p-8"
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
@@ -1273,9 +1268,21 @@ export function CardTemplateMaker({
                         top: RULER_W,
                         width: GUTTER + canvas.width * zoom + GUTTER,
                         height: GUTTER + canvas.height * zoom + GUTTER,
-                        backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
-                        backgroundSize: `${gridSize * zoom}px ${gridSize * zoom}px`,
-                        backgroundPosition: 'center center',
+                        backgroundImage: showGrid
+                          ? [
+                              'linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)',
+                              'linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px)',
+                              'linear-gradient(90deg, rgba(213,173,84,0.12) 1px, transparent 1px)',
+                              'linear-gradient(rgba(213,173,84,0.12) 1px, transparent 1px)',
+                            ].join(', ')
+                          : undefined,
+                        backgroundSize: [
+                          `${gridSize * zoom}px ${gridSize * zoom}px`,
+                          `${gridSize * zoom}px ${gridSize * zoom}px`,
+                          `${gridSize * 5 * zoom}px ${gridSize * 5 * zoom}px`,
+                          `${gridSize * 5 * zoom}px ${gridSize * 5 * zoom}px`,
+                        ].join(', '),
+                        backgroundPosition: `${GUTTER}px ${GUTTER}px`,
                         pointerEvents: 'none',
                       }}
                     />
@@ -1587,14 +1594,13 @@ export function CardTemplateMaker({
                         )}
 
                         {canUseElementBorder && (
-                          <InspectorFlowSection title="Frame & Border">
+                          <InspectorFlowSection title="Frame & Edge">
                             <BorderInspectorPanel
                               element={selectedElement}
+                              selectedAppearance={selectedAppearance}
                               borderPresets={selectedElementPresetRecipeGroups.border}
-                              borderWidthOptions={BORDER_WIDTH_OPTIONS}
-                              borderRadiusOptions={BORDER_RADIUS_OPTIONS}
                               onApplyPreset={applyElementPresetRecipe}
-                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                              onUpdateAppearance={(updater, trackHistory) => updateElementAppearance(selectedElement.id, updater, trackHistory)}
                             />
                           </InspectorFlowSection>
                         )}

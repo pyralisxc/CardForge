@@ -39,6 +39,8 @@ const cardPartRoleSchema = z.enum([
 export const cardAssetMetadataOverrideSchema = z.object({
   id: nonEmptyStringSchema.optional(),
   name: nonEmptyStringSchema.optional(),
+  packId: nonEmptyStringSchema.optional(),
+  packName: nonEmptyStringSchema.optional(),
   tileMode: tileModeSchema.optional(),
   seamless: z.boolean().optional(),
   allowedTargets: z.array(cardAssetAllowedTargetSchema).min(1).optional(),

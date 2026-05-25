@@ -19,6 +19,7 @@ import {
   type DeveloperProgramSettings,
   type DeveloperVoteValue,
 } from '@/lib/developerAssets';
+import { developerAssetTypeToRegistryAssetKind } from '@/lib/pipelineAssetTaxonomy';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 
 export type DeveloperAssetSubmissionInputResult =
@@ -86,6 +87,7 @@ export interface DeveloperProgramSettingsRow {
   show_paid_preview_to_free_users?: unknown;
   allow_paid_early_access_to_candidates?: unknown;
   allow_contributor_self_voting?: unknown;
+  owner_vote_weight?: unknown;
   archive_visible_limit?: unknown;
   profit_share_pool_percent?: unknown;
   owner_final_review_required?: unknown;
@@ -144,6 +146,12 @@ const isMissingDeveloperAssetTableError = (error: unknown): boolean =>
   && 'code' in error
   && (error as { code?: string }).code === 'PGRST205';
 
+const isMissingDeveloperAssetColumnError = (error: unknown): boolean =>
+  typeof error === 'object'
+  && error !== null
+  && 'code' in error
+  && (error as { code?: string }).code === '42703';
+
 const normalizeShortText = (value: unknown, maxLength: number): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ').slice(0, maxLength) : '';
 
@@ -160,6 +168,36 @@ const normalizeOptionalInteger = (value: unknown, min: number, max: number): num
   if (rounded < min || rounded > max) return null;
   return rounded;
 };
+
+export const calculateDeveloperAssetVoteTotals = (
+  voteRows: Array<{
+    developer_id?: string | null;
+    vote_value?: string | null;
+    vote_weight?: number | null;
+  }>,
+  {
+    ownerDeveloperId = '',
+    ownerVoteWeight = DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerVoteWeight,
+  }: {
+    ownerDeveloperId?: string | null;
+    ownerVoteWeight?: number;
+  } = {},
+) => voteRows.reduce(
+  (totals, row) => {
+    const voteValue = row.vote_value;
+    if (voteValue !== 'positive' && voteValue !== 'negative') return totals;
+    const weight = row.developer_id && ownerDeveloperId && row.developer_id === ownerDeveloperId
+      ? Math.min(3, Math.max(1, Math.round(ownerVoteWeight)))
+      : Math.min(3, Math.max(1, Math.round(row.vote_weight ?? 1)));
+    if (voteValue === 'positive') {
+      totals.positiveVotes += weight;
+    } else {
+      totals.negativeVotes += weight;
+    }
+    return totals;
+  },
+  { positiveVotes: 0, negativeVotes: 0 }
+);
 
 export const normalizeDeveloperAssetSubmissionInput = (value: {
   assetType?: unknown;
@@ -232,6 +270,7 @@ export const mapDeveloperProgramSettingsRow = (
       showPaidPreviewToFreeUsers: row.show_paid_preview_to_free_users,
       allowPaidEarlyAccessToCandidates: row.allow_paid_early_access_to_candidates,
       allowContributorSelfVoting: row.allow_contributor_self_voting,
+      ownerVoteWeight: row.owner_vote_weight,
       archiveVisibleLimit: row.archive_visible_limit,
       profitSharePoolPercent: row.profit_share_pool_percent,
       ownerFinalReviewRequired: row.owner_final_review_required,
@@ -293,8 +332,8 @@ export const buildDeveloperAssetProgramView = ({
   now?: Date;
 }): DeveloperAssetProgramView => {
   const currentContributorIdSet = new Set(currentContributorIds.length > 0 ? currentContributorIds : [currentUserId]);
-  const ownSubmissions = submissions.filter((submission) => currentContributorIdSet.has(submission.developerId));
-  const developerStats = countDeveloperMonthlyStats(ownSubmissions, now);
+  const accountSubmissions = submissions.filter((submission) => submission.developerId === currentUserId);
+  const developerStats = countDeveloperMonthlyStats(accountSubmissions, now);
   const remainingSubmissions = Math.max(0, settings.monthlySubmissionLimit - developerStats.submitted);
   const activeReviewStatuses = new Set(['draft', 'submitted', 'voting', 'publish_candidate', 'published']);
   const assetTypeSummaries = DEVELOPER_ASSET_TYPES.map((assetType) => {
@@ -400,13 +439,29 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
     return { configured: false, settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS };
   }
 
+  const settingsColumns = 'max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,minimum_positive_vote_percent,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,minimum_votes_for_tier_assignment,show_paid_preview_to_free_users,allow_paid_early_access_to_candidates,allow_contributor_self_voting,owner_vote_weight,archive_visible_limit,profit_share_pool_percent,owner_final_review_required,publish_caps_by_type,tier_caps_by_type';
+  const settingsColumnsWithoutOwnerVoteWeight = settingsColumns.replace('owner_vote_weight,', '');
   const { data, error } = await supabase
     .from('cardforge_developer_program_settings')
-    .select('max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,minimum_positive_vote_percent,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,minimum_votes_for_tier_assignment,show_paid_preview_to_free_users,allow_paid_early_access_to_candidates,allow_contributor_self_voting,archive_visible_limit,profit_share_pool_percent,owner_final_review_required,publish_caps_by_type,tier_caps_by_type')
+    .select(settingsColumns)
     .eq('id', PROGRAM_SETTINGS_ID)
     .limit(1);
 
   if (error) {
+    if (isMissingDeveloperAssetColumnError(error)) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('cardforge_developer_program_settings')
+        .select(settingsColumnsWithoutOwnerVoteWeight)
+        .eq('id', PROGRAM_SETTINGS_ID)
+        .limit(1);
+
+      if (!fallbackError) {
+        return {
+          configured: true,
+          settings: mapDeveloperProgramSettingsRow(fallbackData?.[0] as DeveloperProgramSettingsRow | undefined),
+        };
+      }
+    }
     if (!isMissingDeveloperAssetTableError(error)) {
       console.error('Failed to load developer asset program settings:', error);
     }
@@ -623,33 +678,54 @@ export const updateDeveloperProgramSettings = async (
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
 
   const normalized = normalizeDeveloperProgramSettingsInput(input);
+  const settingsUpsertRow = {
+    id: PROGRAM_SETTINGS_ID,
+    max_active_developers: normalized.maxActiveDevelopers,
+    monthly_submission_limit: normalized.monthlySubmissionLimit,
+    monthly_published_requirement: normalized.monthlyPublishedRequirement,
+    minimum_votes_for_grading: normalized.minimumVotesForGrading,
+    minimum_positive_vote_percent: normalized.minimumPositiveVotePercent,
+    free_asset_minimum_positive_vote_percent: normalized.freeAssetMinimumPositiveVotePercent,
+    paid_asset_minimum_positive_vote_percent: normalized.paidAssetMinimumPositiveVotePercent,
+    minimum_votes_for_tier_assignment: normalized.minimumVotesForTierAssignment,
+    show_paid_preview_to_free_users: normalized.showPaidPreviewToFreeUsers,
+    allow_paid_early_access_to_candidates: normalized.allowPaidEarlyAccessToCandidates,
+    allow_contributor_self_voting: normalized.allowContributorSelfVoting,
+    owner_vote_weight: normalized.ownerVoteWeight,
+    archive_visible_limit: normalized.archiveVisibleLimit,
+    profit_share_pool_percent: normalized.profitSharePoolPercent,
+    owner_final_review_required: normalized.ownerFinalReviewRequired,
+    publish_caps_by_type: normalized.publishCapsByType,
+    tier_caps_by_type: normalized.tierCapsByType,
+  };
   const { error } = await supabase
     .from('cardforge_developer_program_settings')
-    .upsert({
-      id: PROGRAM_SETTINGS_ID,
-      max_active_developers: normalized.maxActiveDevelopers,
-      monthly_submission_limit: normalized.monthlySubmissionLimit,
-      monthly_published_requirement: normalized.monthlyPublishedRequirement,
-      minimum_votes_for_grading: normalized.minimumVotesForGrading,
-      minimum_positive_vote_percent: normalized.minimumPositiveVotePercent,
-      free_asset_minimum_positive_vote_percent: normalized.freeAssetMinimumPositiveVotePercent,
-      paid_asset_minimum_positive_vote_percent: normalized.paidAssetMinimumPositiveVotePercent,
-      minimum_votes_for_tier_assignment: normalized.minimumVotesForTierAssignment,
-      show_paid_preview_to_free_users: normalized.showPaidPreviewToFreeUsers,
-      allow_paid_early_access_to_candidates: normalized.allowPaidEarlyAccessToCandidates,
-      allow_contributor_self_voting: normalized.allowContributorSelfVoting,
-      archive_visible_limit: normalized.archiveVisibleLimit,
-      profit_share_pool_percent: normalized.profitSharePoolPercent,
-      owner_final_review_required: normalized.ownerFinalReviewRequired,
-      publish_caps_by_type: normalized.publishCapsByType,
-      tier_caps_by_type: normalized.tierCapsByType,
-    }, { onConflict: 'id' });
+    .upsert(settingsUpsertRow, { onConflict: 'id' });
+
+  if (error && isMissingDeveloperAssetColumnError(error)) {
+    const fallbackSettingsUpsertRow: Omit<typeof settingsUpsertRow, 'owner_vote_weight'> & Partial<Pick<typeof settingsUpsertRow, 'owner_vote_weight'>> = {
+      ...settingsUpsertRow,
+    };
+    delete fallbackSettingsUpsertRow.owner_vote_weight;
+    const { error: fallbackError } = await supabase
+      .from('cardforge_developer_program_settings')
+      .upsert(fallbackSettingsUpsertRow, { onConflict: 'id' });
+
+    if (fallbackError) {
+      console.error('Failed to update developer program settings:', fallbackError);
+      throw new DeveloperAssetStoreError('Unable to update developer program settings.', 500);
+    }
+
+    await rebalanceDeveloperAssetPipeline(normalized);
+    return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
+  }
 
   if (error) {
     console.error('Failed to update developer program settings:', error);
     throw new DeveloperAssetStoreError('Unable to update developer program settings.', 500);
   }
 
+  await refreshAllSubmissionVoteTotals(normalized, currentUserId);
   await rebalanceDeveloperAssetPipeline(normalized);
   return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
 };
@@ -757,16 +833,6 @@ const countTieredThisPeriodForType = async (
   }
 
   return count ?? 0;
-};
-
-const developerAssetTypeToRegistryType = (assetType: DeveloperAssetType) => {
-  if (assetType === 'templates') return 'template';
-  if (assetType === 'elementPresets') return 'elementPreset';
-  if (assetType === 'textures') return 'texture';
-  if (assetType === 'dividers') return 'divider';
-  if (assetType === 'icons') return 'icon';
-  if (assetType === 'imageAssets') return 'image';
-  return 'part';
 };
 
 const getRegistryMetadataForSubmission = (submission: {
@@ -927,7 +993,7 @@ const syncPublishedSubmissionToAssetRegistry = async ({
     .upsert({
       asset_id: registryAssetId,
       name: submission.name,
-      asset_type: developerAssetTypeToRegistryType(submission.asset_type),
+      asset_type: developerAssetTypeToRegistryAssetKind(submission.asset_type),
       url: submission.source_url,
       preview_url: submission.preview_url || submission.source_url,
       status: 'published',
@@ -1031,49 +1097,143 @@ const refreshSubmissionVoteDecision = async (submissionId: string): Promise<void
   }
 };
 
+const refreshSubmissionVoteTotals = async (
+  submissionId: string,
+  settings: DeveloperProgramSettings,
+  ownerDeveloperId?: string | null,
+): Promise<void> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return;
+
+  const { data: voteRows, error: countError } = await supabase
+    .from('cardforge_developer_asset_votes')
+    .select('developer_id,vote_value,vote_weight')
+    .eq('submission_id', submissionId);
+
+  if (countError) {
+    if (isMissingDeveloperAssetColumnError(countError)) {
+      const { data: fallbackVoteRows, error: fallbackCountError } = await supabase
+        .from('cardforge_developer_asset_votes')
+        .select('developer_id,vote_value')
+        .eq('submission_id', submissionId);
+
+      if (!fallbackCountError) {
+        const { positiveVotes, negativeVotes } = calculateDeveloperAssetVoteTotals(
+          (fallbackVoteRows ?? []) as Array<{ developer_id?: string | null; vote_value?: string | null; vote_weight?: number | null }>,
+          { ownerDeveloperId, ownerVoteWeight: settings.ownerVoteWeight }
+        );
+
+        await supabase
+          .from('cardforge_developer_asset_submissions')
+          .update({ positive_votes: positiveVotes, negative_votes: negativeVotes })
+          .eq('id', submissionId);
+        return;
+      }
+    }
+    console.error('Failed to recalculate developer asset vote totals:', countError);
+    return;
+  }
+
+  const { positiveVotes, negativeVotes } = calculateDeveloperAssetVoteTotals(
+    (voteRows ?? []) as Array<{ developer_id?: string | null; vote_value?: string | null; vote_weight?: number | null }>,
+    {
+      ownerDeveloperId,
+      ownerVoteWeight: settings.ownerVoteWeight,
+    }
+  );
+
+  await supabase
+    .from('cardforge_developer_asset_submissions')
+    .update({ positive_votes: positiveVotes, negative_votes: negativeVotes })
+    .eq('id', submissionId);
+};
+
+const refreshAllSubmissionVoteTotals = async (
+  settings: DeveloperProgramSettings,
+  ownerDeveloperId?: string | null,
+): Promise<void> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase || !ownerDeveloperId) return;
+
+  const { error: voteWeightError } = await supabase
+    .from('cardforge_developer_asset_votes')
+    .update({ vote_weight: settings.ownerVoteWeight })
+    .eq('developer_id', ownerDeveloperId);
+  if (voteWeightError && !isMissingDeveloperAssetColumnError(voteWeightError)) {
+    console.error('Failed to update owner vote weights:', voteWeightError);
+  }
+
+  const { data: submissionRows, error } = await supabase
+    .from('cardforge_developer_asset_submissions')
+    .select('id')
+    .neq('status', 'rejected');
+
+  if (error) {
+    console.error('Failed to load submissions for vote reweighting:', error);
+    return;
+  }
+
+  await Promise.all((submissionRows ?? []).map((row) => (
+    refreshSubmissionVoteTotals(String((row as { id: string }).id), settings, ownerDeveloperId)
+  )));
+};
+
 export const voteOnDeveloperAssetSubmission = async ({
   submissionId,
   developerId,
   voteValue,
   currentContributorIds = [developerId],
+  ownerDeveloperId,
 }: {
   submissionId: string;
   developerId: string;
   voteValue: unknown;
   currentContributorIds?: string[];
+  ownerDeveloperId?: string | null;
 }): Promise<DeveloperAssetProgramView> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
   if (voteValue !== 'positive' && voteValue !== 'negative') {
     throw new DeveloperAssetStoreError('Choose a supported vote value.', 400);
   }
+  const { settings } = await fetchDeveloperSettings();
+  const voteWeight = ownerDeveloperId && developerId === ownerDeveloperId ? settings.ownerVoteWeight : 1;
 
+  const voteRow = {
+    submission_id: submissionId,
+    developer_id: developerId,
+    vote_value: voteValue,
+    vote_weight: voteWeight,
+  };
   const { error: voteError } = await supabase
     .from('cardforge_developer_asset_votes')
-    .upsert({
-      submission_id: submissionId,
-      developer_id: developerId,
-      vote_value: voteValue,
-    }, { onConflict: 'submission_id,developer_id' });
+    .upsert(voteRow, { onConflict: 'submission_id,developer_id' });
+
+  if (voteError && isMissingDeveloperAssetColumnError(voteError)) {
+    const fallbackVoteRow: Omit<typeof voteRow, 'vote_weight'> & Partial<Pick<typeof voteRow, 'vote_weight'>> = {
+      ...voteRow,
+    };
+    delete fallbackVoteRow.vote_weight;
+    const { error: fallbackVoteError } = await supabase
+      .from('cardforge_developer_asset_votes')
+      .upsert(fallbackVoteRow, { onConflict: 'submission_id,developer_id' });
+
+    if (fallbackVoteError) {
+      console.error('Failed to submit developer asset vote:', fallbackVoteError);
+      throw new DeveloperAssetStoreError('Unable to submit vote.', 500);
+    }
+
+    await refreshSubmissionVoteTotals(submissionId, settings, ownerDeveloperId);
+    await refreshSubmissionVoteDecision(submissionId);
+    return getDeveloperAssetProgramView(developerId, currentContributorIds);
+  }
 
   if (voteError) {
     console.error('Failed to submit developer asset vote:', voteError);
     throw new DeveloperAssetStoreError('Unable to submit vote.', 500);
   }
 
-  const { data: voteRows, error: countError } = await supabase
-    .from('cardforge_developer_asset_votes')
-    .select('vote_value')
-    .eq('submission_id', submissionId);
-
-  if (!countError) {
-    const positiveVotes = (voteRows ?? []).filter((row) => (row as { vote_value: string }).vote_value === 'positive').length;
-    const negativeVotes = (voteRows ?? []).filter((row) => (row as { vote_value: string }).vote_value === 'negative').length;
-    await supabase
-      .from('cardforge_developer_asset_submissions')
-      .update({ positive_votes: positiveVotes, negative_votes: negativeVotes })
-      .eq('id', submissionId);
-  }
+  await refreshSubmissionVoteTotals(submissionId, settings, ownerDeveloperId);
 
   await refreshSubmissionVoteDecision(submissionId);
   return getDeveloperAssetProgramView(developerId, currentContributorIds);

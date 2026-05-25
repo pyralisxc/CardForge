@@ -64,6 +64,7 @@ export async function POST(
       developerId: user.id,
       voteValue: body.voteValue,
       currentContributorIds: contributorIds,
+      ownerDeveloperId: ownerAccess.isOwner ? user.id : null,
     });
 
     return createNoStoreJsonResponse({ program });

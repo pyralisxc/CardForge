@@ -65,6 +65,50 @@ describe('asset registry', () => {
         metadata: { developerId: 'dev-1' },
       },
       {
+        asset_id: 'developer-dividers-1',
+        name: 'Developer Divider',
+        asset_type: 'divider',
+        url: 'https://storage.example.test/divider.svg',
+        status: 'published',
+        access_tier: 'free',
+        library_source: 'developer',
+        file_size_bytes: 1024,
+        metadata: { developerId: 'dev-1', tileMode: 'stretch', allowedTargets: ['divider'] },
+      },
+      {
+        asset_id: 'developer-icons-1',
+        name: 'Developer Icon',
+        asset_type: 'icon',
+        url: 'https://storage.example.test/icon.svg',
+        status: 'published',
+        access_tier: 'free',
+        library_source: 'developer',
+        file_size_bytes: 1024,
+        metadata: { developerId: 'dev-1', defaultWidth: 64, defaultHeight: 64 },
+      },
+      {
+        asset_id: 'developer-images-1',
+        name: 'Developer Image',
+        asset_type: 'image',
+        url: 'https://storage.example.test/image.png',
+        status: 'published',
+        access_tier: 'paid',
+        library_source: 'developer',
+        file_size_bytes: 8192,
+        metadata: { developerId: 'dev-1', defaultWidth: 300, defaultHeight: 180 },
+      },
+      {
+        asset_id: 'developer-parts-1',
+        name: 'Developer Overlay',
+        asset_type: 'part',
+        url: 'https://storage.example.test/overlay.svg',
+        status: 'published',
+        access_tier: 'free',
+        library_source: 'developer',
+        file_size_bytes: 1024,
+        metadata: { developerId: 'dev-1', partRole: 'ornament', allowedTargets: ['imageFrame', 'shape', 'template'] },
+      },
+      {
         asset_id: 'developer-elementPresets-1',
         name: 'Developer Element Preset',
         asset_type: 'elementPreset',
@@ -77,8 +121,14 @@ describe('asset registry', () => {
       },
     ]);
 
-    expect(payload?.registry.total).toBe(3);
+    expect(payload?.registry.total).toBe(7);
     expect(payload?.textures).toHaveLength(1);
+    expect(payload?.dividers).toHaveLength(1);
+    expect(payload?.icons).toHaveLength(1);
+    expect(payload?.imageAssets).toHaveLength(1);
+    expect(payload?.parts).toHaveLength(1);
+    expect(payload?.templates).toHaveLength(1);
+    expect(payload?.elementPresets).toHaveLength(1);
     expect(payload?.textures[0]).toMatchObject({
       librarySource: 'developer',
       allowedTargets: ['shape', 'template'],
@@ -90,6 +140,11 @@ describe('asset registry', () => {
       id: 'developer-templates-1',
       kind: 'template',
       accessTier: 'paid',
+    });
+    expect(payload?.parts[0]).toMatchObject({
+      id: 'developer-parts-1',
+      kind: 'part',
+      allowedTargets: ['imageFrame', 'shape', 'template'],
     });
     expect(payload?.elementPresets[0]).toMatchObject({
       id: 'developer-elementPresets-1',

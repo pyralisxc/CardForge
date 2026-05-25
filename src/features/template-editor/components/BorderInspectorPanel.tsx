@@ -1,31 +1,62 @@
 "use client";
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ColorField } from '@/components/card-forge/makerConstants';
 import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
-import type { FreeformCardElement } from '@/types';
+import type { AppearanceBorderKind, FreeformAppearance, FreeformCardElement } from '@/types';
 
 interface BorderInspectorPanelProps {
   element: FreeformCardElement;
+  selectedAppearance?: FreeformAppearance;
   borderPresets: ElementPresetRecipe[];
-  borderWidthOptions: Array<{ value: string; label: string }>;
-  borderRadiusOptions: Array<{ value: string; label: string }>;
   onApplyPreset: (preset: ElementPresetRecipe) => void;
-  onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
+  onUpdateAppearance: (updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory?: boolean) => void;
 }
 
 export function BorderInspectorPanel({
   element,
+  selectedAppearance,
   borderPresets,
-  borderWidthOptions,
-  borderRadiusOptions,
   onApplyPreset,
-  onUpdateElement,
+  onUpdateAppearance,
 }: BorderInspectorPanelProps) {
+  const border = selectedAppearance?.border;
+  const surface = getBorderSurfaceCopy(element);
+  const borderKind = border?.kind || 'none';
+  const borderWidth = border?.width ?? 0;
+  const borderRadius = border?.radius ?? 0;
+  const borderColor = border?.color || element.borderColor || element.strokeColor || '#d5ad54';
+
+  const updateBorder = (updates: Partial<NonNullable<FreeformAppearance['border']>>, trackHistory = false) => {
+    onUpdateAppearance((appearance) => {
+      const current = appearance.border || { kind: 'none' as const, width: 0, radius: 0 };
+      const nextKind = updates.kind ?? current.kind ?? 'solid';
+      const nextWidth = updates.width ?? current.width ?? (nextKind === 'none' ? 0 : 1);
+
+      return {
+        ...appearance,
+        border: {
+          ...current,
+          color: borderColor,
+          radius: borderRadius,
+          ...updates,
+          kind: nextKind,
+          width: nextKind === 'none' ? 0 : nextWidth,
+        },
+      };
+    }, trackHistory);
+  };
+
   return (
     <div className="space-y-2">
-      <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pipeline Border Recipes</Label>
+      <div>
+        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">{surface.title}</Label>
+        <p className="text-[10px] leading-4 text-[#6f7785]">{surface.description}</p>
+      </div>
+      <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Edge Recipes</Label>
       <div className="grid grid-cols-2 gap-1">
         {borderPresets.map((preset) => (
           <Button
@@ -33,7 +64,7 @@ export function BorderInspectorPanel({
             type="button"
             variant="outline"
             size="sm"
-            title={`${preset.contributorName} - ${preset.status} - ${preset.tier}`}
+            title={`${preset.description} - ${preset.contributorName} - ${preset.status} - ${preset.tier}`}
             className="h-auto min-h-8 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
             onClick={() => onApplyPreset(preset)}
           >
@@ -54,20 +85,90 @@ export function BorderInspectorPanel({
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label htmlFor="element-border-width">Border Width</Label>
-          <Select value={element.borderWidth || '_none_'} onValueChange={(value) => onUpdateElement({ borderWidth: value })}>
-            <SelectTrigger id="element-border-width"><SelectValue /></SelectTrigger>
-            <SelectContent>{borderWidthOptions.map((width) => <SelectItem key={width.value} value={width.value}>{width.label}</SelectItem>)}</SelectContent>
+          <Label htmlFor="element-edge-style">{surface.styleLabel}</Label>
+          <Select value={borderKind} onValueChange={(value) => updateBorder({ kind: value as AppearanceBorderKind }, true)}>
+            <SelectTrigger id="element-edge-style"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="solid">Solid</SelectItem>
+              <SelectItem value="double">Double</SelectItem>
+              <SelectItem value="etched">Etched</SelectItem>
+              <SelectItem value="relic">Relic</SelectItem>
+              <SelectItem value="foil">Foil</SelectItem>
+            </SelectContent>
           </Select>
         </div>
         <div>
-          <Label htmlFor="element-radius">Radius</Label>
-          <Select value={element.borderRadius || 'rounded-none'} onValueChange={(value) => onUpdateElement({ borderRadius: value })}>
-            <SelectTrigger id="element-radius"><SelectValue /></SelectTrigger>
-            <SelectContent>{borderRadiusOptions.map((radius) => <SelectItem key={radius.value} value={radius.value}>{radius.label}</SelectItem>)}</SelectContent>
-          </Select>
+          <Label htmlFor="element-edge-width">{surface.widthLabel}</Label>
+          <Input
+            id="element-edge-width"
+            type="number"
+            min="0"
+            max="16"
+            value={borderWidth}
+            onChange={(event) => updateBorder({ width: Math.max(0, Number(event.target.value)), kind: Number(event.target.value) <= 0 ? 'none' : borderKind === 'none' ? 'solid' : borderKind })}
+          />
+        </div>
+        <div>
+          <Label htmlFor="element-edge-radius">{surface.radiusLabel}</Label>
+          <Input
+            id="element-edge-radius"
+            type="number"
+            min="0"
+            max="999"
+            value={borderRadius}
+            onChange={(event) => updateBorder({ radius: Math.max(0, Number(event.target.value)) })}
+          />
+        </div>
+        <div>
+          <Label className="text-xs">{surface.colorLabel}</Label>
+          <ColorField value={borderColor} onChange={(value) => updateBorder({ color: value })} />
         </div>
       </div>
     </div>
   );
+}
+
+function getBorderSurfaceCopy(element: FreeformCardElement) {
+  if (element.type === 'image') {
+    return {
+      title: 'Image Frame Edge',
+      description: 'Frames the image container. Image crop and source stay in Image & Overlay Source Assets.',
+      styleLabel: 'Frame style',
+      widthLabel: 'Frame width',
+      radiusLabel: 'Corner radius',
+      colorLabel: 'Frame color',
+    };
+  }
+
+  if (element.type === 'icon') {
+    return {
+      title: 'Icon Backplate Edge',
+      description: 'Frames the icon container without changing the glyph line art or uploaded symbol.',
+      styleLabel: 'Backplate style',
+      widthLabel: 'Edge width',
+      radiusLabel: 'Backplate radius',
+      colorLabel: 'Edge color',
+    };
+  }
+
+  if (element.type === 'shape') {
+    return {
+      title: 'Shape Stroke',
+      description: 'Controls the selected shape outline. Fill, texture, and role styling stay in the shape and material sections.',
+      styleLabel: 'Stroke style',
+      widthLabel: 'Stroke width',
+      radiusLabel: 'Corner radius',
+      colorLabel: 'Stroke color',
+    };
+  }
+
+  return {
+    title: 'Text Box Edge',
+    description: 'Frames the text panel without changing the text characters, font, or variable content.',
+    styleLabel: 'Box edge style',
+    widthLabel: 'Edge width',
+    radiusLabel: 'Corner radius',
+    colorLabel: 'Edge color',
+  };
 }

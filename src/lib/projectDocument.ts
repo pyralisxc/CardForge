@@ -80,6 +80,19 @@ const isStoredDisplayCard = (value: unknown): value is StoredDisplayCard => {
 export const isLegacyStoredCardSet = (value: unknown): value is StoredDisplayCard[] =>
   Array.isArray(value) && value.every(isStoredDisplayCard);
 
+const isTemplateDocument = (value: unknown): value is TCGCardTemplate => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    value.id.trim() !== '' &&
+    typeof value.name === 'string' &&
+    value.name.trim() !== ''
+  );
+};
+
+const isTemplateDocumentSet = (value: unknown): value is TCGCardTemplate[] =>
+  Array.isArray(value) && value.length > 0 && value.every(isTemplateDocument);
+
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value as T[] : []);
 
 const normalizeCustomAssets = (value: unknown): ProjectDocumentCustomAssets => {
@@ -128,6 +141,11 @@ const createEmptyProjectDocument = (storedCards: StoredDisplayCard[] = []): Proj
     [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [],
     [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
   },
+});
+
+const createTemplateProjectDocument = (userTemplates: TCGCardTemplate[]): ProjectDocumentV1 => ({
+  ...createEmptyProjectDocument(),
+  userTemplates,
 });
 
 export const createProjectDocumentFromState = ({
@@ -192,6 +210,22 @@ export const parseProjectDocumentFile = (contents: string): ParseProjectDocument
       success: true,
       document: createEmptyProjectDocument(parsed),
       isLegacy: true,
+    };
+  }
+
+  if (isTemplateDocument(parsed)) {
+    return {
+      success: true,
+      document: createTemplateProjectDocument([parsed]),
+      isLegacy: false,
+    };
+  }
+
+  if (isTemplateDocumentSet(parsed)) {
+    return {
+      success: true,
+      document: createTemplateProjectDocument(parsed),
+      isLegacy: false,
     };
   }
 

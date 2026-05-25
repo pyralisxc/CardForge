@@ -34,6 +34,8 @@ export function ElementLibraryPanel({
   onAddElement,
   panelClassName,
 }: ElementLibraryPanelProps) {
+  const visibleSections = sections.filter((section) => section.items.length > 0);
+
   const handleDragStart = (event: ReactDragEvent<HTMLButtonElement>, item: ElementLibraryItem) => {
     event.dataTransfer.setData('application/cardforge-element', item.type);
     event.dataTransfer.setData('application/cardforge-kit-index', String(item.dragKitIndex));
@@ -51,7 +53,7 @@ export function ElementLibraryPanel({
         <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">Primitives only; styles live in inspector</p>
       </CardHeader>
       <CardContent className="space-y-2 p-2.5 pt-0">
-        {sections.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.category} className="space-y-1.5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#757d8c]">{section.category}</div>
             <div className="grid grid-cols-2 gap-1.5 2xl:grid-cols-3">

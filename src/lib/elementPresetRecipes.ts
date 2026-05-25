@@ -512,14 +512,90 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
   },
 ];
 
+const createBorderTreatmentRecipe = ({
+  id,
+  label,
+  description,
+  border,
+  background,
+  rawBackgroundImage,
+}: Pick<ElementPresetRecipe, 'id' | 'label' | 'description'> & {
+  border: NonNullable<FreeformAppearance['border']>;
+  background: string;
+  rawBackgroundImage?: string;
+}): ElementPresetRecipe => ({
+  id,
+  label,
+  description,
+  kind: 'borderTreatment',
+  contributorName: 'CardForge Owner',
+  status: 'published',
+  tier: 'official',
+  source: 'owner-seed',
+  appliesTo: {
+    elementTypes: ['text', 'image', 'icon', 'shape'],
+    surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'],
+  },
+  preview: { background, borderColor: border.kind === 'none' ? 'transparent' : border.color },
+  appearance: {
+    material: rawBackgroundImage ? { baseColor: background } : undefined,
+    border,
+    rawCss: rawBackgroundImage ? { backgroundImage: rawBackgroundImage } : undefined,
+  },
+});
+
 export const BORDER_PRESET_RECIPES: ElementPresetRecipe[] = [
-  { id: 'border-none', label: 'None', description: 'Remove element border treatment.', kind: 'borderTreatment', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['text', 'image', 'icon', 'shape'], surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'] }, preview: { background: '#111720', borderColor: 'transparent' }, updates: { borderWidth: '_none_', strokeWidth: 0 } },
-  { id: 'border-gold-hairline', label: 'Gold Hairline', description: 'Fine gold border for light structure.', kind: 'borderTreatment', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['text', 'image', 'icon', 'shape'], surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'] }, preview: { background: '#111720', borderColor: '#d5ad54' }, updates: { borderWidth: 'border', borderColor: '#d5ad54', strokeColor: '#d5ad54', strokeWidth: 1, borderRadius: 'rounded-md' } },
-  { id: 'border-heavy-relic', label: 'Heavy Relic', description: 'Heavy relic-style border for card parts.', kind: 'borderTreatment', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['text', 'image', 'icon', 'shape'], surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'] }, preview: { background: '#17100b', borderColor: '#9f742a' }, updates: { borderWidth: 'border-4', borderColor: '#9f742a', strokeColor: '#d5ad54', strokeWidth: 4, borderRadius: 'rounded-lg' } },
-  { id: 'border-arcane-edge', label: 'Arcane Edge', description: 'Violet magical edge for arcane components.', kind: 'borderTreatment', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['text', 'image', 'icon', 'shape'], surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'] }, preview: { background: '#160d25', borderColor: '#7a52cc' }, updates: { borderWidth: 'border-2', borderColor: '#7a52cc', strokeColor: '#bda2ff', strokeWidth: 2, borderRadius: 'rounded-xl' } },
-  { id: 'border-circle-seal', label: 'Circle Seal', description: 'Circular seal border for counters and icons.', kind: 'borderTreatment', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['text', 'image', 'icon', 'shape'], surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'] }, preview: { background: '#151008', borderColor: '#d5ad54' }, updates: { borderWidth: 'border-2', borderColor: '#d5ad54', strokeColor: '#d5ad54', strokeWidth: 2, borderRadius: 'rounded-full' } },
-  { id: 'border-etched-frame', label: 'Etched Frame', description: 'Etched gold frame with engraved texture.', kind: 'borderTreatment', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['text', 'image', 'icon', 'shape'], surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'] }, preview: { background: '#140f09', borderColor: '#d5ad54' }, updates: { borderWidth: 'border-4', borderColor: '#d5ad54', strokeColor: '#f5d27b', strokeWidth: 3, borderRadius: 'rounded-md', backgroundImageUrl: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 8px), linear-gradient(180deg, rgba(213,173,84,0.18), transparent)' } },
-  { id: 'border-violet-relic', label: 'Violet Relic', description: 'Purple relic border with premium glow language.', kind: 'borderTreatment', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['text', 'image', 'icon', 'shape'], surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'] }, preview: { background: '#160d25', borderColor: '#7a52cc' }, updates: { borderWidth: 'border-4', borderColor: '#7a52cc', strokeColor: '#d8c4ff', strokeWidth: 3, borderRadius: 'rounded-xl', backgroundImageUrl: 'linear-gradient(135deg, rgba(122,82,204,0.28), rgba(213,173,84,0.12), rgba(0,0,0,0.22))' } },
+  createBorderTreatmentRecipe({
+    id: 'border-none',
+    label: 'None',
+    description: 'Remove the selected element edge.',
+    background: '#111720',
+    border: { kind: 'none', width: 0, radius: 0 },
+  }),
+  createBorderTreatmentRecipe({
+    id: 'border-gold-hairline',
+    label: 'Gold Hairline',
+    description: 'Fine gold edge for light structure.',
+    background: '#111720',
+    border: { kind: 'solid', color: '#d5ad54', width: 1, radius: 6 },
+  }),
+  createBorderTreatmentRecipe({
+    id: 'border-heavy-relic',
+    label: 'Heavy Relic',
+    description: 'Heavier relic edge for panels and frames.',
+    background: '#17100b',
+    border: { kind: 'relic', color: '#9f742a', secondaryColor: '#d5ad54', width: 4, radius: 8, innerWidth: 1 },
+  }),
+  createBorderTreatmentRecipe({
+    id: 'border-arcane-edge',
+    label: 'Arcane Edge',
+    description: 'Violet magical edge for arcane components.',
+    background: '#160d25',
+    border: { kind: 'foil', color: '#7a52cc', secondaryColor: '#bda2ff', width: 2, radius: 12 },
+  }),
+  createBorderTreatmentRecipe({
+    id: 'border-circle-seal',
+    label: 'Circle Seal',
+    description: 'Circular seal edge for counters and icon backplates.',
+    background: '#151008',
+    border: { kind: 'double', color: '#d5ad54', width: 2, radius: 999 },
+  }),
+  createBorderTreatmentRecipe({
+    id: 'border-etched-frame',
+    label: 'Etched Frame',
+    description: 'Engraved gold edge with a subtle etched surface.',
+    background: '#140f09',
+    border: { kind: 'etched', color: '#d5ad54', secondaryColor: '#5f4216', width: 4, radius: 6, innerWidth: 1 },
+    rawBackgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 8px), linear-gradient(180deg, rgba(213,173,84,0.18), transparent)',
+  }),
+  createBorderTreatmentRecipe({
+    id: 'border-violet-relic',
+    label: 'Violet Relic',
+    description: 'Premium violet relic edge with stronger foil signal.',
+    background: '#160d25',
+    border: { kind: 'relic', color: '#7a52cc', secondaryColor: '#d8c4ff', width: 4, radius: 12, innerWidth: 1 },
+    rawBackgroundImage: 'linear-gradient(135deg, rgba(122,82,204,0.28), rgba(213,173,84,0.12), rgba(0,0,0,0.22))',
+  }),
 ];
 
 export const DIVIDER_PRESET_RECIPES: ElementPresetRecipe[] = [

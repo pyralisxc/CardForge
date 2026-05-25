@@ -597,7 +597,9 @@ Current finding:
 - `202605240003_unify_owner_default_voting.sql` clears the old owner-forced Official overrides from seeded defaults so owner-contributed defaults are governed by the same vote/cap pipeline as every other asset.
 - `202605240004_developer_profile_names.sql` adds first/last name fields to developer profiles so queues and ledgers can show a contributor name first, falling back to email when no name is available.
 - `202605240005_developer_self_voting_rule.sql` adds owner-configurable contributor self-voting. It defaults on for solo/demo review and can be disabled for strict peer-only voting.
-- The developer Asset Hub review queue is split into Site Defaults, Candidate Uploads, and Archive, with filtering, paging, expanded previews, archive voting, and uploader edits for unpublished/non-rejected submissions.
+- `202605240006_owner_vote_weight.sql` adds owner-configurable vote weight. It defaults to 1x so the owner votes like any other developer, with 2x/3x available from `/owner` for stronger owner signal in close grading decisions.
+- The developer Asset Hub review queue is split into Live Library, Review Candidates, and Recovery Archive, with filtering, paging, expanded previews, archive voting, and uploader edits for unpublished/non-rejected submissions.
+- The developer submit flow accepts candidate sources from three places: Personal Library saved templates/styles/local art, file-directory browse, or drag/drop. Personal Library items stay browser-local until the developer explicitly sends them to Forge Review, and project export remains the portability backup for moving that local library between devices.
 - Developer Asset Hub badges should read as status, contributor, and current tier. Owner default rows are included in the owner's contributor aliases so My Pipeline is not empty for the owner account; self-voting and whether those rows appear in the owner's review lanes is controlled by the contributor self-voting owner rule.
 - Structured template submissions now render a real card preview in the expanded asset view when the embedded/default template payload is available; broken image previews fall back to an explicit unavailable state instead of a silent blank.
 - Layout Studio template library rows use scaled real `CardPreview` renders instead of symbolic thumbnail placeholders.
@@ -605,10 +607,11 @@ Current finding:
 - Cap changes rebalance one shared asset pipeline: lowering a cap keeps the highest-signal assets published, moves over-cap passing assets back to publish-candidate review, and moves failing assets to archive.
 - Saving a modified default template keeps the default template id/source and syncs the registry-backed default payload instead of creating an indistinguishable user-template copy.
 - Owner Developer Program now includes voting presets for solo owner testing, current roster review, launch roster review, and full council review.
+- Owner Developer Program now includes an owner vote weight control. Vote weight changes owner vote impact only; owner-seeded defaults still use the same submission, voting, archive, and registry paths as every other asset.
 - Owner Developer Program now includes a storage forecast based on publish caps, one month of possible voting submissions, and visible archive capacity.
 - Owner Launch Readiness now includes database footprint metrics after the asset-registry migration function is applied.
 - The framework tracks contribution eligibility for a future financial launch, but it intentionally does not move money or create Stripe Connect accounts.
-- Signed-in paid/free user uploads remain local and are not promoted to site defaults without a future explicit submission flow.
+- Signed-in paid/free user uploads remain `localOnly` and are not promoted to site defaults without a future explicit submission flow.
 - Current shipped templates, styles, textures, dividers, icons, and image assets keep their source files in the repo/static asset layer while the registry becomes the app-facing catalog. Developer-submitted image/source assets now use the upload bridge; repo-backed official defaults should only be moved into database/storage records once versioning and owner rollback rules are finalized.
 
 Recommended handling:
@@ -621,18 +624,20 @@ Recommended handling:
 - run `supabase/migrations/202605240003_unify_owner_default_voting.sql` before expecting owner-contributed defaults to rebalance like regular pipeline assets
 - run `supabase/migrations/202605240004_developer_profile_names.sql` before expecting contributor first/last names in developer queues and owner ledgers
 - run `supabase/migrations/202605240005_developer_self_voting_rule.sql` before expecting the owner self-voting rule to persist
+- run `supabase/migrations/202605240006_owner_vote_weight.sql` before expecting owner vote weight to persist and affect developer asset grading
 - rerun `supabase/migrations/202605220003_owner_console.sql` or apply its `cardforge_owner_settings` `alter table ... add column if not exists` block before testing Site Mechanics
 - confirm owner settings in `/owner` before inviting developers
 - verify the owner account sees Library Command, the developer account sees Forge Review, paid accounts see Creator Pass Library, and free users see Starter Library messaging
 - verify `/api/assets` includes the expected official registry counts plus shipped-file fallbacks after all official seed migrations are applied; database rows should override matching shipped assets without hiding unrelated repo assets
 - verify the developer review queue includes active/published official default assets, separates candidate uploads from current defaults and archive, and keeps defaults/archive assets voteable until rejected or owner-hidden
 - verify toggling contributor self-voting changes whether own/owner-default assets appear in review lanes and whether the vote route accepts those votes
+- verify changing owner vote weight between 1x, 2x, and 3x changes owner vote impact without changing which assets the owner can manage
 - verify Owner Developer Program shows cap pressure, owner default counts, per-developer submissions left, and required published progress
 - verify developer and owner asset rows show status, contributor name/email, current tier, preview state, and expanded template/image previews without broken thumbnails
 - verify generator template selectors label Default vs User templates, especially when a modified default and user template share similar names
 - verify the owner can complete an official roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
 - verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
-- verify a developer can upload an SVG/PNG/JPG/WEBP/JSON source file, submit it to voting, and have an owner-published submission appear through `/api/assets`
+- verify a developer can choose a Personal Library template/style/local art item, browse for an SVG/PNG/JPG/WEBP/JSON source file, or drag/drop that file, submit it to voting, and have an owner-published submission appear through `/api/assets`
 - treat payout reports as planning data until Stripe Connect, tax/legal terms, refund handling, and billing webhooks are implemented
 
 Risk rating: `Medium / Known / Launch Blocking for developer-program rollout, not for core local authoring`

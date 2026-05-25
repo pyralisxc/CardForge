@@ -135,4 +135,29 @@ describe('element preset recipes', () => {
     expect(updates.strokeColor).toBe('#ffb35f');
     expect(updates.backgroundColor).toBe('#210b06');
   });
+
+  it('applies border treatment recipes as structured element-aware edge styling', () => {
+    const relicRecipe = BORDER_PRESET_RECIPES.find((preset) => preset.id === 'border-heavy-relic');
+    expect(relicRecipe).toBeDefined();
+
+    const iconUpdates = buildElementPresetElementUpdates(relicRecipe!, {
+      ...baseShape,
+      type: 'icon',
+      strokeColor: '#abcdef',
+      strokeWidth: 2,
+    });
+    const shapeUpdates = buildElementPresetElementUpdates(relicRecipe!, {
+      ...baseShape,
+      type: 'shape',
+      strokeColor: '#abcdef',
+      strokeWidth: 2,
+    });
+
+    expect(iconUpdates.appearance?.border?.kind).toBe('relic');
+    expect(iconUpdates.strokeColor).toBe('#abcdef');
+    expect(iconUpdates.strokeWidth).toBe(2);
+    expect(shapeUpdates.appearance?.border?.kind).toBe('relic');
+    expect(shapeUpdates.strokeColor).toBe('#9f742a');
+    expect(shapeUpdates.strokeWidth).toBe(4);
+  });
 });

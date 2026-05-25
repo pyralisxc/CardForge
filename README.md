@@ -9,7 +9,7 @@ A local-first data layout studio. Build layered templates, import structured dat
 - **Data Import Tools** - Auto-mapping, advanced mapping overrides, preview warnings, row-level variable styling, and optional strict-mode gating
 - **Premium Fantasy Asset Kit** - Arcane Forge textures, dividers, ornaments, and style presets ship as real editor assets, not just landing-page mockups
 - **Export Profiles** - Physical Print and Virtual Export modes with configurable DPI and preflight checks
-- **Local Project Files** - Export/import project JSON files while keeping user designs local to the browser
+- **Local Project Files** - Export/import project JSON files or standalone template JSON while keeping user designs local to the browser
 - **Entitlement-Only Accounts** - Real accounts can unlock clean PDF/PNG/ZIP export without cloud project storage
 
 ## Tech Stack
@@ -168,13 +168,15 @@ The owner console can edit the public business profile, feature-voting mechanics
 
 Run `supabase/migrations/202605220004_founder_beta_campaign.sql` to enable owner-managed Founder Beta promo controls. The default public cap is 300 slots, with the first release wave capped at 100 until the owner raises it. Founder Beta is CardForge-owned entitlement first: signed-in users claim a slot through the app, then the server records the claim in Supabase and writes trusted Clerk private metadata for 90 days of clean export access. Stripe coupon and promotion-code fields live in the owner console for the later paid-billing launch, but raw Stripe secrets stay in environment variables and the Stripe dashboard.
 
-Run `supabase/migrations/202605230001_developer_asset_pipeline.sql` to enable the developer asset program framework. Developer and owner accounts get the `/developer` Asset Hub for site-library submissions and peer voting. Owner accounts also get tabbed `/owner` controls for max active developer slots, monthly submission limits, monthly published requirements, vote thresholds, visible archive size, future creator-pool percentage, paid-preview behavior, and one-row-per-asset-type caps for Starter Library and Creator Pass. Publish Total is computed from Starter plus Creator Pass so live-library capacity has one source of truth. This is an auditable contribution framework only; it does not automate Stripe payouts or make normal user uploads cloud-backed.
+Run `supabase/migrations/202605230001_developer_asset_pipeline.sql` to enable the developer asset program framework. Developer and owner accounts get the `/developer` Asset Hub for site-library submissions and peer voting. Owner accounts also get tabbed `/owner` controls for max active developer slots, monthly submission limits, monthly published requirements, vote thresholds, owner vote weight, visible archive size, future creator-pool percentage, paid-preview behavior, and one-row-per-asset-type caps for Starter Library and Creator Pass. Publish Total is computed from Starter plus Creator Pass so live-library capacity has one source of truth. This is an auditable contribution framework only; it does not automate Stripe payouts or make normal user uploads cloud-backed.
 
 Developer-submitted asset status is separate from user access tier:
 
 - status tracks pipeline state: `draft`, `submitted`, `voting`, `publish_candidate`, `published`, `archived`, or `rejected`
 - access tier tracks who can use it: `hidden`, `free`, `paid`, `developer`, or `official`
 - the default ladder keeps assets under 5 votes in Forge Review, hides assets below 60% positive votes, assigns 60-79% positive assets to the Starter Library, assigns 80%+ positive assets to Creator Pass, and lets owners force Starter, Pass, Official, or Hidden visibility
+- owner vote weight defaults to 1x, so the owner votes like any other developer unless `/owner` raises that signal to 2x or 3x
+- browser-uploaded art is normalized as `localOnly`, never `published`, until a developer explicitly submits it as a library candidate
 
 Keep the asset ownership boundary explicit:
 
@@ -275,14 +277,14 @@ CardForge intentionally keeps server-read content and browser-served assets sepa
 - `public/card-assets/dividers/**/*.{svg,png,jpg,jpeg,webp}`
   Browser-served divider assets
 - `public/card-assets/parts/**/*.{svg,png,jpg,jpeg,webp}`
-  Browser-served premium card parts such as title plates, art windows, rules boxes, corners, and orbs
+  Browser-served Card Parts / Overlays such as title plates, art windows, rules boxes, corners, and orbs
 
 ### Auto-Discovery Rules
 
 - Templates are loaded by `src/app/api/templates/route.ts`.
 - Styles are loaded by `src/app/api/styles/route.ts`.
-- Texture, divider, and part assets are discovered recursively by `src/app/api/assets/route.ts`.
-- Dropping a new texture into `public/card-assets/textures/`, a new divider into `public/card-assets/dividers/`, or a new premium part into `public/card-assets/parts/` will make it available through the bootstrap asset payload.
+- Texture, divider, and Card Parts / Overlays assets are discovered recursively by `src/app/api/assets/route.ts`.
+- Dropping a new texture into `public/card-assets/textures/`, a new divider into `public/card-assets/dividers/`, or a new Card Part / Overlay into `public/card-assets/parts/` will make it available through the bootstrap asset payload.
 - Optional metadata can be added by creating a matching JSON file under `data/assets/textures/`, `data/assets/dividers/`, or `data/assets/parts/` with the same relative path as the asset file.
 
 Example:

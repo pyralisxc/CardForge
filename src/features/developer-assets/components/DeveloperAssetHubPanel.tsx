@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ChangeEvent, ReactNode } from 'react';
-import { Archive, Check, ChevronLeft, ChevronRight, Eye, Info, Pencil, Save, Search, ThumbsDown, ThumbsUp, UploadCloud, X } from 'lucide-react';
+import type { ChangeEvent, DragEvent, ReactNode } from 'react';
+import { Archive, Check, ChevronLeft, ChevronRight, Eye, FileUp, Info, Library, Pencil, Save, Search, ThumbsDown, ThumbsUp, UploadCloud, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +12,19 @@ import { CardPreview } from '@/components/card-forge/CardPreview';
 import { TemplateThumbnail } from '@/components/card-forge/TemplateThumbnail';
 import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
+import type { CardAssetOption } from '@/lib/cardAssets';
+import {
+  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+  CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
+  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
+} from '@/lib/projectDocument';
+import {
+  getDeveloperAssetStatusLabel,
+  getDeveloperAssetTierLabel,
+  getDeveloperAssetTypeLabel,
+} from '@/lib/pipelineAssetTaxonomy';
+import { useAppStore } from '@/store/appStore';
 import type { TCGCardTemplate } from '@/types';
 
 interface DeveloperAssetsResponse {
@@ -36,31 +49,23 @@ interface TemplateLibraryResponse {
 type DeveloperAssetSubmission = DeveloperAssetProgramView['submissions'][number];
 type ReviewLane = 'defaults' | 'uploads' | 'archive';
 type VoteFilter = 'all' | 'unvoted' | 'upvoted' | 'downvoted';
+type PersonalLibraryFilter = DeveloperAssetType | 'all';
 
-const assetTypeLabels: Record<DeveloperAssetType, string> = {
-  templates: 'Template',
-  elementPresets: 'Element Preset',
-  textures: 'Texture',
-  dividers: 'Divider',
-  icons: 'Icon',
-  imageAssets: 'Image Asset',
-  parts: 'Part',
-};
-
-const statusLabels: Record<DeveloperAssetStatus, string> = {
-  draft: 'Draft',
-  submitted: 'Submitted',
-  voting: 'Voting',
-  publish_candidate: 'Publish Candidate',
-  published: 'Published',
-  archived: 'Archived',
-  rejected: 'Rejected',
-};
+interface PersonalLibraryItem {
+  id: string;
+  name: string;
+  sourceLabel: string;
+  assetType: DeveloperAssetType;
+  fileName: string;
+  helperText: string;
+  previewUrl?: string;
+  createFile: () => Promise<File>;
+}
 
 const reviewLaneLabels: Record<ReviewLane, string> = {
-  defaults: 'Site Defaults',
-  uploads: 'Candidate Uploads',
-  archive: 'Archive',
+  defaults: 'Live Library',
+  uploads: 'Review Candidates',
+  archive: 'Recovery Archive',
 };
 
 const reviewLaneHelp: Record<ReviewLane, string> = {
@@ -69,13 +74,7 @@ const reviewLaneHelp: Record<ReviewLane, string> = {
   archive: 'Retired or underperforming assets. Votes still count here so a strong recovery signal can surface them again.',
 };
 
-const tierLabels: Record<DeveloperAssetAccessTier, string> = {
-  hidden: 'Hidden',
-  free: 'Starter Library',
-  paid: 'Creator Pass',
-  developer: 'Forge Review',
-  official: 'Official Default',
-};
+const assetTierOrder: DeveloperAssetAccessTier[] = ['hidden', 'free', 'paid', 'developer', 'official'];
 
 const tierClasses: Record<DeveloperAssetAccessTier, string> = {
   hidden: 'border-[#4a3823] text-[#8f95a3]',
@@ -112,9 +111,9 @@ const getSearchableSubmissionText = (submission: DeveloperAssetSubmission) => [
   submission.developerDisplayName ?? '',
   submission.developerFirstName ?? '',
   submission.developerLastName ?? '',
-  assetTypeLabels[submission.assetType],
-  statusLabels[submission.status],
-  tierLabels[submission.calculatedAccessTier],
+  getDeveloperAssetTypeLabel(submission.assetType, { plural: false }),
+  getDeveloperAssetStatusLabel(submission.status),
+  getDeveloperAssetTierLabel(submission.calculatedAccessTier),
   submission.tierDecisionReason ?? '',
   submission.decisionReason ?? '',
 ].join(' ').toLowerCase();
@@ -138,8 +137,59 @@ const getTemplatePreviewId = (submission: DeveloperAssetSubmission): string | nu
   return templateUrl?.split('#')[1] || null;
 };
 
+const slugifyFileName = (value: string, fallback: string) => {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || fallback;
+};
+
+const getExtensionForMimeType = (mimeType: string) => {
+  if (mimeType === 'image/svg+xml') return 'svg';
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/jpeg') return 'jpg';
+  if (mimeType === 'image/webp') return 'webp';
+  if (mimeType === 'application/json') return 'json';
+  return 'bin';
+};
+
+const getExtensionForAssetUrl = (url: string) => {
+  if (url.startsWith('data:')) {
+    const mimeType = url.match(/^data:([^;,]+)/)?.[1] ?? '';
+    return getExtensionForMimeType(mimeType);
+  }
+  const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase();
+  return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp', 'json'].includes(extension) ? extension : 'asset';
+};
+
+const readStoredCardAssets = (storageKey: string): CardAssetOption[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? '[]') as unknown;
+    return Array.isArray(parsed) ? parsed as CardAssetOption[] : [];
+  } catch {
+    return [];
+  }
+};
+
+const createJsonFile = (payload: unknown, fileName: string) => (
+  new File([JSON.stringify(payload, null, 2)], fileName, { type: 'application/json' })
+);
+
+const createAssetFile = async (asset: CardAssetOption, fileNameStem: string) => {
+  const response = await fetch(asset.url);
+  if (!response.ok) throw new Error(`Unable to read ${asset.name}.`);
+  const blob = await response.blob();
+  const mimeType = blob.type || (asset.url.startsWith('data:image/svg+xml') ? 'image/svg+xml' : 'application/octet-stream');
+  const extension = getExtensionForMimeType(mimeType);
+  return new File([blob], `${fileNameStem}.${extension}`, { type: mimeType });
+};
+
 export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
+  const userTemplates = useAppStore((state) => state.userTemplates);
+  const appearanceStyles = useAppStore((state) => state.appearanceStyles);
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
   const [assetType, setAssetType] = useState<DeveloperAssetType>('icons');
   const [name, setName] = useState('');
@@ -148,6 +198,14 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadedAsset, setUploadedAsset] = useState<UploadedDeveloperAsset | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [personalLibraryFilter, setPersonalLibraryFilter] = useState<PersonalLibraryFilter>('all');
+  const [personalLibraryAssets, setPersonalLibraryAssets] = useState<{
+    textures: CardAssetOption[];
+    dividers: CardAssetOption[];
+    icons: CardAssetOption[];
+    imageAssets: CardAssetOption[];
+  }>({ textures: [], dividers: [], icons: [], imageAssets: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -170,6 +228,81 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const ownSubmissions = useMemo(() => (
     program?.submissions.filter((submission) => isCurrentContributorSubmission(submission, program)) ?? []
   ), [program]);
+
+  useEffect(() => {
+    const loadPersonalLibraryAssets = () => {
+      setPersonalLibraryAssets({
+        textures: readStoredCardAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+        dividers: readStoredCardAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+        icons: readStoredCardAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY),
+        imageAssets: readStoredCardAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+      });
+    };
+
+    loadPersonalLibraryAssets();
+    window.addEventListener('focus', loadPersonalLibraryAssets);
+    return () => window.removeEventListener('focus', loadPersonalLibraryAssets);
+  }, []);
+
+  const personalLibraryItems = useMemo<PersonalLibraryItem[]>(() => {
+    const templateItems = userTemplates
+      .filter((template) => template.id)
+      .map((template) => {
+        const fileNameStem = slugifyFileName(template.name || template.id || 'template', 'template');
+        return {
+          id: `template-${template.id}`,
+          name: template.name || template.id || 'Untitled template',
+          sourceLabel: 'Saved template',
+          assetType: 'templates' as const,
+          fileName: `${fileNameStem}.template.json`,
+          helperText: 'Saved in this browser. Export a project file when you need a portable backup.',
+          previewUrl: `/api/templates#${template.id}`,
+          createFile: async () => createJsonFile(template, `${fileNameStem}.template.json`),
+        };
+      });
+
+    const styleItems = appearanceStyles
+      .filter((style) => style.id && !style.id.startsWith('default-'))
+      .map((style) => {
+        const fileNameStem = slugifyFileName(style.name || style.id, 'appearance-style');
+        return {
+          id: `style-${style.id}`,
+          name: style.name || style.id,
+          sourceLabel: 'Appearance style',
+          assetType: 'elementPresets' as const,
+          fileName: `${fileNameStem}.style.json`,
+          helperText: 'Saved Appearance Studio preset from this browser.',
+          createFile: async () => createJsonFile(style, `${fileNameStem}.style.json`),
+        };
+      });
+
+    const assetItems = ([
+      ['textures', 'Local texture', personalLibraryAssets.textures],
+      ['dividers', 'Local divider', personalLibraryAssets.dividers],
+      ['icons', 'Local icon', personalLibraryAssets.icons],
+      ['imageAssets', 'Local image', personalLibraryAssets.imageAssets],
+    ] as const).flatMap(([assetTypeValue, sourceLabel, assets]) => assets.map((asset) => {
+      const fileNameStem = slugifyFileName(asset.name || asset.id, assetTypeValue);
+      return {
+        id: `${assetTypeValue}-${asset.id}`,
+        name: asset.name || asset.id,
+        sourceLabel,
+        assetType: assetTypeValue,
+        fileName: `${fileNameStem}.${getExtensionForAssetUrl(asset.url)}`,
+        helperText: asset.packName ? `Local asset from ${asset.packName}.` : 'Saved local art from Studio.',
+        previewUrl: asset.url,
+        createFile: async () => createAssetFile(asset, fileNameStem),
+      };
+    }));
+
+    return [...templateItems, ...styleItems, ...assetItems];
+  }, [appearanceStyles, personalLibraryAssets, userTemplates]);
+
+  const visiblePersonalLibraryItems = useMemo(() => (
+    personalLibraryFilter === 'all'
+      ? personalLibraryItems
+      : personalLibraryItems.filter((item) => item.assetType === personalLibraryFilter)
+  ), [personalLibraryFilter, personalLibraryItems]);
 
   const reviewLaneSubmissions = useMemo(() => {
     if (!program) return [];
@@ -263,10 +396,45 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
     };
   }, [program]);
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
+  const selectCandidateFile = useCallback((file: File | null) => {
     setSelectedFile(file);
     setUploadedAsset(null);
+    if (file && !name.trim()) {
+      setName(file.name.replace(/\.[^.]+$/, ''));
+    }
+  }, [name]);
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    selectCandidateFile(event.target.files?.[0] ?? null);
+  };
+
+  const handleCandidateDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+    selectCandidateFile(event.dataTransfer.files?.[0] ?? null);
+  };
+
+  const choosePersonalLibraryItem = async (item: PersonalLibraryItem) => {
+    try {
+      const file = await item.createFile();
+      setAssetType(item.assetType);
+      setName((currentName) => currentName.trim() ? currentName : item.name);
+      setDescription((currentDescription) => currentDescription.trim() ? currentDescription : item.helperText);
+      setPreviewUrl((currentPreviewUrl) => currentPreviewUrl.trim() ? currentPreviewUrl : item.previewUrl ?? '');
+      setSelectedFile(file);
+      setUploadedAsset(null);
+      setFileInputKey((key) => key + 1);
+      toast({
+        title: 'Personal library item selected',
+        description: `${item.name} is ready to send through Forge Review.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Library item unavailable',
+        description: error instanceof Error ? error.message : 'Unable to prepare that library item.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const uploadSelectedFile = async (): Promise<UploadedDeveloperAsset> => {
@@ -460,14 +628,14 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
           <TabsContent value="submit" className="mt-4">
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
-            <h3 className="font-serif text-xl text-[#fff1c7]">Submit an asset</h3>
+            <h3 className="font-serif text-xl text-[#fff1c7]">Submit a Library Candidate</h3>
             <p className="mt-2 text-sm leading-6 text-[#c7b288]">
               Site submissions enter the shared CardForge review pipeline. Local browser uploads remain private in your own workspace.
             </p>
             <div className="mt-4 grid gap-3">
               <label className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
-                  Type
+                  Asset family
                   <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
                 </span>
                 <select
@@ -476,7 +644,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                   onChange={(event) => setAssetType(event.target.value as DeveloperAssetType)}
                 >
                   {DEVELOPER_ASSET_TYPES.map((type) => (
-                    <option key={type} value={type}>{assetTypeLabels[type]}</option>
+                    <option key={type} value={type}>{getDeveloperAssetTypeLabel(type, { plural: false })}</option>
                   ))}
                 </select>
               </label>
@@ -487,29 +655,99 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                 </span>
                 <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={name} onChange={(event) => setName(event.target.value)} />
               </label>
-              <label className="grid gap-2 text-sm text-[#c7b288]">
+              <div className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
-                  Source file
-                  <FieldHelp text="Upload the file that can become part of the shared CardForge library after voting and owner review." />
+                  Candidate source
+                  <FieldHelp text="Choose from your browser library, drag a local file here, or browse your file directory. All three routes submit through the same review pipeline." />
                 </span>
-                <input
-                  key={fileInputKey}
-                  type="file"
-                  accept=".svg,.png,.jpg,.jpeg,.webp,.json,image/svg+xml,image/png,image/jpeg,image/webp,application/json"
-                  className="border border-dashed border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] file:mr-3 file:border-0 file:bg-[#e4aa43] file:px-3 file:py-2 file:text-sm file:font-medium file:text-[#140f0a]"
-                  onChange={handleFileChange}
-                />
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
+                  <div className="border border-[#5f4526] bg-[#0c0b09] p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-[#ffe7ad]">
+                        <Library className="h-4 w-4 text-[#d7b469]" />
+                        <span className="font-medium">Personal Library</span>
+                      </div>
+                      <select
+                        className="border border-[#5f4526] bg-[#100c08] px-2 py-1 text-xs text-[#ffe7ad]"
+                        value={personalLibraryFilter}
+                        onChange={(event) => setPersonalLibraryFilter(event.target.value as PersonalLibraryFilter)}
+                      >
+                        <option value="all">All saved</option>
+                        {DEVELOPER_ASSET_TYPES.map((type) => (
+                          <option key={type} value={type}>{getDeveloperAssetTypeLabel(type)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-[#a98a55]">
+                      Pull saved templates, Appearance Studio styles, and local art into Forge Review. Export a project file when you need to move this browser library to another device.
+                    </p>
+                    <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                      {visiblePersonalLibraryItems.length === 0 ? (
+                        <p className="border border-dashed border-[#3c2c1b] p-3 text-xs leading-5 text-[#a98a55]">
+                          Save a template or upload local art in Studio first, then it will appear here as a review candidate source.
+                        </p>
+                      ) : visiblePersonalLibraryItems.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className="grid w-full grid-cols-[2.75rem,minmax(0,1fr)] gap-3 border border-[#3c2c1b] bg-[#100c08] p-2 text-left hover:border-[#d8b365] hover:bg-[#1e160d]"
+                          onClick={() => void choosePersonalLibraryItem(item)}
+                        >
+                          <span className="grid h-11 w-11 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
+                            {item.previewUrl && !item.previewUrl.startsWith('/api/templates') ? (
+                              <img src={item.previewUrl} alt="" className="h-full w-full object-contain" />
+                            ) : (
+                              <FileUp className="h-4 w-4 text-[#d7b469]" />
+                            )}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm text-[#ffe7ad]">{item.name}</span>
+                            <span className="block text-xs text-[#a98a55]">{item.sourceLabel} - {getDeveloperAssetTypeLabel(item.assetType, { plural: false })}</span>
+                            <span className="block truncate text-xs text-[#6f5b3a]">{item.fileName}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label
+                    className={`grid min-h-56 cursor-pointer place-items-center border border-dashed p-5 text-center transition-colors ${isDragActive ? 'border-[#d8b365] bg-[#2a1b0d]' : 'border-[#5f4526] bg-[#0c0b09]'}`}
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      setIsDragActive(true);
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDragLeave={() => setIsDragActive(false)}
+                    onDrop={handleCandidateDrop}
+                  >
+                    <span className="grid gap-3">
+                      <span className="mx-auto grid h-12 w-12 place-items-center border border-[#5f4526] bg-[#15100a] text-[#d7b469]">
+                        <UploadCloud className="h-5 w-5" />
+                      </span>
+                      <span className="text-sm font-medium text-[#ffe7ad]">Drop a file or browse</span>
+                      <span className="text-xs leading-5 text-[#a98a55]">
+                        SVG, PNG, JPG, WEBP, and JSON up to 10 MB.
+                      </span>
+                      <input
+                        key={fileInputKey}
+                        type="file"
+                        accept=".svg,.png,.jpg,.jpeg,.webp,.json,image/svg+xml,image/png,image/jpeg,image/webp,application/json"
+                        className="sr-only"
+                        onChange={handleFileChange}
+                      />
+                    </span>
+                  </label>
+                </div>
                 <span className="text-xs text-[#a98a55]">
                   {selectedFile
                     ? `${selectedFile.name} - ${Math.ceil(selectedFile.size / 1024)} KB selected`
                     : uploadedAsset
                       ? `${uploadedAsset.fileName} uploaded`
-                      : 'Accepted: SVG, PNG, JPG, WEBP, and JSON up to 10 MB.'}
+                      : 'No source selected yet.'}
                 </span>
-              </label>
+              </div>
               <label className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
-                  Preview override
+                  Preview URL (optional)
                   <FieldHelp text="Optional. Leave blank to use the uploaded source file as the visual preview." />
                 </span>
                 <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} />
@@ -522,7 +760,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                 <textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={description} onChange={(event) => setDescription(event.target.value)} />
               </label>
               <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
-                {isSaving ? 'Uploading...' : 'Submit to voting'}
+                {isSaving ? 'Uploading...' : 'Send to Forge Review'}
               </Button>
             </div>
           </div>
@@ -560,17 +798,17 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                     />
                   </span>
                 </label>
-                <QueueSelect label="Type" value={reviewType} onChange={(value) => setReviewType(value as DeveloperAssetType | 'all')}>
+                <QueueSelect label="Family" value={reviewType} onChange={(value) => setReviewType(value as DeveloperAssetType | 'all')}>
                   <option value="all">All types</option>
-                  {DEVELOPER_ASSET_TYPES.map((type) => <option key={type} value={type}>{assetTypeLabels[type]}</option>)}
+                  {DEVELOPER_ASSET_TYPES.map((type) => <option key={type} value={type}>{getDeveloperAssetTypeLabel(type, { plural: false })}</option>)}
                 </QueueSelect>
                 <QueueSelect label="Status" value={reviewStatus} onChange={(value) => setReviewStatus(value as DeveloperAssetStatus | 'all')}>
                   <option value="all">All statuses</option>
-                  {DEVELOPER_ASSET_STATUSES.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+                  {DEVELOPER_ASSET_STATUSES.map((status) => <option key={status} value={status}>{getDeveloperAssetStatusLabel(status)}</option>)}
                 </QueueSelect>
                 <QueueSelect label="Tier" value={reviewTier} onChange={(value) => setReviewTier(value as DeveloperAssetAccessTier | 'all')}>
                   <option value="all">All tiers</option>
-                  {(Object.keys(tierLabels) as DeveloperAssetAccessTier[]).map((tier) => <option key={tier} value={tier}>{tierLabels[tier]}</option>)}
+                  {assetTierOrder.map((tier) => <option key={tier} value={tier}>{getDeveloperAssetTierLabel(tier)}</option>)}
                 </QueueSelect>
                 <QueueSelect label="Vote" value={reviewVoteFilter} onChange={(value) => setReviewVoteFilter(value as VoteFilter)}>
                   <option value="all">All votes</option>
@@ -890,17 +1128,17 @@ function AssetRow({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-[#ffe7ad]">{submission.name}</p>
             <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">
-              {statusLabels[submission.status]}
+              {getDeveloperAssetStatusLabel(submission.status)}
             </span>
             <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
               {getContributorLabel(submission)}
             </span>
             <span className={`border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${tierClasses[submission.calculatedAccessTier]}`}>
-              {tierLabels[submission.calculatedAccessTier]}
+              {getDeveloperAssetTierLabel(submission.calculatedAccessTier)}
             </span>
           </div>
           <p className="mt-1 text-xs text-[#c7b288]">
-            {assetTypeLabels[submission.assetType]} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
+            {getDeveloperAssetTypeLabel(submission.assetType, { plural: false })} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
           </p>
           <p className="mt-1 text-xs text-[#a98a55]">
             {(submission.tierDecisionReason ?? submission.decisionReason ?? 'developer_review').replaceAll('_', ' ')}
@@ -996,7 +1234,7 @@ function AssetPreview({
     <div className={`grid h-full w-full place-items-center text-center text-[#c7b288] ${expanded ? 'gap-2 p-6' : 'px-2'}`}>
       {expanded ? <Archive className="mx-auto h-8 w-8 text-[#a98a55]" /> : null}
       <p className={`${expanded ? 'text-sm font-medium text-[#ffe7ad]' : 'text-[10px] uppercase tracking-[0.12em] text-[#a98a55]'}`}>
-        {assetTypeLabels[submission.assetType]}
+        {getDeveloperAssetTypeLabel(submission.assetType, { plural: false })}
       </p>
       {expanded ? <p className="text-xs leading-5 text-[#a98a55]">{message}</p> : null}
     </div>

@@ -42,7 +42,7 @@ export function TypographyInspectorPanel({
     <>
       <div className="space-y-2">
         <div>
-          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pipeline Text Frame Recipes</Label>
+          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Text Frames</Label>
           <div className="grid grid-cols-2 gap-1">
             {framePresets.map((preset) => (
               <Button

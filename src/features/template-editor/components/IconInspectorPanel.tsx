@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ColorField } from '@/components/card-forge/makerConstants';
 import type { CardAssetOption } from '@/lib/cardAssets';
 import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
+import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
 import type { FreeformCardElement } from '@/types';
 
 interface IconInspectorPanelProps {
@@ -83,11 +84,11 @@ export function IconInspectorPanel({
 
       <div>
         <div className="mb-1 flex items-center justify-between gap-2">
-          <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Icon Assets</Label>
+          <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Icon Source Assets</Label>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="button" variant="outline" size="sm" className="h-7 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4]" onClick={() => iconAssetUploadInputRef.current?.click()}>
-                <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Upload' : 'Sign in'}
+                <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Add local icon' : 'Sign in'}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{canUploadCustomAssets ? 'Add a browser-local icon asset' : 'Sign in to add custom art'}</TooltipContent>
@@ -96,7 +97,7 @@ export function IconInspectorPanel({
         </div>
         <div className="relative mb-2">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
-          <Input className={controlClassName} placeholder="Search icon assets..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
+          <Input className={controlClassName} placeholder="Search reviewed and local icons..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
         </div>
         {iconAssets.length > 0 ? (
           <div className="mb-3 grid max-h-40 grid-cols-3 gap-1.5 overflow-y-auto pr-1">
@@ -110,16 +111,16 @@ export function IconInspectorPanel({
                   >
                     <span className="block h-9 rounded-[4px] border border-[#1f2530] bg-[#07090d] bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${asset.url})` }} aria-hidden="true" />
                     <span className="mt-1 block truncate text-[9px] font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{asset.name}</span>
-                    <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{asset.librarySource ?? 'official'}</span>
+                    <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#757d8c]">{getAssetBadgeSummary(asset).join(' - ')}</span>
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>{asset.name}</TooltipContent>
+                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
               </Tooltip>
             ))}
           </div>
         ) : null}
 
-        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pipeline Icon Recipes</Label>
+        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Icon Styles</Label>
         <div className="grid grid-cols-3 gap-1">
           {symbolStylePresets.map((preset) => (
             <Button

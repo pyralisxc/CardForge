@@ -6,6 +6,7 @@ import {
 } from '@/lib/developerAssets';
 import {
   buildDeveloperAssetProgramView,
+  calculateDeveloperAssetVoteTotals,
   mapDeveloperAssetSubmissionRow,
   mapDeveloperProgramSettingsRow,
   normalizeDeveloperAssetSubmissionEditInput,
@@ -32,6 +33,7 @@ describe('developer asset store helpers', () => {
       show_paid_preview_to_free_users: true,
       allow_paid_early_access_to_candidates: true,
       allow_contributor_self_voting: false,
+      owner_vote_weight: 2,
       archive_visible_limit: 100,
       profit_share_pool_percent: 10,
       owner_final_review_required: true,
@@ -49,6 +51,7 @@ describe('developer asset store helpers', () => {
       showPaidPreviewToFreeUsers: true,
       allowPaidEarlyAccessToCandidates: true,
       allowContributorSelfVoting: false,
+      ownerVoteWeight: 2,
       publishCapsByType: {
         templates: 14,
         icons: DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.icons.free
@@ -57,6 +60,20 @@ describe('developer asset store helpers', () => {
       tierCapsByType: {
         templates: { free: 10, paid: 4 },
       },
+    });
+  });
+
+  it('weights owner votes while keeping developer votes at one vote each', () => {
+    expect(calculateDeveloperAssetVoteTotals([
+      { developer_id: 'owner-1', vote_value: 'positive' },
+      { developer_id: 'dev-1', vote_value: 'negative' },
+      { developer_id: 'dev-2', vote_value: 'positive' },
+    ], {
+      ownerDeveloperId: 'owner-1',
+      ownerVoteWeight: 3,
+    })).toEqual({
+      positiveVotes: 4,
+      negativeVotes: 1,
     });
   });
 
@@ -229,7 +246,8 @@ describe('developer asset store helpers', () => {
       now: new Date('2026-05-23T00:00:00.000Z'),
     });
     expect(ownerView.currentContributorIds).toEqual(['owner-1', 'cardforge-official']);
-    expect(ownerView.developerStats).toEqual({ submitted: 1, published: 1, archived: 0, rejected: 0 });
+    expect(ownerView.developerStats).toEqual({ submitted: 0, published: 0, archived: 0, rejected: 0 });
+    expect(ownerView.remainingSubmissions).toBe(settings.monthlySubmissionLimit);
     expect(ownerView.votingQueue.map((submission) => submission.id)).toEqual(['own-1', 'own-2', 'peer-1', 'peer-2', 'official-1']);
 
     const peerOnlyView = buildDeveloperAssetProgramView({

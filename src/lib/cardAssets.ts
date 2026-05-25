@@ -5,8 +5,10 @@ export interface CardAssetOption {
   kind: 'texture' | 'divider' | 'border' | 'frame' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset';
   librarySource?: 'official' | 'developer' | 'local';
   accessTier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
-  registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected';
+  registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   fileSizeBytes?: number;
+  packId?: string;
+  packName?: string;
   tileMode: 'repeat' | 'stretch' | 'contain';
   seamless: boolean;
   allowedTargets: Array<'text' | 'shape' | 'divider' | 'template' | 'imageFrame' | 'icon' | 'image'>;
@@ -20,7 +22,7 @@ export interface CardAssetOption {
 
 export type CardAssetMetadataOverride = Partial<Pick<
   CardAssetOption,
-  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale' | 'partRole' | 'defaultWidth' | 'defaultHeight'
+  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale' | 'partRole' | 'defaultWidth' | 'defaultHeight' | 'packId' | 'packName'
 >>;
 
 export interface CardAssetDiscoveryInput {
@@ -82,6 +84,8 @@ export const buildDiscoveredCardAsset = ({
     .replace(/^\/card-assets\/(?:textures|dividers|parts|icons|images|templates|element-presets)\//, '')
     .replace(/\\/g, '/');
   const stem = normalizedRelativePath.replace(/\.[^.]+$/, '');
+  const inferredPackId = stem.includes('/') ? stem.split('/')[0] : undefined;
+  const inferredPackName = inferredPackId ? toTitleCase(inferredPackId) : undefined;
   const derivedId = metadata?.id || slugifyAssetId(stem);
   const known = findCardAsset(metadata?.id || url || derivedId);
   const defaults: CardAssetOption = kind === 'texture'
@@ -193,6 +197,8 @@ export const buildDiscoveredCardAsset = ({
     tileMode: metadata?.tileMode || known?.tileMode || defaults.tileMode,
     seamless: metadata?.seamless ?? known?.seamless ?? defaults.seamless,
     allowedTargets: metadata?.allowedTargets || known?.allowedTargets || defaults.allowedTargets,
+    packId: metadata?.packId ?? known?.packId ?? inferredPackId,
+    packName: metadata?.packName ?? known?.packName ?? inferredPackName,
     defaultBlendMode: metadata?.defaultBlendMode || known?.defaultBlendMode || defaults.defaultBlendMode,
     defaultOpacity: metadata?.defaultOpacity ?? known?.defaultOpacity ?? defaults.defaultOpacity,
     defaultScale: metadata?.defaultScale ?? known?.defaultScale ?? defaults.defaultScale,

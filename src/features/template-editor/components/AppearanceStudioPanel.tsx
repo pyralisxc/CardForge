@@ -13,7 +13,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { appearanceToStyle } from '@/lib/appearance';
 import type { CardAssetOption } from '@/lib/cardAssets';
-import type { AppearanceBorderKind, AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/types';
+import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
+import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/types';
 import { ColorField } from '@/components/card-forge/makerConstants';
 
 interface AppearanceStudioPanelProps {
@@ -72,7 +73,7 @@ export function AppearanceStudioPanel({
       </div>
       {!canUseImageSource && !canUseDividerControls && (element.type === 'text' || element.type === 'shape') && (
         <div>
-          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Quick Materials</Label>
+          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Local Quick Materials</Label>
           <div className="grid grid-cols-2 gap-1">
             {elementStylePresets.map((preset) => (
               <Button
@@ -91,7 +92,7 @@ export function AppearanceStudioPanel({
         </div>
       )}
       {compatibleAppearanceStyles.length > 0 && (
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Saved Material Styles</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Material Styles</Label>
       )}
       <div className="grid grid-cols-2 gap-1.5">
         {compatibleAppearanceStyles.map((style) => (
@@ -119,14 +120,16 @@ export function AppearanceStudioPanel({
         </div>
         {!canUseDividerControls && element.type !== 'image' && (
           <div>
-            <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Text</Label>
+            <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">{element.type === 'icon' ? 'Glyph' : 'Text'}</Label>
             <ColorField value={selectedAppearance?.material?.textColor || element.textColor || '#f5d27b'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, textColor: value, strokeColor: element.type === 'icon' ? value : appearance.material?.strokeColor } }), false)} />
           </div>
         )}
-        <div>
-          <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">{canUseDividerControls ? 'Tint' : 'Border'}</Label>
-          <ColorField value={selectedAppearance?.border?.color || element.borderColor || '#d5ad54'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, border: { ...appearance.border, kind: appearance.border?.kind || 'solid', color: value } }), false)} />
-        </div>
+        {canUseDividerControls && (
+          <div>
+            <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Tint</Label>
+            <ColorField value={selectedAppearance?.border?.color || element.borderColor || '#d5ad54'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, border: { ...appearance.border, kind: appearance.border?.kind || 'solid', color: value } }), false)} />
+          </div>
+        )}
       </div>
       {!canUseDividerControls && (
         <div className="grid grid-cols-2 gap-2">
@@ -175,27 +178,11 @@ export function AppearanceStudioPanel({
             </Select>
           </div>
         )}
-        {!canUseDividerControls && (
-          <div>
-            <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Border Style</Label>
-            <Select value={selectedAppearance?.border?.kind || 'none'} onValueChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, border: { ...appearance.border, kind: value as AppearanceBorderKind, width: appearance.border?.width ?? 1, radius: appearance.border?.radius ?? 6 } }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="solid">Solid</SelectItem>
-                <SelectItem value="double">Double</SelectItem>
-                <SelectItem value="etched">Etched</SelectItem>
-                <SelectItem value="relic">Relic</SelectItem>
-                <SelectItem value="foil">Foil</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
       </div>
       {canUseBackgroundTexture && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Texture Assets</Label>
+            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Texture Library</Label>
             <Button
               type="button"
               variant="outline"
@@ -204,11 +191,11 @@ export function AppearanceStudioPanel({
               title={canUploadCustomAssets ? 'Upload custom texture' : 'Sign in to add custom art'}
               onClick={() => textureAssetUploadInputRef.current?.click()}
             >
-              <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Upload' : 'Sign in'}
+              <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Add local' : 'Sign in'}
             </Button>
             <input ref={textureAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'texture')} />
           </div>
-          <Input className={controlClassName} placeholder="Search textures..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
+          <Input className={controlClassName} placeholder="Search reviewed and local textures..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
           <div className="grid grid-cols-4 gap-1.5">
             {compatibleTextureAssets.map((asset) => (
               <Tooltip key={asset.id}>
@@ -248,7 +235,7 @@ export function AppearanceStudioPanel({
                     }))}
                   />
                 </TooltipTrigger>
-                <TooltipContent>{asset.name}</TooltipContent>
+                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
               </Tooltip>
             ))}
           </div>
@@ -257,7 +244,7 @@ export function AppearanceStudioPanel({
       {canUseDividerControls && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Divider Assets</Label>
+            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Divider Library</Label>
             <Button
               type="button"
               variant="outline"
@@ -266,11 +253,11 @@ export function AppearanceStudioPanel({
               title={canUploadCustomAssets ? 'Upload custom divider' : 'Sign in to add custom art'}
               onClick={() => dividerAssetUploadInputRef.current?.click()}
             >
-              <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Upload' : 'Sign in'}
+              <Upload className="mr-1 h-3.5 w-3.5" /> {canUploadCustomAssets ? 'Add local' : 'Sign in'}
             </Button>
             <input ref={dividerAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'divider')} />
           </div>
-          <Input className={controlClassName} placeholder="Search dividers..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
+          <Input className={controlClassName} placeholder="Search reviewed and local dividers..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
           <div className="grid grid-cols-4 gap-1.5" data-testid="divider-asset-grid">
             {compatibleDividerAssets.map((asset) => (
               <Tooltip key={asset.id}>
@@ -293,7 +280,7 @@ export function AppearanceStudioPanel({
                     }))}
                   />
                 </TooltipTrigger>
-                <TooltipContent>{asset.name}</TooltipContent>
+                <TooltipContent>{asset.name} - {getAssetBadgeSummary(asset).join(' - ')}</TooltipContent>
               </Tooltip>
             ))}
           </div>

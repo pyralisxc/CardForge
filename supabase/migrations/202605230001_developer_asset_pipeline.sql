@@ -12,6 +12,7 @@ create table if not exists public.cardforge_developer_program_settings (
   minimum_votes_for_tier_assignment integer not null default 5 check (minimum_votes_for_tier_assignment between 1 and 1000),
   show_paid_preview_to_free_users boolean not null default true,
   allow_paid_early_access_to_candidates boolean not null default false,
+  owner_vote_weight integer not null default 1 check (owner_vote_weight between 1 and 3),
   archive_visible_limit integer not null default 100 check (archive_visible_limit between 1 and 500),
   profit_share_pool_percent integer not null default 10 check (profit_share_pool_percent between 0 and 50),
   owner_final_review_required boolean not null default true,
@@ -75,6 +76,7 @@ create table if not exists public.cardforge_developer_asset_votes (
   submission_id uuid not null references public.cardforge_developer_asset_submissions(id) on delete cascade,
   developer_id text not null,
   vote_value text not null check (vote_value in ('positive', 'negative')),
+  vote_weight integer not null default 1 check (vote_weight between 1 and 3),
   voted_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (submission_id, developer_id)
@@ -86,6 +88,7 @@ alter table public.cardforge_developer_program_settings
   add column if not exists minimum_votes_for_tier_assignment integer not null default 5 check (minimum_votes_for_tier_assignment between 1 and 1000),
   add column if not exists show_paid_preview_to_free_users boolean not null default true,
   add column if not exists allow_paid_early_access_to_candidates boolean not null default false,
+  add column if not exists owner_vote_weight integer not null default 1 check (owner_vote_weight between 1 and 3),
   add column if not exists tier_caps_by_type jsonb not null default '{
     "templates": { "free": 6, "paid": 3 },
     "elementPresets": { "free": 16, "paid": 8 },
@@ -101,6 +104,9 @@ alter table public.cardforge_developer_asset_submissions
   add column if not exists owner_access_tier_override text check (owner_access_tier_override in ('hidden', 'free', 'paid', 'official')),
   add column if not exists quality_score integer not null default 0 check (quality_score between 0 and 100),
   add column if not exists tier_decision_reason text;
+
+alter table public.cardforge_developer_asset_votes
+  add column if not exists vote_weight integer not null default 1 check (vote_weight between 1 and 3);
 
 create index if not exists cardforge_developer_asset_submissions_status_idx
   on public.cardforge_developer_asset_submissions (status, submitted_at desc);

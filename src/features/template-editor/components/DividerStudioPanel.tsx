@@ -29,7 +29,7 @@ export function DividerStudioPanel({
     <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
       <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Divider Studio</Label>
       <div>
-        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pipeline Divider Recipes</Label>
+        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Divider Recipes</Label>
         <div className="grid grid-cols-2 gap-1">
           {dividerPresets.map((preset) => (
             <Button

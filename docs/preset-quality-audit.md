@@ -24,8 +24,10 @@ The second consolidation pass applies that pattern across the high-visibility pr
 - **The extra left-rail parts catalog was removed** because image-like parts are source assets, not another element category.
 - **Registry appearance styles now require exact element targets** in the active Appearance Studio lane, so broad `element` tags no longer make unrelated controls appear on icon/divider workflows.
 - **Seeded and registry-backed recipes dedupe by kind and label**, preferring registry-backed versions when both represent the same offering.
-- **File-backed part assets now flow into the normal Image Assets picker**, keeping the left rail focused on primitives and the inspector focused on selected-element sources.
+- **File-backed Card Parts / Overlays now flow into the normal Image & Overlay Source Assets picker**, keeping the left rail focused on primitives and the inspector focused on selected-element sources.
 - **Appearance Studio has been renamed Material & Effects**, and the selected-element inspector now flows from source/content to style, material, frame/border, and layout.
+- **Frame & Border has become Frame & Edge**, with element-specific language for text boxes, image frames, icon backplates, and shape strokes. Non-divider border controls no longer also live inside Material & Effects, so the edge workflow has one primary home.
+- **Named edge styles now render distinctly**: etched, relic, and foil borders add real inset/outer visual treatment instead of collapsing to a plain solid line. Shape edges map to shape stroke, while icon backplate edges preserve icon glyph stroke.
 
 ## Summary
 
@@ -53,9 +55,9 @@ Overall grade: B-
 | Element kits | `CONSOLIDATED_ELEMENT_KITS` in `makerConstants.tsx` | New element library | Creates basic text, image, icon, shape, and divider elements. | B | Keep primitive element creation local; source assets belong in the relevant inspector picker. |
 | Appearance quick styles | `ELEMENT_STYLE_PRESETS` in `makerConstants.tsx` | Text and shape Material & Effects | Applies broad color, fill, background image, border, and radius values. | C | Demote or replace with pipeline-backed material recipes. Broad "element" styling is too vague for the main workflow. |
 | Appearance style library | `DEFAULT_APPEARANCE_LIBRARY`, `data/styles/`, `/api/styles` | Text, shape, divider, icon where exact targets match | Applies structured `FreeformAppearance` objects. | B+ | Primary filtering now requires exact targets; next pass should improve labels/previews and contributor provenance. |
-| Border presets | `BORDER_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Text, image, icon, shape | Applies border width/color/radius and sometimes background image. | B | Typed recipe lane is in place with badges/previews; next step is richer registry provenance. |
+| Border / edge presets | `BORDER_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Text, image, icon, shape | Applies structured edge styles: text box edge, image frame, icon backplate, or shape stroke depending on element type. | B+ | Edge workflow now has one primary inspector home and distinct render treatments; next step is richer registry provenance and live recipe thumbnails. |
 | Shape presets | Retired from primary UI | Shape Studio no longer shows this lane | Previously changed primitive geometry, width, height, and a few colors. | C- | Replaced by local Blank Primitives plus typed Pipeline Recipes. |
-| Shape role presets | `SHAPE_ROLE_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` | Shape Studio Pipeline Recipes | Applies semantic roles plus structured appearance recipes. | B+ | First typed seed lane is in place. Next step is loading registry-backed developer recipes into the same model. |
+| Shape role presets | `SHAPE_ROLE_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` | Reviewed Shape Recipes | Applies semantic roles plus structured appearance recipes. | B+ | First typed seed lane is in place. Next step is loading registry-backed developer recipes into the same model. |
 | Divider quick presets | `DIVIDER_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Divider Studio | Applies gradient divider bars to divider-shaped elements. | B | Typed divider recipes now explicitly preserve divider role and show status/tier badges. |
 | Divider assets | `/api/assets` plus local uploads | Divider Appearance Studio | Applies real uploaded/shipped divider art to divider elements. | A- | This is closest to the desired model. Add source/tier/status badges and voting provenance in picker UI. |
 | Symbol presets | `ICON_STYLE_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Icon Inspector | Sets icon palette/backplate; Lucide icon recipes no longer wipe uploaded icon art. | B | Typed icon recipes are in place with conflict-safe application for custom uploads. |
@@ -93,10 +95,10 @@ Overall grade: B-
 The latest browser-driven sanity check verified:
 
 - The left element rail is primitives-only; `Library Components`, `Card Part Catalog`, and `Asset Catalog` labels are gone.
-- Image-like part assets appear through the selected image element's Image Assets picker instead of clogging the element rail.
+- Image-like Card Parts / Overlays appear through the selected image element's Image & Overlay Source Assets picker instead of clogging the element rail.
 - A selected text element shows Source & Content, Text Style, Material & Effects, Frame & Border, and Layout & Layer; the old `Appearance Studio` label is gone.
-- Image elements expose `Image Assets`; selecting `Arcane Landscape` renders `/card-assets/images/arcane-landscape.svg`.
-- Icon elements expose `Icon Assets`; selecting `Arcane Star` renders `/card-assets/icons/arcane-star.svg`.
+- Image elements expose `Image & Overlay Source Assets`; selecting `Arcane Landscape` renders `/card-assets/images/arcane-landscape.svg`.
+- Icon elements expose `Icon Source Assets`; selecting `Arcane Star` renders `/card-assets/icons/arcane-star.svg`.
 - Icon Appearance Studio still shows relevant icon-targeted styles such as `Fire Relic Icon` and `Purple Foil`, while broad text-frame styles such as `Gilded Relic Frame` and `TTRPG Vellum Frame` no longer appear on icon selection.
 
 ## Recommended Makerspace Model
@@ -107,7 +109,7 @@ Use three lanes, not one pile of buttons:
 | --- | --- | --- | --- |
 | Local editor controls | Product code | position, size, z-index, primitive shape, raw colors, font family, alignment, padding, border width | No voting. These are tools, not assets. |
 | Pipeline recipes | Developer asset registry | text frames, icon styles, divider recipes, shape roles, border treatments, frame kits | Yes. Owner defaults and developer uploads use the same voting, archive, and recovery loop. |
-| User-local assets | Browser/project storage | paid/free user uploads that are not submitted to developer program | No public voting unless explicitly submitted into the developer pipeline. |
+| User-local assets | Browser/project storage | paid/free user uploads that are not submitted to developer program | No public voting unless explicitly submitted into the developer pipeline; these stay `localOnly`. |
 
 ## Element Preset Contract Target
 

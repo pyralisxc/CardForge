@@ -26,6 +26,7 @@ describe('developer asset program rules', () => {
       showPaidPreviewToFreeUsers: true,
       allowPaidEarlyAccessToCandidates: true,
       allowContributorSelfVoting: false,
+      ownerVoteWeight: '3',
       archiveVisibleLimit: '1000',
       profitSharePoolPercent: '15',
       publishCapsByType: { templates: '4', icons: -1 },
@@ -43,6 +44,7 @@ describe('developer asset program rules', () => {
     expect(settings.showPaidPreviewToFreeUsers).toBe(true);
     expect(settings.allowPaidEarlyAccessToCandidates).toBe(true);
     expect(settings.allowContributorSelfVoting).toBe(false);
+    expect(settings.ownerVoteWeight).toBe(3);
     expect(settings.archiveVisibleLimit).toBe(500);
     expect(settings.profitSharePoolPercent).toBe(15);
     expect(settings.tierCapsByType.templates).toEqual({ free: 12, paid: 6 });
@@ -51,6 +53,16 @@ describe('developer asset program rules', () => {
     expect(settings.publishCapsByType.icons).toBe(
       settings.tierCapsByType.icons.free + settings.tierCapsByType.icons.paid
     );
+  });
+
+  it('keeps owner vote weight inside the supported impact range', () => {
+    expect(normalizeDeveloperProgramSettingsInput({
+      ownerVoteWeight: 99,
+    }).ownerVoteWeight).toBe(3);
+
+    expect(normalizeDeveloperProgramSettingsInput({
+      ownerVoteWeight: 2,
+    }).ownerVoteWeight).toBe(2);
   });
 
   it('derives publish caps from Starter plus Creator Pass caps', () => {

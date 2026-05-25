@@ -195,6 +195,10 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
   const tileMode = appearance.tileMode ?? material?.texture?.tileMode ?? assetMeta?.tileMode;
   const assetBackgroundSize = tileMode === 'contain' ? 'contain' : tileMode === 'repeat' ? `${textureScale || assetMeta?.defaultScale || 160}px ${textureScale || assetMeta?.defaultScale || 160}px` : '100% 100%';
   const textureBackgroundSize = textureScale ? `${textureScale}px ${textureScale}px` : texture?.startsWith('url(') ? '160px 160px' : undefined;
+  const borderStyle = borderToStyle(border);
+  const boxShadow = [borderStyle.boxShadow, effectsToBoxShadow(effects, border)]
+    .filter(Boolean)
+    .join(', ') || undefined;
   return {
     color: material?.textColor,
     backgroundColor: material?.baseColor || material?.fillColor,
@@ -203,26 +207,27 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
     backgroundRepeat: asset ? (tileMode === 'repeat' ? 'repeat' : 'no-repeat') : texture?.startsWith('url(') ? 'repeat' : undefined,
     backgroundPosition: asset && tileMode === 'contain' ? 'center' : undefined,
     backgroundBlendMode: blendMode,
-    borderColor: border?.color,
-    borderWidth: border && border.kind !== 'none' ? border.width : undefined,
-    borderStyle: border && border.kind !== 'none' ? (border.kind === 'double' ? 'double' : 'solid') : undefined,
-    borderRadius: border?.radius !== undefined ? `${border.radius}px` : undefined,
-    boxShadow: effectsToBoxShadow(effects, border),
+    ...borderStyle,
+    boxShadow,
   };
 };
 
 export const appearanceToElementRenderFields = (element: FreeformCardElement): Partial<FreeformCardElement> => {
   const style = appearanceToStyle(element.appearance);
+  const borderWidth = element.appearance?.border?.width;
+  const borderColor = element.appearance?.border?.color;
+  const borderIsEnabled = element.appearance?.border && element.appearance.border.kind !== 'none';
+  const borderDrivesStroke = element.type === 'shape';
   return {
     backgroundColor: typeof style.backgroundColor === 'string' ? style.backgroundColor : element.backgroundColor,
     backgroundImageUrl: typeof style.backgroundImage === 'string' ? style.backgroundImage : element.backgroundImageUrl,
     textColor: element.appearance?.material?.textColor || element.textColor,
     fillColor: element.appearance?.material?.fillColor || element.appearance?.material?.baseColor || element.fillColor,
-    strokeColor: element.appearance?.material?.strokeColor || element.appearance?.border?.color || element.strokeColor,
-    borderColor: element.appearance?.border?.color || element.borderColor,
+    strokeColor: element.appearance?.material?.strokeColor || (borderDrivesStroke && borderIsEnabled ? borderColor : undefined) || element.strokeColor,
+    borderColor: borderColor || element.borderColor,
     borderRadius: element.appearance?.border?.radius !== undefined ? radiusToClass(element.appearance.border.radius) : element.borderRadius,
-    borderWidth: element.appearance?.border?.width !== undefined ? pixelsToBorderClass(element.appearance.border.width) : element.borderWidth,
-    strokeWidth: element.appearance?.border?.width ?? element.strokeWidth,
+    borderWidth: borderWidth !== undefined ? pixelsToBorderClass(borderWidth) : element.borderWidth,
+    strokeWidth: borderDrivesStroke && borderWidth !== undefined ? borderWidth : element.strokeWidth,
   };
 };
 
@@ -290,6 +295,69 @@ const effectsToBoxShadow = (effects?: AppearanceEffects, border?: AppearanceBord
   if (effects?.innerHighlight) shadows.push(`inset 0 1px ${Math.max(2, Math.round(effects.innerHighlight / 4))}px rgba(255,255,255,0.24)`);
   if (effects?.bevel) shadows.push(`inset 0 -${Math.max(1, Math.round(effects.bevel / 8))}px ${Math.max(2, Math.round(effects.bevel / 3))}px rgba(0,0,0,0.28)`);
   return shadows.length ? shadows.join(', ') : undefined;
+};
+
+const borderToStyle = (border?: AppearanceBorder): CSSProperties => {
+  if (!border) return {};
+
+  const radius = border.radius !== undefined ? `${border.radius}px` : undefined;
+  if (border.kind === 'none') {
+    return {
+      borderWidth: 0,
+      borderStyle: 'none',
+      borderRadius: radius,
+      borderImageSource: undefined,
+    };
+  }
+
+  const color = border.color || '#d5ad54';
+  const secondaryColor = border.secondaryColor || color;
+  const width = Math.max(1, border.width ?? 1);
+  const innerWidth = Math.max(1, border.innerWidth ?? 1);
+  const base: CSSProperties = {
+    borderColor: color,
+    borderWidth: width,
+    borderStyle: border.kind === 'double' ? 'double' : 'solid',
+    borderRadius: radius,
+    borderImageSource: undefined,
+  };
+
+  if (border.kind === 'etched') {
+    return {
+      ...base,
+      boxShadow: [
+        `inset 0 0 0 ${innerWidth}px ${secondaryColor}`,
+        'inset 0 1px 2px rgba(255,255,255,0.22)',
+        'inset 0 -2px 3px rgba(0,0,0,0.36)',
+      ].join(', '),
+    };
+  }
+
+  if (border.kind === 'relic') {
+    return {
+      ...base,
+      boxShadow: [
+        `inset 0 0 0 ${innerWidth}px ${secondaryColor}`,
+        'inset 0 2px 8px rgba(255,255,255,0.16)',
+        'inset 0 -4px 10px rgba(0,0,0,0.38)',
+        `0 0 ${width + 4}px ${colorWithOpacity(secondaryColor, 0.28)}`,
+      ].join(', '),
+    };
+  }
+
+  if (border.kind === 'foil') {
+    return {
+      ...base,
+      borderImageSource: `linear-gradient(135deg, ${secondaryColor}, ${color}, ${colorWithOpacity(secondaryColor, 0.45)}, ${color})`,
+      borderImageSlice: 1,
+      boxShadow: [
+        `0 0 ${width + 8}px ${colorWithOpacity(secondaryColor, 0.34)}`,
+        'inset 0 1px 4px rgba(255,255,255,0.24)',
+      ].join(', '),
+    };
+  }
+
+  return base;
 };
 
 const borderClassToPixels = (value?: string): number => {

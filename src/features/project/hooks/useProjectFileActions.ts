@@ -61,6 +61,25 @@ const downloadJsonFile = (fileName: string, contents: string) => {
   URL.revokeObjectURL(url);
 };
 
+export const buildProjectImportSummary = ({
+  importedTemplateCount,
+  successCount,
+  skippedCount,
+}: {
+  importedTemplateCount: number;
+  successCount: number;
+  skippedCount: number;
+}) => {
+  const parts = [
+    `${importedTemplateCount} ${importedTemplateCount === 1 ? 'template' : 'templates'} imported`,
+    `${successCount} ${successCount === 1 ? 'output' : 'outputs'} processed`,
+  ];
+  if (skippedCount > 0) {
+    parts.push(`${skippedCount} ${skippedCount === 1 ? 'output' : 'outputs'} skipped due to missing or invalid templates`);
+  }
+  return `${parts.join('. ')}.`;
+};
+
 export function useProjectFileActions({
   appearanceStyles,
   canUseProjectFiles,
@@ -175,8 +194,11 @@ export function useProjectFileActions({
         writeProjectAssetListToStorage(localStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]);
         writeProjectAssetListToStorage(localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]);
         const { successCount, skippedCount } = setStoredCardsFromFile(patch.storedCards);
-        let toastMessage = `${successCount} outputs processed.`;
-        if (skippedCount > 0) toastMessage += ` ${skippedCount} outputs skipped due to missing or invalid templates.`;
+        const toastMessage = buildProjectImportSummary({
+          importedTemplateCount: patch.userTemplates.length,
+          successCount,
+          skippedCount,
+        });
         toast({ title: parsedProject.isLegacy ? 'Legacy Set Imported' : 'Project Imported', description: toastMessage, duration: 7000 });
       } catch (error) {
         toast({ title: 'Import Error', description: `Failed to parse or process JSON: ${(error as Error).message}`, variant: 'destructive' });
