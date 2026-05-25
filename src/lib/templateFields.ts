@@ -3,8 +3,8 @@ import { extractUniquePlaceholderKeys, getImageFieldKeyForElement, toTitleCase }
 import { buildScopedFieldDataKey, buildStaticSegmentFieldKey, parseTemplateTextSegments, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
 
 export type TemplateFieldControl = 'input' | 'textarea';
-export type TemplateFieldEditor = 'plain-input' | 'plain-textarea' | 'rich-textarea' | 'rules-textarea';
-export type TemplateFieldContentModel = 'image' | 'plainText' | 'richText' | 'rulesBlocks';
+export type TemplateFieldEditor = 'plain-input' | 'plain-textarea' | 'rich-textarea' | 'rules-textarea' | 'structured-rows';
+export type TemplateFieldContentModel = 'image' | 'plainText' | 'richText' | 'rulesBlocks' | 'structuredRows';
 
 export interface TemplateFieldDefinition {
   key: string;
@@ -132,6 +132,7 @@ const buildSourceElementPreview = (
 };
 
 const pickFieldKind = (kinds: GeneratorFieldKind[]): GeneratorFieldKind | undefined => {
+  if (kinds.includes('structuredRows')) return 'structuredRows';
   if (kinds.includes('rules')) return 'rules';
   if (kinds.includes('richText')) return 'richText';
   if (kinds.includes('text')) return 'text';
@@ -192,16 +193,20 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         : Boolean(getPlaceholderFallbackForElement(element, key)?.includes('\n'));
       const contentModel: TemplateFieldContentModel = contract.type === 'rules'
         ? 'rulesBlocks'
+        : contract.type === 'structuredRows'
+          ? 'structuredRows'
         : contract.type === 'text'
           ? 'plainText'
           : 'richText';
-      const richTextEnabled = contentModel === 'rulesBlocks' || contentModel === 'richText';
+      const richTextEnabled = contentModel === 'rulesBlocks' || contentModel === 'richText' || contentModel === 'structuredRows';
       return [{
         key: buildScopedFieldDataKey(element.id, key),
         label: resolveFieldLabel(key, contract),
         control: contentModel === 'plainText' ? (isMultiline ? 'textarea' : 'input') : 'textarea',
         editor: contentModel === 'rulesBlocks'
           ? 'rules-textarea'
+          : contentModel === 'structuredRows'
+            ? 'structured-rows'
           : contentModel === 'richText'
             ? 'rich-textarea'
             : isMultiline
@@ -219,6 +224,8 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         sourceElementContent: element.content,
         helperText: contentModel === 'rulesBlocks'
           ? 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.'
+          : contentModel === 'structuredRows'
+            ? 'Use this text element as a repeatable row pattern. The generator can add multiple rows, each with its own values for this element\'s variables.'
           : richTextEnabled
             ? 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.'
             : undefined,
@@ -232,7 +239,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
     const primaryTextElement = textElements[0];
     const contract = getContract(placeholder.key, primaryTextElement?.id);
     const isMultiline = !isImage && (typeof contract?.multiline === 'boolean' ? contract.multiline : fieldLooksMultiline(placeholder.key));
-    const explicitKind = (contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' ? contract.type : undefined)
+    const explicitKind = (contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' || contract?.type === 'structuredRows' ? contract.type : undefined)
       || pickFieldKind(
         textElements
           .map((element) => element.generatorFieldKind)
@@ -249,16 +256,20 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       : fieldIsRequired(placeholder.key, isImage, placeholder.defaultValue);
     const contentModel: TemplateFieldContentModel = isImage
       ? 'image'
+      : fieldKind === 'structuredRows'
+        ? 'structuredRows'
       : fieldKind === 'rules'
         ? 'rulesBlocks'
         : fieldKind === 'richText'
           ? 'richText'
           : 'plainText';
-    const richTextEnabled = contentModel === 'rulesBlocks' || contentModel === 'richText';
+    const richTextEnabled = contentModel === 'rulesBlocks' || contentModel === 'richText' || contentModel === 'structuredRows';
     const editor: TemplateFieldEditor = isImage
       ? 'plain-input'
       : contentModel === 'rulesBlocks'
         ? 'rules-textarea'
+        : contentModel === 'structuredRows'
+          ? 'structured-rows'
         : contentModel === 'richText'
           ? 'rich-textarea'
           : isMultiline
@@ -286,6 +297,8 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       sourceElementContent: primaryTextElement?.content,
       helperText: contentModel === 'rulesBlocks'
         ? 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.'
+        : contentModel === 'structuredRows'
+          ? 'Use this text element as a repeatable row pattern. The generator can add multiple rows, each with its own values for this element\'s variables.'
         : richTextEnabled
         ? editor === 'rich-textarea'
           ? 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.'
@@ -314,6 +327,13 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       });
 
     const contentModel: TemplateFieldContentModel = inferTextContentModelFromElement(element);
+    const elementHasStructuredRowsContract = segments.some((segment) => (
+      segment.type === 'variable'
+      && segment.key
+      && (contractMap.get(segment.key)?.type === 'structuredRows'
+        || contractMap.get(`${element.id}:${segment.key}`)?.type === 'structuredRows')
+    ));
+    if (contentModel === 'structuredRows' || elementHasStructuredRowsContract) return;
     nonEmptyStaticSegments.forEach(({ segment, index }, staticSegmentPosition) => {
       const key = buildStaticSegmentFieldKey(element.id, index);
       const contract = contractMap.get(key);
@@ -349,6 +369,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
 
 const inferTextContentModelFromElement = (element: FreeformCardElement): TemplateFieldContentModel => {
   const lower = `${element.name || ''} ${element.content || ''}`.toLowerCase();
+  if (element.generatorFieldKind === 'structuredRows') return 'structuredRows';
   if (element.generatorFieldKind === 'rules' || /(rules|effect|ability|reminder|flavor|subtitle|subtext|description)/.test(lower)) {
     return 'rulesBlocks';
   }

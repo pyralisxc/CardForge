@@ -4,6 +4,7 @@ export const FIELD_STYLE_DATA_PREFIX = '__cardforgeFieldStyle.';
 
 export type FieldStyleProperty =
   | 'textColor'
+  | 'fontFamily'
   | 'fontSizePx'
   | 'fontWeight'
   | 'fontStyle'
@@ -13,6 +14,7 @@ export type FieldStyleProperty =
 
 export const FIELD_STYLE_PROPERTIES: FieldStyleProperty[] = [
   'textColor',
+  'fontFamily',
   'fontSizePx',
   'fontWeight',
   'fontStyle',

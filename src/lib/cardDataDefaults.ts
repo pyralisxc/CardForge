@@ -1,6 +1,7 @@
 import type { CardData, TCGCardTemplate } from '@/types';
 import { toTitleCase } from '@/lib/utils';
 import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/lib/templateFields';
+import { buildStructuredRowsDataKey, stringifyStructuredRowsValue } from '@/lib/structuredRows';
 
 const imagePlaceholderForField = (fieldKey: string): string =>
   `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(fieldKey))}`;
@@ -29,6 +30,25 @@ export const initializeCardDataFromTemplate = (
     return acc;
   }, {});
 
+  const structuredGroups = new Map<string, TemplateFieldDefinition[]>();
+  fields.forEach((field) => {
+    if (field.contentModel !== 'structuredRows' || !field.sourceElementId) return;
+    const group = structuredGroups.get(field.sourceElementId) ?? [];
+    group.push(field);
+    structuredGroups.set(field.sourceElementId, group);
+  });
+
+  structuredGroups.forEach((groupFields, elementId) => {
+    const dataKey = buildStructuredRowsDataKey(elementId);
+    if (existingData?.[dataKey] !== undefined) {
+      data[dataKey] = existingData[dataKey];
+      return;
+    }
+    data[dataKey] = stringifyStructuredRowsValue([
+      Object.fromEntries(groupFields.map((field) => [field.key, String(data[field.key] ?? '')])),
+    ]);
+  });
+
   return [fields, data];
 };
 
@@ -42,6 +62,22 @@ export const completeCardDataWithTemplateDefaults = (
     if (finalData[field.key] === undefined || String(finalData[field.key]).trim() === `{{${field.key}}}`) {
       finalData[field.key] = valueForTemplateField(field);
     }
+  });
+
+  const structuredGroups = new Map<string, TemplateFieldDefinition[]>();
+  fields.forEach((field) => {
+    if (field.contentModel !== 'structuredRows' || !field.sourceElementId) return;
+    const group = structuredGroups.get(field.sourceElementId) ?? [];
+    group.push(field);
+    structuredGroups.set(field.sourceElementId, group);
+  });
+
+  structuredGroups.forEach((groupFields, elementId) => {
+    const dataKey = buildStructuredRowsDataKey(elementId);
+    if (finalData[dataKey] !== undefined) return;
+    finalData[dataKey] = stringifyStructuredRowsValue([
+      Object.fromEntries(groupFields.map((field) => [field.key, String(finalData[field.key] ?? '')])),
+    ]);
   });
 
   return finalData;

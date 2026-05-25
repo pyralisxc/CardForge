@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
+import { getTemplateDisplayName, getTemplateSourceLabel } from '@/lib/templateDisplay';
 import type { TCGCardTemplate } from '@/types';
 
 interface BulkTemplateSetupPanelProps {
@@ -50,7 +51,7 @@ export function BulkTemplateSetupPanel({
               <SelectItem value="__none__">Choose a template</SelectItem>
               {templates.map((template) => (
                 <SelectItem key={template.id ?? template.name ?? 'template'} value={template.id ?? ''}>
-                  {template.name || template.id}
+                  {getTemplateDisplayName(template)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -61,7 +62,7 @@ export function BulkTemplateSetupPanel({
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
             <p className="font-medium">{selectedTemplate.name || selectedTemplate.id}</p>
             <p className="text-muted-foreground">
-              {bulkFieldDefinitions.length} bulk field{bulkFieldDefinitions.length === 1 ? '' : 's'} available
+              {getTemplateSourceLabel(selectedTemplate)} template - {bulkFieldDefinitions.length} bulk field{bulkFieldDefinitions.length === 1 ? '' : 's'} available
             </p>
           </div>
         ) : null}

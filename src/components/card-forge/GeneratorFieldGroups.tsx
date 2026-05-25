@@ -1,13 +1,22 @@
 "use client";
 
 import type { ChangeEvent, MutableRefObject } from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, Plus, Trash2 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { CardData } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/lib/textBindings';
 import { RichTextContent } from '@/lib/textTools';
 import { GeneratorFieldInput, getFieldStringValue } from '@/components/card-forge/GeneratorFieldInput';
+import {
+  buildStructuredRowsDataKey,
+  parseStructuredRowsValue,
+  stringifyStructuredRowsValue,
+  structuredRowToCardData,
+} from '@/lib/structuredRows';
 
 interface FieldGroup {
   id: string;
@@ -45,7 +54,9 @@ const groupGeneratorFields = (fields: TemplateFieldDefinition[]): FieldGroup[] =
     const existing = groups.find((group) => group.id === groupId);
     if (existing) {
       existing.fields.push(field);
-      if (existing.contentModel !== 'rulesBlocks' && field.contentModel === 'rulesBlocks') {
+      if (field.contentModel === 'structuredRows') {
+        existing.contentModel = 'structuredRows';
+      } else if (existing.contentModel !== 'structuredRows' && existing.contentModel !== 'rulesBlocks' && field.contentModel === 'rulesBlocks') {
         existing.contentModel = 'rulesBlocks';
       } else if (existing.contentModel === 'plainText' && field.contentModel === 'richText') {
         existing.contentModel = 'richText';
@@ -71,7 +82,97 @@ const orderFieldsForEditing = (fields: TemplateFieldDefinition[]) =>
   });
 
 const contentModelForPreview = (model: FieldGroup['contentModel']) =>
-  model === 'rulesBlocks' ? 'rulesBlocks' : model === 'richText' ? 'richText' : 'plainText';
+  model === 'rulesBlocks' ? 'rulesBlocks' : model === 'richText' || model === 'structuredRows' ? 'richText' : 'plainText';
+
+const buildDefaultStructuredRows = (fields: TemplateFieldDefinition[], data: CardData) => [
+  Object.fromEntries(fields.map((field) => [field.key, getFieldPreviewValue(field, data)])),
+];
+
+function StructuredRowsEditor({
+  group,
+  fields,
+  data,
+  onFieldChange,
+}: {
+  group: FieldGroup;
+  fields: TemplateFieldDefinition[];
+  data: CardData;
+  onFieldChange: (fieldKey: string, value: string) => void;
+}) {
+  const dataKey = buildStructuredRowsDataKey(group.id);
+  const rows = parseStructuredRowsValue(data[dataKey]);
+  const effectiveRows = rows.length > 0 ? rows : buildDefaultStructuredRows(fields, data);
+
+  const writeRows = (nextRows: Array<Record<string, string>>) => {
+    onFieldChange(dataKey, stringifyStructuredRowsValue(nextRows));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Repeat this element's authored row pattern. Each row keeps separate values for the variables inside this text element.
+        </p>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 shrink-0"
+          onClick={() => writeRows([...effectiveRows, Object.fromEntries(fields.map((field) => [field.key, field.defaultValue ?? '']))])}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Row
+        </Button>
+      </div>
+
+      {effectiveRows.map((row, rowIndex) => {
+        const rowSourceContent = fields[0]?.sourceElementContent;
+        const rowPreview = rowSourceContent
+          ? resolveTemplateTextSegments(group.id, rowSourceContent, structuredRowToCardData(group.id, row), false)
+          : group.preview;
+
+        return (
+          <div key={`structured-row-${group.id}-${rowIndex}`} className="space-y-2 rounded-md border border-border/60 bg-background/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Row {rowIndex + 1}</p>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                disabled={effectiveRows.length <= 1}
+                aria-label={`Remove row ${rowIndex + 1}`}
+                onClick={() => writeRows(effectiveRows.filter((_, index) => index !== rowIndex))}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            {rowPreview ? (
+              <p className="rounded border border-border/50 bg-muted/20 px-2 py-1 text-xs text-muted-foreground">{rowPreview}</p>
+            ) : null}
+            <div className="grid gap-2 md:grid-cols-2">
+              {fields.map((field) => (
+                <div key={`${group.id}-${rowIndex}-${field.key}`} className="space-y-1">
+                  <Label className="text-xs">{field.label}</Label>
+                  <Input
+                    value={row[field.key] ?? ''}
+                    onChange={(event) => {
+                      const nextRows = effectiveRows.map((currentRow, index) => (
+                        index === rowIndex ? { ...currentRow, [field.key]: event.target.value } : currentRow
+                      ));
+                      writeRows(nextRows);
+                    }}
+                    placeholder={field.defaultValue || field.label}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function GeneratorFieldGroups({
   fields,
@@ -92,8 +193,14 @@ export function GeneratorFieldGroups({
       {groupGeneratorFields(fields).map((group) => {
         const orderedFields = orderFieldsForEditing(group.fields);
         const groupSourceContent = orderedFields[0]?.sourceElementContent;
+        const isStructuredRows = group.contentModel === 'structuredRows';
+        const structuredRows = isStructuredRows ? parseStructuredRowsValue(data[buildStructuredRowsDataKey(group.id)]) : [];
         const resolvedGroupText = groupSourceContent
-          ? resolveTemplateTextSegments(
+          ? isStructuredRows && structuredRows.length > 0
+            ? structuredRows
+              .map((row) => resolveTemplateTextSegments(group.id, groupSourceContent, structuredRowToCardData(group.id, row), false))
+              .join('\n')
+            : resolveTemplateTextSegments(
               group.id,
               groupSourceContent,
               orderedFields.reduce<CardData>((acc, field) => {
@@ -128,7 +235,14 @@ export function GeneratorFieldGroups({
             </div>
 
             <div className="space-y-2">
-              {orderedFields.map((field) => (
+              {isStructuredRows ? (
+                <StructuredRowsEditor
+                  group={group}
+                  fields={orderedFields}
+                  data={data}
+                  onFieldChange={onFieldChange}
+                />
+              ) : orderedFields.map((field) => (
                 <div key={field.key} className="rounded-md border border-border/60 bg-background/60 p-3">
                   <GeneratorFieldInput
                     field={field}

@@ -594,9 +594,16 @@ Current finding:
 - `202605230004_developer_asset_upload_bridge.sql` adds the public `cardforge-developer-assets` storage bucket and source-file metadata columns that let approved developer submissions publish into the same live registry.
 - `202605240001_official_asset_review_submissions.sql` backfills official registry assets into `cardforge_developer_asset_submissions` and links them back to the registry, making default assets part of the continuous developer voting surface.
 - `202605240002_official_layout_registry_content.sql` backfills official templates and element presets into `cardforge_asset_registry` with embedded JSON payloads, then links those records into developer submissions so Layout Studio defaults are also database-backed and voteable.
+- `202605240003_unify_owner_default_voting.sql` clears the old owner-forced Official overrides from seeded defaults so owner-contributed defaults are governed by the same vote/cap pipeline as every other asset.
+- `202605240004_developer_profile_names.sql` adds first/last name fields to developer profiles so queues and ledgers can show a contributor name first, falling back to email when no name is available.
+- `202605240005_developer_self_voting_rule.sql` adds owner-configurable contributor self-voting. It defaults on for solo/demo review and can be disabled for strict peer-only voting.
 - The developer Asset Hub review queue is split into Site Defaults, Candidate Uploads, and Archive, with filtering, paging, expanded previews, archive voting, and uploader edits for unpublished/non-rejected submissions.
+- Developer Asset Hub badges should read as status, contributor, and current tier. Owner default rows are included in the owner's contributor aliases so My Pipeline is not empty for the owner account; self-voting and whether those rows appear in the owner's review lanes is controlled by the contributor self-voting owner rule.
+- Structured template submissions now render a real card preview in the expanded asset view when the embedded/default template payload is available; broken image previews fall back to an explicit unavailable state instead of a silent blank.
+- Layout Studio template library rows use scaled real `CardPreview` renders instead of symbolic thumbnail placeholders.
 - Owner Developer Program now exposes cap pressure by asset type and a developer monthly ledger. Owners set the per-developer submission allowance and required published count; the app calculates submissions left and missing published work per contributor.
-- Cap changes are intentionally non-destructive: lowering a cap blocks future graduation and shows over-cap pressure, but current owner defaults stay published until the owner archives, hides, or clears the Official override.
+- Cap changes rebalance one shared asset pipeline: lowering a cap keeps the highest-signal assets published, moves over-cap passing assets back to publish-candidate review, and moves failing assets to archive.
+- Saving a modified default template keeps the default template id/source and syncs the registry-backed default payload instead of creating an indistinguishable user-template copy.
 - Owner Developer Program now includes voting presets for solo owner testing, current roster review, launch roster review, and full council review.
 - Owner Developer Program now includes a storage forecast based on publish caps, one month of possible voting submissions, and visible archive capacity.
 - Owner Launch Readiness now includes database footprint metrics after the asset-registry migration function is applied.
@@ -611,12 +618,18 @@ Recommended handling:
 - run `supabase/migrations/202605230004_developer_asset_upload_bridge.sql` before testing developer file uploads or owner publish-to-library actions
 - run `supabase/migrations/202605240001_official_asset_review_submissions.sql` before expecting approved developers to vote on official default assets
 - run `supabase/migrations/202605240002_official_layout_registry_content.sql` before expecting official templates and element presets to load from the registry-backed asset pipeline
+- run `supabase/migrations/202605240003_unify_owner_default_voting.sql` before expecting owner-contributed defaults to rebalance like regular pipeline assets
+- run `supabase/migrations/202605240004_developer_profile_names.sql` before expecting contributor first/last names in developer queues and owner ledgers
+- run `supabase/migrations/202605240005_developer_self_voting_rule.sql` before expecting the owner self-voting rule to persist
 - rerun `supabase/migrations/202605220003_owner_console.sql` or apply its `cardforge_owner_settings` `alter table ... add column if not exists` block before testing Site Mechanics
 - confirm owner settings in `/owner` before inviting developers
 - verify the owner account sees Library Command, the developer account sees Forge Review, paid accounts see Creator Pass Library, and free users see Starter Library messaging
-- verify `/api/assets` includes the expected official registry counts: 18 textures, 12 dividers, 6 templates, and 10 element presets after all official seed migrations are applied
+- verify `/api/assets` includes the expected official registry counts plus shipped-file fallbacks after all official seed migrations are applied; database rows should override matching shipped assets without hiding unrelated repo assets
 - verify the developer review queue includes active/published official default assets, separates candidate uploads from current defaults and archive, and keeps defaults/archive assets voteable until rejected or owner-hidden
+- verify toggling contributor self-voting changes whether own/owner-default assets appear in review lanes and whether the vote route accepts those votes
 - verify Owner Developer Program shows cap pressure, owner default counts, per-developer submissions left, and required published progress
+- verify developer and owner asset rows show status, contributor name/email, current tier, preview state, and expanded template/image previews without broken thumbnails
+- verify generator template selectors label Default vs User templates, especially when a modified default and user template share similar names
 - verify the owner can complete an official roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
 - verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
 - verify a developer can upload an SVG/PNG/JPG/WEBP/JSON source file, submit it to voting, and have an owner-published submission appear through `/api/assets`

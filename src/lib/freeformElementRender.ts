@@ -1,11 +1,23 @@
 import type { CardData, FreeformCardElement } from '@/types';
+import type { CSSProperties } from 'react';
 import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/lib/utils';
 
 export const borderWidthClassToPixels = (value?: string): number => {
   if (!value || value === '_none_') return 0;
   if (value === 'border') return 1;
+  if (value === 'border-t' || value === 'border-r' || value === 'border-b' || value === 'border-l') return 1;
   const match = value.match(/border-(\d+)/);
   return match ? Number(match[1]) : 1;
+};
+
+export const borderWidthClassToStyle = (value?: string): CSSProperties => {
+  const width = borderWidthClassToPixels(value);
+  if (width <= 0) return { borderWidth: 0 };
+  if (value === 'border-t') return { borderTopWidth: width, borderRightWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0 };
+  if (value === 'border-r') return { borderTopWidth: 0, borderRightWidth: width, borderBottomWidth: 0, borderLeftWidth: 0 };
+  if (value === 'border-b') return { borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: width, borderLeftWidth: 0 };
+  if (value === 'border-l') return { borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 0, borderLeftWidth: width };
+  return { borderWidth: width };
 };
 
 export const radiusClassToCss = (value?: string): string | undefined => {

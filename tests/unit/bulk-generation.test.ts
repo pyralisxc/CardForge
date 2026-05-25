@@ -472,13 +472,13 @@ Transitions[1].Position: 421
       generatedAt: '2026-05-21T00:00:00.000Z',
       styleOverrideSyntax: {
         summary: expect.stringContaining('Optional row-level styling'),
-        supportedProperties: ['textColor', 'fontSizePx', 'fontWeight', 'fontStyle', 'textDecoration', 'lineHeight', 'letterSpacing'],
+        supportedProperties: ['textColor', 'fontFamily', 'fontSizePx', 'fontWeight', 'fontStyle', 'textDecoration', 'lineHeight', 'letterSpacing'],
         examples: ['Name.textColor', 'Name.style.fontWeight'],
       },
       fields: [
         {
           key: 'Name',
-          styleOverrideColumns: ['Name.textColor', 'Name.fontSizePx', 'Name.fontWeight', 'Name.fontStyle', 'Name.textDecoration', 'Name.lineHeight', 'Name.letterSpacing'],
+          styleOverrideColumns: ['Name.textColor', 'Name.fontFamily', 'Name.fontSizePx', 'Name.fontWeight', 'Name.fontStyle', 'Name.textDecoration', 'Name.lineHeight', 'Name.letterSpacing'],
         },
         {
           key: 'Portrait',

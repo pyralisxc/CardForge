@@ -7,6 +7,8 @@ import type { AppearanceStylePreset, PaperSize, PdfDuplexLayout, StoredDisplayCa
 import type { ExportMode } from '@/lib/printValidation';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+  CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   applyProjectDocumentToState,
   createProjectDocumentFromState,
@@ -90,6 +92,8 @@ export function useProjectFileActions({
       exportDpi,
       customTextureAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
       customDividerAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+      customIconAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+      customImageAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
     });
 
     downloadJsonFile('cardforge-studio-project.json', JSON.stringify(projectDocument, null, 2));
@@ -125,6 +129,8 @@ export function useProjectFileActions({
         if (patch.exportDpi) setExportDpi(patch.exportDpi);
         writeProjectAssetListToStorage(localStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]);
         writeProjectAssetListToStorage(localStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]);
+        writeProjectAssetListToStorage(localStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]);
+        writeProjectAssetListToStorage(localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]);
         const { successCount, skippedCount } = setStoredCardsFromFile(patch.storedCards);
         let toastMessage = `${successCount} outputs processed.`;
         if (skippedCount > 0) toastMessage += ` ${skippedCount} outputs skipped due to missing or invalid templates.`;

@@ -6,6 +6,7 @@ import {
   createDeveloperAssetSubmission,
   DeveloperAssetStoreError,
   getDeveloperAssetProgramView,
+  upsertDeveloperProfile,
   updateDeveloperProgramSettings,
 } from '@/lib/developerAssetStore';
 import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
@@ -53,7 +54,7 @@ const getDeveloperAccess = async () => {
 
 const getOwnerAccess = async () => {
   const owner = await getCurrentOwnerAccess();
-  if (!owner.isOwner) {
+  if (!owner.isOwner || !owner.userId) {
     return {
       ok: false as const,
       response: createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for developer program settings.'),
@@ -62,16 +63,30 @@ const getOwnerAccess = async () => {
   return { ok: true as const, owner };
 };
 
+const getContributorIds = (userId: string, isOwner: boolean) => (
+  isOwner ? [userId, 'cardforge-official'] : [userId]
+);
+
+const syncDeveloperProfile = async (access: Awaited<ReturnType<typeof getDeveloperAccess>> & { ok: true }) => {
+  await upsertDeveloperProfile({
+    developerId: access.user.id,
+    email: access.email,
+    firstName: access.user.firstName,
+    lastName: access.user.lastName,
+  });
+};
+
 export async function GET() {
   try {
     const access = await getDeveloperAccess();
     if (!access.ok) return access.response;
+    await syncDeveloperProfile(access);
 
     return createNoStoreJsonResponse({
       ownerAccess: access.ownerAccess,
       isDeveloper: access.isDeveloper,
       isOwner: access.isOwner,
-      program: await getDeveloperAssetProgramView(access.user.id),
+      program: await getDeveloperAssetProgramView(access.user.id, getContributorIds(access.user.id, access.isOwner)),
     });
   } catch (error) {
     console.error('Failed to load developer asset program:', error);
@@ -87,6 +102,7 @@ export async function POST(request: Request) {
   try {
     const access = await getDeveloperAccess();
     if (!access.ok) return access.response;
+    await syncDeveloperProfile(access);
 
     const body = await request.json() as {
       assetType?: unknown;
@@ -103,6 +119,7 @@ export async function POST(request: Request) {
     const program = await createDeveloperAssetSubmission({
       developerId: access.user.id,
       developerEmail: access.email,
+      currentContributorIds: getContributorIds(access.user.id, access.isOwner),
       input: body,
     });
     return createNoStoreJsonResponse({ program }, { status: 201 });
@@ -132,8 +149,16 @@ export async function PUT(request: Request) {
     const access = await getOwnerAccess();
     if (!access.ok) return access.response;
 
+    const ownerUserId = access.owner.userId;
+    if (!ownerUserId) {
+      return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for developer program settings.');
+    }
     const body = await request.json() as { settings?: Record<string, unknown> };
-    const program = await updateDeveloperProgramSettings(body.settings ?? {});
+    const program = await updateDeveloperProgramSettings(
+      body.settings ?? {},
+      ownerUserId,
+      getContributorIds(ownerUserId, true)
+    );
     return createNoStoreJsonResponse({ program });
   } catch (error) {
     if (error instanceof SyntaxError) {

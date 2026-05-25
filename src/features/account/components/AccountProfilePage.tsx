@@ -31,6 +31,8 @@ import type { FounderBetaCampaign } from '@/lib/ownerConsole';
 import type { AccountEntitlement } from '@/lib/accountEntitlement';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
+  CUSTOM_ICON_ASSETS_STORAGE_KEY,
+  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from '@/lib/projectDocument';
 import { readProjectAssetListFromStorage } from '@/features/project/lib/projectLocalAssets';
@@ -55,6 +57,8 @@ interface PlatformStatusPayload {
 interface LocalAssetSummary {
   textures: number;
   dividers: number;
+  icons: number;
+  images: number;
 }
 
 const formatAccessExpiration = (value: string | null) => {
@@ -151,6 +155,8 @@ export function AccountProfilePage({
   const [localAssetSummary, setLocalAssetSummary] = useState<LocalAssetSummary>({
     textures: 0,
     dividers: 0,
+    icons: 0,
+    images: 0,
   });
 
   const { handleStartCheckout, isCheckoutStarting } = useCheckoutActions({
@@ -185,6 +191,8 @@ export function AccountProfilePage({
       setLocalAssetSummary({
         textures: readProjectAssetListFromStorage(window.localStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY).length,
         dividers: readProjectAssetListFromStorage(window.localStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY).length,
+        icons: readProjectAssetListFromStorage(window.localStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY).length,
+        images: readProjectAssetListFromStorage(window.localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY).length,
       });
     };
 
@@ -363,7 +371,7 @@ export function AccountProfilePage({
                 <div>
                   <p className="font-serif text-lg text-[#fff1c7]">Local Asset Library</p>
                   <p className="mt-1 text-sm leading-5 text-[#c7b288]">
-                    Your custom art stays browser-local. Sign in to add uploads to this workspace.
+                    Your custom uploads stay browser-local across refreshes and page changes. Sign in to add uploads to this workspace.
                   </p>
                 </div>
               </div>
@@ -375,6 +383,14 @@ export function AccountProfilePage({
                 <div className="border border-[#4a3823] bg-[#0c0b09] px-3 py-2">
                   <p className="text-lg font-semibold text-[#ffe7ad]">{localAssetSummary.dividers}</p>
                   <p className="text-[10px] uppercase tracking-[0.14em] text-[#a98a55]">Dividers</p>
+                </div>
+                <div className="border border-[#4a3823] bg-[#0c0b09] px-3 py-2">
+                  <p className="text-lg font-semibold text-[#ffe7ad]">{localAssetSummary.icons}</p>
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-[#a98a55]">Icons</p>
+                </div>
+                <div className="border border-[#4a3823] bg-[#0c0b09] px-3 py-2">
+                  <p className="text-lg font-semibold text-[#ffe7ad]">{localAssetSummary.images}</p>
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-[#a98a55]">Images</p>
                 </div>
               </div>
             </div>

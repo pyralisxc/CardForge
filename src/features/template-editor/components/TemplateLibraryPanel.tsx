@@ -1,14 +1,13 @@
 "use client";
 
-import { Copy, Layers, Plus, Shapes, Trash2 } from 'lucide-react';
+import { Copy, Layers, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CardPreview } from '@/components/card-forge/CardPreview';
 import { cn } from '@/lib/utils';
 import type { TCGCardTemplate } from '@/types';
-import { TemplateThumbnail } from '@/components/card-forge/TemplateThumbnail';
 
 interface TemplateLibraryPanelProps {
   currentTemplateId: string | null;
@@ -78,7 +77,7 @@ export function TemplateLibraryPanel({
               className="group flex w-full items-center gap-2 rounded-[5px] border border-[#2b2f39] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/70 hover:bg-[#131720]"
               onClick={() => onOpenTemplate(template)}
             >
-              <TemplateThumbnail template={template} />
+              <TemplateLibraryPreview template={template} />
               <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{template.name}</span>
                 <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Default template'}</span>
@@ -98,7 +97,7 @@ export function TemplateLibraryPanel({
                 className="group flex w-full items-center gap-2 rounded-[5px] border border-[#2b2f39] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#7dd3fc]/70 hover:bg-[#131720]"
                 onClick={() => onOpenTemplate(template)}
               >
-                <TemplateThumbnail template={template} />
+                <TemplateLibraryPreview template={template} />
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#b9f3ff]">{template.name}</span>
                   <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Back face preset'}</span>
@@ -109,5 +108,21 @@ export function TemplateLibraryPanel({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function TemplateLibraryPreview({ template }: { template: TCGCardTemplate }) {
+  return (
+    <span className="grid h-[84px] w-[64px] shrink-0 place-items-center overflow-hidden rounded-[5px] border border-[#2b2f39] bg-[#05070b]">
+      <CardPreview
+        card={{
+          template,
+          data: template.templatePreviewData ?? {},
+          uniqueId: `template-library-${template.id ?? template.name}`,
+        }}
+        targetWidthPx={64}
+        isEditorPreview
+      />
+    </span>
   );
 }

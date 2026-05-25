@@ -10,6 +10,7 @@ import {
 } from '@/lib/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { canCurrentAccountWriteShippedLibrary } from '@/lib/serverProjectAccess';
+import { getSupabaseServerClient } from '@/lib/supabaseServer';
 import {
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
@@ -107,6 +108,53 @@ const getTemplateDirectory = (source?: TCGCardTemplate['templateSource']) => (
   source === 'default' ? DEFAULT_TEMPLATE_LIBRARY_DIR : USER_TEMPLATE_LIBRARY_DIR
 );
 
+const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
+  if (!template.id || !template.name) return;
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return;
+
+  const registryPatch = {
+    name: template.name,
+    asset_type: 'template',
+    url: `/api/templates#${template.id}`,
+    preview_url: `/api/templates#${template.id}`,
+    status: 'published',
+    access_tier: 'official',
+    library_source: 'official',
+    metadata: {
+      sourceKind: 'official-file-backed',
+      sourcePath: `data/default-templates/${toSafeFileName(template.id || template.name)}.json`,
+      template: {
+        ...template,
+        templateSource: 'default' as const,
+      },
+    },
+  };
+
+  const { error: registryError } = await supabase
+    .from('cardforge_asset_registry')
+    .upsert({
+      asset_id: template.id,
+      ...registryPatch,
+    }, { onConflict: 'asset_id' });
+
+  if (registryError) {
+    console.error('Failed to sync default template to asset registry:', registryError);
+    return;
+  }
+
+  await supabase
+    .from('cardforge_developer_asset_submissions')
+    .update({
+      name: template.name,
+      preview_url: `/api/templates#${template.id}`,
+      source_url: `/api/templates#${template.id}`,
+      description: template.templateDescription ?? 'Official CardForge layout default seeded into continuous developer review.',
+    })
+    .eq('registry_asset_id', template.id);
+};
+
 export async function GET() {
   try {
     await ensureTemplateDirectory();
@@ -166,6 +214,9 @@ export async function POST(request: Request) {
     const fileName = `${toSafeFileName(template.id || template.name)}.json`;
     const filePath = path.join(directory, fileName);
     await fs.writeFile(filePath, `${JSON.stringify({ ...template, templateSource: source }, null, 2)}\n`, 'utf8');
+    if (source === 'default') {
+      await syncDefaultTemplateToRegistry({ ...template, templateSource: 'default' });
+    }
 
     return createNoStoreJsonResponse({ ok: true, fileName, template: { ...template, templateSource: source } });
   } catch (error) {

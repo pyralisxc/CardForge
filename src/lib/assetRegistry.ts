@@ -247,6 +247,44 @@ export const mapAssetRegistryRowsToPayload = (
   };
 };
 
+const mergeAssetLists = (
+  shippedAssets: CardAssetOption[],
+  registryAssets: CardAssetOption[],
+): CardAssetOption[] => {
+  const assetsByKey = new Map<string, CardAssetOption>();
+  shippedAssets.forEach((asset) => assetsByKey.set(`${asset.kind}:${asset.id}`, asset));
+  registryAssets.forEach((asset) => assetsByKey.set(`${asset.kind}:${asset.id}`, asset));
+  return Array.from(assetsByKey.values()).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const mergeAssetRegistryPayloads = (
+  shippedRegistry: AssetRegistryPayload,
+  databaseRegistry: AssetRegistryPayload,
+): AssetRegistryPayload => {
+  const textures = mergeAssetLists(shippedRegistry.textures, databaseRegistry.textures);
+  const dividers = mergeAssetLists(shippedRegistry.dividers, databaseRegistry.dividers);
+  const parts = mergeAssetLists(shippedRegistry.parts, databaseRegistry.parts);
+  const icons = mergeAssetLists(shippedRegistry.icons, databaseRegistry.icons);
+  const imageAssets = mergeAssetLists(shippedRegistry.imageAssets, databaseRegistry.imageAssets);
+  const templates = mergeAssetLists(shippedRegistry.templates, databaseRegistry.templates);
+  const elementPresets = mergeAssetLists(shippedRegistry.elementPresets, databaseRegistry.elementPresets);
+
+  return {
+    textures,
+    dividers,
+    parts,
+    icons,
+    imageAssets,
+    templates,
+    elementPresets,
+    registry: {
+      configured: true,
+      source: 'database',
+      total: textures.length + dividers.length + parts.length + icons.length + imageAssets.length + templates.length + elementPresets.length,
+    },
+  };
+};
+
 const getDatabaseAssetRegistry = async (): Promise<AssetRegistryPayload | null> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return null;
@@ -270,6 +308,9 @@ const getDatabaseAssetRegistry = async (): Promise<AssetRegistryPayload | null> 
 };
 
 export const getAssetRegistryPayload = async (): Promise<AssetRegistryPayload> => {
-  const databaseRegistry = await getDatabaseAssetRegistry();
-  return databaseRegistry ?? getFileBackedAssetRegistry();
+  const [databaseRegistry, shippedRegistry] = await Promise.all([
+    getDatabaseAssetRegistry(),
+    getFileBackedAssetRegistry(),
+  ]);
+  return databaseRegistry ? mergeAssetRegistryPayloads(shippedRegistry, databaseRegistry) : shippedRegistry;
 };

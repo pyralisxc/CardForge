@@ -19,6 +19,12 @@ import {
   resolveTemplateTextSegments,
 } from '@/lib/textBindings';
 import {
+  buildStructuredRowsDataKey,
+  buildStructuredRowsText,
+  parseStructuredRowsValue,
+  structuredRowToCardData,
+} from '@/lib/structuredRows';
+import {
   getElementFieldContract,
   getPrimaryElementContract,
   type TextElementContentModel,
@@ -35,7 +41,8 @@ const resolveRenderContentModel = (
   contentModel: TextElementContentModel,
   text: string,
   segments: Array<{ text: string }>
-): TextElementContentModel => {
+): 'plainText' | 'richText' | 'rulesBlocks' => {
+  if (contentModel === 'structuredRows') return 'richText';
   if (contentModel !== 'plainText') return contentModel;
   return containsRichTextMarkers(text) || segments.some((segment) => containsRichTextMarkers(segment.text))
     ? 'richText'
@@ -48,6 +55,20 @@ const fontWeightToCss = (fontWeight?: FreeformCardElement['fontWeight']): React.
   if (fontWeight === 'font-bold') return 700;
   if (fontWeight === 'font-normal') return 400;
   return undefined;
+};
+
+const fontFamilyToCss = (fontFamily?: string): React.CSSProperties['fontFamily'] | undefined => {
+  if (fontFamily === 'font-sans') return 'system-ui, sans-serif';
+  if (fontFamily === 'font-serif') return 'Georgia, "Times New Roman", serif';
+  if (fontFamily === 'font-mono') return 'Menlo, Consolas, monospace';
+  if (fontFamily === 'font-cinzel') return 'Cinzel, serif';
+  if (fontFamily === 'font-lato') return 'Lato, sans-serif';
+  if (fontFamily === 'font-trajan') return 'Cinzel, "Trajan Pro", "Palatino Linotype", serif';
+  if (fontFamily === 'font-book') return '"Iowan Old Style", "Book Antiqua", "Palatino Linotype", Georgia, serif';
+  if (fontFamily === 'font-humanist') return 'Optima, "Segoe UI", "Trebuchet MS", Arial, sans-serif';
+  if (fontFamily === 'font-condensed') return '"Arial Narrow", "Roboto Condensed", Arial, sans-serif';
+  if (fontFamily === 'font-engraved') return 'Garamond, Baskerville, "Times New Roman", serif';
+  return fontFamily || undefined;
 };
 
 export const applyContractRichTextStyle = (
@@ -70,6 +91,8 @@ export const buildContractSegmentStyle = (
   if (!contract) return undefined;
   const style: React.CSSProperties = {};
   if (contract.textColor) style.color = contract.textColor;
+  const fontFamily = fontFamilyToCss(contract.fontFamily);
+  if (fontFamily) style.fontFamily = fontFamily;
   if (contract.fontSizePx) style.fontSize = `${contract.fontSizePx * scale}px`;
   const fontWeight = fontWeightToCss(contract.fontWeight);
   if (fontWeight) style.fontWeight = fontWeight;
@@ -206,15 +229,27 @@ export function CardTextContent({
   style,
   highlightColor,
 }: CardTextContentProps) {
-  const processedText = resolveTemplateTextSegments(
+  const contentModel = inferTextElementContentModel(template, element);
+  const structuredRows = contentModel === 'structuredRows'
+    ? parseStructuredRowsValue(data[buildStructuredRowsDataKey(element.id)])
+    : [];
+  const processedText = structuredRows.length > 0
+    ? buildStructuredRowsText(element, structuredRows)
+    : resolveTemplateTextSegments(
     element.id,
     element.content,
     buildStyledSegmentData(template, element, data),
     true
   );
-  const processedSegments = buildResolvedTextSegments(template, element, data, scale);
+  const processedSegments = structuredRows.length > 0
+    ? structuredRows.flatMap((row, index) => {
+        const segments = buildResolvedTextSegments(template, element, structuredRowToCardData(element.id, row), scale);
+        return index < structuredRows.length - 1
+          ? [...segments, { text: '\n' }]
+          : segments;
+      })
+    : buildResolvedTextSegments(template, element, data, scale);
   const contract = getPrimaryElementContract(template, element);
-  const contentModel = inferTextElementContentModel(template, element);
   const renderContentModel = resolveRenderContentModel(contentModel, processedText, processedSegments);
   const autoFit = shouldAutoFitTextElement(template, element);
   const baseFontSizePx = textFontSizePx(element) * scale;

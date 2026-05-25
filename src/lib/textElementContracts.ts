@@ -2,7 +2,7 @@ import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import { extractPlaceholderKeysFromText } from '@/lib/utils';
 import { parseTextBinding } from '@/lib/textBindings';
 
-export type TextElementContentModel = 'plainText' | 'richText' | 'rulesBlocks';
+export type TextElementContentModel = 'plainText' | 'richText' | 'rulesBlocks' | 'structuredRows';
 export type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 
 export const getElementFieldContract = (
@@ -28,10 +28,14 @@ export const inferTextElementContentModel = (
   template: TCGCardTemplate,
   element: FreeformCardElement
 ): TextElementContentModel => {
+  const elementContracts = template.fieldContracts?.filter((contract) => contract.elementId === element.id) || [];
+  if (elementContracts.some((contract) => contract.type === 'structuredRows')) return 'structuredRows';
   const contract = getPrimaryElementContract(template, element);
+  if (contract?.type === 'structuredRows') return 'structuredRows';
   if (contract?.type === 'rules') return 'rulesBlocks';
   if (contract?.type === 'richText') return 'richText';
   if (contract?.type === 'text') return 'plainText';
+  if (element.generatorFieldKind === 'structuredRows') return 'structuredRows';
   if (element.generatorFieldKind === 'rules') return 'rulesBlocks';
   if (element.generatorFieldKind === 'richText') return 'richText';
   if (element.generatorFieldKind === 'text') return 'plainText';

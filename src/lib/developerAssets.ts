@@ -39,6 +39,7 @@ export interface DeveloperProgramSettings {
   minimumVotesForTierAssignment: number;
   showPaidPreviewToFreeUsers: boolean;
   allowPaidEarlyAccessToCandidates: boolean;
+  allowContributorSelfVoting: boolean;
   archiveVisibleLimit: number;
   profitSharePoolPercent: number;
   ownerFinalReviewRequired: boolean;
@@ -82,6 +83,7 @@ export interface DeveloperAssetTypePipelineSummary {
 export interface DeveloperContributionSummary {
   developerId: string;
   developerEmail: string | null;
+  developerName: string | null;
   submitted: number;
   published: number;
   archived: number;
@@ -191,6 +193,7 @@ export const DEFAULT_DEVELOPER_PROGRAM_SETTINGS: DeveloperProgramSettings = {
   minimumVotesForTierAssignment: 5,
   showPaidPreviewToFreeUsers: true,
   allowPaidEarlyAccessToCandidates: false,
+  allowContributorSelfVoting: true,
   archiveVisibleLimit: 100,
   profitSharePoolPercent: 10,
   ownerFinalReviewRequired: true,
@@ -358,6 +361,7 @@ export const normalizeDeveloperProgramSettingsInput = (
     minimumVotesForTierAssignment: normalizeInteger(value.minimumVotesForTierAssignment, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.minimumVotesForTierAssignment, 1, 1000),
     showPaidPreviewToFreeUsers: normalizeBoolean(value.showPaidPreviewToFreeUsers, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.showPaidPreviewToFreeUsers),
     allowPaidEarlyAccessToCandidates: normalizeBoolean(value.allowPaidEarlyAccessToCandidates, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.allowPaidEarlyAccessToCandidates),
+    allowContributorSelfVoting: normalizeBoolean(value.allowContributorSelfVoting, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.allowContributorSelfVoting),
     archiveVisibleLimit: normalizeInteger(value.archiveVisibleLimit, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.archiveVisibleLimit, 1, 500),
     profitSharePoolPercent: normalizeInteger(value.profitSharePoolPercent, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.profitSharePoolPercent, 0, 50),
     ownerFinalReviewRequired: normalizeBoolean(value.ownerFinalReviewRequired, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerFinalReviewRequired),

@@ -14,7 +14,7 @@ import { useAppStore } from '@/store/appStore';
 import * as LucideIcons from 'lucide-react';
 import { CardTextContent } from '@/lib/cardTextRender';
 import { getCardPreviewLayout } from '@/lib/cardPreviewLayout';
-import { borderWidthClassToPixels, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
+import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -312,9 +312,9 @@ export function CardPreview({
           color: element.textColor || templateToRender.baseTextColor || undefined,
           backgroundColor: element.backgroundColor || 'transparent',
           borderStyle: borderWidth > 0 ? 'solid' : undefined,
-          borderWidth: borderWidth > 0 ? borderWidth : undefined,
           borderColor: element.borderColor || templateToRender.defaultElementBorderColor || undefined,
           borderRadius: radiusClassToCss(element.borderRadius) || element.borderRadius || undefined,
+          ...borderWidthClassToStyle(element.borderWidth),
           backgroundImage: resolvedBgUrl && (resolvedBgUrl.startsWith('linear-gradient') || resolvedBgUrl.startsWith('radial-gradient'))
             ? resolvedBgUrl
             : resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'))

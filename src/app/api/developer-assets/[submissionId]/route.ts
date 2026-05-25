@@ -42,6 +42,10 @@ const getDeveloperAccess = async () => {
   return { ok: true as const, user, ownerAccess };
 };
 
+const getContributorIds = (userId: string, isOwner: boolean) => (
+  isOwner ? [userId, 'cardforge-official'] : [userId]
+);
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ submissionId: string }> }
@@ -57,6 +61,7 @@ export async function PATCH(
       developerId: access.user.id,
       input: body,
       allowOwnerEdit: access.ownerAccess.isOwner,
+      currentContributorIds: getContributorIds(access.user.id, access.ownerAccess.isOwner),
     });
 
     return createNoStoreJsonResponse({ program });
@@ -87,7 +92,7 @@ export async function PUT(
 ) {
   try {
     const owner = await getCurrentOwnerAccess();
-    if (!owner.isOwner) {
+    if (!owner.isOwner || !owner.userId) {
       return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required to update developer asset status.');
     }
 
@@ -98,6 +103,8 @@ export async function PUT(
       status: body.status,
       ownerNote: body.ownerNote,
       ownerAccessTierOverride: body.ownerAccessTierOverride,
+      currentUserId: owner.userId,
+      currentContributorIds: getContributorIds(owner.userId, true),
     });
 
     return createNoStoreJsonResponse({ program });

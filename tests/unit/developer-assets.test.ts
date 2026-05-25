@@ -25,6 +25,7 @@ describe('developer asset program rules', () => {
       minimumVotesForTierAssignment: '5',
       showPaidPreviewToFreeUsers: true,
       allowPaidEarlyAccessToCandidates: true,
+      allowContributorSelfVoting: false,
       archiveVisibleLimit: '1000',
       profitSharePoolPercent: '15',
       publishCapsByType: { templates: '4', icons: -1 },
@@ -41,6 +42,7 @@ describe('developer asset program rules', () => {
     expect(settings.minimumVotesForTierAssignment).toBe(5);
     expect(settings.showPaidPreviewToFreeUsers).toBe(true);
     expect(settings.allowPaidEarlyAccessToCandidates).toBe(true);
+    expect(settings.allowContributorSelfVoting).toBe(false);
     expect(settings.archiveVisibleLimit).toBe(500);
     expect(settings.profitSharePoolPercent).toBe(15);
     expect(settings.tierCapsByType.templates).toEqual({ free: 12, paid: 6 });

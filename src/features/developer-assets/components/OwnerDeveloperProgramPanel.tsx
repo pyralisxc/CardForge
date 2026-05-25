@@ -66,7 +66,8 @@ const formatBytes = (value: number): string => {
   return `${amount >= 10 || exponent === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[exponent]}`;
 };
 
-const getContributorLabel = (developerId: string, developerEmail: string | null) => {
+const getContributorLabel = (developerId: string, developerEmail: string | null, developerName?: string | null) => {
+  if (developerName) return developerName;
   if (developerId === 'cardforge-official') return 'CardForge Owner';
   return developerEmail ?? developerId;
 };
@@ -203,7 +204,7 @@ export function OwnerDeveloperProgramPanel() {
         <h2 className="font-serif text-2xl text-[#fff1c7]">Developer asset program</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-        Control developer slots, monthly contribution rules, vote thresholds, tier visibility, archive visibility, and per-type caps before financial launch. Current site defaults are owner-contributed official assets: they stay live until the owner archives or hides them, while developer votes keep adding quality signal.
+        Control developer slots, monthly contribution rules, vote thresholds, tier visibility, archive visibility, and per-type caps before financial launch. Current site defaults are owner-contributed assets in the same voting pipeline as every developer upload.
       </p>
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
@@ -211,8 +212,9 @@ export function OwnerDeveloperProgramPanel() {
         <DecisionCard label="Submissions" body={`${program.submissions.length} total developer asset submission${program.submissions.length === 1 ? '' : 's'} in the review system.`} />
         <DecisionCard label="Review queue" body={`${program.votingQueue.length} active asset${program.votingQueue.length === 1 ? '' : 's'} remain open for developer voting until archived or rejected.`} />
         <DecisionCard label="Active developers" body={`${program.activeDeveloperCount} active developer${program.activeDeveloperCount === 1 ? '' : 's'} currently count toward voting presets.`} />
-        <DecisionCard label="Default policy" body="Owner defaults are protected by Official visibility. Clear that override or archive/hide a default when votes show it should leave the live library." />
-        <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; candidates wait until room opens.`} />
+        <DecisionCard label="Default policy" body="Defaults are just published pipeline assets. If voting or cap rules push them out, they move through the same candidate/archive states as any other asset." />
+        <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; rebalance moves lowest-signal live assets back to candidates.`} />
+        <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads and owner defaults during solo/demo review.' : 'Only peer votes count; own assets stay out of review lanes for that contributor.'} />
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
@@ -286,6 +288,12 @@ export function OwnerDeveloperProgramPanel() {
           help="Allow Creator Pass users to use paid-tier publish candidates before final publish."
           checked={settings.allowPaidEarlyAccessToCandidates}
           onChange={(checked) => setSettings({ ...settings, allowPaidEarlyAccessToCandidates: checked })}
+        />
+        <ToggleField
+          label="Contributor self-voting"
+          help="Allow contributors, including the owner alias for site defaults, to vote on their own assets. Useful for solo testing and demo-time pipeline seeding."
+          checked={settings.allowContributorSelfVoting}
+          onChange={(checked) => setSettings({ ...settings, allowContributorSelfVoting: checked })}
         />
       </div>
 
@@ -363,7 +371,7 @@ export function OwnerDeveloperProgramPanel() {
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
           <h3 className="font-serif text-xl text-[#fff1c7]">Published cap pressure</h3>
           <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-            Caps control future graduation and expose over-cap pressure. Reducing a cap does not silently archive live owner defaults; archive or hide assets intentionally from the review queue.
+            Caps control which assets can remain current defaults. Reducing a cap moves the lowest-signal live assets back into candidate review; failed assets move to archive.
           </p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[42rem] border-collapse text-sm">
@@ -404,7 +412,7 @@ export function OwnerDeveloperProgramPanel() {
             {program.developerContributions.map((contribution) => (
               <div key={contribution.developerId} className="border border-[#3c2c1b] bg-[#15100a] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium text-[#ffe7ad]">{getContributorLabel(contribution.developerId, contribution.developerEmail)}</p>
+                  <p className="font-medium text-[#ffe7ad]">{getContributorLabel(contribution.developerId, contribution.developerEmail, contribution.developerName)}</p>
                   {contribution.isOwnerDefaultContributor ? (
                     <span className="border border-[#d8b365] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#ffe7ad]">Owner defaults</span>
                   ) : null}
@@ -478,7 +486,7 @@ export function OwnerDeveloperProgramPanel() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-[#c7b288]">
-                    {submission.developerEmail ?? submission.developerId} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
+                    {submission.developerDisplayName ?? getContributorLabel(submission.developerId, submission.developerEmail)} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
                   </p>
                   <p className="mt-1 text-xs text-[#a98a55]">
                     {(submission.tierDecisionReason ?? submission.decisionReason ?? 'developer_review').replaceAll('_', ' ')}

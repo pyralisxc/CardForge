@@ -248,32 +248,32 @@ describe('app store helpers', () => {
     expect(useAppStore.getState().isEditDialogOpen).toBe(false);
   });
 
-  it('retargets generated cards when a saved default becomes a user template copy', () => {
+  it('updates default templates in place without creating a user copy', () => {
     const defaultTemplate = reconstructMinimalTemplateObject({
       id: 'default-template',
       name: 'Default',
       templateSource: 'default',
     });
-    const userCopy = reconstructMinimalTemplateObject({
-      id: 'user-copy-template',
-      name: 'Default Copy',
-      templateSource: 'user',
-    });
 
     useAppStore.setState({
       defaultTemplates: [defaultTemplate],
-      userTemplates: [userCopy],
+      userTemplates: [],
       storedCards: [
         { uniqueId: 'card-retargeted', templateId: 'default-template', data: { cardName: 'Updated' } },
-        { uniqueId: 'card-untouched', templateId: 'other-template', data: { cardName: 'Other' } },
       ],
     });
 
-    useAppStore.getState().retargetGeneratedCardsTemplate('default-template', 'user-copy-template');
+    const savedId = useAppStore.getState().addOrUpdateTemplate({
+      ...defaultTemplate,
+      name: 'Default Updated',
+      templateSource: 'default',
+    }, 'default');
 
+    expect(savedId).toBe('default-template');
+    expect(useAppStore.getState().defaultTemplates).toMatchObject([{ id: 'default-template', name: 'Default Updated', templateSource: 'default' }]);
+    expect(useAppStore.getState().userTemplates).toEqual([]);
     expect(useAppStore.getState().storedCards).toEqual([
-      { uniqueId: 'card-retargeted', templateId: 'user-copy-template', data: { cardName: 'Updated' } },
-      { uniqueId: 'card-untouched', templateId: 'other-template', data: { cardName: 'Other' } },
+      { uniqueId: 'card-retargeted', templateId: 'default-template', data: { cardName: 'Updated' } },
     ]);
   });
 

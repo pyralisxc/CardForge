@@ -13,13 +13,15 @@ import { isStaticSegmentFieldKey } from '@/lib/textBindings';
 import { textFontSizePx } from '@/lib/textTools';
 import { cn } from '@/lib/utils';
 import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
+import { AVAILABLE_FONTS } from '@/lib/constants';
 
 import { clamp, makerTheme } from './makerConstants';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
-type TextFieldContractType = 'text' | 'richText' | 'rules';
+type TextFieldContractType = 'text' | 'richText' | 'rules' | 'structuredRows';
 
 const textContractTypeOptions: Array<{ value: TextFieldContractType; label: string }> = [
+  { value: 'structuredRows', label: 'Structured Rows' },
   { value: 'richText', label: 'Rich Text' },
   { value: 'rules', label: 'Rules Blocks' },
   { value: 'text', label: 'Plain Text' },
@@ -246,7 +248,7 @@ export function TextFieldSettingsList({
                     <div className="space-y-1">
                       <Label className="text-[10px] text-[#8f95a3]">Field Type</Label>
                       <select
-                        value={(contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules') ? contract.type : field.contentModel === 'rulesBlocks' ? 'rules' : field.contentModel === 'plainText' ? 'text' : 'richText'}
+                        value={(contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' || contract?.type === 'structuredRows') ? contract.type : field.contentModel === 'structuredRows' ? 'structuredRows' : field.contentModel === 'rulesBlocks' ? 'rules' : field.contentModel === 'plainText' ? 'text' : 'richText'}
                         onChange={(event) => onUpdateContract(field.key, {
                           elementId: element.id,
                           type: event.target.value as TextFieldContractType,
@@ -273,6 +275,23 @@ export function TextFieldSettingsList({
                         })}
                         className={cn(makerTheme.control, 'h-8 text-xs')}
                       />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-[#8f95a3]">Font Family</Label>
+                      <select
+                        value={contract?.fontFamily || ''}
+                        onChange={(event) => onUpdateContract(field.key, {
+                          elementId: element.id,
+                          fontFamily: (event.target.value || undefined) as FieldContract['fontFamily'],
+                        })}
+                        className={fieldSelectClassName}
+                      >
+                        <option value="">Inherited</option>
+                        {AVAILABLE_FONTS.map((font) => (
+                          <option key={font.value} value={font.value}>{font.name}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="space-y-1">

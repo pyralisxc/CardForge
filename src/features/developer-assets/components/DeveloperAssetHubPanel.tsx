@@ -8,8 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { CardPreview } from '@/components/card-forge/CardPreview';
+import { TemplateThumbnail } from '@/components/card-forge/TemplateThumbnail';
 import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
+import type { TCGCardTemplate } from '@/types';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
@@ -23,6 +26,11 @@ interface UploadedDeveloperAsset {
   fileSizeBytes: number;
   mimeType: string | null;
   fileName: string;
+}
+
+interface TemplateLibraryResponse {
+  defaults: TCGCardTemplate[];
+  userTemplates: TCGCardTemplate[];
 }
 
 type DeveloperAssetSubmission = DeveloperAssetProgramView['submissions'][number];
@@ -92,10 +100,18 @@ const isEditableSubmission = (submission: DeveloperAssetSubmission, currentUserI
   && submission.status !== 'rejected'
 );
 
+const isCurrentContributorSubmission = (
+  submission: DeveloperAssetSubmission,
+  program: DeveloperAssetProgramView,
+) => program.currentContributorIds.includes(submission.developerId);
+
 const getSearchableSubmissionText = (submission: DeveloperAssetSubmission) => [
   submission.name,
   submission.description,
   submission.developerEmail ?? '',
+  submission.developerDisplayName ?? '',
+  submission.developerFirstName ?? '',
+  submission.developerLastName ?? '',
   assetTypeLabels[submission.assetType],
   statusLabels[submission.status],
   tierLabels[submission.calculatedAccessTier],
@@ -104,8 +120,22 @@ const getSearchableSubmissionText = (submission: DeveloperAssetSubmission) => [
 ].join(' ').toLowerCase();
 
 const getContributorLabel = (submission: DeveloperAssetSubmission) => {
+  if (submission.developerDisplayName) return submission.developerDisplayName;
   if (submission.developerId === 'cardforge-official') return 'CardForge Owner';
   return submission.developerEmail ?? submission.developerId;
+};
+
+const canRenderImagePreview = (submission: DeveloperAssetSubmission) => (
+  Boolean(submission.previewUrl)
+  && !submission.previewUrl.startsWith('/api/templates')
+  && !submission.previewUrl.startsWith('/api/styles')
+);
+
+const getTemplatePreviewId = (submission: DeveloperAssetSubmission): string | null => {
+  if (submission.assetType !== 'templates') return null;
+  const templateUrl = [submission.previewUrl, submission.sourceUrl]
+    .find((url) => url?.startsWith('/api/templates#'));
+  return templateUrl?.split('#')[1] || null;
 };
 
 export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
@@ -135,17 +165,20 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [editDescription, setEditDescription] = useState('');
   const [editPreviewUrl, setEditPreviewUrl] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [templatePreviews, setTemplatePreviews] = useState<Record<string, TCGCardTemplate>>({});
 
   const ownSubmissions = useMemo(() => (
-    program?.submissions.filter((submission) => submission.developerId === program.currentUserId) ?? []
+    program?.submissions.filter((submission) => isCurrentContributorSubmission(submission, program)) ?? []
   ), [program]);
 
   const reviewLaneSubmissions = useMemo(() => {
     if (!program) return [];
-    const nonOwnSubmissions = program.submissions.filter((submission) => submission.developerId !== program.currentUserId);
-    if (reviewLane === 'archive') return nonOwnSubmissions.filter((submission) => submission.status === 'archived');
-    if (reviewLane === 'defaults') return nonOwnSubmissions.filter((submission) => submission.status === 'published');
-    return nonOwnSubmissions.filter((submission) => (
+    const reviewableSubmissions = program.settings.allowContributorSelfVoting
+      ? program.submissions
+      : program.submissions.filter((submission) => !isCurrentContributorSubmission(submission, program));
+    if (reviewLane === 'archive') return reviewableSubmissions.filter((submission) => submission.status === 'archived');
+    if (reviewLane === 'defaults') return reviewableSubmissions.filter((submission) => submission.status === 'published');
+    return reviewableSubmissions.filter((submission) => (
       submission.status !== 'published'
       && submission.status !== 'archived'
       && submission.status !== 'rejected'
@@ -203,6 +236,32 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   useEffect(() => {
     void loadProgram();
   }, [loadProgram]);
+
+  useEffect(() => {
+    if (!program?.submissions.some((submission) => getTemplatePreviewId(submission))) return;
+    let isMounted = true;
+
+    const loadTemplatePreviews = async () => {
+      try {
+        const response = await fetch('/api/templates', { cache: 'no-store' });
+        if (!response.ok) return;
+        const body = await response.json() as TemplateLibraryResponse;
+        if (!isMounted) return;
+        setTemplatePreviews(Object.fromEntries(
+          [...body.defaults, ...body.userTemplates]
+            .filter((template): template is TCGCardTemplate & { id: string } => Boolean(template.id))
+            .map((template) => [template.id, template])
+        ));
+      } catch {
+        if (isMounted) setTemplatePreviews({});
+      }
+    };
+
+    void loadTemplatePreviews();
+    return () => {
+      isMounted = false;
+    };
+  }, [program]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -388,7 +447,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         <div className="mt-4 grid gap-3 border border-[#5f4526] bg-[#100c08] p-4 md:grid-cols-3">
           <ProgramRule label="Current defaults" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0)} body="Published assets currently feeding the site library from the registry." />
           <ProgramRule label="Open default slots" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0)} body="Available published slots across all asset types before candidates have to wait." />
-          <ProgramRule label="Owner defaults" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.officialCount, 0)} body="Current site defaults credited to the CardForge Owner and protected by Official visibility." />
+          <ProgramRule label="Owner defaults" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.officialCount, 0)} body="Current site defaults credited to the CardForge Owner and governed by the same voting pipeline." />
         </div>
 
         <Tabs defaultValue="submit" className="mt-6">
@@ -530,12 +589,13 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                 {visibleReviewSubmissions.length === 0 ? (
                   <p className="text-sm text-[#c7b288]">No assets match this queue view.</p>
                 ) : visibleReviewSubmissions.map((submission) => (
-                  <AssetRow
-                    key={submission.id}
-                    submission={submission}
-                    expanded={expandedSubmissionId === submission.id}
-                    onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
-                  >
+                    <AssetRow
+                      key={submission.id}
+                      submission={submission}
+                      templatePreviews={templatePreviews}
+                      expanded={expandedSubmissionId === submission.id}
+                      onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
+                    >
                     <VoteButtons submission={submission} onVote={vote} />
                   </AssetRow>
                 ))}
@@ -558,12 +618,13 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                 {ownSubmissions.length === 0 ? (
                   <p className="text-sm text-[#c7b288]">Your submitted assets will appear here.</p>
                 ) : ownSubmissions.map((submission) => (
-                  <AssetRow
-                    key={submission.id}
-                    submission={submission}
-                    expanded={expandedSubmissionId === submission.id}
-                    onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
-                    editForm={editingSubmissionId === submission.id ? (
+                    <AssetRow
+                      key={submission.id}
+                      submission={submission}
+                      templatePreviews={templatePreviews}
+                      expanded={expandedSubmissionId === submission.id}
+                      onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
+                      editForm={editingSubmissionId === submission.id ? (
                       <EditSubmissionForm
                         name={editName}
                         description={editDescription}
@@ -577,7 +638,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                       />
                     ) : null}
                   >
-                    {isEditableSubmission(submission, program.currentUserId) ? (
+                    {isCurrentContributorSubmission(submission, program) && isEditableSubmission(submission, submission.developerId) ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -601,7 +662,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
               <ProgramRule label="Minimum tier votes" value={program.settings.minimumVotesForTierAssignment} body="Votes required before an asset can move beyond Forge Review." />
             </div>
             <div className="mt-3 border border-[#5f4526] bg-[#100c08] p-4 text-sm leading-6 text-[#c7b288]">
-              Current owner defaults are part of the same review surface, but Official visibility protects them from automatic removal. Your votes update quality signal; owners decide when a default should be hidden, archived, or have its Official override cleared.
+              Current owner defaults are part of the same review surface as every upload. Developer votes and owner cap settings can move them between current defaults, candidate review, and archive.
             </div>
           </TabsContent>
         </Tabs>
@@ -806,12 +867,14 @@ function EditSubmissionForm({
 
 function AssetRow({
   submission,
+  templatePreviews,
   children,
   expanded = false,
   onToggleExpanded,
   editForm,
 }: {
   submission: DeveloperAssetSubmission;
+  templatePreviews: Record<string, TCGCardTemplate>;
   children?: ReactNode;
   expanded?: boolean;
   onToggleExpanded?: () => void;
@@ -821,11 +884,7 @@ function AssetRow({
     <div className="border border-[#4a3823] bg-[#0c0b09] p-3">
       <div className="grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
         <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
-          {submission.previewUrl ? (
-            <img src={submission.previewUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <Archive className="h-5 w-5 text-[#a98a55]" />
-          )}
+          <AssetPreview submission={submission} templatePreviews={templatePreviews} />
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -834,7 +893,7 @@ function AssetRow({
               {statusLabels[submission.status]}
             </span>
             <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
-              {submission.developerId === 'cardforge-official' ? 'Owner default' : 'Submitted'}
+              {getContributorLabel(submission)}
             </span>
             <span className={`border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${tierClasses[submission.calculatedAccessTier]}`}>
               {tierLabels[submission.calculatedAccessTier]}
@@ -865,16 +924,13 @@ function AssetRow({
       {expanded ? (
         <div className="mt-3 grid gap-3 border-t border-[#3c2c1b] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
           <div className="grid min-h-48 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
-            {submission.previewUrl ? (
-              <img src={submission.previewUrl} alt="" className="max-h-80 w-full object-contain" />
-            ) : (
-              <Archive className="h-8 w-8 text-[#a98a55]" />
-            )}
+            <AssetPreview submission={submission} templatePreviews={templatePreviews} expanded />
           </div>
           <div className="text-sm leading-6 text-[#c7b288]">
             <p>{submission.description || 'No notes were provided for this asset.'}</p>
             <dl className="mt-3 grid gap-2 text-xs text-[#a98a55] sm:grid-cols-2">
               <div><dt className="uppercase tracking-[0.12em]">Contributor</dt><dd className="break-all text-[#c7b288]">{getContributorLabel(submission)}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Email</dt><dd className="break-all text-[#c7b288]">{submission.developerEmail ?? 'Not provided'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Source</dt><dd className="break-all text-[#c7b288]">{submission.sourceUrl ?? 'Not attached'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Registry</dt><dd className="break-all text-[#c7b288]">{submission.registryAssetId ?? 'Not published'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Submitted</dt><dd className="text-[#c7b288]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
@@ -884,6 +940,65 @@ function AssetRow({
           </div>
         </div>
       ) : editForm}
+    </div>
+  );
+}
+
+function AssetPreview({
+  submission,
+  templatePreviews,
+  expanded = false,
+}: {
+  submission: DeveloperAssetSubmission;
+  templatePreviews: Record<string, TCGCardTemplate>;
+  expanded?: boolean;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const templateId = getTemplatePreviewId(submission);
+  const template = templateId ? templatePreviews[templateId] : undefined;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [submission.previewUrl]);
+
+  if (template) {
+    if (!expanded) return <TemplateThumbnail template={template} />;
+    return (
+      <div className="max-h-[26rem] w-full overflow-auto p-4">
+        <CardPreview
+          card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `developer-preview-${template.id}` }}
+          targetWidthPx={260}
+          isEditorPreview
+        />
+      </div>
+    );
+  }
+
+  if (canRenderImagePreview(submission) && !imageFailed) {
+    return (
+      <img
+        src={submission.previewUrl}
+        alt=""
+        className={expanded ? 'max-h-80 w-full object-contain' : 'h-full w-full object-cover'}
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  const isStructured = submission.previewUrl.startsWith('/api/templates') || submission.previewUrl.startsWith('/api/styles');
+  const message = imageFailed
+    ? 'Preview image could not be loaded.'
+    : isStructured
+      ? 'This asset uses structured data instead of a direct image preview.'
+      : 'No preview file has been attached yet.';
+
+  return (
+    <div className={`grid h-full w-full place-items-center text-center text-[#c7b288] ${expanded ? 'gap-2 p-6' : 'px-2'}`}>
+      {expanded ? <Archive className="mx-auto h-8 w-8 text-[#a98a55]" /> : null}
+      <p className={`${expanded ? 'text-sm font-medium text-[#ffe7ad]' : 'text-[10px] uppercase tracking-[0.12em] text-[#a98a55]'}`}>
+        {assetTypeLabels[submission.assetType]}
+      </p>
+      {expanded ? <p className="text-xs leading-5 text-[#a98a55]">{message}</p> : null}
     </div>
   );
 }

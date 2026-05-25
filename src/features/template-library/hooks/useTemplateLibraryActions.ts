@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from 'react';
-import { nanoid } from 'nanoid';
 
 import { useAppStore } from '@/store/appStore';
 import { selectAllTemplates } from '@/store/selectors';
@@ -21,7 +20,6 @@ interface UseTemplateLibraryActionsInput {
   deleteAppearanceStyle: (styleId: string) => void;
   deleteTemplate: (templateId: string, source?: TCGCardTemplate['templateSource']) => void;
   projectCapabilities: TemplateLibraryCapabilities;
-  retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
   storedCards: StoredDisplayCard[];
   templates: TCGCardTemplate[];
@@ -35,7 +33,6 @@ export function useTemplateLibraryActions({
   deleteAppearanceStyle,
   deleteTemplate,
   projectCapabilities,
-  retargetGeneratedCardsTemplate,
   setSingleCardGeneratorSelectedTemplateId,
   storedCards,
   templates,
@@ -72,24 +69,17 @@ export function useTemplateLibraryActions({
   }, [deleteAppearanceStyle, projectCapabilities.canWriteShippedLibrary]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
-    const sourceTemplateId = template.id;
-    const templateToSave = template.templateSource === 'default'
-      ? {
-          ...template,
-          id: nanoid(),
-          templateSource: 'user' as const,
-        }
-      : template;
+    const templateToSave = {
+      ...template,
+      templateSource: template.templateSource === 'default' ? 'default' as const : 'user' as const,
+    };
     const savedTemplateId = addOrUpdateTemplate(templateToSave, templateToSave.templateSource);
-    if (sourceTemplateId && savedTemplateId !== sourceTemplateId) {
-      retargetGeneratedCardsTemplate(sourceTemplateId, savedTemplateId);
-      setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
-    }
+    setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
     toast({
       title: 'Template Saved',
       description: template.templateSource === 'default'
-        ? `"${templateToSave.name || savedTemplateId}" has been saved as a user template so shipped defaults stay clean.`
-        : `"${templateToSave.name || savedTemplateId}" has been saved.`,
+        ? `"${templateToSave.name || savedTemplateId}" updated the default template.`
+        : `"${templateToSave.name || savedTemplateId}" has been saved as a user template.`,
     });
     const templateForFile = selectAllTemplates(useAppStore.getState()).find(t => t.id === savedTemplateId);
     if (templateForFile && projectCapabilities.canWriteShippedLibrary) {
@@ -102,7 +92,7 @@ export function useTemplateLibraryActions({
       });
     }
     return savedTemplateId;
-  }, [addOrUpdateTemplate, projectCapabilities.canWriteShippedLibrary, retargetGeneratedCardsTemplate, setSingleCardGeneratorSelectedTemplateId, toast]);
+  }, [addOrUpdateTemplate, projectCapabilities.canWriteShippedLibrary, setSingleCardGeneratorSelectedTemplateId, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     setTemplatePendingDeleteId(templateId);

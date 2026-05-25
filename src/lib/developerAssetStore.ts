@@ -33,6 +33,9 @@ export interface DeveloperAssetSubmission {
   id: string;
   developerId: string;
   developerEmail: string | null;
+  developerFirstName?: string | null;
+  developerLastName?: string | null;
+  developerDisplayName?: string | null;
   assetType: DeveloperAssetType;
   name: string;
   description: string;
@@ -61,6 +64,7 @@ export interface DeveloperAssetProgramView {
   configured: boolean;
   settings: DeveloperProgramSettings;
   currentUserId: string;
+  currentContributorIds: string[];
   activeDeveloperCount: number;
   submissions: DeveloperAssetSubmission[];
   votingQueue: DeveloperAssetSubmission[];
@@ -81,6 +85,7 @@ export interface DeveloperProgramSettingsRow {
   minimum_votes_for_tier_assignment?: unknown;
   show_paid_preview_to_free_users?: unknown;
   allow_paid_early_access_to_candidates?: unknown;
+  allow_contributor_self_voting?: unknown;
   archive_visible_limit?: unknown;
   profit_share_pool_percent?: unknown;
   owner_final_review_required?: unknown;
@@ -113,6 +118,13 @@ export interface DeveloperAssetSubmissionRow {
   negative_votes: number | null;
   submitted_at: string;
   updated_at: string | null;
+}
+
+export interface DeveloperProfileRow {
+  clerk_user_id: string;
+  email: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 export class DeveloperAssetStoreError extends Error {
@@ -219,6 +231,7 @@ export const mapDeveloperProgramSettingsRow = (
       minimumVotesForTierAssignment: row.minimum_votes_for_tier_assignment,
       showPaidPreviewToFreeUsers: row.show_paid_preview_to_free_users,
       allowPaidEarlyAccessToCandidates: row.allow_paid_early_access_to_candidates,
+      allowContributorSelfVoting: row.allow_contributor_self_voting,
       archiveVisibleLimit: row.archive_visible_limit,
       profitSharePoolPercent: row.profit_share_pool_percent,
       ownerFinalReviewRequired: row.owner_final_review_required,
@@ -229,11 +242,15 @@ export const mapDeveloperProgramSettingsRow = (
 
 export const mapDeveloperAssetSubmissionRow = (
   row: DeveloperAssetSubmissionRow,
-  currentUserVotes: Record<string, DeveloperVoteValue> = {}
+  currentUserVotes: Record<string, DeveloperVoteValue> = {},
+  profile?: DeveloperProfileRow | null,
 ): DeveloperAssetSubmission => ({
   id: row.id,
   developerId: row.developer_id,
-  developerEmail: row.developer_email,
+  developerEmail: profile?.email ?? row.developer_email,
+  developerFirstName: profile?.first_name ?? null,
+  developerLastName: profile?.last_name ?? null,
+  developerDisplayName: [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() || profile?.email || row.developer_email,
   assetType: isDeveloperAssetType(row.asset_type) ? row.asset_type : 'imageAssets',
   name: row.name,
   description: row.description ?? '',
@@ -262,6 +279,7 @@ export const buildDeveloperAssetProgramView = ({
   configured,
   settings,
   currentUserId,
+  currentContributorIds = [currentUserId],
   activeDeveloperCount = 1,
   submissions,
   now = new Date(),
@@ -269,11 +287,13 @@ export const buildDeveloperAssetProgramView = ({
   configured: boolean;
   settings: DeveloperProgramSettings;
   currentUserId: string;
+  currentContributorIds?: string[];
   activeDeveloperCount?: number;
   submissions: DeveloperAssetSubmission[];
   now?: Date;
 }): DeveloperAssetProgramView => {
-  const ownSubmissions = submissions.filter((submission) => submission.developerId === currentUserId);
+  const currentContributorIdSet = new Set(currentContributorIds.length > 0 ? currentContributorIds : [currentUserId]);
+  const ownSubmissions = submissions.filter((submission) => currentContributorIdSet.has(submission.developerId));
   const developerStats = countDeveloperMonthlyStats(ownSubmissions, now);
   const remainingSubmissions = Math.max(0, settings.monthlySubmissionLimit - developerStats.submitted);
   const activeReviewStatuses = new Set(['draft', 'submitted', 'voting', 'publish_candidate', 'published']);
@@ -313,10 +333,14 @@ export const buildDeveloperAssetProgramView = ({
     .map(([developerId, developerSubmissions]) => {
       const stats = countDeveloperMonthlyStats(developerSubmissions, now);
       const developerEmail = developerSubmissions.find((submission) => submission.developerEmail)?.developerEmail ?? null;
+      const namedSubmission = developerSubmissions.find((submission) => submission.developerDisplayName);
 
       return {
         developerId,
         developerEmail,
+        developerName: developerId === 'cardforge-official'
+          ? 'CardForge Owner'
+          : namedSubmission?.developerDisplayName ?? developerEmail,
         submitted: stats.submitted,
         published: stats.published,
         archived: stats.archived,
@@ -337,11 +361,12 @@ export const buildDeveloperAssetProgramView = ({
     configured,
     settings,
     currentUserId,
+    currentContributorIds: Array.from(currentContributorIdSet),
     activeDeveloperCount,
     submissions,
     votingQueue: submissions.filter((submission) => (
-      submission.developerId !== currentUserId
-      && activeReviewStatuses.has(submission.status)
+      activeReviewStatuses.has(submission.status)
+      && (settings.allowContributorSelfVoting || !currentContributorIdSet.has(submission.developerId))
     )),
     assetTypeSummaries,
     developerContributions,
@@ -377,7 +402,7 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
 
   const { data, error } = await supabase
     .from('cardforge_developer_program_settings')
-    .select('max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,minimum_positive_vote_percent,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,minimum_votes_for_tier_assignment,show_paid_preview_to_free_users,allow_paid_early_access_to_candidates,archive_visible_limit,profit_share_pool_percent,owner_final_review_required,publish_caps_by_type,tier_caps_by_type')
+    .select('max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,minimum_positive_vote_percent,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,minimum_votes_for_tier_assignment,show_paid_preview_to_free_users,allow_paid_early_access_to_candidates,allow_contributor_self_voting,archive_visible_limit,profit_share_pool_percent,owner_final_review_required,publish_caps_by_type,tier_caps_by_type')
     .eq('id', PROGRAM_SETTINGS_ID)
     .limit(1);
 
@@ -398,7 +423,7 @@ const fetchSubmissionRows = async (currentUserId: string): Promise<DeveloperAsse
   const supabase = getSupabaseServerClient();
   if (!supabase) return [];
 
-  const [{ data: rows, error: rowsError }, { data: voteRows, error: votesError }] = await Promise.all([
+  const [{ data: rows, error: rowsError }, { data: voteRows, error: votesError }, { data: profileRows, error: profilesError }] = await Promise.all([
     supabase
       .from('cardforge_developer_asset_submissions')
       .select('id,developer_id,developer_email,asset_type,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,calculated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,submitted_at,updated_at')
@@ -407,11 +432,14 @@ const fetchSubmissionRows = async (currentUserId: string): Promise<DeveloperAsse
       .from('cardforge_developer_asset_votes')
       .select('submission_id,vote_value')
       .eq('developer_id', currentUserId),
+    supabase
+      .from('cardforge_developer_profiles')
+      .select('clerk_user_id,email,first_name,last_name'),
   ]);
 
-  if (rowsError || votesError) {
-    if (!isMissingDeveloperAssetTableError(rowsError) && !isMissingDeveloperAssetTableError(votesError)) {
-      console.error('Failed to load developer asset submissions:', rowsError ?? votesError);
+  if (rowsError || votesError || profilesError) {
+    if (!isMissingDeveloperAssetTableError(rowsError) && !isMissingDeveloperAssetTableError(votesError) && !isMissingDeveloperAssetTableError(profilesError)) {
+      console.error('Failed to load developer asset submissions:', rowsError ?? votesError ?? profilesError);
     }
     return [];
   }
@@ -420,23 +448,176 @@ const fetchSubmissionRows = async (currentUserId: string): Promise<DeveloperAsse
     String((row as { submission_id: string }).submission_id),
     (row as { vote_value: DeveloperVoteValue }).vote_value,
   ]));
+  const profilesById = new Map((profileRows ?? []).map((row) => [
+    String((row as DeveloperProfileRow).clerk_user_id),
+    row as DeveloperProfileRow,
+  ]));
 
-  return (rows ?? []).map((row) => mapDeveloperAssetSubmissionRow(row as DeveloperAssetSubmissionRow, currentUserVotes));
+  return (rows ?? []).map((row) => {
+    const submissionRow = row as DeveloperAssetSubmissionRow;
+    return mapDeveloperAssetSubmissionRow(submissionRow, currentUserVotes, profilesById.get(submissionRow.developer_id));
+  });
+};
+
+const getVoteQuality = (submission: Pick<DeveloperAssetSubmission, 'positiveVotes' | 'negativeVotes'>) => {
+  const totalVotes = Math.max(0, submission.positiveVotes) + Math.max(0, submission.negativeVotes);
+  const qualityScore = totalVotes === 0 ? 0 : Math.round((Math.max(0, submission.positiveVotes) / totalVotes) * 100);
+  return { totalVotes, qualityScore };
+};
+
+const rankPipelineAsset = (submission: DeveloperAssetSubmission) => {
+  const { totalVotes, qualityScore } = getVoteQuality(submission);
+  return {
+    qualityScore,
+    totalVotes,
+    timestamp: new Date(submission.updatedAt ?? submission.submittedAt).getTime() || 0,
+  };
+};
+
+const rebalanceDeveloperAssetPipeline = async (settings: DeveloperProgramSettings): Promise<void> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return;
+
+  const submissions = await fetchSubmissionRows('');
+  const activeSubmissions = submissions.filter((submission) => submission.status !== 'rejected');
+  const updates: Array<{ submission: DeveloperAssetSubmission; status: DeveloperAssetStatus; accessTier: DeveloperAssetAccessTier; qualityScore: number; reason: string; tierReason: string }> = [];
+
+  DEVELOPER_ASSET_TYPES.forEach((assetType) => {
+    const byType = activeSubmissions.filter((submission) => submission.assetType === assetType);
+    const failingIds = new Set<string>();
+    const liveCandidates: DeveloperAssetSubmission[] = [];
+
+    byType.forEach((submission) => {
+      const { totalVotes, qualityScore } = getVoteQuality(submission);
+      if (totalVotes >= settings.minimumVotesForGrading) {
+        if (submission.negativeVotes > submission.positiveVotes || qualityScore < settings.minimumPositiveVotePercent) {
+          failingIds.add(submission.id);
+          return;
+        }
+      }
+
+      if (submission.status === 'published' || totalVotes >= settings.minimumVotesForGrading) {
+        liveCandidates.push(submission);
+      }
+    });
+
+    const publishedIds = new Set(liveCandidates
+      .sort((a, b) => {
+        const rankB = rankPipelineAsset(b);
+        const rankA = rankPipelineAsset(a);
+        return rankB.qualityScore - rankA.qualityScore
+          || rankB.totalVotes - rankA.totalVotes
+          || rankB.timestamp - rankA.timestamp;
+      })
+      .slice(0, settings.publishCapsByType[assetType])
+      .map((submission) => submission.id));
+
+    byType.forEach((submission) => {
+      const { totalVotes, qualityScore } = getVoteQuality(submission);
+      const nextStatus: DeveloperAssetStatus = failingIds.has(submission.id)
+        ? 'archived'
+        : publishedIds.has(submission.id)
+          ? 'published'
+          : totalVotes >= settings.minimumVotesForGrading
+            ? 'publish_candidate'
+            : submission.status === 'published'
+              ? 'publish_candidate'
+              : 'voting';
+      const tierDecision = evaluateDeveloperAssetAccessTier({
+        settings,
+        assetType,
+        status: nextStatus,
+        positiveVotes: submission.positiveVotes,
+        negativeVotes: submission.negativeVotes,
+        ownerAccessTierOverride: submission.ownerAccessTierOverride,
+        ignoreTierCaps: nextStatus === 'published',
+      });
+
+      if (
+        submission.status !== nextStatus
+        || submission.calculatedAccessTier !== tierDecision.accessTier
+        || submission.qualityScore !== tierDecision.qualityScore
+        || submission.tierDecisionReason !== tierDecision.reason
+      ) {
+        updates.push({
+          submission,
+          status: nextStatus,
+          accessTier: tierDecision.accessTier,
+          qualityScore: tierDecision.qualityScore,
+          reason: nextStatus,
+          tierReason: tierDecision.reason,
+        });
+      }
+    });
+  });
+
+  await Promise.all(updates.map(async (update) => {
+    const { error } = await supabase
+      .from('cardforge_developer_asset_submissions')
+      .update({
+        status: update.status,
+        calculated_access_tier: update.accessTier,
+        quality_score: update.qualityScore,
+        decision_reason: update.reason,
+        tier_decision_reason: update.tierReason,
+      })
+      .eq('id', update.submission.id);
+
+    if (!error) {
+      await syncPublishedSubmissionToAssetRegistry({
+        submissionId: update.submission.id,
+        status: update.status,
+        calculatedAccessTier: update.accessTier,
+      });
+    }
+  }));
 };
 
 export const getDeveloperAssetProgramView = async (
-  currentUserId: string
+  currentUserId: string,
+  currentContributorIds: string[] = [currentUserId],
 ): Promise<DeveloperAssetProgramView> => {
   const { configured, settings } = await fetchDeveloperSettings();
   const [submissions, activeDeveloperCount] = await Promise.all([
     fetchSubmissionRows(currentUserId),
     countActiveDevelopers(),
   ]);
-  return buildDeveloperAssetProgramView({ configured, settings, currentUserId, submissions, activeDeveloperCount });
+  return buildDeveloperAssetProgramView({ configured, settings, currentUserId, currentContributorIds, submissions, activeDeveloperCount });
+};
+
+export const upsertDeveloperProfile = async ({
+  developerId,
+  email,
+  firstName,
+  lastName,
+}: {
+  developerId: string;
+  email: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+}): Promise<void> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase || !developerId) return;
+
+  const { error } = await supabase
+    .from('cardforge_developer_profiles')
+    .upsert({
+      clerk_user_id: developerId,
+      email,
+      first_name: normalizeShortText(firstName, 80) || null,
+      last_name: normalizeShortText(lastName, 80) || null,
+      status: 'active',
+    }, { onConflict: 'clerk_user_id' });
+
+  if (error && !isMissingDeveloperAssetTableError(error)) {
+    console.error('Failed to upsert developer profile:', error);
+  }
 };
 
 export const updateDeveloperProgramSettings = async (
-  input: Partial<Record<keyof DeveloperProgramSettings, unknown>>
+  input: Partial<Record<keyof DeveloperProgramSettings, unknown>>,
+  currentUserId = '',
+  currentContributorIds: string[] = currentUserId ? [currentUserId] : [],
 ): Promise<DeveloperAssetProgramView> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
@@ -456,6 +637,7 @@ export const updateDeveloperProgramSettings = async (
       minimum_votes_for_tier_assignment: normalized.minimumVotesForTierAssignment,
       show_paid_preview_to_free_users: normalized.showPaidPreviewToFreeUsers,
       allow_paid_early_access_to_candidates: normalized.allowPaidEarlyAccessToCandidates,
+      allow_contributor_self_voting: normalized.allowContributorSelfVoting,
       archive_visible_limit: normalized.archiveVisibleLimit,
       profit_share_pool_percent: normalized.profitSharePoolPercent,
       owner_final_review_required: normalized.ownerFinalReviewRequired,
@@ -468,16 +650,19 @@ export const updateDeveloperProgramSettings = async (
     throw new DeveloperAssetStoreError('Unable to update developer program settings.', 500);
   }
 
-  return getDeveloperAssetProgramView('');
+  await rebalanceDeveloperAssetPipeline(normalized);
+  return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
 };
 
 export const createDeveloperAssetSubmission = async ({
   developerId,
   developerEmail,
   input,
+  currentContributorIds = [developerId],
 }: {
   developerId: string;
   developerEmail: string | null;
+  currentContributorIds?: string[];
   input: {
     assetType?: unknown;
     name?: unknown;
@@ -493,7 +678,7 @@ export const createDeveloperAssetSubmission = async ({
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
 
-  const view = await getDeveloperAssetProgramView(developerId);
+  const view = await getDeveloperAssetProgramView(developerId, currentContributorIds);
   if (view.remainingSubmissions <= 0) {
     throw new DeveloperAssetStoreError('This developer has reached the monthly submission limit.', 400);
   }
@@ -529,21 +714,18 @@ export const createDeveloperAssetSubmission = async ({
     throw new DeveloperAssetStoreError('Unable to submit developer asset.', 500);
   }
 
-  return getDeveloperAssetProgramView(developerId);
+  return getDeveloperAssetProgramView(developerId, currentContributorIds);
 };
 
 const countPublishedThisPeriodForType = async (assetType: DeveloperAssetType): Promise<number> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) return 0;
 
-  const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
   const { count, error } = await supabase
     .from('cardforge_developer_asset_submissions')
     .select('id', { count: 'exact', head: true })
     .eq('asset_type', assetType)
-    .eq('status', 'published')
-    .gte('updated_at', monthStart);
+    .eq('status', 'published');
 
   if (error) {
     console.error('Failed to count published developer assets:', error);
@@ -726,7 +908,16 @@ const syncPublishedSubmissionToAssetRegistry = async ({
     return;
   }
 
-  if (status !== 'published') return;
+  if (status !== 'published') {
+    await supabase
+      .from('cardforge_asset_registry')
+      .update({
+        status,
+        access_tier: calculatedAccessTier === 'hidden' ? 'hidden' : 'developer',
+      })
+      .eq('asset_id', registryAssetId);
+    return;
+  }
   if (!submission.source_url) {
     throw new DeveloperAssetStoreError('A source file is required before this asset can publish into the live library.', 400);
   }
@@ -788,18 +979,14 @@ const refreshSubmissionVoteDecision = async (submissionId: string): Promise<void
 
   const { settings } = await fetchDeveloperSettings();
   const totalVotes = (submission.positive_votes ?? 0) + (submission.negative_votes ?? 0);
-  const qualityScore = totalVotes === 0 ? 0 : Math.round(((submission.positive_votes ?? 0) / totalVotes) * 100);
-  const existingAccessTier = isDeveloperAssetAccessTier(submission.calculated_access_tier)
-    ? submission.calculated_access_tier
-    : 'developer';
   const publishedThisPeriodForType = await countPublishedThisPeriodForType(submission.asset_type);
   const currentStatus = isDeveloperAssetStatus(submission.status) ? submission.status : 'voting';
-  const decision = currentStatus === 'published'
+  const decision = currentStatus === 'published' && totalVotes < settings.minimumVotesForGrading
     ? {
         nextStatus: 'published' as const,
-        reason: 'passes_vote_threshold' as const,
+        reason: 'needs_more_votes' as const,
         positiveVotePercent: 0,
-        totalVotes: (submission.positive_votes ?? 0) + (submission.negative_votes ?? 0),
+        totalVotes,
       }
     : evaluateDeveloperAssetDecisionForType({
         assetType: submission.asset_type,
@@ -810,28 +997,19 @@ const refreshSubmissionVoteDecision = async (submissionId: string): Promise<void
       });
   const paidTieredThisPeriodForType = await countTieredThisPeriodForType(submission.asset_type, 'paid');
   const freeTieredThisPeriodForType = await countTieredThisPeriodForType(submission.asset_type, 'free');
-  const tierDecision = currentStatus === 'published'
-    && totalVotes < settings.minimumVotesForTierAssignment
-    && (existingAccessTier === 'official' || existingAccessTier === 'paid' || existingAccessTier === 'free')
-    ? {
-        accessTier: existingAccessTier,
-        reason: 'needs_more_votes' as const,
-        qualityScore,
-        totalVotes,
-      }
-    : evaluateDeveloperAssetAccessTier({
-        assetType: submission.asset_type,
-        settings,
-        status: currentStatus === 'published' ? 'published' : decision.nextStatus,
-        positiveVotes: submission.positive_votes ?? 0,
-        negativeVotes: submission.negative_votes ?? 0,
-        ownerAccessTierOverride: isDeveloperAssetAccessTierOverride(submission.owner_access_tier_override)
-          ? submission.owner_access_tier_override
-          : null,
-        freeTieredThisPeriodForType,
-        paidTieredThisPeriodForType,
-        ignoreTierCaps: currentStatus === 'published',
-      });
+  const tierDecision = evaluateDeveloperAssetAccessTier({
+    assetType: submission.asset_type,
+    settings,
+    status: decision.nextStatus,
+    positiveVotes: submission.positive_votes ?? 0,
+    negativeVotes: submission.negative_votes ?? 0,
+    ownerAccessTierOverride: isDeveloperAssetAccessTierOverride(submission.owner_access_tier_override)
+      ? submission.owner_access_tier_override
+      : null,
+    freeTieredThisPeriodForType,
+    paidTieredThisPeriodForType,
+    ignoreTierCaps: currentStatus === 'published',
+  });
 
   const { error: updateError } = await supabase
     .from('cardforge_developer_asset_submissions')
@@ -857,10 +1035,12 @@ export const voteOnDeveloperAssetSubmission = async ({
   submissionId,
   developerId,
   voteValue,
+  currentContributorIds = [developerId],
 }: {
   submissionId: string;
   developerId: string;
   voteValue: unknown;
+  currentContributorIds?: string[];
 }): Promise<DeveloperAssetProgramView> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
@@ -896,7 +1076,7 @@ export const voteOnDeveloperAssetSubmission = async ({
   }
 
   await refreshSubmissionVoteDecision(submissionId);
-  return getDeveloperAssetProgramView(developerId);
+  return getDeveloperAssetProgramView(developerId, currentContributorIds);
 };
 
 export const updateDeveloperAssetSubmissionDetails = async ({
@@ -904,6 +1084,7 @@ export const updateDeveloperAssetSubmissionDetails = async ({
   developerId,
   input,
   allowOwnerEdit = false,
+  currentContributorIds = [developerId],
 }: {
   submissionId: string;
   developerId: string;
@@ -913,6 +1094,7 @@ export const updateDeveloperAssetSubmissionDetails = async ({
     previewUrl?: unknown;
   };
   allowOwnerEdit?: boolean;
+  currentContributorIds?: string[];
 }): Promise<DeveloperAssetProgramView> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
@@ -955,7 +1137,7 @@ export const updateDeveloperAssetSubmissionDetails = async ({
     throw new DeveloperAssetStoreError('Unable to edit developer asset submission.', 500);
   }
 
-  return getDeveloperAssetProgramView(developerId);
+  return getDeveloperAssetProgramView(developerId, currentContributorIds);
 };
 
 export const updateDeveloperAssetSubmissionStatus = async ({
@@ -963,11 +1145,15 @@ export const updateDeveloperAssetSubmissionStatus = async ({
   status,
   ownerNote,
   ownerAccessTierOverride,
+  currentUserId = '',
+  currentContributorIds = currentUserId ? [currentUserId] : [],
 }: {
   submissionId: string;
   status: unknown;
   ownerNote?: unknown;
   ownerAccessTierOverride?: unknown;
+  currentUserId?: string;
+  currentContributorIds?: string[];
 }): Promise<DeveloperAssetProgramView> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
@@ -1028,5 +1214,5 @@ export const updateDeveloperAssetSubmissionStatus = async ({
     calculatedAccessTier: tierDecision.accessTier,
   });
 
-  return getDeveloperAssetProgramView('');
+  return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
 };

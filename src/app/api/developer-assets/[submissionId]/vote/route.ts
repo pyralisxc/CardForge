@@ -5,11 +5,16 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResp
 import {
   DeveloperAssetStoreError,
   getDeveloperAssetProgramView,
+  upsertDeveloperProfile,
   voteOnDeveloperAssetSubmission,
 } from '@/lib/developerAssetStore';
 import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
 
 export const dynamic = 'force-dynamic';
+
+const getContributorIds = (userId: string, isOwner: boolean) => (
+  isOwner ? [userId, 'cardforge-official'] : [userId]
+);
 
 export async function POST(
   request: Request,
@@ -34,10 +39,22 @@ export async function POST(
       return createApiErrorResponse(403, 'developer_access_required', 'Developer access is required to vote on asset submissions.');
     }
 
+    const contributorIds = getContributorIds(user.id, ownerAccess.isOwner);
+    await upsertDeveloperProfile({
+      developerId: user.id,
+      email: user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    });
+
     const { submissionId } = await params;
-    const existingProgram = await getDeveloperAssetProgramView(user.id);
+    const existingProgram = await getDeveloperAssetProgramView(user.id, contributorIds);
     const submission = existingProgram.submissions.find((candidate) => candidate.id === submissionId);
-    if (submission?.developerId === user.id) {
+    if (
+      submission
+      && contributorIds.includes(submission.developerId)
+      && !existingProgram.settings.allowContributorSelfVoting
+    ) {
       return createApiErrorResponse(400, 'developer_asset_request_invalid', 'Developers cannot vote on their own submissions.');
     }
 
@@ -46,6 +63,7 @@ export async function POST(
       submissionId,
       developerId: user.id,
       voteValue: body.voteValue,
+      currentContributorIds: contributorIds,
     });
 
     return createNoStoreJsonResponse({ program });

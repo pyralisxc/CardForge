@@ -77,7 +77,7 @@ import {
   mmConversion,
   clamp,
 } from './makerConstants';
-import { borderWidthClassToPixels, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
+import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
 import {
   escapeTemplateText,
   renamePlaceholderKeyInText,
@@ -862,9 +862,9 @@ export function CardTemplateMaker({
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       borderStyle: borderWidth > 0 ? 'solid' : undefined,
-      borderWidth: borderWidth > 0 ? borderWidth : undefined,
       borderColor: element.borderColor || currentTemplate.defaultElementBorderColor || undefined,
       borderRadius: radiusClassToCss(element.borderRadius) || element.borderRadius || undefined,
+      ...borderWidthClassToStyle(element.borderWidth),
       boxSizing: 'border-box',
       overflow: 'hidden',
       cursor: previewMode || element.locked ? 'default' : 'move',

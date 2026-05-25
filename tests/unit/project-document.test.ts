@@ -69,6 +69,26 @@ const dividerAsset: CardAssetOption = {
   allowedTargets: ['divider'],
 };
 
+const iconAsset: CardAssetOption = {
+  id: 'custom-icon',
+  name: 'Custom Icon',
+  url: 'data:image/svg+xml;base64,PHN2Zy8+',
+  kind: 'icon',
+  tileMode: 'stretch',
+  seamless: false,
+  allowedTargets: ['icon'],
+};
+
+const imageAsset: CardAssetOption = {
+  id: 'custom-image',
+  name: 'Custom Image',
+  url: 'data:image/png;base64,AAAA',
+  kind: 'image',
+  tileMode: 'stretch',
+  seamless: false,
+  allowedTargets: ['image'],
+};
+
 describe('project document serialization', () => {
   it('creates a versioned local-first project document from app state', () => {
     const document = createProjectDocumentFromState({
@@ -84,6 +104,8 @@ describe('project document serialization', () => {
       exportDpi: 450,
       customTextureAssets: [textureAsset],
       customDividerAssets: [dividerAsset],
+      customIconAssets: [iconAsset],
+      customImageAssets: [imageAsset],
     });
 
     expect(document).toEqual<ProjectDocumentV1>({
@@ -103,8 +125,8 @@ describe('project document serialization', () => {
       customAssets: {
         'cardforge-maker-custom-textures': [textureAsset],
         'cardforge-maker-custom-dividers': [dividerAsset],
-        'cardforge-maker-custom-icons': [],
-        'cardforge-maker-custom-images': [],
+        'cardforge-maker-custom-icons': [iconAsset],
+        'cardforge-maker-custom-images': [imageAsset],
       },
     });
   });

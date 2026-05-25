@@ -2,7 +2,7 @@
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
 export type FreeformShapeRole = 'basic' | 'panel' | 'artFrame' | 'rulesBox' | 'titlePlate' | 'statGem' | 'costOrb' | 'divider';
-export type GeneratorFieldKind = 'text' | 'richText' | 'rules';
+export type GeneratorFieldKind = 'text' | 'richText' | 'rules' | 'structuredRows';
 export type TemplateFieldContractType = GeneratorFieldKind | 'image';
 export type TemplateSource = 'default' | 'user';
 export type TemplateUsage = 'standard' | 'back-preset';
@@ -173,6 +173,7 @@ export interface TemplateFieldContract {
   textAutoFit?: boolean;
   minFontSizePx?: number;
   textColor?: string;
+  fontFamily?: FreeformCardElement['fontFamily'];
   fontSizePx?: number;
   fontWeight?: FreeformCardElement['fontWeight'];
   fontStyle?: FreeformCardElement['fontStyle'];

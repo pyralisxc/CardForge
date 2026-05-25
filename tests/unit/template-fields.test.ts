@@ -322,6 +322,57 @@ describe('extractTemplateFieldDefinitions', () => {
     expect(fields.map((field) => field.defaultValue)).toEqual(['Ashen Crown', 'Relic']);
   });
 
+  it('marks variables in a structured row text element as repeatable row fields', () => {
+    const template: TCGCardTemplate = {
+      id: 'template-structured-rows',
+      name: 'Structured Rows Template',
+      aspectRatio: '63:88',
+      fieldContracts: [
+        {
+          key: 'trait',
+          elementId: 'trait-row',
+          label: 'Trait',
+          type: 'structuredRows',
+          required: true,
+          example: 'Flying',
+        },
+        {
+          key: 'value',
+          elementId: 'trait-row',
+          label: 'Value',
+          type: 'structuredRows',
+          required: false,
+          example: '+1',
+        },
+      ],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'trait-row',
+            type: 'text',
+            name: 'Trait Row',
+            x: 0,
+            y: 0,
+            width: 260,
+            height: 120,
+            zIndex: 1,
+            content: '{{trait:"Flying"}}: {{value:"+1"}}',
+          },
+        ],
+      },
+    };
+
+    const fields = extractTemplateFieldDefinitions(template);
+
+    expect(fields).toHaveLength(2);
+    expect(fields.map((field) => field.key)).toEqual(['trait', 'value']);
+    expect(fields.every((field) => field.contentModel === 'structuredRows')).toBe(true);
+    expect(fields.every((field) => field.editor === 'structured-rows')).toBe(true);
+    expect(fields[0].helperText).toContain('repeatable row pattern');
+  });
+
   it('adds a base text field for mixed static and variable text elements', () => {
     const template: TCGCardTemplate = {
       id: 'template-8',

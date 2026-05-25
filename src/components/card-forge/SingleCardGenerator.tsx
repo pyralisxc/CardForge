@@ -18,6 +18,8 @@ import { useAppStore } from '@/store/appStore';
 import { withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/lib/cardDataDefaults';
+import { getTemplateDisplayName, getTemplateSourceLabel } from '@/lib/templateDisplay';
+import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/lib/structuredRows';
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
@@ -107,7 +109,13 @@ export function SingleCardGenerator({
 
     const missingRequiredFields = dynamicFields
       .filter((field) => field.required)
-      .filter((field) => String(cardData[field.key] ?? '').trim().length === 0)
+      .filter((field) => {
+        if (field.contentModel !== 'structuredRows' || !field.sourceElementId) {
+          return String(cardData[field.key] ?? '').trim().length === 0;
+        }
+        const rows = parseStructuredRowsValue(cardData[buildStructuredRowsDataKey(field.sourceElementId)]);
+        return rows.length === 0 || rows.every((row) => String(row[field.key] ?? '').trim().length === 0);
+      })
       .map((field) => field.label || field.key);
 
     if (missingRequiredFields.length > 0) {
@@ -202,7 +210,7 @@ export function SingleCardGenerator({
             </SelectTrigger>
             <SelectContent>
               {templates.length > 0 ? (
-                templates.map(t => <SelectItem key={`single-${t.id || 'new-template-option'}`} value={t.id!}>{t.name || `Template ${t.id?.substring(0,5) || 'Untitled'}`}</SelectItem>)
+                templates.map(t => <SelectItem key={`single-${t.id || 'new-template-option'}`} value={t.id!}>{getTemplateDisplayName(t)}</SelectItem>)
               ) : (
                 <SelectItem value="no-templates-single" disabled>No templates available.</SelectItem>
               )}
@@ -216,6 +224,11 @@ export function SingleCardGenerator({
         {selectedTemplateIdProp && !hasAddedCardInSession && (
           <div className="rounded-md border p-3 text-xs bg-muted/20" role="status" aria-live="polite">
             <p className="font-medium">Quick Start: Generate a reference output</p>
+            {selectedTemplate ? (
+              <p className="mt-1 text-muted-foreground">
+                Using {selectedTemplate.name || selectedTemplate.id} ({getTemplateSourceLabel(selectedTemplate)}).
+              </p>
+            ) : null}
             <p className="mt-1 text-muted-foreground">
               Fill required fields, use rich-text tools when available, then create the output. Visual review happens in Generated Outputs so preview, edit, and export all share one source of truth.
             </p>
