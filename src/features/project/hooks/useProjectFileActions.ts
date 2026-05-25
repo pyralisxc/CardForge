@@ -20,12 +20,15 @@ import {
   writeProjectAssetListToStorage,
 } from '@/features/project/lib/projectLocalAssets';
 import type { CardAssetOption } from '@/lib/cardAssets';
+import { withNextStep } from '@/lib/userFacingErrors';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
 interface UseProjectFileActionsInput {
   appearanceStyles: AppearanceStylePreset[];
+  canUseProjectFiles: boolean;
   exportDpi: number;
+  projectFileGateMessage?: string | null;
   exportMode: ExportMode;
   fileInputRef: RefObject<HTMLInputElement>;
   pdfCardSpacingMm: number;
@@ -37,6 +40,7 @@ interface UseProjectFileActionsInput {
   setExportDpi: (dpi: number) => void;
   setExportMode: (mode: ExportMode) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
+  setSelectedTemplateId: (id: string | null) => void;
   setSelectedPaperSize: (size: PaperSize) => void;
   setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
   setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
@@ -59,7 +63,9 @@ const downloadJsonFile = (fileName: string, contents: string) => {
 
 export function useProjectFileActions({
   appearanceStyles,
+  canUseProjectFiles,
   exportDpi,
+  projectFileGateMessage,
   exportMode,
   fileInputRef,
   pdfCardSpacingMm,
@@ -71,6 +77,7 @@ export function useProjectFileActions({
   setExportDpi,
   setExportMode,
   setPdfOptions,
+  setSelectedTemplateId,
   setSelectedPaperSize,
   setStoredCardsFromFile,
   setUserTemplatesFromFiles,
@@ -78,7 +85,22 @@ export function useProjectFileActions({
   toast,
   userTemplates,
 }: UseProjectFileActionsInput) {
+  const showProjectFileGate = useCallback(() => {
+    toast({
+      title: 'Upgrade to move projects',
+      description: withNextStep(
+        projectFileGateMessage || 'Project import and export require an active paid or dev account.',
+        'Upgrade your account to download this local project file or bring one back into Layout Studio.',
+      ),
+    });
+  }, [projectFileGateMessage, toast]);
+
   const handleExportProject = useCallback(() => {
+    if (!canUseProjectFiles) {
+      showProjectFileGate();
+      return;
+    }
+
     const projectDocument = createProjectDocumentFromState({
       userTemplates,
       storedCards,
@@ -98,9 +120,26 @@ export function useProjectFileActions({
 
     downloadJsonFile('cardforge-studio-project.json', JSON.stringify(projectDocument, null, 2));
     toast({ title: 'Project Exported', description: 'Local project downloaded as cardforge-studio-project.json.' });
-  }, [appearanceStyles, exportDpi, exportMode, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, selectedPaperSize, storedCards, toast, userTemplates]);
+  }, [appearanceStyles, canUseProjectFiles, exportDpi, exportMode, pdfCardSpacingMm, pdfDuplexLayout, pdfIncludeCutLines, pdfMarginMm, selectedPaperSize, showProjectFileGate, storedCards, toast, userTemplates]);
+
+  const handleChooseImportProject = useCallback(() => {
+    if (!canUseProjectFiles) {
+      showProjectFileGate();
+      return;
+    }
+
+    fileInputRef.current?.click();
+  }, [canUseProjectFiles, fileInputRef, showProjectFileGate]);
 
   const handleImportProject = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    if (!canUseProjectFiles) {
+      showProjectFileGate();
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -117,6 +156,10 @@ export function useProjectFileActions({
 
         const patch = applyProjectDocumentToState(parsedProject.document);
         setUserTemplatesFromFiles(patch.userTemplates);
+        const firstImportedTemplateId = patch.userTemplates.find((template) => template.id && template.id.trim() !== '')?.id ?? null;
+        if (firstImportedTemplateId) {
+          setSelectedTemplateId(firstImportedTemplateId);
+        }
         setAppearanceStylesFromFiles(patch.appearanceStyles);
         if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);
         setPdfOptions({
@@ -144,9 +187,10 @@ export function useProjectFileActions({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [fileInputRef, setAppearanceStylesFromFiles, setExportDpi, setExportMode, setPdfOptions, setSelectedPaperSize, setStoredCardsFromFile, setUserTemplatesFromFiles, toast]);
+  }, [canUseProjectFiles, fileInputRef, setAppearanceStylesFromFiles, setExportDpi, setExportMode, setPdfOptions, setSelectedPaperSize, setSelectedTemplateId, setStoredCardsFromFile, setUserTemplatesFromFiles, showProjectFileGate, toast]);
 
   return {
+    handleChooseImportProject,
     handleExportProject,
     handleImportProject,
   };

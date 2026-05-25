@@ -1,0 +1,13 @@
+{
+  "id": "arcane-forge-violet-stat-gem",
+  "name": "Violet Stat Gem",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["imageFrame", "shape", "template"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100,
+  "partRole": "statGem",
+  "defaultWidth": 96,
+  "defaultHeight": 96
+}

@@ -3,13 +3,15 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
 import type { FreeformCardElement } from '@/types';
 
 interface BorderInspectorPanelProps {
   element: FreeformCardElement;
-  borderPresets: Array<{ label: string; updates: Partial<FreeformCardElement> }>;
+  borderPresets: ElementPresetRecipe[];
   borderWidthOptions: Array<{ value: string; label: string }>;
   borderRadiusOptions: Array<{ value: string; label: string }>;
+  onApplyPreset: (preset: ElementPresetRecipe) => void;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
 }
 
@@ -18,22 +20,35 @@ export function BorderInspectorPanel({
   borderPresets,
   borderWidthOptions,
   borderRadiusOptions,
+  onApplyPreset,
   onUpdateElement,
 }: BorderInspectorPanelProps) {
   return (
     <div className="space-y-2">
-      <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Border Presets</Label>
+      <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pipeline Border Recipes</Label>
       <div className="grid grid-cols-2 gap-1">
         {borderPresets.map((preset) => (
           <Button
-            key={preset.label}
+            key={preset.id}
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-            onClick={() => onUpdateElement(preset.updates)}
+            title={`${preset.contributorName} - ${preset.status} - ${preset.tier}`}
+            className="h-auto min-h-8 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+            onClick={() => onApplyPreset(preset)}
           >
-            {preset.label}
+            <span
+              className="h-4 w-4 shrink-0 rounded-[3px] border"
+              style={{
+                background: preset.preview?.background || preset.updates?.backgroundColor || '#111720',
+                borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#2d3340',
+              }}
+              aria-hidden="true"
+            />
+            <span className="min-w-0">
+              <span className="block truncate text-[#f1dfb4]">{preset.label}</span>
+              <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{preset.status} - {preset.tier}</span>
+            </span>
           </Button>
         ))}
       </div>

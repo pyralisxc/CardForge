@@ -1,7 +1,6 @@
 "use client";
 
-import type { ChangeEvent, RefObject } from 'react';
-import { ArrowLeftRight, BringToFront, Download, FilePlus2, FolderDown, FolderUp, Gamepad2, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
 
 import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
 import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
@@ -32,7 +31,6 @@ interface GenerationWorkspaceProps {
   exportMode: ExportMode;
   exportDpi: number;
   generatedDisplayCards: DisplayCard[];
-  fileInputRef: RefObject<HTMLInputElement>;
   zipProgress: { done: number; total: number } | null;
   gallerySearch: string;
   gallerySort: GeneratedGallerySort;
@@ -55,8 +53,6 @@ interface GenerationWorkspaceProps {
   onSetPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   onSetExportMode: (mode: ExportMode) => void;
   onSetExportDpi: (dpi: number) => void;
-  onSaveCardSet: () => void;
-  onLoadCardSet: (event: ChangeEvent<HTMLInputElement>) => void;
   onStartCheckout: () => void;
   onExportAllAsZip: () => void;
   onExportTabletopSimulatorSpritesheets: () => void;
@@ -92,7 +88,6 @@ export function GenerationWorkspace({
   exportMode,
   exportDpi,
   generatedDisplayCards,
-  fileInputRef,
   zipProgress,
   gallerySearch,
   gallerySort,
@@ -115,8 +110,6 @@ export function GenerationWorkspace({
   onSetPdfOptions,
   onSetExportMode,
   onSetExportDpi,
-  onSaveCardSet,
-  onLoadCardSet,
   onStartCheckout,
   onExportAllAsZip,
   onExportTabletopSimulatorSpritesheets,
@@ -333,18 +326,9 @@ export function GenerationWorkspace({
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={onSaveCardSet} className="flex items-center gap-2">
-                      <FolderDown className="h-4 w-4" /> Export Project
-                    </Button>
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
-                      <FolderUp className="h-4 w-4" /> Import Project
-                    </Button>
-                    <input type="file" ref={fileInputRef} onChange={onLoadCardSet} accept=".json,application/json" aria-hidden="true" style={{ display: 'none' }} />
-                  </div>
                   {!canExportClean && exportGateMessage ? (
                     <div className="space-y-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-muted-foreground">
-                      <p>{exportGateMessage} You can still design layouts, import data, generate previews, and export/import local project files.</p>
+                      <p>{exportGateMessage} You can still design layouts, import data, and generate previews.</p>
                       <Button
                         type="button"
                         size="sm"

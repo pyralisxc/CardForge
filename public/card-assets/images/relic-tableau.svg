@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Relic tableau image asset">
+  <defs>
+    <linearGradient id="room" x1="0" x2="420" y1="0" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0d0b09"/>
+      <stop offset=".5" stop-color="#2f1d10"/>
+      <stop offset="1" stop-color="#08070a"/>
+    </linearGradient>
+    <radialGradient id="relicGlow" cx="50%" cy="45%" r="45%">
+      <stop stop-color="#ffe09b"/>
+      <stop offset=".42" stop-color="#d5ad54" stop-opacity=".6"/>
+      <stop offset="1" stop-color="#7a52cc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="420" height="260" rx="18" fill="url(#room)"/>
+  <ellipse cx="210" cy="130" rx="138" ry="90" fill="url(#relicGlow)" opacity=".8"/>
+  <path d="M102 210h216l-28-78H130z" fill="#15100b" stroke="#d5ad54" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M210 48l34 56-34 56-34-56z" fill="#7a52cc" stroke="#f5d27b" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="210" cy="104" r="15" fill="#fff0c4"/>
+  <path d="M67 58h286M82 78h256M96 98h228" stroke="#f5d27b" stroke-opacity=".2" stroke-width="3" stroke-linecap="round"/>
+</svg>

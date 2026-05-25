@@ -48,7 +48,6 @@ export function useTemplateAssetLibrary({
   const [assetSearch, setAssetSearch] = useState('');
   const [discoveredTextureAssets, setDiscoveredTextureAssets] = useState<CardAssetOption[]>(CARD_TEXTURE_ASSETS);
   const [discoveredDividerAssets, setDiscoveredDividerAssets] = useState<CardAssetOption[]>(CARD_DIVIDER_ASSETS);
-  const [discoveredPartAssets, setDiscoveredPartAssets] = useState<CardAssetOption[]>([]);
   const [discoveredIconAssets, setDiscoveredIconAssets] = useState<CardAssetOption[]>([]);
   const [discoveredImageAssets, setDiscoveredImageAssets] = useState<CardAssetOption[]>([]);
   const [customTextureAssets, setCustomTextureAssets] = useState<CardAssetOption[]>([]);
@@ -76,14 +75,11 @@ export function useTemplateAssetLibrary({
         if (Array.isArray(payload.dividers) && payload.dividers.length > 0) {
           setDiscoveredDividerAssets(payload.dividers);
         }
-        if (Array.isArray(payload.parts) && payload.parts.length > 0) {
-          setDiscoveredPartAssets(payload.parts);
-        }
         if (Array.isArray(payload.icons) && payload.icons.length > 0) {
           setDiscoveredIconAssets(payload.icons);
         }
         if (Array.isArray(payload.imageAssets) && payload.imageAssets.length > 0) {
-          setDiscoveredImageAssets(payload.imageAssets);
+          setDiscoveredImageAssets([...payload.imageAssets, ...(payload.parts ?? [])]);
         }
       } catch (error) {
         console.warn('Unable to load discovered card assets:', error);
@@ -112,12 +108,6 @@ export function useTemplateAssetLibrary({
       .filter((asset) => asset.allowedTargets.includes('divider'))
       .filter((asset) => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customDividerAssets, discoveredDividerAssets]);
-
-  const compatiblePartAssets = useMemo(() => {
-    const search = assetSearch.trim().toLowerCase();
-    return discoveredPartAssets
-      .filter((asset) => !search || asset.name.toLowerCase().includes(search));
-  }, [assetSearch, discoveredPartAssets]);
 
   const compatibleIconAssets = useMemo(() => {
     const search = assetSearch.trim().toLowerCase();
@@ -212,7 +202,6 @@ export function useTemplateAssetLibrary({
     compatibleDividerAssets,
     compatibleIconAssets,
     compatibleImageAssets,
-    compatiblePartAssets,
     compatibleTextureAssets,
     canUploadCustomAssets,
     handleAssetUpload,

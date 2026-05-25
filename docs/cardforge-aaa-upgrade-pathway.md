@@ -66,7 +66,6 @@ Owns premium asset ingestion, catalog navigation, project portability, account m
 Primary files:
 - `src/app/api/assets/route.ts`
 - `src/lib/cardAssets.ts`
-- `src/lib/partAssetCatalog.ts`
 - `src/lib/projectDocument.ts`
 - `src/features/template-editor/components/ElementLibraryPanel.tsx`
 - `src/lib/accountEntitlement.ts`
@@ -84,7 +83,7 @@ Current diagnosis:
 - A tracked user template conflicts with release hygiene expectations.
 
 Target:
-- Cameron can drop premium packs into `public/card-assets/parts/<pack>/` plus `data/assets/parts/<pack>/` sidecars and see them cleanly in the catalog.
+- Cameron can drop visual source packs into the appropriate asset folder plus `data/assets/` sidecars and see them cleanly in the relevant inspector picker.
 - The product supports mock free/dev/paid testing before full Clerk setup.
 - Release docs and audit state are truthful.
 
@@ -140,15 +139,15 @@ Success checks:
 
 Goal: let Cameron's real premium art become the product's customization engine.
 
-1. Add the first human-made premium parts pack with sidecars.
-2. Test discovery, role filtering, default dimensions, and insert behavior.
-3. Decide whether custom project parts are portable. If yes, extend project document custom assets beyond textures/dividers.
-4. Add a catalog QA checklist for required metadata: role, dimensions, targets, display name, pack grouping, and insert defaults.
+1. Add the first human-made premium image/icon/divider/texture packs with sidecars.
+2. Test discovery, target filtering, default dimensions, and picker behavior in each inspector.
+3. Decide which custom project assets are portable. If yes, extend project document custom assets beyond textures/dividers.
+4. Add an asset QA checklist for required metadata: target, dimensions, display name, tier/source, and picker defaults.
 
 Success checks:
-- `/api/assets` returns parts with roles and defaults.
-- Asset Catalog can search/filter/insert real premium parts.
-- A project using premium parts survives save/import when the product requires portability.
+- `/api/assets` returns source assets with usable metadata.
+- Image, icon, divider, and texture pickers can search/filter/select their own asset types.
+- A project using premium assets survives save/import when the product requires portability.
 
 ### Phase 5: Launch Hardening
 

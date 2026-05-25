@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -52,8 +52,22 @@ import {
 } from '@/lib/constants';
 import { cn, replacePlaceholdersLocal, toTitleCase } from '@/lib/utils';
 import { appearanceToElementRenderFields, appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
-import { CARD_FRAME_KITS, getFrameKitForTemplate, getFrameKitTemplateUpdates } from '@/lib/cardFrameKits';
+import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/lib/cardFrameKits';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
+import {
+  BLANK_SHAPE_PRIMITIVES,
+  BORDER_PRESET_RECIPES,
+  DIVIDER_PRESET_RECIPES,
+  ICON_STYLE_PRESET_RECIPES,
+  SHAPE_ROLE_PRESET_RECIPES,
+  TEXT_FRAME_PRESET_RECIPES,
+  buildElementPresetElementUpdates,
+  createFrameKitPresetRecipes,
+  createRecipesFromAppearanceStyles,
+  isElementPresetApplicable,
+  mergeElementPresetRecipes,
+  type ElementPresetRecipe,
+} from '@/lib/elementPresetRecipes';
 import { buildTextElementStyle } from '@/lib/textTools';
 import { CardTextContent } from '@/lib/cardTextRender';
 import { useAppStore } from '@/store/appStore';
@@ -66,12 +80,6 @@ import {
   elementKits,
   CONSOLIDATED_ELEMENT_KITS,
   ELEMENT_STYLE_PRESETS,
-  BORDER_PRESETS,
-  SHAPE_PRESETS,
-  DIVIDER_PRESETS,
-  SYMBOL_STYLE_PRESETS,
-  SHAPE_ROLE_PRESETS,
-  TEXT_FRAME_PRESETS,
   ColorField,
   makeNewFreeformTemplate,
   mmConversion,
@@ -92,6 +100,7 @@ import { TemplateEditorTopBar } from '@/features/template-editor/components/Temp
 import { TemplateLibraryPanel } from '@/features/template-editor/components/TemplateLibraryPanel';
 import { ElementLibraryPanel } from '@/features/template-editor/components/ElementLibraryPanel';
 import { TemplateEditorInspectorPanel } from '@/features/template-editor/components/TemplateEditorInspectorPanel';
+import { InspectorFlowSection } from '@/features/template-editor/components/InspectorFlowSection';
 import { ElementTransformPanel } from '@/features/template-editor/components/ElementTransformPanel';
 import { AppearanceStudioPanel } from '@/features/template-editor/components/AppearanceStudioPanel';
 import { ElementAlignmentPanel } from '@/features/template-editor/components/ElementAlignmentPanel';
@@ -109,6 +118,7 @@ import { useTemplateAssetLibrary } from '@/features/template-editor/hooks/useTem
 import { buildLayerTree } from '@/features/template-editor/lib/layerTree';
 
 interface CardTemplateMakerProps {
+  canUseProjectFiles: boolean;
   onSaveTemplate: (template: TCGCardTemplate) => string;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
@@ -116,12 +126,19 @@ interface CardTemplateMakerProps {
   userTemplates: TCGCardTemplate[];
   onDeleteTemplate: (templateId: string) => void;
   onCloneTemplate: (templateId: string) => string | null;
+  onExportProject: () => void;
+  onImportProject: () => void;
+  onLoadProject: (event: ChangeEvent<HTMLInputElement>) => void;
+  onStartCheckout: () => void;
   appearanceStyles: AppearanceStylePreset[];
   onSaveAppearanceStyle: (style: AppearanceStylePreset) => string;
   onDeleteAppearanceStyle: (styleId: string) => void;
   selectedTemplateIdForEditing: string | null;
   onSelectTemplateForEditing: (templateId: string | null) => void;
   canUploadCustomAssets: boolean;
+  fileInputRef: RefObject<HTMLInputElement>;
+  isCheckoutStarting: boolean;
+  projectFileGateMessage?: string | null;
 }
 
 const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: string; label: string }> = [
@@ -138,6 +155,7 @@ const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: s
 const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
 
 export function CardTemplateMaker({
+  canUseProjectFiles,
   onSaveTemplate,
   templates,
   defaultTemplates,
@@ -145,12 +163,19 @@ export function CardTemplateMaker({
   userTemplates,
   onDeleteTemplate,
   onCloneTemplate,
+  onExportProject,
+  onImportProject,
+  onLoadProject,
+  onStartCheckout,
   appearanceStyles,
   onSaveAppearanceStyle,
   onDeleteAppearanceStyle,
   selectedTemplateIdForEditing,
   onSelectTemplateForEditing,
   canUploadCustomAssets,
+  fileInputRef,
+  isCheckoutStarting,
+  projectFileGateMessage,
 }: CardTemplateMakerProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -206,11 +231,10 @@ export function CardTemplateMaker({
       : CARD_FRAME_KITS;
   }, [currentTemplate.id]);
 
-  const applyFrameKit = useCallback((kitId: string) => {
-    const kit = CARD_FRAME_KITS.find((candidate) => candidate.id === kitId);
-    if (!kit) return;
-    updateTemplate(getFrameKitTemplateUpdates(kit));
-  }, [updateTemplate]);
+  const frameKitRecipesForCurrentTemplate = useMemo(
+    () => createFrameKitPresetRecipes(frameKitsForCurrentTemplate),
+    [frameKitsForCurrentTemplate]
+  );
 
   const selectElement = useCallback((id: string | null) => {
     selectElementInController(id);
@@ -250,7 +274,7 @@ export function CardTemplateMaker({
     assetSearch,
     compatibleDividerAssets,
     compatibleIconAssets,
-    compatiblePartAssets,
+    compatibleImageAssets,
     compatibleTextureAssets,
     handleAssetUpload,
     setAssetSearch,
@@ -287,12 +311,50 @@ export function CardTemplateMaker({
     const elementTarget = isDividerElement(selectedElement) ? 'divider' : selectedElement.type;
     const byId = new Map<string, AppearanceStylePreset>();
     appearanceStyles.forEach(style => {
-      if ((style.targets.includes('element') || style.targets.includes(elementTarget)) && !byId.has(style.id)) {
+      if (style.targets.includes(elementTarget) && !byId.has(style.id)) {
         byId.set(style.id, style);
       }
     });
     return Array.from(byId.values());
   }, [appearanceStyles, selectedElement]);
+  const registryElementPresetRecipes = useMemo(
+    () => createRecipesFromAppearanceStyles(appearanceStyles),
+    [appearanceStyles]
+  );
+  const selectedElementPresetRecipeGroups = useMemo(() => {
+    if (!selectedElement) {
+      return {
+        border: [] as ElementPresetRecipe[],
+        divider: [] as ElementPresetRecipe[],
+        icon: [] as ElementPresetRecipe[],
+        shapeRole: [] as ElementPresetRecipe[],
+        textFrame: [] as ElementPresetRecipe[],
+      };
+    }
+    const applicableRegistryRecipes = registryElementPresetRecipes.filter((preset) => isElementPresetApplicable(preset, selectedElement));
+    return {
+      border: mergeElementPresetRecipes(
+        BORDER_PRESET_RECIPES,
+        applicableRegistryRecipes.filter((preset) => preset.kind === 'borderTreatment'),
+      ),
+      divider: mergeElementPresetRecipes(
+        DIVIDER_PRESET_RECIPES,
+        applicableRegistryRecipes.filter((preset) => preset.kind === 'dividerRecipe'),
+      ),
+      icon: mergeElementPresetRecipes(
+        ICON_STYLE_PRESET_RECIPES,
+        applicableRegistryRecipes.filter((preset) => preset.kind === 'iconStyle'),
+      ),
+      shapeRole: mergeElementPresetRecipes(
+        SHAPE_ROLE_PRESET_RECIPES,
+        applicableRegistryRecipes.filter((preset) => preset.kind === 'shapeRole'),
+      ),
+      textFrame: mergeElementPresetRecipes(
+        TEXT_FRAME_PRESET_RECIPES,
+        applicableRegistryRecipes.filter((preset) => preset.kind === 'textFrame'),
+      ),
+    };
+  }, [registryElementPresetRecipes, selectedElement]);
   const templateFieldDefinitions = useMemo(() => extractTemplateFieldDefinitions(currentTemplate), [currentTemplate]);
   const textTemplateFields = useMemo(() => templateFieldDefinitions.filter(field => !field.isImage), [templateFieldDefinitions]);
   const selectedElementTemplateFields = useMemo(
@@ -496,6 +558,16 @@ export function CardTemplateMaker({
     const nextElement = { ...selectedElement, appearance: style.appearance };
     updateElement(selectedElement.id, { appearance: style.appearance, ...appearanceToElementRenderFields(nextElement) });
   }, [selectedElement, updateElement]);
+
+  const applyElementPresetRecipe = useCallback((recipe: ElementPresetRecipe) => {
+    if (recipe.templateUpdates) {
+      updateTemplate(recipe.templateUpdates);
+      return;
+    }
+    if (!selectedElement) return;
+
+    updateElement(selectedElement.id, buildElementPresetElementUpdates(recipe, selectedElement));
+  }, [selectedElement, updateElement, updateTemplate]);
 
   // ── Group / ungroup ───────────────────────────────────────────────────────
   const groupChecked = useCallback(() => {
@@ -877,7 +949,7 @@ export function CardTemplateMaker({
       body = <img src={imageUrl} alt={element.name} className="block h-full w-full max-h-full max-w-full" style={{ minWidth: 0, minHeight: 0, objectFit: element.imageObjectFit || 'cover', objectPosition: 'center', borderRadius: 'inherit' }} draggable={false} />;
     } else if (element.type === 'icon') {
       const iconImageUrl = element.iconImageSource ? replacePlaceholdersLocal(element.iconImageSource, livePreviewData, false) : '';
-      if (iconImageUrl && (iconImageUrl.startsWith('http') || iconImageUrl.startsWith('data:'))) {
+      if (iconImageUrl && (iconImageUrl.startsWith('http') || iconImageUrl.startsWith('data:') || iconImageUrl.startsWith('/'))) {
         body = <img src={iconImageUrl} alt={element.name} className="block h-full w-full max-h-full max-w-full" style={{ minWidth: 0, minHeight: 0, objectFit: 'contain', objectPosition: 'center', borderRadius: 'inherit' }} draggable={false} />;
       } else {
         const IconComponent = (LucideIcons as unknown as Record<string, React.ElementType>)[element.iconName || 'Sparkles'] || Sparkles;
@@ -1016,13 +1088,21 @@ export function CardTemplateMaker({
             <ScrollArea className="h-[calc(100vh-205px)] min-h-[760px]">
               <div className="space-y-3 p-2">
                 <TemplateLibraryPanel
+                  canUseProjectFiles={canUseProjectFiles}
                   currentTemplateId={currentTemplate.id}
                   defaultTemplates={defaultTemplates}
                   backFaceTemplates={backFaceTemplates}
+                  fileInputRef={fileInputRef}
+                  isCheckoutStarting={isCheckoutStarting}
+                  projectFileGateMessage={projectFileGateMessage}
                   userTemplates={userTemplates}
                   onCreateNew={handleNewTemplate}
                   onClone={handleClone}
                   onDelete={() => currentTemplate.id && onDeleteTemplate(currentTemplate.id)}
+                  onExportProject={onExportProject}
+                  onImportProject={onImportProject}
+                  onLoadProject={onLoadProject}
+                  onStartCheckout={onStartCheckout}
                   onSelectTemplateId={onSelectTemplateForEditing}
                   onOpenTemplate={openTemplate}
                   panelClassName={makerTheme.panel}
@@ -1032,7 +1112,6 @@ export function CardTemplateMaker({
 
                 <ElementLibraryPanel
                   sections={elementLibrarySections}
-                  partAssets={compatiblePartAssets}
                   onAddElement={(type, preset) => addElement(type, undefined, preset)}
                   panelClassName={makerTheme.panel}
                 />
@@ -1336,8 +1415,8 @@ export function CardTemplateMaker({
                             <Sparkles className="h-3.5 w-3.5 text-[#7a52cc]" />
                           </div>
                           <div className="grid grid-cols-2 gap-1.5">
-                            {frameKitsForCurrentTemplate.map((kit) => (
-                              <Tooltip key={kit.id}>
+                            {frameKitRecipesForCurrentTemplate.map((recipe) => (
+                              <Tooltip key={recipe.id}>
                                 <TooltipTrigger asChild>
                                   <Button
                                     type="button"
@@ -1346,19 +1425,22 @@ export function CardTemplateMaker({
                                     className={cn(
                                       makerTheme.button,
                                       'h-16 justify-start gap-2 overflow-hidden px-2 text-left text-[10px]',
-                                      currentTemplate.cardBackgroundImageUrl === kit.assetUrl && 'border-[#d5ad54] text-[#f5d27b]'
+                                      currentTemplate.cardBackgroundImageUrl === recipe.preview?.imageUrl && 'border-[#d5ad54] text-[#f5d27b]'
                                     )}
-                                    onClick={() => applyFrameKit(kit.id)}
+                                    onClick={() => applyElementPresetRecipe(recipe)}
                                   >
                                     <span
                                       className="h-12 w-9 shrink-0 rounded-[3px] border border-[#3a2e17] bg-cover bg-center"
-                                      style={{ backgroundImage: `url(${kit.assetUrl})` }}
+                                      style={{ backgroundImage: recipe.preview?.imageUrl ? `url(${recipe.preview.imageUrl})` : undefined, backgroundColor: recipe.preview?.background }}
                                       aria-hidden="true"
                                     />
-                                    <span className="min-w-0 truncate">{kit.name}</span>
+                                    <span className="min-w-0">
+                                      <span className="block truncate text-[#f1dfb4]">{recipe.label}</span>
+                                      <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{recipe.status} - {recipe.tier}</span>
+                                    </span>
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Apply {kit.name}</TooltipContent>
+                                <TooltipContent>{recipe.contributorName} - {recipe.description}</TooltipContent>
                               </Tooltip>
                             ))}
                           </div>
@@ -1383,6 +1465,141 @@ export function CardTemplateMaker({
                   }
                   elementContent={selectedElement ? (
                     <>
+                        {(canUseTypography || canUseImageSource) && (
+                          <InspectorFlowSection title="Source & Content">
+                            <ElementContentPanel
+                              element={selectedElement}
+                              currentTemplate={currentTemplate}
+                              selectedElementTemplateFields={selectedElementTemplateFields}
+                              activeVariableKey={activeVariableKey}
+                              richTextHighlightColor={richTextHighlightColor}
+                              variableKeyInputRefs={variableKeyInputRefs}
+                              variableCardRefs={variableCardRefs}
+                              onSetActiveVariableKey={setActiveVariableKey}
+                              onSetRichTextHighlightColor={setRichTextHighlightColorAction}
+                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                              onCreateEditorVariableFromSelection={createEditorVariableFromSelection}
+                              onFocusVariableCard={focusVariableCard}
+                              onRemoveSelectedElementVariableContract={removeSelectedElementVariableContract}
+                              onRenameSelectedElementVariable={renameSelectedElementVariable}
+                              onUpsertFieldContract={upsertFieldContract}
+                              onHandleFileUpload={handleFileUpload}
+                            />
+                            {canUseImageSource && (
+                              <ImageInspectorPanel
+                                element={selectedElement}
+                                canUseBackgroundTexture={canUseBackgroundTexture}
+                                imageAssets={compatibleImageAssets}
+                                assetSearch={assetSearch}
+                                onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                                onHandleFileUpload={handleFileUpload}
+                                onAssetSearchChange={setAssetSearch}
+                              />
+                            )}
+                          </InspectorFlowSection>
+                        )}
+
+                        {canUseIconLibrary && (
+                          <InspectorFlowSection title="Source & Symbol">
+                            <IconInspectorPanel
+                              element={selectedElement}
+                              iconOptions={ICON_OPTIONS}
+                              iconAssets={compatibleIconAssets}
+                              assetSearch={assetSearch}
+                              canUploadCustomAssets={canUploadCustomAssets}
+                              symbolStylePresets={selectedElementPresetRecipeGroups.icon}
+                              controlClassName={makerTheme.control}
+                              buttonClassName={makerTheme.button}
+                              onApplyPreset={applyElementPresetRecipe}
+                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                              onHandleFileUpload={handleFileUpload}
+                              onHandleAssetUpload={handleAssetUpload}
+                              onAssetSearchChange={setAssetSearch}
+                            />
+                          </InspectorFlowSection>
+                        )}
+
+                        {(canUseShapeControls || canUseDividerControls) && (
+                          <InspectorFlowSection title={canUseDividerControls ? 'Divider Builder' : 'Shape Builder'}>
+                            {canUseShapeControls && (
+                              <ShapeInspectorPanel
+                                element={selectedElement}
+                                primitiveOptions={SHAPE_PRIMITIVE_OPTIONS}
+                                blankPrimitives={BLANK_SHAPE_PRIMITIVES}
+                                rolePresets={selectedElementPresetRecipeGroups.shapeRole}
+                                onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                              />
+                            )}
+
+                            {canUseDividerControls && (
+                              <DividerStudioPanel
+                                element={selectedElement}
+                                selectedAppearance={selectedAppearance}
+                                dividerPresets={selectedElementPresetRecipeGroups.divider}
+                                onApplyPreset={applyElementPresetRecipe}
+                                onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                                onUpdateAppearance={(updater, trackHistory) => updateElementAppearance(selectedElement.id, updater, trackHistory)}
+                              />
+                            )}
+                          </InspectorFlowSection>
+                        )}
+
+                        {canUseTypography && (
+                          <InspectorFlowSection title="Text Style">
+                            <TypographyInspectorPanel
+                              element={selectedElement}
+                              currentTemplate={currentTemplate}
+                              availableFonts={AVAILABLE_FONTS}
+                              paddingOptions={PADDING_OPTIONS}
+                              framePresets={selectedElementPresetRecipeGroups.textFrame}
+                              controlClassName={makerTheme.control}
+                              onApplyPreset={applyElementPresetRecipe}
+                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                              onUpsertFieldContract={upsertFieldContract}
+                            />
+                          </InspectorFlowSection>
+                        )}
+
+                        {canUseAppearanceStudio && (
+                          <InspectorFlowSection title="Material & Effects">
+                            <AppearanceStudioPanel
+                              element={selectedElement}
+                              selectedAppearance={selectedAppearance}
+                              compatibleAppearanceStyles={compatibleAppearanceStyles}
+                              compatibleTextureAssets={compatibleTextureAssets}
+                              compatibleDividerAssets={compatibleDividerAssets}
+                              elementStylePresets={ELEMENT_STYLE_PRESETS}
+                              canUseImageSource={canUseImageSource}
+                              canUseDividerControls={canUseDividerControls}
+                              canUseBackgroundTexture={canUseBackgroundTexture}
+                              controlClassName={makerTheme.control}
+                              buttonClassName={makerTheme.button}
+                              assetSearch={assetSearch}
+                              canUploadCustomAssets={canUploadCustomAssets}
+                              onAssetSearchChange={setAssetSearch}
+                              onHandleAssetUpload={handleAssetUpload}
+                              onSaveStyle={saveSelectedAppearanceStyle}
+                              onApplyAppearancePreset={applyAppearancePreset}
+                              onUpdateElement={(updates) => updateElement(selectedElement.id, updates)}
+                              onUpdateAppearance={(updater, trackHistory) => updateElementAppearance(selectedElement.id, updater, trackHistory)}
+                            />
+                          </InspectorFlowSection>
+                        )}
+
+                        {canUseElementBorder && (
+                          <InspectorFlowSection title="Frame & Border">
+                            <BorderInspectorPanel
+                              element={selectedElement}
+                              borderPresets={selectedElementPresetRecipeGroups.border}
+                              borderWidthOptions={BORDER_WIDTH_OPTIONS}
+                              borderRadiusOptions={BORDER_RADIUS_OPTIONS}
+                              onApplyPreset={applyElementPresetRecipe}
+                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                            />
+                          </InspectorFlowSection>
+                        )}
+
+                        <InspectorFlowSection title="Layout & Layer">
                           <ElementTransformPanel
                             element={selectedElement}
                             controlClassName={makerTheme.control}
@@ -1391,126 +1608,12 @@ export function CardTemplateMaker({
                             onDelete={deleteSelected}
                             onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
                           />
-
-                          {canUseAppearanceStudio && (
-                          <AppearanceStudioPanel
-                            element={selectedElement}
-                            selectedAppearance={selectedAppearance}
-                            compatibleAppearanceStyles={compatibleAppearanceStyles}
-                            compatibleTextureAssets={compatibleTextureAssets}
-                            compatibleDividerAssets={compatibleDividerAssets}
-                            elementStylePresets={ELEMENT_STYLE_PRESETS}
-                            canUseImageSource={canUseImageSource}
-                            canUseDividerControls={canUseDividerControls}
-                            canUseBackgroundTexture={canUseBackgroundTexture}
-                            controlClassName={makerTheme.control}
-                            buttonClassName={makerTheme.button}
-                            assetSearch={assetSearch}
-                            canUploadCustomAssets={canUploadCustomAssets}
-                            onAssetSearchChange={setAssetSearch}
-                            onHandleAssetUpload={handleAssetUpload}
-                            onSaveStyle={saveSelectedAppearanceStyle}
-                            onApplyAppearancePreset={applyAppearancePreset}
-                            onUpdateElement={(updates) => updateElement(selectedElement.id, updates)}
-                            onUpdateAppearance={(updater, trackHistory) => updateElementAppearance(selectedElement.id, updater, trackHistory)}
-                          />
-                          )}
                           <ElementAlignmentPanel
                             buttonClassName={makerTheme.button}
                             onAlign={alignSelected}
                             onArrange={arrangeSelected}
                           />
-                          {(canUseTypography || canUseImageSource) && (
-                            <div>
-                              <ElementContentPanel
-                                element={selectedElement}
-                                currentTemplate={currentTemplate}
-                                selectedElementTemplateFields={selectedElementTemplateFields}
-                                activeVariableKey={activeVariableKey}
-                                richTextHighlightColor={richTextHighlightColor}
-                                variableKeyInputRefs={variableKeyInputRefs}
-                                variableCardRefs={variableCardRefs}
-                                onSetActiveVariableKey={setActiveVariableKey}
-                                onSetRichTextHighlightColor={setRichTextHighlightColorAction}
-                                onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                                onCreateEditorVariableFromSelection={createEditorVariableFromSelection}
-                                onFocusVariableCard={focusVariableCard}
-                                onRemoveSelectedElementVariableContract={removeSelectedElementVariableContract}
-                                onRenameSelectedElementVariable={renameSelectedElementVariable}
-                                onUpsertFieldContract={upsertFieldContract}
-                                onHandleFileUpload={handleFileUpload}
-                              />
-                            </div>
-                          )}
-
-                          {canUseIconLibrary && (
-                            <IconInspectorPanel
-                              element={selectedElement}
-                              iconOptions={ICON_OPTIONS}
-                              iconAssets={compatibleIconAssets}
-                              assetSearch={assetSearch}
-                              canUploadCustomAssets={canUploadCustomAssets}
-                              symbolStylePresets={SYMBOL_STYLE_PRESETS}
-                              controlClassName={makerTheme.control}
-                              buttonClassName={makerTheme.button}
-                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                              onHandleFileUpload={handleFileUpload}
-                              onHandleAssetUpload={handleAssetUpload}
-                              onAssetSearchChange={setAssetSearch}
-                            />
-                          )}
-
-                          {canUseShapeControls && (
-                            <ShapeInspectorPanel
-                              element={selectedElement}
-                              primitiveOptions={SHAPE_PRIMITIVE_OPTIONS}
-                              rolePresets={SHAPE_ROLE_PRESETS}
-                              shapePresets={SHAPE_PRESETS}
-                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                            />
-                          )}
-
-                          {canUseDividerControls && (
-                            <DividerStudioPanel
-                              element={selectedElement}
-                              selectedAppearance={selectedAppearance}
-                              dividerPresets={DIVIDER_PRESETS}
-                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                              onUpdateAppearance={(updater, trackHistory) => updateElementAppearance(selectedElement.id, updater, trackHistory)}
-                            />
-                          )}
-
-                          {canUseTypography && (
-                            <TypographyInspectorPanel
-                              element={selectedElement}
-                              currentTemplate={currentTemplate}
-                              availableFonts={AVAILABLE_FONTS}
-                              paddingOptions={PADDING_OPTIONS}
-                              framePresets={TEXT_FRAME_PRESETS}
-                              controlClassName={makerTheme.control}
-                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                              onUpsertFieldContract={upsertFieldContract}
-                            />
-                          )}
-
-                          {canUseImageSource && (
-                            <ImageInspectorPanel
-                              element={selectedElement}
-                              canUseBackgroundTexture={canUseBackgroundTexture}
-                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                              onHandleFileUpload={handleFileUpload}
-                            />
-                          )}
-
-                          {canUseElementBorder && (
-                            <BorderInspectorPanel
-                              element={selectedElement}
-                              borderPresets={BORDER_PRESETS}
-                              borderWidthOptions={BORDER_WIDTH_OPTIONS}
-                              borderRadiusOptions={BORDER_RADIUS_OPTIONS}
-                              onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
-                            />
-                          )}
+                        </InspectorFlowSection>
                     </>
                   ) : null}
                 />

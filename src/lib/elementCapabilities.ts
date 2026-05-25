@@ -40,7 +40,7 @@ export const getElementCapabilities = (element?: Partial<FreeformCardElement> | 
 
   switch (element.type) {
     case 'text':
-      return ['content', 'layout', 'appearance', 'border', 'effects', 'typography', 'data'];
+      return ['content', 'layout', 'appearance', 'texture', 'border', 'effects', 'typography', 'data'];
     case 'image':
       return ['content', 'layout', 'appearance', 'border', 'effects', 'image', 'data'];
     case 'icon':

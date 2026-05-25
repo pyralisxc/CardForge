@@ -124,7 +124,7 @@ Templates have **two storage layers** that work together:
 - This is the expected home for saved customer/user work.
 - Release expectation: this folder should contain `.gitkeep` only unless a JSON file is intentionally promoted to shipped sample or fixture content. Any committed user-template JSON needs a named release decision.
 
-Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a derived combined list for Maker, Generator, previews, and exports. Persisted localStorage stores user-owned template work plus cards, styles, PDF options, and UI state. Browser-local custom asset buckets cover textures, dividers, icons, and images; the account overview and project export/import path should keep all four buckets visible and portable.
+Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a derived combined list for Maker, Generator, previews, and exports. Persisted localStorage stores user-owned template work plus cards, styles, PDF options, and UI state. Browser-local custom asset buckets cover textures, dividers, icons, and images; the account overview and Layout Studio project import/export path should keep all four buckets visible and portable. Project import/export belongs with template management, not the generator/export panel, and is a paid/dev portability feature.
 
 #### Load flow on app start
 1. Zustand rehydrates from localStorage (user's saved templates + cards)
@@ -302,7 +302,7 @@ Keep the launch back-face inventory to the single Obsidian Neon card back unless
 
 ### Account and Billing Boundary
 
-CardForge accounts are entitlement-only for the current release. Project files, imported data, generated sets, uploaded assets, and user-authored templates stay local to the browser or downloaded project files unless a future cloud workspace is explicitly added.
+CardForge accounts are entitlement-only for the current release. Project files, imported data, generated sets, uploaded assets, and user-authored templates stay local to the browser or downloaded project files unless a future cloud workspace is explicitly added. Free users can design locally and generate previews; paid/dev access unlocks project-file portability plus clean rendered export.
 
 Trusted export entitlement sources are:
 
@@ -359,9 +359,11 @@ The current makerspace map is intentionally mixed while the pipeline is being co
 | Frame presets, border presets, symbol presets, shape presets, role presets, divider quick presets | No, currently repo constants | Migrate into registry-backed `elementPreset` records with applicability metadata. |
 | Shape Studio primitives | No, local editor behavior | Keep primitive creation local, but role/style recipes should be pipeline assets. |
 
+Shape Studio is the first consolidation lane: blank primitive shapes remain local editor tools, while shape role recipes now use typed `ElementPresetRecipe` seeds with contributor, status, tier, and applicability metadata. Text frames, borders, icon styles, divider recipes, and frame kits now use the same typed recipe model, and registry-backed `/api/styles` entries are hydrated into that model for maker display.
+
 The next makerspace model should stop using broad `element` targets for every preset. Pipeline assets and presets should declare applicability by `elementType`, semantic `role`, styled `surface`, and `assetKind/styleKind`; for example, divider recipes apply to `dividerRail`, icon controls apply to `iconGlyph`, texture assets apply to `textPanel`, `shapeFill`, or `templateCanvas`, and frame kits apply to `templateCanvas`.
 
-The quality bar for presets is not "can be clicked." Every preset or asset exposed in Layout Studio should either create a visible element-specific improvement, declare exactly which element roles it applies to, or be removed from the primary workflow until it is represented as a developer-pipeline element preset with reviewable metadata.
+The quality bar for presets is not "can be clicked." Every preset or asset exposed in Layout Studio should either create a visible element-specific improvement, declare exactly which element roles it applies to, or be removed from the primary workflow until it is represented as a developer-pipeline element preset with reviewable metadata. See `docs/preset-quality-audit.md` for the current grade, preset-family findings, and the recommended migration slice.
 
 Owner asset management should be predictable before it is fully automated. Developer Program storage forecasting estimates the maximum managed footprint from published slot caps, a full month of voting submissions, and visible archive capacity. The forecast is planning math, not billing truth: actual uploaded binaries belong in object storage, while database rows keep metadata and source pointers. Archive automation should move extra or failed assets out of active library visibility first; permanent deletion should remain an owner-controlled cleanup action until retention rules and developer/user-facing terms are final.
 

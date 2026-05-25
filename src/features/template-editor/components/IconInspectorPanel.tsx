@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorField } from '@/components/card-forge/makerConstants';
 import type { CardAssetOption } from '@/lib/cardAssets';
+import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
 import type { FreeformCardElement } from '@/types';
 
 interface IconInspectorPanelProps {
@@ -19,9 +20,10 @@ interface IconInspectorPanelProps {
   iconAssets: CardAssetOption[];
   assetSearch: string;
   canUploadCustomAssets: boolean;
-  symbolStylePresets: Array<{ label: string; updates: Partial<FreeformCardElement> }>;
+  symbolStylePresets: ElementPresetRecipe[];
   controlClassName: string;
   buttonClassName: string;
+  onApplyPreset: (preset: ElementPresetRecipe) => void;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
   onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'icon') => void;
@@ -37,6 +39,7 @@ export function IconInspectorPanel({
   symbolStylePresets,
   controlClassName,
   buttonClassName,
+  onApplyPreset,
   onUpdateElement,
   onHandleFileUpload,
   onHandleAssetUpload,
@@ -116,18 +119,27 @@ export function IconInspectorPanel({
           </div>
         ) : null}
 
-        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Symbol Presets</Label>
+        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pipeline Icon Recipes</Label>
         <div className="grid grid-cols-3 gap-1">
           {symbolStylePresets.map((preset) => (
             <Button
-              key={preset.label}
+              key={preset.id}
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 rounded-[4px] border-[#2d3340] bg-[#111720] px-1.5 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-              onClick={() => onUpdateElement(preset.updates)}
+              title={`${preset.contributorName} - ${preset.status} - ${preset.tier}`}
+              className="h-auto min-h-10 flex-col items-start rounded-[4px] border-[#2d3340] bg-[#111720] px-1.5 py-1 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+              onClick={() => onApplyPreset(preset)}
             >
-              {preset.label}
+              <span className="flex w-full items-center gap-1.5">
+                <span
+                  className="h-3.5 w-3.5 shrink-0 rounded-full border"
+                  style={{ background: preset.preview?.background || preset.updates?.backgroundColor || '#111720', borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#2d3340' }}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 truncate text-[#f1dfb4]">{preset.label}</span>
+              </span>
+              <span className="mt-0.5 block w-full truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{preset.status} - {preset.tier}</span>
             </Button>
           ))}
         </div>

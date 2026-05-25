@@ -1,0 +1,13 @@
+{
+  "id": "arcane-forge-corner-flame",
+  "name": "Corner Flame",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["imageFrame", "shape", "template"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100,
+  "partRole": "corner",
+  "defaultWidth": 96,
+  "defaultHeight": 96
+}

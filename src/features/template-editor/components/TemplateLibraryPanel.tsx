@@ -1,6 +1,7 @@
 "use client";
 
-import { Copy, Layers, Plus, Trash2 } from 'lucide-react';
+import type { ChangeEvent, RefObject } from 'react';
+import { Copy, FolderDown, FolderUp, Layers, Lock, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,13 +11,21 @@ import { cn } from '@/lib/utils';
 import type { TCGCardTemplate } from '@/types';
 
 interface TemplateLibraryPanelProps {
+  canUseProjectFiles: boolean;
   currentTemplateId: string | null;
   defaultTemplates: TCGCardTemplate[];
   backFaceTemplates: TCGCardTemplate[];
+  fileInputRef: RefObject<HTMLInputElement>;
+  isCheckoutStarting: boolean;
+  projectFileGateMessage?: string | null;
   userTemplates: TCGCardTemplate[];
   onCreateNew: () => void;
   onClone: () => void;
   onDelete: () => void;
+  onExportProject: () => void;
+  onImportProject: () => void;
+  onLoadProject: (event: ChangeEvent<HTMLInputElement>) => void;
+  onStartCheckout: () => void;
   onSelectTemplateId: (value: string) => void;
   onOpenTemplate: (template: TCGCardTemplate) => void;
   panelClassName: string;
@@ -25,13 +34,21 @@ interface TemplateLibraryPanelProps {
 }
 
 export function TemplateLibraryPanel({
+  canUseProjectFiles,
   currentTemplateId,
   defaultTemplates,
   backFaceTemplates,
+  fileInputRef,
+  isCheckoutStarting,
+  projectFileGateMessage,
   userTemplates,
   onCreateNew,
   onClone,
   onDelete,
+  onExportProject,
+  onImportProject,
+  onLoadProject,
+  onStartCheckout,
   onSelectTemplateId,
   onOpenTemplate,
   panelClassName,
@@ -68,6 +85,41 @@ export function TemplateLibraryPanel({
           <Button type="button" variant="outline" size="sm" onClick={onCreateNew} aria-label="Create new template" className={buttonClassName}><Plus className="h-4 w-4" /></Button>
           <Button type="button" variant="outline" size="sm" onClick={onClone} disabled={!currentTemplateId} aria-label="Clone selected template" className={buttonClassName}><Copy className="h-4 w-4" /></Button>
           <Button type="button" variant="outline" size="sm" onClick={onDelete} disabled={!currentTemplateId} aria-label="Delete selected template" className={buttonClassName}><Trash2 className="h-4 w-4 text-[#ff554a]" /></Button>
+        </div>
+        <div className="space-y-2 border-t border-[#1b2029] pt-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onExportProject} className={cn(buttonClassName, 'gap-1 text-xs')}>
+              <FolderDown className="h-4 w-4" /> Export
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={onImportProject} className={cn(buttonClassName, 'gap-1 text-xs')}>
+              <FolderUp className="h-4 w-4" /> Import
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={onLoadProject}
+              aria-hidden="true"
+              className="hidden"
+            />
+          </div>
+          {!canUseProjectFiles ? (
+            <div className="space-y-2 rounded-[6px] border border-[#6d4f2b] bg-[#15100a] p-2">
+              <p className="flex items-start gap-2 text-[11px] leading-4 text-[#cbb58b]">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e2aa4a]" />
+                <span>{projectFileGateMessage || 'Project import and export require an active paid or dev account.'}</span>
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onStartCheckout}
+                disabled={isCheckoutStarting}
+                className="h-8 w-full text-xs"
+              >
+                {isCheckoutStarting ? 'Checking access...' : 'Upgrade account'}
+              </Button>
+            </div>
+          ) : null}
         </div>
         <div className="space-y-1.5 pt-1">
           {defaultTemplates.map((template) => (

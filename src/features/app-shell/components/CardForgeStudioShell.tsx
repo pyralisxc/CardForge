@@ -70,7 +70,7 @@ const firstRunSteps = [
   'Pick or clone a template',
   'Edit the layout and variables',
   'Generate one card or import rows',
-  'Export previews or save a project file',
+  'Upgrade for clean exports and project files',
 ] as const;
 
 export function CardForgeStudioShell() {
@@ -198,11 +198,14 @@ export function CardForgeStudioShell() {
   });
 
   const {
+    handleChooseImportProject,
     handleExportProject,
     handleImportProject,
   } = useProjectFileActions({
     appearanceStyles,
+    canUseProjectFiles: projectCapabilities.canExportClean,
     exportDpi,
+    projectFileGateMessage: exportGateMessage,
     exportMode,
     fileInputRef,
     pdfCardSpacingMm,
@@ -214,6 +217,7 @@ export function CardForgeStudioShell() {
     setExportDpi: setExportDpiAction,
     setExportMode: setExportModeAction,
     setPdfOptions: setPdfOptionsAction,
+    setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
     setSelectedPaperSize: setSelectedPaperSizeAction,
     setStoredCardsFromFile: setStoredCardsFromFileAction,
     setUserTemplatesFromFiles: setUserTemplatesFromFilesAction,
@@ -348,16 +352,24 @@ export function CardForgeStudioShell() {
 
           <TabsContent value="template-maker">
             <CardTemplateMaker
+              canUseProjectFiles={projectCapabilities.canExportClean}
               onSaveTemplate={handleSaveTemplate}
               templates={templatesFromStore}
               defaultTemplates={standardDefaultTemplates}
               backFaceTemplates={backFacePresetTemplates}
               userTemplates={userTemplatesFromStore}
+              fileInputRef={fileInputRef}
+              isCheckoutStarting={isCheckoutStarting}
               appearanceStyles={appearanceStyles}
               onSaveAppearanceStyle={handleSaveAppearanceStyle}
               onDeleteAppearanceStyle={handleDeleteAppearanceStyle}
               onDeleteTemplate={handleDeleteTemplate}
               onCloneTemplate={handleCloneTemplate}
+              onExportProject={handleExportProject}
+              onImportProject={handleChooseImportProject}
+              onLoadProject={handleImportProject}
+              onStartCheckout={handleStartCheckout}
+              projectFileGateMessage={exportGateMessage}
               selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}
               onSelectTemplateForEditing={setSingleCardGeneratorSelectedTemplateIdAction}
               canUploadCustomAssets={canUploadCustomAssets}
@@ -377,7 +389,6 @@ export function CardForgeStudioShell() {
               exportMode={exportMode}
               exportDpi={exportDpi}
               generatedDisplayCards={generatedDisplayCards}
-              fileInputRef={fileInputRef}
               zipProgress={zipProgress}
               gallerySearch={gallerySearch}
               gallerySort={gallerySort}
@@ -400,8 +411,6 @@ export function CardForgeStudioShell() {
               onSetPdfOptions={setPdfOptionsAction}
               onSetExportMode={setExportModeAction}
               onSetExportDpi={setExportDpiAction}
-              onSaveCardSet={handleExportProject}
-              onLoadCardSet={handleImportProject}
               onStartCheckout={handleStartCheckout}
               onExportAllAsZip={handleExportAllAsZip}
               onExportTabletopSimulatorSpritesheets={handleExportTabletopSimulatorSpritesheets}

@@ -65,14 +65,14 @@ export function AppearanceStudioPanel({
   return (
     <div className="space-y-3 rounded-[6px] border border-[#3a2e17] bg-[#100d08] p-2">
       <div className="flex items-center justify-between">
-        <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Appearance Studio</Label>
+        <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Material & Effects</Label>
         <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={onSaveStyle}>
           <Save className="mr-1 h-3.5 w-3.5" /> Save Style
         </Button>
       </div>
       {!canUseImageSource && !canUseDividerControls && (element.type === 'text' || element.type === 'shape') && (
         <div>
-          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Quick Styles</Label>
+          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Quick Materials</Label>
           <div className="grid grid-cols-2 gap-1">
             {elementStylePresets.map((preset) => (
               <Button
@@ -89,6 +89,9 @@ export function AppearanceStudioPanel({
             ))}
           </div>
         </div>
+      )}
+      {compatibleAppearanceStyles.length > 0 && (
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Saved Material Styles</Label>
       )}
       <div className="grid grid-cols-2 gap-1.5">
         {compatibleAppearanceStyles.map((style) => (

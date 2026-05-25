@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ColorField, clamp } from '@/components/card-forge/makerConstants';
+import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
 import { parseTextBinding } from '@/lib/textBindings';
 import { shouldAutoFitTextElement } from '@/lib/textElementContracts';
 import { textFontSizePx } from '@/lib/textTools';
@@ -19,8 +20,9 @@ interface TypographyInspectorPanelProps {
   currentTemplate: TCGCardTemplate;
   availableFonts: Array<{ value: string; name: string }>;
   paddingOptions: Array<{ value: string; label: string }>;
-  framePresets: Array<{ label: string; updates: Partial<FreeformCardElement> }>;
+  framePresets: ElementPresetRecipe[];
   controlClassName: string;
+  onApplyPreset: (preset: ElementPresetRecipe) => void;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
   onUpsertFieldContract: (key: string, updates: Partial<FieldContract>) => void;
 }
@@ -32,6 +34,7 @@ export function TypographyInspectorPanel({
   paddingOptions,
   framePresets,
   controlClassName,
+  onApplyPreset,
   onUpdateElement,
   onUpsertFieldContract,
 }: TypographyInspectorPanelProps) {
@@ -39,19 +42,26 @@ export function TypographyInspectorPanel({
     <>
       <div className="space-y-2">
         <div>
-          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Frame Presets</Label>
+          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pipeline Text Frame Recipes</Label>
           <div className="grid grid-cols-2 gap-1">
             {framePresets.map((preset) => (
               <Button
-                key={preset.label}
+                key={preset.id}
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-                onClick={() => onUpdateElement(preset.updates)}
+                title={`${preset.contributorName} - ${preset.status} - ${preset.tier}`}
+                className="h-auto min-h-9 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+                onClick={() => onApplyPreset(preset)}
               >
-                <span className="h-3 w-3 shrink-0 rounded-[2px]" style={{ background: preset.updates.backgroundColor || '#222' }} />
-                {preset.label}
+                <span
+                  className="h-5 w-4 shrink-0 rounded-[3px] border border-[#3a2e17]"
+                  style={{ background: preset.preview?.background || preset.updates?.backgroundColor || '#222', borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#3a2e17' }}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-[#f1dfb4]">{preset.label}</span>
+                  <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{preset.status} - {preset.tier}</span>
+                </span>
               </Button>
             ))}
           </div>
