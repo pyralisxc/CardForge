@@ -4,7 +4,9 @@ import {
   MAX_ACTIVE_USER_ROADMAP_ITEMS,
   MAX_ROADMAP_SUGGESTION_LENGTH,
   DEFAULT_ROADMAP_VOTING_RULES,
+  buildRoadmapTimelineCheckpoints,
   calculateMrrUnlockTargetCents,
+  calculateMonthlyUnlockTargetCents,
   groupRoadmapTimelineItems,
   isChronicleTimelineItem,
   getCurrentTimelineWindow,
@@ -67,9 +69,28 @@ describe('roadmap rules', () => {
     })).toBe(false);
   });
 
-  it('calculates public MRR unlock targets as 10x annual upgrade cost', () => {
-    expect(calculateMrrUnlockTargetCents(2500)).toBe(25000);
-    expect(calculateMrrUnlockTargetCents(10000)).toBe(100000);
+  it('calculates monthly unlock targets as 12x monthly cost', () => {
+    expect(calculateMonthlyUnlockTargetCents(2500)).toBe(30000);
+    expect(calculateMonthlyUnlockTargetCents(10000)).toBe(120000);
+    expect(calculateMrrUnlockTargetCents(2500)).toBe(30000);
+  });
+
+  it('tracks running monthly roadmap cost and monthly unlock targets', () => {
+    const checkpoints = buildRoadmapTimelineCheckpoints([
+      { id: 'foundation', monthlyCostCents: 2500 },
+      { id: 'shipped-note', monthlyCostCents: null },
+      { id: 'cloud-save', monthlyCostCents: 7500 },
+    ]);
+
+    expect(checkpoints.map((checkpoint) => ({
+      id: checkpoint.item.id,
+      cumulativeMonthlyCostCents: checkpoint.cumulativeMonthlyCostCents,
+      monthlyUnlockTargetCents: checkpoint.monthlyUnlockTargetCents,
+    }))).toEqual([
+      { id: 'foundation', cumulativeMonthlyCostCents: 2500, monthlyUnlockTargetCents: 30000 },
+      { id: 'shipped-note', cumulativeMonthlyCostCents: 2500, monthlyUnlockTargetCents: 30000 },
+      { id: 'cloud-save', cumulativeMonthlyCostCents: 10000, monthlyUnlockTargetCents: 120000 },
+    ]);
   });
 
   it('sorts feature board items by public voting modes', () => {

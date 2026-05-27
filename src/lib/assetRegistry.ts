@@ -1,30 +1,11 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-
-import { cardAssetMetadataOverrideSchema, formatZodIssues } from '@/lib/apiValidation';
+import { cardAssetMetadataOverrideSchema } from '@/lib/apiValidation';
 import {
   buildDiscoveredCardAsset,
-  type CardAssetMetadataOverride,
   type CardAssetOption,
 } from '@/lib/cardAssets';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 
-const PUBLIC_CARD_ASSET_DIR = path.join(process.cwd(), 'public', 'card-assets');
-const TEXTURE_ASSET_DIR = path.join(PUBLIC_CARD_ASSET_DIR, 'textures');
-const DIVIDER_ASSET_DIR = path.join(PUBLIC_CARD_ASSET_DIR, 'dividers');
-const PART_ASSET_DIR = path.join(PUBLIC_CARD_ASSET_DIR, 'parts');
-const ICON_ASSET_DIR = path.join(PUBLIC_CARD_ASSET_DIR, 'icons');
-const IMAGE_ASSET_DIR = path.join(PUBLIC_CARD_ASSET_DIR, 'images');
-const ASSET_METADATA_DIR = path.join(process.cwd(), 'data', 'assets');
-const TEXTURE_METADATA_DIR = path.join(ASSET_METADATA_DIR, 'textures');
-const DIVIDER_METADATA_DIR = path.join(ASSET_METADATA_DIR, 'dividers');
-const PART_METADATA_DIR = path.join(ASSET_METADATA_DIR, 'parts');
-const ICON_METADATA_DIR = path.join(ASSET_METADATA_DIR, 'icons');
-const IMAGE_METADATA_DIR = path.join(ASSET_METADATA_DIR, 'images');
-const ALLOWED_ASSET_EXTENSIONS = new Set(['.svg', '.png', '.jpg', '.jpeg', '.webp']);
-
 type RegistryAssetKind = CardAssetOption['kind'];
-type FileBackedRegistryAssetKind = Extract<RegistryAssetKind, 'texture' | 'divider' | 'part' | 'icon' | 'image'>;
 
 export type AssetRegistryRow = {
   asset_id: string;
@@ -48,7 +29,7 @@ export interface AssetRegistryPayload {
   elementPresets: CardAssetOption[];
   registry: {
     configured: boolean;
-    source: 'database' | 'shipped-files';
+    source: 'database';
     total: number;
   };
 }
@@ -62,113 +43,19 @@ const isRegistryAssetKind = (value: unknown): value is RegistryAssetKind =>
   || value === 'template'
   || value === 'elementPreset';
 
-const registryAssetFolderByKind: Record<FileBackedRegistryAssetKind, string> = {
-  texture: 'textures',
-  divider: 'dividers',
-  part: 'parts',
-  icon: 'icons',
-  image: 'images',
-};
-
-const walkAssetFiles = async (directory: string, baseDirectory: string): Promise<string[]> => {
-  try {
-    const entries = await fs.readdir(directory, { withFileTypes: true });
-    const results: string[] = [];
-
-    for (const entry of entries) {
-      const fullPath = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        results.push(...await walkAssetFiles(fullPath, baseDirectory));
-        continue;
-      }
-      if (!entry.isFile()) continue;
-      const extension = path.extname(entry.name).toLowerCase();
-      if (!ALLOWED_ASSET_EXTENSIONS.has(extension)) continue;
-      results.push(path.relative(baseDirectory, fullPath));
-    }
-
-    return results;
-  } catch (error) {
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code === 'ENOENT') return [];
-    throw error;
-  }
-};
-
-const readMetadataOverride = async (
-  metadataBaseDirectory: string,
-  relativeAssetPath: string,
-): Promise<CardAssetMetadataOverride | undefined> => {
-  const metadataPath = path.join(
-    metadataBaseDirectory,
-    relativeAssetPath.replace(/\.[^.]+$/, '.json'),
-  );
-
-  try {
-    const contents = await fs.readFile(metadataPath, 'utf8');
-    const parsedJson = JSON.parse(contents) as unknown;
-    const parsed = cardAssetMetadataOverrideSchema.safeParse(parsedJson);
-    if (parsed.success) return parsed.data;
-    console.warn(
-      `Skipping invalid asset metadata ${metadataPath}: ${formatZodIssues(parsed.error.issues).join('; ')}`
-    );
-    return undefined;
-  } catch (error) {
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code === 'ENOENT') return undefined;
-    console.warn(`Skipping invalid asset metadata ${metadataPath}:`, error);
-    return undefined;
-  }
-};
-
-const discoverFileBackedAssets = async (
-  assetDirectory: string,
-  metadataDirectory: string,
-  kind: FileBackedRegistryAssetKind,
-): Promise<CardAssetOption[]> => {
-  const relativePaths = await walkAssetFiles(assetDirectory, assetDirectory);
-  const assets = await Promise.all(relativePaths.map(async (relativePath) => {
-    const normalizedRelativePath = relativePath.replace(/\\/g, '/');
-    const metadata = await readMetadataOverride(metadataDirectory, normalizedRelativePath);
-    const stats = await fs.stat(path.join(assetDirectory, relativePath)).catch(() => null);
-    return {
-      ...buildDiscoveredCardAsset({
-        url: `/card-assets/${registryAssetFolderByKind[kind]}/${normalizedRelativePath}`,
-        kind,
-        relativePath: normalizedRelativePath,
-        metadata,
-      }),
-      librarySource: 'official' as const,
-      accessTier: 'official' as const,
-      registryStatus: 'published' as const,
-      fileSizeBytes: stats?.size,
-    };
-  }));
-
-  return assets.sort((a, b) => a.name.localeCompare(b.name));
-};
-
-const getFileBackedAssetRegistry = async (): Promise<AssetRegistryPayload> => {
-  const [textures, dividers, parts, icons, imageAssets] = await Promise.all([
-    discoverFileBackedAssets(TEXTURE_ASSET_DIR, TEXTURE_METADATA_DIR, 'texture'),
-    discoverFileBackedAssets(DIVIDER_ASSET_DIR, DIVIDER_METADATA_DIR, 'divider'),
-    discoverFileBackedAssets(PART_ASSET_DIR, PART_METADATA_DIR, 'part'),
-    discoverFileBackedAssets(ICON_ASSET_DIR, ICON_METADATA_DIR, 'icon'),
-    discoverFileBackedAssets(IMAGE_ASSET_DIR, IMAGE_METADATA_DIR, 'image'),
-  ]);
-
+const emptyAssetRegistryPayload = (configured: boolean): AssetRegistryPayload => {
   return {
-    textures,
-    dividers,
-    parts,
-    icons,
-    imageAssets,
+    textures: [],
+    dividers: [],
+    parts: [],
+    icons: [],
+    imageAssets: [],
     templates: [],
     elementPresets: [],
     registry: {
-      configured: false,
-      source: 'shipped-files',
-      total: textures.length + dividers.length + parts.length + icons.length + imageAssets.length,
+      configured,
+      source: 'database',
+      total: 0,
     },
   };
 };
@@ -229,8 +116,6 @@ export const mapAssetRegistryRowsToPayload = (
     .map((row) => mapRegistryRowToAsset(row))
     .filter((asset): asset is CardAssetOption => Boolean(asset));
 
-  if (assets.length === 0) return null;
-
   return {
     textures: assets.filter((asset) => asset.kind === 'texture'),
     dividers: assets.filter((asset) => asset.kind === 'divider'),
@@ -243,44 +128,6 @@ export const mapAssetRegistryRowsToPayload = (
       configured,
       source: 'database',
       total: assets.length,
-    },
-  };
-};
-
-const mergeAssetLists = (
-  shippedAssets: CardAssetOption[],
-  registryAssets: CardAssetOption[],
-): CardAssetOption[] => {
-  const assetsByKey = new Map<string, CardAssetOption>();
-  shippedAssets.forEach((asset) => assetsByKey.set(`${asset.kind}:${asset.id}`, asset));
-  registryAssets.forEach((asset) => assetsByKey.set(`${asset.kind}:${asset.id}`, asset));
-  return Array.from(assetsByKey.values()).sort((a, b) => a.name.localeCompare(b.name));
-};
-
-const mergeAssetRegistryPayloads = (
-  shippedRegistry: AssetRegistryPayload,
-  databaseRegistry: AssetRegistryPayload,
-): AssetRegistryPayload => {
-  const textures = mergeAssetLists(shippedRegistry.textures, databaseRegistry.textures);
-  const dividers = mergeAssetLists(shippedRegistry.dividers, databaseRegistry.dividers);
-  const parts = mergeAssetLists(shippedRegistry.parts, databaseRegistry.parts);
-  const icons = mergeAssetLists(shippedRegistry.icons, databaseRegistry.icons);
-  const imageAssets = mergeAssetLists(shippedRegistry.imageAssets, databaseRegistry.imageAssets);
-  const templates = mergeAssetLists(shippedRegistry.templates, databaseRegistry.templates);
-  const elementPresets = mergeAssetLists(shippedRegistry.elementPresets, databaseRegistry.elementPresets);
-
-  return {
-    textures,
-    dividers,
-    parts,
-    icons,
-    imageAssets,
-    templates,
-    elementPresets,
-    registry: {
-      configured: true,
-      source: 'database',
-      total: textures.length + dividers.length + parts.length + icons.length + imageAssets.length + templates.length + elementPresets.length,
     },
   };
 };
@@ -308,9 +155,7 @@ const getDatabaseAssetRegistry = async (): Promise<AssetRegistryPayload | null> 
 };
 
 export const getAssetRegistryPayload = async (): Promise<AssetRegistryPayload> => {
-  const [databaseRegistry, shippedRegistry] = await Promise.all([
-    getDatabaseAssetRegistry(),
-    getFileBackedAssetRegistry(),
-  ]);
-  return databaseRegistry ? mergeAssetRegistryPayloads(shippedRegistry, databaseRegistry) : shippedRegistry;
+  const configured = getSupabaseServerConfigStatus().configured;
+  const databaseRegistry = await getDatabaseAssetRegistry();
+  return databaseRegistry ?? emptyAssetRegistryPayload(configured);
 };

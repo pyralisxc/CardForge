@@ -61,7 +61,27 @@ export interface OwnerDatabaseMetrics {
   founderBetaClaimCount: number;
 }
 
-export type LegalDocumentSlug = 'privacy' | 'terms' | 'refund' | 'contact';
+export type SiteContentBlockSlug =
+  | 'landing.hero.headline'
+  | 'landing.hero.body'
+  | 'landing.hero.support'
+  | 'landing.demo.heading'
+  | 'landing.demo.body'
+  | 'about.hero.headline'
+  | 'about.hero.body'
+  | 'access.hero.headline'
+  | 'access.hero.body'
+  | 'access.creatorPool.note';
+
+export interface SiteContentBlock {
+  slug: SiteContentBlockSlug;
+  group: 'landing' | 'about' | 'access';
+  label: string;
+  body: string;
+  updatedAt: string | null;
+}
+
+export type LegalDocumentSlug = 'privacy' | 'terms' | 'refund' | 'contact' | 'developer-terms' | 'creator-pool';
 
 export interface LegalDocument {
   slug: LegalDocumentSlug;
@@ -74,6 +94,7 @@ export interface OwnerConsolePayload {
   configured: boolean;
   settings: OwnerSettings;
   siteMechanics: SiteMechanicsSettings;
+  siteContentBlocks: SiteContentBlock[];
   legalDocuments: LegalDocument[];
   founderBetaCampaign: FounderBetaCampaign;
   founderBetaClaims: FounderBetaClaim[];
@@ -114,32 +135,136 @@ export const DEFAULT_FOUNDER_BETA_CAMPAIGN: FounderBetaCampaign = {
   updatedAt: null,
 };
 
-const privacyBody = `CardForge Studio is a local-first card creation tool. The studio is designed so card projects, imported data, generated previews, and custom project files stay in your browser storage or downloaded files unless a future cloud save feature is explicitly introduced.
+export const DEFAULT_SITE_CONTENT_BLOCKS: SiteContentBlock[] = [
+  {
+    slug: 'landing.hero.headline',
+    group: 'landing',
+    label: 'Landing hero headline',
+    body: 'Build cards faster. Generate complete sets. Shape the forge together.',
+    updatedAt: null,
+  },
+  {
+    slug: 'landing.hero.body',
+    group: 'landing',
+    label: 'Landing hero body',
+    body: 'CardForge helps creators turn card ideas into full, export-ready sets while the community helps build the shared library that powers the studio.',
+    updatedAt: null,
+  },
+  {
+    slug: 'landing.hero.support',
+    group: 'landing',
+    label: 'Landing hero support line',
+    body: 'The fantasy forge is the doorway; underneath is a serious production workflow for reusable templates, structured data, bulk generation, and clean exports.',
+    updatedAt: null,
+  },
+  {
+    slug: 'landing.demo.heading',
+    group: 'landing',
+    label: 'Landing demo-seat headline',
+    body: 'Free demo seats are open for the current wave.',
+    updatedAt: null,
+  },
+  {
+    slug: 'landing.demo.body',
+    group: 'landing',
+    label: 'Landing demo-seat body',
+    body: 'Claiming a Founder Beta seat unlocks clean export access for the demo window while seats remain open. It is the fastest way to test the production workflow before CardForge moves into wider paid access.',
+    updatedAt: null,
+  },
+  {
+    slug: 'about.hero.headline',
+    group: 'about',
+    label: 'About page headline',
+    body: 'A fantasy-forged studio for serious card production.',
+    updatedAt: null,
+  },
+  {
+    slug: 'about.hero.body',
+    group: 'about',
+    label: 'About page body',
+    body: 'CardForge helps creators design reusable card systems, generate complete sets from structured data, and export clean files. The forge theme gives the product a memorable doorway; the deeper promise is a practical workbench for creators who need repeatable layouts, shared assets, and faster iteration.',
+    updatedAt: null,
+  },
+  {
+    slug: 'access.hero.headline',
+    group: 'access',
+    label: 'Access page headline',
+    body: 'Start free, claim a demo seat, then unlock cleaner production workflows.',
+    updatedAt: null,
+  },
+  {
+    slug: 'access.hero.body',
+    group: 'access',
+    label: 'Access page body',
+    body: 'CardForge is in beta, so access is intentionally staged. New users can explore the studio first, claim Founder Beta access when seats are open, and move toward Creator Pass or developer participation as the platform matures.',
+    updatedAt: null,
+  },
+  {
+    slug: 'access.creatorPool.note',
+    group: 'access',
+    label: 'Access creator-pool note',
+    body: 'Developer profit-sharing language is a future creator-pool plan, not active payout infrastructure yet.',
+    updatedAt: null,
+  },
+];
 
-We use account providers to identify signed-in users, unlock export access, and protect owner/developer tools. We may use lightweight database records for roadmap votes, feature suggestions, beta feedback, legal settings, and account-related product status.
+const privacyBody = `CardForge Studio is a local-first card creation tool. Card projects, imported data, generated previews, personal uploads, and export settings are designed to stay in your browser storage or downloaded project files unless you choose to submit something to the platform or CardForge introduces an explicit cloud save feature.
 
-We do not sell user project files. We do not intentionally collect information from children under 13. If you need privacy support, contact the support email listed on this site.`;
+We use account and infrastructure providers to identify signed-in users, unlock access, run the site, protect owner/developer tools, process future payments, and store shared platform records. Those records may include account identifiers, email addresses, optional first and last names, entitlement status, Founder Beta claims, roadmap votes, feature suggestions, developer profiles, developer submissions, developer votes, asset registry records, legal documents, and owner settings.
 
-const termsBody = `CardForge Studio lets users create templates, generate previews, and export content according to their account access. You are responsible for the content, artwork, data, and intellectual property you bring into the tool.
+Developer submissions, public source files, and published library assets are intentionally shared with the review pipeline and may become visible to other users. Do not upload confidential files, private client work, or content you do not have permission to share.
 
-The product is in active beta. Features, pricing, access levels, and export behavior may change as the service develops. Do not use CardForge for unlawful content or activity.
+CardForge does not sell user project files. We do not intentionally collect information from children under 13. If you need privacy support, contact the support email listed on this site.`;
 
-By using CardForge, you agree to use the service responsibly and to keep your own backups of local-first project data.`;
+const termsBody = `CardForge Studio lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access. You are responsible for the content, artwork, data, trademarks, and intellectual property you bring into the tool.
 
-const refundBody = `CardForge is currently operating as an early beta. Paid subscription and refund rules will be finalized before public self-serve billing launches.
+You keep ownership of the content you create. By using CardForge, you grant CardForge the limited permission needed to operate the service, render previews, process exports, preserve local/project state, and, when you submit assets to the developer pipeline, review, display, publish, archive, and maintain those submitted assets as part of the shared library.
 
-If you have a billing, cancellation, or export-access issue, contact the support email listed on this site.`;
+The product is in active beta. Features, pricing, access levels, export behavior, developer rules, and library availability may change as the service develops. Do not use CardForge for unlawful content, infringing content, malicious uploads, harassment, or activity that harms the platform or other users.
 
-const contactBody = `For support, beta access, developer account requests, legal questions, or billing questions, contact the support email listed on this site.`;
+CardForge is a creative production tool, not a print vendor or legal clearance service. Always proof exports, keep your own backups, and confirm printer/manufacturer requirements before production.`;
+
+const refundBody = `CardForge is currently operating as an early beta. Founder Beta access, free demo seats, paid access, subscriptions, checkout behavior, and refund rules may differ by launch phase and will be shown before public self-serve billing is enabled.
+
+When paid billing is active, cancellation and refund requests should be sent to the support email listed on this site and may also depend on the payment provider's records. Downloaded digital files, export access that has already been used, and time-limited beta passes may have limited refund availability unless required by law or approved by CardForge support.
+
+If you have a billing, cancellation, or export-access issue, contact support with the account email, transaction reference if available, and a short description of the issue.`;
+
+const contactBody = `For support, beta access, developer account requests, legal questions, billing questions, account problems, or asset pipeline concerns, contact the support email listed on this site.
+
+For fastest help, include the account email, the page or workflow where the issue happened, what you expected, what actually happened, and whether the issue involves a local project, export, template, developer asset, or billing/access state.
+
+CardForge is in active development. Support responses are handled by the CardForge owner/operator until a larger support process is introduced.`;
+
+const developerTermsBody = `Forge Review is the developer contribution path for CardForge. Developers may submit templates, icons, dividers, textures, frames, source files, element recipes, and other approved creative assets into the shared review pipeline.
+
+Only submit work you created, own, licensed, or have clear permission to contribute. Do not submit confidential work, client-restricted files, AI-generated material that violates its source license, infringing content, malware, deceptive files, or anything you would not want reviewed, archived, published, or used by other CardForge users.
+
+Submitted assets move through the same platform pipeline as starter assets: draft, submitted, voting, publish candidate, published, archived, or rejected. Developer votes, owner rules, quality scores, access tiers, and platform caps can affect where an asset appears. Published assets may remain available after a developer leaves so existing users and templates do not break.
+
+Contributor records are durable platform history. Deleting or disabling an account should not delete prior votes, source-file references, registry records, published assets, or contribution attribution snapshots. Owners may archive, remove, or edit platform availability for safety, quality, legal, licensing, or operational reasons.
+
+These developer terms describe the current contribution model and do not create employment, partnership, guaranteed payment, or ownership of CardForge unless a separate written agreement says so.`;
+
+const creatorPoolBody = `CardForge is building toward a creator pool that can share a portion of eligible platform profit with eligible active developers. The current planning target is a configurable percentage, currently represented in the product as 10% by default, split evenly among eligible active developers after financial launch systems are ready.
+
+The creator pool is not active payout infrastructure today. It is not stock, equity, a security, employment, partnership, a wage promise, or guaranteed income. It depends on future billing, refund handling, tax handling, payout provider setup, creator eligibility rules, legal review, and owner-published program terms.
+
+The owner console controls the visible planning percentage, developer eligibility flags, vote weights, voting rules, monthly contribution expectations, and access-tier rules. Changes should be published clearly before they affect active developers.
+
+Until payout systems and final legal terms are live, treat creator-pool language as the product direction for the collective, not as a payable balance or enforceable distribution schedule.`;
 
 export const DEFAULT_LEGAL_DOCUMENTS: LegalDocument[] = [
   { slug: 'privacy', title: 'Privacy Policy', body: privacyBody, publishedAt: null },
   { slug: 'terms', title: 'Terms of Service', body: termsBody, publishedAt: null },
   { slug: 'refund', title: 'Refund and Cancellation Policy', body: refundBody, publishedAt: null },
   { slug: 'contact', title: 'Contact and Support', body: contactBody, publishedAt: null },
+  { slug: 'developer-terms', title: 'Developer Contributor Terms', body: developerTermsBody, publishedAt: null },
+  { slug: 'creator-pool', title: 'Creator Pool Notice', body: creatorPoolBody, publishedAt: null },
 ];
 
 const legalSlugs = new Set<LegalDocumentSlug>(DEFAULT_LEGAL_DOCUMENTS.map((document) => document.slug));
+const siteContentSlugs = new Set<SiteContentBlockSlug>(DEFAULT_SITE_CONTENT_BLOCKS.map((block) => block.slug));
 
 const normalizeText = (value: unknown): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ') : '';
@@ -232,13 +357,36 @@ export type LegalDocumentInputResult =
   | { ok: true; value: Pick<LegalDocument, 'slug' | 'title' | 'body'> }
   | { ok: false; message: string };
 
+export type SiteContentBlockInputResult =
+  | { ok: true; value: Pick<SiteContentBlock, 'slug' | 'body'> }
+  | { ok: false; message: string };
+
+export const normalizeSiteContentBlockInput = (value: {
+  slug?: unknown;
+  body?: unknown;
+}): SiteContentBlockInputResult => {
+  const slug = typeof value.slug === 'string' ? value.slug : '';
+  if (!siteContentSlugs.has(slug as SiteContentBlockSlug)) {
+    return { ok: false, message: 'Unknown site copy block.' };
+  }
+
+  const body = typeof value.body === 'string' ? value.body.trim() : '';
+  if (!body) return { ok: false, message: 'Site copy is required.' };
+  if (body.length > 800) return { ok: false, message: 'Site copy must be 800 characters or fewer.' };
+
+  return {
+    ok: true,
+    value: { slug: slug as SiteContentBlockSlug, body },
+  };
+};
+
 export const normalizeLegalDocumentInput = (value: {
   slug?: unknown;
   title?: unknown;
   body?: unknown;
 }): LegalDocumentInputResult => {
-  const slug = value.slug;
-  if (slug !== 'privacy' && slug !== 'terms' && slug !== 'refund' && slug !== 'contact') {
+  const slug = typeof value.slug === 'string' ? value.slug : '';
+  if (!legalSlugs.has(slug as LegalDocumentSlug)) {
     return { ok: false, message: 'Unknown legal document.' };
   }
 
@@ -247,13 +395,23 @@ export const normalizeLegalDocumentInput = (value: {
 
   if (!title) return { ok: false, message: 'Legal document title is required.' };
   if (!body) return { ok: false, message: 'Legal document body is required.' };
-  if (!legalSlugs.has(slug)) return { ok: false, message: 'Unknown legal document.' };
 
   return {
     ok: true,
-    value: { slug, title, body },
+    value: { slug: slug as LegalDocumentSlug, title, body },
   };
 };
 
 export const getDefaultLegalDocument = (slug: LegalDocumentSlug): LegalDocument =>
   DEFAULT_LEGAL_DOCUMENTS.find((document) => document.slug === slug) ?? DEFAULT_LEGAL_DOCUMENTS[0];
+
+export const getDefaultSiteContentBlock = (slug: SiteContentBlockSlug): SiteContentBlock =>
+  DEFAULT_SITE_CONTENT_BLOCKS.find((block) => block.slug === slug) ?? DEFAULT_SITE_CONTENT_BLOCKS[0];
+
+export const createSiteContentMap = (blocks: SiteContentBlock[]): Record<SiteContentBlockSlug, string> =>
+  Object.fromEntries(
+    DEFAULT_SITE_CONTENT_BLOCKS.map((defaultBlock) => {
+      const block = blocks.find((candidate) => candidate.slug === defaultBlock.slug);
+      return [defaultBlock.slug, block?.body || defaultBlock.body];
+    })
+  ) as Record<SiteContentBlockSlug, string>;

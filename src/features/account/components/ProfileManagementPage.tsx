@@ -165,7 +165,7 @@ export function ProfileManagementPage() {
             <Link href="/account" prefetch={false}>Open forge summary</Link>
           </Button>
         </aside>
-        <div className="min-w-0">
+        <div className="cardforge-clerk-profile min-w-0">
           <UserProfile routing="hash" appearance={clerkAppearance} />
         </div>
       </div>

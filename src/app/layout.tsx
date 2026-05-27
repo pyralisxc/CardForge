@@ -35,22 +35,24 @@ const lato = Lato({
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
   title: {
-    default: 'CardForge Studio | Local-First Card Maker and Bulk Generator',
+    default: 'CardForge Studio | Build Cards Faster',
     template: '%s | CardForge Studio',
   },
-  description: 'Design printable card templates, generate bulk tabletop and TCG-style cards from data, manage local assets, and unlock clean export through CardForge account tiers.',
+  description: 'Design reusable card templates, generate full sets from structured data, and help grow a reviewed CardForge library for tabletop and card-system creators.',
   keywords: [
     'card maker',
     'TCG card generator',
     'tabletop card creator',
     'printable card templates',
     'bulk card generator',
+    'card system studio',
+    'developer asset pipeline',
     'fantasy card template editor',
     'local-first card design studio',
   ],
   openGraph: {
     title: 'CardForge Studio',
-    description: 'A local-first card maker, template editor, and bulk card generator for tabletop creators.',
+    description: 'Build cards faster, generate complete sets, and help shape the shared CardForge library.',
     url: '/',
     siteName: 'CardForge Studio',
     images: [
@@ -66,7 +68,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'CardForge Studio',
-    description: 'Design printable card templates, generate bulk card sets, and manage local assets.',
+    description: 'Design reusable templates, generate full card sets, and help shape the shared forge library.',
     images: ['/card-assets/landing/cardforge-hero-workbench.png'],
   },
 };

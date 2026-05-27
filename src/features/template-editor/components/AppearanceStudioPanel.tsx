@@ -15,7 +15,12 @@ import { appearanceToStyle } from '@/lib/appearance';
 import type { CardAssetOption } from '@/lib/cardAssets';
 import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/types';
-import { ColorField } from '@/components/card-forge/makerConstants';
+import { ColorField } from '@/features/template-editor/components/ColorField';
+
+type LocalMaterialPreset = {
+  label: string;
+  updates: Partial<FreeformCardElement>;
+};
 
 interface AppearanceStudioPanelProps {
   element: FreeformCardElement;
@@ -23,7 +28,7 @@ interface AppearanceStudioPanelProps {
   compatibleAppearanceStyles: AppearanceStylePreset[];
   compatibleTextureAssets: CardAssetOption[];
   compatibleDividerAssets: CardAssetOption[];
-  elementStylePresets: Array<{ label: string; updates: Partial<FreeformCardElement> }>;
+  elementStylePresets: LocalMaterialPreset[];
   canUseImageSource: boolean;
   canUseDividerControls: boolean;
   canUseBackgroundTexture: boolean;
@@ -35,7 +40,6 @@ interface AppearanceStudioPanelProps {
   onHandleAssetUpload: (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider') => void;
   onSaveStyle: () => void;
   onApplyAppearancePreset: (style: AppearanceStylePreset) => void;
-  onUpdateElement: (updates: Partial<FreeformCardElement>) => void;
   onUpdateAppearance: (updater: (appearance: FreeformAppearance) => FreeformAppearance, trackHistory?: boolean) => void;
 }
 
@@ -57,11 +61,32 @@ export function AppearanceStudioPanel({
   onHandleAssetUpload,
   onSaveStyle,
   onApplyAppearancePreset,
-  onUpdateElement,
   onUpdateAppearance,
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const dividerAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const applyLocalMaterialPreset = (preset: LocalMaterialPreset) => {
+    onUpdateAppearance((appearance) => {
+      const surfaceColor = preset.updates.backgroundColor || preset.updates.fillColor || appearance.material?.baseColor;
+      const fillColor = preset.updates.fillColor || preset.updates.backgroundColor || appearance.material?.fillColor;
+      const backgroundImage = preset.updates.backgroundImageUrl || appearance.rawCss?.backgroundImage;
+
+      return {
+        ...appearance,
+        material: {
+          ...appearance.material,
+          baseColor: surfaceColor,
+          fillColor: element.type === 'shape' ? fillColor : appearance.material?.fillColor,
+        },
+        rawCss: backgroundImage
+          ? { ...appearance.rawCss, backgroundImage }
+          : appearance.rawCss,
+        effects: preset.updates.opacity !== undefined
+          ? { ...appearance.effects, overlayOpacity: Math.round((preset.updates.opacity ?? 1) * 100) }
+          : appearance.effects,
+      };
+    });
+  };
 
   return (
     <div className="space-y-3 rounded-[6px] border border-[#3a2e17] bg-[#100d08] p-2">
@@ -73,7 +98,7 @@ export function AppearanceStudioPanel({
       </div>
       {!canUseImageSource && !canUseDividerControls && (element.type === 'text' || element.type === 'shape') && (
         <div>
-          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Local Quick Materials</Label>
+          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Local Materials</Label>
           <div className="grid grid-cols-2 gap-1">
             {elementStylePresets.map((preset) => (
               <Button
@@ -82,9 +107,12 @@ export function AppearanceStudioPanel({
                 variant="outline"
                 size="sm"
                 className="h-7 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-                onClick={() => onUpdateElement(preset.updates)}
+                onClick={() => applyLocalMaterialPreset(preset)}
               >
-                <span className="h-3 w-3 shrink-0 rounded-[2px]" style={{ background: preset.updates.backgroundColor || preset.updates.fillColor || '#222' }} />
+                <span
+                  className="h-3 w-3 shrink-0 rounded-[2px]"
+                  style={{ background: preset.updates.backgroundImageUrl || preset.updates.backgroundColor || preset.updates.fillColor || '#222' }}
+                />
                 {preset.label}
               </Button>
             ))}
@@ -155,8 +183,8 @@ export function AppearanceStudioPanel({
             </Select>
           </div>
           <div>
-            <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Angle</Label>
-            <Input className={controlClassName} type="number" value={selectedAppearance?.material?.gradient?.angle ?? 135} onChange={(event) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, gradient: { ...(appearance.material?.gradient || { type: 'linear', stops: [] }), angle: Number(event.target.value) } } }), false)} />
+            <Label htmlFor="appearance-gradient-angle" className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Angle</Label>
+            <Input id="appearance-gradient-angle" className={controlClassName} type="number" value={selectedAppearance?.material?.gradient?.angle ?? 135} onChange={(event) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, gradient: { ...(appearance.material?.gradient || { type: 'linear', stops: [] }), angle: Number(event.target.value) } } }), false)} />
           </div>
         </div>
       )}

@@ -14,7 +14,7 @@ const makeTemplate = (id: string, overrides: Partial<TCGCardTemplate> = {}): TCG
 });
 
 describe('workspace state helpers', () => {
-  it('splits shipped defaults, back presets, and generator-safe templates', () => {
+  it('splits default templates, back presets, and generator-safe templates', () => {
     const defaultTemplate = makeTemplate('default-card', { templateSource: 'default' });
     const backPreset = makeTemplate('back-preset', { templateSource: 'default', templateUsage: 'back-preset' });
     const userTemplate = makeTemplate('user-card', { templateSource: 'user' });

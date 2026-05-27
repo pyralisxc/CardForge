@@ -6,10 +6,12 @@ import {
   updateFounderBetaCampaign,
   updateOwnerSettings,
   updateOwnerRoadmapItemStatus,
+  updateSiteContentBlock,
   updateSiteMechanicsSettings,
 } from '@/lib/ownerConsoleStore';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
+import { createServerTimingTracker } from '@/lib/serverTiming';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,15 +31,23 @@ const requireOwner = async () => {
 };
 
 export async function GET() {
+  const timing = createServerTimingTracker();
   try {
-    const owner = await requireOwner();
+    const owner = await timing.track('owner_access', requireOwner);
     if (!owner.ok) return owner.response;
 
-    return createNoStoreJsonResponse({
+    const [integrationStatus, consolePayload] = await Promise.all([
+      timing.track('integration_status', async () => getOwnerIntegrationStatus()),
+      timing.track('owner_payload', getOwnerConsolePayload),
+    ]);
+
+    const response = createNoStoreJsonResponse({
       ownerAccess: owner.access,
-      integrationStatus: getOwnerIntegrationStatus(),
-      console: await getOwnerConsolePayload(),
+      integrationStatus,
+      console: consolePayload,
     });
+    response.headers.set('Server-Timing', timing.header());
+    return response;
   } catch (error) {
     console.error('Failed to load owner console:', error);
     return createApiErrorResponse(
@@ -57,6 +67,7 @@ export async function PUT(request: Request) {
       kind?: unknown;
       settings?: Record<string, unknown>;
       siteMechanics?: Record<string, unknown>;
+      siteContentBlock?: { slug?: unknown; body?: unknown };
       legalDocument?: { slug?: unknown; title?: unknown; body?: unknown };
       founderBetaCampaign?: Record<string, unknown>;
       roadmapItem?: { itemId?: unknown; status?: unknown };
@@ -69,6 +80,11 @@ export async function PUT(request: Request) {
 
     if (body.kind === 'siteMechanics') {
       const payload = await updateSiteMechanicsSettings(body.siteMechanics ?? {});
+      return createNoStoreJsonResponse({ console: payload });
+    }
+
+    if (body.kind === 'siteContent') {
+      const payload = await updateSiteContentBlock(body.siteContentBlock ?? {});
       return createNoStoreJsonResponse({ console: payload });
     }
 

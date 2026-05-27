@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { UserButton, useUser } from '@clerk/nextjs';
 import { History } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { RoadmapPanel } from '@/features/account/components/RoadmapPanel';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 

@@ -9,7 +9,7 @@ export type TemplateUsage = 'standard' | 'back-preset';
 export type PdfDuplexLayout = 'separate-pages' | 'same-page';
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
-export type AppearanceStyleKind = 'material' | 'textFrame' | 'border' | 'divider' | 'icon' | 'theme';
+export type AppearanceStyleKind = 'material' | 'textFrame' | 'border' | 'divider' | 'icon' | 'theme' | 'shapeRole' | 'frameKit';
 export type AppearanceGradientType = 'linear' | 'radial' | 'none';
 export type AppearanceTextureKind = 'none' | 'parchment' | 'foil' | 'etched' | 'grain' | 'hatch' | 'uploaded';
 export type AppearanceBorderKind = 'none' | 'solid' | 'double' | 'etched' | 'relic' | 'foil';
@@ -92,6 +92,12 @@ export interface AppearanceStylePreset {
   kind: AppearanceStyleKind;
   targets: AppearanceTarget[];
   appearance: FreeformAppearance;
+  updates?: Partial<FreeformCardElement>;
+  templateUpdates?: Partial<TCGCardTemplate>;
+  librarySource?: 'official' | 'developer' | 'local';
+  accessTier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
+  contributorName?: string;
 }
 
 export interface AppearanceStyleLibrary {
@@ -189,6 +195,10 @@ export interface TCGCardTemplate {
   name: string; 
   aspectRatio: string;
   templateSource?: TemplateSource;
+  templateLibrarySource?: 'base' | 'pipeline' | 'personal';
+  templateAccessTier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  templateRegistryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
+  templateContributorName?: string;
   templateUsage?: TemplateUsage;
   templateCategory?: string;
   templateDescription?: string;

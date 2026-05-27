@@ -19,7 +19,9 @@ interface PublicSiteHeaderProps {
 }
 
 const baseNavItems = [
-  { href: '/', label: 'Landing' },
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/access', label: 'Access' },
   { href: '/studio', label: 'Studio' },
   { href: '/roadmap', label: 'Roadmap' },
   { href: '/developer', label: 'Developers' },

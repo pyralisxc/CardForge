@@ -1,13 +1,8 @@
 "use client";
 
-import { useRef } from 'react';
-import type { ChangeEvent, MutableRefObject } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
+import type { MutableRefObject } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { TextExpressionEditor, TextFieldSettingsList } from '@/components/card-forge/TextElementInspector';
+import { TextExpressionEditor, TextFieldSettingsList } from '@/features/template-editor/components/TextElementInspector';
 import { inferTextElementContentModel } from '@/lib/textElementContracts';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
@@ -30,7 +25,6 @@ interface ElementContentPanelProps {
   onRemoveSelectedElementVariableContract: (key: string) => void;
   onRenameSelectedElementVariable: (oldKey: string, nextKey: string) => void;
   onUpsertFieldContract: (key: string, updates: Partial<FieldContract>) => void;
-  onHandleFileUpload: (event: ChangeEvent<HTMLInputElement>, apply: (dataUri: string) => void) => void;
 }
 
 export function ElementContentPanel({
@@ -49,10 +43,7 @@ export function ElementContentPanel({
   onRemoveSelectedElementVariableContract,
   onRenameSelectedElementVariable,
   onUpsertFieldContract,
-  onHandleFileUpload,
 }: ElementContentPanelProps) {
-  const elementImageInputRef = useRef<HTMLInputElement | null>(null);
-
   if (element.type === 'text') {
     return (
       <>
@@ -87,26 +78,5 @@ export function ElementContentPanel({
     );
   }
 
-  return (
-    <>
-      <Label htmlFor="element-content">Image URL or Data Key</Label>
-      <div className="flex gap-2">
-        <Input
-          id="element-content"
-          value={element.imageSource || element.content || ''}
-          onChange={(event) => onUpdateElement({ imageSource: event.target.value, content: event.target.value }, false)}
-        />
-        <Button type="button" variant="outline" size="icon" onClick={() => elementImageInputRef.current?.click()}>
-          <ImageIcon className="h-4 w-4" />
-        </Button>
-        <input
-          ref={elementImageInputRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(event) => onHandleFileUpload(event, (dataUri) => onUpdateElement({ imageSource: dataUri, content: dataUri }))}
-        />
-      </div>
-    </>
-  );
+  return null;
 }

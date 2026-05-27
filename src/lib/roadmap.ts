@@ -52,6 +52,7 @@ export interface RoadmapPayload {
   activeUserSuggestionCount: number;
   maxActiveUserSuggestions: number;
   maxSuggestionLength: number;
+  currentProfitCents: number;
   developerRequestEmail: string;
 }
 
@@ -100,8 +101,31 @@ export const shouldArchiveUserRoadmapItem = ({
   return (downVotes / totalVotes) * 100 >= rules.negativeSignalMinDownvotePercent;
 };
 
-export const calculateMrrUnlockTargetCents = (monthlyCostCents: number): number =>
-  Math.max(0, Math.round(monthlyCostCents * 12 * 10 / 12));
+export const calculateMonthlyUnlockTargetCents = (monthlyCostCents: number): number =>
+  Math.max(0, Math.round(monthlyCostCents * 12));
+
+export const calculateMrrUnlockTargetCents = calculateMonthlyUnlockTargetCents;
+
+export interface RoadmapTimelineCheckpoint<Item> {
+  item: Item;
+  cumulativeMonthlyCostCents: number;
+  monthlyUnlockTargetCents: number;
+}
+
+export const buildRoadmapTimelineCheckpoints = <Item extends { monthlyCostCents: number | null }>(
+  items: Item[]
+): Array<RoadmapTimelineCheckpoint<Item>> => {
+  let cumulativeMonthlyCostCents = 0;
+
+  return items.map((item) => {
+    cumulativeMonthlyCostCents += item.monthlyCostCents ?? 0;
+    return {
+      item,
+      cumulativeMonthlyCostCents,
+      monthlyUnlockTargetCents: calculateMonthlyUnlockTargetCents(cumulativeMonthlyCostCents),
+    };
+  });
+};
 
 const getVoteTotal = (item: Pick<RoadmapItem, 'upVotes' | 'downVotes'>) => item.upVotes + item.downVotes;
 

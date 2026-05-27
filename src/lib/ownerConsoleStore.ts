@@ -4,6 +4,7 @@ import {
   DEFAULT_FOUNDER_BETA_CAMPAIGN,
   DEFAULT_LEGAL_DOCUMENTS,
   DEFAULT_OWNER_SETTINGS,
+  DEFAULT_SITE_CONTENT_BLOCKS,
   DEFAULT_SITE_MECHANICS_SETTINGS,
   type FounderBetaCampaign,
   type FounderBetaClaim,
@@ -13,10 +14,14 @@ import {
   type OwnerDatabaseMetrics,
   type OwnerRoadmapItem,
   type OwnerSettings,
+  type SiteContentBlock,
+  type SiteContentBlockSlug,
   type SiteMechanicsSettings,
   getDefaultLegalDocument,
+  getDefaultSiteContentBlock,
   normalizeFounderBetaCampaignInput,
   normalizeLegalDocumentInput,
+  normalizeSiteContentBlockInput,
   normalizeOwnerRoadmapStatusInput,
   normalizeOwnerSettingsInput,
   normalizeSiteMechanicsSettingsInput,
@@ -40,6 +45,12 @@ type LegalDocumentRow = {
   title: string;
   body: string;
   published_at: string | null;
+};
+
+type SiteContentBlockRow = {
+  slug: SiteContentBlockSlug;
+  body: string;
+  updated_at: string | null;
 };
 
 type FounderBetaCampaignRow = {
@@ -139,6 +150,15 @@ const mapLegalRow = (row: LegalDocumentRow): LegalDocument => ({
   body: row.body,
   publishedAt: row.published_at,
 });
+
+const mapSiteContentRow = (row: SiteContentBlockRow): SiteContentBlock => {
+  const defaultBlock = getDefaultSiteContentBlock(row.slug);
+  return {
+    ...defaultBlock,
+    body: row.body,
+    updatedAt: row.updated_at,
+  };
+};
 
 const mapFounderBetaCampaignRow = (
   row: FounderBetaCampaignRow | null | undefined,
@@ -292,6 +312,28 @@ const getOwnerRoadmapItems = async (): Promise<OwnerRoadmapItem[]> => {
   return (data ?? []).map((row) => mapOwnerRoadmapItemRow(row as OwnerRoadmapItemRow));
 };
 
+export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> => {
+  const supabase = getSupabaseServerClient();
+  if (!getSupabaseServerConfigStatus().configured || !supabase) return DEFAULT_SITE_CONTENT_BLOCKS;
+
+  const { data, error } = await supabase
+    .from('cardforge_site_content_blocks')
+    .select('slug,body,updated_at')
+    .order('slug', { ascending: true });
+
+  if (error) {
+    if (!isMissingOwnerTableError(error)) {
+      console.error('Failed to load site content blocks:', error);
+    }
+    return DEFAULT_SITE_CONTENT_BLOCKS;
+  }
+
+  return DEFAULT_SITE_CONTENT_BLOCKS.map((defaultBlock) => {
+    const row = (data ?? []).find((block) => block.slug === defaultBlock.slug) as SiteContentBlockRow | undefined;
+    return row ? mapSiteContentRow(row) : defaultBlock;
+  });
+};
+
 export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) {
@@ -299,6 +341,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
       configured: false,
       settings: DEFAULT_OWNER_SETTINGS,
       siteMechanics: DEFAULT_SITE_MECHANICS_SETTINGS,
+      siteContentBlocks: DEFAULT_SITE_CONTENT_BLOCKS,
       legalDocuments: DEFAULT_LEGAL_DOCUMENTS,
       founderBetaCampaign: DEFAULT_FOUNDER_BETA_CAMPAIGN,
       founderBetaClaims: [],
@@ -321,6 +364,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
       configured: false,
       settings: DEFAULT_OWNER_SETTINGS,
       siteMechanics: DEFAULT_SITE_MECHANICS_SETTINGS,
+      siteContentBlocks: await getSiteContentBlocks(),
       legalDocuments: DEFAULT_LEGAL_DOCUMENTS,
       founderBetaCampaign: (await getFounderBetaCampaign()).campaign,
       founderBetaClaims: await getFounderBetaClaims(),
@@ -342,6 +386,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
       configured: false,
       settings: mapSettingsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
       siteMechanics: mapSiteMechanicsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
+      siteContentBlocks: await getSiteContentBlocks(),
       legalDocuments: DEFAULT_LEGAL_DOCUMENTS,
       founderBetaCampaign: (await getFounderBetaCampaign()).campaign,
       founderBetaClaims: await getFounderBetaClaims(),
@@ -350,11 +395,12 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     };
   }
 
-  const [founderBeta, founderBetaClaims, roadmapItems, databaseMetrics] = await Promise.all([
+  const [founderBeta, founderBetaClaims, roadmapItems, databaseMetrics, siteContentBlocks] = await Promise.all([
     getFounderBetaCampaign(),
     getFounderBetaClaims(),
     getOwnerRoadmapItems(),
     getOwnerDatabaseMetrics(),
+    getSiteContentBlocks(),
   ]);
 
   const documents = DEFAULT_LEGAL_DOCUMENTS.map((defaultDocument) => {
@@ -366,6 +412,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     configured: founderBeta.configured,
     settings: mapSettingsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
     siteMechanics: mapSiteMechanicsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
+    siteContentBlocks,
     legalDocuments: documents,
     founderBetaCampaign: founderBeta.campaign,
     founderBetaClaims,
@@ -422,6 +469,31 @@ export const updateSiteMechanicsSettings = async (
   if (error) {
     console.error('Failed to update site mechanics:', error);
     throw new OwnerConsoleStoreError('Unable to update site mechanics.', 500);
+  }
+
+  return getOwnerConsolePayload();
+};
+
+export const updateSiteContentBlock = async (input: { slug?: unknown; body?: unknown }): Promise<OwnerConsolePayload> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new OwnerConsoleStoreError('Owner database is not configured yet.', 503);
+
+  const normalized = normalizeSiteContentBlockInput(input);
+  if (!normalized.ok) throw new OwnerConsoleStoreError(normalized.message, 400);
+
+  const { error } = await supabase
+    .from('cardforge_site_content_blocks')
+    .upsert({
+      slug: normalized.value.slug,
+      body: normalized.value.body,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'slug',
+    });
+
+  if (error) {
+    console.error('Failed to update site copy:', error);
+    throw new OwnerConsoleStoreError('Unable to update site copy.', 500);
   }
 
   return getOwnerConsolePayload();

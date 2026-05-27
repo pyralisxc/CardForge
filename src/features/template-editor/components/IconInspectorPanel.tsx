@@ -9,11 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ColorField } from '@/components/card-forge/makerConstants';
+import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { CardAssetOption } from '@/lib/cardAssets';
 import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
 import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
 import type { FreeformCardElement } from '@/types';
+import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
 interface IconInspectorPanelProps {
   element: FreeformCardElement;
@@ -48,10 +49,11 @@ export function IconInspectorPanel({
 }: IconInspectorPanelProps) {
   const iconUploadInputRef = useRef<HTMLInputElement | null>(null);
   const iconAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const hasUploadedIconSource = Boolean(element.iconImageSource);
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="icon-name">Icon Source</Label>
+      <Label htmlFor="icon-name">Built-in Icon</Label>
       <Select value={element.iconName || 'Sparkles'} onValueChange={(value) => onUpdateElement({ iconName: value, iconImageSource: undefined })}>
         <SelectTrigger id="icon-name"><SelectValue /></SelectTrigger>
         <SelectContent>{iconOptions.map((icon) => <SelectItem key={icon} value={icon}>{icon}</SelectItem>)}</SelectContent>
@@ -59,7 +61,7 @@ export function IconInspectorPanel({
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
         <Input
           className={controlClassName}
-          placeholder="Custom icon URL or {{symbolUrl}}"
+          placeholder="Uploaded icon URL or {{symbolUrl}}"
           value={element.iconImageSource || ''}
           onChange={(event) => onUpdateElement({ iconImageSource: event.target.value }, false)}
         />
@@ -120,49 +122,52 @@ export function IconInspectorPanel({
           </div>
         ) : null}
 
-        <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Icon Styles</Label>
-        <div className="grid grid-cols-3 gap-1">
-          {symbolStylePresets.map((preset) => (
-            <Button
-              key={preset.id}
-              type="button"
-              variant="outline"
-              size="sm"
-              title={`${preset.contributorName} - ${preset.status} - ${preset.tier}`}
-              className="h-auto min-h-10 flex-col items-start rounded-[4px] border-[#2d3340] bg-[#111720] px-1.5 py-1 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-              onClick={() => onApplyPreset(preset)}
-            >
-              <span className="flex w-full items-center gap-1.5">
-                <span
-                  className="h-3.5 w-3.5 shrink-0 rounded-full border"
-                  style={{ background: preset.preview?.background || preset.updates?.backgroundColor || '#111720', borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#2d3340' }}
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 truncate text-[#f1dfb4]">{preset.label}</span>
-              </span>
-              <span className="mt-0.5 block w-full truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{preset.status} - {preset.tier}</span>
-            </Button>
-          ))}
-        </div>
+        {!hasUploadedIconSource && (
+          <>
+            <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Icon Styles</Label>
+            <div className="grid grid-cols-3 gap-1">
+              {symbolStylePresets.map((preset) => (
+                <Button
+                  key={preset.id}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title={getPipelineRecipeTitle(preset)}
+                  aria-label={`Apply ${preset.label} icon recipe`}
+                  className="h-auto min-h-10 flex-col items-start rounded-[4px] border-[#2d3340] bg-[#111720] px-1.5 py-1 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
+                  onClick={() => onApplyPreset(preset)}
+                >
+                  <span className="flex w-full items-center gap-1.5">
+                    <span
+                      className="h-3.5 w-3.5 shrink-0 rounded-full border"
+                      style={{ background: preset.preview?.background || preset.updates?.backgroundColor || '#111720', borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#2d3340' }}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 truncate text-[#f1dfb4]">{preset.label}</span>
+                  </span>
+                  <PipelineRecipeMeta recipe={preset} />
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <Label htmlFor="element-icon-stroke" className="text-xs">Stroke</Label>
-          <ColorField id="element-icon-stroke" value={element.strokeColor || element.textColor || '#fbbf24'} onChange={(value) => onUpdateElement({ strokeColor: value, textColor: value }, false)} />
+      {!hasUploadedIconSource && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label htmlFor="element-icon-stroke" className="text-xs">Glyph Stroke</Label>
+            <ColorField id="element-icon-stroke" value={element.strokeColor || element.textColor || '#fbbf24'} onChange={(value) => onUpdateElement({ strokeColor: value, textColor: value }, false)} />
+          </div>
+          <div>
+            <Label htmlFor="element-icon-fill" className="text-xs">Glyph Fill</Label>
+            <ColorField id="element-icon-fill" value={element.fillColor || '#ffffff'} onChange={(value) => onUpdateElement({ fillColor: value }, false)} />
+          </div>
+          <div>
+            <Label htmlFor="element-icon-stroke-width" className="text-xs">Line Weight</Label>
+            <Input id="element-icon-stroke-width" type="number" min="0" value={element.strokeWidth || 0} onChange={(event) => onUpdateElement({ strokeWidth: Number(event.target.value) }, false)} />
+          </div>
         </div>
-        <div>
-          <Label htmlFor="element-icon-fill" className="text-xs">Fill</Label>
-          <ColorField id="element-icon-fill" value={element.fillColor || '#ffffff'} onChange={(value) => onUpdateElement({ fillColor: value }, false)} />
-        </div>
-        <div>
-          <Label htmlFor="element-icon-bg" className="text-xs">Backplate</Label>
-          <ColorField id="element-icon-bg" value={element.backgroundColor || '#000000'} onChange={(value) => onUpdateElement({ backgroundColor: value }, false)} />
-        </div>
-        <div>
-          <Label htmlFor="element-icon-stroke-width" className="text-xs">Line Weight</Label>
-          <Input id="element-icon-stroke-width" type="number" min="0" value={element.strokeWidth || 0} onChange={(event) => onUpdateElement({ strokeWidth: Number(event.target.value) }, false)} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

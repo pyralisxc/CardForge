@@ -85,13 +85,20 @@ export interface DeveloperContributionSummary {
   developerId: string;
   developerEmail: string | null;
   developerName: string | null;
+  profileStatus: 'invited' | 'active' | 'inactive' | 'suspended';
   submitted: number;
   published: number;
   archived: number;
   rejected: number;
+  effectiveSubmissionLimit: number;
+  effectivePublishedRequirement: number;
+  submissionLimitOverride: number | null;
+  publishedRequirementOverride: number | null;
   remainingSubmissions: number;
   requiredPublished: number;
   missingPublished: number;
+  profitShareEligible: boolean;
+  ownerNote: string | null;
   isOwnerDefaultContributor: boolean;
 }
 

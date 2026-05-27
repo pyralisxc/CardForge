@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const SMOKE_TEMPLATE_NAMES = new Set(['Smoke Freeform Template', 'Keyboard Save Template']);
+const SMOKE_TEMPLATE_NAMES = new Set(['Smoke Freeform Template', 'Keyboard Save Template', 'Smoke Bulk Mapping Template']);
 const STUDIO_READY_TIMEOUT = 120_000;
 const STUDIO_TEST_TIMEOUT = 180_000;
 
@@ -67,22 +67,78 @@ async function expectGeneratorReady(page: Page) {
   await expect(page.getByRole('button', { name: /Create Generated Output/i })).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 }
 
+async function seedBulkMappingTemplate(page: Page) {
+  await page.addInitScript(() => {
+    const template = {
+      id: 'smoke-bulk-mapping-template',
+      name: 'Smoke Bulk Mapping Template',
+      aspectRatio: '2.5/3.5',
+      templateSource: 'user',
+      fieldContracts: [
+        { key: 'Rank', label: 'Rank', type: 'text', required: true },
+        { key: 'Suit', label: 'Suit', type: 'text', required: true },
+        { key: 'CenterMark', label: 'Center Mark', type: 'text', required: true },
+        { key: 'newText', label: 'New Text', type: 'richText', required: false },
+      ],
+      freeformCanvas: {
+        width: 750,
+        height: 1050,
+        elements: [
+          { id: 'bulk-rank', type: 'text', name: 'Rank', content: '{{Rank:"A"}}', x: 80, y: 80, width: 120, height: 90, fontSize: 54, textColor: '#fff1c7' },
+          { id: 'bulk-suit', type: 'text', name: 'Suit', content: '{{Suit:"♥"}}', x: 520, y: 80, width: 120, height: 90, fontSize: 54, textColor: '#fff1c7' },
+          { id: 'bulk-center', type: 'text', name: 'Center Mark', content: '{{CenterMark:"♥"}}', x: 280, y: 390, width: 180, height: 150, fontSize: 82, textColor: '#f4c66b' },
+          { id: 'bulk-text', type: 'text', name: 'Rules Text', content: '{{newText:"Example"}}', x: 80, y: 780, width: 590, height: 120, fontSize: 28, textColor: '#fff1c7' },
+        ],
+      },
+    };
+
+    window.localStorage.setItem('card-forge-app-storage-v3', JSON.stringify({
+      state: {
+        userTemplates: [template],
+        appearanceStyles: [],
+        storedCards: [],
+        activeTab: 'generator',
+        singleCardGeneratorSelectedTemplateId: template.id,
+        bulkGeneratorSelectedTemplateId: template.id,
+        richTextHighlightColor: '#ffd700',
+      },
+      version: 1,
+    }));
+  });
+}
+
 test('renders public landing page with studio and account entry points', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: /Make the card\. Generate the deck\. Export the set\./i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /Build cards faster/i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: /Free demo seats are open/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Claim a demo seat/i }).first()).toHaveAttribute('href', '/account');
-  await expect(page.getByRole('link', { name: /Start Creating/i }).first()).toHaveAttribute('href', '/studio');
-  await expect(page.getByRole('link', { name: /Account & Export/i })).toHaveAttribute('href', '/account');
-  await expect(page.getByText(/No sign-in is required to design/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Open Studio/i }).first()).toHaveAttribute('href', '/studio');
+  await expect(page.getByRole('link', { name: /Join the Forge/i }).first()).toHaveAttribute('href', '/developer');
+  await expect(page.getByText(/fantasy forge is the doorway/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
+  await expect(page.getByRole('link', { name: /Access/i }).first()).toHaveAttribute('href', '/access');
   await expect(page.getByRole('link', { name: /Privacy/i })).toHaveAttribute('href', '/privacy');
+  await expect(page.getByRole('link', { name: /Developer Terms/i })).toHaveAttribute('href', '/developer-terms');
+  await expect(page.getByRole('link', { name: /Creator Pool/i })).toHaveAttribute('href', '/creator-pool');
+});
+
+test('renders public trust and access pages', async ({ page }) => {
+  for (const route of ['/about', '/access', '/privacy', '/terms', '/refund', '/contact', '/developer-terms', '/creator-pool']) {
+    await page.goto(route);
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 30_000 });
+  }
+
+  await page.goto('/creator-pool');
+  await expect(page.getByText(/not active payout infrastructure/i)).toBeVisible();
+  await page.goto('/developer-terms');
+  await expect(page.getByText(/durable platform history/i)).toBeVisible();
 });
 
 test('renders developer recruitment page for visitors without exposing the operational asset hub', async ({ page }) => {
   await page.goto('/developer');
 
-  await expect(page.getByRole('heading', { name: /Become a CardForge developer/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /Join the community shaping the forge/i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/Approved developers get a private asset hub/i)).toBeVisible();
   await expect(page.getByRole('tab', { name: /Asset Hub/i })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /Developer Asset Hub/i })).toHaveCount(0);
@@ -97,6 +153,14 @@ test('renders account profile with studio access and export status', async ({ pa
   await expect(page.getByRole('heading', { name: /Access at a glance/i })).toBeVisible();
   await expect(page.getByText(/Project files and personal uploads stay local/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /Open Studio/i })).toHaveAttribute('href', '/studio');
+});
+
+test('studio reaches ready state without getting stuck in skeleton', async ({ page }) => {
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
+  await gotoStudio(page);
+
+  await expect(page.getByTestId('studio-ready')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('PREPARING STUDIO')).toHaveCount(0);
 });
 
 test('loads default templates and adds a generated output', async ({ page }) => {
@@ -227,8 +291,10 @@ test('creates a freeform template and renders it in the generator', async ({ pag
 });
 
 test('bulk generator uses advanced mapping toggle and strict mode gating', async ({ page }) => {
+  await seedBulkMappingTemplate(page);
   await gotoStudio(page);
   await selectMainTab(page, /Generate/i);
+  await expectGeneratorReady(page);
   await page.getByRole('tab', { name: /Data Import/i }).click();
 
   await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,,♥,Ember-Claw');

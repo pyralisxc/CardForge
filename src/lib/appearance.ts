@@ -3,148 +3,11 @@ import type {
   AppearanceBorder,
   AppearanceEffects,
   AppearanceGradient,
-  AppearanceStylePreset,
   AppearanceTexture,
   FreeformAppearance,
   FreeformCardElement,
   TCGCardTemplate,
 } from '@/types';
-import { findCardAsset } from '@/lib/cardAssets';
-
-export const DEFAULT_APPEARANCE_LIBRARY: AppearanceStylePreset[] = [
-  {
-    id: 'material-parchment-aged',
-    name: 'Aged Parchment',
-    kind: 'material',
-    targets: ['text', 'shape', 'element'],
-    appearance: {
-      material: {
-        baseColor: 'rgba(235,211,159,0.96)',
-        textColor: '#221407',
-        gradient: {
-          type: 'linear',
-          angle: 180,
-          stops: [
-            { id: 'a', color: '#fff6d8', position: 0, opacity: 0.96 },
-            { id: 'b', color: '#c69343', position: 100, opacity: 0.36 },
-          ],
-        },
-        texture: { kind: 'uploaded', imageSource: '/card-assets/textures/parchment-grain.svg', assetSource: '/card-assets/textures/parchment-grain.svg', assetKind: 'texture', intensity: 55, scale: 8, textureOpacity: 42, textureScale: 160, blendMode: 'multiply' },
-      },
-      border: { kind: 'relic', color: '#5a3410', secondaryColor: '#d5ad54', width: 4, radius: 6, innerWidth: 1 },
-      effects: { innerHighlight: 35, bevel: 25 },
-    },
-  },
-  {
-    id: 'material-obsidian-gilt',
-    name: 'Obsidian Gilt',
-    kind: 'material',
-    targets: ['text', 'shape', 'element'],
-    appearance: {
-      material: {
-        baseColor: '#120f0b',
-        textColor: '#f7e6b0',
-        gradient: {
-          type: 'radial',
-          stops: [
-            { id: 'a', color: '#d5ad54', position: 0, opacity: 0.22 },
-            { id: 'b', color: '#120f0b', position: 100, opacity: 1 },
-          ],
-        },
-        texture: { kind: 'uploaded', imageSource: '/card-assets/textures/dark-leather.svg', assetSource: '/card-assets/textures/dark-leather.svg', assetKind: 'texture', intensity: 42, scale: 9, textureOpacity: 46, textureScale: 180, blendMode: 'overlay' },
-      },
-      border: { kind: 'etched', color: '#d5ad54', secondaryColor: '#5f4216', width: 4, radius: 8, innerWidth: 1 },
-      effects: { shadow: 28, glow: 14, bevel: 35 },
-    },
-  },
-  {
-    id: 'material-purple-foil',
-    name: 'Purple Foil',
-    kind: 'material',
-    targets: ['text', 'shape', 'icon', 'element'],
-    appearance: {
-      material: {
-        baseColor: '#160d25',
-        textColor: '#f4eaff',
-        gradient: {
-          type: 'linear',
-          angle: 135,
-          stops: [
-            { id: 'a', color: '#7a52cc', position: 0, opacity: 0.92 },
-            { id: 'b', color: '#260e4a', position: 52, opacity: 0.96 },
-            { id: 'c', color: '#d5ad54', position: 100, opacity: 0.24 },
-          ],
-        },
-        texture: { kind: 'uploaded', imageSource: '/card-assets/textures/purple-foil.svg', assetSource: '/card-assets/textures/purple-foil.svg', assetKind: 'texture', intensity: 60, scale: 16, textureOpacity: 44, textureScale: 190, blendMode: 'screen' },
-      },
-      border: { kind: 'foil', color: '#7a52cc', secondaryColor: '#d5ad54', width: 3, radius: 10 },
-      effects: { glow: 24, innerHighlight: 28 },
-    },
-  },
-  {
-    id: 'frame-mtg-rules',
-    name: 'MTG Rules Frame',
-    kind: 'textFrame',
-    targets: ['text'],
-    appearance: {
-      material: {
-        baseColor: 'rgba(244,226,186,0.94)',
-        textColor: '#20140a',
-        gradient: {
-          type: 'linear',
-          angle: 180,
-          stops: [
-            { id: 'a', color: '#fffae6', position: 0, opacity: 0.96 },
-            { id: 'b', color: '#d6b269', position: 100, opacity: 0.38 },
-          ],
-        },
-        texture: { kind: 'uploaded', imageSource: '/card-assets/textures/worn-paper.svg', assetSource: '/card-assets/textures/worn-paper.svg', assetKind: 'texture', intensity: 38, scale: 10, textureOpacity: 38, textureScale: 170, blendMode: 'multiply' },
-      },
-      border: { kind: 'relic', color: '#4a2f12', secondaryColor: '#d5ad54', width: 4, radius: 6 },
-      effects: { bevel: 24, innerHighlight: 30 },
-    },
-  },
-  {
-    id: 'divider-gem-center',
-    name: 'Gem Center Divider',
-    kind: 'divider',
-    targets: ['divider', 'shape'],
-    appearance: {
-      dividerAsset: '/card-assets/dividers/gem-center.svg',
-      assetKind: 'divider',
-      shapeRole: 'divider',
-      material: {
-        baseColor: '#d5ad54',
-        gradient: {
-          type: 'linear',
-          angle: 90,
-          stops: [
-            { id: 'a', color: 'transparent', position: 0 },
-            { id: 'b', color: '#7f5d1f', position: 20 },
-            { id: 'c', color: '#f5d27b', position: 47 },
-            { id: 'd', color: '#7a52cc', position: 50 },
-            { id: 'e', color: '#f5d27b', position: 53 },
-            { id: 'f', color: '#7f5d1f', position: 80 },
-            { id: 'g', color: 'transparent', position: 100 },
-          ],
-        },
-        texture: { kind: 'none' },
-      },
-      border: { kind: 'none', radius: 999 },
-    },
-  },
-  {
-    id: 'icon-fire-relic',
-    name: 'Fire Relic Icon',
-    kind: 'icon',
-    targets: ['icon'],
-    appearance: {
-      material: { baseColor: '#210b06', textColor: '#ffb35f', fillColor: 'rgba(132,37,15,0.72)', strokeColor: '#ffb35f' },
-      border: { kind: 'solid', color: '#d67425', width: 1, radius: 999 },
-      effects: { glow: 20 },
-    },
-  },
-];
 
 export const gradientToCss = (gradient?: AppearanceGradient): string | undefined => {
   if (!gradient || gradient.type === 'none' || gradient.stops.length === 0) return undefined;
@@ -191,9 +54,8 @@ export const appearanceToStyle = (appearance?: FreeformAppearance): CSSPropertie
   const backgroundImage = [asset, texture, gradient, appearance.rawCss?.backgroundImage].filter(Boolean).join(', ') || undefined;
   const textureScale = material?.texture?.textureScale ?? appearance.textureScale;
   const blendMode = material?.texture?.blendMode ?? appearance.blendMode;
-  const assetMeta = findCardAsset(assetSource);
-  const tileMode = appearance.tileMode ?? material?.texture?.tileMode ?? assetMeta?.tileMode;
-  const assetBackgroundSize = tileMode === 'contain' ? 'contain' : tileMode === 'repeat' ? `${textureScale || assetMeta?.defaultScale || 160}px ${textureScale || assetMeta?.defaultScale || 160}px` : '100% 100%';
+  const tileMode = appearance.tileMode ?? material?.texture?.tileMode;
+  const assetBackgroundSize = tileMode === 'contain' ? 'contain' : tileMode === 'repeat' ? `${textureScale || 160}px ${textureScale || 160}px` : '100% 100%';
   const textureBackgroundSize = textureScale ? `${textureScale}px ${textureScale}px` : texture?.startsWith('url(') ? '160px 160px' : undefined;
   const borderStyle = borderToStyle(border);
   const boxShadow = [borderStyle.boxShadow, effectsToBoxShadow(effects, border)]
@@ -234,22 +96,21 @@ export const appearanceToElementRenderFields = (element: FreeformCardElement): P
 export const normalizeAppearanceForElement = (element: Partial<FreeformCardElement>): FreeformAppearance => {
   if (element.appearance) return element.appearance;
   const baseColor = element.backgroundColor || element.fillColor || (element.type === 'text' ? 'transparent' : undefined);
-  const rawBackground = element.backgroundImageUrl;
+  const rawBackground = typeof element.backgroundImageUrl === 'string' ? element.backgroundImageUrl : undefined;
+  const borderWidth = borderClassToPixels(element.borderWidth);
   return {
     material: {
       baseColor,
       textColor: element.textColor,
       fillColor: element.fillColor,
       strokeColor: element.strokeColor,
-      gradient: rawBackground && (rawBackground.startsWith('linear-gradient') || rawBackground.startsWith('radial-gradient'))
-        ? DEFAULT_APPEARANCE_LIBRARY[0].appearance.material?.gradient
-        : undefined,
+      gradient: undefined,
       texture: rawBackground ? { kind: 'parchment', intensity: 25, scale: 10 } : { kind: 'none' },
     },
     border: {
-      kind: element.borderWidth && element.borderWidth !== '_none_' ? 'solid' : 'none',
+      kind: borderWidth > 0 || Boolean(element.strokeWidth) ? 'solid' : 'none',
       color: element.borderColor || element.strokeColor,
-      width: borderClassToPixels(element.borderWidth) || element.strokeWidth || 0,
+      width: borderWidth || element.strokeWidth || 0,
       radius: radiusClassToPixels(element.borderRadius),
     },
     effects: { shadow: 0, glow: 0, bevel: 0, innerHighlight: 0, overlayOpacity: 100 },
@@ -360,15 +221,19 @@ const borderToStyle = (border?: AppearanceBorder): CSSProperties => {
   return base;
 };
 
-const borderClassToPixels = (value?: string): number => {
+const borderClassToPixels = (value?: unknown): number => {
   if (!value || value === '_none_') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : 0;
+  if (typeof value !== 'string') return 0;
   if (value === 'border') return 1;
   const match = value.match(/border-(\d+)/);
   return match ? Number(match[1]) : 1;
 };
 
-const radiusClassToPixels = (value?: string): number => {
+const radiusClassToPixels = (value?: unknown): number => {
   if (!value) return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : 0;
+  if (typeof value !== 'string') return 0;
   if (value === 'rounded-sm') return 2;
   if (value === 'rounded-md') return 6;
   if (value === 'rounded-lg') return 8;

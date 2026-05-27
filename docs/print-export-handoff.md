@@ -1,6 +1,6 @@
 # CardForge Print and Digital Export Handoff
 
-Last updated: May 23, 2026
+Last updated: May 25, 2026
 
 CardForge exports are built for creator workflows first: local preview, home print, print-vendor handoff, and digital tabletop setup. Browser export is not a full prepress system, so production print runs should include a final vendor/prepress review.
 
@@ -79,4 +79,3 @@ Before sending files to a printer:
 - Confirm the printer's bleed requirement and whether they want trimmed face files or larger bleed files.
 - Ask whether RGB PNG/PDF is acceptable or whether they require CMYK/PDF-X conversion.
 - Keep the CardForge project JSON alongside exported files so you can regenerate the batch after corrections.
-

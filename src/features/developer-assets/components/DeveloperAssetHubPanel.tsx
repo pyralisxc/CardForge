@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ChangeEvent, DragEvent, ReactNode } from 'react';
-import { Archive, Check, ChevronLeft, ChevronRight, Eye, FileUp, Info, Library, Pencil, Save, Search, ThumbsDown, ThumbsUp, UploadCloud, X } from 'lucide-react';
+import type { ChangeEvent, DragEvent } from 'react';
+import { Check, FileUp, Library, Pencil, Search, UploadCloud, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { CardPreview } from '@/components/card-forge/CardPreview';
-import { TemplateThumbnail } from '@/components/card-forge/TemplateThumbnail';
 import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
 import type { CardAssetOption } from '@/lib/cardAssets';
@@ -26,6 +24,30 @@ import {
 } from '@/lib/pipelineAssetTaxonomy';
 import { useAppStore } from '@/store/appStore';
 import type { TCGCardTemplate } from '@/types';
+import {
+  createAssetFile,
+  createJsonFile,
+  assetTierOrder,
+  getApiErrorMessage,
+  getExtensionForAssetUrl,
+  getSearchableSubmissionText,
+  getTemplatePreviewId,
+  isCurrentContributorSubmission,
+  isEditableSubmission,
+  readStoredCardAssets,
+  reviewLaneHelp,
+  reviewLaneLabels,
+  slugifyFileName,
+  statusGlossary,
+  tierGlossary,
+  type DeveloperAssetSubmission,
+  type PersonalLibraryFilter,
+  type PersonalLibraryItem,
+  type ReviewLane,
+  type VoteFilter,
+} from '@/features/developer-assets/components/DeveloperAssetHubModel';
+import { AssetRow, EditSubmissionForm, QueuePager, VoteButtons } from '@/features/developer-assets/components/DeveloperAssetRows';
+import { FieldHelp, GlossaryPanel, GuidanceCard, PipelineMetric, ProgramRule, QueueSelect, Stat } from '@/features/developer-assets/components/DeveloperAssetHubUi';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
@@ -45,146 +67,6 @@ interface TemplateLibraryResponse {
   defaults: TCGCardTemplate[];
   userTemplates: TCGCardTemplate[];
 }
-
-type DeveloperAssetSubmission = DeveloperAssetProgramView['submissions'][number];
-type ReviewLane = 'defaults' | 'uploads' | 'archive';
-type VoteFilter = 'all' | 'unvoted' | 'upvoted' | 'downvoted';
-type PersonalLibraryFilter = DeveloperAssetType | 'all';
-
-interface PersonalLibraryItem {
-  id: string;
-  name: string;
-  sourceLabel: string;
-  assetType: DeveloperAssetType;
-  fileName: string;
-  helperText: string;
-  previewUrl?: string;
-  createFile: () => Promise<File>;
-}
-
-const reviewLaneLabels: Record<ReviewLane, string> = {
-  defaults: 'Live Library',
-  uploads: 'Review Candidates',
-  archive: 'Recovery Archive',
-};
-
-const reviewLaneHelp: Record<ReviewLane, string> = {
-  defaults: 'Published and official assets currently available to the site library. Developers can keep voting on them while they remain live.',
-  uploads: 'New uploads and candidates gathering enough signal to fill open library caps or graduate into the default library.',
-  archive: 'Retired or underperforming assets. Votes still count here so a strong recovery signal can surface them again.',
-};
-
-const assetTierOrder: DeveloperAssetAccessTier[] = ['hidden', 'free', 'paid', 'developer', 'official'];
-
-const tierClasses: Record<DeveloperAssetAccessTier, string> = {
-  hidden: 'border-[#4a3823] text-[#8f95a3]',
-  free: 'border-[#5f7f54] text-[#bde3a8]',
-  paid: 'border-[#8a642f] text-[#f0c568]',
-  developer: 'border-[#35445a] text-[#b9d5ff]',
-  official: 'border-[#d8b365] text-[#ffe7ad]',
-};
-
-const getApiErrorMessage = async (response: Response, fallback: string) => {
-  try {
-    const body = await response.json() as { error?: { message?: string } };
-    return body.error?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const isEditableSubmission = (submission: DeveloperAssetSubmission, currentUserId: string) => (
-  submission.developerId === currentUserId
-  && submission.status !== 'published'
-  && submission.status !== 'rejected'
-);
-
-const isCurrentContributorSubmission = (
-  submission: DeveloperAssetSubmission,
-  program: DeveloperAssetProgramView,
-) => program.currentContributorIds.includes(submission.developerId);
-
-const getSearchableSubmissionText = (submission: DeveloperAssetSubmission) => [
-  submission.name,
-  submission.description,
-  submission.developerEmail ?? '',
-  submission.developerDisplayName ?? '',
-  submission.developerFirstName ?? '',
-  submission.developerLastName ?? '',
-  getDeveloperAssetTypeLabel(submission.assetType, { plural: false }),
-  getDeveloperAssetStatusLabel(submission.status),
-  getDeveloperAssetTierLabel(submission.calculatedAccessTier),
-  submission.tierDecisionReason ?? '',
-  submission.decisionReason ?? '',
-].join(' ').toLowerCase();
-
-const getContributorLabel = (submission: DeveloperAssetSubmission) => {
-  if (submission.developerDisplayName) return submission.developerDisplayName;
-  if (submission.developerId === 'cardforge-official') return 'CardForge Owner';
-  return submission.developerEmail ?? submission.developerId;
-};
-
-const canRenderImagePreview = (submission: DeveloperAssetSubmission) => (
-  Boolean(submission.previewUrl)
-  && !submission.previewUrl.startsWith('/api/templates')
-  && !submission.previewUrl.startsWith('/api/styles')
-);
-
-const getTemplatePreviewId = (submission: DeveloperAssetSubmission): string | null => {
-  if (submission.assetType !== 'templates') return null;
-  const templateUrl = [submission.previewUrl, submission.sourceUrl]
-    .find((url) => url?.startsWith('/api/templates#'));
-  return templateUrl?.split('#')[1] || null;
-};
-
-const slugifyFileName = (value: string, fallback: string) => {
-  const slug = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug || fallback;
-};
-
-const getExtensionForMimeType = (mimeType: string) => {
-  if (mimeType === 'image/svg+xml') return 'svg';
-  if (mimeType === 'image/png') return 'png';
-  if (mimeType === 'image/jpeg') return 'jpg';
-  if (mimeType === 'image/webp') return 'webp';
-  if (mimeType === 'application/json') return 'json';
-  return 'bin';
-};
-
-const getExtensionForAssetUrl = (url: string) => {
-  if (url.startsWith('data:')) {
-    const mimeType = url.match(/^data:([^;,]+)/)?.[1] ?? '';
-    return getExtensionForMimeType(mimeType);
-  }
-  const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase();
-  return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp', 'json'].includes(extension) ? extension : 'asset';
-};
-
-const readStoredCardAssets = (storageKey: string): CardAssetOption[] => {
-  if (typeof window === 'undefined') return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? '[]') as unknown;
-    return Array.isArray(parsed) ? parsed as CardAssetOption[] : [];
-  } catch {
-    return [];
-  }
-};
-
-const createJsonFile = (payload: unknown, fileName: string) => (
-  new File([JSON.stringify(payload, null, 2)], fileName, { type: 'application/json' })
-);
-
-const createAssetFile = async (asset: CardAssetOption, fileNameStem: string) => {
-  const response = await fetch(asset.url);
-  if (!response.ok) throw new Error(`Unable to read ${asset.name}.`);
-  const blob = await response.blob();
-  const mimeType = blob.type || (asset.url.startsWith('data:image/svg+xml') ? 'image/svg+xml' : 'application/octet-stream');
-  const extension = getExtensionForMimeType(mimeType);
-  return new File([blob], `${fileNameStem}.${extension}`, { type: mimeType });
-};
 
 export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
@@ -228,6 +110,10 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const ownSubmissions = useMemo(() => (
     program?.submissions.filter((submission) => isCurrentContributorSubmission(submission, program)) ?? []
   ), [program]);
+  const liveLibraryCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0) ?? 0;
+  const openDefaultSlotCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0) ?? 0;
+  const reviewCandidateCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.candidateCount, 0) ?? 0;
+  const archiveCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0) ?? 0;
 
   useEffect(() => {
     const loadPersonalLibraryAssets = () => {
@@ -608,14 +494,90 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         <div className="mt-5 grid gap-4 md:grid-cols-4">
           <Stat label="Submitted this month" value={program.developerStats.submitted} help="Assets you uploaded into the site pipeline this calendar month." />
           <Stat label="Published this month" value={program.developerStats.published} help="Your assets that reached published status this calendar month." />
-          <Stat label="Required published" value={program.settings.monthlyPublishedRequirement} help="Owner-set monthly published asset expectation for active developers." />
+          <Stat label="Required published" value={program.effectiveMonthlyPublishedRequirement} help="Your current monthly published asset expectation. Owners can set a base rule and adjust individual accounts." />
           <Stat label="Uploads left" value={program.remainingSubmissions} help="Uploads remaining before your monthly site-submission allowance is reached." />
         </div>
 
         <div className="mt-4 grid gap-3 border border-[#5f4526] bg-[#100c08] p-4 md:grid-cols-3">
-          <ProgramRule label="Current defaults" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0)} body="Published assets currently feeding the site library from the registry." />
-          <ProgramRule label="Open default slots" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0)} body="Available published slots across all asset types before candidates have to wait." />
-          <ProgramRule label="Owner defaults" value={program.assetTypeSummaries.reduce((total, summary) => total + summary.officialCount, 0)} body="Current site defaults credited to the CardForge Owner and governed by the same voting pipeline." />
+          <ProgramRule label="Current defaults" value={liveLibraryCount} body="Published pipeline assets currently feeding the live site library." />
+          <ProgramRule label="Open default slots" value={openDefaultSlotCount} body="Available published slots across all asset types before candidates have to wait." />
+          <ProgramRule label="Review candidates" value={reviewCandidateCount} body="Uploads and publish candidates collecting signal before live library placement." />
+        </div>
+
+        <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Start here</p>
+              <h3 className="mt-1 font-serif text-xl text-[#fff1c7]">Your developer loop is submit, review, track, improve.</h3>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
+              onClick={() => void loadProgram()}
+            >
+              Refresh pipeline
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <GuidanceCard
+              eyebrow="1. Submit"
+              title={program.remainingSubmissions > 0 ? `${program.remainingSubmissions} uploads left` : 'Limit reached'}
+              body={program.remainingSubmissions > 0
+                ? 'Choose saved browser work or local files, then send the candidate through Forge Review.'
+                : 'Your monthly submission allowance is used. Review and polish existing work until the next cycle.'}
+              tone={program.remainingSubmissions > 0 ? 'ready' : 'warning'}
+            />
+            <GuidanceCard
+              eyebrow="2. Review"
+              title={`${reviewCandidateCount} candidates`}
+              body={program.settings.allowContributorSelfVoting
+                ? 'Self-voting is enabled, so you can review your own uploads and peer work.'
+                : 'Self-voting is off, so your own uploads are hidden from your review queue.'}
+            />
+            <GuidanceCard
+              eyebrow="3. Track"
+              title={`${ownSubmissions.length} owned assets`}
+              body="Use My Pipeline to expand previews, edit eligible uploads, and see why each asset is waiting, live, or archived."
+            />
+            <GuidanceCard
+              eyebrow="4. Improve"
+              title={`${archiveCount} archived`}
+              body="Archived assets still accept voting signal, so strong recovered work can become worth another owner look."
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
+          <h3 className="font-serif text-xl text-[#fff1c7]">Future creator pool</h3>
+          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+            CardForge plans to reserve {program.settings.profitSharePoolPercent}% of eligible profit for approved active developers once the platform, payout systems, and terms are ready. The current plan is an even split among eligible contributors for the payout period; this is a roadmap commitment, not an active payout system yet.
+          </p>
+          <p className={`mt-2 text-xs ${program.profitShareEligible ? 'text-[#bde3a8]' : 'text-[#f0bd75]'}`}>
+            Your current planning flag: {program.profitShareEligible ? 'eligible for future creator-pool tracking' : 'paused from future creator-pool tracking'}.
+          </p>
+          {program.developerOwnerNote ? (
+            <p className="mt-2 border border-[#3c2c1b] bg-[#15100a] p-2 text-xs leading-5 text-[#a98a55]">
+              Owner note: {program.developerOwnerNote}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="border border-[#5f4526] bg-[#100c08] p-4">
+            <h3 className="font-serif text-xl text-[#fff1c7]">How assets move</h3>
+            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+              Votes create quality signal, owner rules set the thresholds, and publish caps decide how many assets can be live in each family. Published assets stay voteable, archived assets can still earn recovery signal, and owner overrides are visible as tier reasons.
+            </p>
+          </div>
+          <div className="grid gap-2 border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">
+            <PipelineMetric label="Votes to grade" value={program.settings.minimumVotesForGrading} body="Minimum votes before the pipeline can judge pass/fail signal." />
+            <PipelineMetric label="Positive threshold" value={`${program.settings.minimumPositiveVotePercent}%`} body="Quality score needed before an asset can become a publish candidate." />
+            <PipelineMetric label="Starter / Pass" value={`${program.settings.freeAssetMinimumPositiveVotePercent}% / ${program.settings.paidAssetMinimumPositiveVotePercent}%`} body="Tier thresholds after the minimum tier-vote count is met." />
+            <PipelineMetric label="Owner vote" value={`${program.settings.ownerVoteWeight}x`} body="Owner signal weight when the owner votes." />
+            <PipelineMetric label="Self voting" value={program.settings.allowContributorSelfVoting ? 'On' : 'Off'} body="Controls whether your own assets appear in your review queue." />
+            <PipelineMetric label="Owner review" value={program.settings.ownerFinalReviewRequired ? 'Required' : 'Automatic'} body="Controls whether passing candidates need final owner approval." />
+          </div>
         </div>
 
         <Tabs defaultValue="submit" className="mt-6">
@@ -632,13 +594,31 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             <p className="mt-2 text-sm leading-6 text-[#c7b288]">
               Site submissions enter the shared CardForge review pipeline. Local browser uploads remain private in your own workspace.
             </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <GuidanceCard
+                eyebrow="Before upload"
+                title="Use the right family"
+                body="Templates, recipes, textures, dividers, icons, images, and overlays each publish into different studio surfaces."
+              />
+              <GuidanceCard
+                eyebrow="Before upload"
+                title="Attach the real source"
+                body="The source file is what the pipeline stores, previews, votes on, and eventually publishes."
+              />
+              <GuidanceCard
+                eyebrow="Before upload"
+                title="Explain the use case"
+                body="Notes should tell reviewers where the asset belongs and what makes it useful."
+              />
+            </div>
             <div className="mt-4 grid gap-3">
-              <label className="grid gap-2 text-sm text-[#c7b288]">
+              <label htmlFor="developer-asset-family" className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
                   Asset family
                   <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
                 </span>
                 <select
+                  id="developer-asset-family"
                   className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
                   value={assetType}
                   onChange={(event) => setAssetType(event.target.value as DeveloperAssetType)}
@@ -648,12 +628,12 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                   ))}
                 </select>
               </label>
-              <label className="grid gap-2 text-sm text-[#c7b288]">
+              <label htmlFor="developer-asset-name" className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
                   Name
                   <FieldHelp text="Use a short library-facing name. This is what owners and peer reviewers see in queues." />
                 </span>
-                <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={name} onChange={(event) => setName(event.target.value)} />
+                <input id="developer-asset-name" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={name} onChange={(event) => setName(event.target.value)} />
               </label>
               <div className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
@@ -730,6 +710,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                       <input
                         key={fileInputKey}
                         type="file"
+                        aria-label="Asset source file"
                         accept=".svg,.png,.jpg,.jpeg,.webp,.json,image/svg+xml,image/png,image/jpeg,image/webp,application/json"
                         className="sr-only"
                         onChange={handleFileChange}
@@ -745,19 +726,19 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                       : 'No source selected yet.'}
                 </span>
               </div>
-              <label className="grid gap-2 text-sm text-[#c7b288]">
+              <label htmlFor="developer-asset-preview-url" className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
                   Preview URL (optional)
                   <FieldHelp text="Optional. Leave blank to use the uploaded source file as the visual preview." />
                 </span>
-                <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} />
+                <input id="developer-asset-preview-url" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} />
               </label>
-              <label className="grid gap-2 text-sm text-[#c7b288]">
+              <label htmlFor="developer-asset-notes" className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
                   Notes
                   <FieldHelp text="Mention intended use, style, licensing/source context, and anything reviewers need to know." />
                 </span>
-                <textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={description} onChange={(event) => setDescription(event.target.value)} />
+                <textarea id="developer-asset-notes" className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={description} onChange={(event) => setDescription(event.target.value)} />
               </label>
               <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
                 {isSaving ? 'Uploading...' : 'Send to Forge Review'}
@@ -770,7 +751,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
               <h3 className="font-serif text-xl text-[#fff1c7]">Continuous review queue</h3>
               <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-                Vote on candidate uploads, current site defaults, and archived assets. Assets graduate into defaults when there is room or enough vote signal, and archive votes can surface recovery candidates.
+                Vote on candidate uploads, live library assets, and archived assets. Assets graduate into the shared library when there is room or enough vote signal, and archive votes can surface recovery candidates.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {(Object.keys(reviewLaneLabels) as ReviewLane[]).map((lane) => (
@@ -830,6 +811,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                     <AssetRow
                       key={submission.id}
                       submission={submission}
+                      program={program}
                       templatePreviews={templatePreviews}
                       expanded={expandedSubmissionId === submission.id}
                       onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
@@ -859,6 +841,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                     <AssetRow
                       key={submission.id}
                       submission={submission}
+                      program={program}
                       templatePreviews={templatePreviews}
                       expanded={expandedSubmissionId === submission.id}
                       onToggleExpanded={() => setExpandedSubmissionId(expandedSubmissionId === submission.id ? null : submission.id)}
@@ -895,348 +878,21 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
           <TabsContent value="program" className="mt-4">
             <div className="grid gap-3 md:grid-cols-3">
-              <ProgramRule label="Submission allowance" value={program.settings.monthlySubmissionLimit} body="Site-library candidates each developer can submit per calendar month." />
-              <ProgramRule label="Required published" value={program.settings.monthlyPublishedRequirement} body="Owner-set monthly published expectation for active developers." />
+              <ProgramRule label="Submission allowance" value={program.effectiveMonthlySubmissionLimit} body="Site-library candidates you can submit this calendar month. This may be the base rule or an account-specific owner adjustment." />
+              <ProgramRule label="Required published" value={program.effectiveMonthlyPublishedRequirement} body="Monthly published expectation currently assigned to your developer account." />
               <ProgramRule label="Minimum tier votes" value={program.settings.minimumVotesForTierAssignment} body="Votes required before an asset can move beyond Forge Review." />
             </div>
             <div className="mt-3 border border-[#5f4526] bg-[#100c08] p-4 text-sm leading-6 text-[#c7b288]">
-              Current owner defaults are part of the same review surface as every upload. Developer votes and owner cap settings can move them between current defaults, candidate review, and archive.
+              Shared library assets are part of the same review surface as every upload. Developer votes and owner cap settings can move them between live library, candidate review, and archive. The planned creator pool is {program.settings.profitSharePoolPercent}% of eligible profit, split evenly among eligible active developers after the financial launch systems are ready.
+            </div>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <GlossaryPanel title="Statuses" items={statusGlossary} />
+              <GlossaryPanel title="Tiers" items={tierGlossary} />
             </div>
           </TabsContent>
         </Tabs>
       </div>
     </section>
     </TooltipProvider>
-  );
-}
-
-function FieldHelp({ text }: { text: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="grid h-6 w-6 shrink-0 place-items-center border border-[#5f4526] text-[#d7b469] hover:border-[#d8b365] hover:text-[#fff1c7]"
-          aria-label="More information"
-        >
-          <Info className="h-3.5 w-3.5" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-xs border-[#6d4f2b] bg-[#15100a] text-[#f7ead0]">
-        {text}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function Stat({ label, value, help }: { label: string; value: number; help: string }) {
-  return (
-    <div className="border border-[#5f4526] bg-[#100c08] p-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{label}</p>
-        <FieldHelp text={help} />
-      </div>
-      <p className="mt-2 text-2xl font-semibold text-[#ffe7ad]">{value}</p>
-    </div>
-  );
-}
-
-function ProgramRule({ label, value, body }: { label: string; value: number; body: string }) {
-  return (
-    <div className="border border-[#5f4526] bg-[#100c08] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-[#ffe7ad]">{value}</p>
-      <p className="mt-2 text-sm leading-5 text-[#c7b288]">{body}</p>
-    </div>
-  );
-}
-
-function QueueSelect({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  children: ReactNode;
-}) {
-  return (
-    <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-      {label}
-      <select
-        className="min-h-10 border border-[#5f4526] bg-[#100c08] px-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {children}
-      </select>
-    </label>
-  );
-}
-
-function VoteButtons({
-  submission,
-  onVote,
-}: {
-  submission: DeveloperAssetSubmission;
-  onVote: (submissionId: string, voteValue: 'positive' | 'negative') => void;
-}) {
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="outline"
-        className={`border-[#5f7f54] bg-transparent text-[#bde3a8] ${submission.currentUserVote === 'positive' ? 'bg-[#142416]' : ''}`}
-        onClick={() => onVote(submission.id, 'positive')}
-        aria-label={`Upvote ${submission.name}`}
-      >
-        <ThumbsUp className="h-4 w-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className={`border-[#7d3d32] bg-transparent text-[#ffd0c6] ${submission.currentUserVote === 'negative' ? 'bg-[#2a120d]' : ''}`}
-        onClick={() => onVote(submission.id, 'negative')}
-        aria-label={`Downvote ${submission.name}`}
-      >
-        <ThumbsDown className="h-4 w-4" />
-      </Button>
-    </>
-  );
-}
-
-function QueuePager({
-  page,
-  pageCount,
-  total,
-  pageSize,
-  onPrevious,
-  onNext,
-}: {
-  page: number;
-  pageCount: number;
-  total: number;
-  pageSize: number;
-  onPrevious: () => void;
-  onNext: () => void;
-}) {
-  const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
-  const end = Math.min(total, page * pageSize);
-  return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#3c2c1b] pt-4 text-xs text-[#a98a55]">
-      <span>{start}-{end} of {total} assets</span>
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
-          disabled={page <= 1}
-          onClick={onPrevious}
-          aria-label="Previous queue page"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="min-w-20 text-center text-[#c7b288]">Page {page} / {pageCount}</span>
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
-          disabled={page >= pageCount}
-          onClick={onNext}
-          aria-label="Next queue page"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function EditSubmissionForm({
-  name,
-  description,
-  previewUrl,
-  isSaving,
-  onNameChange,
-  onDescriptionChange,
-  onPreviewUrlChange,
-  onCancel,
-  onSave,
-}: {
-  name: string;
-  description: string;
-  previewUrl: string;
-  isSaving: boolean;
-  onNameChange: (value: string) => void;
-  onDescriptionChange: (value: string) => void;
-  onPreviewUrlChange: (value: string) => void;
-  onCancel: () => void;
-  onSave: () => void;
-}) {
-  return (
-    <div className="mt-3 grid gap-3 border border-[#5f4526] bg-[#100c08] p-3">
-      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-        Name
-        <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={name} onChange={(event) => onNameChange(event.target.value)} />
-      </label>
-      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-        Preview URL
-        <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={previewUrl} onChange={(event) => onPreviewUrlChange(event.target.value)} />
-      </label>
-      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-        Notes
-        <textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
-      </label>
-      <div className="flex flex-wrap gap-2">
-        <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={onSave}>
-          <Save className="mr-2 h-4 w-4" />
-          {isSaving ? 'Saving...' : 'Save'}
-        </Button>
-        <Button variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={isSaving} onClick={onCancel}>
-          <X className="mr-2 h-4 w-4" />
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function AssetRow({
-  submission,
-  templatePreviews,
-  children,
-  expanded = false,
-  onToggleExpanded,
-  editForm,
-}: {
-  submission: DeveloperAssetSubmission;
-  templatePreviews: Record<string, TCGCardTemplate>;
-  children?: ReactNode;
-  expanded?: boolean;
-  onToggleExpanded?: () => void;
-  editForm?: ReactNode;
-}) {
-  return (
-    <div className="border border-[#4a3823] bg-[#0c0b09] p-3">
-      <div className="grid gap-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
-        <div className="grid h-16 w-16 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
-          <AssetPreview submission={submission} templatePreviews={templatePreviews} />
-        </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium text-[#ffe7ad]">{submission.name}</p>
-            <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">
-              {getDeveloperAssetStatusLabel(submission.status)}
-            </span>
-            <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
-              {getContributorLabel(submission)}
-            </span>
-            <span className={`border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${tierClasses[submission.calculatedAccessTier]}`}>
-              {getDeveloperAssetTierLabel(submission.calculatedAccessTier)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-[#c7b288]">
-            {getDeveloperAssetTypeLabel(submission.assetType, { plural: false })} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
-          </p>
-          <p className="mt-1 text-xs text-[#a98a55]">
-            {(submission.tierDecisionReason ?? submission.decisionReason ?? 'developer_review').replaceAll('_', ' ')}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {onToggleExpanded ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-[#5f4526] bg-transparent text-[#ffe7ad]"
-              onClick={onToggleExpanded}
-              aria-label={`${expanded ? 'Hide' : 'Show'} ${submission.name} preview`}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-          ) : null}
-          {children ?? (submission.status === 'published' ? <Check className="h-5 w-5 text-[#8be0a4]" /> : null)}
-        </div>
-      </div>
-      {expanded ? (
-        <div className="mt-3 grid gap-3 border-t border-[#3c2c1b] pt-3 lg:grid-cols-[minmax(14rem,22rem)_1fr]">
-          <div className="grid min-h-48 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
-            <AssetPreview submission={submission} templatePreviews={templatePreviews} expanded />
-          </div>
-          <div className="text-sm leading-6 text-[#c7b288]">
-            <p>{submission.description || 'No notes were provided for this asset.'}</p>
-            <dl className="mt-3 grid gap-2 text-xs text-[#a98a55] sm:grid-cols-2">
-              <div><dt className="uppercase tracking-[0.12em]">Contributor</dt><dd className="break-all text-[#c7b288]">{getContributorLabel(submission)}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Email</dt><dd className="break-all text-[#c7b288]">{submission.developerEmail ?? 'Not provided'}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Source</dt><dd className="break-all text-[#c7b288]">{submission.sourceUrl ?? 'Not attached'}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Registry</dt><dd className="break-all text-[#c7b288]">{submission.registryAssetId ?? 'Not published'}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Submitted</dt><dd className="text-[#c7b288]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Updated</dt><dd className="text-[#c7b288]">{submission.updatedAt ? new Date(submission.updatedAt).toLocaleDateString() : 'Not updated'}</dd></div>
-            </dl>
-            {editForm}
-          </div>
-        </div>
-      ) : editForm}
-    </div>
-  );
-}
-
-function AssetPreview({
-  submission,
-  templatePreviews,
-  expanded = false,
-}: {
-  submission: DeveloperAssetSubmission;
-  templatePreviews: Record<string, TCGCardTemplate>;
-  expanded?: boolean;
-}) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const templateId = getTemplatePreviewId(submission);
-  const template = templateId ? templatePreviews[templateId] : undefined;
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [submission.previewUrl]);
-
-  if (template) {
-    if (!expanded) return <TemplateThumbnail template={template} />;
-    return (
-      <div className="max-h-[26rem] w-full overflow-auto p-4">
-        <CardPreview
-          card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `developer-preview-${template.id}` }}
-          targetWidthPx={260}
-          isEditorPreview
-        />
-      </div>
-    );
-  }
-
-  if (canRenderImagePreview(submission) && !imageFailed) {
-    return (
-      <img
-        src={submission.previewUrl}
-        alt=""
-        className={expanded ? 'max-h-80 w-full object-contain' : 'h-full w-full object-cover'}
-        onError={() => setImageFailed(true)}
-      />
-    );
-  }
-
-  const isStructured = submission.previewUrl.startsWith('/api/templates') || submission.previewUrl.startsWith('/api/styles');
-  const message = imageFailed
-    ? 'Preview image could not be loaded.'
-    : isStructured
-      ? 'This asset uses structured data instead of a direct image preview.'
-      : 'No preview file has been attached yet.';
-
-  return (
-    <div className={`grid h-full w-full place-items-center text-center text-[#c7b288] ${expanded ? 'gap-2 p-6' : 'px-2'}`}>
-      {expanded ? <Archive className="mx-auto h-8 w-8 text-[#a98a55]" /> : null}
-      <p className={`${expanded ? 'text-sm font-medium text-[#ffe7ad]' : 'text-[10px] uppercase tracking-[0.12em] text-[#a98a55]'}`}>
-        {getDeveloperAssetTypeLabel(submission.assetType, { plural: false })}
-      </p>
-      {expanded ? <p className="text-xs leading-5 text-[#a98a55]">{message}</p> : null}
-    </div>
   );
 }

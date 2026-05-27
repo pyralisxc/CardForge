@@ -4,7 +4,7 @@ import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import { CARD_DIVIDER_ASSETS, CARD_TEXTURE_ASSETS, type CardAssetOption } from '@/lib/cardAssets';
+import type { CardAssetOption } from '@/lib/cardAssets';
 import { loadBootstrapAssets } from '@/lib/clientBootstrapData';
 import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/lib/pipelineAssetTaxonomy';
 import {
@@ -50,8 +50,8 @@ export function useTemplateAssetLibrary({
   toast,
 }: UseTemplateAssetLibraryInput) {
   const [assetSearch, setAssetSearch] = useState('');
-  const [discoveredTextureAssets, setDiscoveredTextureAssets] = useState<CardAssetOption[]>(CARD_TEXTURE_ASSETS);
-  const [discoveredDividerAssets, setDiscoveredDividerAssets] = useState<CardAssetOption[]>(CARD_DIVIDER_ASSETS);
+  const [discoveredTextureAssets, setDiscoveredTextureAssets] = useState<CardAssetOption[]>([]);
+  const [discoveredDividerAssets, setDiscoveredDividerAssets] = useState<CardAssetOption[]>([]);
   const [discoveredIconAssets, setDiscoveredIconAssets] = useState<CardAssetOption[]>([]);
   const [discoveredImageAssets, setDiscoveredImageAssets] = useState<CardAssetOption[]>([]);
   const [customTextureAssets, setCustomTextureAssets] = useState<CardAssetOption[]>([]);

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CardPreview } from '@/components/card-forge/CardPreview';
+import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/lib/templateDisplay';
 import { cn } from '@/lib/utils';
 import type { TCGCardTemplate } from '@/types';
 
@@ -70,14 +71,14 @@ export function TemplateLibraryPanel({
             else onSelectTemplateId(value);
           }}
         >
-          <SelectTrigger className={controlClassName}><SelectValue /></SelectTrigger>
+          <SelectTrigger className={controlClassName} aria-label="Choose template"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__new__">Unsaved Template</SelectItem>
             {defaultTemplates.map((template) => (
-              <SelectItem key={template.id!} value={template.id!}>Default / {template.name}</SelectItem>
+              <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
             ))}
             {userTemplates.map((template) => (
-              <SelectItem key={template.id!} value={template.id!}>User / {template.name}</SelectItem>
+              <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -89,10 +90,10 @@ export function TemplateLibraryPanel({
         <div className="space-y-2 border-t border-[#1b2029] pt-2">
           <div className="grid grid-cols-2 gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onExportProject} className={cn(buttonClassName, 'gap-1 text-xs')}>
-              <FolderDown className="h-4 w-4" /> Export
+              <FolderDown className="h-4 w-4" /> Export Project
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={onImportProject} className={cn(buttonClassName, 'gap-1 text-xs')}>
-              <FolderUp className="h-4 w-4" /> Import
+              <FolderUp className="h-4 w-4" /> Import Project
             </Button>
             <input
               ref={fileInputRef}
@@ -132,7 +133,7 @@ export function TemplateLibraryPanel({
               <TemplateLibraryPreview template={template} />
               <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{template.name}</span>
-                <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Default template'}</span>
+                <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || getTemplateLibraryDescription(template)}</span>
               </span>
             </button>
           ))}

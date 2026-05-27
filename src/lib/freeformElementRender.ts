@@ -2,15 +2,17 @@ import type { CardData, FreeformCardElement } from '@/types';
 import type { CSSProperties } from 'react';
 import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/lib/utils';
 
-export const borderWidthClassToPixels = (value?: string): number => {
+export const borderWidthClassToPixels = (value?: unknown): number => {
   if (!value || value === '_none_') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : 0;
+  if (typeof value !== 'string') return 0;
   if (value === 'border') return 1;
   if (value === 'border-t' || value === 'border-r' || value === 'border-b' || value === 'border-l') return 1;
   const match = value.match(/border-(\d+)/);
   return match ? Number(match[1]) : 1;
 };
 
-export const borderWidthClassToStyle = (value?: string): CSSProperties => {
+export const borderWidthClassToStyle = (value?: unknown): CSSProperties => {
   const width = borderWidthClassToPixels(value);
   if (width <= 0) return { borderWidth: 0 };
   if (value === 'border-t') return { borderTopWidth: width, borderRightWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0 };
@@ -20,7 +22,9 @@ export const borderWidthClassToStyle = (value?: string): CSSProperties => {
   return { borderWidth: width };
 };
 
-export const radiusClassToCss = (value?: string): string | undefined => {
+export const radiusClassToCss = (value?: unknown): string | undefined => {
+  if (typeof value === 'number') return `${Math.max(0, value)}px`;
+  if (typeof value !== 'string') return undefined;
   switch (value) {
     case 'rounded-sm': return '2px';
     case 'rounded-md': return '6px';

@@ -6,6 +6,8 @@ import {
   developerAssetTypeToRegistryAssetKind,
   getAssetBadgeSummary,
   getAssetKindLabel,
+  getDeveloperAssetStatusDescription,
+  getDeveloperAssetTierDescription,
   getDeveloperAssetTypeLabel,
   isLocalOnlyAsset,
   normalizeLocalLibraryAsset,
@@ -13,9 +15,9 @@ import {
 
 describe('pipeline asset taxonomy', () => {
   it('uses product-facing labels for legacy asset kinds', () => {
-    expect(getAssetKindLabel('part')).toBe('Card Part / Overlay');
-    expect(getAssetKindLabel('part', { plural: true })).toBe('Card Parts / Overlays');
-    expect(getDeveloperAssetTypeLabel('parts')).toBe('Card Parts / Overlays');
+    expect(getAssetKindLabel('part')).toBe('Overlay Asset');
+    expect(getAssetKindLabel('part', { plural: true })).toBe('Overlay Assets');
+    expect(getDeveloperAssetTypeLabel('parts')).toBe('Overlay Assets');
     expect(getDeveloperAssetTypeLabel('imageAssets')).toBe('Images');
     expect(getDeveloperAssetTypeLabel('elementPresets')).toBe('Pipeline Recipes');
   });
@@ -39,11 +41,18 @@ describe('pipeline asset taxonomy', () => {
       'Divider',
       'Icon',
       'Image',
-      'Card Part / Overlay',
+      'Overlay Asset',
     ]);
     expect(developerAssetTypeToRegistryAssetKind('parts')).toBe('part');
     expect(developerAssetTypeToRegistryAssetKind('imageAssets')).toBe('image');
     expect(developerAssetTypeToRegistryAssetKind('elementPresets')).toBe('elementPreset');
+  });
+
+  it('explains status and tier labels for developer-facing pipeline context', () => {
+    expect(getDeveloperAssetStatusDescription('voting')).toMatch(/thumbs-up and thumbs-down/i);
+    expect(getDeveloperAssetStatusDescription('published')).toMatch(/shared CardForge library/i);
+    expect(getDeveloperAssetTierDescription('developer')).toMatch(/waiting on votes/i);
+    expect(getDeveloperAssetTierDescription('official')).toMatch(/legacy platform-reserved tier/i);
   });
 
   it('treats browser uploads as local-only library assets', () => {
@@ -75,6 +84,6 @@ describe('pipeline asset taxonomy', () => {
 
     expect(asset.packId).toBe('arcane-forge');
     expect(asset.packName).toBe('Arcane Forge');
-    expect(getAssetBadgeSummary(asset)).toEqual(['Official default', 'Card Part / Overlay', 'Arcane Forge']);
+    expect(getAssetBadgeSummary(asset)).toEqual(['Forge Library', 'Overlay Asset', 'Arcane Forge']);
   });
 });

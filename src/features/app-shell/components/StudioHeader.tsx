@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Hammer } from 'lucide-react';
 import { AccountControls } from '@/features/account/components/AccountControls';
 
-interface HeaderProps {
+interface StudioHeaderProps {
   authConfigured: boolean;
   currentPath?: string;
   isSignedIn: boolean;
@@ -20,13 +20,13 @@ const studioNavItems = [
   { href: '/account', label: 'Account' },
 ] as const;
 
-export function Header({
+export function StudioHeader({
   authConfigured,
   currentPath = '/studio',
   isSignedIn,
   modeLabel,
   onRefreshEntitlement,
-}: HeaderProps) {
+}: StudioHeaderProps) {
   return (
     <header className="border-b border-[#5f4526] bg-[#120e09] px-4 py-4 text-[#f7ead0] shadow-[0_10px_30px_rgba(0,0,0,0.28)] no-print">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3">

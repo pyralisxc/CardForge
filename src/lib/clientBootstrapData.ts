@@ -13,7 +13,7 @@ type AssetsPayload = {
   elementPresets?: CardAssetOption[];
   registry?: {
     configured: boolean;
-    source: 'database' | 'shipped-files';
+    source: 'database';
     total: number;
   };
 };
@@ -30,17 +30,40 @@ async function fetchJson<T>(url: string) {
   return response.json() as Promise<T>;
 }
 
+const withBootstrapRetry = <T>(
+  load: () => Promise<T>,
+  reset: () => void,
+) => load().catch((error) => {
+  reset();
+  throw error;
+});
+
 export function loadBootstrapTemplates() {
-  templatesPromise ??= fetchJson<TemplatesPayload>('/api/templates');
+  templatesPromise ??= withBootstrapRetry(
+    () => fetchJson<TemplatesPayload>('/api/templates'),
+    () => {
+      templatesPromise = null;
+    },
+  );
   return templatesPromise;
 }
 
 export function loadBootstrapStyles() {
-  stylesPromise ??= fetchJson<StylesPayload>('/api/styles');
+  stylesPromise ??= withBootstrapRetry(
+    () => fetchJson<StylesPayload>('/api/styles'),
+    () => {
+      stylesPromise = null;
+    },
+  );
   return stylesPromise;
 }
 
 export function loadBootstrapAssets() {
-  assetsPromise ??= fetchJson<AssetsPayload>('/api/assets');
+  assetsPromise ??= withBootstrapRetry(
+    () => fetchJson<AssetsPayload>('/api/assets'),
+    () => {
+      assetsPromise = null;
+    },
+  );
   return assetsPromise;
 }

@@ -124,6 +124,20 @@ describe('structured appearance helpers', () => {
     expect(appearance.border?.radius).toBe(8);
   });
 
+  it('tolerates malformed legacy border values while loading templates', () => {
+    const appearance = normalizeAppearanceForElement({
+      ...baseElement,
+      borderWidth: { width: 4 } as unknown as string,
+      borderRadius: { radius: 8 } as unknown as string,
+      backgroundImageUrl: { asset: 'legacy' } as unknown as string,
+    });
+
+    expect(appearance.border?.kind).toBe('none');
+    expect(appearance.border?.width).toBe(0);
+    expect(appearance.border?.radius).toBe(0);
+    expect(appearance.material?.texture?.kind).toBe('none');
+  });
+
   it('preserves content fields while applying structured appearance render fields', () => {
     const element = {
       ...baseElement,

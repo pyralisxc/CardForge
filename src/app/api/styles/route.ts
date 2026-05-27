@@ -1,6 +1,3 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-
 import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/types';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
@@ -10,29 +7,13 @@ import {
 } from '@/lib/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { canCurrentAccountWriteShippedLibrary } from '@/lib/serverProjectAccess';
+import { getSupabaseServerClient } from '@/lib/supabaseServer';
 import {
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
 } from '@/lib/registryContentAssets';
 
-const STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
-const STYLE_FILE_EXTENSION = '.json';
-
-const ensureStyleDirectory = async () => {
-  await fs.mkdir(STYLE_LIBRARY_DIR, { recursive: true });
-};
-
-const toSafeFileName = (value: string): string => {
-  const safe = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-_]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-  return safe || 'style';
-};
-
-const styleFilePathForId = (id: string) =>
-  path.join(STYLE_LIBRARY_DIR, `${toSafeFileName(id)}${STYLE_FILE_EXTENSION}`);
+const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL || 'cameron.r.locke96@gmail.com';
 
 const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
   if (!value || typeof value !== 'object') return false;
@@ -44,39 +25,91 @@ const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
     && !!candidate.appearance;
 };
 
-const writeStylePresetFiles = async (styles: AppearanceStylePreset[]) => {
-  await Promise.all(styles.map((style) =>
-    fs.writeFile(styleFilePathForId(style.id), `${JSON.stringify(style, null, 2)}\n`, 'utf8')
-  ));
+const syncStylePresetToRegistry = async (style: AppearanceStylePreset) => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new Error('The Forge Pipeline database is not configured.');
+
+  const { data: ownerProfiles } = await supabase
+    .from('cardforge_developer_profiles')
+    .select('clerk_user_id,email')
+    .eq('email', PIPELINE_OWNER_EMAIL)
+    .limit(1);
+  const ownerProfile = ownerProfiles?.[0] as { clerk_user_id?: string; email?: string | null } | undefined;
+  const ownerDeveloperId = ownerProfile?.clerk_user_id || PIPELINE_OWNER_EMAIL;
+  const ownerEmail = ownerProfile?.email || PIPELINE_OWNER_EMAIL;
+  const stylePayload: AppearanceStylePreset = {
+    ...style,
+    librarySource: 'developer',
+    accessTier: 'free',
+    registryStatus: 'published',
+    contributorName: ownerEmail,
+  };
+
+  const { data: existingSubmissions } = await supabase
+    .from('cardforge_developer_asset_submissions')
+    .select('id')
+    .eq('registry_asset_id', style.id)
+    .limit(1);
+  const submissionPatch = {
+    developer_id: ownerDeveloperId,
+    developer_email: ownerEmail,
+    asset_type: 'elementPresets',
+    name: style.name,
+    description: `${style.name} starter style maintained through the Forge Pipeline.`,
+    preview_url: `/api/styles#${style.id}`,
+    source_url: `/api/styles#${style.id}`,
+    source_file_size_bytes: Buffer.byteLength(JSON.stringify(style)),
+    source_mime_type: 'application/json',
+    registry_asset_id: style.id,
+    status: 'published',
+    calculated_access_tier: 'free',
+    owner_access_tier_override: null,
+  };
+
+  let submissionId = existingSubmissions?.[0]?.id as string | undefined;
+  if (submissionId) {
+    const { error } = await supabase
+      .from('cardforge_developer_asset_submissions')
+      .update(submissionPatch)
+      .eq('id', submissionId);
+    if (error) throw error;
+  } else {
+    const { data, error } = await supabase
+      .from('cardforge_developer_asset_submissions')
+      .insert(submissionPatch)
+      .select('id')
+      .single();
+    if (error) throw error;
+    submissionId = data.id;
+  }
+
+  const { error } = await supabase
+    .from('cardforge_asset_registry')
+    .upsert({
+      asset_id: style.id,
+      name: style.name,
+      asset_type: 'elementPreset',
+      url: `/api/styles#${style.id}`,
+      preview_url: `/api/styles#${style.id}`,
+      status: 'published',
+      access_tier: 'free',
+      library_source: 'developer',
+      developer_submission_id: submissionId,
+      file_size_bytes: Buffer.byteLength(JSON.stringify(style)),
+      metadata: {
+        sourceKind: 'pipeline-owner-edit',
+        style: stylePayload,
+      },
+    }, { onConflict: 'asset_id' });
+  if (error) throw error;
 };
 
 const readLibrary = async (): Promise<AppearanceStyleLibrary> => {
-  await ensureStyleDirectory();
-  const entries = await fs.readdir(STYLE_LIBRARY_DIR, { withFileTypes: true });
-  const styles: AppearanceStylePreset[] = [];
-
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    if (!entry.name.endsWith(STYLE_FILE_EXTENSION)) continue;
-
-    const filePath = path.join(STYLE_LIBRARY_DIR, entry.name);
-    try {
-      const contents = await fs.readFile(filePath, 'utf8');
-      const parsed = JSON.parse(contents);
-      if (isStylePreset(parsed)) styles.push(parsed);
-    } catch (error) {
-      console.warn(`Skipping invalid style file ${entry.name}:`, error);
-    }
-  }
-
   const registryStyles = await readStylesFromRegistry();
-  const stylesById = new Map<string, AppearanceStylePreset>();
-  styles.forEach((style) => stylesById.set(style.id, style));
-  registryStyles.forEach((style) => stylesById.set(style.id, style));
 
   return {
     version: 1,
-    styles: Array.from(stylesById.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    styles: registryStyles.sort((a, b) => a.name.localeCompare(b.name)),
   };
 };
 
@@ -84,7 +117,7 @@ const readStylesFromRegistry = async (): Promise<AppearanceStylePreset[]> => {
   const rows = await getPublishedRegistryContentRows('elementPreset');
   if (rows.length === 0) return [];
 
-  const styles = await Promise.all(rows.map(async (row) => {
+  const styles: Array<AppearanceStylePreset | null> = await Promise.all(rows.map(async (row) => {
     const style = await readRegistryContentAsset<AppearanceStylePreset>(
       row,
       ['style', 'elementPreset', 'payload'],
@@ -96,6 +129,10 @@ const readStylesFromRegistry = async (): Promise<AppearanceStylePreset[]> => {
       ...style,
       id: style.id || row.asset_id,
       name: style.name || row.name,
+      librarySource: row.library_source === 'developer' ? 'developer' as const : 'official' as const,
+      accessTier: row.access_tier,
+      registryStatus: row.status,
+      contributorName: style.contributorName || PIPELINE_OWNER_EMAIL,
     };
   }));
 
@@ -172,7 +209,7 @@ export async function POST(request: Request) {
       else merged.push(style);
     });
 
-    await writeStylePresetFiles(validStyles);
+    await Promise.all(validStyles.map(syncStylePresetToRegistry));
     const next = { version: current.version || 1, styles: merged.sort((a, b) => a.name.localeCompare(b.name)) };
     return createNoStoreJsonResponse(next);
   } catch (error) {
@@ -208,12 +245,25 @@ export async function DELETE(request: Request) {
     if (typeof body?.id !== 'string' || body.id.trim().length === 0) {
       return createApiErrorResponse(400, 'invalid_style_id', 'Style id is required.');
     }
-    try {
-      await fs.unlink(styleFilePathForId(body.id));
-    } catch (error) {
-      const nodeError = error as NodeJS.ErrnoException;
-      if (nodeError.code !== 'ENOENT') throw error;
+    const supabase = getSupabaseServerClient();
+    if (!supabase) {
+      return createApiErrorResponse(503, 'style_library_unavailable', 'The Forge Pipeline database is not configured.');
     }
+    await supabase
+      .from('cardforge_developer_asset_submissions')
+      .update({
+        status: 'archived',
+        calculated_access_tier: 'hidden',
+        decision_reason: 'owner_deleted_from_library',
+      })
+      .eq('registry_asset_id', body.id);
+    await supabase
+      .from('cardforge_asset_registry')
+      .update({
+        status: 'archived',
+        access_tier: 'hidden',
+      })
+      .eq('asset_id', body.id);
     const next = await readLibrary();
     return createNoStoreJsonResponse(next);
   } catch (error) {

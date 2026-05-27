@@ -7,8 +7,11 @@ import {
 import {
   buildDeveloperAssetProgramView,
   calculateDeveloperAssetVoteTotals,
+  getRegistryAccessTierForPublishedSubmission,
+  mergeRegistryMetadataForSubmission,
   mapDeveloperAssetSubmissionRow,
   mapDeveloperProgramSettingsRow,
+  normalizeDeveloperProfileOverrideInput,
   normalizeDeveloperAssetSubmissionEditInput,
   normalizeDeveloperAssetSubmissionInput,
 } from '@/lib/developerAssetStore';
@@ -20,6 +23,35 @@ const settings: DeveloperProgramSettings = {
 };
 
 describe('developer asset store helpers', () => {
+  it('keeps developer-tier published assets visible in the registry instead of hiding them', () => {
+    expect(getRegistryAccessTierForPublishedSubmission('developer')).toBe('developer');
+    expect(getRegistryAccessTierForPublishedSubmission('free')).toBe('free');
+    expect(getRegistryAccessTierForPublishedSubmission('paid')).toBe('paid');
+    expect(getRegistryAccessTierForPublishedSubmission('hidden')).toBe('hidden');
+  });
+
+  it('preserves embedded template/style payloads when syncing published submission metadata', () => {
+    const metadata = mergeRegistryMetadataForSubmission(
+      {
+        sourceKind: 'pipeline-owner-import',
+        style: { id: 'frame-mtg-rules', name: 'MTG Rules Frame' },
+      },
+      {
+        developerId: 'owner-1',
+        developerEmail: 'owner@example.test',
+        sourceMimeType: 'application/json',
+      },
+    );
+
+    expect(metadata).toMatchObject({
+      sourceKind: 'pipeline-owner-import',
+      style: { id: 'frame-mtg-rules', name: 'MTG Rules Frame' },
+      developerId: 'owner-1',
+      developerEmail: 'owner@example.test',
+      sourceMimeType: 'application/json',
+    });
+  });
+
   it('maps database settings rows into normalized program settings', () => {
     expect(mapDeveloperProgramSettingsRow({
       max_active_developers: 25,
@@ -60,6 +92,20 @@ describe('developer asset store helpers', () => {
       tierCapsByType: {
         templates: { free: 10, paid: 4 },
       },
+    });
+  });
+
+  it('normalizes cleared developer contract notes as blank strings for the database', () => {
+    expect(normalizeDeveloperProfileOverrideInput({
+      monthlySubmissionLimitOverride: 100,
+      monthlyPublishedRequirementOverride: 0,
+      profitShareEligible: true,
+      ownerNote: '',
+    })).toMatchObject({
+      monthly_submission_limit_override: 100,
+      monthly_published_requirement_override: 0,
+      eligible_for_profit_share: true,
+      owner_note: '',
     });
   });
 
@@ -204,7 +250,7 @@ describe('developer asset store helpers', () => {
       { id: 'own-2', developerId: 'dev-1', developerEmail: 'dev@example.test', assetType: 'icons', name: 'Mine Published', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'published', calculatedAccessTier: 'paid', ownerAccessTierOverride: null, qualityScore: 100, tierDecisionReason: 'paid_candidate', positiveVotes: 5, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-02T00:00:00.000Z', updatedAt: '2026-05-02T00:00:00.000Z' },
       { id: 'peer-1', developerId: 'dev-2', developerEmail: 'peer@example.test', assetType: 'textures', name: 'Peer', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'voting', calculatedAccessTier: 'developer', ownerAccessTierOverride: null, qualityScore: 100, tierDecisionReason: 'needs_more_votes', positiveVotes: 1, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-03T00:00:00.000Z', updatedAt: '2026-05-03T00:00:00.000Z' },
       { id: 'peer-2', developerId: 'dev-2', developerEmail: 'peer@example.test', assetType: 'icons', name: 'Peer Published', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: 'developer-icons-peer-2', status: 'published', calculatedAccessTier: 'free', ownerAccessTierOverride: null, qualityScore: 80, tierDecisionReason: 'free_candidate', positiveVotes: 4, negativeVotes: 1, currentUserVote: 'positive', submittedAt: '2026-05-04T00:00:00.000Z', updatedAt: '2026-05-04T00:00:00.000Z' },
-      { id: 'official-1', developerId: 'cardforge-official', developerEmail: null, assetType: 'dividers', name: 'Official Default', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: 'official-divider', status: 'published', calculatedAccessTier: 'official', ownerAccessTierOverride: null, qualityScore: 0, tierDecisionReason: 'owner_forced_official', positiveVotes: 0, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
+      { id: 'starter-1', developerId: 'owner-1', developerEmail: 'owner@example.test', assetType: 'dividers', name: 'Starter Library Divider', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: 'starter-divider', status: 'published', calculatedAccessTier: 'free', ownerAccessTierOverride: null, qualityScore: 0, tierDecisionReason: 'free_candidate', positiveVotes: 0, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-05T00:00:00.000Z', updatedAt: '2026-05-05T00:00:00.000Z' },
       { id: 'archived-1', developerId: 'dev-2', developerEmail: 'peer@example.test', assetType: 'icons', name: 'Archived', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'archived', calculatedAccessTier: 'hidden', ownerAccessTierOverride: null, qualityScore: 20, tierDecisionReason: 'hidden_status', positiveVotes: 1, negativeVotes: 4, currentUserVote: null, submittedAt: '2026-05-06T00:00:00.000Z', updatedAt: '2026-05-06T00:00:00.000Z' },
     ] as const;
 
@@ -218,7 +264,7 @@ describe('developer asset store helpers', () => {
 
     expect(view.developerStats).toEqual({ submitted: 2, published: 1, archived: 0, rejected: 0 });
     expect(view.remainingSubmissions).toBe(1);
-    expect(view.votingQueue.map((submission) => submission.id)).toEqual(['own-1', 'own-2', 'peer-1', 'peer-2', 'official-1']);
+    expect(view.votingQueue.map((submission) => submission.id)).toEqual(['own-1', 'own-2', 'peer-1', 'peer-2', 'starter-1']);
     expect(view.assetTypeSummaries.find((summary) => summary.assetType === 'icons')).toMatchObject({
       publishedCount: 2,
       officialCount: 0,
@@ -232,32 +278,174 @@ describe('developer asset store helpers', () => {
       requiredPublished: 2,
       missingPublished: 1,
     });
-    expect(view.developerContributions.find((contribution) => contribution.developerId === 'cardforge-official')).toMatchObject({
-      developerName: 'CardForge Owner',
-      isOwnerDefaultContributor: true,
-    });
-
     const ownerView = buildDeveloperAssetProgramView({
       configured: true,
       settings,
       currentUserId: 'owner-1',
-      currentContributorIds: ['owner-1', 'cardforge-official'],
+      currentContributorIds: ['owner-1'],
       submissions: [...submissions],
+      profiles: [{
+        clerk_user_id: 'owner-1',
+        email: 'owner@example.test',
+        first_name: 'Cameron',
+        last_name: 'Locke',
+      }],
       now: new Date('2026-05-23T00:00:00.000Z'),
     });
-    expect(ownerView.currentContributorIds).toEqual(['owner-1', 'cardforge-official']);
-    expect(ownerView.developerStats).toEqual({ submitted: 0, published: 0, archived: 0, rejected: 0 });
-    expect(ownerView.remainingSubmissions).toBe(settings.monthlySubmissionLimit);
-    expect(ownerView.votingQueue.map((submission) => submission.id)).toEqual(['own-1', 'own-2', 'peer-1', 'peer-2', 'official-1']);
+    expect(ownerView.currentContributorIds).toEqual(['owner-1']);
+    expect(ownerView.developerStats).toEqual({ submitted: 1, published: 1, archived: 0, rejected: 0 });
+    expect(ownerView.remainingSubmissions).toBe(settings.monthlySubmissionLimit - 1);
+    expect(ownerView.votingQueue.map((submission) => submission.id)).toEqual(['own-1', 'own-2', 'peer-1', 'peer-2', 'starter-1']);
+    expect(ownerView.developerContributions.find((contribution) => contribution.developerId === 'owner-1')).toMatchObject({
+      developerName: 'Cameron Locke',
+      developerEmail: 'owner@example.test',
+      isOwnerDefaultContributor: false,
+    });
 
     const peerOnlyView = buildDeveloperAssetProgramView({
       configured: true,
       settings: { ...settings, allowContributorSelfVoting: false },
       currentUserId: 'owner-1',
-      currentContributorIds: ['owner-1', 'cardforge-official'],
+      currentContributorIds: ['owner-1'],
       submissions: [...submissions],
       now: new Date('2026-05-23T00:00:00.000Z'),
     });
     expect(peerOnlyView.votingQueue.map((submission) => submission.id)).toEqual(['own-1', 'own-2', 'peer-1', 'peer-2']);
+  });
+
+  it('keeps departed developer contributions visible even when no live profile row is present', () => {
+    const view = buildDeveloperAssetProgramView({
+      configured: true,
+      settings,
+      currentUserId: 'owner-1',
+      submissions: [{
+        id: 'departed-asset-1',
+        developerId: 'deleted-clerk-user',
+        developerEmail: 'departed@example.test',
+        assetType: 'icons',
+        name: 'Departed Contributor Icon',
+        description: '',
+        previewUrl: 'https://example.test/departed.svg',
+        sourceUrl: 'https://example.test/departed.svg',
+        sourceFileSizeBytes: 2048,
+        sourceMimeType: 'image/svg+xml',
+        sourceStorageBucket: 'cardforge-developer-assets',
+        sourceStoragePath: 'deleted-clerk-user/icons/departed.svg',
+        registryAssetId: 'developer-icons-departed',
+        status: 'published',
+        calculatedAccessTier: 'free',
+        ownerAccessTierOverride: null,
+        qualityScore: 75,
+        tierDecisionReason: 'free_candidate',
+        positiveVotes: 3,
+        negativeVotes: 1,
+        currentUserVote: null,
+        submittedAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-02T00:00:00.000Z',
+      }],
+      profiles: [],
+      now: new Date('2026-05-23T00:00:00.000Z'),
+    });
+
+    expect(view.submissions[0]).toMatchObject({
+      developerId: 'deleted-clerk-user',
+      developerEmail: 'departed@example.test',
+      positiveVotes: 3,
+      negativeVotes: 1,
+      status: 'published',
+    });
+    expect(view.developerContributions.find((contribution) => contribution.developerId === 'deleted-clerk-user')).toMatchObject({
+      developerName: 'departed@example.test',
+      developerEmail: 'departed@example.test',
+      profileStatus: 'active',
+      published: 1,
+    });
+  });
+
+  it('keeps inactive profile-only rows out of the monthly roster while preserving inactive contributors with assets', () => {
+    const view = buildDeveloperAssetProgramView({
+      configured: true,
+      settings,
+      currentUserId: 'owner-1',
+      submissions: [{
+        id: 'inactive-asset-1',
+        developerId: 'inactive-with-history',
+        developerEmail: 'history@example.test',
+        assetType: 'icons',
+        name: 'History Icon',
+        description: '',
+        previewUrl: '',
+        sourceUrl: null,
+        sourceFileSizeBytes: null,
+        sourceMimeType: null,
+        sourceStorageBucket: null,
+        sourceStoragePath: null,
+        registryAssetId: null,
+        status: 'published',
+        calculatedAccessTier: 'free',
+        ownerAccessTierOverride: null,
+        qualityScore: 100,
+        tierDecisionReason: 'free_candidate',
+        positiveVotes: 4,
+        negativeVotes: 0,
+        currentUserVote: null,
+        submittedAt: '2026-05-01T00:00:00.000Z',
+        updatedAt: '2026-05-01T00:00:00.000Z',
+      }],
+      profiles: [
+        { clerk_user_id: 'stale-no-history', email: 'stale@example.test', status: 'inactive' },
+        { clerk_user_id: 'inactive-with-history', email: 'history@example.test', status: 'inactive' },
+      ],
+      now: new Date('2026-05-23T00:00:00.000Z'),
+    });
+
+    expect(view.developerContributions.some((contribution) => contribution.developerId === 'stale-no-history')).toBe(false);
+    expect(view.developerContributions.find((contribution) => contribution.developerId === 'inactive-with-history')).toMatchObject({
+      profileStatus: 'inactive',
+      published: 1,
+    });
+  });
+
+  it('applies per-developer contract overrides over base program settings', () => {
+    const submissions = [
+      { id: 'own-1', developerId: 'dev-1', developerEmail: 'dev@example.test', assetType: 'icons', name: 'Mine', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'submitted', calculatedAccessTier: 'developer', ownerAccessTierOverride: null, qualityScore: 0, tierDecisionReason: 'needs_more_votes', positiveVotes: 0, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-01T00:00:00.000Z', updatedAt: '2026-05-01T00:00:00.000Z' },
+      { id: 'own-2', developerId: 'dev-1', developerEmail: 'dev@example.test', assetType: 'icons', name: 'Mine 2', description: '', previewUrl: '', sourceUrl: null, sourceFileSizeBytes: null, sourceMimeType: null, sourceStorageBucket: null, sourceStoragePath: null, registryAssetId: null, status: 'submitted', calculatedAccessTier: 'developer', ownerAccessTierOverride: null, qualityScore: 0, tierDecisionReason: 'needs_more_votes', positiveVotes: 0, negativeVotes: 0, currentUserVote: null, submittedAt: '2026-05-02T00:00:00.000Z', updatedAt: '2026-05-02T00:00:00.000Z' },
+    ] as const;
+
+    const view = buildDeveloperAssetProgramView({
+      configured: true,
+      settings,
+      currentUserId: 'dev-1',
+      submissions: [...submissions],
+      profiles: [{
+        clerk_user_id: 'dev-1',
+        email: 'dev@example.test',
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+        monthly_submission_limit_override: 5,
+        monthly_published_requirement_override: 1,
+        eligible_for_profit_share: false,
+        owner_note: 'Ramp up account.',
+      }],
+      now: new Date('2026-05-23T00:00:00.000Z'),
+    });
+
+    expect(view.effectiveMonthlySubmissionLimit).toBe(5);
+    expect(view.effectiveMonthlyPublishedRequirement).toBe(1);
+    expect(view.remainingSubmissions).toBe(3);
+    expect(view.profitShareEligible).toBe(false);
+    expect(view.developerOwnerNote).toBe('Ramp up account.');
+    expect(view.developerContributions.find((contribution) => contribution.developerId === 'dev-1')).toMatchObject({
+      developerName: 'Ada Lovelace',
+      effectiveSubmissionLimit: 5,
+      effectivePublishedRequirement: 1,
+      submissionLimitOverride: 5,
+      publishedRequirementOverride: 1,
+      remainingSubmissions: 3,
+      requiredPublished: 1,
+      missingPublished: 1,
+      profitShareEligible: false,
+      ownerNote: 'Ramp up account.',
+    });
   });
 });

@@ -1,11 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
-import { Crown, Info, Save, Users } from 'lucide-react';
+import { Crown, Save, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { FieldHelp } from '@/features/developer-assets/components/DeveloperAssetHubUi';
+import {
+  CompactNumberField,
+  DecisionCard,
+  NumberField,
+  ProfileOverrideField,
+  ToggleField,
+  VoteWeightSelector,
+} from '@/features/developer-assets/components/OwnerDeveloperProgramControls';
 import {
   DEVELOPER_ASSET_TYPES,
   buildDeveloperVotingPresetSettings,
@@ -27,12 +36,27 @@ interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
 }
 
+interface DeveloperProfileDraft {
+  status: 'invited' | 'active' | 'inactive' | 'suspended';
+  monthlySubmissionLimitOverride: string;
+  monthlyPublishedRequirementOverride: string;
+  profitShareEligible: boolean;
+  ownerNote: string;
+}
+
 const tierClasses: Record<DeveloperAssetAccessTier, string> = {
   hidden: 'border-[#4a3823] text-[#8f95a3]',
   free: 'border-[#5f7f54] text-[#bde3a8]',
   paid: 'border-[#8a642f] text-[#f0c568]',
   developer: 'border-[#35445a] text-[#b9d5ff]',
   official: 'border-[#d8b365] text-[#ffe7ad]',
+};
+
+const profileStatusLabels: Record<DeveloperProfileDraft['status'], string> = {
+  invited: 'Invited',
+  active: 'Active',
+  inactive: 'Inactive',
+  suspended: 'Suspended',
 };
 
 const getApiErrorMessage = async (response: Response, fallback: string) => {
@@ -54,7 +78,6 @@ const formatBytes = (value: number): string => {
 
 const getContributorLabel = (developerId: string, developerEmail: string | null, developerName?: string | null) => {
   if (developerName) return developerName;
-  if (developerId === 'cardforge-official') return 'CardForge Owner';
   return developerEmail ?? developerId;
 };
 
@@ -63,6 +86,8 @@ export function OwnerDeveloperProgramPanel() {
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
   const [settings, setSettings] = useState<DeveloperProgramSettings | null>(null);
   const [ownerNote, setOwnerNote] = useState('');
+  const [profileDrafts, setProfileDrafts] = useState<Record<string, DeveloperProfileDraft>>({});
+  const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -92,6 +117,24 @@ export function OwnerDeveloperProgramPanel() {
   useEffect(() => {
     void loadProgram();
   }, [loadProgram]);
+
+  useEffect(() => {
+    if (!program) return;
+    setProfileDrafts(Object.fromEntries(program.developerContributions.map((contribution) => [
+      contribution.developerId,
+      {
+        status: contribution.profileStatus,
+        monthlySubmissionLimitOverride: contribution.submissionLimitOverride === null
+          ? ''
+          : String(contribution.submissionLimitOverride),
+        monthlyPublishedRequirementOverride: contribution.publishedRequirementOverride === null
+          ? ''
+          : String(contribution.publishedRequirementOverride),
+        profitShareEligible: contribution.profitShareEligible,
+        ownerNote: contribution.ownerNote ?? '',
+      },
+    ])));
+  }, [program]);
 
   const saveSettings = async () => {
     if (!settings) return;
@@ -147,6 +190,55 @@ export function OwnerDeveloperProgramPanel() {
     setSettings(buildDeveloperVotingPresetSettings(settings, preset, program?.activeDeveloperCount ?? 1));
   };
 
+  const updateProfileDraft = (developerId: string, patch: Partial<DeveloperProfileDraft>) => {
+    const emptyDraft: DeveloperProfileDraft = {
+      status: 'active',
+      monthlySubmissionLimitOverride: '',
+      monthlyPublishedRequirementOverride: '',
+      profitShareEligible: true,
+      ownerNote: '',
+    };
+    setProfileDrafts((drafts) => ({
+      ...drafts,
+      [developerId]: { ...(drafts[developerId] ?? emptyDraft), ...patch },
+    }));
+  };
+
+  const saveDeveloperProfile = async (developerId: string) => {
+    const draft = profileDrafts[developerId];
+    if (!draft) return;
+    setSavingProfileId(developerId);
+    try {
+      const response = await fetch('/api/developer-assets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          developerId,
+          profile: {
+            status: draft.status,
+            monthlySubmissionLimitOverride: draft.monthlySubmissionLimitOverride,
+            monthlyPublishedRequirementOverride: draft.monthlyPublishedRequirementOverride,
+            profitShareEligible: draft.profitShareEligible,
+            ownerNote: draft.ownerNote,
+          },
+        }),
+      });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save developer profile rules.'));
+      const body = await response.json() as DeveloperAssetsResponse;
+      setProgram(body.program);
+      setSettings(body.program.settings);
+      toast({ title: 'Developer profile saved', description: 'This contributor now uses the updated account-specific contract.' });
+    } catch (error) {
+      toast({
+        title: 'Developer profile not saved',
+        description: error instanceof Error ? error.message : 'Unable to save developer profile rules.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingProfileId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <section className="border border-[#5f4526] bg-[#15100a] p-6 text-[#c7b288]">
@@ -200,7 +292,7 @@ export function OwnerDeveloperProgramPanel() {
         <DecisionCard label="Active developers" body={`${program.activeDeveloperCount} active developer${program.activeDeveloperCount === 1 ? '' : 's'} currently count toward voting presets.`} />
         <DecisionCard label="Default policy" body="Defaults are just published pipeline assets. If voting or cap rules push them out, they move through the same candidate/archive states as any other asset." />
         <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; rebalance moves lowest-signal live assets back to candidates.`} />
-        <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads and owner defaults during solo/demo review.' : 'Only peer votes count; own assets stay out of review lanes for that contributor.'} />
+        <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads during solo/demo review.' : 'Only peer votes count; own assets stay out of review lanes for that contributor.'} />
         <DecisionCard label="Owner vote mode" body={settings.ownerVoteWeight === 1 ? 'Owner votes count like one developer vote.' : `Owner votes count as ${settings.ownerVoteWeight}x signal in asset grading.`} />
       </div>
 
@@ -214,7 +306,7 @@ export function OwnerDeveloperProgramPanel() {
             <NumberField label="Max developers" help="Total active developer slots in the curated program." value={settings.maxActiveDevelopers} onChange={(value) => setSettings({ ...settings, maxActiveDevelopers: value })} />
             <NumberField label="Submission allowance" help="Maximum site-submitted assets one developer can upload each calendar month. Submissions left is calculated from this." value={settings.monthlySubmissionLimit} onChange={(value) => setSettings({ ...settings, monthlySubmissionLimit: value })} />
             <NumberField label="Required published" help="Minimum published assets expected from each active developer per calendar month." value={settings.monthlyPublishedRequirement} onChange={(value) => setSettings({ ...settings, monthlyPublishedRequirement: value })} />
-            <NumberField label="Creator pool %" help="Reserved profit-share pool placeholder for financial launch accounting." value={settings.profitSharePoolPercent} onChange={(value) => setSettings({ ...settings, profitSharePoolPercent: value })} />
+            <NumberField label="Creator pool %" help="Reserved future creator-pool placeholder for financial launch accounting." value={settings.profitSharePoolPercent} onChange={(value) => setSettings({ ...settings, profitSharePoolPercent: value })} />
           </div>
         </div>
 
@@ -380,7 +472,7 @@ export function OwnerDeveloperProgramPanel() {
                 {program.assetTypeSummaries.map((summary) => (
                   <tr key={summary.assetType} className="border-b border-[#342719] last:border-b-0">
                     <td className="py-3 pr-3 text-[#ffe7ad]">{getDeveloperAssetTypeLabel(summary.assetType)}</td>
-                    <td className="px-3 py-3 text-[#c7b288]">{summary.publishedCount} live / {summary.officialCount} owner</td>
+                    <td className="px-3 py-3 text-[#c7b288]">{summary.publishedCount} live / {summary.starterCount} starter / {summary.creatorPassCount} creator</td>
                     <td className="px-3 py-3 text-[#c7b288]">{summary.publishCap}</td>
                     <td className={`px-3 py-3 ${summary.overPublishCapBy > 0 ? 'text-[#ffd0c6]' : 'text-[#bde3a8]'}`}>
                       {summary.overPublishCapBy > 0 ? `${summary.overPublishCapBy} over` : `${summary.openPublishSlots} open`}
@@ -397,27 +489,105 @@ export function OwnerDeveloperProgramPanel() {
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
           <h3 className="font-serif text-xl text-[#fff1c7]">Developer monthly ledger</h3>
           <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-            Submission allowance and required published counts are owner-set above; remaining and missing counts are calculated per contributor.
+            Start with the base monthly contract, then adjust specific developer accounts when someone needs a different submission cap, published requirement, or future creator-pool eligibility.
           </p>
           <div className="mt-4 space-y-2">
-            {program.developerContributions.map((contribution) => (
-              <div key={contribution.developerId} className="border border-[#3c2c1b] bg-[#15100a] p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium text-[#ffe7ad]">{getContributorLabel(contribution.developerId, contribution.developerEmail, contribution.developerName)}</p>
-                  {contribution.isOwnerDefaultContributor ? (
-                    <span className="border border-[#d8b365] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#ffe7ad]">Owner defaults</span>
-                  ) : null}
+            {program.developerContributions.map((contribution) => {
+              const draft = profileDrafts[contribution.developerId] ?? {
+                status: contribution.profileStatus,
+                monthlySubmissionLimitOverride: contribution.submissionLimitOverride === null ? '' : String(contribution.submissionLimitOverride),
+                monthlyPublishedRequirementOverride: contribution.publishedRequirementOverride === null ? '' : String(contribution.publishedRequirementOverride),
+                profitShareEligible: contribution.profitShareEligible,
+                ownerNote: contribution.ownerNote ?? '',
+              };
+              const contributorLabel = getContributorLabel(contribution.developerId, contribution.developerEmail, contribution.developerName);
+
+              return (
+                <div key={contribution.developerId} className="border border-[#3c2c1b] bg-[#15100a] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-[#ffe7ad]">{contributorLabel}</p>
+                      <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[#a98a55]">
+                        {profileStatusLabels[contribution.profileStatus]} - {contribution.profitShareEligible ? 'Future creator pool eligible' : 'Future creator pool paused'}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {contribution.submissionLimitOverride !== null || contribution.publishedRequirementOverride !== null ? (
+                        <span className="border border-[#5f7f54] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#bde3a8]">Account override</span>
+                      ) : (
+                        <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">Base contract</span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-[#c7b288]">
+                    {contribution.submitted} submitted / {contribution.remainingSubmissions} left from {contribution.effectiveSubmissionLimit} allowed - {contribution.published} published / {contribution.requiredPublished} required
+                  </p>
+                  {contribution.missingPublished > 0 ? (
+                    <p className="mt-1 text-xs text-[#f0bd75]">{contribution.missingPublished} more published asset{contribution.missingPublished === 1 ? '' : 's'} needed this month.</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-[#bde3a8]">Monthly published requirement met.</p>
+                  )}
+                      <div className="mt-3 grid gap-2 border border-[#3c2c1b] bg-[#100c08] p-3">
+                      <label className="grid gap-1 text-xs text-[#c7b288]">
+                        Profile status
+                        <select
+                          className="border border-[#3c2c1b] bg-[#15100a] p-2 text-[#ffe7ad]"
+                          value={draft.status}
+                          onChange={(event) => updateProfileDraft(contribution.developerId, { status: event.target.value as DeveloperProfileDraft['status'] })}
+                        >
+                          {(['active', 'invited', 'inactive', 'suspended'] as const).map((status) => (
+                            <option key={status} value={status}>{profileStatusLabels[status]}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <ProfileOverrideField
+                          label="Submission override"
+                          ariaLabel={`Submission allowance override for ${contributorLabel}`}
+                          placeholder={`Base ${settings.monthlySubmissionLimit}`}
+                          value={draft.monthlySubmissionLimitOverride}
+                          onChange={(value) => updateProfileDraft(contribution.developerId, { monthlySubmissionLimitOverride: value })}
+                        />
+                        <ProfileOverrideField
+                          label="Published override"
+                          ariaLabel={`Required published override for ${contributorLabel}`}
+                          placeholder={`Base ${settings.monthlyPublishedRequirement}`}
+                          value={draft.monthlyPublishedRequirementOverride}
+                          onChange={(value) => updateProfileDraft(contribution.developerId, { monthlyPublishedRequirementOverride: value })}
+                        />
+                      </div>
+                      <label className="flex items-center justify-between gap-3 border border-[#3c2c1b] bg-[#15100a] p-2 text-xs text-[#ffe7ad]">
+                        <span>
+                          Future creator-pool eligible
+                          <span className="mt-1 block text-[#a98a55]">Planning flag only. No payout automation is live yet.</span>
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={draft.profitShareEligible}
+                          onChange={(event) => updateProfileDraft(contribution.developerId, { profitShareEligible: event.target.checked })}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs text-[#c7b288]">
+                        Owner note
+                        <textarea
+                          className="min-h-16 border border-[#3c2c1b] bg-[#15100a] p-2 text-[#ffe7ad]"
+                          value={draft.ownerNote}
+                          onChange={(event) => updateProfileDraft(contribution.developerId, { ownerNote: event.target.value })}
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="justify-self-start bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+                        disabled={savingProfileId === contribution.developerId}
+                        onClick={() => void saveDeveloperProfile(contribution.developerId)}
+                      >
+                        {savingProfileId === contribution.developerId ? 'Saving...' : 'Save account contract'}
+                      </Button>
+                  </div>
                 </div>
-                <p className="mt-2 text-xs leading-5 text-[#c7b288]">
-                  {contribution.submitted} submitted / {contribution.remainingSubmissions} left - {contribution.published} published / {contribution.requiredPublished} required
-                </p>
-                {contribution.missingPublished > 0 ? (
-                  <p className="mt-1 text-xs text-[#f0bd75]">{contribution.missingPublished} more published asset{contribution.missingPublished === 1 ? '' : 's'} needed this month.</p>
-                ) : (
-                  <p className="mt-1 text-xs text-[#bde3a8]">Monthly published requirement met.</p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -484,15 +654,34 @@ export function OwnerDeveloperProgramPanel() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, 'published')}>Publish</Button>
-                  <Button size="sm" variant="outline" className="border-[#8c6436] bg-transparent text-[#f0bd75]" onClick={() => updateStatus(submission.id, 'archived')}>Archive</Button>
-                  <Button size="sm" variant="outline" className="border-[#7d3d32] bg-transparent text-[#ffd0c6]" onClick={() => updateStatus(submission.id, 'rejected')}>Reject</Button>
-                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, submission.status, 'free')}>Set Starter</Button>
-                  <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" onClick={() => updateStatus(submission.id, submission.status, 'paid')}>Set Creator Pass</Button>
-                  <Button size="sm" variant="outline" className="border-[#d8b365] bg-transparent text-[#ffe7ad]" onClick={() => updateStatus(submission.id, submission.status, 'official')}>Set Official</Button>
-                  <Button size="sm" variant="outline" className="border-[#4a3823] bg-transparent text-[#8f95a3]" onClick={() => updateStatus(submission.id, submission.status, 'hidden')}>Set Hidden</Button>
+                  {submission.status === 'archived' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-[#5f7f54] bg-transparent text-[#bde3a8]"
+                      onClick={() => updateStatus(submission.id, 'voting')}
+                      aria-label={`Recover ${submission.name} to review`}
+                    >
+                      Recover to Review
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-[#8c6436] bg-transparent text-[#f0bd75]"
+                      onClick={() => updateStatus(submission.id, 'archived')}
+                      aria-label={`Archive ${submission.name}`}
+                    >
+                      Archive
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, 'published')} aria-label={`Publish ${submission.name}`}>Publish</Button>
+                  <Button size="sm" variant="outline" className="border-[#7d3d32] bg-transparent text-[#ffd0c6]" onClick={() => updateStatus(submission.id, 'rejected')} aria-label={`Reject ${submission.name}`}>Reject</Button>
+                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, submission.status, 'free')} aria-label={`Set ${submission.name} to Starter tier`}>Set Starter</Button>
+                  <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" onClick={() => updateStatus(submission.id, submission.status, 'paid')} aria-label={`Set ${submission.name} to Creator Pass tier`}>Set Creator Pass</Button>
+                  <Button size="sm" variant="outline" className="border-[#4a3823] bg-transparent text-[#8f95a3]" onClick={() => updateStatus(submission.id, submission.status, 'hidden')} aria-label={`Set ${submission.name} to Hidden tier`}>Set Hidden</Button>
                   {submission.ownerAccessTierOverride ? (
-                    <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#c7b288]" onClick={() => updateStatus(submission.id, submission.status, null)}>Clear Override</Button>
+                    <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#c7b288]" onClick={() => updateStatus(submission.id, submission.status, null)} aria-label={`Clear tier override for ${submission.name}`}>Clear Override</Button>
                   ) : null}
                 </div>
               </div>
@@ -510,145 +699,5 @@ export function OwnerDeveloperProgramPanel() {
       </div>
     </section>
     </TooltipProvider>
-  );
-}
-
-function FieldHelp({ text }: { text: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="grid h-6 w-6 shrink-0 place-items-center border border-[#5f4526] text-[#d7b469] hover:border-[#d8b365] hover:text-[#fff1c7]"
-          aria-label="More information"
-        >
-          <Info className="h-3.5 w-3.5" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-xs border-[#6d4f2b] bg-[#15100a] text-[#f7ead0]">
-        {text}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function NumberField({
-  label,
-  help,
-  value,
-  onChange,
-}: {
-  label: string;
-  help: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="grid gap-2 text-sm text-[#c7b288]">
-      <span className="flex items-center justify-between gap-2">
-        {label}
-        <FieldHelp text={help} />
-      </span>
-      <input
-        className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
-        inputMode="numeric"
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value) || 0)}
-      />
-    </label>
-  );
-}
-
-function CompactNumberField({
-  ariaLabel,
-  value,
-  onChange,
-}: {
-  ariaLabel: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <input
-      aria-label={ariaLabel}
-      className="h-10 w-full min-w-24 border border-[#5f4526] bg-[#0c0b09] px-3 text-[#ffe7ad]"
-      inputMode="numeric"
-      value={value}
-      onChange={(event) => onChange(Number(event.target.value) || 0)}
-    />
-  );
-}
-
-function VoteWeightSelector({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="mt-4 border border-[#342719] bg-[#15100a] p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.14em] text-[#a98a55]">Owner vote weight</p>
-          <p className="mt-2 text-xs leading-5 text-[#c7b288]">
-            1x keeps the owner equal with developers. Raise it only when owner taste should break close calls.
-          </p>
-        </div>
-        <FieldHelp text="This changes owner vote impact during asset grading. It does not change whether contributors can vote on their own work." />
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {[1, 2, 3].map((weight) => (
-          <Button
-            key={weight}
-            type="button"
-            size="sm"
-            variant="outline"
-            className={[
-              'rounded-none border-[#5f4526] bg-transparent text-[#f8e3b0] hover:border-[#d8b365] hover:bg-[#2a1b0d]',
-              value === weight ? 'border-[#d8b365] bg-[#2a1b0d] text-[#fff1c7]' : '',
-            ].join(' ')}
-            onClick={() => onChange(weight)}
-          >
-            {weight}x
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ToggleField({
-  label,
-  help,
-  checked,
-  onChange,
-}: {
-  label: string;
-  help: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between gap-4 border border-[#5f4526] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">
-      <span className="flex items-center gap-2">
-        {label}
-        <FieldHelp text={help} />
-      </span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-      />
-    </label>
-  );
-}
-
-function DecisionCard({ label, body }: { label: string; body: string }) {
-  return (
-    <div className="border border-[#4a3823] bg-[#100c08] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-[#d9c28f]">{body}</p>
-    </div>
   );
 }

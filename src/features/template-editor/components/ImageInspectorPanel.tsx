@@ -9,14 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ColorField } from '@/components/card-forge/makerConstants';
 import type { CardAssetOption } from '@/lib/cardAssets';
 import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
 import type { FreeformCardElement } from '@/types';
 
 interface ImageInspectorPanelProps {
   element: FreeformCardElement;
-  canUseBackgroundTexture: boolean;
   imageAssets: CardAssetOption[];
   assetSearch: string;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
@@ -26,19 +24,40 @@ interface ImageInspectorPanelProps {
 
 export function ImageInspectorPanel({
   element,
-  canUseBackgroundTexture,
   imageAssets,
   assetSearch,
   onUpdateElement,
   onHandleFileUpload,
   onAssetSearchChange,
 }: ImageInspectorPanelProps) {
-  const elementBgInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <>
       <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Image & Overlay Source Assets</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Image Source</Label>
+        <div>
+          <Label htmlFor="element-image-source" className="text-xs">URL, data key, or uploaded file</Label>
+          <div className="flex gap-2">
+            <Input
+              id="element-image-source"
+              className="h-8 rounded-[4px] border-[#2d3340] bg-[#0d1117] text-xs text-[#d8d1c4]"
+              value={element.imageSource || element.content || ''}
+              onChange={(event) => onUpdateElement({ imageSource: event.target.value, content: event.target.value }, false)}
+            />
+            <Button type="button" variant="outline" size="icon" onClick={() => imageInputRef.current?.click()} aria-label="Upload image source">
+              <ImageIcon className="h-4 w-4" />
+            </Button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(event) => onHandleFileUpload(event, (dataUri) => onUpdateElement({ imageSource: dataUri, content: dataUri }))}
+            />
+          </div>
+        </div>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed & Local Image Assets</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
           <Input
@@ -77,25 +96,6 @@ export function ImageInspectorPanel({
           </div>
         )}
       </div>
-
-      <div>
-        <Label htmlFor="element-image-border-color" className="text-xs">Frame Color</Label>
-        <ColorField id="element-image-border-color" value={element.borderColor || '#c89f42'} onChange={(value) => onUpdateElement({ borderColor: value }, false)} />
-      </div>
-
-      {canUseBackgroundTexture && (
-        <details className="rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
-          <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f95a3]">Advanced Raw CSS</summary>
-          <div className="mt-2">
-            <Label htmlFor="element-bg-image">{element.type === 'text' ? 'Panel Texture / Gradient' : 'Shape Texture / Gradient'}</Label>
-            <div className="flex gap-2">
-              <Input id="element-bg-image" value={element.backgroundImageUrl || ''} onChange={(event) => onUpdateElement({ backgroundImageUrl: event.target.value }, false)} />
-              <Button type="button" variant="outline" size="icon" onClick={() => elementBgInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></Button>
-              <input ref={elementBgInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleFileUpload(event, (dataUri) => onUpdateElement({ backgroundImageUrl: dataUri }))} />
-            </div>
-          </div>
-        </details>
-      )}
 
       <div>
         <Label htmlFor="element-fit">Image Fit</Label>

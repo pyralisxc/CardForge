@@ -20,7 +20,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Copy, Save, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAppStore } from '@/store/appStore';
-import { GeneratorFieldGroups } from '@/components/card-forge/GeneratorFieldGroups';
+import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/lib/cardDataDefaults';
 
 interface EditCardDialogProps {

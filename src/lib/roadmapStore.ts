@@ -97,6 +97,7 @@ const createUnavailablePayload = (settings: SiteMechanicsSettings = DEFAULT_SITE
   activeUserSuggestionCount: 0,
   maxActiveUserSuggestions: settings.maxActiveUserRoadmapItems,
   maxSuggestionLength: settings.maxRoadmapSuggestionLength,
+  currentProfitCents: 0,
   developerRequestEmail: DEVELOPER_REQUEST_EMAIL,
 });
 
@@ -156,6 +157,7 @@ const mapRoadmapPayload = ({
     activeUserSuggestionCount,
     maxActiveUserSuggestions: settings.maxActiveUserRoadmapItems,
     maxSuggestionLength: settings.maxRoadmapSuggestionLength,
+    currentProfitCents: 0,
     developerRequestEmail: DEVELOPER_REQUEST_EMAIL,
   };
 };

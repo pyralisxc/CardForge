@@ -45,12 +45,13 @@ describe('element preset recipes', () => {
     expect(BLANK_SHAPE_PRIMITIVES.every((primitive) => primitive.updates.appearance === undefined)).toBe(true);
   });
 
-  it('marks shape role recipes as official owner-seeded pipeline presets', () => {
+  it('marks shape role recipes as starter pipeline presets', () => {
     expect(SHAPE_ROLE_PRESET_RECIPES).toHaveLength(6);
     expect(SHAPE_ROLE_PRESET_RECIPES.every((preset) => preset.kind === 'shapeRole')).toBe(true);
     expect(SHAPE_ROLE_PRESET_RECIPES.every((preset) => preset.status === 'published')).toBe(true);
-    expect(SHAPE_ROLE_PRESET_RECIPES.every((preset) => preset.tier === 'official')).toBe(true);
-    expect(SHAPE_ROLE_PRESET_RECIPES.every((preset) => preset.contributorName === 'CardForge Owner')).toBe(true);
+    expect(SHAPE_ROLE_PRESET_RECIPES.every((preset) => preset.tier === 'free')).toBe(true);
+    expect(SHAPE_ROLE_PRESET_RECIPES.every((preset) => preset.source === 'developer-pipeline')).toBe(true);
+    expect(SHAPE_ROLE_PRESET_RECIPES.every((preset) => preset.contributorName === 'Cameron Locke')).toBe(true);
   });
 
   it('converts major preset families into typed pipeline recipes', () => {
@@ -92,7 +93,7 @@ describe('element preset recipes', () => {
       label: 'Developer Frame',
       kind: 'textFrame',
       source: 'registry-style',
-      contributorName: 'Registry Pipeline',
+      contributorName: 'Cameron Locke',
       preview: { background: '#123456', borderColor: '#abcdef' },
     });
     expect(isElementPresetApplicable(recipe, { ...baseShape, type: 'text' })).toBe(true);

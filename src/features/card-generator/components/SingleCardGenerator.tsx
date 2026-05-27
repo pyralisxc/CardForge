@@ -13,7 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Layers } from 'lucide-react';
-import { GeneratorFieldGroups } from '@/components/card-forge/GeneratorFieldGroups';
+import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import { useAppStore } from '@/store/appStore';
 import { withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
@@ -24,8 +24,8 @@ import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/lib/stru
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
   onSingleCardAdded: (card: DisplayCard) => void;
-  onTemplateSelectionChange: (templateId: string | null) => void; // Calls Zustand action
-  selectedTemplateIdProp: string | null; // From Zustand store
+  onTemplateSelectionChange: (templateId: string | null) => void;
+  selectedTemplateIdProp: string | null;
 }
 
 export function SingleCardGenerator({
@@ -34,7 +34,6 @@ export function SingleCardGenerator({
   onTemplateSelectionChange,
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
-  // Local state for the form fields and data for the single card being generated.
   const [cardData, setCardData] = useState<CardData>({});
   const [dynamicFields, setDynamicFields] = useState<TemplateFieldDefinition[]>([]);
   const [hasAddedCardInSession, setHasAddedCardInSession] = useState(false);
@@ -46,23 +45,16 @@ export function SingleCardGenerator({
   const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
   const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
 
-  // selectedTemplate is derived from selectedTemplateIdProp (from Zustand) and templates prop.
   const selectedTemplate = useMemo(() => {
     return templates.find(t => t.id === selectedTemplateIdProp);
   }, [templates, selectedTemplateIdProp]);
 
-
-  // Safe useEffect: Reacts to selectedTemplateIdProp (from Zustand via prop) or templates list changes
-  // to regenerate dynamic fields and reset local cardData (form state) with defaults from the new template.
   useEffect(() => {
-    // The selectedTemplate is now derived via useMemo based on selectedTemplateIdProp
-    // Regenerate fields and reset cardData with defaults from the new template.
-    // Passing {} as currentData ensures fresh defaults are applied.
     const [newFields, newGeneratedData] = initializeCardDataFromTemplate(selectedTemplate);
     
     setDynamicFields(newFields);
-    setCardData(newGeneratedData); // This resets the form to the new template's structure/defaults.
-  }, [selectedTemplate]); // Depend on the derived selectedTemplate
+    setCardData(newGeneratedData);
+  }, [selectedTemplate]);
 
   useEffect(() => {
     return () => {
@@ -98,7 +90,7 @@ export function SingleCardGenerator({
       return;
     }
 
-    if (!selectedTemplate) { // Use the memoized selectedTemplate
+    if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
         description: withNextStep('A template is required before adding a card.', 'Choose a template in the Select Template field and try again.'),
@@ -135,7 +127,7 @@ export function SingleCardGenerator({
     const finalCardData = completeCardDataWithTemplateDefaults(dynamicFields, cardData);
 
     const displayCard: DisplayCard = {
-      template: selectedTemplate, // Use the memoized selectedTemplate
+      template: selectedTemplate,
       data: finalCardData,
       uniqueId: nanoid(),
     };
@@ -144,8 +136,7 @@ export function SingleCardGenerator({
 
     toast({ title: "Output generated", description: 'Your output is now in the generated outputs gallery. Next step: review, edit, export, or add another output.' });
     
-    // Reset form fields to defaults for the currently selected template after adding a card
-    const [, resetData] = initializeCardDataFromTemplate(selectedTemplate); // Use memoized selectedTemplate
+    const [, resetData] = initializeCardDataFromTemplate(selectedTemplate);
     setCardData(resetData);
 
     if (addCardCooldownRef.current !== null) {
@@ -156,12 +147,11 @@ export function SingleCardGenerator({
       addCardCooldownRef.current = null;
     }, 300);
 
-  }, [selectedTemplate, cardData, dynamicFields, isAddingCard, onSingleCardAdded, toast]); // Use memoized selectedTemplate
+  }, [selectedTemplate, cardData, dynamicFields, isAddingCard, onSingleCardAdded, toast]);
 
   const handleTemplateSelectChange = useCallback((id: string | null) => {
-    onTemplateSelectionChange(id); // Calls Zustand action via prop
+    onTemplateSelectionChange(id);
     setHasAddedCardInSession(false);
-    // cardData will be reset by the useEffect hook reacting to selectedTemplate change
   }, [onTemplateSelectionChange]);
 
   const renderFields = (

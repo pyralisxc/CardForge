@@ -7,13 +7,13 @@ export default defineConfig({
     timeout: 10_000,
   },
   webServer: {
-    command: 'npx next dev -p 9010 -H 0.0.0.0',
-    url: 'http://localhost:9010',
-    reuseExistingServer: false,
+    command: 'npm run dev',
+    url: 'http://localhost:9002',
+    reuseExistingServer: true,
     timeout: 120_000,
   },
   use: {
-    baseURL: 'http://localhost:9010',
+    baseURL: 'http://localhost:9002',
     trace: 'on-first-retry',
   },
   projects: [

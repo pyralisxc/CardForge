@@ -72,9 +72,9 @@ export function ElementTransformPanel({
           />
         </div>
         <div>
-          <Label htmlFor="element-z" className="text-xs text-[#b7bdc9]">Z</Label>
+          <Label htmlFor="element-layer" className="text-xs text-[#b7bdc9]">Layer</Label>
           <Input
-            id="element-z"
+            id="element-layer"
             className={controlClassName}
             type="number"
             value={element.zIndex}

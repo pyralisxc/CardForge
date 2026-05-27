@@ -13,24 +13,28 @@ import {
   Users,
 } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
+import { createSiteContentMap } from '@/lib/ownerConsole';
+import { getSiteContentBlocks } from '@/lib/ownerConsoleStore';
+
+export const dynamic = 'force-dynamic';
 
 const featureBands = [
   {
     icon: PenTool,
-    title: 'Design the card',
-    copy: 'Build layered fronts and backs with text, images, icons, frames, textures, and reusable variables.',
+    title: 'Design the system',
+    copy: 'Create reusable fronts and backs with text, images, icons, frames, textures, and variables that scale past one card.',
   },
   {
     icon: Database,
-    title: 'Generate the set',
-    copy: 'Fill one card by hand or turn CSV, JSON, and structured notes into a browsable batch.',
+    title: 'Generate complete sets',
+    copy: 'Fill one card by hand or turn CSV, JSON, and structured notes into a full browsable card batch.',
   },
   {
     icon: Layers3,
-    title: 'Keep art organized',
-    copy: 'Use the Starter Library, add signed-in local assets, and keep project work in your browser or files.',
+    title: 'Shape the shared library',
+    copy: 'Use the live Forge library, add local assets, and follow reviewed community contributions as the studio improves.',
   },
   {
     icon: FileDown,
@@ -42,7 +46,7 @@ const featureBands = [
 const accessRows = [
   {
     label: 'Start free',
-    detail: 'Open the studio, test templates, import data, preview cards, and save project files locally.',
+    detail: 'Open the studio, test templates, import data, preview cards, and keep project files local.',
   },
   {
     label: 'Add your art',
@@ -50,7 +54,7 @@ const accessRows = [
   },
   {
     label: 'Export clean files',
-    detail: 'Creator Pass is the paid or beta export tier for clean PDF, PNG, ZIP, and stronger library assets.',
+    detail: 'Creator Pass is the paid or beta export tier for clean PDF, PNG, ZIP, and deeper reviewed library assets.',
   },
 ];
 
@@ -61,13 +65,15 @@ const creationPaths = [
 ];
 
 const libraryLadder = [
-  ['Starter Library', 'A ready set of official templates, textures, dividers, and parts.'],
+  ['Starter Library', 'A ready set of CardForge templates, textures, dividers, and source assets.'],
   ['Local Assets', 'Your uploaded art stays in this browser workspace and project files.'],
-  ['Creator Pass', 'Clean export plus higher-scored CardForge library assets.'],
-  ['Forge Review', 'Approved developers help add new assets over time.'],
+  ['Creator Pass', 'Clean export plus stronger reviewed CardForge library assets.'],
+  ['Forge Review', 'Approved contributors help improve what the whole studio can offer.'],
 ] as const;
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const siteCopy = createSiteContentMap(await getSiteContentBlocks());
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#0c0b09] text-[#f7ead0]">
       <section className="relative min-h-[74vh] border-b border-[#8b6a34]/35">
@@ -87,22 +93,22 @@ export default function LandingPage() {
         <div className="relative z-10 mx-auto flex min-h-[calc(74vh-80px)] max-w-7xl items-center px-5 pb-14 pt-8 md:px-8">
           <div className="max-w-2xl">
             <h1 className="font-serif text-4xl font-semibold leading-[1.02] text-[#fff1c7] md:text-6xl">
-              Make the card. Generate the deck. Export the set.
+              {siteCopy['landing.hero.headline']}
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-[#d9c39c]">
-              CardForge is a compact card design studio for tabletop creators: design reusable templates, generate cards from data, organize custom art, and export clean files when your set is ready.
+              {siteCopy['landing.hero.body']}
             </p>
             <p className="mt-3 max-w-xl text-sm leading-6 text-[#f0dca8]">
-              No sign-in is required to design. Your projects stay in this browser or in files you choose to export.
+              {siteCopy['landing.hero.support']}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
                 <Link href="/studio" prefetch={false}>
-                  Start Creating <ArrowRight className="ml-2 h-5 w-5" />
+                  Open Studio <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="border-[#d8b365]/70 bg-[#120e09]/65 text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                <Link href="/account" prefetch={false}>Account & Export</Link>
+                <Link href="/developer" prefetch={false}>Join the Forge</Link>
               </Button>
             </div>
             <div className="mt-6 flex flex-wrap gap-2 text-xs text-[#c8b07f]">
@@ -122,10 +128,10 @@ export default function LandingPage() {
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">Founder Beta demo</span>
             </div>
             <h2 className="mt-3 font-serif text-3xl font-semibold text-[#fff1c7] md:text-4xl">
-              Free demo seats are open for the current wave.
+              {siteCopy['landing.demo.heading']}
             </h2>
             <p className="mt-3 text-sm leading-6 text-[#cbb58b]">
-              Claiming a Founder Beta seat unlocks clean export access for the demo window while seats remain open. It is the fastest way to test the full studio before CardForge moves into wider paid access.
+              {siteCopy['landing.demo.body']}
             </p>
           </div>
           <div className="border border-[#7d5a2e] bg-[#100c08] p-4 lg:w-80">
@@ -161,17 +167,17 @@ export default function LandingPage() {
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <h2 className="font-serif text-3xl font-semibold text-[#fff1c7] md:text-4xl">
-              Build playable prototypes without rebuilding every card.
+              Design once. Generate the set. Improve the forge together.
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#cbb58b]">
-              Make one layout, bind the changing text, preview the output, then feed it rows of content. It is made for TCG-style cards, TTRPG decks, encounter cards, reference cards, badges, and print tests.
+              Make one layout, bind the changing text, preview the output, then feed it rows of content. Developers help raise the quality of the shared library, while creators get a stronger studio without learning traditional design software.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild className="bg-[#d69c3a] text-[#16100a] hover:bg-[#f1bd58]">
-                <Link href="/studio" prefetch={false}>Start Creating</Link>
+                <Link href="/studio" prefetch={false}>Open Studio</Link>
               </Button>
               <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                <Link href="/developer" prefetch={false}>Become a developer</Link>
+                <Link href="/developer" prefetch={false}>Join the Forge</Link>
               </Button>
             </div>
           </div>
@@ -194,10 +200,10 @@ export default function LandingPage() {
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">Start fast</span>
             </div>
             <h2 className="mt-4 font-serif text-3xl font-semibold text-[#fff1c7] md:text-4xl">
-              Try the studio first. Create an account when the work needs one.
+              Try the studio first. Join the forge when the work needs more.
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#cbb58b]">
-              You can explore the maker and generator before signing in. Accounts matter when you want account-gated local uploads, cleaner exports, Creator Pass assets, or the developer contribution path.
+              You can explore the maker and generator before signing in. Accounts matter when you want local uploads, cleaner exports, Creator Pass assets, or a contributor path into the reviewed library.
             </p>
             <div className="mt-6 flex gap-3">
               <Button asChild className="bg-[#d69c3a] text-[#16100a] hover:bg-[#f1bd58]">
@@ -227,10 +233,10 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
             <h2 className="font-serif text-3xl font-semibold text-[#fff1c7] md:text-4xl">
-              A card library that gets better as people use it.
+              A reviewed library that gets better as the community builds.
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#cbb58b]">
-              Start with official defaults, add your own browser-local art, and unlock stronger libraries as your workflow grows. Developer-submitted assets enter review before they become shared library options.
+              Start with the live Forge library, add your own browser-local art, and unlock stronger libraries as your workflow grows. Developer-submitted assets enter review before they become shared options for everyone.
             </p>
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-4">
@@ -249,15 +255,15 @@ export default function LandingPage() {
           <div>
             <div className="flex items-center gap-3 text-[#e2aa4a]">
               <Sparkles className="h-5 w-5" />
-              <span className="text-sm font-semibold uppercase tracking-[0.2em]">Ready at the table</span>
+              <span className="text-sm font-semibold uppercase tracking-[0.2em]">Ready for real work</span>
             </div>
-            <h2 className="mt-2 font-serif text-2xl text-[#fff1c7]">Open the studio and make the first card.</h2>
-            <p className="mt-2 text-sm text-[#baa67e]">Start with the editor. Add an account when your set needs uploads, export, or a deeper library.</p>
+            <h2 className="mt-2 font-serif text-2xl text-[#fff1c7]">Open the studio and build the first system.</h2>
+            <p className="mt-2 text-sm text-[#baa67e]">Start with the editor. Add an account when your set needs uploads, clean export, or the community-shaped library.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
               <Link href="/studio" prefetch={false}>
-                Start Creating <ArrowRight className="ml-2 h-5 w-5" />
+                Open Studio <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
@@ -273,9 +279,13 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <span>CardForge Studio</span>
           <nav className="flex flex-wrap gap-4">
+            <Link href="/about" prefetch={false} className="hover:text-[#ffe7ad]">About</Link>
+            <Link href="/access" prefetch={false} className="hover:text-[#ffe7ad]">Access</Link>
             <Link href="/privacy" prefetch={false} className="hover:text-[#ffe7ad]">Privacy</Link>
             <Link href="/terms" prefetch={false} className="hover:text-[#ffe7ad]">Terms</Link>
             <Link href="/refund" prefetch={false} className="hover:text-[#ffe7ad]">Refunds</Link>
+            <Link href="/developer-terms" prefetch={false} className="hover:text-[#ffe7ad]">Developer Terms</Link>
+            <Link href="/creator-pool" prefetch={false} className="hover:text-[#ffe7ad]">Creator Pool</Link>
             <Link href="/contact" prefetch={false} className="hover:text-[#ffe7ad]">Contact</Link>
             <Link href="/roadmap" prefetch={false} className="hover:text-[#ffe7ad]">Roadmap</Link>
             <Link href="/developer" prefetch={false} className="hover:text-[#ffe7ad]">Developers</Link>

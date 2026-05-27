@@ -1,5 +1,6 @@
 import { resolveWithTimeout } from '@/lib/asyncTimeout';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
+import type { PostgrestError } from '@supabase/supabase-js';
 
 export type RegistryContentAssetType = 'template' | 'elementPreset';
 
@@ -7,10 +8,28 @@ export interface RegistryContentAssetRow {
   asset_id: string;
   name: string;
   url: string;
+  status?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected';
+  access_tier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  library_source?: 'official' | 'developer';
   metadata: unknown;
 }
 
-const REGISTRY_CONTENT_FETCH_TIMEOUT_MS = 3500;
+const REGISTRY_CONTENT_FETCH_TIMEOUT_MS = 1200;
+const REGISTRY_CONTENT_ROWS_TIMEOUT_MS = 1200;
+const REGISTRY_CONTENT_TIMEOUT_ERROR: PostgrestError = {
+  code: 'REGISTRY_CONTENT_TIMEOUT',
+  details: 'Timed out while loading published registry content rows.',
+  hint: 'The Forge Pipeline catalog is unavailable until the registry responds.',
+  message: 'Registry content request timed out.',
+  name: 'PostgrestError',
+  toJSON: () => ({
+    code: 'REGISTRY_CONTENT_TIMEOUT',
+    details: 'Timed out while loading published registry content rows.',
+      hint: 'The Forge Pipeline catalog is unavailable until the registry responds.',
+    message: 'Registry content request timed out.',
+    name: 'PostgrestError',
+  }),
+};
 
 export const getEmbeddedRegistryContent = <T>(
   metadata: unknown,
@@ -62,16 +81,31 @@ export const getPublishedRegistryContentRows = async (
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
 
-  const { data, error } = await supabase
-    .from('cardforge_asset_registry')
-    .select('asset_id,name,url,metadata')
-    .eq('asset_type', assetType)
-    .eq('status', 'published')
-    .neq('access_tier', 'hidden')
-    .order('name', { ascending: true });
+  const { data, error } = await resolveWithTimeout(
+    Promise.resolve(
+      supabase
+        .from('cardforge_asset_registry')
+        .select('asset_id,name,url,status,access_tier,library_source,metadata')
+        .eq('asset_type', assetType)
+        .eq('status', 'published')
+        .neq('access_tier', 'hidden')
+        .order('name', { ascending: true }),
+    ),
+    {
+      fallback: {
+        data: null,
+        error: REGISTRY_CONTENT_TIMEOUT_ERROR,
+        count: null,
+        status: 408,
+        statusText: 'Request Timeout',
+        success: false,
+      },
+      timeoutMs: REGISTRY_CONTENT_ROWS_TIMEOUT_MS,
+    },
+  );
 
   if (error) {
-    if ((error as { code?: string }).code !== 'PGRST205') {
+    if ((error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'REGISTRY_CONTENT_TIMEOUT') {
       console.error(`Failed to load ${assetType} registry content:`, error);
     }
     return [];

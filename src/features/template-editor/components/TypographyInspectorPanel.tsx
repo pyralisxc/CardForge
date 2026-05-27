@@ -6,12 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ColorField, clamp } from '@/components/card-forge/makerConstants';
+import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
 import { parseTextBinding } from '@/lib/textBindings';
 import { shouldAutoFitTextElement } from '@/lib/textElementContracts';
 import { textFontSizePx } from '@/lib/textTools';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
+import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 
@@ -50,7 +51,8 @@ export function TypographyInspectorPanel({
                 type="button"
                 variant="outline"
                 size="sm"
-                title={`${preset.contributorName} - ${preset.status} - ${preset.tier}`}
+                title={getPipelineRecipeTitle(preset)}
+                aria-label={`Apply ${preset.label} text frame recipe`}
                 className="h-auto min-h-9 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
                 onClick={() => onApplyPreset(preset)}
               >
@@ -60,24 +62,10 @@ export function TypographyInspectorPanel({
                 />
                 <span className="min-w-0">
                   <span className="block truncate text-[#f1dfb4]">{preset.label}</span>
-                  <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{preset.status} - {preset.tier}</span>
+                  <PipelineRecipeMeta recipe={preset} />
                 </span>
               </Button>
             ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="element-text-color" className="text-xs">Text Color</Label>
-            <ColorField id="element-text-color" value={element.textColor || '#fbbf24'} onChange={(value) => onUpdateElement({ textColor: value }, false)} />
-          </div>
-          <div>
-            <Label htmlFor="element-bg-color" className="text-xs">Panel Fill</Label>
-            <ColorField id="element-bg-color" value={element.backgroundColor || '#ffffff'} onChange={(value) => onUpdateElement({ backgroundColor: value }, false)} />
-          </div>
-          <div>
-            <Label htmlFor="element-border-color" className="text-xs">Border</Label>
-            <ColorField id="element-border-color" value={element.borderColor || '#c89f42'} onChange={(value) => onUpdateElement({ borderColor: value }, false)} />
           </div>
         </div>
       </div>
@@ -89,7 +77,7 @@ export function TypographyInspectorPanel({
             <div>
               <Label htmlFor="element-font">Font</Label>
               <Select value={element.fontFamily || 'font-sans'} onValueChange={(value) => onUpdateElement({ fontFamily: value })}>
-                <SelectTrigger id="element-font"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="element-font" aria-label="Element font family"><SelectValue /></SelectTrigger>
                 <SelectContent>{availableFonts.map((font) => <SelectItem key={font.value} value={font.value}>{font.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -98,7 +86,7 @@ export function TypographyInspectorPanel({
             <div>
               <Label htmlFor="element-padding">Padding</Label>
               <Select value={element.padding || 'p-1'} onValueChange={(value) => onUpdateElement({ padding: value })}>
-                <SelectTrigger id="element-padding"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="element-padding" aria-label="Element text padding"><SelectValue /></SelectTrigger>
                 <SelectContent>{paddingOptions.map((padding) => <SelectItem key={padding.value} value={padding.value}>{padding.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -110,7 +98,7 @@ export function TypographyInspectorPanel({
                 <TooltipContent>Vertical modes stack each letter upright, like East Asian text</TooltipContent>
               </Tooltip>
               <Select value={element.writingMode || 'horizontal-tb'} onValueChange={(value) => onUpdateElement({ writingMode: value as FreeformCardElement['writingMode'] })}>
-                <SelectTrigger id="element-writing-mode"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="element-writing-mode" aria-label="Element text direction"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="horizontal-tb">Horizontal</SelectItem>
                   <SelectItem value="vertical-rl">Vertical Up/Down (R to L)</SelectItem>
@@ -121,7 +109,7 @@ export function TypographyInspectorPanel({
             <div>
               <Label htmlFor="element-text-transform">Transform</Label>
               <Select value={element.textTransform || 'none'} onValueChange={(value) => onUpdateElement({ textTransform: value as FreeformCardElement['textTransform'] })}>
-                <SelectTrigger id="element-text-transform"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="element-text-transform" aria-label="Element text transform"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="uppercase">UPPERCASE</SelectItem>
@@ -174,6 +162,7 @@ export function TypographyInspectorPanel({
                 <span className="text-[11px] text-[#d8d1c4]">Reduce text size if it overflows</span>
                 <Switch
                   id="element-text-autofit"
+                  aria-label="Reduce text size if it overflows"
                   checked={shouldAutoFitTextElement(currentTemplate, element)}
                   onCheckedChange={(checked) => {
                     const boundField = parseTextBinding(element.content).field;

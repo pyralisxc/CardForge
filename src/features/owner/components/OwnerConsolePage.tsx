@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Database, ExternalLink, FileText, Gift, Info, KeyRound, Rocket, Save, Settings2, ShieldCheck, Users } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/components/OwnerDeveloperProgramPanel';
 import type {
+  LegalDocumentSlug,
   FounderBetaCampaign,
   FounderBetaClaim,
   LegalDocument,
@@ -18,8 +19,11 @@ import type {
   OwnerDatabaseMetrics,
   OwnerRoadmapItem,
   OwnerSettings,
+  SiteContentBlock,
+  SiteContentBlockSlug,
   SiteMechanicsSettings,
 } from '@/lib/ownerConsole';
+import { DEFAULT_LEGAL_DOCUMENTS, DEFAULT_SITE_CONTENT_BLOCKS } from '@/lib/ownerConsole';
 
 interface OwnerConsoleResponse {
   ownerAccess: {
@@ -83,6 +87,21 @@ const roadmapStatusLabels: Record<OwnerRoadmapItem['status'], string> = {
   testing: 'Testing',
   shipped: 'Completed',
   archived_negative_signal: 'Archived',
+};
+
+const legalDocumentPathBySlug: Record<LegalDocumentSlug, string> = {
+  privacy: '/privacy',
+  terms: '/terms',
+  refund: '/refund',
+  contact: '/contact',
+  'developer-terms': '/developer-terms',
+  'creator-pool': '/creator-pool',
+};
+
+const siteContentGroupLabels: Record<SiteContentBlock['group'], string> = {
+  landing: 'Landing page',
+  about: 'About page',
+  access: 'Access page',
 };
 
 const formatBytes = (value: number): string => {
@@ -174,15 +193,32 @@ export function OwnerConsolePage() {
   const [payload, setPayload] = useState<OwnerConsoleResponse | null>(null);
   const [settings, setSettings] = useState<OwnerSettings>(emptySettings);
   const [siteMechanics, setSiteMechanics] = useState<SiteMechanicsSettings>(emptySiteMechanics);
+  const [siteContentBlocks, setSiteContentBlocks] = useState<SiteContentBlock[]>(DEFAULT_SITE_CONTENT_BLOCKS);
   const [founderBetaCampaign, setFounderBetaCampaign] = useState<FounderBetaCampaign>(emptyFounderBetaCampaign);
   const [founderBetaClaims, setFounderBetaClaims] = useState<FounderBetaClaim[]>([]);
   const [roadmapItems, setRoadmapItems] = useState<OwnerRoadmapItem[]>([]);
   const [databaseMetrics, setDatabaseMetrics] = useState<OwnerDatabaseMetrics | null>(null);
-  const [activeLegalSlug, setActiveLegalSlug] = useState('privacy');
-  const [legalDrafts, setLegalDrafts] = useState<Record<string, LegalDocument>>({});
+  const [activeLegalSlug, setActiveLegalSlug] = useState<LegalDocumentSlug>('privacy');
+  const [legalDrafts, setLegalDrafts] = useState<Record<LegalDocumentSlug, LegalDocument>>(
+    Object.fromEntries(DEFAULT_LEGAL_DOCUMENTS.map((document) => [document.slug, document])) as Record<LegalDocumentSlug, LegalDocument>,
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [isSlowLoad, setIsSlowLoad] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
+  const siteContentGroups = useMemo(() => {
+    return (['landing', 'about', 'access'] as Array<SiteContentBlock['group']>).map((group) => ({
+      group,
+      blocks: siteContentBlocks.filter((block) => block.group === group),
+    }));
+  }, [siteContentBlocks]);
+
+  const legalDraftList = useMemo(
+    () => DEFAULT_LEGAL_DOCUMENTS.map((defaultDocument) => legalDrafts[defaultDocument.slug]).filter(Boolean),
+    [legalDrafts],
+  );
   const activeLegalDocument = useMemo(() => legalDrafts[activeLegalSlug] ?? null, [activeLegalSlug, legalDrafts]);
   const activeFounderBetaClaims = useMemo(
     () => founderBetaClaims.filter((claim) => claim.status === 'active'),
@@ -197,16 +233,24 @@ export function OwnerConsolePage() {
   const syncConsoleState = useCallback((consolePayload: OwnerConsolePayload) => {
     setSettings(consolePayload.settings);
     setSiteMechanics(consolePayload.siteMechanics);
+    setSiteContentBlocks(consolePayload.siteContentBlocks);
     setFounderBetaCampaign(consolePayload.founderBetaCampaign);
     setFounderBetaClaims(consolePayload.founderBetaClaims);
     setRoadmapItems(consolePayload.roadmapItems);
     setDatabaseMetrics(consolePayload.databaseMetrics);
-    setLegalDrafts(Object.fromEntries(consolePayload.legalDocuments.map((document) => [document.slug, document])));
+    setLegalDrafts(Object.fromEntries(consolePayload.legalDocuments.map((document) => [document.slug, document])) as Record<LegalDocumentSlug, LegalDocument>);
   }, []);
 
   useEffect(() => {
     let mounted = true;
+    const slowLoadTimer = window.setTimeout(() => {
+      if (mounted) setIsSlowLoad(true);
+    }, 2500);
+
     const load = async () => {
+      setIsLoading(true);
+      setIsSlowLoad(false);
+      setLoadError(null);
       try {
         const response = await fetch('/api/owner/console', { cache: 'no-store' });
         if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to load owner console.'));
@@ -215,12 +259,16 @@ export function OwnerConsolePage() {
         setPayload(nextPayload);
         syncConsoleState(nextPayload.console);
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to load owner console.';
+        if (!mounted) return;
+        setLoadError(message);
         toast({
           title: 'Owner console unavailable',
-          description: error instanceof Error ? error.message : 'Unable to load owner console.',
+          description: message,
           variant: 'destructive',
         });
       } finally {
+        window.clearTimeout(slowLoadTimer);
         if (mounted) setIsLoading(false);
       }
     };
@@ -228,8 +276,9 @@ export function OwnerConsolePage() {
     void load();
     return () => {
       mounted = false;
+      window.clearTimeout(slowLoadTimer);
     };
-  }, [syncConsoleState, toast]);
+  }, [reloadToken, syncConsoleState, toast]);
 
   const saveSettings = async () => {
     setIsSaving(true);
@@ -301,6 +350,35 @@ export function OwnerConsolePage() {
     }
   };
 
+  const updateSiteContentBlockDraft = (slug: SiteContentBlockSlug, body: string) => {
+    setSiteContentBlocks((current) => current.map((block) => (
+      block.slug === slug ? { ...block, body } : block
+    )));
+  };
+
+  const saveSiteContentBlock = async (block: SiteContentBlock) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/owner/console', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'siteContent', siteContentBlock: { slug: block.slug, body: block.body } }),
+      });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save site copy.'));
+      const body = await response.json() as { console: OwnerConsolePayload };
+      syncConsoleState(body.console);
+      toast({ title: 'Site copy published', description: `${block.label} is live without a deploy.` });
+    } catch (error) {
+      toast({
+        title: 'Site copy not saved',
+        description: error instanceof Error ? error.message : 'Unable to save site copy.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const saveFounderBetaCampaign = async () => {
     setIsSaving(true);
     try {
@@ -351,7 +429,38 @@ export function OwnerConsolePage() {
   };
 
   if (!payload && isLoading) {
-    return <main className="min-h-screen bg-[#0c0b09] p-8 text-[#f7ead0]">Loading owner console...</main>;
+    return (
+      <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+        <PublicSiteHeader currentPath="/owner" showOwnerLink title="Owner Forge" />
+        <section className="mx-auto max-w-7xl px-5 py-10 md:px-8">
+          <div className="border border-[#6d4f2b] bg-[#15100a] p-6 md:p-8">
+            <div className="flex items-center gap-3 text-[#e2aa4a]">
+              <ShieldCheck className="h-6 w-6" />
+              <span className="text-sm font-semibold uppercase tracking-[0.2em]">Owner console</span>
+            </div>
+            <h1 className="mt-5 font-serif text-4xl text-[#fff1c7] md:text-5xl">
+              Preparing command center
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
+              Loading business settings, integration health, roadmap controls, developer rules, and legal drafts.
+            </p>
+            <div className="mt-6 grid gap-3 md:grid-cols-4">
+              {['Business profile', 'Site copy', 'Contributor rules', 'Legal drafts'].map((label) => (
+                <div key={label} className="border border-[#4a3823] bg-[#100c08] p-4">
+                  <div className="h-2 w-16 animate-pulse bg-[#4a3823]" />
+                  <p className="mt-4 text-sm text-[#d8c49a]">{label}</p>
+                </div>
+              ))}
+            </div>
+            {isSlowLoad ? (
+              <p className="mt-5 border border-[#8c6436] bg-[#1b1209] p-3 text-sm leading-6 text-[#f0bd75]">
+                This is taking longer than expected. The console should recover automatically; if it does not, refresh after the current request finishes.
+              </p>
+            ) : null}
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -362,7 +471,17 @@ export function OwnerConsolePage() {
       <section className="mx-auto max-w-7xl px-5 py-10 md:px-8">
         {!payload ? (
           <div className="border border-[#7d3d32] bg-[#1b0d09] p-6 text-[#ffd0c6]">
-            Owner access is required. Sign in with the owner account or set trusted owner metadata.
+            <h1 className="font-serif text-3xl text-[#fff1c7]">Owner console unavailable</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6">
+              {loadError ?? 'Owner access is required. Sign in with the owner account or set trusted owner metadata.'}
+            </p>
+            <Button
+              type="button"
+              className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+              onClick={() => setReloadToken((value) => value + 1)}
+            >
+              Retry owner console
+            </Button>
           </div>
         ) : (
           <div className="space-y-8">
@@ -372,19 +491,20 @@ export function OwnerConsolePage() {
                 <span className="text-sm font-semibold uppercase tracking-[0.2em]">Owner console</span>
               </div>
               <h1 className="mt-5 font-serif text-4xl text-[#fff1c7] md:text-5xl">
-                Run the business side from the forge.
+                Run the forge like a product.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                Edit public business details, publish legal pages, check integration readiness, and jump to the services that keep CardForge running.
+                Edit public business details, publish legal pages, check integration readiness, and steer the contributor-powered library without losing the production controls underneath.
               </p>
             </div>
 
             <Tabs defaultValue="readiness" className="space-y-5">
               <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
                 <TabsTrigger value="readiness" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Launch Readiness</TabsTrigger>
+                <TabsTrigger value="copy" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Site Copy</TabsTrigger>
                 <TabsTrigger value="site" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Site Mechanics</TabsTrigger>
                 <TabsTrigger value="access" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Access & Promos</TabsTrigger>
-                <TabsTrigger value="developer" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Developer Program</TabsTrigger>
+                <TabsTrigger value="developer" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Contributor Program</TabsTrigger>
                 <TabsTrigger value="legal" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Legal & Secrets</TabsTrigger>
               </TabsList>
 
@@ -454,7 +574,7 @@ export function OwnerConsolePage() {
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Data footprint</h2>
                   </div>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Track how much shared Supabase space CardForge is using before asset uploads and developer publishing grow.
+                    Track how much shared Supabase space CardForge is using before asset uploads and contributor publishing grow.
                   </p>
                 </div>
                 <FieldHelp text="Database size comes from Postgres. Storage size comes from Supabase Storage object metadata when that schema is available. Local browser uploads do not count here." />
@@ -535,6 +655,60 @@ export function OwnerConsolePage() {
             </section>
               </TabsContent>
 
+              <TabsContent value="copy" className="mt-0">
+            <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex items-center gap-3 text-[#e2aa4a]">
+                    <FileText className="h-5 w-5" />
+                    <h2 className="font-serif text-2xl text-[#fff1c7]">Public site copy</h2>
+                  </div>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
+                    Edit the live wording for public pages that already exist. This is intentionally not a page builder: new structure still belongs in code, while these fields let the owner tune launch messaging without a deploy.
+                  </p>
+                </div>
+                <div className="border border-[#7d5a2e] bg-[#100c08] px-4 py-3 text-xs uppercase tracking-[0.14em] text-[#ffe7ad]">
+                  Known blocks only
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4">
+                {siteContentGroups.map(({ group, blocks }) => (
+                  <div key={group} className="border border-[#4a3823] bg-[#100c08] p-4">
+                    <h3 className="font-serif text-xl text-[#ffe7ad]">{siteContentGroupLabels[group]}</h3>
+                    <div className="mt-4 grid gap-3">
+                      {blocks.map((block) => (
+                        <div key={block.slug} className="border border-[#3a2d1d] bg-[#0c0b09] p-3">
+                          <label className="grid gap-2 text-sm text-[#c7b288]">
+                            <span className="flex flex-wrap items-center justify-between gap-2">
+                              {block.label}
+                              <span className="text-xs text-[#8f7b57]">{block.body.length}/800</span>
+                            </span>
+                            <textarea
+                              className="min-h-24 border border-[#5f4526] bg-[#100c08] p-3 text-sm leading-6 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                              maxLength={800}
+                              value={block.body}
+                              onChange={(event) => updateSiteContentBlockDraft(block.slug, event.target.value)}
+                            />
+                          </label>
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                            <span className="text-xs text-[#8f7b57]">
+                              {block.updatedAt ? `Last saved ${new Date(block.updatedAt).toLocaleDateString()}` : 'Using bundled default'}
+                            </span>
+                            <Button size="sm" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={() => saveSiteContentBlock(block)}>
+                              <Save className="mr-2 h-4 w-4" />
+                              Publish block
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+              </TabsContent>
+
               <TabsContent value="site" className="mt-0">
             <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -544,7 +718,7 @@ export function OwnerConsolePage() {
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Site mechanics</h2>
                   </div>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Tune how public feature voting affects the live roadmap. Developer asset voting rules are managed below in Library Command.
+                    Tune how public feature voting affects the live roadmap. Contributor asset voting rules are managed below in Library Command.
                   </p>
                 </div>
                 <div className="border border-[#7d5a2e] bg-[#100c08] px-4 py-3 text-xs uppercase tracking-[0.14em] text-[#ffe7ad]">
@@ -593,7 +767,7 @@ export function OwnerConsolePage() {
                   </p>
                 </div>
                 <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Developer assets</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Contributor assets</p>
                   <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
                     Library tiers, publish caps, and asset review thresholds live in the developer program controls.
                   </p>
@@ -790,7 +964,7 @@ export function OwnerConsolePage() {
               </div>
               <div className="mt-5 grid gap-5 lg:grid-cols-[14rem_1fr]">
                 <div className="grid gap-2 content-start">
-                  {Object.values(legalDrafts).map((document) => (
+                  {legalDraftList.map((document) => (
                     <button
                       key={document.slug}
                       type="button"
@@ -829,7 +1003,7 @@ export function OwnerConsolePage() {
                         Publish legal page
                       </Button>
                       <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                        <Link href={`/${activeLegalDocument.slug}`}>View public page</Link>
+                        <Link href={legalDocumentPathBySlug[activeLegalDocument.slug]}>View public page</Link>
                       </Button>
                     </div>
                   </div>

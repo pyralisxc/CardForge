@@ -11,6 +11,43 @@ import {
   getVisibleArchivedSubmissions,
   normalizeDeveloperProgramSettingsInput,
 } from '@/lib/developerAssets';
+import {
+  getReviewProgressLabel,
+  getReviewProgressPercent,
+  getSubmissionNextStep,
+} from '@/features/developer-assets/components/DeveloperAssetHubModel';
+import type { DeveloperAssetSubmission } from '@/features/developer-assets/components/DeveloperAssetHubModel';
+
+const baseSubmission: DeveloperAssetSubmission = {
+  id: 'asset-1',
+  developerId: 'dev-1',
+  developerEmail: 'dev@example.test',
+  developerFirstName: null,
+  developerLastName: null,
+  developerDisplayName: 'Dev Example',
+  assetType: 'icons',
+  name: 'Smoke Icon',
+  description: '',
+  previewUrl: '',
+  sourceUrl: null,
+  sourceFileSizeBytes: null,
+  sourceMimeType: null,
+  sourceStorageBucket: null,
+  sourceStoragePath: null,
+  registryAssetId: null,
+  status: 'voting',
+  calculatedAccessTier: 'developer',
+  ownerAccessTierOverride: null,
+  qualityScore: 0,
+  tierDecisionReason: 'needs_more_votes',
+  ownerNote: null,
+  decisionReason: 'needs_more_votes',
+  positiveVotes: 0,
+  negativeVotes: 0,
+  currentUserVote: null,
+  submittedAt: '2026-05-01T00:00:00.000Z',
+  updatedAt: '2026-05-01T00:00:00.000Z',
+};
 
 describe('developer asset program rules', () => {
   it('normalizes owner settings with launch defaults and guardrails', () => {
@@ -305,6 +342,34 @@ describe('developer asset program rules', () => {
     expect(currentRoster.minimumVotesForTierAssignment).toBe(5);
     expect(fullCouncil.minimumVotesForGrading).toBe(9);
     expect(fullCouncil.minimumVotesForTierAssignment).toBe(9);
+  });
+
+  it('summarizes developer review progress for pipeline cards', () => {
+    expect(getReviewProgressLabel({ positiveVotes: 2, negativeVotes: 1 }, 5)).toBe('2 more votes needed');
+    expect(getReviewProgressPercent({ positiveVotes: 2, negativeVotes: 1 }, 5)).toBe(60);
+    expect(getReviewProgressLabel({ positiveVotes: 5, negativeVotes: 1 }, 5)).toBe('6/5 votes ready');
+  });
+
+  it('explains the next developer-facing pipeline step', () => {
+    expect(getSubmissionNextStep({
+      ...baseSubmission,
+      positiveVotes: 1,
+      negativeVotes: 0,
+    }, { settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS })).toContain('Needs more developer signal');
+
+    expect(getSubmissionNextStep({
+      ...baseSubmission,
+      status: 'published',
+      calculatedAccessTier: 'free',
+      positiveVotes: 5,
+      negativeVotes: 0,
+    }, { settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS })).toContain('Live in the shared library');
+
+    expect(getSubmissionNextStep({
+      ...baseSubmission,
+      status: 'archived',
+      calculatedAccessTier: 'hidden',
+    }, { settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS })).toContain('recovery voting');
   });
 
   it('estimates managed asset storage from publish, voting, and archive limits', () => {

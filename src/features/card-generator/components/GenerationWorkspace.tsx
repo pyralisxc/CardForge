@@ -2,10 +2,6 @@
 
 import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
 
-import { BulkGenerator } from '@/components/card-forge/BulkGenerator';
-import { PaperSizeSelector } from '@/components/card-forge/PaperSizeSelector';
-import { SaveAsPdfButton } from '@/components/card-forge/SaveAsPdfButton';
-import { SingleCardGenerator } from '@/components/card-forge/SingleCardGenerator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { BulkGenerator } from '@/features/card-generator/components/BulkGenerator';
 import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
+import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
+import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
+import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
 import type { DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
 import type { ExportMode } from '@/lib/printValidation';
 

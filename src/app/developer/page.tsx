@@ -4,8 +4,8 @@ import { DeveloperProgramPage } from '@/features/developer-assets/components/Dev
 import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
 
 export const metadata: Metadata = {
-  title: 'Become a CardForge Developer | Forge Review',
-  description: 'Apply for the CardForge developer program, review asset standards, and access the Forge Review asset submission hub.',
+  title: 'Join the CardForge Community | Forge Review',
+  description: 'Apply for the CardForge developer program, review contribution standards, and help shape the shared forge library.',
 };
 
 export default function DeveloperPage() {

@@ -21,20 +21,20 @@ export function useBootstrapLibraries({
   useEffect(() => {
     let cancelled = false;
 
-    const loadFileBackedTemplates = async () => {
+    const loadPipelineTemplates = async () => {
       try {
         const payload = await loadBootstrapTemplates();
         if (cancelled) return;
         setDefaultTemplatesFromFiles(Array.isArray(payload.defaults) ? payload.defaults : []);
         setUserTemplatesFromFiles(Array.isArray(payload.userTemplates) ? payload.userTemplates : []);
       } catch (error) {
-        console.warn('Unable to load file-backed templates:', error);
+        console.warn('Unable to load pipeline templates:', error);
       } finally {
         if (!cancelled) setIsLoadingTemplates(false);
       }
     };
 
-    loadFileBackedTemplates();
+    loadPipelineTemplates();
     return () => {
       cancelled = true;
     };
@@ -43,17 +43,17 @@ export function useBootstrapLibraries({
   useEffect(() => {
     let cancelled = false;
 
-    const loadFileBackedStyles = async () => {
+    const loadPipelineStyles = async () => {
       try {
         const payload = await loadBootstrapStyles() as Partial<AppearanceStyleLibrary>;
         if (cancelled || !Array.isArray(payload.styles)) return;
         setAppearanceStylesFromFiles(payload.styles);
       } catch (error) {
-        console.warn('Unable to load file-backed styles:', error);
+        console.warn('Unable to load pipeline styles:', error);
       }
     };
 
-    loadFileBackedStyles();
+    loadPipelineStyles();
     return () => {
       cancelled = true;
     };

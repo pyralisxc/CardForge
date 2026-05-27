@@ -4,7 +4,6 @@ import { persist, createJSONStorage, devtools } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { TCGCardTemplate, TemplateSource, PaperSize, DisplayCard, CardData, StoredDisplayCard, AppearanceStylePreset, PdfDuplexLayout } from '@/types';
 import { PAPER_SIZES, TABS_CONFIG, TCG_ASPECT_RATIO } from '@/lib/constants';
-import { DEFAULT_APPEARANCE_LIBRARY } from '@/lib/appearance';
 import type { ExportMode } from '@/lib/printValidation';
 import { createDefaultFreeformCanvas, reconstructFreeformCanvas, reconstructMinimalTemplateObject } from '@/lib/templateModel';
 import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/store/selectors';
@@ -80,7 +79,7 @@ export const useAppStore = create<AppState>()(
       (set, get) => ({
         defaultTemplates: [],
         userTemplates: [],
-        appearanceStyles: DEFAULT_APPEARANCE_LIBRARY,
+        appearanceStyles: [],
         storedCards: [],
 
         selectedPaperSize: PAPER_SIZES[0],
@@ -219,7 +218,7 @@ export const useAppStore = create<AppState>()(
           };
         }),
         setAppearanceStylesFromFiles: (styles) => set((state) => {
-          const merged = dedupeAppearanceStyles([...DEFAULT_APPEARANCE_LIBRARY, ...state.appearanceStyles]);
+          const merged = dedupeAppearanceStyles([...state.appearanceStyles]);
           styles.forEach(style => {
             const index = merged.findIndex(existing => existing.id === style.id);
             if (index > -1) merged[index] = style;
@@ -329,7 +328,7 @@ export const useAppStore = create<AppState>()(
             set({ activeTab: normalizedActiveTab });
           }
           // Always dedupe appearance styles on rehydration.
-          const dedupedStyles = dedupeAppearanceStyles([...DEFAULT_APPEARANCE_LIBRARY, ...state.appearanceStyles]);
+          const dedupedStyles = dedupeAppearanceStyles(state.appearanceStyles);
           if (dedupedStyles.length !== state.appearanceStyles.length) {
             set({ appearanceStyles: dedupedStyles });
           }

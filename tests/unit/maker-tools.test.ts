@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CARD_DIVIDER_ASSETS, SEAMLESS_TEXTURE_ASSETS } from '@/lib/cardAssets';
+import { buildDiscoveredCardAsset } from '@/lib/cardAssets';
 import { getElementCapabilities, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
 import { reconstructFreeformCanvas } from '@/store/appStore';
 import type { FreeformCardElement } from '@/types';
@@ -25,18 +25,28 @@ describe('Card Template Maker tool capability map', () => {
     expect(getElementCapabilities(shapeElement)).not.toContain('divider');
   });
 
-  it('exposes all divider assets only as divider-target assets', () => {
-    expect(CARD_DIVIDER_ASSETS).toHaveLength(6);
-    expect(CARD_DIVIDER_ASSETS.every(asset => asset.kind === 'divider')).toBe(true);
-    expect(CARD_DIVIDER_ASSETS.every(asset => asset.allowedTargets.includes('divider'))).toBe(true);
-    expect(CARD_DIVIDER_ASSETS.every(asset => asset.tileMode !== 'repeat')).toBe(true);
+  it('builds divider registry assets only as divider-target assets', () => {
+    const dividerAsset = buildDiscoveredCardAsset({
+      url: '/card-assets/dividers/gilded-filigree.svg',
+      kind: 'divider',
+      relativePath: 'gilded-filigree.svg',
+    });
+
+    expect(dividerAsset.kind).toBe('divider');
+    expect(dividerAsset.allowedTargets).toContain('divider');
+    expect(dividerAsset.tileMode).not.toBe('repeat');
   });
 
-  it('exposes only seamless repeat-safe texture assets in the texture picker', () => {
-    expect(SEAMLESS_TEXTURE_ASSETS.length).toBeGreaterThan(0);
-    expect(SEAMLESS_TEXTURE_ASSETS.every(asset => asset.kind === 'texture')).toBe(true);
-    expect(SEAMLESS_TEXTURE_ASSETS.every(asset => asset.seamless)).toBe(true);
-    expect(SEAMLESS_TEXTURE_ASSETS.every(asset => asset.tileMode === 'repeat')).toBe(true);
+  it('builds registry texture assets with repeat-safe defaults', () => {
+    const textureAsset = buildDiscoveredCardAsset({
+      url: '/card-assets/textures/arcane-hatch.svg',
+      kind: 'texture',
+      relativePath: 'arcane-hatch.svg',
+    });
+
+    expect(textureAsset.kind).toBe('texture');
+    expect(textureAsset.seamless).toBe(true);
+    expect(textureAsset.tileMode).toBe('repeat');
   });
 
   it('normalizes divider line shapes without destroying payload data', () => {

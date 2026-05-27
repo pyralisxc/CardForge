@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/lib/richTextDocument';
 
-import { makerTheme } from './makerConstants';
+import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 
 const CardForgeVariableNode = Node.create({
   name: 'cardForgeVariable',

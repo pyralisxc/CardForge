@@ -1,5 +1,3 @@
-import { currentUser } from '@clerk/nextjs/server';
-
 import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import {
@@ -7,17 +5,17 @@ import {
   DeveloperAssetStoreError,
   getDeveloperAssetProgramView,
   upsertDeveloperProfile,
+  updateDeveloperProfileOverrides,
   updateDeveloperProgramSettings,
 } from '@/lib/developerAssetStore';
+import { getCurrentCardforgeUserAccess } from '@/lib/serverCardforgeUser';
 import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
+import { createServerTimingTracker } from '@/lib/serverTiming';
 
 export const dynamic = 'force-dynamic';
 
 const getDeveloperAccess = async () => {
-  const [user, ownerAccess] = await Promise.all([
-    currentUser(),
-    getCurrentOwnerAccess(),
-  ]);
+  const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
 
   if (!user) {
     return {
@@ -27,9 +25,9 @@ const getDeveloperAccess = async () => {
   }
 
   const entitlement = resolveAccountEntitlement({
-    authConfigured: true,
+    authConfigured,
     isSignedIn: true,
-    emailAddresses: user.emailAddresses.map((email) => email.emailAddress),
+    emailAddresses: user.emailAddresses,
     privateMetadata: user.privateMetadata,
     ownerAccess,
   });
@@ -48,7 +46,7 @@ const getDeveloperAccess = async () => {
     ownerAccess,
     isOwner: ownerAccess.isOwner,
     isDeveloper,
-    email: user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null,
+    email: user.email,
   };
 };
 
@@ -63,9 +61,7 @@ const getOwnerAccess = async () => {
   return { ok: true as const, owner };
 };
 
-const getContributorIds = (userId: string, isOwner: boolean) => (
-  isOwner ? [userId, 'cardforge-official'] : [userId]
-);
+const getContributorIds = (userId: string) => [userId];
 
 const syncDeveloperProfile = async (access: Awaited<ReturnType<typeof getDeveloperAccess>> & { ok: true }) => {
   await upsertDeveloperProfile({
@@ -77,17 +73,24 @@ const syncDeveloperProfile = async (access: Awaited<ReturnType<typeof getDevelop
 };
 
 export async function GET() {
+  const timing = createServerTimingTracker();
   try {
-    const access = await getDeveloperAccess();
+    const access = await timing.track('developer_access', getDeveloperAccess);
     if (!access.ok) return access.response;
-    await syncDeveloperProfile(access);
+    await timing.track('profile_sync', () => syncDeveloperProfile(access));
+    const program = await timing.track(
+      'program_view',
+      () => getDeveloperAssetProgramView(access.user.id, getContributorIds(access.user.id)),
+    );
 
-    return createNoStoreJsonResponse({
+    const response = createNoStoreJsonResponse({
       ownerAccess: access.ownerAccess,
       isDeveloper: access.isDeveloper,
       isOwner: access.isOwner,
-      program: await getDeveloperAssetProgramView(access.user.id, getContributorIds(access.user.id, access.isOwner)),
+      program,
     });
+    response.headers.set('Server-Timing', timing.header());
+    return response;
   } catch (error) {
     console.error('Failed to load developer asset program:', error);
     return createApiErrorResponse(
@@ -119,7 +122,7 @@ export async function POST(request: Request) {
     const program = await createDeveloperAssetSubmission({
       developerId: access.user.id,
       developerEmail: access.email,
-      currentContributorIds: getContributorIds(access.user.id, access.isOwner),
+      currentContributorIds: getContributorIds(access.user.id),
       input: body,
     });
     return createNoStoreJsonResponse({ program }, { status: 201 });
@@ -157,7 +160,7 @@ export async function PUT(request: Request) {
     const program = await updateDeveloperProgramSettings(
       body.settings ?? {},
       ownerUserId,
-      getContributorIds(ownerUserId, true)
+      getContributorIds(ownerUserId)
     );
     return createNoStoreJsonResponse({ program });
   } catch (error) {
@@ -177,6 +180,53 @@ export async function PUT(request: Request) {
       500,
       'developer_asset_request_invalid',
       'Unable to update developer asset settings.'
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const access = await getOwnerAccess();
+    if (!access.ok) return access.response;
+
+    const ownerUserId = access.owner.userId;
+    if (!ownerUserId) {
+      return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for developer profile settings.');
+    }
+    const body = await request.json() as {
+      developerId?: unknown;
+      profile?: {
+        status?: unknown;
+        monthlySubmissionLimitOverride?: unknown;
+        monthlyPublishedRequirementOverride?: unknown;
+        profitShareEligible?: unknown;
+        ownerNote?: unknown;
+      };
+    };
+    const program = await updateDeveloperProfileOverrides({
+      developerId: typeof body.developerId === 'string' ? body.developerId : '',
+      input: body.profile ?? {},
+      currentUserId: ownerUserId,
+      currentContributorIds: getContributorIds(ownerUserId),
+    });
+    return createNoStoreJsonResponse({ program });
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    }
+    if (error instanceof DeveloperAssetStoreError) {
+      return createApiErrorResponse(
+        error.status,
+        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
+        error.message
+      );
+    }
+
+    console.error('Failed to update developer profile settings:', error);
+    return createApiErrorResponse(
+      500,
+      'developer_asset_request_invalid',
+      'Unable to update developer profile settings.'
     );
   }
 }

@@ -1,5 +1,3 @@
-import { currentUser } from '@clerk/nextjs/server';
-
 import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import {
@@ -7,15 +5,13 @@ import {
   updateDeveloperAssetSubmissionDetails,
   updateDeveloperAssetSubmissionStatus,
 } from '@/lib/developerAssetStore';
+import { getCurrentCardforgeUserAccess } from '@/lib/serverCardforgeUser';
 import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
 
 export const dynamic = 'force-dynamic';
 
 const getDeveloperAccess = async () => {
-  const [user, ownerAccess] = await Promise.all([
-    currentUser(),
-    getCurrentOwnerAccess(),
-  ]);
+  const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
 
   if (!user) {
     return {
@@ -25,9 +21,9 @@ const getDeveloperAccess = async () => {
   }
 
   const entitlement = resolveAccountEntitlement({
-    authConfigured: true,
+    authConfigured,
     isSignedIn: true,
-    emailAddresses: user.emailAddresses.map((email) => email.emailAddress),
+    emailAddresses: user.emailAddresses,
     privateMetadata: user.privateMetadata,
     ownerAccess,
   });
@@ -42,9 +38,7 @@ const getDeveloperAccess = async () => {
   return { ok: true as const, user, ownerAccess };
 };
 
-const getContributorIds = (userId: string, isOwner: boolean) => (
-  isOwner ? [userId, 'cardforge-official'] : [userId]
-);
+const getContributorIds = (userId: string) => [userId];
 
 export async function PATCH(
   request: Request,
@@ -61,7 +55,7 @@ export async function PATCH(
       developerId: access.user.id,
       input: body,
       allowOwnerEdit: access.ownerAccess.isOwner,
-      currentContributorIds: getContributorIds(access.user.id, access.ownerAccess.isOwner),
+      currentContributorIds: getContributorIds(access.user.id),
     });
 
     return createNoStoreJsonResponse({ program });
@@ -104,7 +98,7 @@ export async function PUT(
       ownerNote: body.ownerNote,
       ownerAccessTierOverride: body.ownerAccessTierOverride,
       currentUserId: owner.userId,
-      currentContributorIds: getContributorIds(owner.userId, true),
+      currentContributorIds: getContributorIds(owner.userId),
     });
 
     return createNoStoreJsonResponse({ program });

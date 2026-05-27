@@ -5,7 +5,7 @@ import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
 
 export const metadata: Metadata = {
   title: 'CardForge Roadmap | Forge Chronicle',
-  description: 'Vote on CardForge feature priorities and follow the launch roadmap for the local-first card design studio.',
+  description: 'Vote on CardForge feature priorities and follow the monthly level-up roadmap for the shared card-system studio.',
 };
 
 export default function ForgeChroniclePage() {

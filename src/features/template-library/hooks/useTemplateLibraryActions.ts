@@ -78,8 +78,8 @@ export function useTemplateLibraryActions({
     toast({
       title: 'Template Saved',
       description: template.templateSource === 'default'
-        ? `"${templateToSave.name || savedTemplateId}" updated the default template.`
-        : `"${templateToSave.name || savedTemplateId}" has been saved as a user template.`,
+        ? `"${templateToSave.name || savedTemplateId}" updated the Forge Pipeline template.`
+        : `"${templateToSave.name || savedTemplateId}" has been saved to your Personal Library.`,
     });
     const templateForFile = selectAllTemplates(useAppStore.getState()).find(t => t.id === savedTemplateId);
     if (templateForFile && projectCapabilities.canWriteShippedLibrary) {
@@ -88,7 +88,7 @@ export function useTemplateLibraryActions({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(templateForFile),
       }).catch((error) => {
-        console.warn('Unable to save template file:', error);
+        console.warn('Unable to save template to the Forge Pipeline:', error);
       });
     }
     return savedTemplateId;
@@ -110,7 +110,7 @@ export function useTemplateLibraryActions({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: templateId, source: templateToDelete?.templateSource }),
       }).catch((error) => {
-        console.warn('Unable to delete template file:', error);
+        console.warn('Unable to delete template from the Forge Pipeline:', error);
       });
     }
     setTemplatePendingDeleteId(null);

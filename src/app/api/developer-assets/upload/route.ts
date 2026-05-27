@@ -1,10 +1,9 @@
-import { currentUser } from '@clerk/nextjs/server';
 import { nanoid } from 'nanoid';
 
 import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { isDeveloperAssetType, type DeveloperAssetType } from '@/lib/developerAssets';
-import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
+import { getCurrentCardforgeUserAccess } from '@/lib/serverCardforgeUser';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
@@ -21,10 +20,7 @@ const ALLOWED_MIME_TYPES = new Set([
 const ALLOWED_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp', 'json']);
 
 const getDeveloperAccess = async () => {
-  const [user, ownerAccess] = await Promise.all([
-    currentUser(),
-    getCurrentOwnerAccess(),
-  ]);
+  const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
 
   if (!user) {
     return {
@@ -34,9 +30,9 @@ const getDeveloperAccess = async () => {
   }
 
   const entitlement = resolveAccountEntitlement({
-    authConfigured: true,
+    authConfigured,
     isSignedIn: true,
-    emailAddresses: user.emailAddresses.map((email) => email.emailAddress),
+    emailAddresses: user.emailAddresses,
     privateMetadata: user.privateMetadata,
     ownerAccess,
   });

@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ColorField } from '@/components/card-forge/makerConstants';
+import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
 import type { AppearanceBorderKind, FreeformAppearance, FreeformCardElement } from '@/types';
+import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
 interface BorderInspectorPanelProps {
   element: FreeformCardElement;
@@ -64,7 +65,8 @@ export function BorderInspectorPanel({
             type="button"
             variant="outline"
             size="sm"
-            title={`${preset.description} - ${preset.contributorName} - ${preset.status} - ${preset.tier}`}
+            title={getPipelineRecipeTitle(preset)}
+            aria-label={`Apply ${preset.label} edge recipe`}
             className="h-auto min-h-8 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
             onClick={() => onApplyPreset(preset)}
           >
@@ -78,7 +80,7 @@ export function BorderInspectorPanel({
             />
             <span className="min-w-0">
               <span className="block truncate text-[#f1dfb4]">{preset.label}</span>
-              <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{preset.status} - {preset.tier}</span>
+              <PipelineRecipeMeta recipe={preset} />
             </span>
           </Button>
         ))}

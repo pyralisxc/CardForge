@@ -3,7 +3,6 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Header } from '@/components/card-forge/Header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -23,6 +22,7 @@ import { TABS_CONFIG } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
+import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
 import { useProjectFileActions } from '@/features/project/hooks/useProjectFileActions';
 import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLibraries';
@@ -33,13 +33,39 @@ import { useTemplateLibraryActions } from '@/features/template-library/hooks/use
 import { canUploadCustomLocalAssets } from '@/features/project/lib/projectLocalAssets';
 
 const WorkspaceLoadingState = () => (
-  <div className="flex min-h-[60vh] items-center justify-center">
-    <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#e4aa43] border-t-transparent" aria-label="Loading workspace" />
+  <div data-testid="studio-loading" className="min-h-[60vh] rounded border border-[#5f4526] bg-[#090807] text-[#f7ead0]" role="status" aria-live="polite">
+    <div className="grid min-h-[60vh] gap-0 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+      <aside className="hidden border-r border-[#2f2417] bg-[#0d1118] p-5 lg:block">
+        <div className="h-4 w-28 rounded bg-[#d8b365]/25" />
+        <div className="mt-5 space-y-3">
+          <div className="h-20 rounded border border-[#2f3a47] bg-[#111827]" />
+          <div className="h-20 rounded border border-[#2f3a47] bg-[#111827]" />
+          <div className="h-20 rounded border border-[#2f3a47] bg-[#111827]" />
+        </div>
+      </aside>
+      <section className="flex items-center justify-center bg-[linear-gradient(90deg,rgba(216,179,101,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(216,179,101,0.08)_1px,transparent_1px)] bg-[size:32px_32px] p-8">
+        <div className="grid max-w-sm justify-items-center gap-4 text-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e4aa43] border-t-transparent" aria-hidden="true" />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Preparing Studio</p>
+            <p className="mt-2 text-sm leading-6 text-[#cbb58b]">Loading the editor, library assets, and generated-output workspace.</p>
+          </div>
+        </div>
+      </section>
+      <aside className="hidden border-l border-[#2f2417] bg-[#11161f] p-5 lg:block">
+        <div className="h-4 w-24 rounded bg-[#d8b365]/25" />
+        <div className="mt-5 space-y-3">
+          <div className="h-24 rounded border border-[#2f3a47] bg-[#0d1118]" />
+          <div className="h-28 rounded border border-[#2f3a47] bg-[#0d1118]" />
+          <div className="h-16 rounded border border-[#2f3a47] bg-[#0d1118]" />
+        </div>
+      </aside>
+    </div>
   </div>
 );
 
 const CardTemplateMaker = dynamic(
-  () => import('@/components/card-forge/CardTemplateMaker').then((module) => module.CardTemplateMaker),
+  () => import('@/features/template-editor/components/CardTemplateMaker').then((module) => module.CardTemplateMaker),
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
@@ -49,7 +75,7 @@ const GenerationWorkspace = dynamic(
 );
 
 const EditCardDialog = dynamic(
-  () => import('@/components/card-forge/EditCardDialog').then((module) => module.EditCardDialog),
+  () => import('@/features/card-generator/components/EditCardDialog').then((module) => module.EditCardDialog),
   { ssr: false },
 );
 
@@ -260,19 +286,25 @@ export function CardForgeStudioShell() {
   }, []);
 
   const effectiveActiveTab = TABS_CONFIG.some(tab => tab.value === activeTab) ? activeTab : TABS_CONFIG[0].value;
+  const isStudioReady = !isLoadingTemplates;
 
   // Comment: Initial selection of template for single card generator (and now bulk generator)
   // is handled by Zustand's _rehydrateCallback or other actions modifying the templates list.
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0c0b09] text-[#f7ead0]">
-      <Header
+      <StudioHeader
         authConfigured={accountEntitlement.authConfigured}
         isSignedIn={accountEntitlement.isSignedIn}
         modeLabel={exportEntitlementLabel}
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
       />
       <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
+        {isStudioReady ? (
+          <div data-testid="studio-ready" className="sr-only">Studio ready</div>
+        ) : (
+          <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
+        )}
         {showFirstRunGuide ? (
           <section className="mb-4 border border-[#6d4f2b] bg-[#15100a] p-4 no-print md:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

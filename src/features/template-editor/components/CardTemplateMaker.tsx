@@ -2,54 +2,17 @@
 
 import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as LucideIcons from 'lucide-react';
-import {
-  BoxSelect,
-  ChevronDown,
-  ChevronRight,
-  Circle,
-  Copy,
-  Eye,
-  EyeOff,
-  FolderPlus,
-  GripVertical,
-  Grid3X3,
-  Image as ImageIcon,
-  Layers,
-  Lock,
-  Maximize2,
-  MousePointer2,
-  PenTool,
-  Redo2,
-  Shapes,
-  Sparkles,
-  Square,
-  Type,
-  Undo2,
-  Ungroup,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
 import { nanoid } from 'nanoid';
 import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, FreeformCanvas, TCGCardTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   AVAILABLE_FONTS,
-  CARD_BORDER_STYLES,
-  DIMENSION_UNITS,
-  FRAME_STYLES,
   PADDING_OPTIONS,
-  TCG_ASPECT_RATIO,
 } from '@/lib/constants';
 import { cn, replacePlaceholdersLocal, toTitleCase } from '@/lib/utils';
-import { appearanceToElementRenderFields, appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearance';
+import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
 import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/lib/cardFrameKits';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
 import {
@@ -66,38 +29,34 @@ import {
   mergeElementPresetRecipes,
   type ElementPresetRecipe,
 } from '@/lib/elementPresetRecipes';
-import { buildTextElementStyle } from '@/lib/textTools';
-import { CardTextContent } from '@/lib/cardTextRender';
 import { useAppStore } from '@/store/appStore';
 import { createDefaultFreeformCanvas, getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate, scaleCanvasToSize } from '@/lib/templateModel';
 import { useToast } from '@/hooks/use-toast';
 import {
-  PREDEFINED_FRAME_VISUAL_PROPERTIES,
-  ICON_OPTIONS,
-  makerTheme,
   elementKits,
   CONSOLIDATED_ELEMENT_KITS,
-  ELEMENT_STYLE_PRESETS,
-  ColorField,
-  makeNewFreeformTemplate,
-  mmConversion,
-  clamp,
-} from './makerConstants';
-import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
+} from '@/features/template-editor/lib/elementKits';
+import { ELEMENT_STYLE_PRESETS } from '@/features/template-editor/lib/elementStylePresets';
+import { PREDEFINED_FRAME_VISUAL_PROPERTIES } from '@/features/template-editor/lib/frameVisualPresets';
+import { ICON_OPTIONS } from '@/features/template-editor/lib/iconOptions';
+import { clamp } from '@/features/template-editor/lib/makerGeometry';
+import { makerTheme } from '@/features/template-editor/lib/makerTheme';
+import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
+import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/lib/makerDimensions';
 import {
   escapeTemplateText,
-  renamePlaceholderKeyInText,
   unescapeTemplateText,
 } from '@/lib/textBindings';
 import { withNextStep } from '@/lib/userFacingErrors';
 import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
 import { inferTextElementContentModel } from '@/lib/textElementContracts';
-import { TemplateThumbnail } from './TemplateThumbnail';
-import { CardPreview } from './CardPreview';
 import { TemplateEditorTopBar } from '@/features/template-editor/components/TemplateEditorTopBar';
 import { TemplateLibraryPanel } from '@/features/template-editor/components/TemplateLibraryPanel';
 import { ElementLibraryPanel } from '@/features/template-editor/components/ElementLibraryPanel';
 import { TemplateEditorInspectorPanel } from '@/features/template-editor/components/TemplateEditorInspectorPanel';
+import { TemplateSettingsPanel } from '@/features/template-editor/components/TemplateSettingsPanel';
+import { TemplateCanvasStage } from '@/features/template-editor/components/TemplateCanvasStage';
+import { TemplateEditableElement } from '@/features/template-editor/components/TemplateEditableElement';
 import { InspectorFlowSection } from '@/features/template-editor/components/InspectorFlowSection';
 import { ElementTransformPanel } from '@/features/template-editor/components/ElementTransformPanel';
 import { AppearanceStudioPanel } from '@/features/template-editor/components/AppearanceStudioPanel';
@@ -110,10 +69,19 @@ import { TypographyInspectorPanel } from '@/features/template-editor/components/
 import { ImageInspectorPanel } from '@/features/template-editor/components/ImageInspectorPanel';
 import { BorderInspectorPanel } from '@/features/template-editor/components/BorderInspectorPanel';
 import { LayerTreePanel } from '@/features/template-editor/components/LayerTreePanel';
-import { useCanvasPointerInteractions, type ResizeHandle } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
+import { useCanvasPointerInteractions } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { useTemplateAssetLibrary } from '@/features/template-editor/hooks/useTemplateAssetLibrary';
 import { buildLayerTree } from '@/features/template-editor/lib/layerTree';
+import {
+  getNextScopedVariableKey as buildNextScopedVariableKey,
+  hasScopedVariableKeyConflict,
+  normalizeTemplateVariableKey,
+  removeScopedTextElementVariableContract,
+  renameScopedTextElementVariable,
+  upsertTemplateFieldContract,
+  type FieldContract,
+} from '@/features/template-editor/lib/templateVariableContracts';
 
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
@@ -138,17 +106,6 @@ interface CardTemplateMakerProps {
   isCheckoutStarting: boolean;
   projectFileGateMessage?: string | null;
 }
-
-const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: string; label: string }> = [
-  { handle: 'n', className: 'left-1/2 top-0 -translate-x-1/2 -translate-y-1/2', cursor: 'ns-resize', label: 'Resize selected element vertically from center' },
-  { handle: 's', className: 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2', cursor: 'ns-resize', label: 'Resize selected element vertically from center' },
-  { handle: 'e', className: 'right-0 top-1/2 -translate-y-1/2 translate-x-1/2', cursor: 'ew-resize', label: 'Resize selected element horizontally from center' },
-  { handle: 'w', className: 'left-0 top-1/2 -translate-x-1/2 -translate-y-1/2', cursor: 'ew-resize', label: 'Resize selected element horizontally from center' },
-  { handle: 'nw', className: 'left-0 top-0 -translate-x-1/2 -translate-y-1/2', cursor: 'nwse-resize', label: 'Resize selected element from center' },
-  { handle: 'ne', className: 'right-0 top-0 -translate-y-1/2 translate-x-1/2', cursor: 'nesw-resize', label: 'Resize selected element from center' },
-  { handle: 'sw', className: 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2', cursor: 'nesw-resize', label: 'Resize selected element from center' },
-  { handle: 'se', className: 'bottom-0 right-0 translate-x-1/2 translate-y-1/2', cursor: 'nwse-resize', label: 'Resize selected element from center' },
-];
 
 const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
 
@@ -285,7 +242,7 @@ export function CardTemplateMaker({
   const groupedElementKits = useMemo(() => {
     const groups: Record<string, typeof elementKits> = {
       Core: [],
-      'Card Parts': [],
+      'Element Recipes': [],
       Ornaments: [],
     };
     CONSOLIDATED_ELEMENT_KITS.forEach(item => groups[item.category].push(item));
@@ -380,7 +337,7 @@ export function CardTemplateMaker({
     return () => observer.disconnect();
   }, [autoFitCanvas, canvas.height, canvas.width]);
 
-  // ── Layer tree helpers ─────────────────────────────────────────────────────
+  // Layer tree helpers
   const layerTree = useMemo(() => buildLayerTree(canvas.elements), [canvas.elements]);
 
   const createBackFace = useCallback(() => {
@@ -397,7 +354,7 @@ export function CardTemplateMaker({
     });
   }, [createBackFaceInController, currentTemplate.freeformCanvas, templates, toast]);
 
-  // ── Group / ungroup ─────────────────────────────────────────────────────
+  // Group / ungroup
   const livePreviewData = useMemo(() => ({
     cardName: 'Astral Relic',
     cost: '3',
@@ -416,30 +373,9 @@ export function CardTemplateMaker({
 
   const upsertFieldContract = useCallback((
     key: string,
-    updates: Partial<NonNullable<TCGCardTemplate['fieldContracts']>[number]>
+    updates: Partial<FieldContract>
   ) => {
-    const cleanKey = key.trim();
-    if (!cleanKey) return;
-    commitTemplate((template) => {
-      const contracts = [...(template.fieldContracts || [])];
-      const scopedElementId = typeof updates.elementId === 'string' && updates.elementId.trim() !== ''
-        ? updates.elementId.trim()
-        : undefined;
-      const index = contracts.findIndex((contract) =>
-        contract.key === cleanKey && (!scopedElementId || contract.elementId === scopedElementId)
-      );
-      const nextContract = {
-        key: cleanKey,
-        ...(index >= 0 ? contracts[index] : {}),
-        ...updates,
-      };
-      if (index >= 0) contracts[index] = nextContract;
-      else contracts.push(nextContract);
-      return {
-        ...template,
-        fieldContracts: contracts,
-      };
-    }, false);
+    commitTemplate((template) => upsertTemplateFieldContract(template, key, updates), false);
   }, [commitTemplate]);
 
   const focusVariableCard = useCallback((key: string) => {
@@ -453,13 +389,10 @@ export function CardTemplateMaker({
 
   const renameSelectedElementVariable = useCallback((oldKey: string, nextKeyRaw: string) => {
     if (!selectedElement || selectedElement.type !== 'text') return;
-    const nextKey = nextKeyRaw.trim().replace(/[^\w.-]/g, '');
+    const nextKey = normalizeTemplateVariableKey(nextKeyRaw);
     if (!nextKey || oldKey === nextKey) return;
 
-    const hasConflict = (currentTemplate.fieldContracts || []).some((contract) =>
-      contract.elementId === selectedElement.id && contract.key === nextKey && contract.key !== oldKey
-    );
-    if (hasConflict) {
+    if (hasScopedVariableKeyConflict(currentTemplate.fieldContracts, selectedElement.id, oldKey, nextKey)) {
       toast({
         title: 'Variable name already used',
         description: `This element already has a variable named "${nextKey}". Choose a different name.`,
@@ -469,54 +402,26 @@ export function CardTemplateMaker({
       return;
     }
 
-    commitTemplate((template) => {
-      const nextContracts = (template.fieldContracts || []).map((contract) =>
-        contract.elementId === selectedElement.id && contract.key === oldKey
-          ? { ...contract, key: nextKey, label: toTitleCase(nextKey) }
-          : contract
-      );
-      const activeCanvas = (activeFace === 'back' ? template.backCanvas : template.freeformCanvas) || canvas;
-      const nextElements = (activeCanvas.elements || []).map((element) =>
-        element.id === selectedElement.id
-          ? { ...element, content: renamePlaceholderKeyInText(element.content || '', oldKey, nextKey) }
-          : element
-      );
-      return {
-        ...template,
-        fieldContracts: nextContracts,
-        [activeFace === 'back' ? 'backCanvas' : 'freeformCanvas']: reconstructFreeformCanvas({
-          ...activeCanvas,
-          elements: nextElements,
-        }),
-      };
-    }, false);
+    commitTemplate((template) => renameScopedTextElementVariable({
+      template,
+      activeFace,
+      fallbackCanvas: canvas,
+      selectedElementId: selectedElement.id,
+      oldKey,
+      nextKey,
+    }), false);
 
     focusVariableCard(nextKey);
-  }, [canvas, commitTemplate, currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast]);
+  }, [activeFace, canvas, commitTemplate, currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast]);
 
   const removeSelectedElementVariableContract = useCallback((key: string) => {
     if (!selectedElement) return;
-    commitTemplate((template) => ({
-      ...template,
-      fieldContracts: (template.fieldContracts || []).filter((contract) =>
-        !(contract.key === key && contract.elementId === selectedElement.id)
-      ),
-    }), false);
+    commitTemplate((template) => removeScopedTextElementVariableContract(template, selectedElement.id, key), false);
     setActiveVariableKey(null);
   }, [commitTemplate, selectedElement]);
 
   const getNextScopedVariableKey = useCallback((existingKey?: string) => {
-    if (!selectedElement) return '';
-    const elementSlug = (selectedElement.name || 'text')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 20) || 'text';
-    const existingContractsForElement = (currentTemplate.fieldContracts || []).filter(
-      (contract) => contract.elementId === selectedElement.id
-    );
-    return existingKey || `${elementSlug}_var_${existingContractsForElement.length + 1}`;
+    return buildNextScopedVariableKey(currentTemplate.fieldContracts, selectedElement, existingKey);
   }, [currentTemplate.fieldContracts, selectedElement]);
 
   const createEditorVariableFromSelection = useCallback((selectedText: string, existingKey?: string): string | undefined => {
@@ -567,7 +472,7 @@ export function CardTemplateMaker({
     updateElement(selectedElement.id, buildElementPresetElementUpdates(recipe, selectedElement));
   }, [selectedElement, updateElement, updateTemplate]);
 
-  // ── Group / ungroup ───────────────────────────────────────────────────────
+  // Group / ungroup
   const groupChecked = useCallback(() => {
     const result = groupCheckedInController(nanoid);
     if (!result.changed) return;
@@ -852,9 +757,14 @@ export function CardTemplateMaker({
   }, [updateTemplate]);
 
   const handleApplyCustomDimensions = useCallback(() => {
-    const width = parseFloat(customWidthValue);
-    const height = parseFloat(customHeightValue);
-    if (!width || !height || width <= 0 || height <= 0) {
+    const update = buildCustomDimensionTemplateUpdate({
+      widthValue: customWidthValue,
+      heightValue: customHeightValue,
+      unit: customUnit,
+      template: currentTemplate,
+    });
+
+    if (!update) {
       toast({
         title: 'Dimensions are invalid',
         description: withNextStep('Width and height must be positive numbers.', 'Update Width and Height values, then apply dimensions again.'),
@@ -862,30 +772,9 @@ export function CardTemplateMaker({
       });
       return;
     }
-    const factor = mmConversion[customUnit] ?? 1;
-    const widthMm = Math.round(width * factor * 100) / 100;
-    const heightMm = Math.round(height * factor * 100) / 100;
-    const nextCanvasWidth = Math.round(widthMm * 10);
-    const nextCanvasHeight = Math.round(heightMm * 10);
-    const nextGridSize = getDefaultGridSizeForCanvas(nextCanvasWidth, nextCanvasHeight);
-    updateTemplate({
-      aspectRatio: `${widthMm}:${heightMm}`,
-      freeformCanvas: reconstructFreeformCanvas({
-        ...(currentTemplate.freeformCanvas || createDefaultFreeformCanvas()),
-        width: nextCanvasWidth,
-        height: nextCanvasHeight,
-        gridSize: nextGridSize,
-      }),
-      backCanvas: currentTemplate.backCanvas
-        ? reconstructFreeformCanvas({
-            ...currentTemplate.backCanvas,
-            width: nextCanvasWidth,
-            height: nextCanvasHeight,
-            gridSize: nextGridSize,
-          })
-        : undefined,
-    });
-  }, [currentTemplate.backCanvas, currentTemplate.freeformCanvas, customHeightValue, customUnit, customWidthValue, toast, updateTemplate]);
+
+    updateTemplate(update);
+  }, [currentTemplate, customHeightValue, customUnit, customWidthValue, toast, updateTemplate]);
 
   const resetGridToTemplateDefault = useCallback(() => {
     const nextGridSize = getDefaultGridSizeForCanvas(canvas.width, canvas.height);
@@ -905,124 +794,19 @@ export function CardTemplateMaker({
     event.target.value = '';
   }, [toast]);
 
-  const renderEditableElement = (element: FreeformCardElement) => {
-    if (element.visible === false) return null;
-    const selected = selectedElementId === element.id;
-    const borderWidth = borderWidthClassToPixels(element.borderWidth);
-    const resolvedBg = element.backgroundImageUrl ? replacePlaceholdersLocal(element.backgroundImageUrl, livePreviewData, false) : '';
-    const structuredAppearanceStyle = appearanceToStyle(normalizeAppearanceForElement(element));
-    const elementIsDivider = isDividerElement(element);
-    const baseStyle: React.CSSProperties = {
-      position: 'absolute',
-      left: element.x,
-      top: element.y,
-      width: element.width,
-      height: element.height,
-      transform: `rotate(${element.rotation || 0}deg)${element.appearance?.assetFlipX ? ' scaleX(-1)' : ''}`,
-      transformOrigin: 'center',
-      opacity: element.opacity ?? 1,
-      zIndex: element.zIndex,
-      color: element.textColor || currentTemplate.baseTextColor || undefined,
-      backgroundColor: element.backgroundColor || 'transparent',
-      backgroundImage: resolvedBg && (resolvedBg.startsWith('linear-gradient') || resolvedBg.startsWith('radial-gradient'))
-        ? resolvedBg
-        : resolvedBg && (resolvedBg.startsWith('http') || resolvedBg.startsWith('data:'))
-          ? `url(${resolvedBg})`
-          : undefined,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      borderStyle: borderWidth > 0 ? 'solid' : undefined,
-      borderColor: element.borderColor || currentTemplate.defaultElementBorderColor || undefined,
-      borderRadius: radiusClassToCss(element.borderRadius) || element.borderRadius || undefined,
-      ...borderWidthClassToStyle(element.borderWidth),
-      boxSizing: 'border-box',
-      overflow: 'hidden',
-      cursor: previewMode || element.locked ? 'default' : 'move',
-      ...structuredAppearanceStyle,
-    };
-
-    let body;
-    if (element.type === 'image') {
-      const imageUrl = resolveFreeformImageUrl(element, livePreviewData, 'Artwork');
-      body = <img src={imageUrl} alt={element.name} className="block h-full w-full max-h-full max-w-full" style={{ minWidth: 0, minHeight: 0, objectFit: element.imageObjectFit || 'cover', objectPosition: 'center', borderRadius: 'inherit' }} draggable={false} />;
-    } else if (element.type === 'icon') {
-      const iconImageUrl = element.iconImageSource ? replacePlaceholdersLocal(element.iconImageSource, livePreviewData, false) : '';
-      if (iconImageUrl && (iconImageUrl.startsWith('http') || iconImageUrl.startsWith('data:') || iconImageUrl.startsWith('/'))) {
-        body = <img src={iconImageUrl} alt={element.name} className="block h-full w-full max-h-full max-w-full" style={{ minWidth: 0, minHeight: 0, objectFit: 'contain', objectPosition: 'center', borderRadius: 'inherit' }} draggable={false} />;
-      } else {
-        const IconComponent = (LucideIcons as unknown as Record<string, React.ElementType>)[element.iconName || 'Sparkles'] || Sparkles;
-        body = <IconComponent size="78%" color={element.strokeColor || element.textColor || 'currentColor'} fill={element.fillColor || 'none'} strokeWidth={element.strokeWidth || 2} />;
-      }
-    } else if (element.type === 'shape') {
-      body = null;
-      baseStyle.backgroundColor = element.fillColor || element.backgroundColor || 'transparent';
-      baseStyle.borderColor = element.strokeColor || element.borderColor || undefined;
-      baseStyle.borderWidth = element.strokeWidth !== undefined ? element.strokeWidth : baseStyle.borderWidth;
-      baseStyle.borderRadius = (element.shapeKind === 'ellipse' || element.shapeKind === 'capsule') ? '9999px' : baseStyle.borderRadius;
-      baseStyle.clipPath = elementIsDivider ? undefined : shapeClipPath(element.shapeKind);
-      if (elementIsDivider) {
-        baseStyle.height = Math.max(element.height || 0, element.strokeWidth || 2, 2);
-        baseStyle.backgroundColor = 'transparent';
-        baseStyle.borderWidth = 0;
-      }
-      Object.assign(baseStyle, structuredAppearanceStyle);
-    } else {
-      body = (
-        <CardTextContent
-          template={currentTemplate}
-          element={element}
-          data={livePreviewData}
-          highlightColor={richTextHighlightColor}
-          style={{ lineHeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', textDecoration: 'inherit', fontStyle: 'inherit' }}
-        />
-      );
-    }
-
-    const textElementStyle = element.type === 'text' ? buildTextElementStyle(element) : null;
-    const renderedTextStyle = element.type === 'text' && textElementStyle
-      ? { ...textElementStyle, fontSize: undefined as unknown as React.CSSProperties['fontSize'] }
-      : null;
-
-    return (
-      <div
-        key={element.id}
-        data-freeform-element-id={element.id}
-        data-selected={selected ? 'true' : 'false'}
-        data-element-locked={element.locked ? 'true' : 'false'}
-        className={cn(
-          element.type === 'text' && [element.padding || 'p-1', element.fontFamily || 'font-sans', element.fontWeight || 'font-normal'],
-          element.type === 'text' && 'whitespace-pre-wrap break-words',
-          element.type === 'icon' && 'flex items-center justify-center',
-          selected && !previewMode && 'outline outline-2 outline-offset-2 outline-[#d5ad54]',
-          element.locked && 'cursor-not-allowed'
-        )}
-        style={{
-          ...baseStyle,
-          ...renderedTextStyle,
-        }}
-        onPointerDown={(event) => handleElementPointerDown(event, element)}
-      >
-        {body}
-        {selected && !previewMode && !element.locked && (
-          <>
-            {RESIZE_HANDLES.map((resizeHandle) => (
-              <button
-                key={resizeHandle.handle}
-                type="button"
-                aria-label={resizeHandle.label}
-                className={cn(
-                  'absolute h-3.5 w-3.5 rounded-[2px] border border-[#d5ad54] bg-[#090b0f] shadow-[0_0_12px_rgba(213,173,84,0.45)]',
-                  resizeHandle.className
-                )}
-                style={{ cursor: resizeHandle.cursor }}
-                onPointerDown={(event) => handleResizePointerDown(event, element, resizeHandle.handle)}
-              />
-            ))}
-          </>
-        )}
-      </div>
-    );
-  };
+  const renderEditableElement = useCallback((element: FreeformCardElement) => (
+    <TemplateEditableElement
+      key={element.id}
+      currentTemplate={currentTemplate}
+      element={element}
+      livePreviewData={livePreviewData}
+      previewMode={previewMode}
+      richTextHighlightColor={richTextHighlightColor}
+      selected={selectedElementId === element.id}
+      onElementPointerDown={handleElementPointerDown}
+      onResizePointerDown={handleResizePointerDown}
+    />
+  ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, previewMode, richTextHighlightColor, selectedElementId]);
 
   const canvasFrameStyle: React.CSSProperties = {
     width: canvas.width,
@@ -1098,7 +882,11 @@ export function CardTemplateMaker({
                   onImportProject={onImportProject}
                   onLoadProject={onLoadProject}
                   onStartCheckout={onStartCheckout}
-                  onSelectTemplateId={onSelectTemplateForEditing}
+                  onSelectTemplateId={(templateId) => {
+                    const template = templates.find((candidate) => candidate.id === templateId);
+                    if (template) openTemplate(template);
+                    else onSelectTemplateForEditing(templateId);
+                  }}
                   onOpenTemplate={openTemplate}
                   panelClassName={makerTheme.panel}
                   controlClassName={makerTheme.control}
@@ -1149,184 +937,28 @@ export function CardTemplateMaker({
             </ScrollArea>
           </aside>
 
-          <section className="min-w-0 overflow-hidden bg-[#05080c] lg:min-h-[760px]">
-            <div className="flex items-center justify-between border-b border-[#252b35] bg-[#080c12] px-3 py-1.5 text-[11px] text-[#8f95a3]">
-              <span className="flex items-center gap-2"><MousePointer2 className="h-3.5 w-3.5 text-[#d5ad54]" /> Drag, snap, resize, layer, and tune every card surface.</span>
-              <span className="font-mono text-[#d5ad54]">{Math.round(zoom * 100)}% / {canvas.width} x {canvas.height}</span>
-            </div>
-            <div
-              ref={stageRef}
-              data-cardforge-stage="true"
-              className="relative flex h-[calc(100vh-238px)] min-h-[720px] justify-center overflow-auto bg-[#05080c] p-8"
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={handleDrop}
-            >
-              {/* RULER_W=28px, GUTTER=96px of grid space around the card on all sides */}
-              {(() => {
-                const RULER_W = 28;
-                const GUTTER = 96;
-                const rulerTickBg = (axis: 'x' | 'y') => ({
-                  backgroundImage: axis === 'x'
-                    ? 'repeating-linear-gradient(90deg, transparent 0 19px, rgba(213,173,84,0.48) 19px 20px), repeating-linear-gradient(90deg, transparent 0 99px, rgba(213,173,84,0.9) 99px 100px)'
-                    : 'repeating-linear-gradient(0deg, transparent 0 19px, rgba(213,173,84,0.48) 19px 20px), repeating-linear-gradient(0deg, transparent 0 99px, rgba(213,173,84,0.9) 99px 100px)',
-                  backgroundSize: axis === 'x'
-                    ? `${gridSize * zoom}px 100%, ${gridSize * 5 * zoom}px 100%`
-                    : `100% ${gridSize * zoom}px, 100% ${gridSize * 5 * zoom}px`,
-                });
-                return (
-                  <div
-                    className="relative"
-                    style={{
-                      paddingLeft: RULER_W + GUTTER,
-                      paddingTop: RULER_W + GUTTER,
-                      width: RULER_W + GUTTER + canvas.width * zoom + GUTTER,
-                      height: RULER_W + GUTTER + canvas.height * zoom + GUTTER,
-                    }}
-                  >
-                    {/* Corner box */}
-                    <div aria-hidden="true" className="absolute left-0 top-0 border-b border-r border-[#3b3324] bg-[#090d13]" style={{ width: RULER_W, height: RULER_W }} />
-
-                    {/* Top ruler — extends full width including gutter on both sides */}
-                    <div
-                      aria-hidden="true"
-                      className="absolute top-0 border-b border-[#3b3324] bg-[#090d13] shadow-[inset_0_-1px_0_rgba(213,173,84,0.18)]"
-                      style={{
-                        left: RULER_W,
-                        height: RULER_W,
-                        width: GUTTER + canvas.width * zoom + GUTTER,
-                        overflow: 'visible',
-                        ...rulerTickBg('x'),
-                      }}
-                    >
-                      {(() => {
-                        const labelStep = gridSize * 5;
-                        const rawStep = labelStep * zoom;
-                        let screenStep = rawStep;
-                        while (screenStep < 24) screenStep *= 2;
-                        const totalW = GUTTER + canvas.width * zoom + GUTTER;
-                        const minN = Math.floor(-GUTTER / screenStep);
-                        const maxN = Math.ceil((canvas.width * zoom + GUTTER) / screenStep);
-                        const out: React.ReactNode[] = [];
-                        for (let n = minN; n <= maxN; n++) {
-                          const sx = GUTTER + n * screenStep;
-                          if (sx < 0 || sx > totalW) continue;
-                          const px = Math.round(n * screenStep / zoom);
-                          out.push(<span key={n} style={{ position: 'absolute', left: sx + 2, top: 14, fontSize: 7, lineHeight: 1, color: n === 0 ? 'rgba(213,173,84,0.9)' : n < 0 ? 'rgba(213,173,84,0.4)' : 'rgba(213,173,84,0.65)', userSelect: 'none', pointerEvents: 'none', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{px}</span>);
-                        }
-                        return out;
-                      })()}
-                    </div>
-                    {/* Card-start marker on top ruler */}
-                    <div aria-hidden="true" style={{ position: 'absolute', left: RULER_W + GUTTER, top: 0, width: 1, height: RULER_W, background: 'rgba(213,173,84,0.9)' }} />
-                    {/* Card-end marker on top ruler */}
-                    <div aria-hidden="true" style={{ position: 'absolute', left: RULER_W + GUTTER + canvas.width * zoom, top: 0, width: 1, height: RULER_W, background: 'rgba(213,173,84,0.5)' }} />
-
-                    {/* Left ruler — extends full height including gutter on both sides */}
-                    <div
-                      aria-hidden="true"
-                      className="absolute left-0 border-r border-[#3b3324] bg-[#090d13] shadow-[inset_-1px_0_0_rgba(213,173,84,0.18)]"
-                      style={{
-                        top: RULER_W,
-                        width: RULER_W,
-                        height: GUTTER + canvas.height * zoom + GUTTER,
-                        overflow: 'visible',
-                        ...rulerTickBg('y'),
-                      }}
-                    >
-                      {(() => {
-                        const labelStep = gridSize * 5;
-                        const rawStep = labelStep * zoom;
-                        let screenStep = rawStep;
-                        while (screenStep < 24) screenStep *= 2;
-                        const totalH = GUTTER + canvas.height * zoom + GUTTER;
-                        const minN = Math.floor(-GUTTER / screenStep);
-                        const maxN = Math.ceil((canvas.height * zoom + GUTTER) / screenStep);
-                        const out: React.ReactNode[] = [];
-                        for (let n = minN; n <= maxN; n++) {
-                          const sy = GUTTER + n * screenStep;
-                          if (sy < 0 || sy > totalH) continue;
-                          const py = Math.round(n * screenStep / zoom);
-                          out.push(<span key={n} style={{ position: 'absolute', top: sy - 5, right: 3, fontSize: 7, lineHeight: 1, color: n === 0 ? 'rgba(213,173,84,0.9)' : n < 0 ? 'rgba(213,173,84,0.4)' : 'rgba(213,173,84,0.65)', userSelect: 'none', pointerEvents: 'none', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{py}</span>);
-                        }
-                        return out;
-                      })()}
-                    </div>
-                    {/* Card-start marker on left ruler */}
-                    <div aria-hidden="true" style={{ position: 'absolute', top: RULER_W + GUTTER, left: 0, height: 1, width: RULER_W, background: 'rgba(213,173,84,0.9)' }} />
-                    {/* Card-end marker on left ruler */}
-                    <div aria-hidden="true" style={{ position: 'absolute', top: RULER_W + GUTTER + canvas.height * zoom, left: 0, height: 1, width: RULER_W, background: 'rgba(213,173,84,0.5)' }} />
-
-                    {/* Gutter grid overlay — faint grid continues into the gutter zone around the card */}
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        position: 'absolute',
-                        left: RULER_W,
-                        top: RULER_W,
-                        width: GUTTER + canvas.width * zoom + GUTTER,
-                        height: GUTTER + canvas.height * zoom + GUTTER,
-                        backgroundImage: showGrid
-                          ? [
-                              'linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)',
-                              'linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px)',
-                              'linear-gradient(90deg, rgba(213,173,84,0.12) 1px, transparent 1px)',
-                              'linear-gradient(rgba(213,173,84,0.12) 1px, transparent 1px)',
-                            ].join(', ')
-                          : undefined,
-                        backgroundSize: [
-                          `${gridSize * zoom}px ${gridSize * zoom}px`,
-                          `${gridSize * zoom}px ${gridSize * zoom}px`,
-                          `${gridSize * 5 * zoom}px ${gridSize * 5 * zoom}px`,
-                          `${gridSize * 5 * zoom}px ${gridSize * 5 * zoom}px`,
-                        ].join(', '),
-                        backgroundPosition: `${GUTTER}px ${GUTTER}px`,
-                        pointerEvents: 'none',
-                      }}
-                    />
-
-                    {/* Card canvas */}
-                    <p id="maker-canvas-help" className="sr-only">
-                      Template canvas editor. Select an element, then use arrow keys to move it. Hold Shift to move by grid size. Use Delete or Backspace to remove the selected element.
-                    </p>
-                    <p id="maker-selection-status" className="sr-only" role="status" aria-live="polite">
-                      {selectedElement ? `Selected ${selectedElement.name || selectedElement.type} element.` : 'No element selected.'}
-                    </p>
-                    <div
-                      ref={canvasRef}
-                      data-cardforge-canvas="true"
-                      tabIndex={0}
-                      role="region"
-                      aria-label="Template canvas"
-                      aria-describedby="maker-canvas-help maker-selection-status maker-shortcuts-help"
-                      aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete Backspace Escape"
-                      className="relative shadow-[0_24px_70px_rgba(0,0,0,0.75),0_0_0_1px_rgba(213,173,84,0.2)] focus:outline-none focus:ring-2 focus:ring-[#d5ad54]"
-                      style={previewMode ? canvasFrameStyle : canvasStyle}
-                      onKeyDown={handleCanvasKeyDown}
-                      onPointerDown={() => {
-                        if (previewMode) return;
-                        clearDepthSelection();
-                        setSelectedElementId(null);
-                      }}
-                    >
-                      {previewMode ? (
-                        <CardPreview
-                          card={{ template: currentTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-${activeFace}-editor-preview` }}
-                          face={activeFace}
-                          isEditorPreview
-                          targetWidthPx={canvas.width}
-                        />
-                      ) : (
-                        [...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </section>
+          <TemplateCanvasStage
+            activeFace={activeFace}
+            canvas={canvas}
+            canvasFrameStyle={canvasFrameStyle}
+            canvasRef={canvasRef}
+            canvasStyle={canvasStyle}
+            currentTemplate={currentTemplate}
+            gridSize={gridSize}
+            livePreviewData={livePreviewData}
+            previewMode={previewMode}
+            selectedElement={selectedElement}
+            showGrid={showGrid}
+            stageRef={stageRef}
+            zoom={zoom}
+            onCanvasKeyDown={handleCanvasKeyDown}
+            onClearDepthSelection={clearDepthSelection}
+            onDeselectCanvas={() => setSelectedElementId(null)}
+            onDrop={handleDrop}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            renderEditableElement={renderEditableElement}
+          />
 
           <aside className="min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
             <ScrollArea className="h-[calc(100vh-205px)] min-h-[760px]">
@@ -1338,142 +970,38 @@ export function CardTemplateMaker({
                   hasSelectedElement={Boolean(selectedElement)}
                   selectedElementType={selectedElement?.type}
                   templateContent={
-                    <>
-                        <div>
-                          <Label htmlFor="maker-name" className="text-xs text-[#b7bdc9]">Template Name</Label>
-                          <Input id="maker-name" className={makerTheme.control} value={currentTemplate.name || ''} onChange={event => updateTemplate({ name: event.target.value }, false)} />
-                        </div>
-                        <div>
-                          <Label htmlFor="maker-ratio" className="text-xs text-[#b7bdc9]">Aspect Ratio</Label>
-                          <Input id="maker-ratio" className={makerTheme.control} value={currentTemplate.aspectRatio || TCG_ASPECT_RATIO} onChange={event => updateTemplate({ aspectRatio: event.target.value }, false)} />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <Label htmlFor="maker-width" className="text-xs text-[#b7bdc9]">Width</Label>
-                            <Input id="maker-width" className={makerTheme.control} type="number" value={customWidthValue} onChange={event => setCustomWidthValue(event.target.value)} />
-                          </div>
-                          <div>
-                            <Label htmlFor="maker-height" className="text-xs text-[#b7bdc9]">Height</Label>
-                            <Input id="maker-height" className={makerTheme.control} type="number" value={customHeightValue} onChange={event => setCustomHeightValue(event.target.value)} />
-                          </div>
-                          <div>
-                            <Label htmlFor="maker-unit" className="text-xs text-[#b7bdc9]">Unit</Label>
-                            <Select value={customUnit} onValueChange={setCustomUnit}>
-                              <SelectTrigger id="maker-unit" className={makerTheme.control}><SelectValue /></SelectTrigger>
-                              <SelectContent>{DIMENSION_UNITS.map(unit => <SelectItem key={unit.value} value={unit.value}>{unit.label}</SelectItem>)}</SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <Button type="button" variant="outline" size="sm" onClick={handleApplyCustomDimensions} className={cn(makerTheme.button, 'w-full text-xs')}>Apply Dimensions</Button>
-                        <div>
-                          <div className="flex items-center justify-between gap-2">
-                            <Label htmlFor="maker-grid-size" className="text-xs text-[#b7bdc9]">Grid Size (px)</Label>
-                            <Button type="button" variant="outline" size="sm" onClick={resetGridToTemplateDefault} className={cn(makerTheme.button, 'h-7 px-2 text-[10px]')}>
-                              Reset Grid
-                            </Button>
-                          </div>
-                          <Input id="maker-grid-size" className={makerTheme.control} type="number" min={1} max={200} value={gridSize} onChange={event => { const v = Math.round(Number(event.target.value)); if (v >= 1 && v <= 200) updateCanvas({ gridSize: v }); }} />
-                        </div>
-                        <div>
-                          <Label htmlFor="maker-frame" className="text-xs text-[#b7bdc9]">Frame Style</Label>
-                          <Select value={currentTemplate.frameStyle || 'custom'} onValueChange={handleApplyFrameStyle}>
-                            <SelectTrigger id="maker-frame" className={makerTheme.control}><SelectValue /></SelectTrigger>
-                            <SelectContent>{FRAME_STYLES.map(style => <SelectItem key={style.value} value={style.value}>{style.label}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label htmlFor="maker-bg" className="text-xs">Base Background</Label>
-                            <ColorField id="maker-bg" value={currentTemplate.baseBackgroundColor || '#ffffff'} onChange={value => updateTemplate({ baseBackgroundColor: value }, false)} />
-                          </div>
-                          <div>
-                            <Label htmlFor="maker-text" className="text-xs">Base Text</Label>
-                            <ColorField id="maker-text" value={currentTemplate.baseTextColor || '#000000'} onChange={value => updateTemplate({ baseTextColor: value }, false)} />
-                          </div>
-                          <div>
-                            <Label htmlFor="maker-border-color" className="text-xs">Border Color</Label>
-                            <ColorField id="maker-border-color" value={currentTemplate.cardBorderColor || '#c89f42'} onChange={value => updateTemplate({ cardBorderColor: value }, false)} />
-                          </div>
-                          <div>
-                            <Label htmlFor="maker-element-border" className="text-xs">Default Element Border</Label>
-                            <ColorField id="maker-element-border" value={currentTemplate.defaultElementBorderColor || '#c89f42'} onChange={value => updateTemplate({ defaultElementBorderColor: value }, false)} />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label htmlFor="maker-border-width" className="text-xs">Border Width</Label>
-                            <Input id="maker-border-width" value={currentTemplate.cardBorderWidth || ''} onChange={event => updateTemplate({ cardBorderWidth: event.target.value }, false)} />
-                          </div>
-                          <div>
-                            <Label htmlFor="maker-border-radius" className="text-xs">Corner Radius</Label>
-                            <Input id="maker-border-radius" value={currentTemplate.cardBorderRadius || ''} onChange={event => updateTemplate({ cardBorderRadius: event.target.value }, false)} />
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="maker-border-style">Border Style</Label>
-                          <Select value={currentTemplate.cardBorderStyle || '_default_'} onValueChange={value => updateTemplate({ cardBorderStyle: value === '_default_' ? undefined : value as TCGCardTemplate['cardBorderStyle'] })}>
-                            <SelectTrigger id="maker-border-style"><SelectValue /></SelectTrigger>
-                            <SelectContent>{CARD_BORDER_STYLES.map(style => <SelectItem key={style.value} value={style.value}>{style.label}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">Frame Kits</Label>
-                            <Sparkles className="h-3.5 w-3.5 text-[#7a52cc]" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {frameKitRecipesForCurrentTemplate.map((recipe) => (
-                              <Tooltip key={recipe.id}>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className={cn(
-                                      makerTheme.button,
-                                      'h-16 justify-start gap-2 overflow-hidden px-2 text-left text-[10px]',
-                                      currentTemplate.cardBackgroundImageUrl === recipe.preview?.imageUrl && 'border-[#d5ad54] text-[#f5d27b]'
-                                    )}
-                                    onClick={() => applyElementPresetRecipe(recipe)}
-                                  >
-                                    <span
-                                      className="h-12 w-9 shrink-0 rounded-[3px] border border-[#3a2e17] bg-cover bg-center"
-                                      style={{ backgroundImage: recipe.preview?.imageUrl ? `url(${recipe.preview.imageUrl})` : undefined, backgroundColor: recipe.preview?.background }}
-                                      aria-hidden="true"
-                                    />
-                                    <span className="min-w-0">
-                                      <span className="block truncate text-[#f1dfb4]">{recipe.label}</span>
-                                      <span className="block truncate text-[8px] uppercase tracking-[0.12em] text-[#8f95a3]">{recipe.status} - {recipe.tier}</span>
-                                    </span>
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>{recipe.contributorName} - {recipe.description}</TooltipContent>
-                              </Tooltip>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="maker-bg-image">Card Background Image</Label>
-                          <div className="flex gap-2">
-                            <Input id="maker-bg-image" value={currentTemplate.cardBackgroundImageUrl || ''} onChange={event => updateTemplate({ cardBackgroundImageUrl: event.target.value }, false)} />
-                            <Button type="button" variant="outline" size="icon" onClick={() => bgImageInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></Button>
-                            <input ref={bgImageInputRef} type="file" accept="image/*" hidden onChange={event => handleFileUpload(event, dataUri => updateTemplate({ cardBackgroundImageUrl: dataUri }))} />
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="maker-border-image">Border Image/Gradient</Label>
-                          <div className="flex gap-2">
-                            <Input id="maker-border-image" value={currentTemplate.cardBorderImageSource || ''} onChange={event => updateTemplate({ cardBorderImageSource: event.target.value }, false)} />
-                            <Button type="button" variant="outline" size="icon" onClick={() => borderImageInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></Button>
-                            <input ref={borderImageInputRef} type="file" accept="image/*" hidden onChange={event => handleFileUpload(event, dataUri => updateTemplate({ cardBorderImageSource: dataUri }))} />
-                          </div>
-                        </div>
-                    </>
+                    <TemplateSettingsPanel
+                      currentTemplate={currentTemplate}
+                      customWidthValue={customWidthValue}
+                      customHeightValue={customHeightValue}
+                      customUnit={customUnit}
+                      gridSize={gridSize}
+                      frameKitRecipes={frameKitRecipesForCurrentTemplate}
+                      backgroundImageInputRef={bgImageInputRef}
+                      borderImageInputRef={borderImageInputRef}
+                      controlClassName={makerTheme.control}
+                      buttonClassName={makerTheme.button}
+                      onCustomWidthValueChange={setCustomWidthValue}
+                      onCustomHeightValueChange={setCustomHeightValue}
+                      onCustomUnitChange={setCustomUnit}
+                      onApplyCustomDimensions={handleApplyCustomDimensions}
+                      onResetGridToTemplateDefault={resetGridToTemplateDefault}
+                      onApplyFrameStyle={handleApplyFrameStyle}
+                      onApplyElementPresetRecipe={applyElementPresetRecipe}
+                      onFileUpload={handleFileUpload}
+                      onUpdateCanvas={updateCanvas}
+                      onUpdateTemplate={updateTemplate}
+                    />
                   }
                   elementContent={selectedElement ? (
                     <>
                         {(canUseTypography || canUseImageSource) && (
-                          <InspectorFlowSection title="Source & Content">
+                          <InspectorFlowSection
+                            title={canUseImageSource ? 'Image Source' : 'Source & Content'}
+                            description={canUseImageSource
+                              ? 'Choose the selected image or overlay source. Frame, crop, and edge controls stay in later sections.'
+                              : 'Write the selected text and define which fields the generator will ask users to fill.'}
+                          >
                             <ElementContentPanel
                               element={selectedElement}
                               currentTemplate={currentTemplate}
@@ -1490,12 +1018,10 @@ export function CardTemplateMaker({
                               onRemoveSelectedElementVariableContract={removeSelectedElementVariableContract}
                               onRenameSelectedElementVariable={renameSelectedElementVariable}
                               onUpsertFieldContract={upsertFieldContract}
-                              onHandleFileUpload={handleFileUpload}
                             />
                             {canUseImageSource && (
                               <ImageInspectorPanel
                                 element={selectedElement}
-                                canUseBackgroundTexture={canUseBackgroundTexture}
                                 imageAssets={compatibleImageAssets}
                                 assetSearch={assetSearch}
                                 onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
@@ -1507,7 +1033,10 @@ export function CardTemplateMaker({
                         )}
 
                         {canUseIconLibrary && (
-                          <InspectorFlowSection title="Source & Symbol">
+                          <InspectorFlowSection
+                            title="Source & Symbol"
+                            description="Pick a built-in icon, upload a symbol, or choose a reviewed icon asset before styling the glyph."
+                          >
                             <IconInspectorPanel
                               element={selectedElement}
                               iconOptions={ICON_OPTIONS}
@@ -1527,7 +1056,12 @@ export function CardTemplateMaker({
                         )}
 
                         {(canUseShapeControls || canUseDividerControls) && (
-                          <InspectorFlowSection title={canUseDividerControls ? 'Divider Builder' : 'Shape Builder'}>
+                          <InspectorFlowSection
+                            title={canUseDividerControls ? 'Divider Builder' : 'Shape Builder'}
+                            description={canUseDividerControls
+                              ? 'Build the divider rail itself; material and edge controls stay below.'
+                              : 'Choose the primitive geometry or apply a reviewed shape role recipe.'}
+                          >
                             {canUseShapeControls && (
                               <ShapeInspectorPanel
                                 element={selectedElement}
@@ -1552,7 +1086,10 @@ export function CardTemplateMaker({
                         )}
 
                         {canUseTypography && (
-                          <InspectorFlowSection title="Text Style">
+                          <InspectorFlowSection
+                            title="Text Style"
+                            description="Control characters, typography, field behavior, and reviewed text-frame recipes for this text element."
+                          >
                             <TypographyInspectorPanel
                               element={selectedElement}
                               currentTemplate={currentTemplate}
@@ -1568,7 +1105,10 @@ export function CardTemplateMaker({
                         )}
 
                         {canUseAppearanceStudio && (
-                          <InspectorFlowSection title="Material & Effects">
+                          <InspectorFlowSection
+                            title="Material & Effects"
+                            description="Change fill, texture, gradient, glow, and surface treatment without moving the element."
+                          >
                             <AppearanceStudioPanel
                               element={selectedElement}
                               selectedAppearance={selectedAppearance}
@@ -1587,14 +1127,16 @@ export function CardTemplateMaker({
                               onHandleAssetUpload={handleAssetUpload}
                               onSaveStyle={saveSelectedAppearanceStyle}
                               onApplyAppearancePreset={applyAppearancePreset}
-                              onUpdateElement={(updates) => updateElement(selectedElement.id, updates)}
                               onUpdateAppearance={(updater, trackHistory) => updateElementAppearance(selectedElement.id, updater, trackHistory)}
                             />
                           </InspectorFlowSection>
                         )}
 
                         {canUseElementBorder && (
-                          <InspectorFlowSection title="Frame & Edge">
+                          <InspectorFlowSection
+                            title="Frame & Edge"
+                            description="Control the selected element container: text box edge, image frame, icon backplate, or shape stroke."
+                          >
                             <BorderInspectorPanel
                               element={selectedElement}
                               selectedAppearance={selectedAppearance}
@@ -1605,7 +1147,10 @@ export function CardTemplateMaker({
                           </InspectorFlowSection>
                         )}
 
-                        <InspectorFlowSection title="Layout & Layer">
+                        <InspectorFlowSection
+                          title="Align To Canvas & Layer"
+                          description="Move, size, rotate, lock, duplicate, delete, and align the selected element against the card canvas."
+                        >
                           <ElementTransformPanel
                             element={selectedElement}
                             controlClassName={makerTheme.control}

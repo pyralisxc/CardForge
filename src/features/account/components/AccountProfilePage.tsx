@@ -22,7 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/components/card-forge/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
@@ -103,7 +103,7 @@ const accessExplainerRows = [
   },
   {
     label: 'Creator Pass',
-    value: 'The paid or beta export tier for clean PDF, PNG, ZIP, and stronger library assets.',
+    value: 'The paid or beta export tier for clean PDF, PNG, ZIP, and deeper reviewed library assets.',
   },
   {
     label: 'Developer',
@@ -164,6 +164,23 @@ export function AccountProfilePage({
     isSignedIn: effectiveSignedIn,
     toast,
   });
+
+  useEffect(() => {
+    if (!entitlement.authConfigured || !clerkIdentity.isLoaded) return;
+    const clerkEmail = clerkIdentity.email ?? null;
+    const entitlementEmail = entitlement.accountEmail ?? null;
+    if (clerkIdentity.isSignedIn !== entitlement.isSignedIn || clerkEmail !== entitlementEmail) {
+      void entitlement.refreshEntitlement({ force: true });
+    }
+  }, [
+    clerkIdentity.email,
+    clerkIdentity.isLoaded,
+    clerkIdentity.isSignedIn,
+    entitlement.accountEmail,
+    entitlement.authConfigured,
+    entitlement.isSignedIn,
+    entitlement.refreshEntitlement,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -264,19 +281,19 @@ export function AccountProfilePage({
   const accountMessage = isClerkSetupIncomplete
     ? 'Add matching Clerk keys locally, restart the dev server, then test free, paid, developer, and owner states.'
     : isOwner
-      ? 'Owner access unlocks export, developer asset command, voting rules, caps, and launch controls.'
+      ? 'Owner access unlocks export, contributor command, voting rules, caps, and launch controls.'
     : isDeveloper
-      ? 'Your developer account can submit assets, vote on the library, and export clean files without a subscription.'
+      ? 'Your developer account can submit building blocks, vote on the library, and export clean files without a subscription.'
     : accessExpiresOn
       ? `Founder Beta keeps clean export active through ${accessExpiresOn}.`
     : entitlement.canExportClean
         ? 'Clean export and Creator Pass assets are active while your project files stay local.'
-        : 'Build cards in the browser. Sign in when you want custom art uploads, clean export, or a stronger library.';
+        : 'Build card systems in the browser. Sign in when you want custom art uploads, clean export, or a deeper reviewed library.';
   const cleanExportLabel = isClerkSetupIncomplete
     ? (entitlement.canExportClean ? 'Local dev fallback' : 'Locked')
     : (entitlement.canExportClean ? 'Unlocked' : 'Locked');
   const accountPanelMessage = !isClerkSetupIncomplete && !isOwner && !isDeveloper && !accessExpiresOn && !entitlement.canExportClean
-    ? 'Starter Library is active. Sign in to add custom art; Creator Pass unlocks clean export and a stronger library.'
+    ? 'Starter Library is active. Sign in to add custom art; Creator Pass unlocks clean export and the deeper reviewed library.'
     : accountMessage;
 
   const handleClaimFounderBeta = async () => {
@@ -345,7 +362,14 @@ export function AccountProfilePage({
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <div className="border border-[#5f4526] bg-[#100c08] p-3">
               <p className="text-[10px] uppercase tracking-[0.14em] text-[#a98a55]">Account</p>
-              <p className="mt-2 break-words text-[#ffe7ad]">{accountEmail}</p>
+              {effectiveSignedIn && accountDisplayName ? (
+                <>
+                  <p className="mt-2 truncate font-semibold text-[#ffe7ad]" title={accountEmail}>{accountDisplayName}</p>
+                  <p className="mt-1 truncate text-sm text-[#c7b288]" title={accountEmail}>{accountEmail}</p>
+                </>
+              ) : (
+                <p className="mt-2 break-words text-[#ffe7ad]">{accountEmail}</p>
+              )}
             </div>
             <div className="border border-[#5f4526] bg-[#100c08] p-3">
               <p className="text-[10px] uppercase tracking-[0.14em] text-[#a98a55]">Clean export</p>
@@ -371,7 +395,9 @@ export function AccountProfilePage({
                 <div>
                   <p className="font-serif text-lg text-[#fff1c7]">Local Asset Library</p>
                   <p className="mt-1 text-sm leading-5 text-[#c7b288]">
-                    Your custom uploads stay browser-local across refreshes and page changes. Sign in to add uploads to this workspace.
+                    {effectiveSignedIn
+                      ? 'Your custom uploads stay browser-local across refreshes and page changes in this workspace.'
+                      : 'Your custom uploads stay browser-local across refreshes and page changes. Sign in to add uploads to this workspace.'}
                   </p>
                 </div>
               </div>
@@ -406,9 +432,10 @@ export function AccountProfilePage({
               </Link>
             </Button>
             {entitlement.authConfigured && effectiveSignedIn ? (
-              <Button asChild size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+              <Button asChild size="lg" variant="outline" className="min-w-[11rem] border-[#d8b365]/70 bg-[#120e09] font-semibold text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
                 <Link href="/profile" prefetch={false}>
-                  Manage Profile
+                  <UserCircle2 className="mr-2 h-5 w-5" />
+                  Manage Account
                 </Link>
               </Button>
             ) : null}
@@ -491,7 +518,7 @@ export function AccountProfilePage({
                 <h2 className="font-serif text-xl text-[#fff1c7]">Owner Forge</h2>
               </div>
               <p className="mt-3 text-sm leading-5 text-[#d5be8c]">
-                Business profile, legal pages, provider readiness, developer rules, and asset tier command are unlocked.
+                Business profile, legal pages, provider readiness, contributor rules, and asset tier command are unlocked.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row lg:flex-col">
                 <Button asChild className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
@@ -545,9 +572,15 @@ export function AccountProfilePage({
               <h2 className="font-serif text-xl text-[#fff1c7]">What your account unlocks</h2>
             </div>
             <div className="mt-3">
-              <LibraryLaneRow icon={CheckCircle2} label="Starter" value="Use official templates and free library assets." />
-              <LibraryLaneRow icon={FolderOpen} label="Local art" value="Sign in to organize custom uploads in this browser." />
-              <LibraryLaneRow icon={CreditCard} label="Creator Pass" value="Unlock clean exports and stronger library assets." />
+              <LibraryLaneRow icon={CheckCircle2} label="Starter" value="Use CardForge templates and free library assets." />
+              <LibraryLaneRow
+                icon={FolderOpen}
+                label="Local art"
+                value={effectiveSignedIn
+                  ? 'Organize custom uploads in this browser workspace.'
+                  : 'Sign in to organize custom uploads in this browser.'}
+              />
+              <LibraryLaneRow icon={CreditCard} label="Creator Pass" value="Unlock clean exports and deeper reviewed library assets." />
               {isDeveloper ? (
                 <LibraryLaneRow icon={Hammer} label="Forge Review" value="Submit and vote on CardForge library assets." />
               ) : null}
@@ -567,12 +600,12 @@ export function AccountProfilePage({
           <Link href="/roadmap" prefetch={false} className="border border-[#5f4526] bg-[#15100a] p-4 transition hover:border-[#d8b365] hover:bg-[#1b1209]">
             <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Public priorities</p>
             <h2 className="mt-2 font-serif text-xl text-[#fff1c7]">Roadmap and feature voting</h2>
-            <p className="mt-2 text-sm leading-5 text-[#c7b288]">Vote on compact feature ideas and follow the living launch path.</p>
+            <p className="mt-2 text-sm leading-5 text-[#c7b288]">Vote on compact feature ideas and follow the living launch path for the forge.</p>
           </Link>
           <Link href="/developer" prefetch={false} className="border border-[#5f4526] bg-[#15100a] p-4 transition hover:border-[#d8b365] hover:bg-[#1b1209]">
             <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Forge Review</p>
-            <h2 className="mt-2 font-serif text-xl text-[#fff1c7]">{isDeveloper ? 'Open developer hub' : 'Become a developer'}</h2>
-            <p className="mt-2 text-sm leading-5 text-[#c7b288]">Review assets, submit work, or learn the standards for joining the program.</p>
+            <h2 className="mt-2 font-serif text-xl text-[#fff1c7]">{isDeveloper ? 'Open developer hub' : 'Join the forge'}</h2>
+            <p className="mt-2 text-sm leading-5 text-[#c7b288]">Review assets, submit work, or learn the standards for contributing to the shared library.</p>
           </Link>
           <Link href={isOwner ? '/owner' : '/contact'} prefetch={false} className="border border-[#5f4526] bg-[#15100a] p-4 transition hover:border-[#d8b365] hover:bg-[#1b1209]">
             <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{isOwner ? 'Library Command' : 'Support'}</p>

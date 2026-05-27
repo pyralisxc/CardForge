@@ -72,6 +72,10 @@ export interface DeveloperAssetProgramView {
   assetTypeSummaries: DeveloperAssetTypePipelineSummary[];
   developerContributions: DeveloperContributionSummary[];
   developerStats: DeveloperAssetMonthlyStats;
+  effectiveMonthlySubmissionLimit: number;
+  effectiveMonthlyPublishedRequirement: number;
+  profitShareEligible: boolean;
+  developerOwnerNote: string | null;
   remainingSubmissions: number;
 }
 
@@ -125,8 +129,21 @@ export interface DeveloperAssetSubmissionRow {
 export interface DeveloperProfileRow {
   clerk_user_id: string;
   email: string | null;
+  status?: 'invited' | 'active' | 'inactive' | 'suspended' | null;
   first_name?: string | null;
   last_name?: string | null;
+  monthly_submission_limit_override?: number | null;
+  monthly_published_requirement_override?: number | null;
+  eligible_for_profit_share?: boolean | null;
+  owner_note?: string | null;
+}
+
+export interface DeveloperProfileOverrideInput {
+  status?: unknown;
+  monthlySubmissionLimitOverride?: unknown;
+  monthlyPublishedRequirementOverride?: unknown;
+  profitShareEligible?: unknown;
+  ownerNote?: unknown;
 }
 
 export class DeveloperAssetStoreError extends Error {
@@ -150,7 +167,7 @@ const isMissingDeveloperAssetColumnError = (error: unknown): boolean =>
   typeof error === 'object'
   && error !== null
   && 'code' in error
-  && (error as { code?: string }).code === '42703';
+  && ((error as { code?: string }).code === '42703' || (error as { code?: string }).code === 'PGRST204');
 
 const normalizeShortText = (value: unknown, maxLength: number): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ').slice(0, maxLength) : '';
@@ -168,6 +185,56 @@ const normalizeOptionalInteger = (value: unknown, min: number, max: number): num
   if (rounded < min || rounded > max) return null;
   return rounded;
 };
+
+const resolveEffectiveDeveloperRules = (
+  settings: DeveloperProgramSettings,
+  profile?: DeveloperProfileRow | null,
+) => {
+  const effectiveSubmissionLimit = profile?.monthly_submission_limit_override
+    ?? settings.monthlySubmissionLimit;
+  const effectivePublishedRequirement = profile?.monthly_published_requirement_override
+    ?? settings.monthlyPublishedRequirement;
+
+  return {
+    effectiveSubmissionLimit,
+    effectivePublishedRequirement,
+    submissionLimitOverride: profile?.monthly_submission_limit_override ?? null,
+    publishedRequirementOverride: profile?.monthly_published_requirement_override ?? null,
+    profitShareEligible: profile?.eligible_for_profit_share ?? true,
+    ownerNote: profile?.owner_note ?? null,
+  };
+};
+
+const getDeveloperProfileDisplayName = (
+  developerId: string,
+  developerEmail: string | null,
+  profile?: DeveloperProfileRow | null,
+): string | null => {
+  const profileName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
+  return profileName || profile?.email || developerEmail;
+};
+
+export const normalizeDeveloperProfileOverrideInput = (
+  input: DeveloperProfileOverrideInput
+): {
+  status?: 'invited' | 'active' | 'inactive' | 'suspended';
+  monthly_submission_limit_override: number | null;
+  monthly_published_requirement_override: number | null;
+  eligible_for_profit_share: boolean;
+  owner_note: string;
+} => ({
+  status:
+    input.status === 'invited'
+    || input.status === 'active'
+    || input.status === 'inactive'
+    || input.status === 'suspended'
+      ? input.status
+      : undefined,
+  monthly_submission_limit_override: normalizeOptionalInteger(input.monthlySubmissionLimitOverride, 1, 250),
+  monthly_published_requirement_override: normalizeOptionalInteger(input.monthlyPublishedRequirementOverride, 0, 100),
+  eligible_for_profit_share: input.profitShareEligible === false ? false : true,
+  owner_note: normalizeLongText(input.ownerNote, 280),
+});
 
 export const calculateDeveloperAssetVoteTotals = (
   voteRows: Array<{
@@ -321,6 +388,7 @@ export const buildDeveloperAssetProgramView = ({
   currentContributorIds = [currentUserId],
   activeDeveloperCount = 1,
   submissions,
+  profiles = [],
   now = new Date(),
 }: {
   configured: boolean;
@@ -329,15 +397,20 @@ export const buildDeveloperAssetProgramView = ({
   currentContributorIds?: string[];
   activeDeveloperCount?: number;
   submissions: DeveloperAssetSubmission[];
+  profiles?: DeveloperProfileRow[];
   now?: Date;
 }): DeveloperAssetProgramView => {
+  const profilesById = new Map(profiles.map((profile) => [profile.clerk_user_id, profile]));
+  const currentProfile = profilesById.get(currentUserId);
+  const visibleSubmissions = submissions;
   const currentContributorIdSet = new Set(currentContributorIds.length > 0 ? currentContributorIds : [currentUserId]);
-  const accountSubmissions = submissions.filter((submission) => submission.developerId === currentUserId);
+  const accountSubmissions = visibleSubmissions.filter((submission) => submission.developerId === currentUserId);
+  const currentRules = resolveEffectiveDeveloperRules(settings, currentProfile);
   const developerStats = countDeveloperMonthlyStats(accountSubmissions, now);
-  const remainingSubmissions = Math.max(0, settings.monthlySubmissionLimit - developerStats.submitted);
+  const remainingSubmissions = Math.max(0, currentRules.effectiveSubmissionLimit - developerStats.submitted);
   const activeReviewStatuses = new Set(['draft', 'submitted', 'voting', 'publish_candidate', 'published']);
   const assetTypeSummaries = DEVELOPER_ASSET_TYPES.map((assetType) => {
-    const byType = submissions.filter((submission) => submission.assetType === assetType);
+    const byType = visibleSubmissions.filter((submission) => submission.assetType === assetType);
     const published = byType.filter((submission) => submission.status === 'published');
     const starterCount = published.filter((submission) => submission.calculatedAccessTier === 'free').length;
     const creatorPassCount = published.filter((submission) => submission.calculatedAccessTier === 'paid').length;
@@ -364,35 +437,45 @@ export const buildDeveloperAssetProgramView = ({
     };
   });
   const contributionMap = new Map<string, DeveloperAssetSubmission[]>();
-  submissions.forEach((submission) => {
+  visibleSubmissions.forEach((submission) => {
     if (!contributionMap.has(submission.developerId)) contributionMap.set(submission.developerId, []);
     contributionMap.get(submission.developerId)?.push(submission);
+  });
+  profiles.forEach((profile) => {
+    if (profile.status && profile.status !== 'active') return;
+    if (!contributionMap.has(profile.clerk_user_id)) contributionMap.set(profile.clerk_user_id, []);
   });
   const developerContributions = Array.from(contributionMap.entries())
     .map(([developerId, developerSubmissions]) => {
       const stats = countDeveloperMonthlyStats(developerSubmissions, now);
       const developerEmail = developerSubmissions.find((submission) => submission.developerEmail)?.developerEmail ?? null;
       const namedSubmission = developerSubmissions.find((submission) => submission.developerDisplayName);
+      const profile = profilesById.get(developerId);
+      const rules = resolveEffectiveDeveloperRules(settings, profile);
 
       return {
         developerId,
-        developerEmail,
-        developerName: developerId === 'cardforge-official'
-          ? 'CardForge Owner'
-          : namedSubmission?.developerDisplayName ?? developerEmail,
+        developerEmail: profile?.email ?? developerEmail,
+        developerName: namedSubmission?.developerDisplayName ?? getDeveloperProfileDisplayName(developerId, developerEmail, profile),
+        profileStatus: profile?.status ?? 'active',
         submitted: stats.submitted,
         published: stats.published,
         archived: stats.archived,
         rejected: stats.rejected,
-        remainingSubmissions: Math.max(0, settings.monthlySubmissionLimit - stats.submitted),
-        requiredPublished: settings.monthlyPublishedRequirement,
-        missingPublished: Math.max(0, settings.monthlyPublishedRequirement - stats.published),
-        isOwnerDefaultContributor: developerId === 'cardforge-official',
+        effectiveSubmissionLimit: rules.effectiveSubmissionLimit,
+        effectivePublishedRequirement: rules.effectivePublishedRequirement,
+        submissionLimitOverride: rules.submissionLimitOverride,
+        publishedRequirementOverride: rules.publishedRequirementOverride,
+        remainingSubmissions: Math.max(0, rules.effectiveSubmissionLimit - stats.submitted),
+        requiredPublished: rules.effectivePublishedRequirement,
+        missingPublished: Math.max(0, rules.effectivePublishedRequirement - stats.published),
+        profitShareEligible: rules.profitShareEligible,
+        ownerNote: rules.ownerNote,
+        isOwnerDefaultContributor: false,
       };
     })
     .sort((a, b) => (
-      Number(b.isOwnerDefaultContributor) - Number(a.isOwnerDefaultContributor)
-      || b.submitted - a.submitted
+      b.submitted - a.submitted
       || a.developerId.localeCompare(b.developerId)
     ));
 
@@ -402,14 +485,18 @@ export const buildDeveloperAssetProgramView = ({
     currentUserId,
     currentContributorIds: Array.from(currentContributorIdSet),
     activeDeveloperCount,
-    submissions,
-    votingQueue: submissions.filter((submission) => (
+    submissions: visibleSubmissions,
+    votingQueue: visibleSubmissions.filter((submission) => (
       activeReviewStatuses.has(submission.status)
       && (settings.allowContributorSelfVoting || !currentContributorIdSet.has(submission.developerId))
     )),
     assetTypeSummaries,
     developerContributions,
     developerStats,
+    effectiveMonthlySubmissionLimit: currentRules.effectiveSubmissionLimit,
+    effectiveMonthlyPublishedRequirement: currentRules.effectivePublishedRequirement,
+    profitShareEligible: currentRules.profitShareEligible,
+    developerOwnerNote: currentRules.ownerNote,
     remainingSubmissions,
   };
 };
@@ -474,11 +561,43 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
   };
 };
 
-const fetchSubmissionRows = async (currentUserId: string): Promise<DeveloperAssetSubmission[]> => {
+const DEVELOPER_PROFILE_COLUMNS =
+  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,eligible_for_profit_share,owner_note';
+const DEVELOPER_PROFILE_BASE_COLUMNS = 'clerk_user_id,email,first_name,last_name';
+
+const fetchDeveloperProfileRows = async (): Promise<DeveloperProfileRow[]> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) return [];
 
-  const [{ data: rows, error: rowsError }, { data: voteRows, error: votesError }, { data: profileRows, error: profilesError }] = await Promise.all([
+  const { data, error } = await supabase
+    .from('cardforge_developer_profiles')
+    .select(DEVELOPER_PROFILE_COLUMNS);
+
+  if (error && isMissingDeveloperAssetColumnError(error)) {
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('cardforge_developer_profiles')
+      .select(DEVELOPER_PROFILE_BASE_COLUMNS);
+    if (!fallbackError) return (fallbackData ?? []) as DeveloperProfileRow[];
+  }
+
+  if (error) {
+    if (!isMissingDeveloperAssetTableError(error)) {
+      console.error('Failed to load developer profiles:', error);
+    }
+    return [];
+  }
+
+  return (data ?? []) as DeveloperProfileRow[];
+};
+
+const fetchSubmissionRows = async (
+  currentUserId: string,
+  profileRows: DeveloperProfileRow[] = [],
+): Promise<DeveloperAssetSubmission[]> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return [];
+
+  const [{ data: rows, error: rowsError }, { data: voteRows, error: votesError }] = await Promise.all([
     supabase
       .from('cardforge_developer_asset_submissions')
       .select('id,developer_id,developer_email,asset_type,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,calculated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,submitted_at,updated_at')
@@ -487,14 +606,11 @@ const fetchSubmissionRows = async (currentUserId: string): Promise<DeveloperAsse
       .from('cardforge_developer_asset_votes')
       .select('submission_id,vote_value')
       .eq('developer_id', currentUserId),
-    supabase
-      .from('cardforge_developer_profiles')
-      .select('clerk_user_id,email,first_name,last_name'),
   ]);
 
-  if (rowsError || votesError || profilesError) {
-    if (!isMissingDeveloperAssetTableError(rowsError) && !isMissingDeveloperAssetTableError(votesError) && !isMissingDeveloperAssetTableError(profilesError)) {
-      console.error('Failed to load developer asset submissions:', rowsError ?? votesError ?? profilesError);
+  if (rowsError || votesError) {
+    if (!isMissingDeveloperAssetTableError(rowsError) && !isMissingDeveloperAssetTableError(votesError)) {
+      console.error('Failed to load developer asset submissions:', rowsError ?? votesError);
     }
     return [];
   }
@@ -503,7 +619,7 @@ const fetchSubmissionRows = async (currentUserId: string): Promise<DeveloperAsse
     String((row as { submission_id: string }).submission_id),
     (row as { vote_value: DeveloperVoteValue }).vote_value,
   ]));
-  const profilesById = new Map((profileRows ?? []).map((row) => [
+  const profilesById = new Map(profileRows.map((row) => [
     String((row as DeveloperProfileRow).clerk_user_id),
     row as DeveloperProfileRow,
   ]));
@@ -533,7 +649,8 @@ const rebalanceDeveloperAssetPipeline = async (settings: DeveloperProgramSetting
   const supabase = getSupabaseServerClient();
   if (!supabase) return;
 
-  const submissions = await fetchSubmissionRows('');
+  const profiles = await fetchDeveloperProfileRows();
+  const submissions = await fetchSubmissionRows('', profiles);
   const activeSubmissions = submissions.filter((submission) => submission.status !== 'rejected');
   const updates: Array<{ submission: DeveloperAssetSubmission; status: DeveloperAssetStatus; accessTier: DeveloperAssetAccessTier; qualityScore: number; reason: string; tierReason: string }> = [];
 
@@ -633,11 +750,39 @@ export const getDeveloperAssetProgramView = async (
   currentContributorIds: string[] = [currentUserId],
 ): Promise<DeveloperAssetProgramView> => {
   const { configured, settings } = await fetchDeveloperSettings();
-  const [submissions, activeDeveloperCount] = await Promise.all([
-    fetchSubmissionRows(currentUserId),
+  const [profiles, activeDeveloperCount] = await Promise.all([
+    fetchDeveloperProfileRows(),
     countActiveDevelopers(),
   ]);
-  return buildDeveloperAssetProgramView({ configured, settings, currentUserId, currentContributorIds, submissions, activeDeveloperCount });
+  const submissions = await fetchSubmissionRows(currentUserId, profiles);
+  return buildDeveloperAssetProgramView({ configured, settings, currentUserId, currentContributorIds, submissions, profiles, activeDeveloperCount });
+};
+
+export const getDeveloperAssetVotePolicy = async (
+  submissionId: string,
+): Promise<{ allowContributorSelfVoting: boolean; submissionDeveloperId: string | null }> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
+
+  const [{ settings }, { data, error }] = await Promise.all([
+    fetchDeveloperSettings(),
+    supabase
+      .from('cardforge_developer_asset_submissions')
+      .select('developer_id')
+      .eq('id', submissionId)
+      .limit(1),
+  ]);
+
+  if (error) {
+    console.error('Failed to load developer asset vote policy:', error);
+    throw new DeveloperAssetStoreError('Unable to load vote rules for this submission.', 500);
+  }
+
+  const row = data?.[0] as { developer_id?: string | null } | undefined;
+  return {
+    allowContributorSelfVoting: settings.allowContributorSelfVoting,
+    submissionDeveloperId: row?.developer_id ?? null,
+  };
 };
 
 export const upsertDeveloperProfile = async ({
@@ -667,6 +812,43 @@ export const upsertDeveloperProfile = async ({
   if (error && !isMissingDeveloperAssetTableError(error)) {
     console.error('Failed to upsert developer profile:', error);
   }
+};
+
+export const updateDeveloperProfileOverrides = async ({
+  developerId,
+  input,
+  currentUserId = '',
+  currentContributorIds = currentUserId ? [currentUserId] : [],
+}: {
+  developerId: string;
+  input: DeveloperProfileOverrideInput;
+  currentUserId?: string;
+  currentContributorIds?: string[];
+}): Promise<DeveloperAssetProgramView> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
+  const normalizedDeveloperId = normalizeShortText(developerId, 160);
+  if (!normalizedDeveloperId) throw new DeveloperAssetStoreError('Choose a developer profile to update.', 400);
+
+  const normalized = normalizeDeveloperProfileOverrideInput(input);
+  const updateRow = {
+    monthly_submission_limit_override: normalized.monthly_submission_limit_override,
+    monthly_published_requirement_override: normalized.monthly_published_requirement_override,
+    eligible_for_profit_share: normalized.eligible_for_profit_share,
+    owner_note: normalized.owner_note,
+    ...(normalized.status ? { status: normalized.status } : {}),
+  };
+  const { error } = await supabase
+    .from('cardforge_developer_profiles')
+    .update(updateRow)
+    .eq('clerk_user_id', normalizedDeveloperId);
+
+  if (error) {
+    console.error('Failed to update developer profile overrides:', error);
+    throw new DeveloperAssetStoreError('Unable to update developer profile rules.', 500);
+  }
+
+  return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
 };
 
 export const updateDeveloperProgramSettings = async (
@@ -917,11 +1099,25 @@ const getRegistryMetadataForSubmission = (submission: {
   return base;
 };
 
-const getRegistryAccessTierForPublishedSubmission = (
+export const getRegistryAccessTierForPublishedSubmission = (
   accessTier: DeveloperAssetAccessTier
-): Extract<DeveloperAssetAccessTier, 'official' | 'free' | 'paid' | 'hidden'> => {
-  if (accessTier === 'official' || accessTier === 'paid' || accessTier === 'free') return accessTier;
+): Extract<DeveloperAssetAccessTier, 'official' | 'free' | 'paid' | 'developer' | 'hidden'> => {
+  if (accessTier === 'official' || accessTier === 'paid' || accessTier === 'free' || accessTier === 'developer') return accessTier;
   return 'hidden';
+};
+
+export const mergeRegistryMetadataForSubmission = (
+  existingMetadata: unknown,
+  submissionMetadata: ReturnType<typeof getRegistryMetadataForSubmission>,
+) => {
+  const existing = existingMetadata && typeof existingMetadata === 'object' && !Array.isArray(existingMetadata)
+    ? existingMetadata as Record<string, unknown>
+    : {};
+
+  return {
+    ...existing,
+    ...submissionMetadata,
+  };
 };
 
 const syncPublishedSubmissionToAssetRegistry = async ({
@@ -988,6 +1184,27 @@ const syncPublishedSubmissionToAssetRegistry = async ({
     throw new DeveloperAssetStoreError('A source file is required before this asset can publish into the live library.', 400);
   }
 
+  const { data: existingRegistryRows, error: existingRegistryError } = await supabase
+    .from('cardforge_asset_registry')
+    .select('metadata')
+    .eq('asset_id', registryAssetId)
+    .limit(1);
+
+  if (existingRegistryError) {
+    console.error('Failed to load existing registry metadata before publish sync:', existingRegistryError);
+  }
+
+  const submissionMetadata = getRegistryMetadataForSubmission({
+    asset_type: submission.asset_type,
+    source_mime_type: submission.source_mime_type,
+    developer_id: submission.developer_id,
+    developer_email: submission.developer_email,
+  });
+  const registryMetadata = mergeRegistryMetadataForSubmission(
+    existingRegistryRows?.[0]?.metadata,
+    submissionMetadata,
+  );
+
   const { error: upsertError } = await supabase
     .from('cardforge_asset_registry')
     .upsert({
@@ -1003,12 +1220,7 @@ const syncPublishedSubmissionToAssetRegistry = async ({
       storage_bucket: submission.source_storage_bucket,
       storage_path: submission.source_storage_path,
       file_size_bytes: submission.source_file_size_bytes,
-      metadata: getRegistryMetadataForSubmission({
-        asset_type: submission.asset_type,
-        source_mime_type: submission.source_mime_type,
-        developer_id: submission.developer_id,
-        developer_email: submission.developer_email,
-      }),
+      metadata: registryMetadata,
     }, { onConflict: 'asset_id' });
 
   if (upsertError) {

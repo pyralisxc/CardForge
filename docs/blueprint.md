@@ -1,23 +1,19 @@
-# **App Name**: CardForge
+# CardForge Blueprint
 
-## Core Features:
+## Product Position
 
-- Template Editor: Provide a user-friendly drag-and-drop interface to create card templates using various elements (text boxes, images, shapes).
-- Template Management: Ability to save, load, and manage created templates.
-- Bulk Card Generation: Input text to automatically generate multiple unique cards based on a selected template using the content as the variables in your card layout.
-- Print/Export: Option to download or print cards directly from the application.
-- Paper Size Selection: Support a wide range of standard paper sizes for printing (e.g., A4, US Letter, business card size).
+CardForge helps creators turn card ideas into full, export-ready sets. The fantasy forge is the doorway; underneath is a serious production workflow for reusable templates, structured data, bulk generation, clean exports, and a reviewed contributor library.
 
-## Style Guidelines:
+## Product Promise
 
-- Primary color: Warm orange (#FF7043), reminiscent of creativity and craftsmanship.
-- Background color: Light peach (#F9E7E1) to create a soft and inviting feel.
-- Accent color: Muted teal (#4DB6AC) to complement the primary orange with a modern touch.
-- Clean and readable font for the main text elements.
-- Consistent and intuitive icon set for various functions (editing, saving, printing).
-- Grid-based layout with clear visual hierarchy for easy navigation and template design.
+- Build cards faster with reusable templates and live previews.
+- Generate complete sets from hand-entered content, CSV, JSON, or structured notes.
+- Export clean PNG, ZIP, PDF, and Tabletop Simulator files when the set is ready.
+- Shape the forge together through a reviewed developer pipeline for templates, overlays, icons, dividers, textures, and element recipes.
 
----
+## Product Spirit
+
+CardForge should feel handcrafted and imaginative without hiding its practical workflow. Use forge language for identity and community; use plain product language when explaining what a tool does, what data is stored, or what a user gets.
 
 ## Current Architecture (Source of Truth)
 
@@ -29,7 +25,7 @@
 - **State**: Zustand with `persist` middleware (localStorage, key `card-forge-app-storage-v3`, launch schema version 1)
 - **Canvas**: Freeform pointer-based drag/resize in `CardTemplateMaker.tsx`
 - **Library policy**: Prefer commercial-friendly, industry-standard libraries for generic editor infrastructure and keep custom code focused on CardForge-specific template, generation, and export behavior.
-- **Template library direction**: Keep shipped defaults separate from user templates, with live previews generated from file-backed templates.
+- **Template library direction**: Keep pipeline-backed shared templates separate from browser-local user templates, with live previews generated through the same card preview path used by the Studio and generator.
 - **Entry model**: `/` is the public landing page, `/studio` is the maker/generator workspace, `/account` is a compact My Forge account overview, `/roadmap` hosts public feature voting and the Forge Chronicle, `/developer` hosts the developer application / Forge Review asset hub, and `/owner` hosts the tabbed Library Command console.
 
 ---
@@ -94,7 +90,7 @@ Text elements can now mix static copy with element-scoped inline variables.
   - `freeformCanvas` is the front face
   - `backCanvas` is the optional back face
   - maker editing keeps the front face primary and only creates `backCanvas` when the user explicitly adds a back face
-  - new back faces should seed from the file-backed `default-obsidian-neon-card-back` template so teams start from an intentional reverse-side design instead of a blank canvas
+  - new back faces should seed from the pipeline-backed `default-obsidian-neon-card-back` template so teams start from an intentional reverse-side design instead of a blank canvas
   - maker editing can then switch between front and back
   - per-card export and ZIP export emit both faces when a back exists
   - physical PDF export supports two front/back layouts:
@@ -108,12 +104,12 @@ Text elements can now mix static copy with element-scoped inline variables.
 
 ### Template Storage Architecture
 
-Templates have **two storage layers** that work together:
+Templates have **two user-facing storage lanes** plus one pipeline publication index:
 
 #### 1. `data/default-templates/*.json` — Default template library
 - One JSON file per template, named by template ID (e.g. `default-arcane-spell-freeform.json`)
-- Files here are the **seeded defaults** that ship with the app. New users get these on first load.
-- Defaults are normal editable `TCGCardTemplate` files with `templateSource: "default"` while the launch library is still being authored.
+- Files here are historical starter import material for `npm run pipeline:sync-defaults`; they are not a runtime fallback catalog.
+- Shared defaults are normal editable `TCGCardTemplate` payloads with `templateSource: "default"` and `templateLibrarySource: "pipeline"`.
 - Defaults can include `templateOrder` for curated gallery ordering and `templatePreviewData` for non-destructive sample values used by previews and first-run generator data.
 - Served by the Next.js API route at `src/app/api/templates/route.ts`.
 - Do NOT put `layoutMode`, `rows`, or any other removed fields in these files.
@@ -134,12 +130,12 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 #### Save flow when user saves a template
 1. `handleSaveTemplate` preserves the selected template source: editing a default updates that default id/source, while editing or cloning a user template stays in the user collection.
 2. User templates continue through `addOrUpdateTemplate()` in the source-specific store collection.
-3. When library writes are explicitly enabled with `CARDFORGE_ALLOW_LIBRARY_WRITES=true` and the user has dev access, `POST /api/templates` writes the JSON file to the matching source folder. Default saves also sync the registry-backed default payload so the developer asset pipeline and generator selectors keep the same source of truth.
+3. When library writes are explicitly enabled with `CARDFORGE_ALLOW_LIBRARY_WRITES=true` and the user has dev access, `POST /api/templates` updates the pipeline registry/submission row for default templates or the local user-template folder for user templates.
 4. If library writes are disabled or the account lacks dev/owner access, the server returns `403`; browser-local state may still change for the session, so the UI should continue moving toward explicit `Save a copy` vs `Update site default` choices for non-developer users.
 
 #### Delete flow
 1. `handleConfirmDeleteTemplate` → `deleteTemplate()` in store
-2. When library writes are explicitly enabled with `CARDFORGE_ALLOW_LIBRARY_WRITES=true` and the user has dev access, `DELETE /api/templates` removes the file. Otherwise the API returns `403` and server-side library files stay protected.
+2. When library writes are explicitly enabled with `CARDFORGE_ALLOW_LIBRARY_WRITES=true` and the user has dev access, `DELETE /api/templates` archives/hides the pipeline row for default templates or removes the local user-template file. Otherwise the API returns `403` and the shared library stays protected.
 
 ---
 
@@ -157,9 +153,9 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 | `src/store/appStore.ts` | Zustand store implementation — persisted state and actions |
 | `src/store/selectors.ts` | Shared derived selectors for templates, generated cards, and edit state |
 | `src/features/app-shell/components/CardForgeStudioShell.tsx` | Studio shell — orchestrates template/style load/save/delete and composes feature workspaces |
-| `src/app/api/templates/route.ts` | REST API for `data/default-templates/` and `data/user-templates/` |
-| `src/app/api/styles/route.ts` | REST API for one-style-per-file presets in `data/styles/` |
-| `src/app/api/assets/route.ts` | Recursive asset discovery for textures and dividers plus optional metadata sidecars |
+| `src/app/api/templates/route.ts` | REST API for pipeline-backed default templates and browser-local user templates |
+| `src/app/api/styles/route.ts` | REST API for pipeline-backed appearance/style presets |
+| `src/app/api/assets/route.ts` | Registry-backed live asset catalog for textures, dividers, icons, images, overlays, templates, and element presets |
 | `src/app/api/account/entitlement/route.ts` | Account entitlement snapshot for export gating |
 | `src/app/api/billing/checkout/route.ts` | Stripe Checkout session entrypoint for paid export |
 | `src/app/api/billing/status/route.ts` | Safe billing/auth/library-write configuration status and public Founder Beta campaign status for account/dev tooling |
@@ -180,13 +176,14 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 | `src/lib/developerAssets.ts` | Pure developer asset program rules for status, vote thresholds, monthly stats, tier caps, and access-tier decisions |
 | `src/lib/developerAssetStore.ts` | Supabase-backed developer asset program adapter and submission mapping |
 | `src/lib/supabaseServer.ts` | Server-only Supabase client and configuration status helper |
-| `src/components/card-forge/CardTemplateMaker.tsx` | Freeform canvas template editor coordinator |
-| `src/features/template-editor/components/` | Feature-local template editor panels and inspector tools |
-| `src/features/card-generator/components/` | Generation workspace plus reusable bulk-generation surfaces |
-| `src/components/card-forge/TemplateThumbnail.tsx` | Shared sidebar/gallery thumbnail renderer for file-backed templates |
+| `src/features/template-editor/components/CardTemplateMaker.tsx` | Freeform canvas template editor coordinator |
+| `src/features/template-editor/components/` | Feature-local template editor panels, text inspector, layer tree, and inspector tools |
+| `src/features/card-generator/components/` | Generation workspace, Single entry, Bulk import, generated gallery, paper/export controls, and generator-owned export buttons |
+| `src/components/card-forge/TemplateThumbnail.tsx` | Shared sidebar/gallery thumbnail renderer for templates |
 | `src/components/card-forge/CardForgeRichTextEditor.tsx` | Shared Tiptap rich text editor and inline variable authoring surface |
-| `src/components/card-forge/GeneratorFieldInput.tsx` | Shared generator/edit/bulk field input renderer |
-| `src/components/card-forge/GeneratorFieldGroups.tsx` | Shared grouped parent/child field UI for single-card entry and edit dialog |
+| `src/features/card-generator/components/GeneratorFieldInput.tsx` | Generator/edit/bulk field input renderer |
+| `src/features/card-generator/components/GeneratorFieldGroups.tsx` | Grouped parent/child field UI for single-card entry and edit dialog |
+| `src/features/card-generator/components/EditCardDialog.tsx` | Generated-card edit and duplicate dialog |
 | `src/components/card-forge/CardPreview.tsx` | Renders a `TCGCardTemplate` + `CardData` to a visual card |
 | `src/lib/cardTextRender.tsx` | Shared rich text element renderer for Maker canvas, generated previews, and export |
 | `src/lib/freeformElementRender.ts` | Shared freeform element geometry, clipping, and image-source resolution helpers |
@@ -194,20 +191,27 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 | `src/lib/cardExportGeometry.ts` | Shared card aspect, pixel-height, and physical-size calculations |
 | `src/lib/cardDataDefaults.ts` | Shared card-data initialization and fallback completion for generator/edit flows |
 | `src/lib/textElementContracts.ts` | Shared text element contract, content-model, and auto-fit decisions for Maker and preview |
-| `src/components/card-forge/makerConstants.tsx` | Presets, kits, theme tokens, maker helper UI, `makeNewFreeformTemplate()` |
+| `src/features/template-editor/lib/frameVisualPresets.ts` | Whole-template frame visual defaults for the template settings panel |
+| `src/features/template-editor/lib/iconOptions.ts` | Built-in icon name options for icon elements |
+| `src/features/template-editor/lib/elementKits.tsx` | Local element rail seed kits for insertable text, image, icon, shape, divider, and ornament elements |
+| `src/features/template-editor/lib/elementStylePresets.ts` | Legacy local material/style presets for the Material & Effects panel |
+| `src/features/template-editor/lib/makerTheme.ts` | Template editor theme class tokens shared by editor panels |
+| `src/features/template-editor/lib/makerGeometry.ts` | Template editor geometry helpers such as unit conversion and clamping |
+| `src/features/template-editor/lib/makerTemplateFactory.ts` | New freeform template factory |
+| `src/features/template-editor/components/ColorField.tsx` | Shared template-editor color picker field |
 | `src/lib/templateModel.ts` | Shared template reconstruction and freeform canvas defaults |
 | `src/lib/constants.ts` | Shared option arrays (`FONT_WEIGHTS`, `PAPER_SIZES`, etc.) |
 | `src/lib/appearance.ts` | Appearance system — material, border, texture |
 | `src/types/index.ts` | All TypeScript types |
-| `data/default-templates/` | Default template JSON files (ship with the app) |
+| `data/default-templates/` | Historical starter template import material for pipeline sync |
 | `data/user-templates/` | User-created or cloned template JSON files |
-| `data/styles/` | One JSON file per appearance style preset |
-| `data/assets/textures/` | Optional metadata sidecars for discovered textures |
-| `data/assets/dividers/` | Optional metadata sidecars for discovered dividers |
-| `data/assets/parts/` | Optional metadata sidecars for discovered premium card parts |
-| `public/card-assets/textures/` | Browser-served texture assets discovered recursively |
-| `public/card-assets/dividers/` | Browser-served divider assets discovered recursively |
-| `public/card-assets/parts/` | Browser-served premium card parts discovered recursively |
+| `data/styles/` | Historical starter appearance/style import material for pipeline sync |
+| `data/assets/textures/` | Historical texture metadata import material |
+| `data/assets/dividers/` | Historical divider metadata import material |
+| `data/assets/parts/` | Historical metadata sidecars for image/overlay source assets during pipeline sync |
+| `public/card-assets/textures/` | Historical texture source files for pipeline sync |
+| `public/card-assets/dividers/` | Historical divider source files for pipeline sync |
+| `public/card-assets/parts/` | Historical image/overlay source-file folder; not an active user-facing catalog |
 
 ---
 
@@ -226,10 +230,10 @@ The repo is intentionally organized around a small number of feature boundaries:
 
 These files are still intentionally large:
 
-- `src/components/card-forge/CardTemplateMaker.tsx`
+- `src/features/template-editor/components/CardTemplateMaker.tsx`
   Editor orchestration, canvas state, pointer/depth-selection logic, history, and feature-panel composition. Do not split just for line count; the next good seam is an editor-state/action controller or a future canvas library adapter.
-- `src/components/card-forge/makerConstants.tsx`
-  Presets, kits, and remaining maker helper UI
+- `src/features/template-editor/lib/elementKits.tsx` and `src/features/template-editor/lib/elementStylePresets.ts`
+  Local element insertion kits and remaining hardcoded style presets. Frame visuals, icon names, theme tokens, geometry helpers, color UI, and the new-template factory now live in focused template-editor modules.
 - `src/components/card-forge/CardPreview.tsx`
   Shared visual renderer for generated cards and export capture. Keep preview behavior centralized here unless a future renderer abstraction replaces it.
 - `src/store/appStore.ts`
@@ -239,31 +243,26 @@ Future library swaps should happen at clear seams rather than through broad rewr
 
 - template editor canvas internals: `CardTemplateMaker.tsx`, `src/lib/freeformEditor.ts`, `src/lib/templateModel.ts`
 - rich text authoring and rendering internals: `CardForgeRichTextEditor.tsx`, `src/lib/cardTextRender.tsx`, `src/lib/richTextDocument.ts`
-- bulk generation workflow internals: `BulkGenerator.tsx`, `src/lib/bulkGeneration.ts`, `src/features/card-generator/components/`
-- export pipeline internals: `CardPreview.tsx`, `src/lib/cardPreviewExport.tsx`, `src/lib/cardExportGeometry.ts`, `SaveAsPdfButton.tsx`
+- bulk generation workflow internals: `src/features/card-generator/components/BulkGenerator.tsx`, `src/lib/bulkGeneration.ts`, `src/features/card-generator/components/`
+- export pipeline internals: `CardPreview.tsx`, `src/lib/cardPreviewExport.tsx`, `src/lib/cardExportGeometry.ts`, `src/features/card-generator/components/SaveAsPdfButton.tsx`
 
 ---
 
-### Style and Asset Discovery
+### Pipeline Asset Sync
 
 #### Styles
 
-- Styles are stored as individual JSON files in `data/styles/`.
-- `src/app/api/styles/route.ts` reads every valid `*.json` file in that directory and returns them as the style library payload.
-- The launch build does not carry the removed `appearance-library.json` prototype path; new presets should be added as individual files.
+- Styles that the Studio offers to users should be represented as pipeline-backed `elementPreset` or style rows.
+- `src/app/api/styles/route.ts` reads pipeline-backed appearance/style rows and writes registry/submission updates when library writes are explicitly enabled.
+- Repo JSON style files under `data/styles/` are historical sync inputs, not a runtime style catalog.
 
-#### Textures and Dividers
+#### Source Assets
 
-- `src/app/api/assets/route.ts` recursively scans:
-- `public/card-assets/textures/**/*.{svg,png,jpg,jpeg,webp}`
-- `public/card-assets/dividers/**/*.{svg,png,jpg,jpeg,webp}`
-- `public/card-assets/parts/**/*.{svg,png,jpg,jpeg,webp}`
-- New files placed in those directories are available to the app automatically without a code change.
-- Optional metadata overrides are read from matching JSON sidecars in:
-- `data/assets/textures/**/*.json`
-- `data/assets/dividers/**/*.json`
-- `data/assets/parts/**/*.json`
-- Sidecars can override auto-derived values such as `id`, `name`, `tileMode`, `seamless`, `allowedTargets`, `defaultBlendMode`, `defaultOpacity`, and `defaultScale`.
+- `src/app/api/assets/route.ts` reads published registry rows from `cardforge_asset_registry`.
+- Textures, dividers, custom icons, images, and image/overlay source files become available to the Studio after they are synced or published into the pipeline.
+- Repo folders under `public/card-assets/` and metadata sidecars under `data/assets/` are import/source material for `npm run pipeline:sync-defaults`.
+- Adding a file to those folders no longer makes it appear in the app by itself; it must be synced into Supabase or submitted through Forge Review.
+- The historical `parts` folder should be described as image/overlay source material in UI and docs. Avoid reviving `Card Parts` or a separate parts catalog as product language.
 
 #### Storage Boundary
 
@@ -271,17 +270,17 @@ Future library swaps should happen at clear seams rather than through broad rewr
 - `data/` is the content and metadata layer consumed by server routes.
 - `public/` is the static asset layer exposed to the browser.
 
-#### Shipped Inventory
+#### Starter Import Inventory
 
-The launch inventory should stay small and intentional:
+The repo starter/source inventory should stay small and intentional:
 
-- `data/default-templates/`: six shipped templates, including one optional back preset (`default-obsidian-neon-card-back.json`)
-- `data/styles/`: ten one-file style presets, including the premium Arcane Forge material/frame presets
-- `data/assets/`: eighteen metadata sidecars, including the Arcane Forge premium texture, full-frame, and divider kit
+- `data/default-templates/`: starter templates, including one optional back preset (`default-obsidian-neon-card-back.json`)
+- `data/styles/`: starter style and recipe JSON inputs
+- `data/assets/`: metadata sidecars for starter source files
 - `data/user-templates/`: `.gitkeep` only before release; user-created JSON files should not be committed accidentally
-- `public/card-assets/textures/`: eighteen shipped texture/frame assets
-- `public/card-assets/dividers/`: twelve shipped SVG dividers
-- `public/card-assets/parts/`: scaffold for human-added premium part packs
+- `public/card-assets/textures/`: starter texture/frame source assets
+- `public/card-assets/dividers/`: starter SVG divider source assets
+- `public/card-assets/parts/`: historical source folder for image/overlay asset imports
 
 Generated QA artifacts, smoke outputs, local logs, and `tests/examples/` are intentionally ignored. Recreate them during QA; do not ship them as repo assets.
 
@@ -293,8 +292,7 @@ The Arcane Forge premium kit is a reusable product-art layer, not only decoratio
 - `default-ttrpg-stat-sheet.json`
 - `default-playing-card-theme.json`
 - `default-obsidian-neon-card-back.json`
-- `src/lib/cardFrameKits.ts` exposes one-click full-frame kits so users can swap the premium foundation before fine-tuning textures, colors, and element styles
-- `public/card-assets/parts/` exposes human-added premium parts so creators can build cards from title plates, art windows, rules boxes, orbs, corners, and panels
+- frame-kit and source-image options should move through pipeline-backed recipes or templates instead of expanding a separate product catalog
 
 Keep the launch back-face inventory to the single Obsidian Neon card back unless product direction changes.
 
@@ -324,7 +322,7 @@ For MVP QA, account UI should distinguish incomplete setup from real account ent
 
 Shipped library writes are additionally protected by `src/lib/serverProjectAccess.ts`: the host must opt in with `CARDFORGE_ALLOW_LIBRARY_WRITES=true`, and when Clerk is configured the current signed-in account must resolve to `dev`. UI visibility is convenience only; template/style write APIs enforce the server gate before touching shipped files.
 
-The `/account` route also acts as the beta command center and Forge Chronicle. It can read a public living timeline, exact MRR unlock checkpoints, public roadmap votes, and compact feature suggestions from Supabase while keeping user card projects local-first. The timeline ends at the last populated checkpoint instead of inventing a fixed multi-year horizon. Clerk identity is still the user boundary: Next.js API routes read the signed-in Clerk user, then perform server-side Supabase writes with the secret key. Browser-direct Supabase writes are out of scope for the MVP Chronicle.
+The `/account` route also acts as the beta command center and Forge Chronicle. It can read a public living timeline, monthly unlock targets derived as 12x the running monthly roadmap cost, public roadmap votes, and compact feature suggestions from Supabase while keeping user card projects local-first. The timeline ends at the last populated checkpoint instead of inventing a fixed multi-year horizon. Clerk identity is still the user boundary: Next.js API routes read the signed-in Clerk user, then perform server-side Supabase writes with the secret key. Browser-direct Supabase writes are out of scope for the MVP Chronicle.
 
 Roadmap voting rules:
 
@@ -335,24 +333,26 @@ Roadmap voting rules:
 - each signed-in Clerk user gets one thumbs up or one "not for me" vote per item
 - user-created suggestions are archived from the active board once they meet both the configured vote floor and downvote percentage
 - developer-account requests are routed to email and are not granted automatically by voting or suggestion activity
-- developer accounts can add Chronicle ROI checkpoints, shipped progress entries, feature-board items, and delete public roadmap items
+- developer accounts can add Chronicle level-up checkpoints, shipped progress entries, feature-board items, and delete public roadmap items
 - public feature-board sorting supports most votes, least votes, newest, and oldest
 
 Owner role is separate from developer roster membership, but trusted owner access implies developer-grade export/tools. `cardforgeRole: "owner"` in Clerk private metadata or `CARDFORGE_OWNER_ACCOUNT_EMAILS` grants `/owner`, clean export, and developer-grade account tools without a paid subscription. Owner tools can edit business profile variables, public feature-voting mechanics, legal documents, Founder Beta promo settings, integration status, and maintenance links. Owner tools must not expose raw secret keys in browser UI; secrets remain in environment variables and provider dashboards.
 
-The developer asset program is the financial-launch-ready content pipeline, not a payout system yet. Developer and owner accounts can submit candidate templates, element presets, textures, dividers, icons, image assets, and parts from `/account`; eligible developers can vote on submitted assets. Owner tools in `/owner` control max active developer slots, monthly submission limits, monthly published requirements, voting thresholds, owner vote weight, visible archive size, future creator-pool percentage, paid-preview behavior, contributor self-voting, owner access-tier overrides, and one consolidated asset-type cap row for Starter Library and Creator Pass. Publish Total is derived from Starter plus Creator Pass, so owners do not manage a conflicting third cap. The default launch settings are 25 active developers, 25 monthly submissions per developer, 5 monthly published assets, 5 votes before grading, 70% positive vote threshold, 5 votes before tier assignment, 60% positive for Starter Library, 80% positive for Creator Pass, contributor self-voting enabled for solo/demo review, 1x owner vote weight, 100 visible archived assets, and a 10% future creator-pool placeholder. Owner voting presets can temporarily reduce review thresholds for a solo owner test account, then scale back up for current-roster, launch-roster, or full-council review.
+The developer asset program is the financial-launch-ready content pipeline, not a payout system yet. Developer and owner accounts can submit candidate templates, element presets, textures, dividers, icons, image assets, and image/overlay source assets from `/account`; eligible developers can vote on submitted assets. Owner tools in `/owner` control max active developer slots, base monthly submission limits, base monthly published requirements, per-account developer contract overrides, future creator-pool eligibility flags, voting thresholds, owner vote weight, visible archive size, future creator-pool percentage, paid-preview behavior, contributor self-voting, owner access-tier overrides, and one consolidated asset-type cap row for Starter Library and Creator Pass. Publish Total is derived from Starter plus Creator Pass, so owners do not manage a conflicting third cap. The default launch settings are 25 active developers, 25 monthly submissions per developer, 5 monthly published assets, 5 votes before grading, 70% positive vote threshold, 5 votes before tier assignment, 60% positive for Starter Library, 80% positive for Creator Pass, contributor self-voting enabled for solo/demo review, 1x owner vote weight, 100 visible archived assets, and a 10% future creator-pool placeholder. Owner voting presets can temporarily reduce review thresholds for a solo owner test account, then scale back up for current-roster, launch-roster, or full-council review.
 
 Developer submissions move through `draft`, `submitted`, `voting`, `publish_candidate`, `published`, `archived`, or `rejected`. Access tier is stored separately as `hidden`, `free`, `paid`, `developer`, or `official`; votes recalculate `qualityScore`, `calculatedAccessTier`, and `tierDecisionReason`, while owners can set Starter, Creator Pass, Official, or Hidden visibility. Only `published` submissions count toward monthly developer requirements and future contribution eligibility. Signed-in paid/free user uploads remain browser/project-local, normalize to `localOnly`, and are visibly separate from the site/developer submission pipeline; anonymous visitors can explore but must sign in before adding custom art to their local asset library.
 
-The live asset library should be consumed through one registry contract. `/api/assets` merges published `cardforge_asset_registry` rows over shipped file discovery so a partial database seed cannot hide repo-backed defaults. Local development still works from shipped files before online setup is complete. The registry stores metadata, access tier, status, source, and file/storage pointers. Official shipped assets are seeded as owner-contributed, `official`, and `published`, so they are visible in the app and participate in the same continuous developer voting pipeline as every developer upload. Registry asset types cover uploadable/resizable creation assets: textures, dividers, Card Parts / Overlays, icons, images, templates, and Pipeline Recipes. Official templates and element presets carry embedded JSON payloads in registry metadata so `/api/templates` and `/api/styles` can merge database-backed defaults over repo fallbacks. Developer submissions upload their source file to the public `cardforge-developer-assets` storage bucket first; owner-published submissions then upsert into `cardforge_asset_registry`, while archived or rejected submissions are hidden from the live library. Executable `.tsx` assets are not live-executed from uploads in the MVP; they need a future sandbox/review build path before becoming runtime components.
+The live asset library should be consumed through one registry contract. `/api/assets` reads published `cardforge_asset_registry` rows and does not silently rebuild the user-facing catalog from repo starter folders. If the pipeline database is unavailable or unseeded, the shared catalog should appear unavailable/empty while the Studio still lets users work with primitives and personal uploads. The registry stores metadata, access tier, status, source, and file/storage pointers. Starter assets are synced as Cameron-contributed, published pipeline rows, so they are visible in the app and participate in the same continuous developer voting pipeline as every developer upload. Registry asset types cover uploadable/resizable creation assets: textures, dividers, image/overlay source assets, icons, images, templates, and Pipeline Recipes. Templates and element presets carry embedded JSON payloads in registry metadata, so `/api/templates` and `/api/styles` read pipeline-backed defaults instead of falling back to shipped-file catalogs. Developer submissions upload their source file to the public `cardforge-developer-assets` storage bucket first; owner-published submissions then upsert into `cardforge_asset_registry`, while archived or rejected submissions are hidden from the live library. Executable `.tsx` assets are not live-executed from uploads in the MVP; they need a future sandbox/review build path before becoming runtime components.
 
-Defaults are not a special bypass. Reducing an asset-type cap rebalances the same pipeline: the highest-signal assets remain published, over-cap passing assets move back to publish-candidate review, and failing assets move to archive. Developer votes update quality and tier signal for published defaults and incoming uploads alike. Contributor self-voting is an owner rule: enabled for solo/demo development and disabled when CardForge wants strict peer-only review. Owner vote weight is also an owner rule: at 1x the owner votes like any other developer, while 2x or 3x lets owner taste break close calls without changing file management or asset lifecycle rules. Developer monthly contribution settings work as a contract: owner sets the per-developer submission allowance and required published count, while the app calculates each contributor's remaining submissions and missing published requirement for the current month. Saving a modified default template keeps the default template id/source and updates the registry-backed default payload instead of creating a user-template copy.
+Defaults are not a special bypass. Reducing an asset-type cap rebalances the same pipeline: the highest-signal assets remain published, over-cap passing assets move back to publish-candidate review, and failing assets move to archive. Developer votes update quality and tier signal for published defaults and incoming uploads alike. Contributor self-voting is an owner rule: enabled for solo/demo development and disabled when CardForge wants strict peer-only review. Owner vote weight is also an owner rule: at 1x the owner votes like any other developer, while 2x or 3x lets owner taste break close calls without changing file management or asset lifecycle rules. Developer monthly contribution settings work as a base contract with per-account overrides: owners set default submission and published requirements, can adjust a specific developer's limits and future creator-pool eligibility, and the app calculates that contributor's effective submissions left and missing published requirement for the current month. The planned creator pool remains future-facing: the default policy is 10% of eligible profit split evenly among eligible active developers after payout systems and terms are ready. Saving a modified default template keeps the default template id/source and updates the registry-backed default payload instead of creating a user-template copy.
+
+Contribution history outlives account access. If a developer deletes their account, leaves the program, or is suspended, their submitted assets, published registry rows, vote records, source metadata, and contributor credit remain in the pipeline. The app should remove access by changing account entitlement or developer profile status, not by deleting historical contribution rows. When removal is required for moderation, use asset status (`archived`, `rejected`, or hidden tier) rather than deleting the ledger.
 
 The current makerspace map is intentionally mixed while the pipeline is being consolidated:
 
 | Feature group | Pipeline-backed today | Current gap |
 | --- | --- | --- |
-| Texture assets, divider assets, icons, images, Card Parts / Overlays | Yes through `/api/assets` and the registry/file merge | Editor catalogs now share source/tier labels; deeper entitlement affordances still need polish. |
+| Texture assets, divider assets, icons, images, image/overlay source assets | Yes through `/api/assets` and the registry | Editor catalogs now share source/tier labels; deeper entitlement affordances still need polish. |
 | Templates and element presets | Yes through `/api/templates`, `/api/styles`, and embedded registry payloads | Save UX needs explicit `Update site default` vs `Save a copy` behavior by entitlement. |
 | Appearance Studio style buttons | Partially through `/api/styles` | Hardcoded quick styles still bypass the developer pipeline. |
 | Frame kits | No, currently repo constants | Needs a `frameKit` asset kind or structured `elementPreset` recipe model. |
@@ -402,7 +402,7 @@ These patterns are outside the launch framework and must not be reintroduced:
 
 ## Product Expectations (Locked)
 
-CardForge is expected to be a universal Canva-like template creator for cards with easy single and bulk generation and reliable print/export output.
+CardForge is expected to be a universal card-system template creator with easy single and bulk generation and reliable print/export output.
 
 The expected user experience:
 - Deep visual customization without technical friction.

@@ -10,7 +10,7 @@ import type { CardData } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/lib/textBindings';
 import { RichTextContent } from '@/lib/textTools';
-import { GeneratorFieldInput, getFieldStringValue } from '@/components/card-forge/GeneratorFieldInput';
+import { GeneratorFieldInput, getFieldStringValue } from '@/features/card-generator/components/GeneratorFieldInput';
 import {
   buildStructuredRowsDataKey,
   parseStructuredRowsValue,

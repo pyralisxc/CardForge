@@ -14,8 +14,8 @@ import { textFontSizePx } from '@/lib/textTools';
 import { cn } from '@/lib/utils';
 import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
 import { AVAILABLE_FONTS } from '@/lib/constants';
-
-import { clamp, makerTheme } from './makerConstants';
+import { clamp } from '@/features/template-editor/lib/makerGeometry';
+import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 type TextFieldContractType = 'text' | 'richText' | 'rules' | 'structuredRows';
@@ -99,13 +99,13 @@ export function TextExpressionEditor({
             onChange={event => onElementChange({ fontSizePx: clamp(Number(event.target.value) || 14, 6, 96) })}
             className="h-7 w-14 rounded-[4px] border-[#2d3340] bg-[#111720] px-1 text-center text-xs text-[#d8d1c4]"
           />
-          <Button type="button" variant="outline" size="icon" title="Align left" className={cn(makerTheme.button, element.textAlign === 'left' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'left' })}><AlignLeft className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="icon" title="Align center" className={cn(makerTheme.button, element.textAlign === 'center' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'center' })}><AlignCenter className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="icon" title="Align right" className={cn(makerTheme.button, element.textAlign === 'right' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'right' })}><AlignRight className="h-4 w-4" /></Button>
-          <Button type="button" variant="outline" size="sm" title="Justify" className={cn(makerTheme.button, element.textAlign === 'justify' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'justify' })}>J</Button>
-          <Button type="button" variant="outline" size="sm" title="Horizontal text" className={cn(makerTheme.button, (element.writingMode || 'horizontal-tb') === 'horizontal-tb' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'horizontal-tb' })}>H</Button>
-          <Button type="button" variant="outline" size="sm" title="Vertical right-to-left" className={cn(makerTheme.button, element.writingMode === 'vertical-rl' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'vertical-rl' })}>V-RL</Button>
-          <Button type="button" variant="outline" size="sm" title="Vertical left-to-right" className={cn(makerTheme.button, element.writingMode === 'vertical-lr' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'vertical-lr' })}>V-LR</Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Align text left" title="Align left" className={cn(makerTheme.button, element.textAlign === 'left' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'left' })}><AlignLeft className="h-4 w-4" /></Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Align text center" title="Align center" className={cn(makerTheme.button, element.textAlign === 'center' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'center' })}><AlignCenter className="h-4 w-4" /></Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Align text right" title="Align right" className={cn(makerTheme.button, element.textAlign === 'right' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'right' })}><AlignRight className="h-4 w-4" /></Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Justify text" title="Justify" className={cn(makerTheme.button, element.textAlign === 'justify' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ textAlign: 'justify' })}>J</Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Use horizontal text direction" title="Horizontal text" className={cn(makerTheme.button, (element.writingMode || 'horizontal-tb') === 'horizontal-tb' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'horizontal-tb' })}>H</Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Use vertical right-to-left text direction" title="Vertical right-to-left" className={cn(makerTheme.button, element.writingMode === 'vertical-rl' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'vertical-rl' })}>V-RL</Button>
+          <Button type="button" variant="outline" size="sm" aria-label="Use vertical left-to-right text direction" title="Vertical left-to-right" className={cn(makerTheme.button, element.writingMode === 'vertical-lr' && 'border-[#d5ad54] text-[#f5d27b]')} onClick={() => onElementChange({ writingMode: 'vertical-lr' })}>V-LR</Button>
         </CardForgeRichTextEditor>
       </div>
 
@@ -177,6 +177,7 @@ export function TextFieldSettingsList({
                       }}
                       defaultValue={isBaseTextField ? field.label : field.key}
                       readOnly={isBaseTextField}
+                      aria-label={`${isBaseTextField ? 'Base field' : 'Variable name'} for ${field.label}`}
                       className={cn(makerTheme.control, 'mt-1 h-8 font-mono text-xs')}
                       onFocus={() => onFocusField(field.key)}
                       onKeyDown={(event) => {
@@ -215,6 +216,7 @@ export function TextFieldSettingsList({
                     <div className="flex h-10 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#090d13] px-3">
                       <span className="text-[11px] text-[#d8d1c4]">Prompt in generator</span>
                       <Switch
+                        aria-label={`Prompt ${field.label} in generator`}
                         checked={Boolean(contract?.required ?? field.required)}
                         onCheckedChange={(checked) => onUpdateContract(field.key, {
                           elementId: element.id,
@@ -228,6 +230,7 @@ export function TextFieldSettingsList({
                     <div className="flex h-10 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#090d13] px-3">
                       <span className="text-[11px] text-[#d8d1c4]">Shrink overflow text</span>
                       <Switch
+                        aria-label={`Shrink overflow text for ${field.label}`}
                         checked={Boolean(contract?.textAutoFit ?? (field.contentModel === 'rulesBlocks'))}
                         onCheckedChange={(checked) => onUpdateContract(field.key, {
                           elementId: element.id,
@@ -368,6 +371,7 @@ export function TextFieldSettingsList({
                     <div className="flex h-9 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#0b0f15] px-3">
                       <Label className="text-[11px] text-[#d8d1c4]">Italic</Label>
                       <Switch
+                        aria-label={`Italic text for ${field.label}`}
                         checked={contract?.fontStyle === 'italic'}
                         onCheckedChange={(checked) => onUpdateContract(field.key, {
                           elementId: element.id,
@@ -378,6 +382,7 @@ export function TextFieldSettingsList({
                     <div className="flex h-9 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#0b0f15] px-3">
                       <Label className="text-[11px] text-[#d8d1c4]">Underline</Label>
                       <Switch
+                        aria-label={`Underline text for ${field.label}`}
                         checked={contract?.textDecoration === 'underline'}
                         onCheckedChange={(checked) => onUpdateContract(field.key, {
                           elementId: element.id,

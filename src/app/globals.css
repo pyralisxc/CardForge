@@ -105,6 +105,75 @@ body {
   }
 }
 
+@layer components {
+  .cardforge-clerk-profile .cl-cardBox,
+  .cardforge-clerk-profile .cl-navbar,
+  .cardforge-clerk-profile .cl-scrollBox,
+  .cardforge-clerk-profile .cl-pageScrollBox {
+    color: #f7ead0 !important;
+    background-color: #15100a !important;
+    border-color: #5f4526 !important;
+  }
+
+  .cardforge-clerk-profile .cl-navbar {
+    background-color: #100c08 !important;
+  }
+
+  .cardforge-clerk-profile .cl-cardBox *,
+  .cardforge-clerk-profile .cl-modalContent * {
+    color: #f7ead0 !important;
+  }
+
+  .cardforge-clerk-profile .cl-headerTitle,
+  .cardforge-clerk-profile .cl-profileSectionTitleText,
+  .cardforge-clerk-profile .cl-userPreviewMainIdentifier,
+  .cardforge-clerk-profile .cl-userPreviewMainIdentifierText {
+    color: #fff1c7 !important;
+  }
+
+  .cardforge-clerk-profile .cl-headerSubtitle,
+  .cardforge-clerk-profile .cl-navbarButton,
+  .cardforge-clerk-profile .cl-navbarButton *,
+  .cardforge-clerk-profile .cl-formFieldHintText,
+  .cardforge-clerk-profile .cl-formFieldInfoText {
+    color: #cbb58b !important;
+  }
+
+  .cardforge-clerk-profile .cl-navbarButton.cl-active,
+  .cardforge-clerk-profile .cl-navbarButton.cl-active *,
+  .cardforge-clerk-profile .cl-profileSectionPrimaryButton,
+  .cardforge-clerk-profile .cl-profileSectionPrimaryButton *,
+  .cardforge-clerk-profile .cl-menuButton,
+  .cardforge-clerk-profile .cl-menuButton *,
+  .cardforge-clerk-profile .cl-footerActionLink,
+  .cardforge-clerk-profile .cl-footerActionLink * {
+    color: #e4aa43 !important;
+  }
+
+  .cardforge-clerk-profile .cl-profileSection,
+  .cardforge-clerk-profile .cl-profileSectionItem,
+  .cardforge-clerk-profile .cl-profileSectionItemList {
+    border-color: #4a3823 !important;
+  }
+
+  .cardforge-clerk-profile .cl-badge {
+    border: 1px solid #5f4526 !important;
+    background-color: #100c08 !important;
+    color: #ffe7ad !important;
+  }
+
+  .cardforge-clerk-profile .cl-formFieldInput {
+    border-color: #5f4526 !important;
+    background-color: #100c08 !important;
+    color: #fff1c7 !important;
+  }
+
+  .cardforge-clerk-profile .cl-formButtonPrimary {
+    background-color: #e4aa43 !important;
+    color: #140f0a !important;
+  }
+}
+
 /* Base Frame Styles - these are the ultimate fallback if no template styles or frame styles are applied */
 .tcg-card-preview {
   border-width: 4px; 

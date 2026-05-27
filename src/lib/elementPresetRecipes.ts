@@ -10,6 +10,9 @@ import type {
 import type { CardFrameKit } from '@/lib/cardFrameKits';
 import { getFrameKitTemplateUpdates } from '@/lib/cardFrameKits';
 import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
+import { DEFAULT_OWNER_SETTINGS } from '@/lib/ownerConsole';
+
+const DEFAULT_OWNER_CONTRIBUTOR_NAME = DEFAULT_OWNER_SETTINGS.ownerName || DEFAULT_OWNER_SETTINGS.supportEmail;
 
 export type ElementPresetKind =
   | 'shapeRole'
@@ -46,8 +49,8 @@ export interface ElementPresetRecipe {
   kind: ElementPresetKind;
   contributorName: string;
   status: 'published' | 'voting' | 'archived';
-  tier: 'official' | 'free' | 'paid' | 'developer';
-  source: 'owner-seed' | 'developer-pipeline' | 'registry-style';
+  tier: 'free' | 'paid' | 'developer';
+  source: 'developer-pipeline' | 'registry-style';
   appliesTo: ElementPresetApplicability;
   updates?: Partial<FreeformCardElement>;
   appearance?: FreeformAppearance;
@@ -168,10 +171,10 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Panel',
     description: 'Developer-pipeline recipe for a reusable card panel.',
     kind: 'shapeRole',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['shape'], surfaces: ['shapeFill', 'shapeStroke'] },
     updates: {
       shapeRole: 'panel',
@@ -202,10 +205,10 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Art Frame',
     description: 'Developer-pipeline recipe for an art window frame.',
     kind: 'shapeRole',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['shape'], surfaces: ['imageFrame', 'shapeStroke'] },
     updates: {
       shapeRole: 'artFrame',
@@ -227,10 +230,10 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Rules Box',
     description: 'Developer-pipeline recipe for readable rules panels.',
     kind: 'shapeRole',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['shape'], surfaces: ['shapeFill', 'textPanel'] },
     updates: {
       shapeRole: 'rulesBox',
@@ -261,10 +264,10 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Title Plate',
     description: 'Developer-pipeline recipe for title and type-line plates.',
     kind: 'shapeRole',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['shape'], surfaces: ['shapeFill', 'textPanel'] },
     updates: {
       shapeRole: 'titlePlate',
@@ -295,10 +298,10 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Stat Gem',
     description: 'Developer-pipeline recipe for small stat diamonds.',
     kind: 'shapeRole',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['shape'], surfaces: ['shapeFill', 'shapeStroke'] },
     updates: {
       shapeRole: 'statGem',
@@ -328,10 +331,10 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Cost Orb',
     description: 'Developer-pipeline recipe for circular counters.',
     kind: 'shapeRole',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['shape'], surfaces: ['shapeFill', 'shapeStroke'] },
     updates: {
       shapeRole: 'costOrb',
@@ -365,10 +368,10 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'MTG Rules Frame',
     description: 'Readable fantasy rules text panel.',
     kind: 'textFrame',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
     preview: { background: 'rgba(244,226,186,0.94)', borderColor: '#4a2f12' },
     updates: {
@@ -386,10 +389,10 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Black Legendary',
     description: 'Dark relic text panel for premium fantasy cards.',
     kind: 'textFrame',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
     preview: { background: '#15100b', borderColor: '#d5ad54' },
     updates: {
@@ -407,10 +410,10 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Violet Spellbox',
     description: 'Arcane spell panel with violet light and readable contrast.',
     kind: 'textFrame',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
     preview: { background: '#1a102c', borderColor: '#bda2ff' },
     updates: {
@@ -428,10 +431,10 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Gold Nameplate',
     description: 'Centered title plate treatment for names and type lines.',
     kind: 'textFrame',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
     preview: { background: '#17100b', borderColor: '#d5ad54' },
     updates: {
@@ -451,10 +454,10 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Flavor Scroll',
     description: 'Soft scroll-style panel for flavor copy.',
     kind: 'textFrame',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
     preview: { background: 'rgba(248,235,201,0.9)', borderColor: '#8b6424' },
     updates: {
@@ -473,10 +476,10 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Aged Parchment',
     description: 'Grain-heavy parchment panel for rules or lore.',
     kind: 'textFrame',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
     preview: { background: 'rgba(235,211,159,0.96)', borderColor: '#5a3410' },
     updates: {
@@ -494,10 +497,10 @@ export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
     label: 'Carved Obsidian',
     description: 'Etched dark panel with strong fantasy frame styling.',
     kind: 'textFrame',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
     preview: { background: '#0d0b09', borderColor: '#d5ad54' },
     updates: {
@@ -528,10 +531,10 @@ const createBorderTreatmentRecipe = ({
   label,
   description,
   kind: 'borderTreatment',
-  contributorName: 'CardForge Owner',
+  contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
   status: 'published',
-  tier: 'official',
-  source: 'owner-seed',
+  tier: 'free',
+  source: 'developer-pipeline',
   appliesTo: {
     elementTypes: ['text', 'image', 'icon', 'shape'],
     surfaces: ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'],
@@ -599,21 +602,21 @@ export const BORDER_PRESET_RECIPES: ElementPresetRecipe[] = [
 ];
 
 export const DIVIDER_PRESET_RECIPES: ElementPresetRecipe[] = [
-  { id: 'divider-gilded-filigree-seed', label: 'Gilded Filigree', description: 'Gold ornamental divider rail.', kind: 'dividerRecipe', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 14, strokeWidth: 0, fillColor: '#d5ad54', backgroundImageUrl: 'linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
-  { id: 'divider-mana-thread-seed', label: 'Mana Thread', description: 'Violet and gold energy divider rail.', kind: 'dividerRecipe', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent, #7a52cc 16%, #d5ad54 50%, #7a52cc 84%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 10, strokeWidth: 0, fillColor: '#7a52cc', backgroundImageUrl: 'linear-gradient(90deg, transparent, #7a52cc 16%, #d5ad54 50%, #7a52cc 84%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
-  { id: 'divider-double-gold-seed', label: 'Double Gold', description: 'Two-line gold divider rail.', kind: 'dividerRecipe', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(180deg, transparent 0 25%, #d5ad54 25% 38%, transparent 38% 62%, #d5ad54 62% 75%, transparent 75%)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 12, strokeWidth: 0, fillColor: '#d5ad54', backgroundImageUrl: 'linear-gradient(180deg, transparent 0 25%, #d5ad54 25% 38%, transparent 38% 62%, #d5ad54 62% 75%, transparent 75%)', borderWidth: '_none_', appearance: { shapeRole: 'divider' } } },
-  { id: 'divider-bloodline-seed', label: 'Bloodline', description: 'Red-gold combat divider rail.', kind: 'dividerRecipe', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent, #8c2718 18%, #f0b15a 50%, #8c2718 82%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 10, strokeWidth: 0, fillColor: '#8c2718', backgroundImageUrl: 'linear-gradient(90deg, transparent, #8c2718 18%, #f0b15a 50%, #8c2718 82%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
-  { id: 'divider-chevron-relic-seed', label: 'Chevron Relic', description: 'Chevron-styled relic divider rail.', kind: 'dividerRecipe', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'repeating-linear-gradient(120deg, transparent 0 10px, rgba(255,255,255,0.16) 10px 15px), linear-gradient(90deg, transparent, #4d2096 14%, #d5ad54 50%, #4d2096 86%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 18, strokeWidth: 0, fillColor: '#7a52cc', backgroundImageUrl: 'repeating-linear-gradient(120deg, transparent 0 10px, rgba(255,255,255,0.16) 10px 15px), linear-gradient(90deg, transparent, #4d2096 14%, #d5ad54 50%, #4d2096 86%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
-  { id: 'divider-gem-center-seed', label: 'Gem Center', description: 'Centered gem divider rail.', kind: 'dividerRecipe', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent, #7f5d1f 20%, transparent 42%, #f5d27b 47%, #7a52cc 50%, #f5d27b 53%, transparent 58%, #7f5d1f 80%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 20, strokeWidth: 0, fillColor: '#d5ad54', backgroundImageUrl: 'linear-gradient(90deg, transparent, #7f5d1f 20%, transparent 42%, #f5d27b 47%, #7a52cc 50%, #f5d27b 53%, transparent 58%, #7f5d1f 80%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
+  { id: 'divider-gilded-filigree-seed', label: 'Gilded Filigree', description: 'Gold ornamental divider rail.', kind: 'dividerRecipe', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 14, strokeWidth: 0, fillColor: '#d5ad54', backgroundImageUrl: 'linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
+  { id: 'divider-mana-thread-seed', label: 'Mana Thread', description: 'Violet and gold energy divider rail.', kind: 'dividerRecipe', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent, #7a52cc 16%, #d5ad54 50%, #7a52cc 84%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 10, strokeWidth: 0, fillColor: '#7a52cc', backgroundImageUrl: 'linear-gradient(90deg, transparent, #7a52cc 16%, #d5ad54 50%, #7a52cc 84%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
+  { id: 'divider-double-gold-seed', label: 'Double Gold', description: 'Two-line gold divider rail.', kind: 'dividerRecipe', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(180deg, transparent 0 25%, #d5ad54 25% 38%, transparent 38% 62%, #d5ad54 62% 75%, transparent 75%)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 12, strokeWidth: 0, fillColor: '#d5ad54', backgroundImageUrl: 'linear-gradient(180deg, transparent 0 25%, #d5ad54 25% 38%, transparent 38% 62%, #d5ad54 62% 75%, transparent 75%)', borderWidth: '_none_', appearance: { shapeRole: 'divider' } } },
+  { id: 'divider-bloodline-seed', label: 'Bloodline', description: 'Red-gold combat divider rail.', kind: 'dividerRecipe', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent, #8c2718 18%, #f0b15a 50%, #8c2718 82%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 10, strokeWidth: 0, fillColor: '#8c2718', backgroundImageUrl: 'linear-gradient(90deg, transparent, #8c2718 18%, #f0b15a 50%, #8c2718 82%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
+  { id: 'divider-chevron-relic-seed', label: 'Chevron Relic', description: 'Chevron-styled relic divider rail.', kind: 'dividerRecipe', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'repeating-linear-gradient(120deg, transparent 0 10px, rgba(255,255,255,0.16) 10px 15px), linear-gradient(90deg, transparent, #4d2096 14%, #d5ad54 50%, #4d2096 86%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 18, strokeWidth: 0, fillColor: '#7a52cc', backgroundImageUrl: 'repeating-linear-gradient(120deg, transparent 0 10px, rgba(255,255,255,0.16) 10px 15px), linear-gradient(90deg, transparent, #4d2096 14%, #d5ad54 50%, #4d2096 86%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
+  { id: 'divider-gem-center-seed', label: 'Gem Center', description: 'Centered gem divider rail.', kind: 'dividerRecipe', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['shape'], roles: ['divider'], surfaces: ['dividerRail'] }, preview: { background: 'linear-gradient(90deg, transparent, #7f5d1f 20%, transparent 42%, #f5d27b 47%, #7a52cc 50%, #f5d27b 53%, transparent 58%, #7f5d1f 80%, transparent)' }, updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height: 20, strokeWidth: 0, fillColor: '#d5ad54', backgroundImageUrl: 'linear-gradient(90deg, transparent, #7f5d1f 20%, transparent 42%, #f5d27b 47%, #7a52cc 50%, #f5d27b 53%, transparent 58%, #7f5d1f 80%, transparent)', borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } } },
 ];
 
 export const ICON_STYLE_PRESET_RECIPES: ElementPresetRecipe[] = [
-  { id: 'icon-style-fire', label: 'Fire', description: 'Fire symbol treatment.', kind: 'iconStyle', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#210b06', borderColor: '#d67425', iconName: 'Flame' }, updates: { iconName: 'Flame', strokeColor: '#ffb35f', fillColor: 'rgba(132,37,15,0.72)', backgroundColor: '#210b06', borderColor: '#d67425', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
-  { id: 'icon-style-water', label: 'Water', description: 'Water symbol treatment.', kind: 'iconStyle', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#071521', borderColor: '#49a7df', iconName: 'Droplets' }, updates: { iconName: 'Droplets', strokeColor: '#9ddcff', fillColor: 'rgba(47,125,185,0.45)', backgroundColor: '#071521', borderColor: '#49a7df', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
-  { id: 'icon-style-arcane', label: 'Arcane', description: 'Arcane symbol treatment.', kind: 'iconStyle', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#190f2c', borderColor: '#7a52cc', iconName: 'WandSparkles' }, updates: { iconName: 'WandSparkles', strokeColor: '#d8c4ff', fillColor: 'rgba(122,82,204,0.42)', backgroundColor: '#190f2c', borderColor: '#7a52cc', borderWidth: 'border-2', borderRadius: 'rounded-full', iconImageSource: undefined } },
-  { id: 'icon-style-nature', label: 'Nature', description: 'Nature symbol treatment.', kind: 'iconStyle', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#0b1a0f', borderColor: '#6fb06a', iconName: 'Leaf' }, updates: { iconName: 'Leaf', strokeColor: '#b9f2a1', fillColor: 'rgba(62,137,78,0.48)', backgroundColor: '#0b1a0f', borderColor: '#6fb06a', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
-  { id: 'icon-style-shadow', label: 'Shadow', description: 'Shadow symbol treatment.', kind: 'iconStyle', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#08070a', borderColor: '#8066a8', iconName: 'Skull' }, updates: { iconName: 'Skull', strokeColor: '#e6d8ff', fillColor: 'rgba(36,28,46,0.82)', backgroundColor: '#08070a', borderColor: '#8066a8', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
-  { id: 'icon-style-relic', label: 'Relic', description: 'Relic symbol treatment.', kind: 'iconStyle', contributorName: 'CardForge Owner', status: 'published', tier: 'official', source: 'owner-seed', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#151008', borderColor: '#d5ad54', iconName: 'Gem' }, updates: { iconName: 'Gem', strokeColor: '#ffe09b', fillColor: 'rgba(213,173,84,0.34)', backgroundColor: '#151008', borderColor: '#d5ad54', borderWidth: 'border-2', borderRadius: 'rounded-full', iconImageSource: undefined } },
+  { id: 'icon-style-fire', label: 'Fire', description: 'Fire symbol treatment.', kind: 'iconStyle', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#210b06', borderColor: '#d67425', iconName: 'Flame' }, updates: { iconName: 'Flame', strokeColor: '#ffb35f', fillColor: 'rgba(132,37,15,0.72)', backgroundColor: '#210b06', borderColor: '#d67425', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
+  { id: 'icon-style-water', label: 'Water', description: 'Water symbol treatment.', kind: 'iconStyle', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#071521', borderColor: '#49a7df', iconName: 'Droplets' }, updates: { iconName: 'Droplets', strokeColor: '#9ddcff', fillColor: 'rgba(47,125,185,0.45)', backgroundColor: '#071521', borderColor: '#49a7df', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
+  { id: 'icon-style-arcane', label: 'Arcane', description: 'Arcane symbol treatment.', kind: 'iconStyle', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#190f2c', borderColor: '#7a52cc', iconName: 'WandSparkles' }, updates: { iconName: 'WandSparkles', strokeColor: '#d8c4ff', fillColor: 'rgba(122,82,204,0.42)', backgroundColor: '#190f2c', borderColor: '#7a52cc', borderWidth: 'border-2', borderRadius: 'rounded-full', iconImageSource: undefined } },
+  { id: 'icon-style-nature', label: 'Nature', description: 'Nature symbol treatment.', kind: 'iconStyle', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#0b1a0f', borderColor: '#6fb06a', iconName: 'Leaf' }, updates: { iconName: 'Leaf', strokeColor: '#b9f2a1', fillColor: 'rgba(62,137,78,0.48)', backgroundColor: '#0b1a0f', borderColor: '#6fb06a', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
+  { id: 'icon-style-shadow', label: 'Shadow', description: 'Shadow symbol treatment.', kind: 'iconStyle', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#08070a', borderColor: '#8066a8', iconName: 'Skull' }, updates: { iconName: 'Skull', strokeColor: '#e6d8ff', fillColor: 'rgba(36,28,46,0.82)', backgroundColor: '#08070a', borderColor: '#8066a8', borderWidth: 'border', borderRadius: 'rounded-full', iconImageSource: undefined } },
+  { id: 'icon-style-relic', label: 'Relic', description: 'Relic symbol treatment.', kind: 'iconStyle', contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME, status: 'published', tier: 'free', source: 'developer-pipeline', appliesTo: { elementTypes: ['icon'], surfaces: ['iconGlyph', 'iconBackplate'] }, preview: { background: '#151008', borderColor: '#d5ad54', iconName: 'Gem' }, updates: { iconName: 'Gem', strokeColor: '#ffe09b', fillColor: 'rgba(213,173,84,0.34)', backgroundColor: '#151008', borderColor: '#d5ad54', borderWidth: 'border-2', borderRadius: 'rounded-full', iconImageSource: undefined } },
 ];
 
 export const createFrameKitPresetRecipes = (frameKits: CardFrameKit[]): ElementPresetRecipe[] =>
@@ -622,27 +625,24 @@ export const createFrameKitPresetRecipes = (frameKits: CardFrameKit[]): ElementP
     label: kit.name,
     description: 'Template-canvas frame kit from the developer pipeline model.',
     kind: 'frameKit',
-    contributorName: 'CardForge Owner',
+    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
-    tier: 'official',
-    source: 'owner-seed',
+    tier: 'free',
+    source: 'developer-pipeline',
     appliesTo: { elementTypes: ['template'], surfaces: ['templateCanvas'] },
     preview: { imageUrl: kit.assetUrl, background: kit.baseBackgroundColor },
     templateUpdates: getFrameKitTemplateUpdates(kit),
   }));
 
-const appearanceKindToRecipeKind = (kind: AppearanceStylePreset['kind']): ElementPresetKind =>
-  kind === 'textFrame'
-    ? 'textFrame'
-    : kind === 'border'
-      ? 'borderTreatment'
-      : kind === 'divider'
-        ? 'dividerRecipe'
-        : kind === 'icon'
-          ? 'iconStyle'
-          : kind === 'theme'
-            ? 'frameKit'
-            : 'material';
+const appearanceKindToRecipeKind = (kind: AppearanceStylePreset['kind']): ElementPresetKind => {
+  if (kind === 'shapeRole') return 'shapeRole';
+  if (kind === 'frameKit' || kind === 'theme') return 'frameKit';
+  if (kind === 'textFrame') return 'textFrame';
+  if (kind === 'border') return 'borderTreatment';
+  if (kind === 'divider') return 'dividerRecipe';
+  if (kind === 'icon') return 'iconStyle';
+  return 'material';
+};
 
 const targetToElementType = (target: AppearanceStylePreset['targets'][number]): ElementPresetTarget | null =>
   target === 'template'
@@ -652,6 +652,8 @@ const targetToElementType = (target: AppearanceStylePreset['targets'][number]): 
       : null;
 
 const appearanceSurfacesForStyle = (style: AppearanceStylePreset): ElementPresetSurface[] => {
+  if (style.kind === 'shapeRole') return ['shapeFill', 'shapeStroke'];
+  if (style.kind === 'frameKit') return ['templateCanvas'];
   if (style.kind === 'textFrame') return ['textPanel'];
   if (style.kind === 'border') return ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'];
   if (style.kind === 'divider') return ['dividerRail'];
@@ -660,18 +662,37 @@ const appearanceSurfacesForStyle = (style: AppearanceStylePreset): ElementPreset
   return ['textPanel', 'shapeFill'];
 };
 
+const appearanceStyleStatusToRecipeStatus = (
+  status: AppearanceStylePreset['registryStatus'],
+): ElementPresetRecipe['status'] => {
+  if (status === 'archived' || status === 'rejected') return 'archived';
+  if (status === 'draft' || status === 'submitted' || status === 'voting' || status === 'publish_candidate') return 'voting';
+  return 'published';
+};
+
+const appearanceStyleTierToRecipeTier = (
+  tier: AppearanceStylePreset['accessTier'],
+  librarySource: AppearanceStylePreset['librarySource'],
+): ElementPresetRecipe['tier'] => {
+  void librarySource;
+  if (tier === 'developer' || tier === 'free' || tier === 'paid') return tier;
+  return 'free';
+};
+
 export const createRecipesFromAppearanceStyles = (styles: AppearanceStylePreset[]): ElementPresetRecipe[] =>
   styles.map((style) => {
     const elementTypes = Array.from(new Set(style.targets.map(targetToElementType).filter((target): target is ElementPresetTarget => Boolean(target))));
     return {
       id: `style-${style.id}`,
       label: style.name,
-      description: 'Registry-backed appearance preset.',
+      description: style.librarySource === 'developer'
+        ? 'Pipeline-published appearance preset.'
+        : 'Forge Pipeline starter appearance preset.',
       kind: appearanceKindToRecipeKind(style.kind),
-      contributorName: 'Registry Pipeline',
-      status: 'published',
-      tier: 'official',
-      source: 'registry-style',
+      contributorName: style.contributorName || (style.librarySource === 'developer' ? 'Developer pipeline' : DEFAULT_OWNER_CONTRIBUTOR_NAME),
+      status: appearanceStyleStatusToRecipeStatus(style.registryStatus),
+      tier: appearanceStyleTierToRecipeTier(style.accessTier, style.librarySource),
+      source: style.librarySource === 'developer' ? 'developer-pipeline' : 'registry-style',
       appliesTo: {
         elementTypes: elementTypes.length ? elementTypes : ['text', 'shape'],
         roles: style.targets.includes('divider') ? ['divider'] : undefined,
@@ -682,7 +703,9 @@ export const createRecipesFromAppearanceStyles = (styles: AppearanceStylePreset[
         borderColor: style.appearance.border?.color,
         imageUrl: style.appearance.dividerAsset || style.appearance.assetSource || style.appearance.material?.texture?.assetSource,
       },
+      updates: style.updates,
       appearance: style.appearance,
+      templateUpdates: style.templateUpdates,
     };
   });
 

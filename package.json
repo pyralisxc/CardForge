@@ -13,8 +13,10 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "playwright test",
-    "bulk:generate": "node scripts/generate-bulk-csv.mjs"
+    "smoke": "playwright test --workers=1",
+    "audit:site": "node scripts/audit-site-health.mjs",
+    "bulk:generate": "node scripts/generate-bulk-csv.mjs",
+    "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.3.7",

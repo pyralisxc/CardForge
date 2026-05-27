@@ -18,6 +18,7 @@ import {
 
 const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
 const USER_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'user-templates');
+const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL || 'cameron.r.locke96@gmail.com';
 type TemplateWithRequiredIdentity = TCGCardTemplate & { id: string; name: string; aspectRatio: string };
 
 const ensureTemplateDirectory = async () => {
@@ -59,7 +60,16 @@ const readTemplatesFromDirectory = async (
     try {
       const contents = await fs.readFile(filePath, 'utf8');
       const parsed = JSON.parse(contents);
-      if (isTemplateLike(parsed)) templates.push({ ...parsed, templateSource });
+      if (isTemplateLike(parsed)) {
+        templates.push({
+          ...parsed,
+          templateSource,
+          templateLibrarySource: templateSource === 'default' ? 'base' : 'personal',
+          templateAccessTier: templateSource === 'default' ? 'official' : undefined,
+          templateRegistryStatus: templateSource === 'default' ? 'published' : 'localOnly',
+          templateContributorName: templateSource === 'default' ? PIPELINE_OWNER_EMAIL : undefined,
+        });
+      }
     } catch (error) {
       console.warn(`Skipping invalid template file ${entry.name}:`, error);
     }
@@ -92,6 +102,10 @@ const readTemplatesFromRegistry = async (): Promise<TCGCardTemplate[]> => {
       id: template.id || row.asset_id,
       name: template.name || row.name,
       templateSource: 'default' as const,
+      templateLibrarySource: 'pipeline' as const,
+      templateAccessTier: row.access_tier,
+      templateRegistryStatus: row.status,
+      templateContributorName: template.templateContributorName || PIPELINE_OWNER_EMAIL,
     });
   }));
 
@@ -113,6 +127,14 @@ const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
 
   const supabase = getSupabaseServerClient();
   if (!supabase) return;
+  const { data: ownerProfiles } = await supabase
+    .from('cardforge_developer_profiles')
+    .select('clerk_user_id,email')
+    .eq('email', PIPELINE_OWNER_EMAIL)
+    .limit(1);
+  const ownerProfile = ownerProfiles?.[0] as { clerk_user_id?: string; email?: string | null } | undefined;
+  const ownerDeveloperId = ownerProfile?.clerk_user_id || PIPELINE_OWNER_EMAIL;
+  const ownerEmail = ownerProfile?.email || PIPELINE_OWNER_EMAIL;
 
   const registryPatch = {
     name: template.name,
@@ -120,23 +142,69 @@ const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
     url: `/api/templates#${template.id}`,
     preview_url: `/api/templates#${template.id}`,
     status: 'published',
-    access_tier: 'official',
-    library_source: 'official',
+    access_tier: 'free',
+    library_source: 'developer',
     metadata: {
-      sourceKind: 'official-file-backed',
-      sourcePath: `data/default-templates/${toSafeFileName(template.id || template.name)}.json`,
+      sourceKind: 'pipeline-owner-edit',
       template: {
         ...template,
         templateSource: 'default' as const,
+        templateLibrarySource: 'pipeline' as const,
+        templateAccessTier: 'free' as const,
+        templateRegistryStatus: 'published' as const,
+        templateContributorName: ownerEmail,
       },
     },
   };
+
+  const { data: existingSubmissions } = await supabase
+    .from('cardforge_developer_asset_submissions')
+    .select('id')
+    .eq('registry_asset_id', template.id)
+    .limit(1);
+  const submissionPatch = {
+    developer_id: ownerDeveloperId,
+    developer_email: ownerEmail,
+    asset_type: 'templates',
+    name: template.name,
+    preview_url: `/api/templates#${template.id}`,
+    source_url: `/api/templates#${template.id}`,
+    source_file_size_bytes: Buffer.byteLength(JSON.stringify(template)),
+    source_mime_type: 'application/json',
+    registry_asset_id: template.id,
+    status: 'published',
+    calculated_access_tier: 'free',
+    owner_access_tier_override: null,
+    description: template.templateDescription ?? 'Starter template maintained through the Forge Pipeline.',
+  };
+  let submissionId = existingSubmissions?.[0]?.id as string | undefined;
+  if (submissionId) {
+    const { error: submissionError } = await supabase
+      .from('cardforge_developer_asset_submissions')
+      .update(submissionPatch)
+      .eq('id', submissionId);
+    if (submissionError) {
+      console.error('Failed to sync template submission:', submissionError);
+    }
+  } else {
+    const { data: insertedSubmission, error: submissionError } = await supabase
+      .from('cardforge_developer_asset_submissions')
+      .insert(submissionPatch)
+      .select('id')
+      .single();
+    if (submissionError) {
+      console.error('Failed to create template submission:', submissionError);
+    } else {
+      submissionId = insertedSubmission.id;
+    }
+  }
 
   const { error: registryError } = await supabase
     .from('cardforge_asset_registry')
     .upsert({
       asset_id: template.id,
       ...registryPatch,
+      developer_submission_id: submissionId,
     }, { onConflict: 'asset_id' });
 
   if (registryError) {
@@ -144,34 +212,16 @@ const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
     return;
   }
 
-  await supabase
-    .from('cardforge_developer_asset_submissions')
-    .update({
-      name: template.name,
-      preview_url: `/api/templates#${template.id}`,
-      source_url: `/api/templates#${template.id}`,
-      description: template.templateDescription ?? 'Official CardForge layout default seeded into continuous developer review.',
-    })
-    .eq('registry_asset_id', template.id);
 };
 
 export async function GET() {
   try {
     await ensureTemplateDirectory();
-    const [fileDefaults, registryDefaults, userTemplates] = await Promise.all([
-      readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
+    const [registryDefaults, userTemplates] = await Promise.all([
       readTemplatesFromRegistry(),
       readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
     ]);
-    const defaultsById = new Map<string, TCGCardTemplate>();
-    fileDefaults.forEach((template) => {
-      if (template.id) defaultsById.set(template.id, template);
-    });
-    registryDefaults.forEach((template) => {
-      if (template.id) defaultsById.set(template.id, template);
-    });
-
-    return createNoStoreJsonResponse({ defaults: Array.from(defaultsById.values()), userTemplates });
+    return createNoStoreJsonResponse({ defaults: registryDefaults, userTemplates });
   } catch (error) {
     console.error('Failed to load template library:', error);
     return createApiErrorResponse(
@@ -210,12 +260,13 @@ export async function POST(request: Request) {
 
     const template = validation.data as TCGCardTemplate;
     const source = template.templateSource === 'default' ? 'default' : 'user';
-    const directory = getTemplateDirectory(source);
     const fileName = `${toSafeFileName(template.id || template.name)}.json`;
-    const filePath = path.join(directory, fileName);
-    await fs.writeFile(filePath, `${JSON.stringify({ ...template, templateSource: source }, null, 2)}\n`, 'utf8');
     if (source === 'default') {
       await syncDefaultTemplateToRegistry({ ...template, templateSource: 'default' });
+    } else {
+      const directory = getTemplateDirectory(source);
+      const filePath = path.join(directory, fileName);
+      await fs.writeFile(filePath, `${JSON.stringify({ ...template, templateSource: source }, null, 2)}\n`, 'utf8');
     }
 
     return createNoStoreJsonResponse({ ok: true, fileName, template: { ...template, templateSource: source } });
@@ -258,13 +309,34 @@ export async function DELETE(request: Request) {
     }
 
     const fileName = `${toSafeFileName(id)}.json`;
-    const filePath = path.join(getTemplateDirectory(source), fileName);
-
-    try {
-      await fs.unlink(filePath);
-    } catch (error) {
-      const nodeError = error as NodeJS.ErrnoException;
-      if (nodeError.code !== 'ENOENT') throw error;
+    if (source === 'default') {
+      const supabase = getSupabaseServerClient();
+      if (!supabase) {
+        return createApiErrorResponse(503, 'template_library_unavailable', 'The Forge Pipeline database is not configured.');
+      }
+      await supabase
+        .from('cardforge_developer_asset_submissions')
+        .update({
+          status: 'archived',
+          calculated_access_tier: 'hidden',
+          decision_reason: 'owner_deleted_from_library',
+        })
+        .eq('registry_asset_id', id);
+      await supabase
+        .from('cardforge_asset_registry')
+        .update({
+          status: 'archived',
+          access_tier: 'hidden',
+        })
+        .eq('asset_id', id);
+    } else {
+      const filePath = path.join(getTemplateDirectory(source), fileName);
+      try {
+        await fs.unlink(filePath);
+      } catch (error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code !== 'ENOENT') throw error;
+      }
     }
 
     return createNoStoreJsonResponse({ ok: true, fileName });

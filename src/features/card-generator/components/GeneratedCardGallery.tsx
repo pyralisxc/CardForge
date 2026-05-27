@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, PackageOpen, Search } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
-import { ExportCardImageButton } from '@/components/card-forge/ExportCardImageButton';
+import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';

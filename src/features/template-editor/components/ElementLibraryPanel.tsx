@@ -50,7 +50,7 @@ export function ElementLibraryPanel({
         <CardTitle className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
           <Shapes className="h-3.5 w-3.5 text-[#d5ad54]" /> Elements
         </CardTitle>
-        <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">Primitives only; styles live in inspector</p>
+        <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">Add building blocks; tune the selected element in the inspector</p>
       </CardHeader>
       <CardContent className="space-y-2 p-2.5 pt-0">
         {visibleSections.map((section) => (

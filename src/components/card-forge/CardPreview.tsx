@@ -14,7 +14,9 @@ import { useAppStore } from '@/store/appStore';
 import * as LucideIcons from 'lucide-react';
 import { CardTextContent } from '@/lib/cardTextRender';
 import { getCardPreviewLayout } from '@/lib/cardPreviewLayout';
-import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl, shapeClipPath } from '@/lib/freeformElementRender';
+import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/lib/freeformElementRender';
+import { canRenderVectorShape } from '@/lib/vectorShapes';
+import { VectorShapeElement } from './VectorShapeElement';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -31,8 +33,8 @@ const PREVIEW_WIDTH_PX = 280;
 const STANDARD_TCG_WIDTH_MM = 63;
 const MM_TO_INCHES = 1 / 25.4;
 
-const toRenderableBackground = (value?: string): string | undefined => {
-  if (!value) return undefined;
+const toRenderableBackground = (value?: unknown): string | undefined => {
+  if (typeof value !== 'string' || !value) return undefined;
   if (value.startsWith('linear-gradient') || value.startsWith('radial-gradient')) return value;
   if (value.startsWith('url(')) return value;
   if (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:') || value.startsWith('/')) {
@@ -79,7 +81,12 @@ export function CardPreview({
   const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
   const resolvedCardContentBackground = toRenderableBackground(resolvedCardContentBgUrl);
   
-  const effectiveBorderWidthStr = tb.cardBorderWidth || '0px';
+  const rawCardBorderWidth = tb.cardBorderWidth as unknown;
+  const effectiveBorderWidthStr = typeof rawCardBorderWidth === 'string'
+    ? rawCardBorderWidth
+    : typeof rawCardBorderWidth === 'number'
+      ? `${rawCardBorderWidth}px`
+      : '0px';
   const borderWidthMatch = effectiveBorderWidthStr.match(/^(\d+(\.\d+)?)/);
   const numericBorderWidth = borderWidthMatch ? parseFloat(borderWidthMatch[1]) : 0;
   const unitMatch = effectiveBorderWidthStr.match(/[a-zA-Z%]+$/);
@@ -396,14 +403,44 @@ export function CardPreview({
           const elementIsDivider = isDividerElement(element);
           const shapeStyle: React.CSSProperties = {
             ...baseStyle,
-            backgroundColor: element.fillColor || element.backgroundColor || 'transparent',
-            borderColor: element.strokeColor || element.borderColor || undefined,
-            borderWidth: element.strokeWidth !== undefined ? element.strokeWidth : baseStyle.borderWidth,
-            borderRadius: element.shapeKind === 'ellipse' ? '9999px' : baseStyle.borderRadius,
-            clipPath: elementIsDivider ? undefined : shapeClipPath(element.shapeKind),
-            height: elementIsDivider ? Math.max(1, Number(baseStyle.height) || 0, (element.strokeWidth || 2) * scaleY) : baseStyle.height,
             ...structuredAppearanceStyle,
           };
+          if (elementIsDivider) {
+            Object.assign(shapeStyle, {
+              backgroundColor: element.fillColor || element.backgroundColor || 'transparent',
+              borderColor: element.strokeColor || element.borderColor || undefined,
+              borderWidth: element.strokeWidth !== undefined ? element.strokeWidth : baseStyle.borderWidth,
+              borderRadius: element.shapeKind === 'capsule' ? '9999px' : baseStyle.borderRadius,
+              height: Math.max(1, Number(baseStyle.height) || 0, (element.strokeWidth || 2) * scaleY),
+            });
+          } else if (canRenderVectorShape(element)) {
+            const vectorShapeStyle: React.CSSProperties = {
+              ...structuredAppearanceStyle,
+              backgroundColor: structuredAppearanceStyle.backgroundColor || element.fillColor || element.backgroundColor || baseStyle.backgroundColor,
+              backgroundImage: structuredAppearanceStyle.backgroundImage || baseStyle.backgroundImage,
+              backgroundSize: structuredAppearanceStyle.backgroundSize || baseStyle.backgroundSize,
+              backgroundRepeat: structuredAppearanceStyle.backgroundRepeat || baseStyle.backgroundRepeat,
+              backgroundPosition: structuredAppearanceStyle.backgroundPosition || baseStyle.backgroundPosition,
+              backgroundBlendMode: structuredAppearanceStyle.backgroundBlendMode || baseStyle.backgroundBlendMode,
+              borderColor: structuredAppearanceStyle.borderColor || element.strokeColor || element.borderColor || baseStyle.borderColor,
+              borderWidth: element.strokeWidth !== undefined ? element.strokeWidth : structuredAppearanceStyle.borderWidth || baseStyle.borderWidth,
+            };
+            Object.assign(shapeStyle, {
+              backgroundColor: 'transparent',
+              backgroundImage: undefined,
+              borderColor: undefined,
+              borderWidth: 0,
+              borderStyle: 'none',
+              borderRadius: undefined,
+              boxShadow: undefined,
+              overflow: 'visible',
+            });
+            return (
+              <div key={element.id} style={shapeStyle} data-freeform-element-id={element.id}>
+                <VectorShapeElement element={element} style={vectorShapeStyle} strokeScale={Math.min(scaleX, scaleY)} />
+              </div>
+            );
+          }
           return <div key={element.id} style={shapeStyle} data-freeform-element-id={element.id} />;
         }
 

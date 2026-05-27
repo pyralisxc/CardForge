@@ -5,10 +5,12 @@ import type { FormEvent, ReactNode } from 'react';
 import {
   CalendarDays,
   Database,
+  DollarSign,
   History,
   Mail,
   Plus,
   Send,
+  Target,
   ThumbsDown,
   ThumbsUp,
   Trash2,
@@ -17,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import {
+  buildRoadmapTimelineCheckpoints,
   isChronicleTimelineItem,
   sortRoadmapFeatures,
   type RoadmapItem,
@@ -24,6 +27,7 @@ import {
   type RoadmapPayload,
   type RoadmapSortMode,
   type RoadmapStatus,
+  type RoadmapTimelineCheckpoint,
   type RoadmapVoteValue,
 } from '@/lib/roadmap';
 
@@ -42,7 +46,7 @@ const statusLabels: Record<RoadmapStatus, string> = {
 };
 
 const itemTypeLabels: Record<RoadmapItemType, string> = {
-  roi_checkpoint: 'ROI checkpoint',
+  roi_checkpoint: 'Level-up checkpoint',
   feature: 'Feature goal',
   shipped_update: 'Shipped progress',
 };
@@ -94,6 +98,11 @@ const formatCurrency = (cents: number | null) => {
   }).format(cents / 100);
 };
 
+const formatMonthlyCurrency = (cents: number | null) => {
+  const value = formatCurrency(cents);
+  return value ? `${value}/mo` : null;
+};
+
 const voteTotal = (item: RoadmapItem) => item.upVotes + item.downVotes;
 
 const getTimelinePath = (points: Array<{ x: number; y: number }>) => {
@@ -141,20 +150,25 @@ function VoteButton({
 
 function FeatureCard({
   item,
+  rank,
   isSignedIn,
   isSaving,
   onVote,
 }: {
   item: RoadmapItem;
+  rank: number;
   isSignedIn: boolean;
   isSaving: boolean;
   onVote: (itemId: string, vote: RoadmapVoteValue) => void;
 }) {
   return (
     <article className="border border-[#5f4526] bg-[#100c08] p-3 transition hover:border-[#8f6b39]">
-      <div className="flex items-start justify-between gap-4">
+      <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-3">
+        <span className="grid h-8 w-8 place-items-center border border-[#6d4f2b] bg-[#0c0b09] text-xs font-semibold text-[#e2aa4a]">
+          {rank}
+        </span>
         <div className="min-w-0">
-          <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">
+          <span className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">
             {voteTotal(item)} total votes
           </span>
           <h3 className="mt-1 text-sm font-semibold leading-5 text-[#ffe7ad]">{item.title}</h3>
@@ -185,6 +199,8 @@ function FeatureCard({
 function TimelineNodeCard({
   item,
   index,
+  cumulativeMonthlyCostCents,
+  monthlyUnlockTargetCents,
   isSignedIn,
   isSaving,
   isDeveloper,
@@ -193,16 +209,24 @@ function TimelineNodeCard({
 }: {
   item: RoadmapItem;
   index: number;
+  cumulativeMonthlyCostCents: number;
+  monthlyUnlockTargetCents: number;
   isSignedIn: boolean;
   isSaving: boolean;
   isDeveloper: boolean;
   onVote: (itemId: string, vote: RoadmapVoteValue) => void;
   onDelete: (itemId: string) => void;
 }) {
-  const target = formatCurrency(item.targetMrrCents);
+  const target = cumulativeMonthlyCostCents > 0
+    ? formatMonthlyCurrency(monthlyUnlockTargetCents)
+    : null;
+  const newCost = formatMonthlyCurrency(item.monthlyCostCents);
+  const runningCost = cumulativeMonthlyCostCents > 0
+    ? formatMonthlyCurrency(cumulativeMonthlyCostCents)
+    : null;
 
   return (
-    <article className="w-52 shrink-0">
+    <article className="w-60 shrink-0">
       <div className="mx-auto grid h-10 w-10 place-items-center rounded-full border-2 border-[#ffe0a0] bg-[#0c0b09] text-sm font-bold text-[#ffe7ad] shadow-[0_0_24px_rgba(228,170,67,0.22)]">
         {index + 1}
       </div>
@@ -215,8 +239,30 @@ function TimelineNodeCard({
         {item.description ? (
           <p className="mt-2 line-clamp-3 text-xs leading-5 text-[#c7b288]">{item.description}</p>
         ) : null}
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="text-xs text-[#e2aa4a]">{target ? `${target} unlock` : itemTypeLabels[item.itemType]}</span>
+        <div className="mt-3 grid gap-1 text-[11px] leading-4">
+          {target ? (
+            <div className="flex items-center justify-between gap-2 border border-[#5f4526] bg-[#0c0b09] px-2 py-1">
+              <span className="uppercase tracking-[0.12em] text-[#a98a55]">Unlock target</span>
+              <span className="text-[#ffe7ad]">{target}</span>
+            </div>
+          ) : null}
+          {newCost ? (
+            <div className="flex items-center justify-between gap-2 border border-[#5f4526] bg-[#0c0b09] px-2 py-1">
+              <span className="uppercase tracking-[0.12em] text-[#a98a55]">New cost</span>
+              <span className="text-[#d9c08c]">{newCost}</span>
+            </div>
+          ) : null}
+          {runningCost ? (
+            <div className="flex items-center justify-between gap-2 border border-[#6f522f] bg-[#17110b] px-2 py-1">
+              <span className="uppercase tracking-[0.12em] text-[#a98a55]">Running cost</span>
+              <span className="text-[#e2aa4a]">{runningCost}</span>
+            </div>
+          ) : null}
+          {!target && !newCost && !runningCost ? (
+            <span className="text-xs text-[#e2aa4a]">{itemTypeLabels[item.itemType]}</span>
+          ) : null}
+        </div>
+        <div className="mt-3 flex items-center justify-end gap-2">
           <div className="flex shrink-0 gap-1.5">
             <VoteButton
               label={String(item.upVotes)}
@@ -261,7 +307,7 @@ function HorizontalTimeline({
   onDelete,
   onVote,
 }: {
-  items: RoadmapItem[];
+  items: Array<RoadmapTimelineCheckpoint<RoadmapItem>>;
   isLoading: boolean;
   isDeveloper: boolean;
   isSignedIn: boolean;
@@ -273,13 +319,13 @@ function HorizontalTimeline({
     return (
       <div className="border border-[#5f4526] bg-[#0c0b09] p-4 text-sm leading-6 text-[#c7b288]">
         {isLoading
-          ? 'Loading milestones...'
-          : 'Milestones will appear here as launch checkpoints are published. For now, add or vote on a focused improvement above.'}
+          ? 'Loading level-up checkpoints...'
+          : 'Level-up checkpoints will appear here as they are published. For now, add or vote on a focused improvement above.'}
       </div>
     );
   }
 
-  const width = Math.max(900, items.length * 205);
+  const width = Math.max(980, items.length * 245);
   const step = items.length > 1 ? (width - 160) / (items.length - 1) : 0;
   const points = items.map((_, index) => ({
     x: 80 + step * index,
@@ -291,7 +337,7 @@ function HorizontalTimeline({
     <div className="relative">
       <div className="pointer-events-none absolute bottom-2 right-0 top-0 z-10 w-16 bg-gradient-to-l from-[#100c08] to-transparent" aria-hidden="true" />
       <div className="overflow-x-auto pb-2 pr-6">
-      <div className="relative min-h-[24rem]" style={{ width }}>
+      <div className="relative min-h-[30rem]" style={{ width }}>
         <svg
           className="absolute left-0 top-0 h-32 w-full"
           viewBox={`0 0 ${width} 126`}
@@ -302,11 +348,13 @@ function HorizontalTimeline({
           <path d={path} fill="none" stroke="#e4aa43" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="8 12" opacity="0.85" />
         </svg>
         <div className="absolute left-0 right-0 top-5 flex justify-between gap-4 px-6">
-          {items.map((item, index) => (
-            <div key={item.id} className={index % 2 === 0 ? 'pt-12' : 'pt-0'}>
+          {items.map((checkpoint, index) => (
+            <div key={checkpoint.item.id} className={index % 2 === 0 ? 'pt-12' : 'pt-0'}>
               <TimelineNodeCard
-                item={item}
+                item={checkpoint.item}
                 index={index}
+                cumulativeMonthlyCostCents={checkpoint.cumulativeMonthlyCostCents}
+                monthlyUnlockTargetCents={checkpoint.monthlyUnlockTargetCents}
                 isDeveloper={isDeveloper}
                 isSignedIn={isSignedIn}
                 isSaving={isSaving}
@@ -318,6 +366,35 @@ function HorizontalTimeline({
         </div>
       </div>
     </div>
+    </div>
+  );
+}
+
+function FinancialMetric({
+  label,
+  value,
+  detail,
+  icon,
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: ReactNode;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className={`border p-3 ${
+      emphasis
+        ? 'border-[#d8b365] bg-[#211609] shadow-[inset_0_0_0_1px_rgba(255,224,157,0.07)]'
+        : 'border-[#5f4526] bg-[#0c0b09]'
+    }`}>
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">
+        {icon}
+        {label}
+      </div>
+      <div className="mt-2 font-serif text-2xl leading-none text-[#fff1c7]">{value}</div>
+      <p className="mt-2 text-xs leading-5 text-[#c7b288]">{detail}</p>
     </div>
   );
 }
@@ -335,7 +412,6 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
     itemType: 'roi_checkpoint' as Exclude<RoadmapItemType, 'feature'>,
     status: 'planned' as RoadmapStatus,
     visibleMonth: '2026-06',
-    targetMrrDollars: '',
     monthlyCostDollars: '',
   });
   const developerRequestMailto = useMemo(() => createDeveloperRequestMailto(accountEmail), [accountEmail]);
@@ -347,6 +423,25 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
     if (left.visibleMonth !== right.visibleMonth) return left.visibleMonth.localeCompare(right.visibleMonth);
     return left.createdAt.localeCompare(right.createdAt);
   }), [chronicleItems]);
+  const timelineCheckpoints = useMemo(
+    () => buildRoadmapTimelineCheckpoints(sortedOfficialItems),
+    [sortedOfficialItems]
+  );
+  const currentProfitCents = payload?.currentProfitCents ?? 0;
+  const nextFundingCheckpoint = useMemo(
+    () => timelineCheckpoints.find((checkpoint) => (
+      checkpoint.item.itemType === 'roi_checkpoint'
+      && checkpoint.item.status !== 'shipped'
+      && checkpoint.cumulativeMonthlyCostCents > 0
+    )) ?? null,
+    [timelineCheckpoints]
+  );
+  const latestFundingCheckpoint = timelineCheckpoints.length > 0
+    ? timelineCheckpoints[timelineCheckpoints.length - 1]
+    : null;
+  const nextMonthlyUnlockTargetCents = nextFundingCheckpoint?.monthlyUnlockTargetCents ?? 0;
+  const nextFundingGapCents = Math.max(0, nextMonthlyUnlockTargetCents - currentProfitCents);
+  const fullRoadmapMonthlyCostCents = latestFundingCheckpoint?.cumulativeMonthlyCostCents ?? 0;
   const maxSuggestionLength = payload?.maxSuggestionLength ?? 200;
   const activeUserSuggestionCount = payload?.activeUserSuggestionCount ?? 0;
   const maxActiveUserSuggestions = payload?.maxActiveUserSuggestions ?? 50;
@@ -466,7 +561,6 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
           itemType: devForm.itemType,
           status: devForm.status,
           visibleMonth: devForm.visibleMonth,
-          targetMrrCents: devForm.targetMrrDollars ? Number(devForm.targetMrrDollars) * 100 : undefined,
           monthlyCostCents: devForm.monthlyCostDollars ? Number(devForm.monthlyCostDollars) * 100 : undefined,
         }),
       });
@@ -474,7 +568,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
         throw new Error(await getApiErrorMessage(response, 'Unable to add timeline item.'));
       }
       setPayload(await response.json() as RoadmapPayload);
-      setDevForm((current) => ({ ...current, title: '', description: '', targetMrrDollars: '', monthlyCostDollars: '' }));
+      setDevForm((current) => ({ ...current, title: '', description: '', monthlyCostDollars: '' }));
       toast({
         title: 'Chronicle updated',
         description: 'The official timeline item has been added.',
@@ -524,15 +618,15 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
               <History className="h-5 w-5" />
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">Roadmap</span>
             </div>
-            <h2 className="mt-3 font-serif text-3xl text-[#fff1c7] md:text-4xl">Help choose what becomes easier next</h2>
+            <h2 className="mt-3 font-serif text-3xl text-[#fff1c7] md:text-4xl">Help choose what the forge makes easier next</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
-              Vote on small improvements, add a focused request, and follow the larger milestones as CardForge grows.
+              Vote on small improvements, add a focused request, and follow the bigger software level-ups with monthly profit targets and operating costs shown in plain sight.
             </p>
           </div>
           <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
             <a href={developerRequestMailto}>
               <Mail className="mr-2 h-4 w-4" />
-              Become a developer
+              Join the forge
             </a>
           </Button>
         </div>
@@ -546,9 +640,9 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
         <div className="mt-6 border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h3 className="font-serif text-2xl text-[#fff1c7]">Feature board</h3>
+              <h3 className="font-serif text-2xl text-[#fff1c7]">Community priority queue</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
-                Signed-in makers can add compact requests and vote on what should get priority. Strong signals move into the roadmap instead of getting buried in feedback.
+                Signed-in makers add one compact request at a time. Votes keep the queue honest, and strong signals can graduate into level-up checkpoints.
               </p>
             </div>
             <div className="grid grid-cols-3 border border-[#6d4f2b] bg-[#0c0b09] text-center">
@@ -567,13 +661,13 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-[0.78fr_1fr]">
-            <div className="border border-[#5f4526] bg-[#0c0b09] p-4">
+          <div className="mt-5 grid gap-4 lg:grid-cols-[0.64fr_1fr]">
+            <div className="self-start border border-[#5f4526] bg-[#0c0b09] p-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h4 className="font-serif text-lg text-[#fff1c7]">Add a focused request</h4>
+                <h4 className="font-serif text-lg text-[#fff1c7]">Add one request</h4>
                 <p className="mt-2 text-sm leading-5 text-[#c7b288]">
-                  One clear improvement gives everyone a cleaner vote.
+                  Keep it small enough that people can vote yes or no quickly.
                 </p>
               </div>
               <span className="text-sm text-[#c7b288]">
@@ -584,7 +678,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
               <label className="sr-only" htmlFor="roadmap-suggestion">Suggest a feature</label>
               <textarea
                 id="roadmap-suggestion"
-                className="min-h-24 w-full resize-none border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none transition placeholder:text-[#8c7651] focus:border-[#d8b365]"
+                className="min-h-20 w-full resize-none border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none transition placeholder:text-[#8c7651] focus:border-[#d8b365]"
                 maxLength={maxSuggestionLength}
                 value={suggestion}
                 placeholder={boardHasSpace ? 'Example: easier foil border controls' : 'Feature board is full. Send detailed feedback by email.'}
@@ -610,7 +704,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
 
           <div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h4 className="font-serif text-lg text-[#fff1c7]">Vote with the community</h4>
+              <h4 className="font-serif text-lg text-[#fff1c7]">Vote the queue</h4>
               <div className="grid grid-cols-2 gap-2 sm:flex">
                 {(Object.keys(sortLabels) as RoadmapSortMode[]).map((mode) => (
                   <button
@@ -628,11 +722,12 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
                 ))}
               </div>
             </div>
-            <div className="mt-4 space-y-3">
-              {featureItems.map((item) => (
+            <div className="mt-4 max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+              {featureItems.map((item, index) => (
                 <FeatureCard
                   key={item.id}
                   item={item}
+                  rank={index + 1}
                   isSignedIn={isSignedIn}
                   isSaving={isSaving}
                   onVote={saveVote}
@@ -653,19 +748,46 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
             <div className="flex items-start gap-3">
               <CalendarDays className="mt-1 h-5 w-5 text-[#e2aa4a]" />
               <div>
-                <h3 className="font-serif text-2xl text-[#fff1c7]">Roadmap timeline</h3>
+                <h3 className="font-serif text-2xl text-[#fff1c7]">Level-up roadmap</h3>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-[#c7b288]">
-                  A scrollable launch path for larger milestones, shipped progress, and business checkpoints.
+                  A scrollable launch path for the upgrades that make CardForge sturdier, faster, and more useful. Unlock targets are 12x the running monthly platform cost, measured as monthly profit.
                 </p>
               </div>
             </div>
             <span className="border border-[#5f4526] bg-[#100c08] px-3 py-2 text-xs uppercase tracking-[0.16em] text-[#d9c08c]">
-              {sortedOfficialItems.length} milestones
+              {sortedOfficialItems.length} checkpoints
             </span>
+          </div>
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <FinancialMetric
+              label="Current profit"
+              value={formatMonthlyCurrency(currentProfitCents) ?? '$0/mo'}
+              detail="Tracked monthly profit available for roadmap unlocks."
+              icon={<DollarSign className="h-3.5 w-3.5" />}
+              emphasis
+            />
+            <FinancialMetric
+              label="Next target"
+              value={formatMonthlyCurrency(nextMonthlyUnlockTargetCents) ?? '$0/mo'}
+              detail="Monthly profit needed: 12x the next running cost."
+              icon={<Target className="h-3.5 w-3.5" />}
+            />
+            <FinancialMetric
+              label="Gap to unlock"
+              value={formatMonthlyCurrency(nextFundingGapCents) ?? '$0/mo'}
+              detail="How much monthly profit is still needed before that checkpoint unlocks."
+              icon={<Target className="h-3.5 w-3.5" />}
+            />
+            <FinancialMetric
+              label="Full roadmap cost"
+              value={formatMonthlyCurrency(fullRoadmapMonthlyCostCents) ?? '$0/mo'}
+              detail="Running monthly platform cost if every visible checkpoint is funded."
+              icon={<DollarSign className="h-3.5 w-3.5" />}
+            />
           </div>
           <div className="relative border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
             <HorizontalTimeline
-              items={sortedOfficialItems}
+              items={timelineCheckpoints}
               isLoading={isLoading}
               isDeveloper={isDeveloper}
               isSignedIn={isSignedIn}
@@ -680,8 +802,11 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
           <form className="mt-6 border border-[#7d5a2e] bg-[#181009] p-4" onSubmit={submitDeveloperItem}>
             <div className="flex items-center gap-3 text-[#e2aa4a]">
               <Database className="h-5 w-5" />
-              <h3 className="font-serif text-xl text-[#fff1c7]">Developer milestone controls</h3>
+              <h3 className="font-serif text-xl text-[#fff1c7]">Developer level-up controls</h3>
             </div>
+            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+              Add the monthly operating cost for the upgrade. Public unlock targets are calculated from the running monthly cost times 12, so every checkpoint represents the monthly profit level needed to support that jump.
+            </p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <input
                 className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
@@ -702,7 +827,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
                 value={devForm.itemType}
                 onChange={(event) => setDevForm((current) => ({ ...current, itemType: event.target.value as Exclude<RoadmapItemType, 'feature'> }))}
               >
-                <option value="roi_checkpoint">Chronicle ROI checkpoint</option>
+                <option value="roi_checkpoint">Level-up checkpoint</option>
                 <option value="shipped_update">Chronicle shipped progress</option>
               </select>
               <select
@@ -717,22 +842,15 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
               </select>
               <input
                 className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                value={devForm.targetMrrDollars}
-                placeholder="MRR target dollars"
-                inputMode="numeric"
-                onChange={(event) => setDevForm((current) => ({ ...current, targetMrrDollars: event.target.value }))}
-              />
-              <input
-                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
                 value={devForm.monthlyCostDollars}
-                placeholder="Monthly upgrade cost dollars"
+                placeholder="New monthly operating cost dollars"
                 inputMode="numeric"
                 onChange={(event) => setDevForm((current) => ({ ...current, monthlyCostDollars: event.target.value }))}
               />
               <textarea
                 className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365] md:col-span-2"
                 value={devForm.description}
-                placeholder="Why this checkpoint matters"
+                placeholder="What this unlocks for users and why the cost is worth it"
                 maxLength={420}
                 onChange={(event) => setDevForm((current) => ({ ...current, description: event.target.value }))}
               />
@@ -743,7 +861,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
               disabled={isSaving || devForm.title.trim().length === 0}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Add Chronicle item
+              Add level-up item
             </Button>
           </form>
         ) : null}

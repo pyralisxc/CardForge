@@ -4,7 +4,9 @@ import {
   DEFAULT_LEGAL_DOCUMENTS,
   DEFAULT_FOUNDER_BETA_CAMPAIGN,
   DEFAULT_OWNER_SETTINGS,
+  DEFAULT_SITE_CONTENT_BLOCKS,
   DEFAULT_SITE_MECHANICS_SETTINGS,
+  normalizeSiteContentBlockInput,
   normalizeFounderBetaCampaignInput,
   normalizeOwnerSettingsInput,
   normalizeLegalDocumentInput,
@@ -18,6 +20,23 @@ describe('owner console data rules', () => {
       'terms',
       'refund',
       'contact',
+      'developer-terms',
+      'creator-pool',
+    ]);
+  });
+
+  it('ships with owner-editable public content blocks', () => {
+    expect(DEFAULT_SITE_CONTENT_BLOCKS.map((block) => block.slug)).toEqual([
+      'landing.hero.headline',
+      'landing.hero.body',
+      'landing.hero.support',
+      'landing.demo.heading',
+      'landing.demo.body',
+      'about.hero.headline',
+      'about.hero.body',
+      'access.hero.headline',
+      'access.hero.body',
+      'access.creatorPool.note',
     ]);
   });
 
@@ -77,9 +96,45 @@ describe('owner console data rules', () => {
     });
 
     expect(normalizeLegalDocumentInput({
+      slug: 'developer-terms',
+      title: ' Developer Terms ',
+      body: ' Contributor policy ',
+    })).toEqual({
+      ok: true,
+      value: {
+        slug: 'developer-terms',
+        title: 'Developer Terms',
+        body: 'Contributor policy',
+      },
+    });
+
+    expect(normalizeLegalDocumentInput({
       slug: 'unknown',
       title: 'Nope',
       body: 'Nope',
+    }).ok).toBe(false);
+  });
+
+  it('accepts only known site content blocks for owner edits', () => {
+    expect(normalizeSiteContentBlockInput({
+      slug: 'landing.hero.headline',
+      body: '  A sharper owner-controlled headline.  ',
+    })).toEqual({
+      ok: true,
+      value: {
+        slug: 'landing.hero.headline',
+        body: 'A sharper owner-controlled headline.',
+      },
+    });
+
+    expect(normalizeSiteContentBlockInput({
+      slug: 'new.random.page',
+      body: 'No page builder from owner console.',
+    }).ok).toBe(false);
+
+    expect(normalizeSiteContentBlockInput({
+      slug: 'landing.hero.body',
+      body: 'x'.repeat(801),
     }).ok).toBe(false);
   });
 
