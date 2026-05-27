@@ -487,7 +487,7 @@ That deep pass should be treated as a first-class QA milestone before calling te
 
 ### 1. Field Contract System (Highest Priority)
 - Field Contract v1 is now the generator-facing source of truth for variable metadata. Placeholder inference still exists as compatibility input, but Single, Bulk, downloadable contract JSON, and future mobile fill flows should consume resolved field definitions rather than re-infer behavior from raw `{{variable}}` text.
-- `src/lib/fieldContracts.ts` owns v1 defaults and normalization. `src/lib/templateFields.ts` resolves template field definitions from explicit contracts, scoped element contracts, fallback placeholder text, image layers, and older element flags.
+- `src/lib/fieldContracts.ts` owns v1 defaults, validation, repair/normalization, and the exported schema marker `FIELD_CONTRACT_VERSION = 1`. `src/lib/templateFields.ts` resolves template field definitions from explicit contracts, scoped element contracts, fallback placeholder text, image layers, and older element flags.
 - `TemplateFieldContract` supports:
   - key
   - elementId
@@ -506,13 +506,15 @@ That deep pass should be treated as a first-class QA milestone before calling te
   - rich text and structured row fields allow emphasis, underline, color, highlight, and lists
   - rules fields also allow rules markers such as `[ability]`, `[effect]`, `[reminder]`, `[flavor]`, and `[subtitle]`
 - Text inspector field cards let creators edit default value, example, description, max length, required state, auto-fit, type, and typography. New inline variables seed both `defaultValue` and `example` from the selected text so generated outputs have a stable fallback while external tools still get a sample value.
-- Bulk preview now warns when mapped values exceed `maxLength`, and contract JSON includes `description`, `example`, `maxLength`, `allowedFormatting`, defaults, required state, rich-text support, and style override columns.
+- Bulk preview and export quality checks now run shared contract validation for mapped/generated data, including required fields, max length, image-source shape, and formatting-permission warnings. Downloaded contract JSON includes `contractVersion: 1`, `description`, `example`, `maxLength`, `allowedFormatting`, defaults, required state, rich-text support, and style override columns.
+- `normalizeTemplateFieldContracts()` is the repair path for older or inferred templates. It scans current template canvases and writes explicit v1 contracts for detected text variables and image fields while preserving existing scoped typography metadata.
 
 Why this matters:
 - Eliminates ambiguity.
 - Aligns single and bulk behavior.
 - Improves validation and error clarity.
 - Gives mobile-oriented entry flows compact metadata for guided inputs, validation, examples, and progressive disclosure without needing the full desktop editor context.
+- Gives future schema changes a named version boundary instead of silently changing what exported contracts mean.
 
 ### 2. Rich Text Maturity
 - Keep the current marker system, but formalize support by field type.

@@ -504,6 +504,7 @@ Transitions[1].Position: 421
     });
 
     expect(contract).toMatchObject({
+      contractVersion: 1,
       templateId: 'contract-template',
       templateName: 'Contract Template',
       generatedAt: '2026-05-21T00:00:00.000Z',

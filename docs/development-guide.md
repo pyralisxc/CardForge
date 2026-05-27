@@ -46,7 +46,7 @@ This guide is the practical map for working in CardForge without rediscovering t
 - `src/features/template-editor/lib/makerDimensions.ts` owns custom card-size parsing and canvas reconstruction math.
 - `src/features/template-editor/lib/frameVisualPresets.ts`, `iconOptions.ts`, `elementKits.tsx`, and `elementStylePresets.ts` own remaining local maker primitives/tool presets. Any offerable creative asset or recipe should move through the pipeline registry instead of becoming another hidden default catalog.
 - `src/lib/freeformElementRender.ts` centralizes element geometry and source resolution.
-- `src/lib/fieldContracts.ts` owns Field Contract v1 normalization: contract type, required state, default value, example, description, max length, and allowed formatting defaults.
+- `src/lib/fieldContracts.ts` owns Field Contract v1 normalization: schema version, contract type, required state, default value, example, description, max length, allowed formatting defaults, shared validation, and template repair.
 - `src/lib/templateFields.ts` turns template contracts plus legacy placeholder/image inference into the resolved field definitions used by Single, Bulk, previews, and contract downloads.
 
 ### Generator And Export
@@ -61,7 +61,7 @@ This guide is the practical map for working in CardForge without rediscovering t
 - `src/lib/cardPreviewExport.tsx` renders export captures through the shared preview path.
 - `src/lib/cardExportGeometry.ts` centralizes aspect, DPI, and physical-size math.
 
-Field-driven generator surfaces should read from `extractTemplateFieldDefinitions()` instead of inspecting raw placeholder text directly. That keeps desktop, bulk, export validation, and future mobile fill flows aligned on required state, examples, descriptions, max length, and formatting permissions.
+Field-driven generator surfaces should read from `extractTemplateFieldDefinitions()` instead of inspecting raw placeholder text directly. Validation should use `validateCardDataAgainstFieldContracts()` so desktop, bulk, export validation, and future mobile fill flows stay aligned on required state, examples, descriptions, max length, image-source expectations, and formatting permissions. When importing or repairing older templates, use `normalizeTemplateFieldContracts()` to persist explicit v1 contracts instead of letting inference remain the long-term source of truth.
 
 ### Account, Developer, Owner
 

@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import type { CardData, DisplayCard, TCGCardTemplate } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { completeCardDataWithTemplateDefaults } from '@/lib/cardDataDefaults';
+import { FIELD_CONTRACT_VERSION, validateCardDataAgainstFieldContracts } from '@/lib/fieldContracts';
 import {
   FIELD_STYLE_PROPERTIES,
   buildFieldStyleDataKey,
@@ -109,6 +110,7 @@ export const createBulkImportContract = ({
   fieldDefinitions,
   generatedAt = new Date().toISOString(),
 }: CreateBulkImportContractOptions) => ({
+  contractVersion: FIELD_CONTRACT_VERSION,
   templateId: template.id,
   templateName: template.name,
   generatedAt,
@@ -404,11 +406,9 @@ export const createBulkPreview = ({
         missingRequiredKeys.push(mappedKey);
         warnings.push(`Missing value for ${mappedKey}`);
       }
-      const field = fieldDefinitions.find((definition) => definition.key === mappedKey);
-      if (field?.maxLength && value.length > field.maxLength) {
-        warnings.push(`${field.label} is ${value.length} characters; maximum is ${field.maxLength}.`);
-      }
     });
+
+    warnings.push(...validateCardDataAgainstFieldContracts(fieldDefinitions, mappedData).warnings);
 
     previewRows.push({
       rowNumber,

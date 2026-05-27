@@ -75,8 +75,8 @@ describe('print validation', () => {
     const card = makeCard({ rulesText: '', artworkUrl: 'https://example.com/image.png' });
     const validation = validateCardExportQuality(card, 'physical');
 
-    expect(validation.critical.some((message) => message.includes('Missing required field'))).toBe(false);
-    expect(validation.warnings.some((message) => message.includes('Missing required field'))).toBe(true);
+    expect(validation.critical.some((message) => message.includes('is required'))).toBe(false);
+    expect(validation.warnings.some((message) => message === 'Rules Text is required.')).toBe(true);
   });
 
   it('warns when physical export DPI is below print standard', () => {
@@ -91,5 +91,41 @@ describe('print validation', () => {
     const validation = validateCardExportQuality(card, 'physical');
 
     expect(validation.warnings.some((message) => message.includes('inside the print safe area'))).toBe(true);
+  });
+
+  it('uses field contract validation for export quality warnings', () => {
+    const template: TCGCardTemplate = {
+      ...baseTemplate,
+      fieldContracts: [
+        {
+          key: 'rulesText',
+          label: 'Rules',
+          type: 'rules',
+          required: true,
+          maxLength: 8,
+          allowedFormatting: ['bold'],
+        },
+        {
+          key: 'artworkUrl',
+          label: 'Artwork',
+          type: 'image',
+          required: true,
+        },
+      ],
+    };
+    const card: DisplayCard = {
+      uniqueId: 'card-contract-export',
+      template,
+      data: {
+        rulesText: '<mark>Too much text</mark>',
+        artworkUrl: 'local-file.png',
+      },
+    };
+
+    const validation = validateCardExportQuality(card, 'virtual');
+
+    expect(validation.warnings).toContain('Rules is 26 characters; maximum is 8.');
+    expect(validation.warnings).toContain('Rules contains highlight formatting, but the field contract allows only bold.');
+    expect(validation.warnings).toContain('Artwork is not a URL/data URI and may not render.');
   });
 });

@@ -1,6 +1,7 @@
 import type { DisplayCard } from '@/types';
 import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
 import { AVAILABLE_FONTS } from '@/lib/constants';
+import { validateCardDataAgainstFieldContracts } from '@/lib/fieldContracts';
 
 export type ExportMode = 'physical' | 'virtual';
 
@@ -127,24 +128,20 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
     });
   }
 
+  const contractValidation = validateCardDataAgainstFieldContracts(fieldDefinitions, card.data);
+  warnings.push(...contractValidation.issues);
+  warnings.push(...contractValidation.warnings);
+
   fieldDefinitions.forEach((field) => {
     const value = String(card.data[field.key] ?? '').trim();
-
-    if (field.required && value.length === 0) {
-      warnings.push(`Missing required field: ${field.key}`);
-    }
 
     if (!field.isImage) return;
 
     if (value.length === 0) {
-      if (field.required) {
-        warnings.push(`Missing required image: ${field.key}`);
-      }
       return;
     }
 
     if (!isLikelyImageSource(value)) {
-      warnings.push(`Image field ${field.key} is not a URL/data URI and may not render.`);
       return;
     }
 
