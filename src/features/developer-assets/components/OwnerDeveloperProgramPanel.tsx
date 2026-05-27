@@ -88,6 +88,8 @@ export function OwnerDeveloperProgramPanel() {
   const [ownerNote, setOwnerNote] = useState('');
   const [profileDrafts, setProfileDrafts] = useState<Record<string, DeveloperProfileDraft>>({});
   const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
+  const [updatingSubmissionId, setUpdatingSubmissionId] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -149,6 +151,7 @@ export function OwnerDeveloperProgramPanel() {
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setSettings(body.program.settings);
+      setLastSavedAt(new Date().toISOString());
       toast({ title: 'Developer program saved', description: 'Roster, voting, and publish rules are updated.' });
     } catch (error) {
       toast({
@@ -166,6 +169,7 @@ export function OwnerDeveloperProgramPanel() {
     status: string,
     ownerAccessTierOverride?: DeveloperAssetAccessTierOverride | null,
   ) => {
+    setUpdatingSubmissionId(submissionId);
     try {
       const response = await fetch(`/api/developer-assets/${submissionId}`, {
         method: 'PUT',
@@ -175,6 +179,7 @@ export function OwnerDeveloperProgramPanel() {
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to update asset status.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
+      setLastSavedAt(new Date().toISOString());
       toast({ title: 'Asset status updated', description: `Submission moved to ${status.replace('_', ' ')}.` });
     } catch (error) {
       toast({
@@ -182,6 +187,8 @@ export function OwnerDeveloperProgramPanel() {
         description: error instanceof Error ? error.message : 'Unable to update asset status.',
         variant: 'destructive',
       });
+    } finally {
+      setUpdatingSubmissionId(null);
     }
   };
 
@@ -227,6 +234,7 @@ export function OwnerDeveloperProgramPanel() {
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setSettings(body.program.settings);
+      setLastSavedAt(new Date().toISOString());
       toast({ title: 'Developer profile saved', description: 'This contributor now uses the updated account-specific contract.' });
     } catch (error) {
       toast({
@@ -273,6 +281,12 @@ export function OwnerDeveloperProgramPanel() {
 
   const storageForecast = estimateDeveloperAssetStorage(settings, program.activeDeveloperCount);
   const overCapSummaries = program.assetTypeSummaries.filter((summary) => summary.overPublishCapBy > 0);
+  const liveDefaultCount = program.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0);
+  const candidateCount = program.assetTypeSummaries.reduce((total, summary) => total + summary.candidateCount, 0);
+  const archiveCount = program.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0);
+  const lastSavedLabel = lastSavedAt
+    ? new Date(lastSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : 'No changes saved in this session';
 
   return (
     <TooltipProvider>
@@ -284,6 +298,21 @@ export function OwnerDeveloperProgramPanel() {
       <p className="mt-3 text-sm leading-6 text-[#c7b288]">
         Control developer slots, monthly contribution rules, vote thresholds, tier visibility, archive visibility, and per-type caps before financial launch. Current site defaults are owner-contributed assets in the same voting pipeline as every developer upload.
       </p>
+      <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Owner control map</p>
+            <h3 className="mt-1 font-serif text-xl text-[#fff1c7]">These rules change the live pipeline after you save.</h3>
+            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+              Saving updates developer limits, vote thresholds, self-voting, tier caps, and review behavior. It does not delete contribution history; assets move between live defaults, candidates, hidden tiers, and archive according to the same rules.
+            </p>
+          </div>
+          <div className="min-w-48 border border-[#3c2c1b] bg-[#15100a] p-3 text-sm text-[#c7b288]">
+            <p className="text-xs uppercase tracking-[0.14em] text-[#a98a55]">Save state</p>
+            <p className="mt-2 text-[#ffe7ad]">{lastSavedLabel}</p>
+          </div>
+        </div>
+      </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
         <DecisionCard label="Program status" body={program.configured ? 'Supabase developer tables are connected and accepting submissions.' : 'Developer tables are not configured yet.'} />
@@ -294,6 +323,12 @@ export function OwnerDeveloperProgramPanel() {
         <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; rebalance moves lowest-signal live assets back to candidates.`} />
         <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads during solo/demo review.' : 'Only peer votes count; own assets stay out of review lanes for that contributor.'} />
         <DecisionCard label="Owner vote mode" body={settings.ownerVoteWeight === 1 ? 'Owner votes count like one developer vote.' : `Owner votes count as ${settings.ownerVoteWeight}x signal in asset grading.`} />
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <DecisionCard label="Live defaults" body={`${liveDefaultCount} published assets currently feed creator-facing libraries and remain open to developer voting.`} />
+        <DecisionCard label="Waiting for signal" body={`${candidateCount} candidate assets are waiting for votes, owner review, or open caps before they become defaults.`} />
+        <DecisionCard label="Recoverable archive" body={`${archiveCount} archived assets remain visible for owner review and can be recovered when signal improves.`} />
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
@@ -622,7 +657,7 @@ export function OwnerDeveloperProgramPanel() {
 
       <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSettings}>
         <Save className="mr-2 h-4 w-4" />
-        Save developer program
+        {isSaving ? 'Saving developer program...' : 'Save developer program'}
       </Button>
 
       <div className="mt-7 grid gap-3 lg:grid-cols-[1fr_18rem]">
@@ -631,7 +666,10 @@ export function OwnerDeveloperProgramPanel() {
           <div className="mt-4 space-y-3">
             {program.submissions.length === 0 ? (
               <p className="text-sm text-[#c7b288]">Developer submissions will appear here after the migration is applied and developers submit assets.</p>
-            ) : program.submissions.slice(0, 12).map((submission) => (
+            ) : program.submissions.slice(0, 12).map((submission) => {
+              const isUpdatingSubmission = updatingSubmissionId === submission.id;
+
+              return (
               <div key={submission.id} className="grid gap-3 border border-[#4a3823] bg-[#0c0b09] p-3 md:grid-cols-[1fr_auto] md:items-center">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -659,33 +697,36 @@ export function OwnerDeveloperProgramPanel() {
                       size="sm"
                       variant="outline"
                       className="border-[#5f7f54] bg-transparent text-[#bde3a8]"
+                      disabled={isUpdatingSubmission}
                       onClick={() => updateStatus(submission.id, 'voting')}
                       aria-label={`Recover ${submission.name} to review`}
                     >
-                      Recover to Review
+                      {isUpdatingSubmission ? 'Updating...' : 'Recover to Review'}
                     </Button>
                   ) : (
                     <Button
                       size="sm"
                       variant="outline"
                       className="border-[#8c6436] bg-transparent text-[#f0bd75]"
+                      disabled={isUpdatingSubmission}
                       onClick={() => updateStatus(submission.id, 'archived')}
                       aria-label={`Archive ${submission.name}`}
                     >
-                      Archive
+                      {isUpdatingSubmission ? 'Updating...' : 'Archive'}
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, 'published')} aria-label={`Publish ${submission.name}`}>Publish</Button>
-                  <Button size="sm" variant="outline" className="border-[#7d3d32] bg-transparent text-[#ffd0c6]" onClick={() => updateStatus(submission.id, 'rejected')} aria-label={`Reject ${submission.name}`}>Reject</Button>
-                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" onClick={() => updateStatus(submission.id, submission.status, 'free')} aria-label={`Set ${submission.name} to Starter tier`}>Set Starter</Button>
-                  <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" onClick={() => updateStatus(submission.id, submission.status, 'paid')} aria-label={`Set ${submission.name} to Creator Pass tier`}>Set Creator Pass</Button>
-                  <Button size="sm" variant="outline" className="border-[#4a3823] bg-transparent text-[#8f95a3]" onClick={() => updateStatus(submission.id, submission.status, 'hidden')} aria-label={`Set ${submission.name} to Hidden tier`}>Set Hidden</Button>
+                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, 'published')} aria-label={`Publish ${submission.name}`}>Publish</Button>
+                  <Button size="sm" variant="outline" className="border-[#7d3d32] bg-transparent text-[#ffd0c6]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, 'rejected')} aria-label={`Reject ${submission.name}`}>Reject</Button>
+                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, 'free')} aria-label={`Set ${submission.name} to Starter tier`}>Set Starter</Button>
+                  <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, 'paid')} aria-label={`Set ${submission.name} to Creator Pass tier`}>Set Creator Pass</Button>
+                  <Button size="sm" variant="outline" className="border-[#4a3823] bg-transparent text-[#8f95a3]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, 'hidden')} aria-label={`Set ${submission.name} to Hidden tier`}>Set Hidden</Button>
                   {submission.ownerAccessTierOverride ? (
-                    <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#c7b288]" onClick={() => updateStatus(submission.id, submission.status, null)} aria-label={`Clear tier override for ${submission.name}`}>Clear Override</Button>
+                    <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#c7b288]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, null)} aria-label={`Clear tier override for ${submission.name}`}>Clear Override</Button>
                   ) : null}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         <label className="grid content-start gap-2 text-sm text-[#c7b288]">

@@ -18,6 +18,21 @@ const programStandards = [
   'Keep personal uploads separate from assets submitted to CardForge.',
 ];
 
+const developerRealityChecks = [
+  {
+    title: 'Pipeline first',
+    copy: 'Submitted work enters Forge Review before it becomes a shared default. Local personal uploads stay private to the creator workspace.',
+  },
+  {
+    title: 'Voting stays live',
+    copy: 'Developers can keep voting on uploaded, published, and archived assets so the library can improve instead of freezing at launch.',
+  },
+  {
+    title: 'Creator pool is future-facing',
+    copy: 'The 10% creator-pool target is a transparent direction for financial launch, not active payout infrastructure today.',
+  },
+];
+
 const developerSteps = [
   {
     title: 'Show your craft',
@@ -161,6 +176,20 @@ export function DeveloperProgramPage({
                 </article>
               ))}
             </div>
+            <section className="mt-4 border border-[#5f4526] bg-[#15100a] p-4">
+              <div className="flex items-center gap-3 text-[#e2aa4a]">
+                <ShieldCheck className="h-5 w-5" />
+                <h2 className="font-serif text-xl text-[#fff1c7]">What you are actually joining</h2>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {developerRealityChecks.map((item) => (
+                  <article key={item.title} className="border border-[#4a3823] bg-[#100c08] p-3">
+                    <h3 className="font-serif text-lg text-[#ffe7ad]">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-5 text-[#c7b288]">{item.copy}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
           </TabsContent>
 
           <TabsContent value="hub" className="mt-3">
@@ -185,6 +214,12 @@ export function DeveloperProgramPage({
                   </div>
                 ))}
               </div>
+              <div className="mt-4 border border-[#4a3823] bg-[#100c08] p-4">
+                <h3 className="font-serif text-lg text-[#ffe7ad]">Contribution records remain durable</h3>
+                <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+                  Votes, submissions, published assets, and attribution snapshots stay with the platform even if a developer account is later disabled or deleted. That protects existing creator projects and keeps the review history honest.
+                </p>
+              </div>
             </section>
           </TabsContent>
 
@@ -196,7 +231,7 @@ export function DeveloperProgramPage({
                   <h2 className="font-serif text-xl text-[#fff1c7]">Apply to contribute</h2>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-                  Bring a clear style, usable assets, and a practical sense for what creators need when a card project gets real. Accepted developers get review tools, clean export, and a direct way to improve the shared library.
+                  Bring a clear style, usable assets, and a practical sense for what creators need when a card project gets real. Accepted developers get review tools, clean export, and a direct way to improve the shared library. The future creator pool is planned as an owner-controlled 10% eligible-profit share after billing, tax, payout, and legal systems are ready.
                 </p>
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                   {!entitlement.authConfigured ? (
@@ -287,6 +322,14 @@ function PublicDeveloperRecruitment({
           <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
             Help shape the shared CardForge library by contributing templates, overlays, icons, dividers, textures, and element recipes. Approved developers get a private asset hub for submissions, continuous voting, and pipeline status, while creators get a better studio for building complete sets.
           </p>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {developerRealityChecks.map((item) => (
+              <article key={item.title} className="border border-[#4a3823] bg-[#100c08] p-3">
+                <h2 className="font-serif text-lg text-[#ffe7ad]">{item.title}</h2>
+                <p className="mt-2 text-sm leading-5 text-[#c7b288]">{item.copy}</p>
+              </article>
+            ))}
+          </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             {!authConfigured ? (
               <Button disabled className="border-[#755632] bg-transparent text-[#bea97f]" variant="outline">

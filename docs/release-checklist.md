@@ -1,6 +1,6 @@
 # Release Checklist
 
-Last updated: May 25, 2026
+Last updated: May 26, 2026
 
 ## Release Status
 
@@ -23,7 +23,7 @@ The application is in a strong internal QA state for core authoring, generation,
 ### Remaining Launch Decisions
 
 Release can proceed only after the team resolves:
-- the currently large dirty worktree, including untracked feature directories, asset scaffolds, docs, and tests
+- the currently staged owner/developer release-polish slice
 - the Stripe webhook or billing-owned entitlement store for production paid-account activation
 - production `NEXT_PUBLIC_APP_URL` points at the deployed app/custom domain, not Supabase
 
@@ -33,14 +33,14 @@ Release should pause if:
 
 ## Current Verification State
 
-These checks passed after the launch-readiness consolidation pass:
+These checks passed after the May 26, 2026 release/worktree hygiene pass:
 
 - `npm run lint`
 - `npm run typecheck`
 - `npm run test`
 - `npm run build`
-- `npm run smoke`
 - `npm audit --omit=dev` does not pass
+- staged whitespace check passed with `git diff --cached --check`
 - entitlement hardening now ignores public Clerk metadata and accepts paid/dev unlocks only from Clerk private metadata, server allowlists, local fallback mode, or a future billing-owned source
 - API bootstrap/account/billing failures now use no-store JSON error envelopes with correlation ids
 - tracked local-only user template JSON and the empty `.modified` marker were removed from the release tree
@@ -49,20 +49,20 @@ These checks passed after the launch-readiness consolidation pass:
 
 Current production build snapshot:
 
-- `/` route size: `5.61 kB`
-- `/studio` route size: `27.5 kB`
-- `/account` route size: `9.86 kB`
-- `/developer` route size: `190 kB`
-- `/owner` route size: `17.2 kB`
+- `/` route size: `5.6 kB`
+- `/studio` route size: `27.6 kB`
+- `/account` route size: `7.46 kB`
+- `/developer` route size: `193 kB`
+- `/owner` route size: `22.4 kB`
 - `/profile` route size: `7.41 kB`
-- first-load JS: `131 kB` on `/`, `209 kB` on `/studio`, `173 kB` on `/account`, `391 kB` on `/developer`, `162 kB` on `/owner`, `167 kB` on `/profile`
-- unit tests: `49` files, `283` tests passed
-- smoke tests: `18` browser tests passed with `npm run smoke`
+- first-load JS: `131 kB` on `/`, `209 kB` on `/studio`, `174 kB` on `/account`, `394 kB` on `/developer`, `169 kB` on `/owner`, `167 kB` on `/profile`
+- unit tests: `53` files, `300` tests passed
+- smoke tests: `18` browser tests passed with `npm run smoke` in the previous browser cleanup checkpoint; not rerun in the May 26 hygiene pass
 - authenticated smoke: `4` reusable-account browser tests passed with `npx playwright test tests/smoke/auth-account.spec.ts --project=chromium`
 
 Current production audit snapshot:
 
-- last checked: `May 25, 2026` with `npm audit --omit=dev`
+- last checked: `May 26, 2026` with `npm audit --omit=dev`
 - high: `0`
 - moderate: `2`
 - total: `2`

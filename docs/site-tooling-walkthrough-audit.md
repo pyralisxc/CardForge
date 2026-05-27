@@ -15,6 +15,9 @@ The first pass used an unauthenticated local browser state. A follow-up authenti
 - Changed the primitive divider element from `Line / Divider` to `Divider / Rule` so it reads like a useful card-making element instead of an implementation category.
 - Renamed `Export` and `Import` in the template panel to `Export Project` and `Import Project`.
 - Replaced public developer wording around `frame parts` with clearer pipeline language: templates, overlays, icons, dividers, textures, and element recipes.
+- Clarified developer onboarding around pipeline-first submissions, continuous voting, durable contribution records, and the future-only 10% creator-pool plan.
+- Clarified the owner console control map so owners can tell what is editable in CardForge, what remains provider-owned, and which financial/legal systems are still future launch gates.
+- Added visible save-state feedback to owner and developer program controls so saves feel intentional rather than silent.
 
 ## Implementation Checkpoint: Inspector Tooling Pass
 

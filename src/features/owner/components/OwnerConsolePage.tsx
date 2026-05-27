@@ -207,6 +207,7 @@ export function OwnerConsolePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastOwnerSaveAt, setLastOwnerSaveAt] = useState<string | null>(null);
 
   const siteContentGroups = useMemo(() => {
     return (['landing', 'about', 'access'] as Array<SiteContentBlock['group']>).map((group) => ({
@@ -229,6 +230,9 @@ export function OwnerConsolePage() {
   const nextWaveSlots = Math.max(0, founderBetaCampaign.publicSlotCap - founderBetaCampaign.releaseSlotCap);
   const officialFeatureCount = roadmapItems.filter((item) => item.itemType === 'feature').length;
   const officialCheckpointCount = roadmapItems.filter((item) => item.itemType !== 'feature').length;
+  const lastOwnerSaveLabel = lastOwnerSaveAt
+    ? new Date(lastOwnerSaveAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : 'No owner edits saved in this session';
 
   const syncConsoleState = useCallback((consolePayload: OwnerConsolePayload) => {
     setSettings(consolePayload.settings);
@@ -291,6 +295,7 @@ export function OwnerConsolePage() {
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save owner settings.'));
       const body = await response.json() as { console: OwnerConsolePayload };
       syncConsoleState(body.console);
+      setLastOwnerSaveAt(new Date().toISOString());
       toast({ title: 'Owner profile saved', description: 'Business and support details are updated.' });
     } catch (error) {
       toast({
@@ -315,6 +320,7 @@ export function OwnerConsolePage() {
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save legal document.'));
       const body = await response.json() as { console: OwnerConsolePayload };
       syncConsoleState(body.console);
+      setLastOwnerSaveAt(new Date().toISOString());
       toast({ title: 'Legal page published', description: `${activeLegalDocument.title} is updated.` });
     } catch (error) {
       toast({
@@ -338,6 +344,7 @@ export function OwnerConsolePage() {
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save site mechanics.'));
       const body = await response.json() as { console: OwnerConsolePayload };
       syncConsoleState(body.console);
+      setLastOwnerSaveAt(new Date().toISOString());
       toast({ title: 'Site mechanics saved', description: 'Feature voting and public board rules are updated.' });
     } catch (error) {
       toast({
@@ -367,6 +374,7 @@ export function OwnerConsolePage() {
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save site copy.'));
       const body = await response.json() as { console: OwnerConsolePayload };
       syncConsoleState(body.console);
+      setLastOwnerSaveAt(new Date().toISOString());
       toast({ title: 'Site copy published', description: `${block.label} is live without a deploy.` });
     } catch (error) {
       toast({
@@ -390,6 +398,7 @@ export function OwnerConsolePage() {
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save Founder Beta campaign.'));
       const body = await response.json() as { console: OwnerConsolePayload };
       syncConsoleState(body.console);
+      setLastOwnerSaveAt(new Date().toISOString());
       toast({ title: 'Founder Beta saved', description: 'Promo slots, copy, and grant behavior are updated.' });
     } catch (error) {
       toast({
@@ -413,6 +422,7 @@ export function OwnerConsolePage() {
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to update roadmap checkpoint.'));
       const body = await response.json() as { console: OwnerConsolePayload };
       syncConsoleState(body.console);
+      setLastOwnerSaveAt(new Date().toISOString());
       toast({
         title: status === 'shipped' ? 'Checkpoint completed' : 'Checkpoint updated',
         description: 'The public roadmap now reflects the new status.',
@@ -496,6 +506,30 @@ export function OwnerConsolePage() {
               <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
                 Edit public business details, publish legal pages, check integration readiness, and steer the contributor-powered library without losing the production controls underneath.
               </p>
+              <div className="mt-6 grid gap-3 md:grid-cols-4">
+                <div className="border border-[#4a3823] bg-[#100c08] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Editable here</p>
+                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
+                    Public copy, legal drafts, Founder Beta waves, roadmap states, and developer pipeline rules.
+                  </p>
+                </div>
+                <div className="border border-[#4a3823] bg-[#100c08] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Provider-owned</p>
+                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
+                    Raw API keys, Stripe billing objects, Clerk identity records, and Supabase project secrets stay in provider dashboards.
+                  </p>
+                </div>
+                <div className="border border-[#4a3823] bg-[#100c08] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Future systems</p>
+                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
+                    Creator-pool payouts, billing webhooks, tax handling, and final legal review are still launch-gated.
+                  </p>
+                </div>
+                <div className="border border-[#4a3823] bg-[#100c08] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Save state</p>
+                  <p className="mt-2 text-sm leading-6 text-[#ffe7ad]">{lastOwnerSaveLabel}</p>
+                </div>
+              </div>
             </div>
 
             <Tabs defaultValue="readiness" className="space-y-5">
@@ -526,7 +560,7 @@ export function OwnerConsolePage() {
                 </div>
                 <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSettings}>
                   <Save className="mr-2 h-4 w-4" />
-                  Save business profile
+                  {isSaving ? 'Saving business profile...' : 'Save business profile'}
                 </Button>
               </section>
 
@@ -697,7 +731,7 @@ export function OwnerConsolePage() {
                             </span>
                             <Button size="sm" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={() => saveSiteContentBlock(block)}>
                               <Save className="mr-2 h-4 w-4" />
-                              Publish block
+                              {isSaving ? 'Publishing...' : 'Publish block'}
                             </Button>
                           </div>
                         </div>
@@ -776,7 +810,7 @@ export function OwnerConsolePage() {
 
               <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSiteMechanics}>
                 <Save className="mr-2 h-4 w-4" />
-                Save site mechanics
+                {isSaving ? 'Saving site mechanics...' : 'Save site mechanics'}
               </Button>
             </section>
               </TabsContent>
@@ -925,7 +959,7 @@ export function OwnerConsolePage() {
 
               <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveFounderBetaCampaign}>
                 <Save className="mr-2 h-4 w-4" />
-                Save Founder Beta promo
+                {isSaving ? 'Saving Founder Beta...' : 'Save Founder Beta promo'}
               </Button>
 
               <div className="mt-7 border border-[#5f4526] bg-[#100c08] p-4">
@@ -1000,7 +1034,7 @@ export function OwnerConsolePage() {
                     <div className="flex flex-wrap gap-3">
                       <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveLegalDocument}>
                         <Save className="mr-2 h-4 w-4" />
-                        Publish legal page
+                        {isSaving ? 'Publishing legal page...' : 'Publish legal page'}
                       </Button>
                       <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
                         <Link href={legalDocumentPathBySlug[activeLegalDocument.slug]}>View public page</Link>
