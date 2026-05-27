@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { isStaticSegmentFieldKey } from '@/lib/textBindings';
@@ -18,13 +19,19 @@ import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
-type TextFieldContractType = 'text' | 'richText' | 'rules' | 'structuredRows';
+type TextFieldContractType = 'text' | 'structuredRows';
 
-const textContractTypeOptions: Array<{ value: TextFieldContractType; label: string }> = [
-  { value: 'structuredRows', label: 'Structured Rows' },
-  { value: 'richText', label: 'Rich Text' },
-  { value: 'rules', label: 'Rules Blocks' },
-  { value: 'text', label: 'Plain Text' },
+const textContractTypeOptions: Array<{ value: TextFieldContractType; label: string; description: string }> = [
+  {
+    value: 'text',
+    label: 'Text',
+    description: 'One editable value with rich text controls and optional [ability] or [effect] markers.',
+  },
+  {
+    value: 'structuredRows',
+    label: 'Structured Rows',
+    description: 'Repeatable rows using the variables inside this text element.',
+  },
 ];
 
 const fieldSelectClassName = 'h-8 rounded-md border border-[#252b35] bg-[#090d13] px-2 text-xs text-[#d8d1c4] outline-none focus:border-[#d5ad54]';
@@ -42,7 +49,7 @@ interface TextExpressionEditorProps {
   onEditVariable: (key: string) => void;
   onRenameVariable: (key: string) => void;
   onRemoveVariable: (key: string) => void;
-  showRulesHint: boolean;
+  showTextMarkerHint: boolean;
 }
 
 export function TextExpressionEditor({
@@ -58,7 +65,7 @@ export function TextExpressionEditor({
   onEditVariable,
   onRenameVariable,
   onRemoveVariable,
-  showRulesHint,
+  showTextMarkerHint,
 }: TextExpressionEditorProps) {
   return (
     <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
@@ -109,9 +116,9 @@ export function TextExpressionEditor({
         </CardForgeRichTextEditor>
       </div>
 
-      {showRulesHint && (
+      {showTextMarkerHint && (
         <p className="text-[10px] text-[#8f95a3]">
-          Keep one dynamic rules field. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to control rendering per block.
+          Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to control semantic card-text rendering.
         </p>
       )}
     </div>
@@ -231,7 +238,7 @@ export function TextFieldSettingsList({
                       <span className="text-[11px] text-[#d8d1c4]">Shrink overflow text</span>
                       <Switch
                         aria-label={`Shrink overflow text for ${field.label}`}
-                        checked={Boolean(contract?.textAutoFit ?? (field.contentModel === 'rulesBlocks'))}
+                        checked={Boolean(contract?.textAutoFit ?? (field.contentModel === 'text'))}
                         onCheckedChange={(checked) => onUpdateContract(field.key, {
                           elementId: element.id,
                           textAutoFit: checked,
@@ -302,9 +309,21 @@ export function TextFieldSettingsList({
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-[#8f95a3]">Field Type</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-[10px] text-[#8f95a3]">Field Type</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button type="button" className="grid h-4 w-4 place-items-center rounded-full border border-[#343b49] text-[10px] text-[#8f95a3]" aria-label="Field type help">
+                              ?
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[240px] text-xs">
+                            Text is one fully customizable rich value. Structured Rows repeats this element's variables as rows.
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <select
-                        value={(contract?.type === 'text' || contract?.type === 'richText' || contract?.type === 'rules' || contract?.type === 'structuredRows') ? contract.type : field.contentModel === 'structuredRows' ? 'structuredRows' : field.contentModel === 'rulesBlocks' ? 'rules' : field.contentModel === 'plainText' ? 'text' : 'richText'}
+                        value={(contract?.type === 'structuredRows' || field.contentModel === 'structuredRows') ? 'structuredRows' : 'text'}
                         onChange={(event) => onUpdateContract(field.key, {
                           elementId: element.id,
                           type: event.target.value as TextFieldContractType,
@@ -312,7 +331,7 @@ export function TextFieldSettingsList({
                         className={fieldSelectClassName}
                       >
                         {textContractTypeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
+                          <option key={option.value} value={option.value} title={option.description}>{option.label}</option>
                         ))}
                       </select>
                     </div>

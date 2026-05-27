@@ -33,20 +33,13 @@ import {
 } from '@/lib/textElementContracts';
 import { resolveFieldContractStyleOverrides } from '@/lib/fieldStyleOverrides';
 
-const RICH_TEXT_MARKER_PATTERN = /(\*\*[\s\S]+?\*\*|__[\s\S]+?__|_[\s\S]+?_|==[\s\S]+?==|\[color:[^\]]+\][\s\S]+?\[\/color\])/;
-
-const containsRichTextMarkers = (value: string): boolean => RICH_TEXT_MARKER_PATTERN.test(value);
-
 const resolveRenderContentModel = (
   contentModel: TextElementContentModel,
   text: string,
   segments: Array<{ text: string }>
 ): 'plainText' | 'richText' | 'rulesBlocks' => {
   if (contentModel === 'structuredRows') return 'richText';
-  if (contentModel !== 'plainText') return contentModel;
-  return containsRichTextMarkers(text) || segments.some((segment) => containsRichTextMarkers(segment.text))
-    ? 'richText'
-    : 'plainText';
+  return 'rulesBlocks';
 };
 
 const fontWeightToCss = (fontWeight?: FreeformCardElement['fontWeight']): React.CSSProperties['fontWeight'] | undefined => {

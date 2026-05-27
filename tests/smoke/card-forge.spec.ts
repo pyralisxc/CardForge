@@ -78,7 +78,7 @@ async function seedBulkMappingTemplate(page: Page) {
         { key: 'Rank', label: 'Rank', type: 'text', required: true },
         { key: 'Suit', label: 'Suit', type: 'text', required: true },
         { key: 'CenterMark', label: 'Center Mark', type: 'text', required: true },
-        { key: 'newText', label: 'New Text', type: 'richText', required: false },
+        { key: 'newText', label: 'New Text', type: 'text', required: false },
       ],
       freeformCanvas: {
         width: 750,

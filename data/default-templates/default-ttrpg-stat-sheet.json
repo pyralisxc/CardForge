@@ -208,7 +208,7 @@
     },
     {
       "key": "Actions",
-      "type": "rules",
+      "type": "text",
       "label": "Actions",
       "example": "",
       "required": true,

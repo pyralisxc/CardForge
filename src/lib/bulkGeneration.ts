@@ -58,7 +58,7 @@ const createBulkExampleDataLine = (
   if (previewValue !== undefined) return String(previewValue);
   if (field.defaultValue) return field.defaultValue;
   if (field.contentModel === 'structuredRows') return 'Row value';
-  if (field.contentModel === 'rulesBlocks') return '[ability] Flying\n[effect] Deal 3 damage to any target.\n[reminder] (This can hit creatures.)';
+  if (field.contentModel === 'text' && field.isMultiline) return '[ability] Flying\n[effect] Deal 3 damage to any target.\n[reminder] (This can hit creatures.)';
   if (keyLower.includes('name') || keyLower.includes('title')) return 'Sample Card';
   if (keyLower.includes('cost') || keyLower.includes('value')) return '3';
   if (keyLower.includes('type')) return 'Sample Type';
@@ -94,9 +94,6 @@ export const createBulkExampleJson = ({
 const fieldTypeLabel = (field: TemplateFieldDefinition): string => {
   if (field.isImage) return 'image';
   if (field.contentModel === 'structuredRows') return 'structuredRows';
-  if (field.contentModel === 'rulesBlocks') return 'rulesBlocks';
-  if (field.supportsRichText) return 'richText';
-  if (field.isMultiline) return 'multilineText';
   return 'text';
 };
 

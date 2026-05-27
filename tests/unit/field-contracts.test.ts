@@ -20,7 +20,7 @@ describe('field contract v1 helpers', () => {
       aspectRatio: '63:88',
       fieldContracts: [
         { key: 'name', label: 'Name', type: 'text', required: true, maxLength: 8 },
-        { key: 'rulesText', label: 'Rules', type: 'rules', required: false, allowedFormatting: ['bold'] },
+        { key: 'rulesText', label: 'Rules', type: 'text', required: false, allowedFormatting: ['bold'] },
         { key: 'artworkUrl', label: 'Artwork', type: 'image', required: true },
       ],
       freeformCanvas: {
@@ -72,16 +72,16 @@ describe('field contract v1 helpers', () => {
         key: 'cardName',
         elementId: 'name-text',
         label: 'Card Name',
-        type: 'richText',
+        type: 'text',
         required: true,
         defaultValue: 'Ashen Crown',
-        allowedFormatting: ['bold', 'italic', 'underline', 'color', 'highlight', 'lists'],
+        allowedFormatting: ['bold', 'italic', 'underline', 'color', 'highlight', 'lists', 'rulesMarkers'],
       }),
       expect.objectContaining({
         key: 'rulesText',
         elementId: 'rules-text',
         label: 'Rules Text',
-        type: 'rules',
+        type: 'text',
         defaultValue: 'Deal 1 damage.',
         allowedFormatting: ['bold', 'italic', 'underline', 'color', 'highlight', 'lists', 'rulesMarkers'],
       }),

@@ -10,7 +10,7 @@ import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { buildScopedFieldDataKey, parseTemplateTextSegments, parseTextBinding } from '@/lib/textBindings';
 import { extractPlaceholderKeysFromText, getImageFieldKeyForElement, toTitleCase } from '@/lib/utils';
 
-export type FieldContractContentModel = 'image' | 'plainText' | 'richText' | 'rulesBlocks' | 'structuredRows';
+export type FieldContractContentModel = 'image' | 'text' | 'structuredRows';
 export const FIELD_CONTRACT_VERSION = 1;
 
 export interface ResolveFieldContractV1Options {
@@ -37,16 +37,7 @@ export interface ResolvedFieldContractV1 {
   helperText?: string;
 }
 
-const RICH_TEXT_FORMATTING: TemplateFieldAllowedFormatting[] = [
-  'bold',
-  'italic',
-  'underline',
-  'color',
-  'highlight',
-  'lists',
-];
-
-const RULES_FORMATTING: TemplateFieldAllowedFormatting[] = [
+const TEXT_FORMATTING: TemplateFieldAllowedFormatting[] = [
   'bold',
   'italic',
   'underline',
@@ -65,8 +56,7 @@ const normalizePositiveInteger = (value: unknown): number | undefined => {
 export const getDefaultAllowedFormatting = (
   contentModel: FieldContractContentModel
 ): TemplateFieldAllowedFormatting[] => {
-  if (contentModel === 'rulesBlocks') return [...RULES_FORMATTING];
-  if (contentModel === 'richText' || contentModel === 'structuredRows') return [...RICH_TEXT_FORMATTING];
+  if (contentModel === 'text' || contentModel === 'structuredRows') return [...TEXT_FORMATTING];
   return [];
 };
 
@@ -74,10 +64,16 @@ export const getContractTypeForContentModel = (
   contentModel: FieldContractContentModel
 ): TemplateFieldContractType => {
   if (contentModel === 'image') return 'image';
-  if (contentModel === 'rulesBlocks') return 'rules';
   if (contentModel === 'structuredRows') return 'structuredRows';
-  if (contentModel === 'richText') return 'richText';
   return 'text';
+};
+
+const normalizeContractType = (
+  value: unknown,
+  contentModel: FieldContractContentModel
+): TemplateFieldContractType => {
+  if (value === 'image' || value === 'text' || value === 'structuredRows') return value;
+  return getContractTypeForContentModel(contentModel);
 };
 
 export const resolveFieldContractV1 = ({
@@ -99,7 +95,7 @@ export const resolveFieldContractV1 = ({
   return {
     key,
     label: contract?.label,
-    type: contract?.type ?? getContractTypeForContentModel(contentModel),
+    type: normalizeContractType(contract?.type, contentModel),
     required: typeof contract?.required === 'boolean' ? contract.required : inferredRequired,
     multiline: typeof contract?.multiline === 'boolean' ? contract.multiline : inferredMultiline,
     defaultValue,
@@ -175,12 +171,7 @@ export const validateCardDataAgainstFieldContracts = (
 const inferContentModelFromElement = (element: FreeformCardElement, isImage: boolean): FieldContractContentModel => {
   if (isImage) return 'image';
   if (element.generatorFieldKind === 'structuredRows') return 'structuredRows';
-  if (element.generatorFieldKind === 'rules') return 'rulesBlocks';
-  if (element.generatorFieldKind === 'text') return 'plainText';
-
-  const lower = `${element.name || ''} ${element.content || ''}`.toLowerCase();
-  if (/(rules|effect|ability|reminder|flavor|subtitle|subtext|description)/.test(lower)) return 'rulesBlocks';
-  return 'richText';
+  return 'text';
 };
 
 const REQUIRED_NORMALIZATION_OVERRIDES: Record<string, boolean> = {

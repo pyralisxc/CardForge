@@ -2,7 +2,7 @@
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
 export type FreeformShapeRole = 'basic' | 'panel' | 'artFrame' | 'rulesBox' | 'titlePlate' | 'statGem' | 'costOrb' | 'divider';
-export type GeneratorFieldKind = 'text' | 'richText' | 'rules' | 'structuredRows';
+export type GeneratorFieldKind = 'text' | 'structuredRows';
 export type TemplateFieldContractType = GeneratorFieldKind | 'image';
 export type TemplateFieldAllowedFormatting = 'bold' | 'italic' | 'underline' | 'color' | 'highlight' | 'lists' | 'rulesMarkers';
 export type TemplateSource = 'default' | 'user';

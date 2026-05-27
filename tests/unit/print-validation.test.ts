@@ -100,7 +100,7 @@ describe('print validation', () => {
         {
           key: 'rulesText',
           label: 'Rules',
-          type: 'rules',
+          type: 'text',
           required: true,
           maxLength: 8,
           allowedFormatting: ['bold'],

@@ -40,7 +40,7 @@ export function GeneratorFieldInput({
   const reactId = useId().replace(/:/g, '');
   const fieldId = `generator-field-${field.key}-${reactId}`;
   const fileInputId = `${fieldId}-file`;
-  const editorHeight = field.editor === 'rules-textarea'
+  const editorHeight = field.contentModel === 'text' && field.isMultiline
     ? compact ? 'min-h-[7rem]' : 'min-h-[10rem]'
     : compact ? 'min-h-[5.5rem]' : 'min-h-[7.5rem]';
   const currentLength = value.length;
@@ -69,15 +69,16 @@ export function GeneratorFieldInput({
       )}
 
       <div className={field.isImage ? 'flex items-center gap-2' : ''}>
-        {(field.editor === 'rich-textarea' || field.editor === 'rules-textarea') ? (
+        {field.editor === 'text-editor' ? (
           <CardForgeRichTextEditor
             id={fieldId}
             value={value}
             onChange={onChange}
             highlightColor={highlightColor}
             onHighlightColorChange={onHighlightColorChange}
-            placeholder={field.contentModel === 'rulesBlocks' ? `Enter ${field.label} blocks...` : `Enter ${field.label}...`}
+            placeholder={`Enter ${field.label}...`}
             editorClassName={editorHeight}
+            allowedFormatting={field.allowedFormatting}
           />
         ) : field.control === 'textarea' ? (
           <Textarea

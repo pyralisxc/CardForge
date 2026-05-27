@@ -59,10 +59,10 @@ describe('extractTemplateFieldDefinitions', () => {
         key: 'rulesText',
         label: 'Rules Text',
         control: 'textarea',
-        editor: 'rules-textarea',
-        contentModel: 'rulesBlocks',
+        editor: 'text-editor',
+        contentModel: 'text',
         defaultValue: 'Deal 1 damage.',
-        contractType: 'rules',
+        contractType: 'text',
         description: undefined,
         example: undefined,
         maxLength: undefined,
@@ -75,20 +75,20 @@ describe('extractTemplateFieldDefinitions', () => {
         sourceElementName: 'Rules',
         sourceElementPreview: 'Deal 1 damage.',
         sourceElementContent: '{{rulesText:"Deal 1 damage."}}',
-        helperText: 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.',
+        helperText: 'Use rich text freely. Mark card-text blocks with [ability], [effect], [reminder], [flavor], or [subtitle] when you want semantic styling.',
       },
       {
         key: 'cardName',
         label: 'Card Name',
         control: 'textarea',
-        editor: 'rich-textarea',
-        contentModel: 'richText',
+        editor: 'text-editor',
+        contentModel: 'text',
         defaultValue: 'Astral Relic',
-        contractType: 'richText',
+        contractType: 'text',
         description: undefined,
         example: undefined,
         maxLength: undefined,
-        allowedFormatting: ['bold', 'italic', 'underline', 'color', 'highlight', 'lists'],
+        allowedFormatting: ['bold', 'italic', 'underline', 'color', 'highlight', 'lists', 'rulesMarkers'],
         required: true,
         isImage: false,
         isMultiline: false,
@@ -97,13 +97,13 @@ describe('extractTemplateFieldDefinitions', () => {
         sourceElementName: 'Title',
         sourceElementPreview: 'Astral Relic',
         sourceElementContent: '{{cardName:"Astral Relic"}}',
-        helperText: 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.',
+        helperText: 'Use rich text freely. Mark card-text blocks with [ability], [effect], [reminder], [flavor], or [subtitle] when you want semantic styling.',
       },
       {
         key: 'artworkUrl',
         label: 'Artwork Url',
         control: 'input',
-        editor: 'plain-input',
+        editor: 'image-input',
         contentModel: 'image',
         defaultValue: undefined,
         contractType: 'image',
@@ -172,7 +172,7 @@ describe('extractTemplateFieldDefinitions', () => {
             height: 160,
             zIndex: 1,
             content: '{{rulesText:"[ability] Flying"}}',
-            generatorFieldKind: 'rules',
+            generatorFieldKind: 'text',
             generatorFieldRequired: true,
             textAutoFit: true,
             textMinFontSizePx: 8,
@@ -182,8 +182,8 @@ describe('extractTemplateFieldDefinitions', () => {
     };
 
     const [field] = extractTemplateFieldDefinitions(template);
-    expect(field.contentModel).toBe('rulesBlocks');
-    expect(field.editor).toBe('rules-textarea');
+    expect(field.contentModel).toBe('text');
+    expect(field.editor).toBe('text-editor');
     expect(field.required).toBe(true);
     expect(field.helperText).toContain('[ability]');
   });
@@ -198,7 +198,7 @@ describe('extractTemplateFieldDefinitions', () => {
           key: 'rulesText',
           elementId: 'rules-text',
           label: 'Rules',
-          type: 'rules',
+          type: 'text',
           required: true,
           multiline: true,
           defaultValue: '[ability] Flying',
@@ -232,7 +232,7 @@ describe('extractTemplateFieldDefinitions', () => {
     expect(field).toMatchObject({
       key: 'rulesText',
       label: 'Rules',
-      contentModel: 'rulesBlocks',
+      contentModel: 'text',
       defaultValue: '[ability] Flying',
       example: '[effect] Draw a card.',
       description: 'Rules text shown in the main rules box.',
@@ -251,7 +251,7 @@ describe('extractTemplateFieldDefinitions', () => {
         {
           key: 'title_var_1',
           elementId: 'text-1',
-          type: 'richText',
+          type: 'text',
           multiline: false,
         },
       ],
@@ -280,8 +280,8 @@ describe('extractTemplateFieldDefinitions', () => {
     const baseField = fields.find((field) => field.key === buildStaticSegmentFieldKey('text-1', 0));
     expect(baseField).toMatchObject({
       label: 'Title',
-      contentModel: 'richText',
-      editor: 'rich-textarea',
+      contentModel: 'text',
+      editor: 'text-editor',
       control: 'textarea',
       defaultValue: 'Legendary ',
       sourceElementName: 'Title',
@@ -289,8 +289,8 @@ describe('extractTemplateFieldDefinitions', () => {
 
     const field = fields.find((item) => item.key === 'title_var_1');
     expect(field).toBeDefined();
-    expect(field?.contentModel).toBe('richText');
-    expect(field?.editor).toBe('rich-textarea');
+    expect(field?.contentModel).toBe('text');
+    expect(field?.editor).toBe('text-editor');
     expect(field?.control).toBe('textarea');
     expect(field?.sourceElementName).toBe('Title');
     expect(field?.sourceElementPreview).toBe('Legendary [Title Var 1]');
@@ -336,7 +336,7 @@ describe('extractTemplateFieldDefinitions', () => {
           key: 'title',
           elementId: 'name-text',
           label: 'Card Title',
-          type: 'richText',
+          type: 'text',
           required: true,
           example: 'Ashen Crown',
         },

@@ -38,11 +38,11 @@ describe('templateVariableContracts', () => {
     const result = upsertTemplateFieldContract(template, 'title', {
       elementId: 'title-element',
       label: 'Card Title',
-      type: 'richText',
+      type: 'text',
     });
 
     expect(result.fieldContracts).toEqual([
-      { key: 'title', elementId: 'title-element', label: 'Card Title', type: 'richText' },
+      { key: 'title', elementId: 'title-element', label: 'Card Title', type: 'text' },
     ]);
   });
 
@@ -52,7 +52,7 @@ describe('templateVariableContracts', () => {
       name: 'Template',
       aspectRatio: '2.5/3.5',
       fieldContracts: [
-        { key: 'title_var_1', elementId: 'title-element', label: 'Title Var 1', type: 'richText' },
+        { key: 'title_var_1', elementId: 'title-element', label: 'Title Var 1', type: 'text' },
       ],
       freeformCanvas: {
         width: 750,
@@ -113,14 +113,14 @@ describe('templateVariableContracts', () => {
         key: 'title_var_1',
         elementId: 'title-original',
         label: 'Title Var 1',
-        type: 'richText',
+        type: 'text',
         required: false,
         example: 'Ashen Crown',
       },
       {
         key: 'sharedRules',
         label: 'Shared Rules',
-        type: 'rules',
+        type: 'text',
       },
     ];
 
@@ -144,7 +144,7 @@ describe('templateVariableContracts', () => {
         key: 'title_var_1_copy',
         elementId: 'title-copy',
         label: 'Title Var 1 Copy',
-        type: 'richText',
+        type: 'text',
         required: false,
         example: 'Ashen Crown',
       },

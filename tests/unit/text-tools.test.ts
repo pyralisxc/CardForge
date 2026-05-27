@@ -112,7 +112,7 @@ describe('text tools', () => {
       aspectRatio: '63:88',
       frameStyle: 'freeform',
       freeformCanvas: { width: 630, height: 880, elements: [element] },
-      fieldContracts: [{ key: 'headline', label: 'Headline', type: 'richText', elementId: 'rules-element' }],
+      fieldContracts: [{ key: 'headline', label: 'Headline', type: 'text', elementId: 'rules-element' }],
     } as TCGCardTemplate;
 
     const html = renderToStaticMarkup(createElement(CardTextContent, {
@@ -147,7 +147,7 @@ describe('text tools', () => {
       aspectRatio: '63:88',
       frameStyle: 'freeform',
       freeformCanvas: { width: 630, height: 880, elements: [element] },
-      fieldContracts: [{ key: 'rulesText', label: 'Rules Text', type: 'richText', elementId: 'rules-preview' }],
+      fieldContracts: [{ key: 'rulesText', label: 'Rules Text', type: 'text', elementId: 'rules-preview' }],
     } as TCGCardTemplate;
 
     const html = renderToStaticMarkup(createElement(CardTextContent, {
@@ -183,8 +183,8 @@ describe('text tools', () => {
       frameStyle: 'freeform',
       freeformCanvas: { width: 630, height: 880, elements: [element] },
       fieldContracts: [
-        { key: 'Name', elementId: 'mixed-element', type: 'richText', textColor: '#ffcc66', fontWeight: 'font-bold' },
-        { key: 'Stat', elementId: 'mixed-element', type: 'richText', textColor: '#66ccff', fontSizePx: 24, textDecoration: 'underline' },
+        { key: 'Name', elementId: 'mixed-element', type: 'text', textColor: '#ffcc66', fontWeight: 'font-bold' },
+        { key: 'Stat', elementId: 'mixed-element', type: 'text', textColor: '#66ccff', fontSizePx: 24, textDecoration: 'underline' },
       ],
     } as TCGCardTemplate;
 
@@ -223,8 +223,8 @@ describe('text tools', () => {
       frameStyle: 'freeform',
       freeformCanvas: { width: 630, height: 880, elements: [element] },
       fieldContracts: [
-        { key: 'Name', elementId: 'styled-row-element', type: 'richText', textColor: '#ffcc66', fontWeight: 'font-bold' },
-        { key: 'Stat', elementId: 'styled-row-element', type: 'richText', textColor: '#66ccff', fontSizePx: 24 },
+        { key: 'Name', elementId: 'styled-row-element', type: 'text', textColor: '#ffcc66', fontWeight: 'font-bold' },
+        { key: 'Stat', elementId: 'styled-row-element', type: 'text', textColor: '#66ccff', fontSizePx: 24 },
       ],
     } as TCGCardTemplate;
 

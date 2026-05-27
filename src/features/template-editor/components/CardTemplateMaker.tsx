@@ -443,7 +443,7 @@ export function CardTemplateMaker({
       key: nextKey,
       elementId: selectedElement.id,
       label: toTitleCase(nextKey),
-      type: inferredType === 'rulesBlocks' ? 'rules' : 'richText',
+      type: inferredType === 'structuredRows' ? 'structuredRows' : 'text',
       required: false,
       multiline: cleanSelectedText.includes('\n'),
       defaultValue: cleanSelectedText,

@@ -60,7 +60,7 @@ export function ElementContentPanel({
           onEditVariable={onFocusVariableCard}
           onRenameVariable={onFocusVariableCard}
           onRemoveVariable={onRemoveSelectedElementVariableContract}
-          showRulesHint={inferTextElementContentModel(currentTemplate, element) === 'rulesBlocks'}
+          showTextMarkerHint={inferTextElementContentModel(currentTemplate, element) === 'text'}
         />
         <TextFieldSettingsList
           fields={selectedElementTemplateFields}

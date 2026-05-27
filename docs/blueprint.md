@@ -69,10 +69,8 @@ Text elements can now mix static copy with element-scoped inline variables.
 - Variable identity should come from the variable key. Selected fallback text remains sample/default content, not the field name.
 - The visual rich text editor is the creator-facing source of truth for text authoring today. Static text and inline variable spans live in one editable flow, with formatting controls directly above the field.
 - Field cards are generator contracts plus scoped variable typography. They expose identity, required state, auto-fit, field type, font family, size, color, weight, line height, letter spacing, italic, and underline for the parent/base field and child variables scoped to the selected text element.
-- Text field types currently mean:
-  - `Plain Text`: one simple text value, no rich formatting toolbar expected in generator entry.
-  - `Rich Text`: one value with rich text formatting, inline color, highlight, lists, and emphasis.
-  - `Rules Blocks`: one rules text value where `[ability]`, `[effect]`, `[reminder]`, `[flavor]`, `[subtitle]`, `[subtext]`, or `[note]` markers apply semantic card-text treatment.
+- Text field types intentionally stay small:
+  - `Text`: one editable value with full rich text controls. If a creator wants plain text, they simply leave formatting unused. `[ability]`, `[effect]`, `[reminder]`, `[flavor]`, `[subtitle]`, `[subtext]`, and `[note]` markers can still apply semantic card-text treatment.
   - `Structured Rows`: one authored text element becomes a repeatable row pattern in the generator. For example `{{trait}}: {{value}}` starts as one row in Layout Studio, then Single Output Entry can add/remove rows, each with its own `trait` and `value`.
 - Tiptap powers the editor surface. The stored template string remains the serialization format for now, but users should not need to edit raw `{{Variable:"fallback"}}` syntax during normal authoring.
 - Single-card entry and edit-card dialog both use the same grouped generator field UI. Parent/base text and child variables should not be rebuilt separately per surface.
@@ -492,7 +490,7 @@ That deep pass should be treated as a first-class QA milestone before calling te
   - key
   - elementId
   - label
-  - type (`text | richText | rules | structuredRows | image`)
+  - type (`text | structuredRows | image`)
   - required
   - multiline
   - defaultValue
@@ -501,10 +499,7 @@ That deep pass should be treated as a first-class QA milestone before calling te
   - maxLength
   - allowedFormatting
   - scoped typography overrides such as font family, size, color, weight, line height, and letter spacing
-- Default formatting permissions are contract-driven:
-  - plain text and image fields allow no rich formatting
-  - rich text and structured row fields allow emphasis, underline, color, highlight, and lists
-  - rules fields also allow rules markers such as `[ability]`, `[effect]`, `[reminder]`, `[flavor]`, and `[subtitle]`
+- Default formatting permissions are contract-driven. `text` and `structuredRows` fields allow emphasis, underline, color, highlight, lists, and semantic markers such as `[ability]`, `[effect]`, `[reminder]`, `[flavor]`, and `[subtitle]`; image fields allow no text formatting.
 - Text inspector field cards let creators edit default value, example, description, max length, required state, auto-fit, type, and typography. New inline variables seed both `defaultValue` and `example` from the selected text so generated outputs have a stable fallback while external tools still get a sample value.
 - Bulk preview and export quality checks now run shared contract validation for mapped/generated data, including required fields, max length, image-source shape, and formatting-permission warnings. Downloaded contract JSON includes `contractVersion: 1`, `description`, `example`, `maxLength`, `allowedFormatting`, defaults, required state, rich-text support, and style override columns.
 - `normalizeTemplateFieldContracts()` is the repair path for older or inferred templates. It scans current template canvases and writes explicit v1 contracts for detected text variables and image fields while preserving existing scoped typography metadata.
@@ -620,7 +615,7 @@ The highest-value next manual/browser QA pass should focus on rich text and vari
 3. Rename, delete, and recreate variables to verify contract stability.
 4. Confirm live changes in Maker preview with no stale inspector or generator state.
 5. Open the same template in Single Card Entry and verify grouped fields preserve the authored rich text structure.
-6. Run a bulk example that exercises rich text, multiline values, and rules blocks.
+6. Run a bulk example that exercises rich text, multiline values, and semantic text markers.
 7. Confirm generated card previews and export-facing renderers match the authored formatting.
 
 ### Library Selection Guidance

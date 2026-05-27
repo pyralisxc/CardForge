@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
+import Underline from '@tiptap/extension-underline';
 import { Bold, Highlighter, Italic, List, ListOrdered, Palette, Redo2, Underline as UnderlineIcon, Undo2, Variable } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/lib/richTextDocument';
+import type { TemplateFieldAllowedFormatting } from '@/types';
 
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 
@@ -68,6 +70,7 @@ interface CardForgeRichTextEditorProps {
   onEditVariable?: (key: string) => void;
   onRenameVariable?: (key: string) => void;
   onRemoveVariable?: (key: string) => void;
+  allowedFormatting?: TemplateFieldAllowedFormatting[];
   children?: React.ReactNode;
 }
 
@@ -86,6 +89,7 @@ export function CardForgeRichTextEditor({
   onEditVariable,
   onRenameVariable,
   onRemoveVariable,
+  allowedFormatting,
   children,
 }: CardForgeRichTextEditorProps) {
   const [textColorOpen, setTextColorOpen] = useState(false);
@@ -108,6 +112,7 @@ export function CardForgeRichTextEditor({
       TextStyle,
       Color.configure({ types: ['textStyle'] }),
       Highlight.configure({ multicolor: true }),
+      Underline,
       CardForgeVariableNode,
     ],
     content: initialContent,
@@ -184,6 +189,9 @@ export function CardForgeRichTextEditor({
 
   const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[#111720] text-[#d8d1c4] transition-colors hover:border-[#d5ad54] hover:text-[#f5d27b] disabled:cursor-not-allowed disabled:opacity-45';
   const isActive = useCallback((name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false, [editor]);
+  const canUse = useCallback((format: TemplateFieldAllowedFormatting): boolean => (
+    !allowedFormatting || allowedFormatting.includes(format)
+  ), [allowedFormatting]);
 
   const insertVariableFromSelection = useCallback(() => {
     if (!editor || !onCreateVariable) return;
@@ -278,48 +286,64 @@ export function CardForgeRichTextEditor({
       <div className="flex flex-wrap items-center gap-1 rounded-[5px] border border-[#252b35] bg-[#0b0f15] px-1.5 py-1">
         {children}
         {children && <div className="h-4 w-px bg-[#2d3340]" />}
-        <button type="button" className={cn(btn, isActive('bold') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bold" title="Bold" onClick={() => editor?.chain().focus().toggleBold().run()}>
-          <Bold className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" className={cn(btn, isActive('italic') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Italic" title="Italic" onClick={() => editor?.chain().focus().toggleItalic().run()}>
-          <Italic className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" className={cn(btn, isActive('underline') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Underline" title="Underline" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
-          <UnderlineIcon className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" className={cn(btn, isActive('highlight') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Highlight" title="Highlight" onClick={applyHighlight}>
-          <Highlighter className="h-3.5 w-3.5" style={{ color: highlightColor }} />
-        </button>
-        <Popover open={highlightOpen} onOpenChange={setHighlightOpen}>
-          <PopoverTrigger asChild>
-            <button type="button" className={btn} aria-label="Highlight color" title="Highlight color">
-              <span className="h-3.5 w-3.5 rounded-[2px] border border-[#2d3340]" style={{ backgroundColor: highlightColor }} />
+        {canUse('bold') && (
+          <button type="button" className={cn(btn, isActive('bold') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bold" title="Bold" onClick={() => editor?.chain().focus().toggleBold().run()}>
+            <Bold className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {canUse('italic') && (
+          <button type="button" className={cn(btn, isActive('italic') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Italic" title="Italic" onClick={() => editor?.chain().focus().toggleItalic().run()}>
+            <Italic className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {canUse('underline') && (
+          <button type="button" className={cn(btn, isActive('underline') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Underline" title="Underline" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
+            <UnderlineIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {canUse('highlight') && (
+          <button type="button" className={cn(btn, isActive('highlight') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Highlight" title="Highlight" onClick={applyHighlight}>
+            <Highlighter className="h-3.5 w-3.5" style={{ color: highlightColor }} />
+          </button>
+        )}
+        {canUse('highlight') && (
+          <Popover open={highlightOpen} onOpenChange={setHighlightOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className={btn} aria-label="Highlight color" title="Highlight color">
+                <span className="h-3.5 w-3.5 rounded-[2px] border border-[#2d3340]" style={{ backgroundColor: highlightColor }} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
+              <HexColorPicker color={highlightColor} onChange={onHighlightColorChange} />
+              <Input value={highlightColor} onChange={event => onHighlightColorChange(event.target.value)} className="mt-2 h-7 font-mono text-xs" />
+            </PopoverContent>
+          </Popover>
+        )}
+        {(canUse('lists') || canUse('color')) && <div className="h-4 w-px bg-[#2d3340]" />}
+        {canUse('lists') && (
+          <>
+            <button type="button" className={cn(btn, isActive('bulletList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bullet list" title="Bullet list" onClick={() => editor?.chain().focus().toggleBulletList().run()}>
+              <List className="h-3.5 w-3.5" />
             </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
-            <HexColorPicker color={highlightColor} onChange={onHighlightColorChange} />
-            <Input value={highlightColor} onChange={event => onHighlightColorChange(event.target.value)} className="mt-2 h-7 font-mono text-xs" />
-          </PopoverContent>
-        </Popover>
-        <div className="h-4 w-px bg-[#2d3340]" />
-        <button type="button" className={cn(btn, isActive('bulletList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Bullet list" title="Bullet list" onClick={() => editor?.chain().focus().toggleBulletList().run()}>
-          <List className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" className={cn(btn, isActive('orderedList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Numbered list" title="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
-          <ListOrdered className="h-3.5 w-3.5" />
-        </button>
-        <Popover open={textColorOpen} onOpenChange={setTextColorOpen}>
-          <PopoverTrigger asChild>
-            <button type="button" className={btn} aria-label="Text color" title="Text color">
-              <Palette className="h-3.5 w-3.5" style={{ color: pickedColor }} />
+            <button type="button" className={cn(btn, isActive('orderedList') && 'border-[#d5ad54] text-[#f5d27b]')} aria-label="Numbered list" title="Numbered list" onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
+              <ListOrdered className="h-3.5 w-3.5" />
             </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
-            <HexColorPicker color={pickedColor} onChange={setPickedColor} />
-            <Input value={pickedColor} onChange={event => setPickedColor(event.target.value)} className="mt-2 h-7 font-mono text-xs" maxLength={7} />
-            <Button type="button" className="mt-2 h-7 w-full text-xs" onClick={applyColor}>Apply Color</Button>
-          </PopoverContent>
-        </Popover>
+          </>
+        )}
+        {canUse('color') && (
+          <Popover open={textColorOpen} onOpenChange={setTextColorOpen}>
+            <PopoverTrigger asChild>
+              <button type="button" className={btn} aria-label="Text color" title="Text color">
+                <Palette className="h-3.5 w-3.5" style={{ color: pickedColor }} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
+              <HexColorPicker color={pickedColor} onChange={setPickedColor} />
+              <Input value={pickedColor} onChange={event => setPickedColor(event.target.value)} className="mt-2 h-7 font-mono text-xs" maxLength={7} />
+              <Button type="button" className="mt-2 h-7 w-full text-xs" onClick={applyColor}>Apply Color</Button>
+            </PopoverContent>
+          </Popover>
+        )}
         {onCreateVariable && (
           <>
             <div className="h-4 w-px bg-[#2d3340]" />

@@ -85,7 +85,7 @@
     },
     {
       "key": "Ability",
-      "type": "rules",
+      "type": "text",
       "label": "Ability",
       "example": "Flying",
       "required": false,
@@ -97,7 +97,7 @@
     },
     {
       "key": "SubText",
-      "type": "richText",
+      "type": "text",
       "label": "SubText",
       "example": "Small in size, fierce in spirit.",
       "required": false,
@@ -330,7 +330,7 @@
         "textAutoFit": true,
         "textMinFontSizePx": 8,
         "backgroundImageUrl": "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(216,174,92,0.18))",
-        "generatorFieldKind": "rules",
+        "generatorFieldKind": "text",
         "generatorFieldRequired": true
       },
       {

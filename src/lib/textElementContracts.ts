@@ -2,7 +2,7 @@ import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import { extractPlaceholderKeysFromText } from '@/lib/utils';
 import { parseTextBinding } from '@/lib/textBindings';
 
-export type TextElementContentModel = 'plainText' | 'richText' | 'rulesBlocks' | 'structuredRows';
+export type TextElementContentModel = 'text' | 'structuredRows';
 export type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 
 export const getElementFieldContract = (
@@ -32,20 +32,8 @@ export const inferTextElementContentModel = (
   if (elementContracts.some((contract) => contract.type === 'structuredRows')) return 'structuredRows';
   const contract = getPrimaryElementContract(template, element);
   if (contract?.type === 'structuredRows') return 'structuredRows';
-  if (contract?.type === 'rules') return 'rulesBlocks';
-  if (contract?.type === 'richText') return 'richText';
-  if (contract?.type === 'text') return 'plainText';
   if (element.generatorFieldKind === 'structuredRows') return 'structuredRows';
-  if (element.generatorFieldKind === 'rules') return 'rulesBlocks';
-  if (element.generatorFieldKind === 'richText') return 'richText';
-  if (element.generatorFieldKind === 'text') return 'plainText';
-
-  const lower = `${element.name || ''} ${element.content || ''}`.toLowerCase();
-  if (/(rules|effect|ability|reminder|flavor|subtitle|subtext|description)/.test(lower)) {
-    return 'rulesBlocks';
-  }
-
-  return 'richText';
+  return 'text';
 };
 
 export const shouldAutoFitTextElement = (

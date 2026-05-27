@@ -56,10 +56,8 @@ const groupGeneratorFields = (fields: TemplateFieldDefinition[]): FieldGroup[] =
       existing.fields.push(field);
       if (field.contentModel === 'structuredRows') {
         existing.contentModel = 'structuredRows';
-      } else if (existing.contentModel !== 'structuredRows' && existing.contentModel !== 'rulesBlocks' && field.contentModel === 'rulesBlocks') {
-        existing.contentModel = 'rulesBlocks';
-      } else if (existing.contentModel === 'plainText' && field.contentModel === 'richText') {
-        existing.contentModel = 'richText';
+      } else if (existing.contentModel !== 'structuredRows') {
+        existing.contentModel = 'text';
       }
       return groups;
     }
@@ -82,7 +80,7 @@ const orderFieldsForEditing = (fields: TemplateFieldDefinition[]) =>
   });
 
 const contentModelForPreview = (model: FieldGroup['contentModel']) =>
-  model === 'rulesBlocks' ? 'rulesBlocks' : model === 'richText' || model === 'structuredRows' ? 'richText' : 'plainText';
+  model === 'structuredRows' ? 'richText' : 'rulesBlocks';
 
 const buildDefaultStructuredRows = (fields: TemplateFieldDefinition[], data: CardData) => [
   Object.fromEntries(fields.map((field) => [field.key, getFieldPreviewValue(field, data)])),
