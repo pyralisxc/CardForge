@@ -125,6 +125,10 @@ export const createBulkImportContract = ({
     multiline: field.isMultiline,
     supportsRichText: field.supportsRichText,
     defaultValue: field.defaultValue ?? '',
+    description: field.description ?? '',
+    example: field.example ?? '',
+    maxLength: field.maxLength,
+    allowedFormatting: field.allowedFormatting ?? [],
     helperText: field.helperText ?? '',
     styleOverrideColumns: createFieldStyleOverrideColumns(field),
   })),
@@ -399,6 +403,10 @@ export const createBulkPreview = ({
       if (requiredFieldSet.has(mappedKey) && value.trim() === '') {
         missingRequiredKeys.push(mappedKey);
         warnings.push(`Missing value for ${mappedKey}`);
+      }
+      const field = fieldDefinitions.find((definition) => definition.key === mappedKey);
+      if (field?.maxLength && value.length > field.maxLength) {
+        warnings.push(`${field.label} is ${value.length} characters; maximum is ${field.maxLength}.`);
       }
     });
 

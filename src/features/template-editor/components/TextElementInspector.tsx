@@ -241,6 +241,59 @@ export function TextFieldSettingsList({
                   </div>
                 </div>
 
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-[#8f95a3]">Default Value</Label>
+                    <Input
+                      value={contract?.defaultValue || ''}
+                      placeholder={field.defaultValue || 'No default'}
+                      onChange={(event) => onUpdateContract(field.key, {
+                        elementId: element.id,
+                        defaultValue: event.target.value || undefined,
+                      })}
+                      className={cn(makerTheme.control, 'h-8 text-xs')}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-[#8f95a3]">Example</Label>
+                    <Input
+                      value={contract?.example || ''}
+                      placeholder="Sample value"
+                      onChange={(event) => onUpdateContract(field.key, {
+                        elementId: element.id,
+                        example: event.target.value || undefined,
+                      })}
+                      className={cn(makerTheme.control, 'h-8 text-xs')}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-[#8f95a3]">Description</Label>
+                    <Input
+                      value={contract?.description || ''}
+                      placeholder="Generator guidance"
+                      onChange={(event) => onUpdateContract(field.key, {
+                        elementId: element.id,
+                        description: event.target.value || undefined,
+                      })}
+                      className={cn(makerTheme.control, 'h-8 text-xs')}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-[#8f95a3]">Max Length</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={contract?.maxLength ?? ''}
+                      placeholder="Unlimited"
+                      onChange={(event) => onUpdateContract(field.key, {
+                        elementId: element.id,
+                        maxLength: event.target.value === '' ? undefined : Math.max(1, Math.floor(Number(event.target.value) || 1)),
+                      })}
+                      className={cn(makerTheme.control, 'h-8 text-xs')}
+                    />
+                  </div>
+                </div>
+
                 <div className="mt-2 space-y-2 rounded-[6px] border border-[#252b35] bg-[#090d13] p-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label className="text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Variable Typography</Label>

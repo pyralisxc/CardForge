@@ -62,6 +62,11 @@ describe('extractTemplateFieldDefinitions', () => {
         editor: 'rules-textarea',
         contentModel: 'rulesBlocks',
         defaultValue: 'Deal 1 damage.',
+        contractType: 'rules',
+        description: undefined,
+        example: undefined,
+        maxLength: undefined,
+        allowedFormatting: ['bold', 'italic', 'underline', 'color', 'highlight', 'lists', 'rulesMarkers'],
         required: true,
         isImage: false,
         isMultiline: true,
@@ -79,6 +84,11 @@ describe('extractTemplateFieldDefinitions', () => {
         editor: 'rich-textarea',
         contentModel: 'richText',
         defaultValue: 'Astral Relic',
+        contractType: 'richText',
+        description: undefined,
+        example: undefined,
+        maxLength: undefined,
+        allowedFormatting: ['bold', 'italic', 'underline', 'color', 'highlight', 'lists'],
         required: true,
         isImage: false,
         isMultiline: false,
@@ -96,6 +106,11 @@ describe('extractTemplateFieldDefinitions', () => {
         editor: 'plain-input',
         contentModel: 'image',
         defaultValue: undefined,
+        contractType: 'image',
+        description: undefined,
+        example: undefined,
+        maxLength: undefined,
+        allowedFormatting: [],
         required: false,
         isImage: true,
         isMultiline: false,
@@ -171,6 +186,60 @@ describe('extractTemplateFieldDefinitions', () => {
     expect(field.editor).toBe('rules-textarea');
     expect(field.required).toBe(true);
     expect(field.helperText).toContain('[ability]');
+  });
+
+  it('resolves field contract v1 metadata for generator and bulk surfaces', () => {
+    const template: TCGCardTemplate = {
+      id: 'template-contract-v1',
+      name: 'Contract V1 Template',
+      aspectRatio: '63:88',
+      fieldContracts: [
+        {
+          key: 'rulesText',
+          elementId: 'rules-text',
+          label: 'Rules',
+          type: 'rules',
+          required: true,
+          multiline: true,
+          defaultValue: '[ability] Flying',
+          example: '[effect] Draw a card.',
+          description: 'Rules text shown in the main rules box.',
+          maxLength: 180,
+          allowedFormatting: ['bold', 'italic', 'rulesMarkers'],
+        },
+      ],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'rules-text',
+            type: 'text',
+            name: 'Rules Box',
+            x: 0,
+            y: 0,
+            width: 220,
+            height: 140,
+            zIndex: 1,
+            content: '{{rulesText:"Legacy fallback should not win"}}',
+          },
+        ],
+      },
+    };
+
+    const [field] = extractTemplateFieldDefinitions(template);
+
+    expect(field).toMatchObject({
+      key: 'rulesText',
+      label: 'Rules',
+      contentModel: 'rulesBlocks',
+      defaultValue: '[ability] Flying',
+      example: '[effect] Draw a card.',
+      description: 'Rules text shown in the main rules box.',
+      maxLength: 180,
+      allowedFormatting: ['bold', 'italic', 'rulesMarkers'],
+      helperText: 'Rules text shown in the main rules box.',
+    });
   });
 
   it('keeps single-line rich text fields rich-text editable in the generator', () => {

@@ -366,6 +366,39 @@ Transitions[1].Position: 421
     });
   });
 
+  it('warns when mapped values exceed field contract max length', () => {
+    expect(createBulkPreview({
+      rows: [
+        ['Name'],
+        ['Overlong Card Name'],
+      ],
+      columnMapping: {
+        Name: 'name',
+      },
+      fieldDefinitions: [
+        {
+          key: 'name',
+          label: 'Name',
+          control: 'input',
+          editor: 'plain-input',
+          contentModel: 'plainText',
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: false,
+          maxLength: 8,
+        },
+      ],
+    })).toMatchObject({
+      rows: [
+        {
+          rowNumber: 2,
+          warnings: ['Name is 18 characters; maximum is 8.'],
+        },
+      ],
+    });
+  });
+
   it('preserves recognized per-field style override columns as generated output metadata', () => {
     const template: TCGCardTemplate = {
       id: 'style-data-template',
@@ -450,6 +483,10 @@ Transitions[1].Position: 421
           isImage: false,
           isMultiline: false,
           supportsRichText: true,
+          description: 'Primary card name.',
+          example: 'Ashen Crown',
+          maxLength: 40,
+          allowedFormatting: ['bold', 'italic', 'color'],
         },
         {
           key: 'Portrait',
@@ -478,6 +515,10 @@ Transitions[1].Position: 421
       fields: [
         {
           key: 'Name',
+          description: 'Primary card name.',
+          example: 'Ashen Crown',
+          maxLength: 40,
+          allowedFormatting: ['bold', 'italic', 'color'],
           styleOverrideColumns: ['Name.textColor', 'Name.fontFamily', 'Name.fontSizePx', 'Name.fontWeight', 'Name.fontStyle', 'Name.textDecoration', 'Name.lineHeight', 'Name.letterSpacing'],
         },
         {

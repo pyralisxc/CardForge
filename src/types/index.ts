@@ -4,6 +4,7 @@ export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' 
 export type FreeformShapeRole = 'basic' | 'panel' | 'artFrame' | 'rulesBox' | 'titlePlate' | 'statGem' | 'costOrb' | 'divider';
 export type GeneratorFieldKind = 'text' | 'richText' | 'rules' | 'structuredRows';
 export type TemplateFieldContractType = GeneratorFieldKind | 'image';
+export type TemplateFieldAllowedFormatting = 'bold' | 'italic' | 'underline' | 'color' | 'highlight' | 'lists' | 'rulesMarkers';
 export type TemplateSource = 'default' | 'user';
 export type TemplateUsage = 'standard' | 'back-preset';
 export type PdfDuplexLayout = 'separate-pages' | 'same-page';
@@ -174,8 +175,11 @@ export interface TemplateFieldContract {
   type?: TemplateFieldContractType;
   required?: boolean;
   multiline?: boolean;
+  defaultValue?: string;
   description?: string;
   example?: string;
+  maxLength?: number;
+  allowedFormatting?: TemplateFieldAllowedFormatting[];
   textAutoFit?: boolean;
   minFontSizePx?: number;
   textColor?: string;

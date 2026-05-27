@@ -1,6 +1,7 @@
 import type { FreeformCardElement, GeneratorFieldKind, TCGCardTemplate } from '@/types';
 import { extractUniquePlaceholderKeys, getImageFieldKeyForElement, toTitleCase } from '@/lib/utils';
 import { buildScopedFieldDataKey, buildStaticSegmentFieldKey, parseTemplateTextSegments, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
+import { getDefaultAllowedFormatting, resolveFieldContractV1 } from '@/lib/fieldContracts';
 
 export type TemplateFieldControl = 'input' | 'textarea';
 export type TemplateFieldEditor = 'plain-input' | 'plain-textarea' | 'rich-textarea' | 'rules-textarea' | 'structured-rows';
@@ -17,6 +18,11 @@ export interface TemplateFieldDefinition {
   isImage: boolean;
   isMultiline: boolean;
   supportsRichText: boolean;
+  contractType?: NonNullable<TCGCardTemplate['fieldContracts']>[number]['type'];
+  description?: string;
+  example?: string;
+  maxLength?: number;
+  allowedFormatting?: NonNullable<TCGCardTemplate['fieldContracts']>[number]['allowedFormatting'];
   helperText?: string;
   sourceElementId?: string;
   sourceElementName?: string;
@@ -139,6 +145,23 @@ const pickFieldKind = (kinds: GeneratorFieldKind[]): GeneratorFieldKind | undefi
   return undefined;
 };
 
+const buildHelperText = (
+  contentModel: TemplateFieldContentModel,
+  richTextEnabled: boolean,
+  editor?: TemplateFieldEditor
+): string | undefined => {
+  if (contentModel === 'rulesBlocks') {
+    return 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.';
+  }
+  if (contentModel === 'structuredRows') {
+    return 'Use this text element as a repeatable row pattern. The generator can add multiple rows, each with its own values for this element\'s variables.';
+  }
+  if (!richTextEnabled) return undefined;
+  return editor === 'rich-textarea'
+    ? 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.'
+    : 'This field supports rich text through the shared visual editor.';
+};
+
 const inferFieldKind = (
   key: string,
   isMultiline: boolean,
@@ -199,36 +222,45 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
           ? 'plainText'
           : 'richText';
       const richTextEnabled = contentModel === 'rulesBlocks' || contentModel === 'richText' || contentModel === 'structuredRows';
+      const editor: TemplateFieldEditor = contentModel === 'rulesBlocks'
+        ? 'rules-textarea'
+        : contentModel === 'structuredRows'
+          ? 'structured-rows'
+        : contentModel === 'richText'
+          ? 'rich-textarea'
+          : isMultiline
+            ? 'plain-textarea'
+            : 'plain-input';
+      const resolvedContract = resolveFieldContractV1({
+        key,
+        contentModel,
+        contract,
+        inferredDefaultValue: getPlaceholderFallbackForElement(element, key),
+        inferredRequired: fieldIsRequired(key, false, contract.example),
+        inferredMultiline: isMultiline,
+        inferredHelperText: buildHelperText(contentModel, richTextEnabled, editor),
+      });
       return [{
         key: buildScopedFieldDataKey(element.id, key),
         label: resolveFieldLabel(key, contract),
         control: contentModel === 'plainText' ? (isMultiline ? 'textarea' : 'input') : 'textarea',
-        editor: contentModel === 'rulesBlocks'
-          ? 'rules-textarea'
-          : contentModel === 'structuredRows'
-            ? 'structured-rows'
-          : contentModel === 'richText'
-            ? 'rich-textarea'
-            : isMultiline
-              ? 'plain-textarea'
-              : 'plain-input',
+        editor,
         contentModel,
-        defaultValue: getPlaceholderFallbackForElement(element, key) ?? contract.example,
-        required: typeof contract.required === 'boolean' ? contract.required : fieldIsRequired(key, false, contract.example),
+        defaultValue: resolvedContract.defaultValue,
+        required: resolvedContract.required,
         isImage: false,
-        isMultiline,
+        isMultiline: resolvedContract.multiline,
         supportsRichText: richTextEnabled,
+        contractType: resolvedContract.type,
+        description: resolvedContract.description,
+        example: resolvedContract.example,
+        maxLength: resolvedContract.maxLength,
+        allowedFormatting: resolvedContract.allowedFormatting,
         sourceElementId: element.id,
         sourceElementName: element.name,
         sourceElementPreview: buildSourceElementPreview(element, key, new Map([[key, contract]])),
         sourceElementContent: element.content,
-        helperText: contentModel === 'rulesBlocks'
-          ? 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.'
-          : contentModel === 'structuredRows'
-            ? 'Use this text element as a repeatable row pattern. The generator can add multiple rows, each with its own values for this element\'s variables.'
-          : richTextEnabled
-            ? 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.'
-            : undefined,
+        helperText: resolvedContract.helperText,
       }];
     })
   ));
@@ -272,9 +304,18 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
           ? 'structured-rows'
         : contentModel === 'richText'
           ? 'rich-textarea'
-          : isMultiline
+        : isMultiline
             ? 'plain-textarea'
             : 'plain-input';
+    const resolvedContract = resolveFieldContractV1({
+      key: placeholder.key,
+      contentModel,
+      contract,
+      inferredDefaultValue: placeholder.defaultValue,
+      inferredRequired: required,
+      inferredMultiline: isMultiline,
+      inferredHelperText: buildHelperText(contentModel, richTextEnabled, editor),
+    });
 
     return {
       key: placeholder.key,
@@ -286,24 +327,21 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
           : 'textarea') as TemplateFieldControl,
       editor,
       contentModel,
-      defaultValue: placeholder.defaultValue ?? contract?.example,
-      required,
+      defaultValue: resolvedContract.defaultValue,
+      required: resolvedContract.required,
       isImage,
-      isMultiline,
+      isMultiline: resolvedContract.multiline,
       supportsRichText: richTextEnabled,
+      contractType: resolvedContract.type,
+      description: resolvedContract.description,
+      example: resolvedContract.example,
+      maxLength: resolvedContract.maxLength,
+      allowedFormatting: resolvedContract.allowedFormatting,
       sourceElementId: primaryTextElement?.id,
       sourceElementName: primaryTextElement?.name,
       sourceElementPreview: buildSourceElementPreview(primaryTextElement, placeholder.key, contractMap),
       sourceElementContent: primaryTextElement?.content,
-      helperText: contentModel === 'rulesBlocks'
-        ? 'Use one field for rules blocks. Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to change how each block renders.'
-        : contentModel === 'structuredRows'
-          ? 'Use this text element as a repeatable row pattern. The generator can add multiple rows, each with its own values for this element\'s variables.'
-        : richTextEnabled
-        ? editor === 'rich-textarea'
-          ? 'Use the visual editor toolbar for highlight, lists, emphasis, and inline color.'
-          : 'This field supports rich text through the shared visual editor.'
-        : undefined,
+      helperText: resolvedContract.helperText,
     };
   }).filter((field) => !scopedCollisionKeys.has(field.key));
 
@@ -352,6 +390,11 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         isImage: false,
         isMultiline: segment.text.includes('\n') || contentModel !== 'plainText',
         supportsRichText: contentModel !== 'plainText',
+        contractType: contract?.type ?? (contentModel === 'rulesBlocks' ? 'rules' : contentModel === 'richText' ? 'richText' : 'text'),
+        description: contract?.description,
+        example: contract?.example,
+        maxLength: contract?.maxLength,
+        allowedFormatting: contract?.allowedFormatting ?? getDefaultAllowedFormatting(contentModel),
         sourceElementId: element.id,
         sourceElementName: element.name,
         sourceElementPreview: element.name,

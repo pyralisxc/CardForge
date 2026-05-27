@@ -446,6 +446,7 @@ export function CardTemplateMaker({
       type: inferredType === 'rulesBlocks' ? 'rules' : 'richText',
       required: false,
       multiline: cleanSelectedText.includes('\n'),
+      defaultValue: cleanSelectedText,
       example: cleanSelectedText,
     });
     toast({

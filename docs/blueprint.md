@@ -486,22 +486,33 @@ Rich text and variable editing still need a dedicated deep verification pass. Cu
 That deep pass should be treated as a first-class QA milestone before calling text authoring fully polished.
 
 ### 1. Field Contract System (Highest Priority)
-- Move from inferred placeholders to explicit field contracts.
-- Add `FieldContract v1` metadata for each variable:
+- Field Contract v1 is now the generator-facing source of truth for variable metadata. Placeholder inference still exists as compatibility input, but Single, Bulk, downloadable contract JSON, and future mobile fill flows should consume resolved field definitions rather than re-infer behavior from raw `{{variable}}` text.
+- `src/lib/fieldContracts.ts` owns v1 defaults and normalization. `src/lib/templateFields.ts` resolves template field definitions from explicit contracts, scoped element contracts, fallback placeholder text, image layers, and older element flags.
+- `TemplateFieldContract` supports:
   - key
-  - type (`text | richText | image | number`)
+  - elementId
+  - label
+  - type (`text | richText | rules | structuredRows | image`)
   - required
-  - default
   - multiline
-  - maxLength
-  - allowedFormatting
+  - defaultValue
   - description
   - example
+  - maxLength
+  - allowedFormatting
+  - scoped typography overrides such as font family, size, color, weight, line height, and letter spacing
+- Default formatting permissions are contract-driven:
+  - plain text and image fields allow no rich formatting
+  - rich text and structured row fields allow emphasis, underline, color, highlight, and lists
+  - rules fields also allow rules markers such as `[ability]`, `[effect]`, `[reminder]`, `[flavor]`, and `[subtitle]`
+- Text inspector field cards let creators edit default value, example, description, max length, required state, auto-fit, type, and typography. New inline variables seed both `defaultValue` and `example` from the selected text so generated outputs have a stable fallback while external tools still get a sample value.
+- Bulk preview now warns when mapped values exceed `maxLength`, and contract JSON includes `description`, `example`, `maxLength`, `allowedFormatting`, defaults, required state, rich-text support, and style override columns.
 
 Why this matters:
 - Eliminates ambiguity.
 - Aligns single and bulk behavior.
 - Improves validation and error clarity.
+- Gives mobile-oriented entry flows compact metadata for guided inputs, validation, examples, and progressive disclosure without needing the full desktop editor context.
 
 ### 2. Rich Text Maturity
 - Keep the current marker system, but formalize support by field type.

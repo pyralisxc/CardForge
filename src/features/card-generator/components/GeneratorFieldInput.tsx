@@ -43,6 +43,7 @@ export function GeneratorFieldInput({
   const editorHeight = field.editor === 'rules-textarea'
     ? compact ? 'min-h-[7rem]' : 'min-h-[10rem]'
     : compact ? 'min-h-[5.5rem]' : 'min-h-[7.5rem]';
+  const currentLength = value.length;
 
   return (
     <div className="space-y-2">
@@ -63,6 +64,10 @@ export function GeneratorFieldInput({
         <p className="text-[11px] text-muted-foreground">Default text: {field.defaultValue}</p>
       )}
 
+      {field.description && field.description !== field.helperText && (
+        <p className="text-xs text-muted-foreground">{field.description}</p>
+      )}
+
       <div className={field.isImage ? 'flex items-center gap-2' : ''}>
         {(field.editor === 'rich-textarea' || field.editor === 'rules-textarea') ? (
           <CardForgeRichTextEditor
@@ -81,6 +86,7 @@ export function GeneratorFieldInput({
             onChange={(event) => onChange(event.target.value)}
             placeholder={`Enter ${field.label}...`}
             rows={compact ? 2 : 3}
+            maxLength={field.maxLength}
             className="text-sm"
           />
         ) : (
@@ -89,6 +95,7 @@ export function GeneratorFieldInput({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder={field.isImage ? `URL or Data URI for ${field.label}` : `Enter ${field.label}...`}
+            maxLength={field.maxLength}
             className={field.isImage ? 'flex-grow' : ''}
           />
         )}
@@ -120,6 +127,11 @@ export function GeneratorFieldInput({
 
       {field.helperText && (
         <p className="text-xs text-muted-foreground">{field.helperText}</p>
+      )}
+      {field.maxLength && (
+        <p className="text-[11px] text-muted-foreground">
+          {currentLength}/{field.maxLength} characters
+        </p>
       )}
     </div>
   );
