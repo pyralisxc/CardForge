@@ -34,7 +34,7 @@ The second consolidation pass applies that pattern across the high-visibility pr
 
 ## Summary
 
-The Layout Studio preset system is useful, but it is not yet the seamless developer makerspace model CardForge is aiming for. The editor has a good capability gate in `src/lib/elementCapabilities.ts`, and the asset registry now supports database-backed textures, dividers, icons, images, image/overlay source assets, templates, and `elementPreset` records. The weak spot is that remaining legacy maker element kits and style presets still come from hardcoded `Partial<FreeformCardElement>` arrays in `src/features/template-editor/lib/elementKits.tsx` and `src/features/template-editor/lib/elementStylePresets.ts`.
+The Layout Studio preset system is useful, but it is not yet the seamless developer makerspace model CardForge is aiming for. The editor has a good capability gate in `src/lib/elementCapabilities.ts`, and the asset registry now supports database-backed textures, dividers, icons, images, image/overlay source assets, templates, and `elementPreset` records. The weak spot is that remaining local maker element kits and style presets still come from hardcoded `Partial<FreeformCardElement>` arrays in `src/features/template-editor/lib/elementKits.tsx` and `src/features/template-editor/lib/elementStylePresets.ts`.
 
 That hardcoded shape makes the UI feel powerful but fuzzy: a preset can mutate any element field without declaring what role, surface, asset kind, contributor, tier, preview, or review status it belongs to. For a professional developer pipeline, every offered preset needs to be either a local primitive control or a pipeline-backed recipe with clear applicability metadata.
 
@@ -68,7 +68,7 @@ Overall grade: B-
 | Image assets | `/api/assets` plus local uploads | Image Inspector | Applies shipped/pipeline image assets to image elements and updates the rendered preview source. | A- | Add upload controls and contributor/tier/status badges matching the icon picker. |
 | Text frame presets | `TEXT_FRAME_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Typography Inspector | Applies useful text-panel backgrounds, borders, padding, and typography. | B+ | Typed recipe lane is in place; next step is richer live thumbnails and contributor provenance from registry rows. |
 | Frame kits | `createFrameKitPresetRecipes` over `CARD_FRAME_KITS` | Template-level frame updates | Applies full-template frame art and card-level colors. | B+ | Now uses the same recipe/badge pattern; next step is a dedicated registry-backed `frameKit` or template-canvas recipe payload. |
-| Global frame styles | `FRAME_STYLES` and template visual properties | Template style controls | Applies older whole-card theme values. | C | Keep only as advanced/legacy until frame kits and template presets fully replace it. |
+| Global frame styles | `FRAME_STYLES` and template visual properties | Template style controls | Applies broad whole-card theme values. | C | Keep only as advanced controls until frame kits and template presets fully replace it. |
 | Texture asset picker | `/api/assets` plus local uploads | Text and shape Material & Effects | Applies registry texture assets to supported element appearance. | B | Text now has the `texture` capability; next pass should split decorative material recipes from raw texture asset selection more clearly. |
 
 ## Main Bugs And Friction
@@ -173,7 +173,7 @@ The applied payload can still be a `Partial<FreeformCardElement>` or `Partial<TC
 ## Next Implementation Slice
 
 1. Add contributor/status/tier provenance to `/api/styles` payloads so hydrated registry recipes can show the real developer name instead of `Registry Pipeline`.
-2. Replace broad `ELEMENT_STYLE_PRESETS` with typed material recipes, or keep them only as a legacy fallback.
+2. Replace broad `ELEMENT_STYLE_PRESETS` with typed material recipes, or keep them only as advanced local presets.
 3. Add live thumbnail rendering for text, border, icon, divider, and frame-kit recipes.
 4. Hydrate dedicated registry-backed frame-kit/card-part recipes instead of adapting local frame kit constants.
 5. Expand smoke coverage for recipe application in the rendered Layout Studio.

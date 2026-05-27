@@ -4,7 +4,7 @@ export interface CardAssetOption {
   url: string;
   kind: 'texture' | 'divider' | 'border' | 'frame' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset';
   librarySource?: 'official' | 'developer' | 'local';
-  accessTier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
   registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   fileSizeBytes?: number;
   packId?: string;

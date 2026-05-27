@@ -47,7 +47,7 @@ This guide is the practical map for working in CardForge without rediscovering t
 - `src/features/template-editor/lib/frameVisualPresets.ts`, `iconOptions.ts`, `elementKits.tsx`, and `elementStylePresets.ts` own remaining local maker primitives/tool presets. Any offerable creative asset or recipe should move through the pipeline registry instead of becoming another hidden default catalog.
 - `src/lib/freeformElementRender.ts` centralizes element geometry and source resolution.
 - `src/lib/fieldContracts.ts` owns Field Contract v1 normalization: schema version, contract type, required state, default value, example, description, max length, allowed formatting defaults, shared validation, and template repair.
-- `src/lib/templateFields.ts` turns template contracts plus legacy placeholder/image inference into the resolved field definitions used by Single, Bulk, previews, and contract downloads.
+- `src/lib/templateFields.ts` turns template contracts plus placeholder/image inference into the resolved field definitions used by Single, Bulk, previews, and contract downloads.
 
 ### Generator And Export
 
@@ -148,7 +148,7 @@ The developer pipeline is one shared lifecycle for starter library content and d
 2. Developers vote while the asset is candidate, published, or archived.
 3. Owner settings control self-voting, vote thresholds, owner vote weight, archive size, and tier caps.
 4. Assets move through `draft`, `submitted`, `voting`, `publish_candidate`, `published`, `archived`, or `rejected`.
-5. Access tier is separate: `hidden`, `free`, `paid`, `developer`, or legacy `official` for compatibility.
+5. Access tier is separate: `hidden`, `free`, `paid`, or `developer`. Published-to-site is lifecycle status; Starter Library and Creator Pass are the user-facing visibility tiers.
 6. Published assets sync into `cardforge_asset_registry`.
 7. Archive keeps assets recoverable and voteable unless rejected or hidden by owner policy.
 

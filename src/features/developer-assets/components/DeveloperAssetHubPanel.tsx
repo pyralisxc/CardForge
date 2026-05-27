@@ -201,7 +201,6 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
       submission.status !== 'published'
       && submission.status !== 'archived'
       && submission.status !== 'rejected'
-      && submission.calculatedAccessTier !== 'official'
     ));
   }, [program, reviewLane]);
 

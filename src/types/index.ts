@@ -96,7 +96,7 @@ export interface AppearanceStylePreset {
   updates?: Partial<FreeformCardElement>;
   templateUpdates?: Partial<TCGCardTemplate>;
   librarySource?: 'official' | 'developer' | 'local';
-  accessTier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
   registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   contributorName?: string;
 }
@@ -200,7 +200,7 @@ export interface TCGCardTemplate {
   aspectRatio: string;
   templateSource?: TemplateSource;
   templateLibrarySource?: 'base' | 'pipeline' | 'personal';
-  templateAccessTier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  templateAccessTier?: 'free' | 'paid' | 'developer' | 'hidden';
   templateRegistryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   templateContributorName?: string;
   templateUsage?: TemplateUsage;

@@ -571,7 +571,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
       setDevForm((current) => ({ ...current, title: '', description: '', monthlyCostDollars: '' }));
       toast({
         title: 'Chronicle updated',
-        description: 'The official timeline item has been added.',
+        description: 'The CardForge-authored timeline item has been added.',
       });
     } catch (error) {
       toast({

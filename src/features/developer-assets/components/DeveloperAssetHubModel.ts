@@ -42,14 +42,13 @@ export const reviewLaneHelp: Record<ReviewLane, string> = {
   archive: 'Retired or underperforming assets. Votes still count here so a strong recovery signal can surface them again.',
 };
 
-export const assetTierOrder: DeveloperAssetAccessTier[] = ['hidden', 'free', 'paid', 'developer', 'official'];
+export const assetTierOrder: DeveloperAssetAccessTier[] = ['hidden', 'free', 'paid', 'developer'];
 
 export const tierClasses: Record<DeveloperAssetAccessTier, string> = {
   hidden: 'border-[#4a3823] text-[#8f95a3]',
   free: 'border-[#5f7f54] text-[#bde3a8]',
   paid: 'border-[#8a642f] text-[#f0c568]',
   developer: 'border-[#35445a] text-[#b9d5ff]',
-  official: 'border-[#d8b365] text-[#ffe7ad]',
 };
 
 export const statusGlossary = DEVELOPER_ASSET_STATUSES.map((status) => ({

@@ -637,7 +637,7 @@ export function OwnerConsolePage() {
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Roadmap operations</h2>
                   </div>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Move official milestones through planning, testing, and completed states. Completing a checkpoint marks it shipped on the public roadmap.
+                    Move CardForge-authored milestones through planning, testing, and completed states. Completing a checkpoint marks it shipped on the public roadmap.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 border border-[#5f4526] bg-[#100c08] text-center">
@@ -655,7 +655,7 @@ export function OwnerConsolePage() {
               <div className="mt-5 space-y-3">
                 {roadmapItems.length === 0 ? (
                   <p className="border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">
-                    Official roadmap rows will appear after the roadmap migrations are applied.
+                    CardForge-authored roadmap rows will appear after the roadmap migrations are applied.
                   </p>
                 ) : roadmapItems.map((item) => (
                   <div key={item.id} className="grid gap-3 border border-[#4a3823] bg-[#100c08] p-3 lg:grid-cols-[1fr_auto] lg:items-center">

@@ -41,7 +41,7 @@ export async function DELETE(
       return createApiErrorResponse(
         403,
         'roadmap_request_invalid',
-        'Developer access is required to manage official timeline items.'
+        'Developer access is required to manage CardForge-authored timeline items.'
       );
     }
 

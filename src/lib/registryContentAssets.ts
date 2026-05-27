@@ -9,7 +9,7 @@ export interface RegistryContentAssetRow {
   name: string;
   url: string;
   status?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected';
-  access_tier?: 'official' | 'free' | 'paid' | 'developer' | 'hidden';
+  access_tier?: 'free' | 'paid' | 'developer' | 'hidden';
   library_source?: 'official' | 'developer';
   metadata: unknown;
 }

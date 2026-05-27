@@ -258,10 +258,10 @@ describe('developer asset program rules', () => {
       positiveVotes: 0,
       negativeVotes: 5,
       tieredThisPeriodForType: 0,
-      ownerAccessTierOverride: 'official',
+      ownerAccessTierOverride: 'free',
     })).toMatchObject({
-      accessTier: 'official',
-      reason: 'owner_forced_official',
+      accessTier: 'free',
+      reason: 'owner_forced_free',
     });
   });
 

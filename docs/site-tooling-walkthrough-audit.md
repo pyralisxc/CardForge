@@ -91,7 +91,7 @@ Terms to retire or hide from user-facing UI:
 
 ### 3. Provenance Badges Needed Consistent Treatment
 
-The old repeated badge pattern could read like `owner contributor - published - official` on many recipe tiles. The data is useful, but the UI should compress it into three consistent chips:
+The repeated badge pattern used to read like `owner contributor - published - source label` on many recipe tiles. The data is useful, but the UI should compress it into three consistent chips:
 
 - Status: candidate, published, archived, rejected.
 - Contributor: display name or email fallback.

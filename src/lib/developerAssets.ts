@@ -22,8 +22,8 @@ export type DeveloperAssetType = typeof DEVELOPER_ASSET_TYPES[number];
 export type DeveloperAssetStatus = typeof DEVELOPER_ASSET_STATUSES[number];
 export type DeveloperProfileStatus = 'invited' | 'active' | 'inactive' | 'suspended';
 export type DeveloperVoteValue = 'positive' | 'negative';
-export type DeveloperAssetAccessTier = 'hidden' | 'free' | 'paid' | 'developer' | 'official';
-export type DeveloperAssetAccessTierOverride = 'hidden' | 'free' | 'paid' | 'official';
+export type DeveloperAssetAccessTier = 'hidden' | 'free' | 'paid' | 'developer';
+export type DeveloperAssetAccessTierOverride = 'hidden' | 'free' | 'paid';
 
 export type DeveloperPublishCapsByType = Record<DeveloperAssetType, number>;
 export type DeveloperTierCapsByType = Record<DeveloperAssetType, { free: number; paid: number }>;
@@ -67,7 +67,6 @@ export interface DeveloperAssetMonthlyStats {
 export interface DeveloperAssetTypePipelineSummary {
   assetType: DeveloperAssetType;
   publishedCount: number;
-  officialCount: number;
   starterCount: number;
   creatorPassCount: number;
   candidateCount: number;
@@ -132,8 +131,7 @@ export type DeveloperAssetTierDecisionReason =
   | 'tier_cap_full'
   | 'owner_forced_free'
   | 'owner_forced_paid'
-  | 'owner_forced_hidden'
-  | 'owner_forced_official';
+  | 'owner_forced_hidden';
 
 export interface DeveloperAssetDecisionInput {
   settings: DeveloperProgramSettings;
@@ -300,10 +298,10 @@ export const isDeveloperAssetStatus = (value: unknown): value is DeveloperAssetS
   typeof value === 'string' && (DEVELOPER_ASSET_STATUSES as readonly string[]).includes(value);
 
 export const isDeveloperAssetAccessTier = (value: unknown): value is DeveloperAssetAccessTier =>
-  value === 'hidden' || value === 'free' || value === 'paid' || value === 'developer' || value === 'official';
+  value === 'hidden' || value === 'free' || value === 'paid' || value === 'developer';
 
 export const isDeveloperAssetAccessTierOverride = (value: unknown): value is DeveloperAssetAccessTierOverride =>
-  value === 'hidden' || value === 'free' || value === 'paid' || value === 'official';
+  value === 'hidden' || value === 'free' || value === 'paid';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

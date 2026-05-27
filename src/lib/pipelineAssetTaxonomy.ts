@@ -70,7 +70,6 @@ export const getDeveloperAssetTierLabel = (tier: DeveloperAssetAccessTier): stri
   if (tier === 'free') return 'Starter Library';
   if (tier === 'paid') return 'Creator Pass';
   if (tier === 'developer') return 'Forge Review';
-  if (tier === 'official') return 'Platform Reserved';
   return 'Hidden';
 };
 
@@ -78,7 +77,6 @@ export const getDeveloperAssetTierDescription = (tier: DeveloperAssetAccessTier)
   if (tier === 'free') return 'Visible to Starter Library users when published.';
   if (tier === 'paid') return 'Visible to Creator Pass users when published.';
   if (tier === 'developer') return 'Still in review, waiting on votes, caps, or owner decision.';
-  if (tier === 'official') return 'Legacy platform-reserved tier kept for compatibility; new shared defaults should use Starter Library or Creator Pass.';
   return 'Not visible in the public/shared library.';
 };
 

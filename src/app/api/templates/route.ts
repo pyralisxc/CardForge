@@ -65,7 +65,7 @@ const readTemplatesFromDirectory = async (
           ...parsed,
           templateSource,
           templateLibrarySource: templateSource === 'default' ? 'base' : 'personal',
-          templateAccessTier: templateSource === 'default' ? 'official' : undefined,
+          templateAccessTier: templateSource === 'default' ? 'free' : undefined,
           templateRegistryStatus: templateSource === 'default' ? 'published' : 'localOnly',
           templateContributorName: templateSource === 'default' ? PIPELINE_OWNER_EMAIL : undefined,
         });

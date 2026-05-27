@@ -113,7 +113,7 @@ describe('asset registry', () => {
         asset_type: 'elementPreset',
         url: 'https://storage.example.test/preset.json',
         status: 'published',
-        access_tier: 'official',
+        access_tier: 'free',
         library_source: 'developer',
         file_size_bytes: 1024,
         metadata: { developerId: 'dev-1' },
@@ -148,7 +148,7 @@ describe('asset registry', () => {
     expect(payload?.elementPresets[0]).toMatchObject({
       id: 'developer-elementPresets-1',
       kind: 'elementPreset',
-      accessTier: 'official',
+      accessTier: 'free',
     });
   });
 });

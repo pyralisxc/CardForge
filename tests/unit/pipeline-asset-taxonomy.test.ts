@@ -14,7 +14,7 @@ import {
 } from '@/lib/pipelineAssetTaxonomy';
 
 describe('pipeline asset taxonomy', () => {
-  it('uses product-facing labels for legacy asset kinds', () => {
+  it('uses product-facing labels for source asset kinds', () => {
     expect(getAssetKindLabel('part')).toBe('Overlay Asset');
     expect(getAssetKindLabel('part', { plural: true })).toBe('Overlay Assets');
     expect(getDeveloperAssetTypeLabel('parts')).toBe('Overlay Assets');
@@ -52,7 +52,8 @@ describe('pipeline asset taxonomy', () => {
     expect(getDeveloperAssetStatusDescription('voting')).toMatch(/thumbs-up and thumbs-down/i);
     expect(getDeveloperAssetStatusDescription('published')).toMatch(/shared CardForge library/i);
     expect(getDeveloperAssetTierDescription('developer')).toMatch(/waiting on votes/i);
-    expect(getDeveloperAssetTierDescription('official')).toMatch(/legacy platform-reserved tier/i);
+    expect(getDeveloperAssetTierDescription('free')).toMatch(/Starter Library/i);
+    expect(getDeveloperAssetTierDescription('paid')).toMatch(/Creator Pass/i);
   });
 
   it('treats browser uploads as local-only library assets', () => {

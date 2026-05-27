@@ -49,7 +49,6 @@ const tierClasses: Record<DeveloperAssetAccessTier, string> = {
   free: 'border-[#5f7f54] text-[#bde3a8]',
   paid: 'border-[#8a642f] text-[#f0c568]',
   developer: 'border-[#35445a] text-[#b9d5ff]',
-  official: 'border-[#d8b365] text-[#ffe7ad]',
 };
 
 const profileStatusLabels: Record<DeveloperProfileDraft['status'], string> = {

@@ -267,7 +267,6 @@ describe('developer asset store helpers', () => {
     expect(view.votingQueue.map((submission) => submission.id)).toEqual(['own-1', 'own-2', 'peer-1', 'peer-2', 'starter-1']);
     expect(view.assetTypeSummaries.find((summary) => summary.assetType === 'icons')).toMatchObject({
       publishedCount: 2,
-      officialCount: 0,
       candidateCount: 0,
       archiveCount: 1,
     });

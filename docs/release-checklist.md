@@ -595,9 +595,9 @@ Risk rating: `High / Known / Launch Blocking for paid self-serve`
 Current finding:
 - The developer asset pipeline now has owner-configurable rules, a Supabase schema, developer submissions, peer voting, and owner publish/archive/reject controls.
 - Owner Site Mechanics now control public feature-board caps and negative-signal archive thresholds separately from developer asset voting rules.
-- Owner Launch Readiness can now move official roadmap checkpoints through Plan, Start, Test, and Complete; Complete sets the shipped date used by the public roadmap.
+- Owner Launch Readiness can now move CardForge-authored roadmap checkpoints through Plan, Start, Test, and Complete; Complete sets the shipped date used by the public roadmap.
 - Owner Access & Promos can now show Founder Beta wave capacity, public cap capacity, next-wave availability, and active claim records.
-- Asset lifecycle status is now separate from user-facing access tier: owner rules can place voted assets into Forge Review, Starter Library, Creator Pass, or Hidden visibility. Legacy `official` remains a compatibility tier, not the normal default path.
+- Asset lifecycle status is now separate from user-facing access tier: owner rules can place voted assets into Forge Review, Starter Library, Creator Pass, or Hidden visibility. The active asset tier model is `developer`, `free`, `paid`, or `hidden`; published-to-site is not a separate tier.
 - The default access ladder is 5 votes before tier assignment, 60% positive for Starter Library, and 80% positive for Creator Pass, with owner overrides available from `/owner`.
 - Publish Total is derived from Starter plus Creator Pass caps so owners cannot create conflicting per-type library limits.
 - Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe should later own real coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks.
@@ -605,9 +605,10 @@ Current finding:
 - Starter textures, dividers, templates, and element presets are synced into the pipeline as published starter-library assets so they remain visible in the app and stay voteable.
 - `202605230003_asset_registry_all_creation_assets.sql` expands the registry to all reusable creation asset classes: textures, dividers, parts, icons, images, templates, and element presets.
 - `202605230004_developer_asset_upload_bridge.sql` adds the public `cardforge-developer-assets` storage bucket and source-file metadata columns that let approved developer submissions publish into the same live registry.
-- `202605240001_official_asset_review_submissions.sql` backfills official registry assets into `cardforge_developer_asset_submissions` and links them back to the registry, making default assets part of the continuous developer voting surface.
-- `202605240002_official_layout_registry_content.sql` backfills official templates and element presets into `cardforge_asset_registry` with embedded JSON payloads, then links those records into developer submissions so Layout Studio defaults are also database-backed and voteable.
-- `202605240003_unify_owner_default_voting.sql` clears the old owner-forced Official overrides from seeded defaults so owner-contributed defaults are governed by the same vote/cap pipeline as every other asset.
+- `202605240001_official_asset_review_submissions.sql` backfills CardForge-owned registry assets into `cardforge_developer_asset_submissions` and links them back to the registry, making default assets part of the continuous developer voting surface.
+- `202605240002_official_layout_registry_content.sql` backfills CardForge-owned templates and element presets into `cardforge_asset_registry` with embedded JSON payloads, then links those records into developer submissions so Layout Studio defaults are also database-backed and voteable.
+- `202605240003_unify_owner_default_voting.sql` clears owner-forced default overrides from seeded defaults so owner-contributed defaults are governed by the same vote/cap pipeline as every other asset.
+- `202605270001_remove_official_asset_tier.sql` normalizes historical asset-tier rows into Starter Library and constrains active asset tiers to Hidden, Starter Library, Creator Pass, or Forge Review.
 - `202605240004_developer_profile_names.sql` adds first/last name fields to developer profiles so queues and ledgers can show a contributor name first, falling back to email when no name is available.
 - `202605240005_developer_self_voting_rule.sql` adds owner-configurable contributor self-voting. It defaults on for solo/demo review and can be disabled for strict peer-only voting.
 - `202605240006_owner_vote_weight.sql` adds owner-configurable vote weight. It defaults to 1x so the owner votes like any other developer, with 2x/3x available from `/owner` for stronger owner signal in close grading decisions.
@@ -647,7 +648,8 @@ Recommended handling:
 - run `supabase/migrations/202605230003_asset_registry_all_creation_assets.sql` before submitting icons, images, templates, or element presets into the registry
 - run `supabase/migrations/202605230004_developer_asset_upload_bridge.sql` before testing developer file uploads or owner publish-to-library actions
 - run `supabase/migrations/202605240001_official_asset_review_submissions.sql` before expecting approved developers to vote on CardForge default assets
-- run `supabase/migrations/202605240002_official_layout_registry_content.sql` before expecting official templates and element presets to load from the registry-backed asset pipeline
+- run `supabase/migrations/202605240002_official_layout_registry_content.sql` before expecting CardForge-authored templates and element presets to load from the registry-backed asset pipeline
+- run `supabase/migrations/202605270001_remove_official_asset_tier.sql` before expecting the database to reject obsolete asset-tier values
 - run `supabase/migrations/202605240003_unify_owner_default_voting.sql` before expecting owner-contributed defaults to rebalance like regular pipeline assets
 - run `supabase/migrations/202605240004_developer_profile_names.sql` before expecting contributor first/last names in developer queues and owner ledgers
 - run `supabase/migrations/202605240005_developer_self_voting_rule.sql` before expecting the owner self-voting rule to persist
@@ -664,7 +666,7 @@ Recommended handling:
 - verify Owner Developer Program shows cap pressure, CardForge default counts, per-developer submissions left, and required published progress
 - verify developer and owner asset rows show status, contributor name/email, current tier, preview state, and expanded template/image previews without broken thumbnails
 - verify generator template selectors label Default vs User templates, especially when a modified default and user template share similar names
-- verify the owner can complete an official roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
+- verify the owner can complete a CardForge-authored roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
 - verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
 - verify a developer can choose a Personal Library template/style/local art item, browse for an SVG/PNG/JPG/WEBP/JSON source file, or drag/drop that file, submit it to voting, see it in My Pipeline/review lanes, and have an owner-published submission appear through `/api/assets`
 - treat payout reports as planning data until Stripe Connect, tax/legal terms, refund handling, and billing webhooks are implemented

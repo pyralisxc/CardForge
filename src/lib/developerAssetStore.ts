@@ -414,7 +414,6 @@ export const buildDeveloperAssetProgramView = ({
     const published = byType.filter((submission) => submission.status === 'published');
     const starterCount = published.filter((submission) => submission.calculatedAccessTier === 'free').length;
     const creatorPassCount = published.filter((submission) => submission.calculatedAccessTier === 'paid').length;
-    const officialCount = published.filter((submission) => submission.calculatedAccessTier === 'official').length;
     const publishCap = settings.publishCapsByType[assetType];
     const starterCap = settings.tierCapsByType[assetType].free;
     const creatorPassCap = settings.tierCapsByType[assetType].paid;
@@ -422,7 +421,6 @@ export const buildDeveloperAssetProgramView = ({
     return {
       assetType,
       publishedCount: published.length,
-      officialCount,
       starterCount,
       creatorPassCount,
       candidateCount: byType.filter((submission) => submission.status === 'voting' || submission.status === 'publish_candidate').length,
@@ -1101,8 +1099,8 @@ const getRegistryMetadataForSubmission = (submission: {
 
 export const getRegistryAccessTierForPublishedSubmission = (
   accessTier: DeveloperAssetAccessTier
-): Extract<DeveloperAssetAccessTier, 'official' | 'free' | 'paid' | 'developer' | 'hidden'> => {
-  if (accessTier === 'official' || accessTier === 'paid' || accessTier === 'free' || accessTier === 'developer') return accessTier;
+): Extract<DeveloperAssetAccessTier, 'free' | 'paid' | 'developer' | 'hidden'> => {
+  if (accessTier === 'paid' || accessTier === 'free' || accessTier === 'developer') return accessTier;
   return 'hidden';
 };
 

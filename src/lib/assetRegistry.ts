@@ -95,7 +95,7 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
           ? 'developer'
           : row.access_tier === 'hidden'
             ? 'hidden'
-            : 'official',
+            : 'free',
     registryStatus: row.status === 'draft'
       || row.status === 'submitted'
       || row.status === 'voting'
