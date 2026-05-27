@@ -1,6 +1,6 @@
 # CardForge Docs
 
-Last updated: May 25, 2026
+Last updated: May 27, 2026
 
 Use this page as the docs entrypoint. Keep MVP source-of-truth docs current and move temporary plans out of the main path once they are implemented or superseded.
 
@@ -15,8 +15,6 @@ CardForge helps creators build cards faster, generate complete sets, and shape t
 - [Blueprint](blueprint.md): product architecture, storage model, route model, data contracts, and quality principles.
 - [Demo Capacity](demo-capacity.md): current hosted demo capacity estimate, backend footprint, bottlenecks, and next scaling work.
 - [Release Checklist](release-checklist.md): MVP readiness, verification evidence, launch blockers, and residual risk.
-- [MVP Cleanup Plan](mvp-cleanup-plan.md): phased publish-readiness cleanup plan for docs, folders, editor architecture, backend comprehension, and release proof.
-- [Worktree Hygiene Audit](worktree-hygiene-audit.md): current dirty-worktree classification, intended move buckets, and staging guidance.
 
 ## QA And Product Audits
 
@@ -26,6 +24,6 @@ CardForge helps creators build cards faster, generate complete sets, and shape t
 
 ## Archive
 
-The [archive](archive/) folder contains implementation plans and specs from earlier development slices. Treat those files as historical context unless the current Blueprint or Release Checklist explicitly points back to one.
+The [archive](archive/) folder contains implementation plans, specs, and completed cleanup audits from earlier development slices. Treat those files as historical context unless the current Blueprint or Release Checklist explicitly points back to one.
 
 Current priorities should be reflected in the Blueprint and Release Checklist instead of creating more parallel roadmap docs.
