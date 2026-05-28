@@ -299,7 +299,7 @@ export function CardForgeStudioShell() {
         modeLabel={exportEntitlementLabel}
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
       />
-      <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
+      <main className="cardforge-studio-main flex-grow container mx-auto p-4 md:p-6 lg:p-8">
         {isStudioReady ? (
           <div data-testid="studio-ready" className="sr-only">Studio ready</div>
         ) : (
@@ -339,6 +339,9 @@ export function CardForgeStudioShell() {
             </div>
           </section>
         ) : null}
+        <p className="mb-4 hidden border border-[#6d4f2b] bg-[#15100a] px-3 py-2 text-xs leading-5 text-[#d8c49a] [@media_(max-width:767px)_and_(orientation:portrait)]:block">
+          Portrait mode is ready for review and light edits. Rotate your phone for the full Layout Studio workspace.
+        </p>
         <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full">
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -369,7 +372,7 @@ export function CardForgeStudioShell() {
             </Sheet>
           </div>
 
-          <TabsList className="mb-6 hidden w-full border border-[#5f4526] bg-[#15100a] md:grid md:grid-cols-2 no-print">
+          <TabsList className="cardforge-studio-tabs mb-6 hidden w-full border border-[#5f4526] bg-[#15100a] md:grid md:grid-cols-2 no-print">
             {TABS_CONFIG.map(tab => (
               <TabsTrigger
                 key={tab.value}

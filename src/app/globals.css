@@ -106,6 +106,160 @@ body {
 }
 
 @layer components {
+  .cardforge-maker-shell {
+    min-height: auto !important;
+  }
+
+  .cardforge-maker-grid {
+    min-height: auto !important;
+  }
+
+  .cardforge-maker-side {
+    overflow: hidden;
+  }
+
+  .cardforge-maker-scroll {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 54svh !important;
+  }
+
+  .cardforge-maker-scroll [data-radix-scroll-area-viewport] > div {
+    display: block !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .cardforge-canvas-stage {
+    min-height: 0 !important;
+  }
+
+  .cardforge-canvas-scroll {
+    height: 68svh !important;
+    min-height: 420px !important;
+    padding: 1rem !important;
+  }
+
+  @media (max-width: 767px) and (orientation: portrait) {
+    .cardforge-studio-main {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .cardforge-maker-shell {
+      border-radius: 8px;
+    }
+
+    .cardforge-maker-scroll {
+      max-height: 46svh !important;
+    }
+
+    .cardforge-canvas-scroll {
+      height: 72svh !important;
+      min-height: 440px !important;
+      padding: 0.75rem !important;
+    }
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) and (orientation: landscape) {
+    .cardforge-studio-header {
+      padding-top: 0.5rem !important;
+      padding-bottom: 0.5rem !important;
+    }
+
+    .cardforge-studio-brand-mark {
+      height: 2rem !important;
+      width: 2rem !important;
+    }
+
+    .cardforge-studio-title {
+      font-size: 1.125rem !important;
+      line-height: 1.35 !important;
+    }
+
+    .cardforge-studio-nav {
+      display: none !important;
+    }
+
+    .cardforge-studio-account > div > div:first-child {
+      display: none !important;
+    }
+
+    .cardforge-studio-main {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    .cardforge-studio-tabs {
+      margin-bottom: 0.75rem !important;
+      height: 2.5rem !important;
+    }
+
+    .cardforge-maker-shell {
+      min-height: calc(100svh - 8rem) !important;
+    }
+
+    .cardforge-maker-grid {
+      grid-template-columns: minmax(180px, 0.72fr) minmax(300px, 1.24fr) minmax(210px, 0.82fr) !important;
+      min-height: calc(100svh - 10.5rem) !important;
+    }
+
+    .cardforge-maker-side {
+      border-bottom-width: 0;
+    }
+
+    .cardforge-maker-side:first-child {
+      border-right: 1px solid #252b35;
+    }
+
+    .cardforge-maker-side:last-child {
+      border-left: 1px solid #252b35;
+      border-top-width: 0;
+    }
+
+    .cardforge-maker-scroll {
+      height: calc(100svh - 10.5rem) !important;
+      min-height: 0 !important;
+      max-height: none !important;
+    }
+
+    .cardforge-canvas-stage {
+      min-height: 0 !important;
+    }
+
+    .cardforge-canvas-scroll {
+      height: calc(100svh - 12.75rem) !important;
+      min-height: 320px !important;
+      padding: 1rem !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .cardforge-maker-shell {
+      min-height: calc(100vh - 145px) !important;
+    }
+
+    .cardforge-maker-grid {
+      min-height: calc(100vh - 205px) !important;
+    }
+
+    .cardforge-maker-scroll {
+      height: calc(100vh - 205px) !important;
+      min-height: 760px !important;
+      max-height: none !important;
+    }
+
+    .cardforge-canvas-stage {
+      min-height: 760px !important;
+    }
+
+    .cardforge-canvas-scroll {
+      height: calc(100vh - 238px) !important;
+      min-height: 720px !important;
+      padding: 2rem !important;
+    }
+  }
+
   .cardforge-clerk-profile .cl-cardBox,
   .cardforge-clerk-profile .cl-navbar,
   .cardforge-clerk-profile .cl-scrollBox,

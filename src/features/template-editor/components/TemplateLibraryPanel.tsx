@@ -88,11 +88,11 @@ export function TemplateLibraryPanel({
           <Button type="button" variant="outline" size="sm" onClick={onDelete} disabled={!currentTemplateId} aria-label="Delete selected template" className={buttonClassName}><Trash2 className="h-4 w-4 text-[#ff554a]" /></Button>
         </div>
         <div className="space-y-2 border-t border-[#1b2029] pt-2">
-          <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onExportProject} className={cn(buttonClassName, 'gap-1 text-xs')}>
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+            <Button type="button" variant="outline" size="sm" onClick={onExportProject} className={cn(buttonClassName, 'min-w-0 gap-1 text-xs')}>
               <FolderDown className="h-4 w-4" /> Export Project
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onImportProject} className={cn(buttonClassName, 'gap-1 text-xs')}>
+            <Button type="button" variant="outline" size="sm" onClick={onImportProject} className={cn(buttonClassName, 'min-w-0 gap-1 text-xs')}>
               <FolderUp className="h-4 w-4" /> Import Project
             </Button>
             <input

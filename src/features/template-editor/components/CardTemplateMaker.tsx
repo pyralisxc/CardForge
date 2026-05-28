@@ -833,7 +833,7 @@ export function CardTemplateMaker({
 
   return (
     <TooltipProvider>
-      <div className={cn('min-h-[calc(100vh-145px)] overflow-hidden rounded-[10px] border', makerTheme.shell)}>
+      <div className={cn('cardforge-maker-shell min-h-[calc(100vh-145px)] overflow-hidden rounded-[10px] border', makerTheme.shell)}>
         <TemplateEditorTopBar
           activeFace={activeFace}
           hasBackFace={Boolean(currentTemplate.backCanvas)}
@@ -863,9 +863,9 @@ export function CardTemplateMaker({
           activeButtonClassName={makerTheme.activeButton}
         />
 
-        <div className="grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
-          <aside className="min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
-            <ScrollArea className="h-[calc(100vh-205px)] min-h-[760px]">
+        <div className="cardforge-maker-grid grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
+          <aside className="cardforge-maker-side min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
+            <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
               <div className="space-y-3 p-2">
                 <TemplateLibraryPanel
                   canUseProjectFiles={canUseProjectFiles}
@@ -961,8 +961,8 @@ export function CardTemplateMaker({
             renderEditableElement={renderEditableElement}
           />
 
-          <aside className="min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
-            <ScrollArea className="h-[calc(100vh-205px)] min-h-[760px]">
+          <aside className="cardforge-maker-side min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
+            <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
               <div className="space-y-3 p-2">
                 <TemplateEditorInspectorPanel
                   activeTab={activeInspectorTab}
