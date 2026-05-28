@@ -177,6 +177,7 @@ export function TemplateEditableElement({
               key={resizeHandle.handle}
               type="button"
               aria-label={resizeHandle.label}
+              data-cardforge-resize-handle="true"
               className={cn(
                 'absolute h-3.5 w-3.5 rounded-[2px] border border-[#d5ad54] bg-[#090b0f] shadow-[0_0_12px_rgba(213,173,84,0.45)]',
                 resizeHandle.className

@@ -119,9 +119,21 @@ body {
   }
 
   .cardforge-maker-scroll {
-    height: auto !important;
+    height: min(74svh, 42rem) !important;
     min-height: 0 !important;
-    max-height: 54svh !important;
+    max-height: none !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .cardforge-maker-scroll [data-radix-scroll-area-viewport] {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   .cardforge-maker-scroll [data-radix-scroll-area-viewport] > div {
@@ -138,6 +150,25 @@ body {
     height: 68svh !important;
     min-height: 420px !important;
     padding: 1rem !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+
+  [data-cardforge-canvas="true"] {
+    touch-action: none;
+  }
+
+  [data-freeform-element-id] {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  [data-cardforge-resize-handle="true"] {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   @media (max-width: 767px) and (orientation: portrait) {
@@ -151,7 +182,7 @@ body {
     }
 
     .cardforge-maker-scroll {
-      max-height: 46svh !important;
+      height: 76svh !important;
     }
 
     .cardforge-canvas-scroll {
@@ -229,7 +260,7 @@ body {
 
     .cardforge-canvas-scroll {
       height: calc(100svh - 12.75rem) !important;
-      min-height: 320px !important;
+      min-height: 240px !important;
       padding: 1rem !important;
     }
   }

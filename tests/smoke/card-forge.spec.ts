@@ -521,3 +521,71 @@ test('supports keyboard visibility toggle in layer tree', async ({ page }) => {
   const showButton = page.locator('button[aria-label^="Show layer "]').first();
   await expect(showButton).toBeVisible();
 });
+
+test('supports touch-sized panel scrolling and canvas gesture ownership', async ({ page }) => {
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
+
+  for (const viewport of [
+    { name: 'phone landscape', width: 844, height: 390 },
+    { name: 'phone portrait', width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await gotoStudio(page);
+    await expect(page.getByTestId('studio-ready')).toBeAttached({ timeout: STUDIO_READY_TIMEOUT });
+    await page.getByRole('button', { name: 'Dismiss first run guide' }).click({ timeout: 5_000 }).catch(() => undefined);
+    if (viewport.width >= 768) {
+      await selectMainTab(page, /Layout Studio/i);
+    }
+    await expect(page.locator('.cardforge-maker-scroll').first()).toBeAttached({ timeout: STUDIO_READY_TIMEOUT });
+    await page.waitForTimeout(500);
+
+    const metrics = await page.evaluate(() => {
+      const scrollRoots = [...document.querySelectorAll('.cardforge-maker-scroll')];
+      const panelScrolls = scrollRoots.map((root) => {
+        const viewport = root.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+        return {
+          rootHeight: Math.round(root.getBoundingClientRect().height),
+          viewportHeight: Math.round(viewport?.getBoundingClientRect().height || 0),
+          maxScroll: viewport ? viewport.scrollHeight - viewport.clientHeight : 0,
+          overflowY: viewport ? getComputedStyle(viewport).overflowY : null,
+          touchAction: viewport ? getComputedStyle(viewport).touchAction : null,
+        };
+      });
+
+      scrollRoots.forEach((root) => {
+        const viewport = root.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+        if (viewport) viewport.scrollTop = 300;
+      });
+
+      const panelScrollPositions = scrollRoots.map((root) => (
+        root.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]')?.scrollTop ?? 0
+      ));
+      const selectedElement = document.querySelector<HTMLElement>('[data-freeform-element-id]');
+      const resizeHandle = document.querySelector<HTMLElement>('[data-cardforge-resize-handle="true"]');
+      const canvasScroll = document.querySelector<HTMLElement>('.cardforge-canvas-scroll');
+
+      return {
+        panelScrolls,
+        panelScrollPositions,
+        elementTouchAction: selectedElement ? getComputedStyle(selectedElement).touchAction : null,
+        resizeHandleTouchAction: resizeHandle ? getComputedStyle(resizeHandle).touchAction : null,
+        canvasTouchAction: canvasScroll ? getComputedStyle(canvasScroll).touchAction : null,
+      };
+    });
+
+    expect(metrics.panelScrolls.length, `${viewport.name} should render maker panels`).toBeGreaterThanOrEqual(2);
+    metrics.panelScrolls.forEach((panel, index) => {
+      expect(panel.rootHeight, `${viewport.name} panel ${index} has usable height`).toBeGreaterThan(180);
+      expect(panel.viewportHeight, `${viewport.name} panel ${index} viewport fills root`).toBe(panel.rootHeight);
+      expect(panel.maxScroll, `${viewport.name} panel ${index} has scrollable content`).toBeGreaterThan(200);
+      expect(panel.overflowY, `${viewport.name} panel ${index} allows vertical scrolling`).toBe('auto');
+      expect(panel.touchAction, `${viewport.name} panel ${index} keeps touch scroll`).toContain('pan-y');
+    });
+    metrics.panelScrollPositions.forEach((scrollTop, index) => {
+      expect(scrollTop, `${viewport.name} panel ${index} accepts scroll`).toBeGreaterThan(0);
+    });
+    expect(metrics.elementTouchAction, `${viewport.name} elements own drag gestures`).toBe('none');
+    expect(metrics.resizeHandleTouchAction, `${viewport.name} resize handles own drag gestures`).toBe('none');
+    expect(metrics.canvasTouchAction, `${viewport.name} empty canvas can pan without page pinch zoom`).toBe('pan-x pan-y');
+  }
+});

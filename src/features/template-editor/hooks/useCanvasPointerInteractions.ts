@@ -95,6 +95,8 @@ export function useCanvasPointerInteractions({
   const handlePointerMove = useCallback((event: ReactPointerEvent) => {
     const dragState = dragStateRef.current;
     if (!dragState) return;
+    event.preventDefault();
+    event.stopPropagation();
     const point = getCanvasPoint(event);
     const deltaX = point.x - dragState.startX;
     const deltaY = point.y - dragState.startY;
