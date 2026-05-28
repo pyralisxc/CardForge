@@ -133,6 +133,23 @@ export function CardForgeRichTextEditor({
             const { from, to, empty } = _view.state.selection;
             if (empty || !onCreateVariable) return false;
 
+            let overlappingVariableKey: string | null = null;
+            _view.state.doc.descendants((node, pos) => {
+              if (node.type.name !== 'cardForgeVariable') return true;
+              const nodeFrom = pos;
+              const nodeTo = pos + node.nodeSize;
+              const overlaps = from < nodeTo && to > nodeFrom;
+              if (!overlaps) return true;
+              overlappingVariableKey = node.attrs.key || null;
+              return false;
+            });
+            if (overlappingVariableKey) {
+              event.preventDefault();
+              onActiveVariableChange?.(overlappingVariableKey);
+              setVariableMenu({ x: event.clientX, y: event.clientY, key: overlappingVariableKey });
+              return true;
+            }
+
             const selectedText = _view.state.doc.textBetween(from, to, '\n').trim();
             const key = onCreateVariable(selectedText || 'Variable');
             const variableNode = _view.state.schema.nodes.cardForgeVariable;
@@ -193,21 +210,33 @@ export function CardForgeRichTextEditor({
     !allowedFormatting || allowedFormatting.includes(format)
   ), [allowedFormatting]);
 
+  const getVariableKeyInRange = useCallback((from: number, to: number): string | null => {
+    if (!editor) return null;
+    let foundKey: string | null = null;
+    const selectionFrom = Math.min(from, to);
+    const selectionTo = Math.max(from, to);
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'cardForgeVariable') return true;
+      const nodeFrom = pos;
+      const nodeTo = pos + node.nodeSize;
+      const overlaps = selectionFrom < nodeTo && selectionTo > nodeFrom;
+      if (!overlaps) return true;
+      foundKey = node.attrs.key || null;
+      return false;
+    });
+    return foundKey;
+  }, [editor]);
+
   const insertVariableFromSelection = useCallback(() => {
     if (!editor || !onCreateVariable) return;
-    const { $from } = editor.state.selection;
-    for (let depth = $from.depth; depth >= 0; depth--) {
-      const node = $from.node(depth);
-      if (node.type.name === 'cardForgeVariable') {
-        const currentKey = node.attrs.key || null;
-        if (currentKey) {
-          onActiveVariableChange?.(currentKey);
-          onEditVariable?.(currentKey);
-        }
-        return;
-      }
+    const { from, to } = editor.state.selection;
+    const existingVariableKey = getVariableKeyInRange(from, to);
+    if (existingVariableKey) {
+      onActiveVariableChange?.(existingVariableKey);
+      onEditVariable?.(existingVariableKey);
+      return;
     }
-    const selectedText = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, '\n').trim();
+    const selectedText = editor.state.doc.textBetween(from, to, '\n').trim();
     const key = onCreateVariable(selectedText || 'Variable');
     if (!key) return;
 
@@ -222,7 +251,7 @@ export function CardForgeRichTextEditor({
       })
       .run();
     onActiveVariableChange?.(key);
-  }, [editor, onActiveVariableChange, onCreateVariable]);
+  }, [editor, getVariableKeyInRange, onActiveVariableChange, onCreateVariable, onEditVariable]);
 
   const findVariableRange = useCallback((key: string): { from: number; to: number } | null => {
     if (!editor) return null;
@@ -262,6 +291,14 @@ export function CardForgeRichTextEditor({
       onRemoveVariable?.(key);
     }
   }, [editor, onRemoveVariable]);
+
+  const clearVariableStyling = useCallback((key: string) => {
+    if (!editor) return;
+    const found = findVariableRange(key);
+    if (!found) return;
+    editor.chain().focus().setTextSelection(found).unsetAllMarks().run();
+    onActiveVariableChange?.(key);
+  }, [editor, findVariableRange, onActiveVariableChange]);
 
   const applyHighlight = useCallback(() => {
     if (!editor) return;
@@ -381,8 +418,8 @@ export function CardForgeRichTextEditor({
           <button type="button" className="block w-full px-3 py-2 text-left hover:bg-[#2d3542]" onClick={() => { onRenameVariable?.(variableMenu.key); setVariableMenu(null); }}>
             Rename variable
           </button>
-          <button type="button" className="block w-full px-3 py-2 text-left hover:bg-[#2d3542]" onClick={() => { editor?.chain().focus().unsetAllMarks().run(); setVariableMenu(null); }}>
-            Revert selected styling
+          <button type="button" className="block w-full px-3 py-2 text-left hover:bg-[#2d3542]" onClick={() => { clearVariableStyling(variableMenu.key); setVariableMenu(null); }}>
+            Revert variable styling
           </button>
           <button type="button" className="block w-full px-3 py-2 text-left text-[#f0b7b7] hover:bg-[#3a2730]" onClick={() => { removeVariableKeepText(variableMenu.key); setVariableMenu(null); }}>
             Remove variable, keep text
