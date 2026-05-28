@@ -14,8 +14,10 @@ import {
 } from '@/features/template-editor/lib/canvasPointerMath';
 
 type DragState =
-  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> }
-  | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement> };
+  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean }
+  | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean };
+
+const DRAG_START_SLOP = 3;
 
 interface UseCanvasPointerInteractionsInput {
   canvas: FreeformCanvas;
@@ -72,25 +74,23 @@ export function useCanvasPointerInteractions({
       dragStateRef.current = null;
       return;
     }
-    recordTemplateHistory(currentTemplate);
     const descendantIds = getDescendantIds(targetElement.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
-    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals };
+    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals, hasMoved: false };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, currentTemplate, getCanvasPoint, previewMode, recordTemplateHistory, selectElement, selectedElementId]);
+  }, [canvas.elements, getCanvasPoint, previewMode, selectElement, selectedElementId]);
 
   const handleResizePointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement, handle: ResizeHandle) => {
     if (previewMode || element.locked) return;
     event.preventDefault();
     event.stopPropagation();
     selectElement(element.id);
-    recordTemplateHistory(currentTemplate);
     const point = getCanvasPoint(event);
     const descendantIds = getDescendantIds(element.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
-    dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals };
+    dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals, hasMoved: false };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, currentTemplate, getCanvasPoint, previewMode, recordTemplateHistory, selectElement]);
+  }, [canvas.elements, getCanvasPoint, previewMode, selectElement]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent) => {
     const dragState = dragStateRef.current;
@@ -100,6 +100,12 @@ export function useCanvasPointerInteractions({
     const point = getCanvasPoint(event);
     const deltaX = point.x - dragState.startX;
     const deltaY = point.y - dragState.startY;
+    const movement = Math.hypot(deltaX, deltaY);
+    if (!dragState.hasMoved) {
+      if (movement < DRAG_START_SLOP) return;
+      dragState.hasMoved = true;
+      recordTemplateHistory(currentTemplate);
+    }
 
     if (dragState.mode === 'move') {
       const nextPosition = calculateMovedElementPosition({
@@ -158,7 +164,7 @@ export function useCanvasPointerInteractions({
         };
       }),
     }, false);
-  }, [canvas.elements, canvas.height, canvas.width, getCanvasPoint, snapValue, updateCanvas]);
+  }, [canvas.elements, canvas.height, canvas.width, currentTemplate, getCanvasPoint, recordTemplateHistory, snapValue, updateCanvas]);
 
   const handlePointerUp = useCallback(() => {
     dragStateRef.current = null;

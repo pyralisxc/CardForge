@@ -7,7 +7,7 @@ import { CardPreview } from '@/components/card-forge/CardPreview';
 import type { CardData, CardFace, FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
 
 const RULER_WIDTH = 28;
-const CANVAS_GUTTER = 96;
+const CANVAS_GUTTER = 32;
 
 const rulerTickBackground = (axis: 'x' | 'y', gridSize: number, zoom: number): CSSProperties => ({
   backgroundImage: axis === 'x'
@@ -113,7 +113,7 @@ export function TemplateCanvasStage({
   renderEditableElement,
 }: TemplateCanvasStageProps) {
   return (
-    <section className="cardforge-canvas-stage min-w-0 overflow-hidden bg-[#05080c] lg:min-h-[760px]">
+    <section className="cardforge-canvas-stage cardforge-maker-canvas min-w-0 overflow-hidden bg-[#05080c] lg:min-h-[760px]">
       <div className="flex items-center justify-between border-b border-[#252b35] bg-[#080c12] px-3 py-1.5 text-[11px] text-[#8f95a3]">
         <span className="flex items-center gap-2"><MousePointer2 className="h-3.5 w-3.5 text-[#d5ad54]" /> Drag, snap, resize, layer, and tune every card surface.</span>
         <span className="font-mono text-[#d5ad54]">{Math.round(zoom * 100)}% / {canvas.width} x {canvas.height}</span>

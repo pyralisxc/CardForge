@@ -33,6 +33,7 @@ interface TemplateEditableElementProps {
   previewMode: boolean;
   richTextHighlightColor: string;
   selected: boolean;
+  zoom: number;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: FreeformCardElement) => void;
   onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: FreeformCardElement, handle: ResizeHandle) => void;
 }
@@ -44,6 +45,7 @@ export function TemplateEditableElement({
   previewMode,
   richTextHighlightColor,
   selected,
+  zoom,
   onElementPointerDown,
   onResizePointerDown,
 }: TemplateEditableElementProps) {
@@ -149,6 +151,7 @@ export function TemplateEditableElement({
   const renderedTextStyle = element.type === 'text' && textElementStyle
     ? { ...textElementStyle, fontSize: undefined as unknown as CSSProperties['fontSize'] }
     : null;
+  const resizeHandleSize = Math.round(Math.min(Math.max(20 / Math.max(zoom, 0.16), 18), 120));
 
   return (
     <div
@@ -179,10 +182,10 @@ export function TemplateEditableElement({
               aria-label={resizeHandle.label}
               data-cardforge-resize-handle="true"
               className={cn(
-                'absolute h-3.5 w-3.5 rounded-[2px] border border-[#d5ad54] bg-[#090b0f] shadow-[0_0_12px_rgba(213,173,84,0.45)]',
+                'absolute rounded-[2px] border border-[#d5ad54] bg-[#090b0f] shadow-[0_0_12px_rgba(213,173,84,0.45)]',
                 resizeHandle.className
               )}
-              style={{ cursor: resizeHandle.cursor }}
+              style={{ cursor: resizeHandle.cursor, height: resizeHandleSize, width: resizeHandleSize }}
               onPointerDown={(event) => onResizePointerDown(event, element, resizeHandle.handle)}
             />
           ))}

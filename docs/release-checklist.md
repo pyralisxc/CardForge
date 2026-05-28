@@ -137,8 +137,9 @@ This gradebook is meant to support a true strengthening pass of current function
   - repeated tab switching stayed stable
   - no relevant console errors or framework overlays
   - page identity and visible structure matched expectations
+  - phone Layout Studio now uses one active surface at a time (`Canvas`, `Templates`, `Inspector`) instead of stacking the full desktop workspace in page flow
 - Remaining focus:
-  - mobile sheet navigation pass
+  - mobile sheet navigation pass outside the Layout Studio surface switcher
   - repeated open/close stress on the mobile menu
 
 ### 2. Template Library and Template Ownership Flow

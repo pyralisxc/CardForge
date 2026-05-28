@@ -108,6 +108,17 @@ interface CardTemplateMakerProps {
 }
 
 const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
+const STAGE_RULER_WIDTH = 28;
+const STAGE_CANVAS_GUTTER = 32;
+const STAGE_SCROLL_PADDING = 24;
+
+type MobileMakerPanel = 'canvas' | 'library' | 'inspector';
+
+const MOBILE_MAKER_PANELS: Array<{ value: MobileMakerPanel; label: string }> = [
+  { value: 'canvas', label: 'Canvas' },
+  { value: 'library', label: 'Templates' },
+  { value: 'inspector', label: 'Inspector' },
+];
 
 export function CardTemplateMaker({
   canUseProjectFiles,
@@ -202,6 +213,7 @@ export function CardTemplateMaker({
   }, [selectElementInController]);
   const [zoom, setZoom] = useState(0.62);
   const [autoFitCanvas, setAutoFitCanvas] = useState(true);
+  const [mobilePanel, setMobilePanel] = useState<MobileMakerPanel>('canvas');
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
@@ -328,8 +340,12 @@ export function CardTemplateMaker({
       const width = stageRef.current?.clientWidth || 0;
       const height = stageRef.current?.clientHeight || 0;
       if (!width || !height) return;
-      const fitted = Math.min((width - 72) / canvas.width, (height - 72) / canvas.height, 0.76);
-      setZoom(clamp(Math.round(fitted * 100) / 100, 0.28, 0.76));
+      const chromeWidth = STAGE_RULER_WIDTH + STAGE_CANVAS_GUTTER * 2 + STAGE_SCROLL_PADDING;
+      const chromeHeight = STAGE_RULER_WIDTH + STAGE_CANVAS_GUTTER * 2 + STAGE_SCROLL_PADDING;
+      const widthFit = (width - chromeWidth) / canvas.width;
+      const heightFit = (height - chromeHeight) / canvas.height;
+      const fitted = width < 1024 ? Math.min(widthFit, 0.76) : Math.min(widthFit, heightFit, 0.76);
+      setZoom(clamp(Math.round(fitted * 100) / 100, 0.16, 0.76));
     };
     updateFit();
     const observer = new ResizeObserver(updateFit);
@@ -804,10 +820,11 @@ export function CardTemplateMaker({
       previewMode={previewMode}
       richTextHighlightColor={richTextHighlightColor}
       selected={selectedElementId === element.id}
+      zoom={zoom}
       onElementPointerDown={handleElementPointerDown}
       onResizePointerDown={handleResizePointerDown}
     />
-  ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, previewMode, richTextHighlightColor, selectedElementId]);
+  ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, previewMode, richTextHighlightColor, selectedElementId, zoom]);
 
   const canvasFrameStyle: React.CSSProperties = {
     width: canvas.width,
@@ -833,7 +850,10 @@ export function CardTemplateMaker({
 
   return (
     <TooltipProvider>
-      <div className={cn('cardforge-maker-shell min-h-[calc(100vh-145px)] overflow-hidden rounded-[10px] border', makerTheme.shell)}>
+      <div
+        className={cn('cardforge-maker-shell min-h-[calc(100vh-145px)] overflow-hidden rounded-[10px] border', makerTheme.shell)}
+        data-mobile-panel={mobilePanel}
+      >
         <TemplateEditorTopBar
           activeFace={activeFace}
           hasBackFace={Boolean(currentTemplate.backCanvas)}
@@ -863,8 +883,27 @@ export function CardTemplateMaker({
           activeButtonClassName={makerTheme.activeButton}
         />
 
+        <div className="cardforge-maker-mobile-switcher no-print border-b border-[#252b35] bg-[#080c12] p-2 lg:hidden" role="group" aria-label="Layout Studio surface">
+          {MOBILE_MAKER_PANELS.map((panel) => (
+            <Button
+              key={panel.value}
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-pressed={mobilePanel === panel.value}
+              className={cn(
+                'h-10 flex-1 rounded-[4px] border border-[#2d3340] text-xs font-semibold text-[#c8b07f]',
+                mobilePanel === panel.value && 'border-[#d5ad54] bg-[#24180e] text-[#fff1c7]'
+              )}
+              onClick={() => setMobilePanel(panel.value)}
+            >
+              {panel.label}
+            </Button>
+          ))}
+        </div>
+
         <div className="cardforge-maker-grid grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
-          <aside className="cardforge-maker-side min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
+          <aside className="cardforge-maker-side cardforge-maker-library min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
             <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
               <div className="space-y-3 p-2">
                 <TemplateLibraryPanel
@@ -896,7 +935,10 @@ export function CardTemplateMaker({
 
                 <ElementLibraryPanel
                   sections={elementLibrarySections}
-                  onAddElement={(type, preset) => addElement(type, undefined, preset)}
+                  onAddElement={(type, preset) => {
+                    addElement(type, undefined, preset);
+                    setMobilePanel('canvas');
+                  }}
                   panelClassName={makerTheme.panel}
                 />
 
@@ -961,7 +1003,7 @@ export function CardTemplateMaker({
             renderEditableElement={renderEditableElement}
           />
 
-          <aside className="cardforge-maker-side min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
+          <aside className="cardforge-maker-side cardforge-maker-inspector min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
             <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
               <div className="space-y-3 p-2">
                 <TemplateEditorInspectorPanel

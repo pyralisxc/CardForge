@@ -339,9 +339,6 @@ export function CardForgeStudioShell() {
             </div>
           </section>
         ) : null}
-        <p className="mb-4 hidden border border-[#6d4f2b] bg-[#15100a] px-3 py-2 text-xs leading-5 text-[#d8c49a] [@media_(max-width:767px)_and_(orientation:portrait)]:block">
-          Portrait mode is ready for review and light edits. Rotate your phone for the full Layout Studio workspace.
-        </p>
         <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full">
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>

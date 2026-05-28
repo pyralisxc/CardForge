@@ -536,11 +536,12 @@ test('supports touch-sized panel scrolling and canvas gesture ownership', async 
     if (viewport.width >= 768) {
       await selectMainTab(page, /Layout Studio/i);
     }
-    await expect(page.locator('.cardforge-maker-scroll').first()).toBeAttached({ timeout: STUDIO_READY_TIMEOUT });
+    await expect(page.locator('.cardforge-maker-mobile-switcher')).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
     await page.waitForTimeout(500);
 
     const metrics = await page.evaluate(() => {
-      const scrollRoots = [...document.querySelectorAll('.cardforge-maker-scroll')];
+      const scrollRoots = [...document.querySelectorAll('.cardforge-maker-scroll')]
+        .filter((root) => root.getBoundingClientRect().height > 0);
       const panelScrolls = scrollRoots.map((root) => {
         const viewport = root.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
         return {
@@ -569,23 +570,41 @@ test('supports touch-sized panel scrolling and canvas gesture ownership', async 
         panelScrollPositions,
         elementTouchAction: selectedElement ? getComputedStyle(selectedElement).touchAction : null,
         resizeHandleTouchAction: resizeHandle ? getComputedStyle(resizeHandle).touchAction : null,
+        resizeHandleSize: resizeHandle ? Math.round(resizeHandle.getBoundingClientRect().width) : 0,
         canvasTouchAction: canvasScroll ? getComputedStyle(canvasScroll).touchAction : null,
+        canvasPanelVisible: Boolean(document.querySelector('.cardforge-maker-canvas')?.getBoundingClientRect().height),
       };
     });
 
-    expect(metrics.panelScrolls.length, `${viewport.name} should render maker panels`).toBeGreaterThanOrEqual(2);
-    metrics.panelScrolls.forEach((panel, index) => {
-      expect(panel.rootHeight, `${viewport.name} panel ${index} has usable height`).toBeGreaterThan(180);
-      expect(panel.viewportHeight, `${viewport.name} panel ${index} viewport fills root`).toBe(panel.rootHeight);
-      expect(panel.maxScroll, `${viewport.name} panel ${index} has scrollable content`).toBeGreaterThan(200);
-      expect(panel.overflowY, `${viewport.name} panel ${index} allows vertical scrolling`).toBe('auto');
-      expect(panel.touchAction, `${viewport.name} panel ${index} keeps touch scroll`).toContain('pan-y');
-    });
-    metrics.panelScrollPositions.forEach((scrollTop, index) => {
-      expect(scrollTop, `${viewport.name} panel ${index} accepts scroll`).toBeGreaterThan(0);
-    });
+    expect(metrics.canvasPanelVisible, `${viewport.name} shows the canvas as the active phone surface`).toBe(true);
     expect(metrics.elementTouchAction, `${viewport.name} elements own drag gestures`).toBe('none');
     expect(metrics.resizeHandleTouchAction, `${viewport.name} resize handles own drag gestures`).toBe('none');
+    expect(metrics.resizeHandleSize, `${viewport.name} resize handles stay touchable after canvas scaling`).toBeGreaterThanOrEqual(16);
     expect(metrics.canvasTouchAction, `${viewport.name} empty canvas can pan without page pinch zoom`).toBe('pan-x pan-y');
+
+    for (const panelName of ['Templates', 'Inspector']) {
+      await page.getByRole('button', { name: panelName, exact: true }).click();
+      await page.waitForTimeout(250);
+      const panelMetrics = await page.evaluate(() => {
+        const scrollRoot = [...document.querySelectorAll('.cardforge-maker-scroll')]
+          .find((root) => root.getBoundingClientRect().height > 0);
+        const viewport = scrollRoot?.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+        if (viewport) viewport.scrollTop = 300;
+        return {
+          rootHeight: Math.round(scrollRoot?.getBoundingClientRect().height || 0),
+          viewportHeight: Math.round(viewport?.getBoundingClientRect().height || 0),
+          maxScroll: viewport ? viewport.scrollHeight - viewport.clientHeight : 0,
+          overflowY: viewport ? getComputedStyle(viewport).overflowY : null,
+          touchAction: viewport ? getComputedStyle(viewport).touchAction : null,
+          scrollTop: viewport?.scrollTop ?? 0,
+        };
+      });
+      expect(panelMetrics.rootHeight, `${viewport.name} ${panelName} panel has usable height`).toBeGreaterThan(180);
+      expect(panelMetrics.viewportHeight, `${viewport.name} ${panelName} viewport fills root`).toBe(panelMetrics.rootHeight);
+      expect(panelMetrics.maxScroll, `${viewport.name} ${panelName} panel has scrollable content`).toBeGreaterThan(200);
+      expect(panelMetrics.overflowY, `${viewport.name} ${panelName} allows vertical scrolling`).toBe('auto');
+      expect(panelMetrics.touchAction, `${viewport.name} ${panelName} keeps touch scroll`).toContain('pan-y');
+      expect(panelMetrics.scrollTop, `${viewport.name} ${panelName} accepts scroll`).toBeGreaterThan(0);
+    }
   }
 });
