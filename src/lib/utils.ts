@@ -1,132 +1,12 @@
 
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { TCGCardTemplate, CardData, FreeformCardElement } from "@/types";
 import Papa from "papaparse";
 import { TCG_ASPECT_RATIO } from "@/lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
-
-export interface ExtractedPlaceholder {
-  key: string;
-  defaultValue?: string;
-}
-
-const PLACEHOLDER_REGEX = /\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
-
-const STATIC_IMAGE_SOURCE_PREFIXES = ['http://', 'https://', 'data:', 'blob:', 'css:', 'linear-gradient', 'radial-gradient', '/'];
-
-const isStaticImageSource = (value: string): boolean => {
-  const lower = value.toLowerCase();
-  return STATIC_IMAGE_SOURCE_PREFIXES.some((prefix) => lower.startsWith(prefix));
-};
-
-const sanitizeImageFieldPart = (value: string): string => {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-};
-
-export function getBoundImageFieldKey(element: Pick<FreeformCardElement, 'imageSource' | 'content'>): string | undefined {
-  const candidates = [element.imageSource, element.content];
-
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-
-    PLACEHOLDER_REGEX.lastIndex = 0;
-    const placeholderMatch = PLACEHOLDER_REGEX.exec(candidate);
-    if (placeholderMatch?.[1]) {
-      return placeholderMatch[1].trim();
-    }
-
-    const trimmed = candidate.trim();
-    if (!trimmed || isStaticImageSource(trimmed)) continue;
-    if (/^[\w-]+$/.test(trimmed)) return trimmed;
-  }
-
-  return undefined;
-}
-
-export function deriveImageFieldKey(element: Pick<FreeformCardElement, 'id' | 'name'>): string {
-  const namePart = sanitizeImageFieldPart(element.name || 'image');
-  const idPart = sanitizeImageFieldPart(element.id || 'layer');
-  return `image_${namePart || 'image'}_${idPart || 'layer'}`;
-}
-
-export function getImageFieldKeyForElement(
-  element: Pick<FreeformCardElement, 'id' | 'name' | 'imageSource' | 'content'>
-): string {
-  return getBoundImageFieldKey(element) || deriveImageFieldKey(element);
-}
-
-/**
- * Extracts unique placeholder keys and their optional default values from a template's structure.
- * Placeholders are scanned from freeform element content, image sources,
- * background image URLs, and template-level image fields.
- * e.g., "{{cardName}}", "{{manaCost:"3"}}", "artworkUrl" (for image elements)
- * Default values must be enclosed in double quotes.
- * @param template The TCGCardTemplate to parse.
- * @returns An array of unique placeholder objects { key: string; defaultValue?: string; }.
- */
-export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): ExtractedPlaceholder[] {
-  if (!template) return [];
-
-  const placeholderMap = new Map<string, ExtractedPlaceholder>();
-
-  const processStringForPlaceholders = (str: string | undefined) => {
-    if (!str) return;
-    let match;
-    PLACEHOLDER_REGEX.lastIndex = 0;
-    while ((match = PLACEHOLDER_REGEX.exec(str)) !== null) {
-      const key = match[1].trim();
-      const defaultValue = match[2] !== undefined
-        ? match[2].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-        : undefined;
-
-      if (!placeholderMap.has(key) || (defaultValue !== undefined && placeholderMap.get(key)!.defaultValue === undefined)) {
-        placeholderMap.set(key, { key, defaultValue });
-      }
-    }
-  };
-
-  processStringForPlaceholders(template.cardBackgroundImageUrl);
-
-  template.freeformCanvas?.elements?.forEach(element => {
-    if (element.type === 'image') {
-      const source = element.imageSource || element.content;
-
-      const imageFieldKey = getImageFieldKeyForElement(element);
-      const imageFieldExists = placeholderMap.has(imageFieldKey);
-      if (!imageFieldExists) {
-        const defaultValue = source && isStaticImageSource(source.trim()) ? source.trim() : undefined;
-        placeholderMap.set(imageFieldKey, { key: imageFieldKey, defaultValue });
-      }
-
-      processStringForPlaceholders(source);
-    } else {
-      processStringForPlaceholders(element.content);
-    }
-    processStringForPlaceholders(element.backgroundImageUrl);
-  });
-
-  return Array.from(placeholderMap.values());
-}
-
-export function extractPlaceholderKeysFromText(text?: string): string[] {
-  if (!text) return [];
-  const keys: string[] = [];
-  let match;
-  PLACEHOLDER_REGEX.lastIndex = 0;
-  while ((match = PLACEHOLDER_REGEX.exec(text)) !== null) {
-    const key = match[1]?.trim();
-    if (key && !keys.includes(key)) keys.push(key);
-  }
-  return keys;
-}
-
 
 /**
  * Converts a camelCase or snake_case string to Title Case.
@@ -149,42 +29,6 @@ export function toTitleCase(text: string): string {
     .join(' ');
 }
 
-
-/**
- * Replaces placeholders in a given text string with values from a data object.
- * Handles placeholders like {{key}} and {{key:"Default Value"}}.
- * If removeUnmatched is true, placeholders without corresponding data (and no default in the string) are removed.
- * If removeUnmatched is false (e.g., for editor preview), they are left as is.
- * @param text The text string with placeholders.
- * @param dataContext The data object with key-value pairs.
- * @param removeUnmatchedIfNoDefault If true, removes unmatched placeholders that don't have a default in the string.
- * @returns The processed text string.
- */
-export function replacePlaceholdersLocal(text: string | undefined, dataContext: CardData, removeUnmatchedIfNoDefault: boolean): string {
-  if (text === undefined || text === null) return '';
-  let result = String(text);
-  const regex = /\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
-
-  result = result.replace(regex, (fullMatch, key, defaultValueFromPlaceholder) => {
-    const cleanKey = key.trim();
-    const cleanDefault = defaultValueFromPlaceholder !== undefined
-      ? defaultValueFromPlaceholder.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-      : undefined;
-
-    if (dataContext[cleanKey] !== undefined && dataContext[cleanKey] !== null) {
-      return String(dataContext[cleanKey]);
-    }
-    if (cleanDefault !== undefined) {
-      return cleanDefault;
-    }
-    if (removeUnmatchedIfNoDefault) {
-      return ''; 
-    }
-    return fullMatch; 
-  });
-
-  return result;
-}
 
 export interface RichTextSpan {
   text: string;

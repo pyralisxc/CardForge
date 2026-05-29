@@ -15,9 +15,6 @@ export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-divider
 export const CUSTOM_ICON_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-icons';
 export const CUSTOM_IMAGE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-images';
 
-const LEGACY_CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker2-custom-textures';
-const LEGACY_CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker2-custom-dividers';
-
 export interface ProjectDocumentExportSettings {
   selectedPaperSize?: PaperSize;
   pdfMarginMm?: number;
@@ -62,36 +59,11 @@ export interface ProjectDocumentStatePatch extends ProjectDocumentExportSettings
 }
 
 export type ParseProjectDocumentResult =
-  | { success: true; document: ProjectDocumentV1; isLegacy: boolean }
+  | { success: true; document: ProjectDocumentV1 }
   | { success: false; error: string };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const isStoredDisplayCard = (value: unknown): value is StoredDisplayCard => {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.templateId === 'string' &&
-    typeof value.uniqueId === 'string' &&
-    isRecord(value.data)
-  );
-};
-
-export const isLegacyStoredCardSet = (value: unknown): value is StoredDisplayCard[] =>
-  Array.isArray(value) && value.every(isStoredDisplayCard);
-
-const isTemplateDocument = (value: unknown): value is TCGCardTemplate => {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.id === 'string' &&
-    value.id.trim() !== '' &&
-    typeof value.name === 'string' &&
-    value.name.trim() !== ''
-  );
-};
-
-const isTemplateDocumentSet = (value: unknown): value is TCGCardTemplate[] =>
-  Array.isArray(value) && value.length > 0 && value.every(isTemplateDocument);
 
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value as T[] : []);
 
@@ -99,18 +71,12 @@ const normalizeCustomAssets = (value: unknown): ProjectDocumentCustomAssets => {
   const customAssets = isRecord(value) ? value : {};
   const modernTextures = customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY];
   const modernDividers = customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY];
-  const legacyTextures = customAssets[LEGACY_CUSTOM_TEXTURE_ASSETS_STORAGE_KEY];
-  const legacyDividers = customAssets[LEGACY_CUSTOM_DIVIDER_ASSETS_STORAGE_KEY];
   const modernIcons = customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY];
   const modernImages = customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY];
 
   return {
-    [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: asArray<CardAssetOption>(
-      Array.isArray(modernTextures) ? modernTextures : legacyTextures,
-    ),
-    [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: asArray<CardAssetOption>(
-      Array.isArray(modernDividers) ? modernDividers : legacyDividers,
-    ),
+    [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: asArray<CardAssetOption>(modernTextures),
+    [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: asArray<CardAssetOption>(modernDividers),
     [CUSTOM_ICON_ASSETS_STORAGE_KEY]: asArray<CardAssetOption>(modernIcons),
     [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: asArray<CardAssetOption>(modernImages),
   };
@@ -128,25 +94,6 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     customAssets: normalizeCustomAssets(value.customAssets),
   };
 };
-
-const createEmptyProjectDocument = (storedCards: StoredDisplayCard[] = []): ProjectDocumentV1 => ({
-  version: PROJECT_DOCUMENT_VERSION,
-  userTemplates: [],
-  storedCards,
-  appearanceStyles: [],
-  exportSettings: {},
-  customAssets: {
-    [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: [],
-    [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: [],
-    [CUSTOM_ICON_ASSETS_STORAGE_KEY]: [],
-    [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: [],
-  },
-});
-
-const createTemplateProjectDocument = (userTemplates: TCGCardTemplate[]): ProjectDocumentV1 => ({
-  ...createEmptyProjectDocument(),
-  userTemplates,
-});
 
 export const createProjectDocumentFromState = ({
   userTemplates,
@@ -205,41 +152,16 @@ export const parseProjectDocumentFile = (contents: string): ParseProjectDocument
     };
   }
 
-  if (isLegacyStoredCardSet(parsed)) {
-    return {
-      success: true,
-      document: createEmptyProjectDocument(parsed),
-      isLegacy: true,
-    };
-  }
-
-  if (isTemplateDocument(parsed)) {
-    return {
-      success: true,
-      document: createTemplateProjectDocument([parsed]),
-      isLegacy: false,
-    };
-  }
-
-  if (isTemplateDocumentSet(parsed)) {
-    return {
-      success: true,
-      document: createTemplateProjectDocument(parsed),
-      isLegacy: false,
-    };
-  }
-
   const document = normalizeProjectDocument(parsed);
   if (document) {
     return {
       success: true,
       document,
-      isLegacy: false,
     };
   }
 
   return {
     success: false,
-    error: 'Unsupported project document format.',
+    error: 'Unsupported project document format. Import a current cardforge-studio-project.json export.',
   };
 };

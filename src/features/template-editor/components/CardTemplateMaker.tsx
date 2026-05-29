@@ -11,7 +11,8 @@ import {
   AVAILABLE_FONTS,
   PADDING_OPTIONS,
 } from '@/lib/constants';
-import { cn, replacePlaceholdersLocal, toTitleCase } from '@/lib/utils';
+import { replacePlaceholdersLocal } from '@/lib/textBindings';
+import { cn, toTitleCase } from '@/lib/utils';
 import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
 import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/lib/cardFrameKits';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';

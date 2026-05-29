@@ -15,10 +15,6 @@ import {
 } from '@/lib/projectDocument';
 import type { useToast } from '@/hooks/use-toast';
 import type { FreeformCardElement } from '@/types';
-
-const LEGACY_CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker2-custom-textures';
-const LEGACY_CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker2-custom-dividers';
-
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
 interface UseTemplateAssetLibraryInput {
@@ -28,9 +24,9 @@ interface UseTemplateAssetLibraryInput {
   toast: ToastFn;
 }
 
-const readStoredAssets = (primaryKey: string, legacyKey: string): CardAssetOption[] => {
+const readStoredAssets = (primaryKey: string): CardAssetOption[] => {
   try {
-    const payload = localStorage.getItem(primaryKey) ?? localStorage.getItem(legacyKey) ?? '[]';
+    const payload = localStorage.getItem(primaryKey) ?? '[]';
     const assets = JSON.parse(payload) as CardAssetOption[];
     if (!Array.isArray(assets)) return [];
     const normalizedAssets = assets.map((asset) => (
@@ -60,10 +56,10 @@ export function useTemplateAssetLibrary({
   const [customImageAssets, setCustomImageAssets] = useState<CardAssetOption[]>([]);
 
   useEffect(() => {
-    setCustomTextureAssets(readStoredAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, LEGACY_CUSTOM_TEXTURE_ASSETS_STORAGE_KEY));
-    setCustomDividerAssets(readStoredAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, LEGACY_CUSTOM_DIVIDER_ASSETS_STORAGE_KEY));
-    setCustomIconAssets(readStoredAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY, CUSTOM_ICON_ASSETS_STORAGE_KEY));
-    setCustomImageAssets(readStoredAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, CUSTOM_IMAGE_ASSETS_STORAGE_KEY));
+    setCustomTextureAssets(readStoredAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY));
+    setCustomDividerAssets(readStoredAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY));
+    setCustomIconAssets(readStoredAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY));
+    setCustomImageAssets(readStoredAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY));
   }, []);
 
   useEffect(() => {

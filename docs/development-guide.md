@@ -120,6 +120,8 @@ Zustand persists user-owned app state in localStorage. This includes user templa
 
 This means normal Studio work should survive route changes, refreshes, browser restarts, and accidental tab closes on the same browser profile. The MVP intentionally uses durable browser-local storage instead of session-only storage because creators should not lose cards or templates when the whole browser closes. Project export/import remains the portable backup path when work needs to move between devices, browsers, accounts, or a cleared browser profile.
 
+Project import is strict: only the current versioned `cardforge-studio-project.json` format is supported. Do not add fallback parsing for older template-only, stored-card-only, or renamed local asset payloads unless the product explicitly reintroduces a migration lane.
+
 ### Pipeline-Owned Starter Content
 
 The user-facing creative catalog is Supabase-first. Templates, textures, dividers, custom icons, image assets, overlays, and appearance/style recipes should appear in Studio only after they are present in `cardforge_asset_registry` and linked to `cardforge_developer_asset_submissions`.

@@ -1,3 +1,5 @@
+import type { CardData, FreeformCardElement, TCGCardTemplate } from '@/types';
+
 export const escapeTemplateText = (value: string): string =>
   value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');
 
@@ -34,7 +36,26 @@ export const buildScopedFieldDataKey = (elementId: string, key: string): string 
 
 export const isScopedFieldDataKey = (key: string): boolean => key.startsWith('__scoped_field__');
 
-const TEMPLATE_PLACEHOLDER_REGEX = /\{\{\s*([A-Za-z_][\w.-]*)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
+export interface ExtractedPlaceholder {
+  key: string;
+  defaultValue?: string;
+}
+
+export const TEMPLATE_PLACEHOLDER_REGEX = /\{\{\s*([A-Za-z_][\w.-]*)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g;
+
+const STATIC_IMAGE_SOURCE_PREFIXES = ['http://', 'https://', 'data:', 'blob:', 'css:', 'linear-gradient', 'radial-gradient', '/'];
+
+const isStaticImageSource = (value: string): boolean => {
+  const lower = value.toLowerCase();
+  return STATIC_IMAGE_SOURCE_PREFIXES.some((prefix) => lower.startsWith(prefix));
+};
+
+const sanitizeImageFieldPart = (value: string): string => {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+};
 
 export const parseTemplateTextSegments = (content?: string): TemplateTextSegment[] => {
   const raw = content || '';
@@ -73,6 +94,116 @@ export const parseTemplateTextSegments = (content?: string): TemplateTextSegment
 
   return segments.length > 0 ? segments : [{ type: 'text', text: raw }];
 };
+
+export const extractPlaceholderKeysFromText = (text?: string): string[] => {
+  if (!text) return [];
+  const keys: string[] = [];
+  let match: RegExpExecArray | null;
+  TEMPLATE_PLACEHOLDER_REGEX.lastIndex = 0;
+  while ((match = TEMPLATE_PLACEHOLDER_REGEX.exec(text)) !== null) {
+    const key = match[1]?.trim();
+    if (key && !keys.includes(key)) keys.push(key);
+  }
+  return keys;
+};
+
+export function getBoundImageFieldKey(element: Pick<FreeformCardElement, 'imageSource' | 'content'>): string | undefined {
+  const candidates = [element.imageSource, element.content];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+
+    TEMPLATE_PLACEHOLDER_REGEX.lastIndex = 0;
+    const placeholderMatch = TEMPLATE_PLACEHOLDER_REGEX.exec(candidate);
+    if (placeholderMatch?.[1]) {
+      return placeholderMatch[1].trim();
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed || isStaticImageSource(trimmed)) continue;
+    if (/^[\w-]+$/.test(trimmed)) return trimmed;
+  }
+
+  return undefined;
+}
+
+export function deriveImageFieldKey(element: Pick<FreeformCardElement, 'id' | 'name'>): string {
+  const namePart = sanitizeImageFieldPart(element.name || 'image');
+  const idPart = sanitizeImageFieldPart(element.id || 'layer');
+  return `image_${namePart || 'image'}_${idPart || 'layer'}`;
+}
+
+export function getImageFieldKeyForElement(
+  element: Pick<FreeformCardElement, 'id' | 'name' | 'imageSource' | 'content'>
+): string {
+  return getBoundImageFieldKey(element) || deriveImageFieldKey(element);
+}
+
+export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): ExtractedPlaceholder[] {
+  if (!template) return [];
+
+  const placeholderMap = new Map<string, ExtractedPlaceholder>();
+
+  const processStringForPlaceholders = (str: string | undefined) => {
+    if (!str) return;
+    let match: RegExpExecArray | null;
+    TEMPLATE_PLACEHOLDER_REGEX.lastIndex = 0;
+    while ((match = TEMPLATE_PLACEHOLDER_REGEX.exec(str)) !== null) {
+      const key = match[1].trim();
+      const defaultValue = match[2] !== undefined ? unescapeTemplateText(match[2]) : undefined;
+
+      if (!placeholderMap.has(key) || (defaultValue !== undefined && placeholderMap.get(key)?.defaultValue === undefined)) {
+        placeholderMap.set(key, { key, defaultValue });
+      }
+    }
+  };
+
+  processStringForPlaceholders(template.cardBackgroundImageUrl);
+
+  template.freeformCanvas?.elements?.forEach((element) => {
+    if (element.type === 'image') {
+      const source = element.imageSource || element.content;
+
+      const imageFieldKey = getImageFieldKeyForElement(element);
+      if (!placeholderMap.has(imageFieldKey)) {
+        const defaultValue = source && isStaticImageSource(source.trim()) ? source.trim() : undefined;
+        placeholderMap.set(imageFieldKey, { key: imageFieldKey, defaultValue });
+      }
+
+      processStringForPlaceholders(source);
+    } else {
+      processStringForPlaceholders(element.content);
+    }
+    processStringForPlaceholders(element.backgroundImageUrl);
+  });
+
+  return Array.from(placeholderMap.values());
+}
+
+export function replacePlaceholdersLocal(
+  text: string | undefined,
+  dataContext: CardData,
+  removeUnmatchedIfNoDefault: boolean
+): string {
+  if (text === undefined || text === null) return '';
+  return String(text).replace(TEMPLATE_PLACEHOLDER_REGEX, (fullMatch, key, defaultValueFromPlaceholder) => {
+    const cleanKey = key.trim();
+    const cleanDefault = defaultValueFromPlaceholder !== undefined
+      ? unescapeTemplateText(defaultValueFromPlaceholder)
+      : undefined;
+
+    if (dataContext[cleanKey] !== undefined && dataContext[cleanKey] !== null) {
+      return String(dataContext[cleanKey]);
+    }
+    if (cleanDefault !== undefined) {
+      return cleanDefault;
+    }
+    if (removeUnmatchedIfNoDefault) {
+      return '';
+    }
+    return fullMatch;
+  });
+}
 
 export const renamePlaceholderKeyInText = (content: string, fromKey: string, toKey: string): string => {
   const cleanToKey = toKey.trim().replace(/[^\w.-]/g, '');

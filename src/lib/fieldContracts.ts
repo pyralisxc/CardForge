@@ -7,8 +7,14 @@ import type {
   TCGCardTemplate,
 } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
-import { buildScopedFieldDataKey, parseTemplateTextSegments, parseTextBinding } from '@/lib/textBindings';
-import { extractPlaceholderKeysFromText, getImageFieldKeyForElement, toTitleCase } from '@/lib/utils';
+import {
+  buildScopedFieldDataKey,
+  extractPlaceholderKeysFromText,
+  getImageFieldKeyForElement,
+  parseTemplateTextSegments,
+  parseTextBinding,
+} from '@/lib/textBindings';
+import { toTitleCase } from '@/lib/utils';
 
 export type FieldContractContentModel = 'image' | 'text' | 'structuredRows';
 export const FIELD_CONTRACT_VERSION = 1;
