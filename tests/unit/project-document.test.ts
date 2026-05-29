@@ -5,7 +5,6 @@ import type { ExportMode } from '@/lib/printValidation';
 import {
   createProjectDocumentFromState,
   applyProjectDocumentToState,
-  isLegacyStoredCardSet,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
 } from '@/lib/projectDocument';
@@ -187,59 +186,12 @@ describe('project document serialization', () => {
     if (!parsed.success) throw new Error(parsed.error);
     expect(parsed.document.version).toBe(1);
     expect(parsed.document.storedCards).toEqual([storedCard]);
-  });
-
-  it('parses standalone template JSON into a project document', () => {
-    const parsed = parseProjectDocumentFile(JSON.stringify(template));
-
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) throw new Error(parsed.error);
-    expect(parsed.isLegacy).toBe(false);
-    expect(parsed.document.userTemplates).toEqual([template]);
-    expect(parsed.document.storedCards).toEqual([]);
-  });
-
-  it('parses standalone template array JSON into a project document', () => {
-    const secondTemplate: TCGCardTemplate = {
-      ...template,
-      id: 'user-template-2',
-      name: 'Second Template',
-    };
-
-    const parsed = parseProjectDocumentFile(JSON.stringify([template, secondTemplate]));
-
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) throw new Error(parsed.error);
-    expect(parsed.isLegacy).toBe(false);
-    expect(parsed.document.userTemplates).toEqual([template, secondTemplate]);
-    expect(parsed.document.storedCards).toEqual([]);
-  });
-
-  it('parses legacy stored card array JSON into a project document', () => {
-    const parsed = parseProjectDocumentFile(JSON.stringify([storedCard]));
-
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) throw new Error(parsed.error);
-    expect(parsed.isLegacy).toBe(true);
-    expect(parsed.document).toMatchObject({
-      version: 1,
-      userTemplates: [],
-      storedCards: [storedCard],
-      appearanceStyles: [],
-      customAssets: {
-        'cardforge-maker-custom-textures': [],
-        'cardforge-maker-custom-dividers': [],
-        'cardforge-maker-custom-icons': [],
-        'cardforge-maker-custom-images': [],
-      },
+    expect(parsed.document.customAssets).toEqual({
+      'cardforge-maker-custom-textures': [textureAsset],
+      'cardforge-maker-custom-dividers': [dividerAsset],
+      'cardforge-maker-custom-icons': [],
+      'cardforge-maker-custom-images': [],
     });
-  });
-
-  it('identifies only legacy stored card arrays as legacy card sets', () => {
-    expect(isLegacyStoredCardSet([storedCard])).toBe(true);
-    expect(isLegacyStoredCardSet([])).toBe(true);
-    expect(isLegacyStoredCardSet([{ templateId: 'missing-data' }])).toBe(false);
-    expect(isLegacyStoredCardSet({ version: 1, storedCards: [storedCard] })).toBe(false);
   });
 
   it('returns a failure result with a clear message for invalid JSON', () => {
@@ -250,7 +202,23 @@ describe('project document serialization', () => {
     expect(parsed.error).toContain('Invalid project document JSON');
   });
 
-  it('reads legacy custom asset keys without persisting those names in the modern document', () => {
+  it('rejects standalone template JSON because project import only accepts versioned project documents', () => {
+    const parsed = parseProjectDocumentFile(JSON.stringify(template));
+
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected standalone template JSON to fail');
+    expect(parsed.error).toContain('Unsupported project document format');
+  });
+
+  it('rejects legacy stored-card arrays because project import only accepts versioned project documents', () => {
+    const parsed = parseProjectDocumentFile(JSON.stringify([storedCard]));
+
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected legacy stored-card JSON to fail');
+    expect(parsed.error).toContain('cardforge-studio-project.json');
+  });
+
+  it('ignores unsupported custom asset keys instead of remapping legacy names', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       version: 1,
       userTemplates: [],
@@ -266,8 +234,8 @@ describe('project document serialization', () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) throw new Error(parsed.error);
     expect(parsed.document.customAssets).toEqual({
-      'cardforge-maker-custom-textures': [textureAsset],
-      'cardforge-maker-custom-dividers': [dividerAsset],
+      'cardforge-maker-custom-textures': [],
+      'cardforge-maker-custom-dividers': [],
       'cardforge-maker-custom-icons': [],
       'cardforge-maker-custom-images': [],
     });

@@ -199,7 +199,7 @@ export function useProjectFileActions({
           successCount,
           skippedCount,
         });
-        toast({ title: parsedProject.isLegacy ? 'Legacy Set Imported' : 'Project Imported', description: toastMessage, duration: 7000 });
+        toast({ title: 'Project Imported', description: toastMessage, duration: 7000 });
       } catch (error) {
         toast({ title: 'Import Error', description: `Failed to parse or process JSON: ${(error as Error).message}`, variant: 'destructive' });
         console.error('Error importing project:', error);

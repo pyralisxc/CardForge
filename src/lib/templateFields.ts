@@ -1,6 +1,13 @@
 import type { FreeformCardElement, GeneratorFieldKind, TCGCardTemplate } from '@/types';
-import { extractUniquePlaceholderKeys, getImageFieldKeyForElement, toTitleCase } from '@/lib/utils';
-import { buildScopedFieldDataKey, buildStaticSegmentFieldKey, parseTemplateTextSegments, parseTextBinding, unescapeTemplateText } from '@/lib/textBindings';
+import { toTitleCase } from '@/lib/utils';
+import {
+  buildScopedFieldDataKey,
+  buildStaticSegmentFieldKey,
+  extractUniquePlaceholderKeys,
+  getImageFieldKeyForElement,
+  parseTemplateTextSegments,
+  parseTextBinding,
+} from '@/lib/textBindings';
 import { getDefaultAllowedFormatting, resolveFieldContractV1 } from '@/lib/fieldContracts';
 
 export type TemplateFieldControl = 'input' | 'textarea';
@@ -110,17 +117,13 @@ const buildSourceElementPreview = (
     return simpleBinding.fallback || `[${resolveFieldLabel(currentKey, contractMap.get(currentKey))}]`;
   }
 
-  const preview = element.content.replace(/\{\{\s*([\w-]+)\s*(?::\s*"((?:[^"\\]|\\.)*)")?\s*\}\}/g, (_full, key, fallback) => {
-    if (key === currentKey) {
-      return `[${resolveFieldLabel(key, contractMap.get(key))}]`;
+  const preview = parseTemplateTextSegments(element.content).map((segment) => {
+    if (segment.type === 'text') return segment.text;
+    if (segment.key === currentKey) {
+      return `[${resolveFieldLabel(segment.key, contractMap.get(segment.key))}]`;
     }
-
-    if (fallback !== undefined) {
-      return unescapeTemplateText(fallback);
-    }
-
-    return `[${resolveFieldLabel(key, contractMap.get(key))}]`;
-  });
+    return segment.text || `[${resolveFieldLabel(segment.key || '', contractMap.get(segment.key || ''))}]`;
+  }).join('');
 
   return preview.trim() || undefined;
 };

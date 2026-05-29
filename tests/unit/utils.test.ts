@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
-  deriveImageFieldKey,
-  extractUniquePlaceholderKeys,
-  getBoundImageFieldKey,
-  getImageFieldKeyForElement,
   parseCSV,
   parseRichText,
-  replacePlaceholdersLocal,
   simplifyRatio,
   toTitleCase,
   unparseCSV,
 } from '@/lib/utils';
-import { buildTextBinding, isSimpleTextBinding, parseTextBinding } from '@/lib/textBindings';
+import {
+  buildTextBinding,
+  deriveImageFieldKey,
+  extractUniquePlaceholderKeys,
+  getBoundImageFieldKey,
+  getImageFieldKeyForElement,
+  isSimpleTextBinding,
+  parseTextBinding,
+  replacePlaceholdersLocal,
+} from '@/lib/textBindings';
 import type { TCGCardTemplate } from '@/types';
 
 describe('utils', () => {

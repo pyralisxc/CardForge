@@ -9,8 +9,9 @@ import { appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearan
 import { CardTextContent } from '@/lib/cardTextRender';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/lib/freeformElementRender';
+import { replacePlaceholdersLocal } from '@/lib/textBindings';
 import { buildTextElementStyle } from '@/lib/textTools';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { canRenderVectorShape } from '@/lib/vectorShapes';
 import type { CardData, FreeformCardElement, TCGCardTemplate } from '@/types';
 import type { ResizeHandle } from '@/features/template-editor/hooks/useCanvasPointerInteractions';

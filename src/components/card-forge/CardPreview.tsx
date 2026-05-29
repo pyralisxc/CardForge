@@ -2,7 +2,8 @@
 "use client";
 
 import type { CardFace, DisplayCard, TCGCardTemplate } from '@/types';
-import { cn, replacePlaceholdersLocal } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { replacePlaceholdersLocal } from '@/lib/textBindings';
 import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { useMemo } from 'react';
