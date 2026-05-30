@@ -37,6 +37,7 @@
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@supabase/supabase-js": "^2.106.1",
+    "@tanstack/react-virtual": "^3.13.26",
     "@tiptap/extension-color": "^3.23.4",
     "@tiptap/extension-highlight": "^3.23.4",
     "@tiptap/extension-text-style": "^3.23.4",

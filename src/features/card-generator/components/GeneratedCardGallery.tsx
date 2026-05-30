@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, PackageOpen, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { PackageOpen, Search } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { DisplayCard, TCGCardTemplate } from '@/types';
 import type { ExportMode } from '@/lib/printValidation';
@@ -29,12 +28,12 @@ interface GeneratedCardGalleryProps {
   onEditCardRequest: (card: DisplayCard) => void;
 }
 
-const DEFAULT_GALLERY_PAGE_SIZE = 60;
+const GALLERY_GRID_GAP_PX = 12;
 
-const GALLERY_DENSITY_OPTIONS: Record<GeneratedGalleryDensity, { label: string; previewWidthPx: number; gridMinWidthPx: number }> = {
-  compact: { label: 'Compact grid', previewWidthPx: 132, gridMinWidthPx: 144 },
-  comfortable: { label: 'Comfortable grid', previewWidthPx: 176, gridMinWidthPx: 188 },
-  large: { label: 'Detailed outputs', previewWidthPx: 232, gridMinWidthPx: 244 },
+const GALLERY_DENSITY_OPTIONS: Record<GeneratedGalleryDensity, { label: string; previewWidthPx: number; gridMinWidthPx: number; rowHeightPx: number }> = {
+  compact: { label: 'Compact grid', previewWidthPx: 132, gridMinWidthPx: 144, rowHeightPx: 226 },
+  comfortable: { label: 'Comfortable grid', previewWidthPx: 176, gridMinWidthPx: 188, rowHeightPx: 286 },
+  large: { label: 'Detailed outputs', previewWidthPx: 232, gridMinWidthPx: 244, rowHeightPx: 368 },
 };
 
 export function GeneratedCardGallery({
@@ -50,9 +49,10 @@ export function GeneratedCardGallery({
   onGallerySortChange,
   onEditCardRequest,
 }: GeneratedCardGalleryProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [cardsPerPage, setCardsPerPage] = useState(DEFAULT_GALLERY_PAGE_SIZE);
   const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('compact');
+  const scrollParentRef = useRef<HTMLDivElement | null>(null);
+  const gridMeasureRef = useRef<HTMLDivElement | null>(null);
+  const [gridWidth, setGridWidth] = useState(0);
   const selectedTemplate = generatorSelectedTemplateId
     ? templates.find((template) => template.id === generatorSelectedTemplateId)
     : undefined;
@@ -75,23 +75,32 @@ export function GeneratedCardGallery({
       })
   ), [gallerySearch, gallerySort, generatedDisplayCards]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredSortedCards.length / cardsPerPage));
-  const boundedCurrentPage = Math.min(currentPage, totalPages);
-  const pageStartIndex = (boundedCurrentPage - 1) * cardsPerPage;
-  const pageEndIndex = Math.min(pageStartIndex + cardsPerPage, filteredSortedCards.length);
-  const displayStartIndex = filteredSortedCards.length === 0 ? 0 : pageStartIndex + 1;
-  const visibleGalleryCards = filteredSortedCards.slice(pageStartIndex, pageEndIndex);
   const densityConfig = GALLERY_DENSITY_OPTIONS[galleryDensity];
+  const columnCount = Math.max(1, Math.floor((gridWidth + GALLERY_GRID_GAP_PX) / (densityConfig.gridMinWidthPx + GALLERY_GRID_GAP_PX)));
+  const rowCount = Math.ceil(filteredSortedCards.length / columnCount);
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => densityConfig.rowHeightPx,
+    overscan: 3,
+  });
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [gallerySearch, gallerySort, generatedDisplayCards.length, cardsPerPage]);
+    const element = gridMeasureRef.current;
+    if (!element) return;
+
+    const updateGridWidth = () => setGridWidth(element.clientWidth);
+    updateGridWidth();
+    const resizeObserver = new ResizeObserver(updateGridWidth);
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+    virtualizer.scrollToIndex(0);
+  }, [galleryDensity, gallerySearch, gallerySort, generatedDisplayCards.length, virtualizer]);
+
+  const virtualRows = virtualizer.getVirtualItems();
 
   return (
     <div className="min-w-0">
@@ -125,17 +134,6 @@ export function GeneratedCardGallery({
               <SelectItem value="template">By Template</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={String(cardsPerPage)} onValueChange={(value) => setCardsPerPage(parseInt(value, 10))}>
-            <SelectTrigger className="h-8 text-sm w-36" aria-label="Outputs per page">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="24">24 / page</SelectItem>
-              <SelectItem value="60">60 / page</SelectItem>
-              <SelectItem value="120">120 / page</SelectItem>
-              <SelectItem value="240">240 / page</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={galleryDensity} onValueChange={(value) => setGalleryDensity(value as GeneratedGalleryDensity)}>
             <SelectTrigger className="h-8 text-sm w-40" aria-label="Gallery density">
               <SelectValue />
@@ -156,64 +154,60 @@ export function GeneratedCardGallery({
           <p className="text-sm">Create a single output, generate from data, or import a project. This gallery is the visual review surface used before export.</p>
         </div>
       ) : (
-        <ScrollArea className="h-[calc(100vh-250px)] border rounded-md p-4 bg-card/30 shadow-inner">
+        <div ref={scrollParentRef} className="h-[calc(100vh-250px)] overflow-auto rounded-md border bg-card/30 p-4 shadow-inner">
           <div className="mb-3 flex items-center justify-between gap-3 rounded-md border bg-background/80 px-3 py-2 text-xs text-muted-foreground">
             <span>
-              Page {boundedCurrentPage} of {totalPages} - showing {displayStartIndex}-{pageEndIndex} of {filteredSortedCards.length} matching outputs
+              Showing {filteredSortedCards.length} matching outputs
               {filteredSortedCards.length !== generatedDisplayCards.length ? ` (${generatedDisplayCards.length} total generated)` : ''}
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-                disabled={boundedCurrentPage <= 1}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                aria-label="Previous gallery page"
-              >
-                <ChevronLeft className="h-3 w-3" /> Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-                disabled={boundedCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                aria-label="Next gallery page"
-              >
-                Next <ChevronRight className="h-3 w-3" />
-              </Button>
+            <span>{columnCount} per row</span>
+          </div>
+          <div ref={gridMeasureRef}>
+            <div
+              className="relative"
+              style={{ height: `${virtualizer.getTotalSize()}px` }}
+            >
+              {virtualRows.map((virtualRow) => {
+                const rowStart = virtualRow.index * columnCount;
+                const rowCards = filteredSortedCards.slice(rowStart, rowStart + columnCount);
+                return (
+                  <div
+                    key={virtualRow.key}
+                    ref={virtualizer.measureElement}
+                    data-index={virtualRow.index}
+                    className="absolute left-0 top-0 grid w-full gap-3"
+                    style={{
+                      gridTemplateColumns: `repeat(${columnCount}, minmax(${densityConfig.gridMinWidthPx}px, 1fr))`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    {rowCards.map((cardItem, cardIndex) => (
+                      <div key={cardItem.uniqueId} className="relative group/card">
+                        <CardPreview
+                          card={cardItem}
+                          isPrintMode={false}
+                          className="mx-auto"
+                          showSizeInfo={rowStart + cardIndex === 0}
+                          onEdit={onEditCardRequest}
+                          targetWidthPx={densityConfig.previewWidthPx}
+                        />
+                        <div className="absolute bottom-2 right-2 opacity-0 transition-opacity duration-150 group-hover/card:opacity-100">
+                          <ExportCardImageButton
+                            card={cardItem}
+                            exportMode={exportMode}
+                            exportDpi={exportDpi}
+                            disabled={false}
+                            gateMessage={exportGateMessage}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div
-            className="grid gap-3"
-            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${densityConfig.gridMinWidthPx}px, 1fr))` }}
-          >
-            {visibleGalleryCards.map((cardItem, index) => (
-              <div key={cardItem.uniqueId} className="relative group/card">
-                <CardPreview
-                  card={cardItem}
-                  isPrintMode={false}
-                  className="mx-auto"
-                  showSizeInfo={index === 0}
-                  onEdit={onEditCardRequest}
-                  targetWidthPx={densityConfig.previewWidthPx}
-                />
-                <div className="absolute bottom-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150">
-                  <ExportCardImageButton
-                    card={cardItem}
-                    exportMode={exportMode}
-                    exportDpi={exportDpi}
-                    disabled={false}
-                    gateMessage={exportGateMessage}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+        </div>
       )}
     </div>
   );

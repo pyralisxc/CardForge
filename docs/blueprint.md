@@ -83,7 +83,7 @@ Text elements can now mix static copy with element-scoped inline variables.
 - Aspect and physical-size math is centralized in `src/lib/cardExportGeometry.ts`.
 - On-screen thumbnails and generated-card gallery previews should render from the template/canvas coordinate space and scale the whole card down for display. Do not rebuild them as tiny independent layouts; fixed CSS padding, borders, radii, and text fitting must preserve the same proportions users will get from the template/export path.
 - The generator workspace is organized as task tabs: `Single`, `Bulk Import`, and `Export & Sets`. The generated reference gallery stays visible beside those tools so the output remains the constant review surface.
-- Large generated sets use paged responsive browsing instead of unlimited grid expansion. Users choose cards per page, the grid adapts columns to available width, and the app renders only the active page.
+- Large generated sets use TanStack Virtual-backed responsive browsing instead of unlimited grid expansion. The generated-card gallery adapts columns to available width and renders only the visible rows plus overscan while preserving the shared `CardPreview` source of truth.
 - Duplex card support now starts from the same source-of-truth model:
   - `freeformCanvas` is the front face
   - `backCanvas` is the optional back face

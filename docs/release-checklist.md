@@ -441,11 +441,11 @@ Required completion criteria for this area:
   - obvious dead dependencies and old docs were already removed
   - feature boundaries are much cleaner than before
   - generated test proofs, local dev logs, and temporary run outputs are excluded from release assets
-  - generated-card gallery rendering now lives in a reusable feature component with paged rendering for `1000` card sets
+  - generated-card gallery rendering now lives in a reusable feature component with TanStack Virtual-backed row rendering for large generated sets
   - bulk CSV example and preview logic now lives in pure generator helpers instead of only inside the React coordinator
   - visible default template naming no longer uses the old `2.0` label
   - internal tab state now uses `template-maker`, with a safe migration for older `template-maker-2` persisted browser state
-  - maker custom asset storage now uses `cardforge-maker-*` keys, with fallback reads for older `cardforge-maker2-*` uploads
+  - maker custom asset storage now uses the current `cardforge-maker-*` keys only; older `cardforge-maker2-*` fallback reads are no longer part of the launch import path
   - launch style presets are one-file-per-style; the removed `appearance-library.json` prototype migration path is no longer active runtime code
   - blueprint now records feature ownership, intentionally large files, future library seams, and the shipped asset/template inventory
 - Remaining focus:
