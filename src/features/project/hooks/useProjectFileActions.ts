@@ -72,8 +72,12 @@ export const buildProjectImportSummary = ({
 }) => {
   const parts = [
     `${importedTemplateCount} ${importedTemplateCount === 1 ? 'template' : 'templates'} imported`,
-    `${successCount} ${successCount === 1 ? 'output' : 'outputs'} processed`,
   ];
+  if (successCount > 0 || skippedCount > 0) {
+    parts.push(`${successCount} ${successCount === 1 ? 'output' : 'outputs'} processed`);
+  } else {
+    parts.push('No generated outputs were included in this file');
+  }
   if (skippedCount > 0) {
     parts.push(`${skippedCount} ${skippedCount === 1 ? 'output' : 'outputs'} skipped due to missing or invalid templates`);
   }
@@ -108,7 +112,7 @@ export function useProjectFileActions({
     toast({
       title: 'Upgrade to move projects',
       description: withNextStep(
-        projectFileGateMessage || 'Project import and export require an active paid or dev account.',
+        projectFileGateMessage || 'Available now: edit templates and keep work in this browser. Unlock portable project files with Creator Pass or dev access.',
         'Upgrade your account to download this local project file or bring one back into Layout Studio.',
       ),
     });
@@ -174,7 +178,7 @@ export function useProjectFileActions({
         }
 
         const patch = applyProjectDocumentToState(parsedProject.document);
-        setUserTemplatesFromFiles(patch.userTemplates);
+        const importedTemplateCount = setUserTemplatesFromFiles(patch.userTemplates);
         const firstImportedTemplateId = patch.userTemplates.find((template) => template.id && template.id.trim() !== '')?.id ?? null;
         if (firstImportedTemplateId) {
           setSelectedTemplateId(firstImportedTemplateId);
@@ -195,7 +199,7 @@ export function useProjectFileActions({
         writeProjectAssetListToStorage(localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]);
         const { successCount, skippedCount } = setStoredCardsFromFile(patch.storedCards);
         const toastMessage = buildProjectImportSummary({
-          importedTemplateCount: patch.userTemplates.length,
+          importedTemplateCount,
           successCount,
           skippedCount,
         });

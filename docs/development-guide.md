@@ -120,7 +120,7 @@ Zustand persists user-owned app state in localStorage. This includes user templa
 
 This means normal Studio work should survive route changes, refreshes, browser restarts, and accidental tab closes on the same browser profile. The MVP intentionally uses durable browser-local storage instead of session-only storage because creators should not lose cards or templates when the whole browser closes. Project export/import remains the portable backup path when work needs to move between devices, browsers, accounts, or a cleared browser profile.
 
-Project import is strict: only the current versioned `cardforge-studio-project.json` format is supported. Do not add fallback parsing for older template-only, stored-card-only, or renamed local asset payloads unless the product explicitly reintroduces a migration lane.
+Project import accepts the current versioned `cardforge-studio-project.json` format plus local template JSON escape hatches: one standalone template, an array of templates, or a persisted local workspace snapshot with `state.userTemplates`. Stored-card-only JSON remains unsupported because generated outputs need matching template definitions to render safely.
 
 ### Pipeline-Owned Starter Content
 

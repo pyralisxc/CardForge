@@ -365,7 +365,7 @@ export function BulkGenerator({
     if (!csvContent.trim() || !csvContent.includes('\n') || csvContent.startsWith('Select a template first.')) {
       toast({
         title: 'Example CSV unavailable',
-        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Template Maker, save, then download again.'),
+        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Layout Studio, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -455,7 +455,7 @@ export function BulkGenerator({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Data Import</CardTitle>
+        <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Bulk Import</CardTitle>
         <CardDescription>Run a contract-driven data workflow with mapping, preview, validation, and export-ready output.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

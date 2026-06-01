@@ -105,7 +105,7 @@ export function GeneratedCardGallery({
   return (
     <div className="min-w-0">
       <div className="sticky top-0 z-10 bg-background pb-2 flex items-center justify-between mb-2 gap-3 flex-wrap">
-        <h2 className="text-2xl font-semibold text-foreground shrink-0">
+        <h2 className="min-w-0 text-xl font-semibold text-foreground sm:text-2xl">
           Generated Outputs ({generatedDisplayCards.length})
           {selectedTemplate && (
             <span className="ml-2 text-sm font-normal text-muted-foreground">
@@ -113,18 +113,18 @@ export function GeneratedCardGallery({
             </span>
           )}
         </h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="relative min-w-0">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder="Search outputs..."
               value={gallerySearch}
               onChange={(event) => onGallerySearchChange(event.target.value)}
-              className="pl-8 h-8 text-sm w-40"
+              className="h-8 w-36 pl-8 text-sm sm:w-40"
             />
           </div>
           <Select value={gallerySort} onValueChange={(value) => onGallerySortChange(value as GeneratedGallerySort)}>
-            <SelectTrigger className="h-8 text-sm w-36" aria-label="Sort gallery">
+            <SelectTrigger className="h-8 w-32 text-sm sm:w-36" aria-label="Sort gallery">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -135,7 +135,7 @@ export function GeneratedCardGallery({
             </SelectContent>
           </Select>
           <Select value={galleryDensity} onValueChange={(value) => setGalleryDensity(value as GeneratedGalleryDensity)}>
-            <SelectTrigger className="h-8 text-sm w-40" aria-label="Gallery density">
+            <SelectTrigger className="h-8 w-36 text-sm sm:w-40" aria-label="Gallery density">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -151,7 +151,7 @@ export function GeneratedCardGallery({
         <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
           <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
           <p className="text-lg font-medium">No outputs generated yet.</p>
-          <p className="text-sm">Create a single output, generate from data, or import a project. This gallery is the visual review surface used before export.</p>
+          <p className="text-sm">Create a single output or run Bulk Import. Filled fields appear here for visual review, edits, and export.</p>
         </div>
       ) : (
         <div

@@ -50,7 +50,7 @@ If a printer requires CMYK, PDF/X, spot colors, or custom bleed boxes, export fr
 
 ## Tabletop Simulator Handoff
 
-Use `Export Tabletop Simulator ZIP` from the Exports panel after generating cards.
+Use `Export Tabletop Simulator ZIP` from the `Export & Sets` panel after generating cards.
 
 The ZIP contains:
 

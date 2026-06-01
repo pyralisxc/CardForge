@@ -272,7 +272,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
     .toBeGreaterThanOrEqual(1);
   await expect(page.locator('[data-freeform-element-id]').first()).toBeVisible();
 
-  await page.getByRole('tab', { name: /Data Import/i }).click();
+  await page.getByRole('tab', { name: /Bulk Import/i }).click();
   await page.locator('#bulk-file-upload-csv').setInputFiles({
     name: 'freeform-bulk.csv',
     mimeType: 'text/csv',
@@ -295,7 +295,7 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
   await gotoStudio(page);
   await selectMainTab(page, /Generate/i);
   await expectGeneratorReady(page);
-  await page.getByRole('tab', { name: /Data Import/i }).click();
+  await page.getByRole('tab', { name: /Bulk Import/i }).click();
 
   await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,,♥,Ember-Claw');
 
@@ -409,7 +409,7 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
 
-  await page.getByRole('tab', { name: /Data Import/i }).click();
+  await page.getByRole('tab', { name: /Bulk Import/i }).click();
   await page.locator('#bulkData').fill('rulesText,typeLine\n"",CREATURE - DRAGON');
 
   const strictModeToggle = page.getByLabel('Toggle strict mode for bulk generation');

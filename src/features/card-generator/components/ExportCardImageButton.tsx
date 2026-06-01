@@ -35,7 +35,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
     if (gateMessage) {
       toast({
         title: 'Clean export locked',
-        description: withNextStep(gateMessage, 'Sign in with an active paid or dev account when auth is enabled, or use dev mode for local validation.'),
+        description: withNextStep(gateMessage, 'Use Creator Pass or dev access when auth is enabled, or use dev mode for local validation.'),
         variant: 'default',
       });
       return;

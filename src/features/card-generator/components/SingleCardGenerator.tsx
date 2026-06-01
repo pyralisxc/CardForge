@@ -179,7 +179,13 @@ export function SingleCardGenerator({
     );
   };
 
-  const richTextFieldCount = dynamicFields.filter((field) => field.supportsRichText).length;
+  const richTextFieldCount = dynamicFields.filter((field) => field.supportsRichText && field.contentModel === 'text' && !field.isStaticBaseText).length;
+  const structuredRowGroups = new Set(
+    dynamicFields
+      .filter((field) => field.contentModel === 'structuredRows' && field.sourceElementId)
+      .map((field) => field.sourceElementId)
+  );
+  const structuredRowColumnCount = dynamicFields.filter((field) => field.contentModel === 'structuredRows').length;
 
   return (
     <Card>
@@ -225,6 +231,11 @@ export function SingleCardGenerator({
             {richTextFieldCount > 0 && (
               <p className="mt-2 font-medium text-primary">
                 {richTextFieldCount} rich text {richTextFieldCount === 1 ? 'field' : 'fields'} available in this template.
+              </p>
+            )}
+            {structuredRowGroups.size > 0 && (
+              <p className="mt-2 font-medium text-primary">
+                {structuredRowGroups.size} structured row {structuredRowGroups.size === 1 ? 'group' : 'groups'} with {structuredRowColumnCount} editable {structuredRowColumnCount === 1 ? 'column' : 'columns'}.
               </p>
             )}
           </div>

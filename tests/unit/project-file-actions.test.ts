@@ -8,7 +8,7 @@ describe('project file actions', () => {
       importedTemplateCount: 1,
       successCount: 0,
       skippedCount: 0,
-    })).toBe('1 template imported. 0 outputs processed.');
+    })).toBe('1 template imported. No generated outputs were included in this file.');
   });
 
   it('includes skipped generated outputs when templates are missing', () => {

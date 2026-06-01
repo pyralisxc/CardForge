@@ -202,20 +202,54 @@ describe('project document serialization', () => {
     expect(parsed.error).toContain('Invalid project document JSON');
   });
 
-  it('rejects standalone template JSON because project import only accepts versioned project documents', () => {
+  it('imports standalone template JSON as a local template document', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify(template));
 
-    expect(parsed.success).toBe(false);
-    if (parsed.success) throw new Error('Expected standalone template JSON to fail');
-    expect(parsed.error).toContain('Unsupported project document format');
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error(parsed.error);
+    expect(parsed.document.userTemplates).toHaveLength(1);
+    expect(parsed.document.userTemplates[0]).toMatchObject({
+      id: template.id,
+      name: template.name,
+      templateSource: 'user',
+    });
+    expect(parsed.document.storedCards).toEqual([]);
   });
 
-  it('rejects legacy stored-card arrays because project import only accepts versioned project documents', () => {
+  it('imports template arrays as local template documents', () => {
+    const secondTemplate = { ...template, id: 'user-template-2', name: 'Second User Template' };
+    const parsed = parseProjectDocumentFile(JSON.stringify([template, secondTemplate]));
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error(parsed.error);
+    expect(parsed.document.userTemplates.map((item) => item.id)).toEqual(['user-template-1', 'user-template-2']);
+  });
+
+  it('rejects legacy stored-card arrays because outputs need matching templates', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify([storedCard]));
 
     expect(parsed.success).toBe(false);
     if (parsed.success) throw new Error('Expected legacy stored-card JSON to fail');
-    expect(parsed.error).toContain('cardforge-studio-project.json');
+    expect(parsed.error).toContain('local template JSON');
+  });
+
+  it('imports persisted local workspace snapshots with user templates', () => {
+    const parsed = parseProjectDocumentFile(JSON.stringify({
+      state: {
+        userTemplates: [template],
+        storedCards: [storedCard],
+        appearanceStyles: [style],
+        selectedPaperSize: paperSize,
+        pdfMarginMm: 7,
+      },
+      version: 1,
+    }));
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error(parsed.error);
+    expect(parsed.document.userTemplates).toHaveLength(1);
+    expect(parsed.document.storedCards).toEqual([storedCard]);
+    expect(parsed.document.exportSettings.pdfMarginMm).toBe(7);
   });
 
   it('ignores unsupported custom asset keys instead of remapping legacy names', () => {

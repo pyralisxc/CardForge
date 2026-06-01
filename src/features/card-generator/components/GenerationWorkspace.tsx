@@ -167,11 +167,11 @@ export function GenerationWorkspace({
             </TabsTrigger>
             <TabsTrigger value="bulk" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <PackagePlus className="h-4 w-4" />
-              Data Import
+              Bulk Import
             </TabsTrigger>
             <TabsTrigger value="export" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <Settings2 className="h-4 w-4" />
-              Exports
+              Export & Sets
             </TabsTrigger>
           </TabsList>
 
@@ -196,7 +196,7 @@ export function GenerationWorkspace({
           <TabsContent value="export" className="mt-0">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl flex items-center gap-2">Exports</CardTitle>
+                <CardTitle className="text-xl flex items-center gap-2">Export & Sets</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-md border bg-muted/40 p-3 text-xs">
@@ -328,7 +328,7 @@ export function GenerationWorkspace({
                 <div className="flex flex-col gap-2 pt-2 border-t">
                   {!canExportClean && exportGateMessage ? (
                     <div className="space-y-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-muted-foreground">
-                      <p>{exportGateMessage} You can still design layouts, import data, and generate previews.</p>
+                      <p>{exportGateMessage}</p>
                       <Button
                         type="button"
                         size="sm"

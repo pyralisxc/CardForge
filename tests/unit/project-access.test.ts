@@ -88,7 +88,7 @@ describe('projectAccess', () => {
   });
 
   it('returns export gate copy only when clean export is unavailable', () => {
-    expect(getExportGateMessage('free')).toBe('Clean export and project file portability require an active paid or dev account. Your layouts, imports, and generated previews stay local to this browser.');
+    expect(getExportGateMessage('free')).toBe('Available now: design layouts, import data, and generate previews in this browser. Unlock clean exports and portable project files with Creator Pass or dev access.');
     expect(getExportGateMessage('paid')).toBeNull();
     expect(getExportGateMessage('dev')).toBeNull();
   });
@@ -97,8 +97,8 @@ describe('projectAccess', () => {
     expect(getExportEntitlementCopy('free')).toEqual({
       modeLabel: 'Free preview mode',
       canExportClean: false,
-      gateMessage: 'Clean export and project file portability require an active paid or dev account. Your layouts, imports, and generated previews stay local to this browser.',
-      panelMessage: 'Free mode can design layouts, import data, and generate previews. Project files plus clean PDF, PNG, and ZIP export unlock with an active paid or dev account.',
+      gateMessage: 'Available now: design layouts, import data, and generate previews in this browser. Unlock clean exports and portable project files with Creator Pass or dev access.',
+      panelMessage: 'Free mode can design layouts, import data, and generate previews. Project files plus clean PDF, PNG, and ZIP export unlock with Creator Pass or dev access.',
     });
   });
 

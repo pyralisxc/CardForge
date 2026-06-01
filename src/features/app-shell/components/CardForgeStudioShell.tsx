@@ -95,7 +95,7 @@ const STUDIO_GUIDE_STORAGE_KEY = 'cardforge-studio-guide-dismissed';
 const firstRunSteps = [
   'Pick or clone a template',
   'Edit the layout and variables',
-  'Generate one card or import rows',
+  'Generate single or bulk outputs',
   'Upgrade for clean exports and project files',
 ] as const;
 
@@ -292,14 +292,14 @@ export function CardForgeStudioShell() {
   // is handled by Zustand's _rehydrateCallback or other actions modifying the templates list.
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0c0b09] text-[#f7ead0]">
+    <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[#0c0b09] text-[#f7ead0]">
       <StudioHeader
         authConfigured={accountEntitlement.authConfigured}
         isSignedIn={accountEntitlement.isSignedIn}
         modeLabel={exportEntitlementLabel}
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
       />
-      <main className="cardforge-studio-main flex-grow container mx-auto p-4 md:p-6 lg:p-8">
+      <main className="cardforge-studio-main container mx-auto w-full max-w-full flex-grow p-4 md:p-6 lg:p-8">
         {isStudioReady ? (
           <div data-testid="studio-ready" className="sr-only">Studio ready</div>
         ) : (
@@ -339,7 +339,11 @@ export function CardForgeStudioShell() {
             </div>
           </section>
         ) : null}
-        <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full">
+        <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full min-w-0">
+          <div className="mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
+            <p><span className="font-semibold text-[#fff1c7]">Layout Studio</span> builds templates, text modes, and variables.</p>
+            <p><span className="font-semibold text-[#fff1c7]">Generate</span> fills those contracts and keeps outputs visible for review, edits, and export.</p>
+          </div>
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
