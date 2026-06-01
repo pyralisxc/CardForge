@@ -161,21 +161,26 @@ function StructuredRowsEditor({
               <p className="rounded border border-border/50 bg-muted/20 px-2 py-1 text-xs text-muted-foreground">{rowPreview}</p>
             ) : null}
             <div className="grid gap-2 md:grid-cols-2">
-              {fields.map((field) => (
-                <div key={`${group.id}-${rowIndex}-${field.key}`} className="space-y-1">
-                  <Label className="text-xs">{field.label}</Label>
-                  <Input
-                    value={row[field.key] ?? ''}
-                    onChange={(event) => {
-                      const nextRows = effectiveRows.map((currentRow, index) => (
-                        index === rowIndex ? { ...currentRow, [field.key]: event.target.value } : currentRow
-                      ));
-                      writeRows(nextRows);
-                    }}
-                    placeholder={field.defaultValue || field.label}
-                  />
-                </div>
-              ))}
+              {fields.map((field) => {
+                const inputId = `structured-row-${group.id}-${rowIndex}-${field.key}`;
+                return (
+                  <div key={`${group.id}-${rowIndex}-${field.key}`} className="space-y-1">
+                    <Label htmlFor={inputId} className="text-xs">{field.label}</Label>
+                    <Input
+                      id={inputId}
+                      aria-label={`${field.label} row ${rowIndex + 1}`}
+                      value={row[field.key] ?? ''}
+                      onChange={(event) => {
+                        const nextRows = effectiveRows.map((currentRow, index) => (
+                          index === rowIndex ? { ...currentRow, [field.key]: event.target.value } : currentRow
+                        ));
+                        writeRows(nextRows);
+                      }}
+                      placeholder={field.defaultValue || field.label}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
-import { isStaticSegmentFieldKey } from '@/lib/textBindings';
+import { isStaticSegmentFieldKey, parseTemplateTextSegments } from '@/lib/textBindings';
 import { textFontSizePx } from '@/lib/textTools';
 import { cn } from '@/lib/utils';
 import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
@@ -58,7 +58,9 @@ export function TextElementFieldModeControl({
   const description = mode === 'structuredRows'
     ? 'Repeat this whole text element as rows in the generator. Every variable inside this element becomes a column in each row.'
     : 'Use this text element as normal generator text. Static/base copy and inline variables compose into one authored text area.';
-  const baseTextCount = fields.filter((field) => isStaticSegmentFieldKey(field.key)).length;
+  const baseTextCount = parseTemplateTextSegments(element.content)
+    .filter((segment) => segment.type === 'text' && segment.text.trim().length > 0)
+    .length;
   const variableCount = variableFields.length;
 
   const applyMode = (nextMode: TextFieldContractType) => {
@@ -112,6 +114,11 @@ export function TextElementFieldModeControl({
             {mode === 'structuredRows' ? `${variableCount} row ${variableCount === 1 ? 'column' : 'columns'}` : 'One composed field'}
           </span>
         </div>
+        {variableFields.length > 0 && (
+          <p className="text-[10px] leading-4 text-[#8f95a3]">
+            Save the template before moving to Generate so these field contracts are available for single and bulk output.
+          </p>
+        )}
       </div>
       {variableFields.length === 0 && (
         <p className="mt-2 text-[10px] text-[#8f95a3]">

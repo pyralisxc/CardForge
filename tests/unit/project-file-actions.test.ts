@@ -32,17 +32,17 @@ describe('project file actions', () => {
     const preview = buildProjectImportPreview({
       fileName: 'project.json',
       currentUserTemplates: [
-        { id: 'template-1', name: 'Existing Template' },
-        { id: 'template-2', name: 'Same Name' },
+        { id: 'template-1', name: 'Existing Template', aspectRatio: '2.5:3.5' },
+        { id: 'template-2', name: 'Same Name', aspectRatio: '2.5:3.5' },
       ],
       patch: {
         userTemplates: [
-          { id: 'template-1', name: 'Imported Over Existing' },
-          { id: 'template-3', name: 'Same Name' },
+          { id: 'template-1', name: 'Imported Over Existing', aspectRatio: '2.5:3.5' },
+          { id: 'template-3', name: 'Same Name', aspectRatio: '2.5:3.5' },
         ],
         storedCards: [{ uniqueId: 'card-1', templateId: 'template-1', data: {} }],
         appearanceStyles: [{ id: 'style-1', name: 'Style', kind: 'theme', targets: [], appearance: {} }],
-        selectedPaperSize: { name: 'Letter', width: 8.5, height: 11 },
+        selectedPaperSize: { name: 'Letter', widthMm: 215.9, heightMm: 279.4 },
         customAssets: {
           [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: [{ id: 'texture-1', name: 'Texture', url: 'data:image/png;base64,abc', kind: 'texture', tileMode: 'repeat', seamless: true, allowedTargets: ['text'] }],
           [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: [],
