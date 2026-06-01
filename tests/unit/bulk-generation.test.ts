@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildInitialColumnMapping,
+  createBulkContractSummary,
   createBulkDisplayCards,
   createBulkExampleCsv,
   createBulkExampleJson,
+  createBulkExampleStructuredText,
   createBulkImportContract,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
@@ -168,6 +170,110 @@ describe('bulk generation helpers', () => {
         rulesText: 'Default rules',
       },
     ]);
+  });
+
+  it('creates structured Field: value example text from field definitions', () => {
+    expect(createBulkExampleStructuredText({
+      template: {
+        id: 'structured-example-template',
+        name: 'Structured Example',
+        aspectRatio: '63:88',
+      },
+      fieldDefinitions: [
+        {
+          key: 'cardName',
+          label: 'Card Name',
+          control: 'input',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: false,
+          defaultValue: 'Ashen Crown',
+        },
+        {
+          key: 'rulesText',
+          label: 'Rules Text',
+          control: 'textarea',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: false,
+          isImage: false,
+          isMultiline: true,
+          supportsRichText: true,
+        },
+      ],
+    })).toContain('cardName: Ashen Crown');
+  });
+
+  it('summarizes contract fields for the bulk setup panel', () => {
+    expect(createBulkContractSummary([
+      {
+        key: 'name',
+        label: 'Name',
+        control: 'input',
+        editor: 'text-editor',
+        contentModel: 'text',
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: true,
+      },
+      {
+        key: 'art',
+        label: 'Art',
+        control: 'input',
+        editor: 'image-input',
+        contentModel: 'image',
+        required: false,
+        isImage: true,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'trait',
+        label: 'Trait',
+        control: 'input',
+        editor: 'structured-rows',
+        contentModel: 'structuredRows',
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: true,
+        sourceElementId: 'trait-row',
+        sourceElementName: 'Trait Row',
+      },
+      {
+        key: 'value',
+        label: 'Value',
+        control: 'input',
+        editor: 'structured-rows',
+        contentModel: 'structuredRows',
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: true,
+        sourceElementId: 'trait-row',
+        sourceElementName: 'Trait Row',
+      },
+    ])).toMatchObject({
+      fieldCount: 4,
+      requiredFieldCount: 3,
+      optionalFieldCount: 1,
+      richTextFieldCount: 3,
+      imageFieldCount: 1,
+      structuredRowFieldCount: 2,
+      structuredRowGroupCount: 1,
+      requiredFields: [
+        { key: 'name', label: 'Name', type: 'text' },
+        { key: 'trait', label: 'Trait', type: 'structuredRows' },
+        { key: 'value', label: 'Value', type: 'structuredRows' },
+      ],
+      structuredRowGroups: [
+        { id: 'trait-row', label: 'Trait Row', columns: ['Trait', 'Value'] },
+      ],
+    });
   });
 
   it('normalizes JSON object arrays into bulk rows', () => {

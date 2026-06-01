@@ -12,6 +12,7 @@ import {
   createBulkDisplayCards,
   createBulkExampleCsv,
   createBulkExampleJson,
+  createBulkExampleStructuredText,
   createBulkImportContract,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
@@ -87,6 +88,11 @@ export function BulkGenerator({
 
   const exampleJSON = useMemo(
     () => createBulkExampleJson({ template: selectedTemplate, fieldDefinitions: bulkFieldDefinitions }),
+    [bulkFieldDefinitions, selectedTemplate]
+  );
+
+  const exampleStructuredText = useMemo(
+    () => createBulkExampleStructuredText({ template: selectedTemplate, fieldDefinitions: bulkFieldDefinitions }),
     [bulkFieldDefinitions, selectedTemplate]
   );
 
@@ -475,6 +481,7 @@ export function BulkGenerator({
           selectedTemplate={selectedTemplate}
           bulkDataInput={bulkDataInput}
           exampleCsv={exampleCSV}
+          exampleStructuredText={exampleStructuredText}
           bulkFieldDefinitions={bulkFieldDefinitions}
           fileInputRef={fileInputRef}
           onDataInputChange={handleDataInputChange}

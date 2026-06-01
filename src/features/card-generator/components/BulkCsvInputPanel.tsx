@@ -15,6 +15,7 @@ interface BulkCsvInputPanelProps {
   selectedTemplate?: TCGCardTemplate;
   bulkDataInput: string;
   exampleCsv: string;
+  exampleStructuredText: string;
   bulkFieldDefinitions: TemplateFieldDefinition[];
   fileInputRef: MutableRefObject<HTMLInputElement | null>;
   onDataInputChange: (value: string) => void;
@@ -26,6 +27,7 @@ export function BulkCsvInputPanel({
   selectedTemplate,
   bulkDataInput,
   exampleCsv,
+  exampleStructuredText,
   bulkFieldDefinitions,
   fileInputRef,
   onDataInputChange,
@@ -59,11 +61,20 @@ export function BulkCsvInputPanel({
           >
             Use Example CSV
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!selectedTemplate}
+            onClick={() => onDataInputChange(exampleStructuredText)}
+          >
+            Use Field Text
+          </Button>
         </div>
 
         {selectedTemplate ? (
-          <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            Expected fields: {bulkFieldDefinitions.map((field) => field.label).join(', ')}
+          <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <p>Expected fields: {bulkFieldDefinitions.map((field) => field.label).join(', ')}</p>
+            <p>Multiline text stays safest in quoted CSV cells, JSON string values, or Field: value text blocks.</p>
           </div>
         ) : null}
 

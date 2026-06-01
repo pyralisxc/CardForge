@@ -534,6 +534,7 @@ Why this matters:
   - multiline quoting examples
   - rich text examples
 - Allow download of example CSV and machine-readable contract JSON.
+- Current bulk setup should summarize the selected template contract before data entry: required/optional counts, rich-text fields, structured row groups with their row columns, supported source formats, and import-ready CSV/JSON/Field-text examples.
 
 Why this matters:
 - Faster onboarding for bulk users.

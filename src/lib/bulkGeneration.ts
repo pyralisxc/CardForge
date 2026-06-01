@@ -45,6 +45,18 @@ export interface CreateBulkImportContractOptions {
   generatedAt?: string;
 }
 
+export interface BulkContractSummary {
+  fieldCount: number;
+  requiredFieldCount: number;
+  optionalFieldCount: number;
+  richTextFieldCount: number;
+  imageFieldCount: number;
+  structuredRowFieldCount: number;
+  structuredRowGroupCount: number;
+  requiredFields: Array<{ key: string; label: string; type: string }>;
+  structuredRowGroups: Array<{ id: string; label: string; columns: string[] }>;
+}
+
 export const normalizeCsvHeaders = (headers: string[]): string[] =>
   headers.map((header) => header.replace(/^"|"$/g, '').trim());
 
@@ -91,6 +103,17 @@ export const createBulkExampleJson = ({
   return JSON.stringify([row], null, 2);
 };
 
+export const createBulkExampleStructuredText = ({
+  template,
+  fieldDefinitions,
+}: CreateBulkExampleCsvOptions): string => {
+  if (!template) return 'Select a template first.';
+  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions);
+  return fieldDefinitions
+    .map((field, index) => `${field.key}: ${exampleDataLine[index] ?? ''}`)
+    .join('\n');
+};
+
 const fieldTypeLabel = (field: TemplateFieldDefinition): string => {
   if (field.isImage) return 'image';
   if (field.contentModel === 'structuredRows') return 'structuredRows';
@@ -100,6 +123,43 @@ const fieldTypeLabel = (field: TemplateFieldDefinition): string => {
 const createFieldStyleOverrideColumns = (field: TemplateFieldDefinition): string[] => {
   if (field.isImage) return [];
   return FIELD_STYLE_PROPERTIES.map((property) => `${field.key}.${property}`);
+};
+
+export const createBulkContractSummary = (fieldDefinitions: TemplateFieldDefinition[]): BulkContractSummary => {
+  const structuredRowGroups = new Map<string, { id: string; label: string; columns: string[] }>();
+
+  fieldDefinitions
+    .filter((field) => field.contentModel === 'structuredRows')
+    .forEach((field) => {
+      const groupId = field.sourceElementId || 'structuredRows';
+      const group = structuredRowGroups.get(groupId) ?? {
+        id: groupId,
+        label: field.sourceElementName || 'Structured Rows',
+        columns: [],
+      };
+      group.columns.push(field.label || field.key);
+      structuredRowGroups.set(groupId, group);
+    });
+
+  const requiredFields = fieldDefinitions
+    .filter((field) => field.required)
+    .map((field) => ({
+      key: field.key,
+      label: field.label,
+      type: fieldTypeLabel(field),
+    }));
+
+  return {
+    fieldCount: fieldDefinitions.length,
+    requiredFieldCount: requiredFields.length,
+    optionalFieldCount: Math.max(0, fieldDefinitions.length - requiredFields.length),
+    richTextFieldCount: fieldDefinitions.filter((field) => field.supportsRichText).length,
+    imageFieldCount: fieldDefinitions.filter((field) => field.isImage).length,
+    structuredRowFieldCount: fieldDefinitions.filter((field) => field.contentModel === 'structuredRows').length,
+    structuredRowGroupCount: structuredRowGroups.size,
+    requiredFields,
+    structuredRowGroups: Array.from(structuredRowGroups.values()),
+  };
 };
 
 export const createBulkImportContract = ({
