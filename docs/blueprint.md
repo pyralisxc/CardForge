@@ -443,6 +443,7 @@ These are non-negotiable principles for roadmap and implementation decisions.
 - Inline rich text variables belong to the text element where they were authored unless intentionally reused elsewhere.
 - Variable identity comes from the variable key; fallback text is sample content, not the field name.
 - Parent text context should stay visible when editing child variables.
+- Text element authoring should present the generator mode as a primary decision for the whole text element: normal text composes base copy plus inline variables into one field group, while structured rows repeat the whole authored text pattern and expose each nested variable as a row column in Single and Bulk.
 - Generator field cards are settings and contract controls, not a second styling surface.
 - Rich text behavior should stay aligned across Maker, Single, Bulk, preview, and export.
 - Overlapping canvas elements should support intentional deep selection without forcing constant layer-tree detours.

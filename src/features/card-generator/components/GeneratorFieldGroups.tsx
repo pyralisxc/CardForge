@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, MutableRefObject } from 'react';
-import { Layers, Plus, Trash2 } from 'lucide-react';
+import { Layers, Plus, Table2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,10 +107,19 @@ function StructuredRowsEditor({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
-          Repeat this element's authored row pattern. Each row keeps separate values for the variables inside this text element.
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-1">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+            <Table2 className="h-3.5 w-3.5 text-primary" />
+            Repeatable row group
+          </p>
+          <p className="text-xs text-muted-foreground">
+            The authored text above is the row pattern. Each row below fills the nested variables inside that same text element.
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Columns: {fields.map((field) => field.label || field.key).join(', ')}
+          </p>
+        </div>
         <Button
           type="button"
           size="sm"
@@ -132,7 +141,10 @@ function StructuredRowsEditor({
         return (
           <div key={`structured-row-${group.id}-${rowIndex}`} className="space-y-2 rounded-md border border-border/60 bg-background/60 p-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Row {rowIndex + 1}</p>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Row {rowIndex + 1}</p>
+                <p className="text-[11px] text-muted-foreground">This row renders as one repeated copy of the text pattern.</p>
+              </div>
               <Button
                 type="button"
                 size="icon"

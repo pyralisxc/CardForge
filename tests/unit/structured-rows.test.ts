@@ -6,7 +6,9 @@ import {
   buildStructuredRowsText,
   parseStructuredRowsValue,
   stringifyStructuredRowsValue,
+  structuredRowToCardData,
 } from '@/lib/structuredRows';
+import { buildScopedFieldDataKey } from '@/lib/textBindings';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 
 const rowElement: FreeformCardElement = {
@@ -30,6 +32,12 @@ describe('structured row fields', () => {
 
     expect(parseStructuredRowsValue(stringifyStructuredRowsValue(rows))).toEqual(rows);
     expect(buildStructuredRowsText(rowElement, rows)).toBe('Flying: +1\nTrample: +2');
+    expect(structuredRowToCardData('trait-row', rows[0])).toMatchObject({
+      trait: 'Flying',
+      value: '+1',
+      [buildScopedFieldDataKey('trait-row', 'trait')]: 'Flying',
+      [buildScopedFieldDataKey('trait-row', 'value')]: '+1',
+    });
   });
 
   it('initializes structured row card data with one editable row', () => {
