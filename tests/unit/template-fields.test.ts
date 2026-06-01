@@ -442,6 +442,46 @@ describe('extractTemplateFieldDefinitions', () => {
     expect(fields[0].helperText).toContain('repeatable row pattern');
   });
 
+  it('treats every variable in an element as row data when one variable sets the element to structured rows', () => {
+    const template: TCGCardTemplate = {
+      id: 'template-structured-row-mode',
+      name: 'Structured Row Mode Template',
+      aspectRatio: '63:88',
+      fieldContracts: [
+        {
+          key: 'trait',
+          elementId: 'trait-row',
+          label: 'Trait',
+          type: 'structuredRows',
+        },
+      ],
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'trait-row',
+            type: 'text',
+            name: 'Trait Row',
+            x: 0,
+            y: 0,
+            width: 260,
+            height: 120,
+            zIndex: 1,
+            content: '{{trait:"Flying"}}: {{value:"+1"}} ({{source:"Aura"}})',
+          },
+        ],
+      },
+    };
+
+    const fields = extractTemplateFieldDefinitions(template);
+
+    expect(fields.map((field) => field.key)).toEqual(['trait', 'value', 'source']);
+    expect(fields.every((field) => field.sourceElementId === 'trait-row')).toBe(true);
+    expect(fields.every((field) => field.contentModel === 'structuredRows')).toBe(true);
+    expect(fields.every((field) => field.editor === 'structured-rows')).toBe(true);
+  });
+
   it('adds a base text field for mixed static and variable text elements', () => {
     const template: TCGCardTemplate = {
       id: 'template-8',

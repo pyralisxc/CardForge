@@ -154,7 +154,11 @@ export function GeneratedCardGallery({
           <p className="text-sm">Create a single output, generate from data, or import a project. This gallery is the visual review surface used before export.</p>
         </div>
       ) : (
-        <div ref={scrollParentRef} className="h-[calc(100vh-250px)] overflow-auto rounded-md border bg-card/30 p-4 shadow-inner">
+        <div
+          ref={scrollParentRef}
+          data-testid="generated-gallery-scroll"
+          className="h-[calc(100vh-250px)] overflow-auto rounded-md border bg-card/30 p-4 shadow-inner"
+        >
           <div className="mb-3 flex items-center justify-between gap-3 rounded-md border bg-background/80 px-3 py-2 text-xs text-muted-foreground">
             <span>
               Showing {filteredSortedCards.length} matching outputs

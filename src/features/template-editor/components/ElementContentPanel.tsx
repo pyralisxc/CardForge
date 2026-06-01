@@ -2,7 +2,7 @@
 
 import type { MutableRefObject } from 'react';
 
-import { TextExpressionEditor, TextFieldSettingsList } from '@/features/template-editor/components/TextElementInspector';
+import { TextElementFieldModeControl, TextExpressionEditor, TextFieldSettingsList } from '@/features/template-editor/components/TextElementInspector';
 import { inferTextElementContentModel } from '@/lib/textElementContracts';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
@@ -47,6 +47,12 @@ export function ElementContentPanel({
   if (element.type === 'text') {
     return (
       <>
+        <TextElementFieldModeControl
+          fields={selectedElementTemplateFields}
+          element={element}
+          fieldContracts={currentTemplate.fieldContracts}
+          onUpdateContract={onUpsertFieldContract}
+        />
         <TextExpressionEditor
           element={element}
           fieldCount={selectedElementTemplateFields.length}

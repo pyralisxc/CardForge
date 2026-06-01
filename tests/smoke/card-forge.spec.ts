@@ -368,11 +368,11 @@ test('supports a 1000-card generated gallery without rendering every preview at 
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1000\)/i })).toBeVisible({ timeout: 45_000 });
   await expect(page.getByRole('combobox', { name: 'Gallery density', exact: true })).toContainText('Compact grid');
-  await expect(page.getByText('Page 1 of 17 - showing 1-60 of 1000 matching outputs', { exact: true })).toBeVisible();
+  await expect(page.getByText('Showing 1000 matching outputs', { exact: true })).toBeVisible();
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeLessThanOrEqual(70);
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeGreaterThan(0);
 
-  const firstPageMaxCardsPerRow = await page.locator('.tcg-card-preview').evaluateAll((cards) => {
+  const firstViewportMaxCardsPerRow = await page.locator('.tcg-card-preview').evaluateAll((cards) => {
     const rowCounts = new Map<number, number>();
     cards.forEach((card) => {
       const top = Math.round(card.getBoundingClientRect().top);
@@ -380,13 +380,17 @@ test('supports a 1000-card generated gallery without rendering every preview at 
     });
     return Math.max(...rowCounts.values());
   });
-  expect(firstPageMaxCardsPerRow).toBeGreaterThanOrEqual(3);
+  expect(firstViewportMaxCardsPerRow).toBeGreaterThanOrEqual(3);
 
-  await page.getByRole('button', { name: 'Next gallery page', exact: true }).click();
+  const firstVisibleCardText = await page.locator('.tcg-card-preview').first().innerText();
+  await page.getByTestId('generated-gallery-scroll').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
 
-  await expect(page.getByText('Page 2 of 17 - showing 61-120 of 1000 matching outputs', { exact: true })).toBeVisible();
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeGreaterThan(0);
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeLessThanOrEqual(70);
+  await expect.poll(async () => page.locator('.tcg-card-preview').first().innerText()).not.toBe(firstVisibleCardText);
 });
 
 test('supports keyboard-first generation and strict mode toggle', async ({ page }) => {

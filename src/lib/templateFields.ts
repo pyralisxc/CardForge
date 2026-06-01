@@ -134,6 +134,14 @@ const pickFieldKind = (kinds: GeneratorFieldKind[]): GeneratorFieldKind | undefi
   return undefined;
 };
 
+const textElementHasStructuredRowsContract = (
+  element: FreeformCardElement | undefined,
+  contracts: NonNullable<TCGCardTemplate['fieldContracts']>
+): boolean => {
+  if (!element) return false;
+  return contracts.some((contract) => contract.elementId === element.id && contract.type === 'structuredRows');
+};
+
 const buildHelperText = (
   contentModel: TemplateFieldContentModel
 ): string | undefined => {
@@ -239,7 +247,11 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
     const primaryTextElement = textElements[0];
     const contract = getContract(placeholder.key, primaryTextElement?.id);
     const isMultiline = !isImage && (typeof contract?.multiline === 'boolean' ? contract.multiline : fieldLooksMultiline(placeholder.key));
-    const explicitKind = (contract?.type === 'text' || contract?.type === 'structuredRows' ? contract.type : undefined)
+    const elementStructuredRowsKind = textElementHasStructuredRowsContract(primaryTextElement, contracts)
+      ? 'structuredRows' as const
+      : undefined;
+    const explicitKind = elementStructuredRowsKind
+      || (contract?.type === 'text' || contract?.type === 'structuredRows' ? contract.type : undefined)
       || pickFieldKind(
         textElements
           .map((element) => element.generatorFieldKind)

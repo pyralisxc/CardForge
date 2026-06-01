@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { isStaticSegmentFieldKey } from '@/lib/textBindings';
@@ -35,6 +34,70 @@ const textContractTypeOptions: Array<{ value: TextFieldContractType; label: stri
 ];
 
 const fieldSelectClassName = 'h-8 rounded-md border border-[#252b35] bg-[#090d13] px-2 text-xs text-[#d8d1c4] outline-none focus:border-[#d5ad54]';
+
+interface TextElementFieldModeControlProps {
+  fields: TemplateFieldDefinition[];
+  element: FreeformCardElement;
+  fieldContracts?: FieldContract[];
+  onUpdateContract: (key: string, updates: Partial<FieldContract>) => void;
+}
+
+export function TextElementFieldModeControl({
+  fields,
+  element,
+  fieldContracts,
+  onUpdateContract,
+}: TextElementFieldModeControlProps) {
+  const variableFields = fields.filter((field) => !isStaticSegmentFieldKey(field.key));
+  const mode: TextFieldContractType = variableFields.some((field) => {
+    const contract = fieldContracts?.find((item) => item.key === field.key && item.elementId === element.id)
+      || fieldContracts?.find((item) => item.key === field.key);
+    return contract?.type === 'structuredRows' || field.contentModel === 'structuredRows';
+  }) ? 'structuredRows' : 'text';
+
+  const description = mode === 'structuredRows'
+    ? 'Repeat this whole text element as rows in the generator. Every variable inside this element becomes a column in each row.'
+    : 'Use this text element as normal generator text. Static/base copy and inline variables compose into one authored text area.';
+
+  const applyMode = (nextMode: TextFieldContractType) => {
+    variableFields.forEach((field) => {
+      onUpdateContract(field.key, {
+        elementId: element.id,
+        type: nextMode,
+      });
+    });
+  };
+
+  return (
+    <div className="rounded-[6px] border border-[#3a3142] bg-[#111018] p-2 shadow-[0_0_0_1px_rgba(213,173,84,0.08)]">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <Label htmlFor="text-element-field-mode" className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">
+            Generator Mode
+          </Label>
+          <p className="max-w-[360px] text-[11px] leading-4 text-[#aeb4c0]">{description}</p>
+        </div>
+        <select
+          id="text-element-field-mode"
+          aria-label="Generator mode for this text element"
+          value={mode}
+          disabled={variableFields.length === 0}
+          onChange={(event) => applyMode(event.target.value as TextFieldContractType)}
+          className={cn(fieldSelectClassName, 'h-9 min-w-[170px] text-sm')}
+        >
+          {textContractTypeOptions.map((option) => (
+            <option key={option.value} value={option.value} title={option.description}>{option.label}</option>
+          ))}
+        </select>
+      </div>
+      {variableFields.length === 0 && (
+        <p className="mt-2 text-[10px] text-[#8f95a3]">
+          Add at least one variable before this element can become generator text or structured rows.
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface TextExpressionEditorProps {
   element: FreeformCardElement;
@@ -308,34 +371,6 @@ export function TextFieldSettingsList({
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <Label className="text-[10px] text-[#8f95a3]">Field Type</Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button type="button" className="grid h-4 w-4 place-items-center rounded-full border border-[#343b49] text-[10px] text-[#8f95a3]" aria-label="Field type help">
-                              ?
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[240px] text-xs">
-                            Text is one fully customizable rich value. Structured Rows repeats this element's variables as rows.
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <select
-                        value={(contract?.type === 'structuredRows' || field.contentModel === 'structuredRows') ? 'structuredRows' : 'text'}
-                        onChange={(event) => onUpdateContract(field.key, {
-                          elementId: element.id,
-                          type: event.target.value as TextFieldContractType,
-                        })}
-                        className={fieldSelectClassName}
-                      >
-                        {textContractTypeOptions.map((option) => (
-                          <option key={option.value} value={option.value} title={option.description}>{option.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
                     <div className="space-y-1">
                       <Label className="text-[10px] text-[#8f95a3]">Font Size</Label>
                       <Input
