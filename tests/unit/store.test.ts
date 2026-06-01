@@ -217,6 +217,59 @@ describe('app store helpers', () => {
     expect(useAppStore.getState().storedCards[0].data['__cardforgeFieldStyle.cardName.fontWeight']).toBe('font-semibold');
   });
 
+  it('merges imported stored cards without clearing existing generated outputs', () => {
+    const existingTemplate = reconstructMinimalTemplateObject({
+      id: 'existing-template',
+      name: 'Existing Template',
+      aspectRatio: '63:88',
+      freeformCanvas: createDefaultFreeformCanvas(),
+    });
+    const importedTemplate = reconstructMinimalTemplateObject({
+      id: 'import-template',
+      name: 'Import Template',
+      aspectRatio: '63:88',
+      freeformCanvas: createDefaultFreeformCanvas(),
+    });
+
+    useAppStore.setState({
+      defaultTemplates: [existingTemplate, importedTemplate],
+      userTemplates: [],
+      storedCards: [
+        { uniqueId: 'existing-card', templateId: 'existing-template', data: { cardName: 'Kept' } },
+        { uniqueId: 'updated-card', templateId: 'existing-template', data: { cardName: 'Old' } },
+      ],
+    });
+
+    const result = useAppStore.getState().mergeStoredCardsFromFile([
+      { uniqueId: 'updated-card', templateId: 'import-template', data: { cardName: 'Updated' } },
+      { uniqueId: 'new-card', templateId: 'import-template', data: { cardName: 'New' } },
+      { uniqueId: 'missing-template-card', templateId: 'missing-template', data: {} },
+    ]);
+
+    expect(result).toEqual({ successCount: 2, skippedCount: 1 });
+    expect(useAppStore.getState().storedCards).toEqual([
+      { uniqueId: 'existing-card', templateId: 'existing-template', data: { cardName: 'Kept' } },
+      { uniqueId: 'updated-card', templateId: 'import-template', data: { cardName: 'Updated' } },
+      { uniqueId: 'new-card', templateId: 'import-template', data: { cardName: 'New' } },
+    ]);
+  });
+
+  it('can replace appearance styles for project import without using bootstrap merge semantics', () => {
+    useAppStore.setState({
+      appearanceStyles: [
+        { id: 'old-style', name: 'Old Style', kind: 'theme', targets: [], appearance: {} },
+      ],
+    });
+
+    useAppStore.getState().replaceAppearanceStylesFromFiles([
+      { id: 'new-style', name: 'New Style', kind: 'theme', targets: [], appearance: {} },
+    ]);
+
+    expect(useAppStore.getState().appearanceStyles).toEqual([
+      { id: 'new-style', name: 'New Style', kind: 'theme', targets: [], appearance: {} },
+    ]);
+  });
+
   it('deleting a template also removes generated cards that depend on it', () => {
     const keptTemplate = reconstructMinimalTemplateObject({
       id: 'template-kept',

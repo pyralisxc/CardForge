@@ -115,6 +115,9 @@ test('paid account can export an edited shipped template and import it after loc
   await expect(page.getByLabel('Choose template')).not.toContainText(templateName);
 
   await page.locator('input[type="file"][accept*="json"]').setInputFiles(exportPath);
+  await expect(page.getByRole('heading', { name: 'Import project file?' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('1 template', { exact: false })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Replace Project' }).click();
   await expect(page.getByText('Project Imported', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('1 template imported. No generated outputs were included in this file.', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByLabel('Choose template')).toContainText(`Personal / ${templateName}`, { timeout: 30_000 });

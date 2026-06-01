@@ -37,3 +37,22 @@ export const writeProjectAssetListToStorage = (
 ) => {
   storage.setItem(key, JSON.stringify(assets));
 };
+
+export const mergeProjectAssetListToStorage = (
+  storage: ProjectAssetStorage,
+  key: string,
+  assets: unknown[],
+) => {
+  const existingAssets = readProjectAssetListFromStorage(storage, key);
+  const merged = new Map<string, unknown>();
+
+  [...existingAssets, ...assets].forEach((asset, index) => {
+    if (typeof asset === 'object' && asset !== null && 'id' in asset && typeof asset.id === 'string') {
+      merged.set(asset.id, asset);
+      return;
+    }
+    merged.set(`__asset_${index}`, asset);
+  });
+
+  storage.setItem(key, JSON.stringify(Array.from(merged.values())));
+};

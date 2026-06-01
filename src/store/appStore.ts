@@ -51,6 +51,7 @@ interface AppState {
   deleteTemplate: (templateId: string, source?: TemplateSource) => void;
   cloneTemplate: (templateId: string) => string | null;
   setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
+  replaceAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
   addOrUpdateAppearanceStyle: (style: AppearanceStylePreset) => string;
   deleteAppearanceStyle: (styleId: string) => void;
   
@@ -59,6 +60,7 @@ interface AppState {
   updateGeneratedCard: (updatedCard: DisplayCard) => void;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number, skippedCount: number };
+  mergeStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number, skippedCount: number };
 
   setSelectedPaperSize: (size: PaperSize) => void;
   setActiveTab: (tab: string) => void;
@@ -259,6 +261,9 @@ export const useAppStore = create<AppState>()(
           });
           return { appearanceStyles: dedupeAppearanceStyles(merged) };
         }),
+        replaceAppearanceStylesFromFiles: (styles) => set({
+          appearanceStyles: dedupeAppearanceStyles(styles),
+        }),
         addOrUpdateAppearanceStyle: (style) => {
           set((state) => {
             const styles = dedupeAppearanceStyles(state.appearanceStyles);
@@ -325,6 +330,34 @@ export const useAppStore = create<AppState>()(
                 }
             });
             set({ storedCards: runtimeCards });
+            return { successCount, skippedCount };
+        },
+        mergeStoredCardsFromFile: (loadedCards) => {
+            let successCount = 0;
+            let skippedCount = 0;
+            const currentTemplates = selectAllTemplates(get());
+            const mergedCards = new Map<string, StoredDisplayCard>();
+
+            get().storedCards.forEach(card => {
+              mergedCards.set(card.uniqueId || nanoid(), card);
+            });
+
+            loadedCards.forEach(storedCardFromFile => {
+                const templateFound = currentTemplates.find(t => t.id === storedCardFromFile.templateId);
+                if (templateFound) {
+                    const uniqueId = storedCardFromFile.uniqueId || nanoid();
+                    mergedCards.set(uniqueId, {
+                        uniqueId,
+                        templateId: templateFound.id!,
+                        data: storedCardFromFile.data || {}
+                    });
+                    successCount++;
+                } else {
+                    skippedCount++;
+                }
+            });
+
+            set({ storedCards: Array.from(mergedCards.values()) });
             return { successCount, skippedCount };
         },
 

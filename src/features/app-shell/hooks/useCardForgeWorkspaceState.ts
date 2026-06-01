@@ -36,6 +36,7 @@ export function useCardForgeWorkspaceState() {
   const deleteTemplateAction = useAppStore((state) => state.deleteTemplate);
   const cloneTemplateAction = useAppStore((state) => state.cloneTemplate);
   const setAppearanceStylesFromFilesAction = useAppStore((state) => state.setAppearanceStylesFromFiles);
+  const replaceAppearanceStylesFromFilesAction = useAppStore((state) => state.replaceAppearanceStylesFromFiles);
   const addOrUpdateAppearanceStyleAction = useAppStore((state) => state.addOrUpdateAppearanceStyle);
   const deleteAppearanceStyleAction = useAppStore((state) => state.deleteAppearanceStyle);
   const addGeneratedCardsAction = useAppStore((state) => state.addGeneratedCards);
@@ -43,6 +44,7 @@ export function useCardForgeWorkspaceState() {
   const updateGeneratedCardAction = useAppStore((state) => state.updateGeneratedCard);
   const retargetGeneratedCardsTemplateAction = useAppStore((state) => state.retargetGeneratedCardsTemplate);
   const setStoredCardsFromFileAction = useAppStore((state) => state.setStoredCardsFromFile);
+  const mergeStoredCardsFromFileAction = useAppStore((state) => state.mergeStoredCardsFromFile);
   const setSelectedPaperSizeAction = useAppStore((state) => state.setSelectedPaperSize);
   const setActiveTabAction = useAppStore((state) => state.setActiveTab);
   const setSingleCardGeneratorSelectedTemplateIdAction = useAppStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
@@ -80,8 +82,10 @@ export function useCardForgeWorkspaceState() {
       retargetGeneratedCardsTemplateAction,
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
+      replaceAppearanceStylesFromFilesAction,
       setDefaultTemplatesFromFilesAction,
       mergeUserTemplatesFromFilesAction,
+      mergeStoredCardsFromFileAction,
       setExportDpiAction,
       setExportModeAction,
       setPdfOptionsAction,

@@ -130,7 +130,9 @@ export function CardForgeStudioShell() {
       deleteAppearanceStyleAction,
       deleteTemplateAction,
       mergeUserTemplatesFromFilesAction,
+      mergeStoredCardsFromFileAction,
       openEditDialogAction,
+      replaceAppearanceStylesFromFilesAction,
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
       setDefaultTemplatesFromFilesAction,
@@ -225,9 +227,12 @@ export function CardForgeStudioShell() {
   });
 
   const {
+    applyPendingProjectImport,
+    clearPendingProjectImport,
     handleChooseImportProject,
     handleExportProject,
     handleImportProject,
+    pendingProjectImport,
   } = useProjectFileActions({
     appearanceStyles,
     canUseProjectFiles: projectCapabilities.canExportClean,
@@ -247,7 +252,10 @@ export function CardForgeStudioShell() {
     setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
     setSelectedPaperSize: setSelectedPaperSizeAction,
     setStoredCardsFromFile: setStoredCardsFromFileAction,
+    mergeStoredCardsFromFile: mergeStoredCardsFromFileAction,
     setUserTemplatesFromFiles: setUserTemplatesFromFilesAction,
+    mergeUserTemplatesFromFiles: mergeUserTemplatesFromFilesAction,
+    replaceAppearanceStylesFromFiles: replaceAppearanceStylesFromFilesAction,
     storedCards,
     toast,
     userTemplates: userTemplatesFromStore,
@@ -501,6 +509,44 @@ export function CardForgeStudioShell() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleClearGeneratedCards} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Clear Outputs
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!pendingProjectImport} onOpenChange={(open) => !open && clearPendingProjectImport()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import project file?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm leading-6">
+                <p>
+                  {pendingProjectImport?.preview.fileName || 'Selected file'} includes{' '}
+                  {pendingProjectImport?.preview.templateCount ?? 0} template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'},{' '}
+                  {pendingProjectImport?.preview.outputCount ?? 0} generated output{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'},{' '}
+                  {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and{' '}
+                  {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.
+                </p>
+                {(pendingProjectImport?.preview.templateIdConflicts.length || pendingProjectImport?.preview.templateNameConflicts.length) ? (
+                  <p>
+                    Matching templates found: {[
+                      ...(pendingProjectImport?.preview.templateIdConflicts ?? []),
+                      ...(pendingProjectImport?.preview.templateNameConflicts ?? []),
+                    ].slice(0, 4).join(', ')}.
+                  </p>
+                ) : null}
+                <p>
+                  Replace loads the file as the local project. Merge adds or updates templates, outputs, styles, assets, and export settings without clearing current local work.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button type="button" variant="outline" onClick={() => applyPendingProjectImport('merge')}>
+              Merge Into Current
+            </Button>
+            <AlertDialogAction onClick={() => applyPendingProjectImport('replace')}>
+              Replace Project
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -120,11 +120,11 @@ Zustand persists user-owned app state in localStorage. This includes user templa
 
 This means normal Studio work should survive route changes, refreshes, browser restarts, and accidental tab closes on the same browser profile. The MVP intentionally uses durable browser-local storage instead of session-only storage because creators should not lose cards or templates when the whole browser closes. Project export/import remains the portable backup path when work needs to move between devices, browsers, accounts, or a cleared browser profile.
 
-Project import accepts the current versioned `cardforge-studio-project.json` format plus local template JSON escape hatches: one standalone template, an array of templates, or a persisted local workspace snapshot with `state.userTemplates`. Stored-card-only JSON remains unsupported because generated outputs need matching template definitions to render safely. Bulk contract JSON and bulk row JSON belong in the Generator bulk workflow, so the Layout Studio importer rejects them with workflow-specific guidance.
+Project import accepts the current versioned `cardforge-studio-project.json` format plus local template JSON escape hatches: one standalone template, an array of templates, or a persisted local workspace snapshot with `state.userTemplates`. Stored-card-only JSON remains unsupported because generated outputs need matching template definitions to render safely. Bulk contract JSON and bulk row JSON belong in the Generator bulk workflow, so the Layout Studio importer rejects them with workflow-specific guidance. After a file parses, Studio shows an import preview and requires an explicit choice: replace the local project from the file, or merge imported templates, outputs, styles, custom assets, and export settings into the current browser workspace.
 
 When a paid or free user edits a shipped/pipeline template and saves it, the app stores the edit as a Personal Library copy with a fresh template ID. Dev/owner library writers keep the shipped-template save path. This keeps paid project exports portable because project files carry user templates, not the immutable shipped starter library.
 
-Startup bootstrap refreshes shipped templates from `/api/templates` and merges any server-provided user templates into the browser-local personal library. It must not replace local `userTemplates` during ordinary page load; project import is the explicit replace path.
+Startup bootstrap refreshes shipped templates from `/api/templates` and merges any server-provided user templates into the browser-local personal library. It must not replace local `userTemplates` during ordinary page load; project import is the explicit replace-or-merge path.
 
 ### Pipeline-Owned Starter Content
 
