@@ -47,6 +47,7 @@ interface AppState {
   addOrUpdateTemplate: (template: TCGCardTemplate, source?: TemplateSource) => string; 
   setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
   setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
+  mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
   deleteTemplate: (templateId: string, source?: TemplateSource) => void;
   cloneTemplate: (templateId: string) => string | null;
   setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
@@ -161,6 +162,38 @@ export const useAppStore = create<AppState>()(
 
             return {
               userTemplates: reconstructedTemplates,
+              singleCardGeneratorSelectedTemplateId: selectedStillExists
+                ? state.singleCardGeneratorSelectedTemplateId
+                : (allTemplates[0]?.id ?? null),
+            };
+          });
+
+          return reconstructedTemplates.length;
+        },
+        mergeUserTemplatesFromFiles: (templates) => {
+          const reconstructedTemplates = templates
+            .map(template => reconstructMinimalTemplateObject({ ...template, templateSource: 'user' }))
+            .filter(template => template.id && template.id.trim() !== '');
+
+          if (reconstructedTemplates.length === 0) return 0;
+
+          set((state) => {
+            const byId = new Map<string, TCGCardTemplate>();
+            state.userTemplates.forEach(template => {
+              if (template.id) byId.set(template.id, template);
+            });
+            reconstructedTemplates.forEach(template => {
+              if (template.id) byId.set(template.id, template);
+            });
+
+            const nextUserTemplates = Array.from(byId.values());
+            const allTemplates = [...state.defaultTemplates, ...nextUserTemplates];
+            const selectedStillExists = state.singleCardGeneratorSelectedTemplateId
+              ? allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
+              : false;
+
+            return {
+              userTemplates: nextUserTemplates,
               singleCardGeneratorSelectedTemplateId: selectedStillExists
                 ? state.singleCardGeneratorSelectedTemplateId
                 : (allTemplates[0]?.id ?? null),

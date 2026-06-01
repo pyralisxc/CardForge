@@ -32,6 +32,7 @@ export function useCardForgeWorkspaceState() {
   const addOrUpdateTemplateAction = useAppStore((state) => state.addOrUpdateTemplate);
   const setDefaultTemplatesFromFilesAction = useAppStore((state) => state.setDefaultTemplatesFromFiles);
   const setUserTemplatesFromFilesAction = useAppStore((state) => state.setUserTemplatesFromFiles);
+  const mergeUserTemplatesFromFilesAction = useAppStore((state) => state.mergeUserTemplatesFromFiles);
   const deleteTemplateAction = useAppStore((state) => state.deleteTemplate);
   const cloneTemplateAction = useAppStore((state) => state.cloneTemplate);
   const setAppearanceStylesFromFilesAction = useAppStore((state) => state.setAppearanceStylesFromFiles);
@@ -80,6 +81,7 @@ export function useCardForgeWorkspaceState() {
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
       setDefaultTemplatesFromFilesAction,
+      mergeUserTemplatesFromFilesAction,
       setExportDpiAction,
       setExportModeAction,
       setPdfOptionsAction,

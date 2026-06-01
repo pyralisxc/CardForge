@@ -230,7 +230,57 @@ describe('project document serialization', () => {
 
     expect(parsed.success).toBe(false);
     if (parsed.success) throw new Error('Expected legacy stored-card JSON to fail');
-    expect(parsed.error).toContain('local template JSON');
+    expect(parsed.error).toContain('Generated-output JSON needs its matching templates');
+    expect(parsed.error).toContain('full CardForge project export');
+  });
+
+  it('rejects persisted generated-output snapshots without matching user templates', () => {
+    const parsed = parseProjectDocumentFile(JSON.stringify({
+      state: {
+        storedCards: [storedCard],
+      },
+      version: 1,
+    }));
+
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected generated-output-only snapshot to fail');
+    expect(parsed.error).toContain('Generated-output JSON needs its matching templates');
+  });
+
+  it('routes bulk contract JSON away from the project importer', () => {
+    const parsed = parseProjectDocumentFile(JSON.stringify({
+      contractVersion: 1,
+      templateId: 'user-template-1',
+      templateName: 'User Template',
+      fields: [
+        {
+          key: 'Name',
+          label: 'Name',
+          type: 'text',
+          required: true,
+        },
+      ],
+    }));
+
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected bulk contract JSON to fail');
+    expect(parsed.error).toContain('bulk contract JSON');
+    expect(parsed.error).toContain('Bulk Import');
+  });
+
+  it('routes bulk row JSON away from the project importer', () => {
+    const parsed = parseProjectDocumentFile(JSON.stringify([
+      {
+        Name: 'Rift Adept',
+        Cost: 3,
+        Rules: '[ability] Flying',
+      },
+    ]));
+
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected bulk row JSON to fail');
+    expect(parsed.error).toContain('bulk data rows');
+    expect(parsed.error).toContain('Generator > Bulk Import');
   });
 
   it('imports persisted local workspace snapshots with user templates', () => {

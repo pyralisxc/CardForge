@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from 'react';
+import { nanoid } from 'nanoid';
 
 import { useAppStore } from '@/store/appStore';
 import { selectAllTemplates } from '@/store/selectors';
@@ -25,6 +26,27 @@ interface UseTemplateLibraryActionsInput {
   templates: TCGCardTemplate[];
   toast: ToastFn;
 }
+
+export const prepareTemplateForLibrarySave = (
+  template: TCGCardTemplate,
+  canWriteShippedLibrary: boolean,
+  createId: () => string = nanoid,
+): TCGCardTemplate => {
+  if (template.templateSource !== 'default' || canWriteShippedLibrary) {
+    return {
+      ...template,
+      templateSource: template.templateSource === 'default' ? 'default' : 'user',
+      templateLibrarySource: template.templateSource === 'default' ? template.templateLibrarySource : 'personal',
+    };
+  }
+
+  return {
+    ...template,
+    id: createId(),
+    templateSource: 'user',
+    templateLibrarySource: 'personal',
+  };
+};
 
 export function useTemplateLibraryActions({
   addOrUpdateAppearanceStyle,
@@ -69,15 +91,12 @@ export function useTemplateLibraryActions({
   }, [deleteAppearanceStyle, projectCapabilities.canWriteShippedLibrary]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
-    const templateToSave = {
-      ...template,
-      templateSource: template.templateSource === 'default' ? 'default' as const : 'user' as const,
-    };
+    const templateToSave = prepareTemplateForLibrarySave(template, projectCapabilities.canWriteShippedLibrary);
     const savedTemplateId = addOrUpdateTemplate(templateToSave, templateToSave.templateSource);
     setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
     toast({
       title: 'Template Saved',
-      description: template.templateSource === 'default'
+      description: templateToSave.templateSource === 'default'
         ? `"${templateToSave.name || savedTemplateId}" updated the Forge Pipeline template.`
         : `"${templateToSave.name || savedTemplateId}" has been saved to your Personal Library.`,
     });
