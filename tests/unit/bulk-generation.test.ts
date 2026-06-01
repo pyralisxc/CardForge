@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildInitialColumnMapping,
+  autoMapRequiredFields,
   createBulkContractSummary,
   createBulkDisplayCards,
   createBulkExampleCsv,
@@ -10,9 +11,11 @@ import {
   createBulkImportContract,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
+  getUnmappedRequiredFieldKeys,
   normalizeJsonObjectsToRows,
   parseBulkDataSource,
   parseStructuredTextToRows,
+  resolveDuplicateFieldMapping,
   shouldBlockBulkGeneration,
   updateColumnMapping,
 } from '@/lib/bulkGeneration';
@@ -123,6 +126,58 @@ describe('bulk generation helpers', () => {
         },
       ],
     })).toContain('Preview Name');
+  });
+
+  it('auto-maps unmapped required fields from matching keys, labels, or label words', () => {
+    const fields = [
+      {
+        key: 'cardName',
+        label: 'Card Name',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'rulesText',
+        label: 'Rules Text',
+        control: 'textarea' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: true,
+        supportsRichText: true,
+      },
+    ];
+
+    const nextMapping = autoMapRequiredFields(
+      ['Name', 'Rules Text', 'Notes'],
+      fields,
+      { Name: '', 'Rules Text': '', Notes: '' }
+    );
+
+    expect(nextMapping).toEqual({
+      Name: 'cardName',
+      'Rules Text': 'rulesText',
+      Notes: '',
+    });
+    expect(getUnmappedRequiredFieldKeys(fields, nextMapping)).toEqual([]);
+  });
+
+  it('resolves duplicate field mapping by keeping the first mapped header', () => {
+    expect(resolveDuplicateFieldMapping({
+      Name: 'cardName',
+      Title: 'cardName',
+      Rules: 'rulesText',
+    }, 'cardName')).toEqual({
+      Name: 'cardName',
+      Title: '',
+      Rules: 'rulesText',
+    });
   });
 
   it('creates template-specific import-ready JSON data from field definitions', () => {

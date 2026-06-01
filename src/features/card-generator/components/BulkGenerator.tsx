@@ -9,6 +9,7 @@ import { PackagePlus } from 'lucide-react';
 import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
 import {
   buildInitialColumnMapping,
+  autoMapRequiredFields,
   createBulkDisplayCards,
   createBulkExampleCsv,
   createBulkExampleJson,
@@ -16,8 +17,10 @@ import {
   createBulkImportContract,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
+  getUnmappedRequiredFieldKeys,
   normalizeCsvHeaders,
   parseBulkDataSource,
+  resolveDuplicateFieldMapping,
   shouldBlockBulkGeneration,
 } from '@/lib/bulkGeneration';
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
@@ -168,6 +171,11 @@ export function BulkGenerator({
     [duplicateRequiredFieldCounts]
   );
 
+  const unmappedRequiredFields = useMemo(
+    () => getUnmappedRequiredFieldKeys(bulkFieldDefinitions, columnMapping),
+    [bulkFieldDefinitions, columnMapping]
+  );
+
   const blockingIssues = useMemo(() => {
     if (!selectedTemplate || !bulkDataInput.trim()) return [] as string[];
     if (parsedCsv.error) return [parsedCsv.error];
@@ -234,6 +242,29 @@ export function BulkGenerator({
       description: 'Column mappings were rebuilt from CSV headers. Next step: review mapping conflicts before generating.',
     });
   }, [bulkFieldDefinitions, csvHeaders, toast]);
+
+  const handleAutoMapRequiredFields = useCallback(() => {
+    if (csvHeaders.length === 0 || bulkFieldDefinitions.length === 0) return;
+    const nextMapping = autoMapRequiredFields(csvHeaders, bulkFieldDefinitions, columnMapping);
+    const resolvedCount = unmappedRequiredFields.length - getUnmappedRequiredFieldKeys(bulkFieldDefinitions, nextMapping).length;
+    setColumnMapping(nextMapping);
+    toast({
+      title: resolvedCount > 0 ? 'Required fields mapped' : 'No matching headers found',
+      description: resolvedCount > 0
+        ? `${resolvedCount} required field${resolvedCount === 1 ? '' : 's'} matched by header name.`
+        : 'Rename columns to match field keys or labels, or map them manually.',
+    });
+  }, [bulkFieldDefinitions, columnMapping, csvHeaders, toast, unmappedRequiredFields.length]);
+
+  const handleResolveDuplicateRequiredField = useCallback((fieldKey: string) => {
+    setColumnMapping((current) => resolveDuplicateFieldMapping(current, fieldKey));
+    setConflictFocusField(null);
+    const fieldLabel = fieldDefinitionMap.get(fieldKey)?.label ?? fieldKey;
+    toast({
+      title: 'Duplicate mapping resolved',
+      description: `${fieldLabel} now keeps its first mapped column and ignores extra duplicates.`,
+    });
+  }, [fieldDefinitionMap, toast]);
 
   const applyPreviewOverride = useCallback((rowNumber: number, fieldKey: string, value: string) => {
     setPreviewOverrides((previous) => ({
@@ -500,10 +531,13 @@ export function BulkGenerator({
             conflictFocusField={conflictFocusField}
             duplicateRequiredFields={duplicateRequiredFields}
             duplicateRequiredFieldCounts={duplicateRequiredFieldCounts}
+            unmappedRequiredFields={unmappedRequiredFields}
             onToggleAdvancedMapping={() => setShowAdvancedMapping((prev) => !prev)}
             onAutoMapAgain={handleAutoMapAgain}
+            onAutoMapRequiredFields={handleAutoMapRequiredFields}
             onToggleShowUnmappedOnly={() => setShowUnmappedOnly((prev) => !prev)}
             onSetConflictFocusField={setConflictFocusField}
+            onResolveDuplicateRequiredField={handleResolveDuplicateRequiredField}
             onColumnMappingChange={setColumnMapping}
           />
         )}

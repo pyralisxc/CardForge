@@ -350,6 +350,83 @@ export const updateColumnMapping = (
   };
 };
 
+const normalizeMappingToken = (value: string): string =>
+  value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export const getUnmappedRequiredFieldKeys = (
+  fieldDefinitions: TemplateFieldDefinition[],
+  columnMapping: Record<string, string>
+): string[] => {
+  const mappedFieldKeys = new Set(
+    Object.values(columnMapping)
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value))
+  );
+
+  return fieldDefinitions
+    .filter((field) => field.required && !mappedFieldKeys.has(field.key))
+    .map((field) => field.key);
+};
+
+export const autoMapRequiredFields = (
+  headers: string[],
+  fieldDefinitions: TemplateFieldDefinition[],
+  currentMapping: Record<string, string>
+): Record<string, string> => {
+  const nextMapping = { ...currentMapping };
+  const mappedFieldKeys = new Set(
+    Object.values(nextMapping)
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value))
+  );
+
+  fieldDefinitions
+    .filter((field) => field.required && !mappedFieldKeys.has(field.key))
+    .forEach((field) => {
+      const fieldTokens = new Set([
+        normalizeMappingToken(field.key),
+        normalizeMappingToken(field.label),
+      ]);
+      field.label
+        .split(/\s+/)
+        .map(normalizeMappingToken)
+        .filter((token) => token.length >= 3)
+        .forEach((token) => fieldTokens.add(token));
+      const matchingHeader = headers.find((header) => (
+        !nextMapping[header]
+        && fieldTokens.has(normalizeMappingToken(header))
+      ));
+      if (!matchingHeader) return;
+      nextMapping[matchingHeader] = field.key;
+      mappedFieldKeys.add(field.key);
+    });
+
+  return nextMapping;
+};
+
+export const resolveDuplicateFieldMapping = (
+  currentMapping: Record<string, string>,
+  fieldKey: string
+): Record<string, string> => {
+  let foundFirst = false;
+  const nextMapping: Record<string, string> = {};
+
+  Object.entries(currentMapping).forEach(([header, mappedKey]) => {
+    if (mappedKey !== fieldKey) {
+      nextMapping[header] = mappedKey;
+      return;
+    }
+    if (!foundFirst) {
+      nextMapping[header] = mappedKey;
+      foundFirst = true;
+      return;
+    }
+    nextMapping[header] = '';
+  });
+
+  return nextMapping;
+};
+
 export const shouldBlockBulkGeneration = (
   strictMode: boolean,
   globalWarningCount: number,
