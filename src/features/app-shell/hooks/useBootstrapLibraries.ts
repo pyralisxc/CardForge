@@ -8,13 +8,13 @@ import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate } f
 interface UseBootstrapLibrariesInput {
   setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
   setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => void;
-  setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
+  mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
 }
 
 export function useBootstrapLibraries({
   setAppearanceStylesFromFiles,
   setDefaultTemplatesFromFiles,
-  setUserTemplatesFromFiles,
+  mergeUserTemplatesFromFiles,
 }: UseBootstrapLibrariesInput) {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
 
@@ -26,7 +26,7 @@ export function useBootstrapLibraries({
         const payload = await loadBootstrapTemplates();
         if (cancelled) return;
         setDefaultTemplatesFromFiles(Array.isArray(payload.defaults) ? payload.defaults : []);
-        setUserTemplatesFromFiles(Array.isArray(payload.userTemplates) ? payload.userTemplates : []);
+        mergeUserTemplatesFromFiles(Array.isArray(payload.userTemplates) ? payload.userTemplates : []);
       } catch (error) {
         console.warn('Unable to load pipeline templates:', error);
       } finally {
@@ -38,7 +38,7 @@ export function useBootstrapLibraries({
     return () => {
       cancelled = true;
     };
-  }, [setDefaultTemplatesFromFiles, setUserTemplatesFromFiles]);
+  }, [setDefaultTemplatesFromFiles, mergeUserTemplatesFromFiles]);
 
   useEffect(() => {
     let cancelled = false;

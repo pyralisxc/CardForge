@@ -129,6 +129,7 @@ export function CardForgeStudioShell() {
       closeEditDialogAction,
       deleteAppearanceStyleAction,
       deleteTemplateAction,
+      mergeUserTemplatesFromFilesAction,
       openEditDialogAction,
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
@@ -179,7 +180,7 @@ export function CardForgeStudioShell() {
   const { isLoadingTemplates } = useBootstrapLibraries({
     setAppearanceStylesFromFiles: setAppearanceStylesFromFilesAction,
     setDefaultTemplatesFromFiles: setDefaultTemplatesFromFilesAction,
-    setUserTemplatesFromFiles: setUserTemplatesFromFilesAction,
+    mergeUserTemplatesFromFiles: mergeUserTemplatesFromFilesAction,
   });
 
   const {

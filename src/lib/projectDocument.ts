@@ -80,6 +80,63 @@ const isLikelyTemplate = (value: unknown): value is Partial<TCGCardTemplate> => 
   );
 };
 
+const isLikelyStoredCard = (value: unknown): value is Partial<StoredDisplayCard> => (
+  isRecord(value)
+  && typeof value.templateId === 'string'
+  && (isRecord(value.data) || typeof value.uniqueId === 'string')
+);
+
+const isLikelyBulkContract = (value: unknown): boolean => (
+  isRecord(value)
+  && typeof value.contractVersion === 'number'
+  && typeof value.templateId === 'string'
+  && Array.isArray(value.fields)
+);
+
+const isScalarBulkCell = (value: unknown): boolean => (
+  value === null
+  || value === undefined
+  || typeof value === 'string'
+  || typeof value === 'number'
+  || typeof value === 'boolean'
+);
+
+const isLikelyBulkDataRow = (value: unknown): boolean => (
+  isRecord(value)
+  && Object.keys(value).length > 0
+  && !isLikelyTemplate(value)
+  && !isLikelyStoredCard(value)
+  && Object.values(value).every(isScalarBulkCell)
+);
+
+const getUnsupportedProjectDocumentReason = (value: unknown): string => {
+  const storedCardOnlyMessage = 'Generated-output JSON needs its matching templates. Import a full CardForge project export, or import local template JSON before loading generated outputs.';
+
+  if (isLikelyBulkContract(value)) {
+    return 'This is a bulk contract JSON file, not a project or template import. Use it as the source of truth beside Bulk Import data, or import a CardForge project export/local template JSON here.';
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length > 0 && value.every(isLikelyStoredCard)) {
+      return storedCardOnlyMessage;
+    }
+    if (value.length > 0 && value.every(isLikelyBulkDataRow)) {
+      return 'This looks like bulk data rows. Paste or upload this JSON in Generator > Bulk Import instead of the Layout Studio project importer.';
+    }
+  }
+
+  if (isRecord(value)) {
+    const state = isRecord(value.state) ? value.state : value;
+    const storedCards = asArray<StoredDisplayCard>(state.storedCards);
+    const userTemplates = normalizeTemplates(state.userTemplates);
+    if (storedCards.length > 0 && userTemplates.length === 0) {
+      return storedCardOnlyMessage;
+    }
+  }
+
+  return 'Unsupported project document format. Import a CardForge project export or local template JSON.';
+};
+
 const normalizeTemplates = (value: unknown): TCGCardTemplate[] => (
   asArray<Partial<TCGCardTemplate>>(value)
     .filter(isLikelyTemplate)
@@ -151,6 +208,7 @@ const normalizeLocalImportDocument = (value: unknown): ProjectDocumentV1 | null 
   const appearanceStyles = asArray<AppearanceStylePreset>(state.appearanceStyles);
   const exportSettingsSource = isRecord(state.exportSettings) ? state.exportSettings : state;
 
+  if (userTemplates.length === 0 && storedCards.length > 0) return null;
   if (userTemplates.length === 0 && storedCards.length === 0 && appearanceStyles.length === 0) return null;
 
   return {
@@ -246,6 +304,6 @@ export const parseProjectDocumentFile = (contents: string): ParseProjectDocument
 
   return {
     success: false,
-    error: 'Unsupported project document format. Import a CardForge project export or local template JSON.',
+    error: getUnsupportedProjectDocumentReason(parsed),
   };
 };

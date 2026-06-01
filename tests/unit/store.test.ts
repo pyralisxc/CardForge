@@ -277,6 +277,56 @@ describe('app store helpers', () => {
     ]);
   });
 
+  it('merges bootstrap user templates without replacing browser-local templates', () => {
+    const localTemplate = reconstructMinimalTemplateObject({
+      id: 'local-template',
+      name: 'Local Template',
+      templateSource: 'user',
+    });
+
+    useAppStore.setState({
+      defaultTemplates: [],
+      userTemplates: [localTemplate],
+      singleCardGeneratorSelectedTemplateId: 'local-template',
+    });
+
+    const importedCount = useAppStore.getState().mergeUserTemplatesFromFiles([
+      {
+        id: 'server-template',
+        name: 'Server Template',
+        templateSource: 'user',
+      },
+    ]);
+
+    expect(importedCount).toBe(1);
+    expect(useAppStore.getState().userTemplates).toMatchObject([
+      { id: 'local-template', name: 'Local Template', templateSource: 'user' },
+      { id: 'server-template', name: 'Server Template', templateSource: 'user' },
+    ]);
+    expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('local-template');
+  });
+
+  it('ignores empty bootstrap user template payloads to preserve browser-local templates', () => {
+    const localTemplate = reconstructMinimalTemplateObject({
+      id: 'local-template',
+      name: 'Local Template',
+      templateSource: 'user',
+    });
+
+    useAppStore.setState({
+      defaultTemplates: [],
+      userTemplates: [localTemplate],
+      singleCardGeneratorSelectedTemplateId: 'local-template',
+    });
+
+    const importedCount = useAppStore.getState().mergeUserTemplatesFromFiles([]);
+
+    expect(importedCount).toBe(0);
+    expect(useAppStore.getState().userTemplates).toMatchObject([
+      { id: 'local-template', name: 'Local Template', templateSource: 'user' },
+    ]);
+  });
+
   it('_rehydrateCallback fixes selectedTemplateId if the template no longer exists', () => {
     const template = reconstructMinimalTemplateObject({ id: 'only-template', name: 'Only' });
     useAppStore.setState({
