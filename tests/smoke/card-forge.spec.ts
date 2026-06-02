@@ -712,7 +712,12 @@ test('supports touch-sized panel scrolling and canvas gesture ownership', async 
     expect(metrics.elementTouchAction, `${viewport.name} elements own drag gestures`).toBe('none');
     expect(metrics.resizeHandleTouchAction, `${viewport.name} resize handles own drag gestures`).toBe('none');
     expect(metrics.resizeHandleSize, `${viewport.name} resize handles stay touchable after canvas scaling`).toBeGreaterThanOrEqual(16);
-    expect(metrics.canvasTouchAction, `${viewport.name} empty canvas can pan without page pinch zoom`).toBe('pan-x pan-y');
+    expect(metrics.canvasTouchAction, `${viewport.name} canvas owns custom pinch zoom and two-finger pan gestures`).toBe('none');
+
+    await page.getByRole('button', { name: 'Zoom in (+)' }).click();
+    await page.getByRole('button', { name: 'Set canvas to 100 percent' }).click();
+    await expect(page.getByText(/100% \//)).toBeVisible();
+    await page.getByRole('button', { name: 'Center canvas' }).click();
 
     for (const panelName of ['Templates', 'Inspector']) {
       await page.getByRole('button', { name: panelName, exact: true }).click();

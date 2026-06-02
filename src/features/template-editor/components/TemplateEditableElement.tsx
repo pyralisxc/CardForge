@@ -15,6 +15,12 @@ import { cn } from '@/lib/utils';
 import { canRenderVectorShape } from '@/lib/vectorShapes';
 import type { CardData, FreeformCardElement, TCGCardTemplate } from '@/types';
 import type { ResizeHandle } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
+import {
+  CANVAS_ZOOM,
+  RESIZE_HANDLE_MAX_CANVAS_SIZE,
+  RESIZE_HANDLE_MIN_CANVAS_SIZE,
+  RESIZE_HANDLE_SCREEN_SIZE,
+} from '@/features/template-editor/lib/canvasViewportConfig';
 
 const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: string; label: string }> = [
   { handle: 'n', className: 'left-1/2 top-0 -translate-x-1/2 -translate-y-1/2', cursor: 'ns-resize', label: 'Resize selected element vertically from center' },
@@ -152,7 +158,10 @@ export function TemplateEditableElement({
   const renderedTextStyle = element.type === 'text' && textElementStyle
     ? { ...textElementStyle, fontSize: undefined as unknown as CSSProperties['fontSize'] }
     : null;
-  const resizeHandleSize = Math.round(Math.min(Math.max(34 / Math.max(zoom, 0.16), 24), 150));
+  const resizeHandleSize = Math.round(Math.min(
+    Math.max(RESIZE_HANDLE_SCREEN_SIZE / Math.max(zoom, CANVAS_ZOOM.min), RESIZE_HANDLE_MIN_CANVAS_SIZE),
+    RESIZE_HANDLE_MAX_CANVAS_SIZE,
+  ));
 
   return (
     <div

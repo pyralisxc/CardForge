@@ -5,9 +5,10 @@ import { MousePointer2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import type { CardData, CardFace, FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
-
-const RULER_WIDTH = 28;
-const CANVAS_GUTTER = 32;
+import {
+  CANVAS_GUTTER,
+  CANVAS_RULER_WIDTH,
+} from '@/features/template-editor/lib/canvasViewportConfig';
 
 const rulerTickBackground = (axis: 'x' | 'y', gridSize: number, zoom: number): CSSProperties => ({
   backgroundImage: axis === 'x'
@@ -146,20 +147,20 @@ export function TemplateCanvasStage({
         <div
           className="relative"
           style={{
-            paddingLeft: RULER_WIDTH + CANVAS_GUTTER,
-            paddingTop: RULER_WIDTH + CANVAS_GUTTER,
-            width: RULER_WIDTH + CANVAS_GUTTER + canvas.width * zoom + CANVAS_GUTTER,
-            height: RULER_WIDTH + CANVAS_GUTTER + canvas.height * zoom + CANVAS_GUTTER,
+            paddingLeft: CANVAS_RULER_WIDTH + CANVAS_GUTTER,
+            paddingTop: CANVAS_RULER_WIDTH + CANVAS_GUTTER,
+            width: CANVAS_RULER_WIDTH + CANVAS_GUTTER + canvas.width * zoom + CANVAS_GUTTER,
+            height: CANVAS_RULER_WIDTH + CANVAS_GUTTER + canvas.height * zoom + CANVAS_GUTTER,
           }}
         >
-          <div aria-hidden="true" className="absolute left-0 top-0 border-b border-r border-[#3b3324] bg-[#090d13]" style={{ width: RULER_WIDTH, height: RULER_WIDTH }} />
+          <div aria-hidden="true" className="absolute left-0 top-0 border-b border-r border-[#3b3324] bg-[#090d13]" style={{ width: CANVAS_RULER_WIDTH, height: CANVAS_RULER_WIDTH }} />
 
           <div
             aria-hidden="true"
             className="absolute top-0 border-b border-[#3b3324] bg-[#090d13] shadow-[inset_0_-1px_0_rgba(213,173,84,0.18)]"
             style={{
-              left: RULER_WIDTH,
-              height: RULER_WIDTH,
+              left: CANVAS_RULER_WIDTH,
+              height: CANVAS_RULER_WIDTH,
               width: CANVAS_GUTTER + canvas.width * zoom + CANVAS_GUTTER,
               overflow: 'visible',
               ...rulerTickBackground('x', gridSize, zoom),
@@ -167,15 +168,15 @@ export function TemplateCanvasStage({
           >
             {buildRulerLabels({ axis: 'x', canvasLength: canvas.width, gridSize, zoom })}
           </div>
-          <div aria-hidden="true" style={{ position: 'absolute', left: RULER_WIDTH + CANVAS_GUTTER, top: 0, width: 1, height: RULER_WIDTH, background: 'rgba(213,173,84,0.9)' }} />
-          <div aria-hidden="true" style={{ position: 'absolute', left: RULER_WIDTH + CANVAS_GUTTER + canvas.width * zoom, top: 0, width: 1, height: RULER_WIDTH, background: 'rgba(213,173,84,0.5)' }} />
+          <div aria-hidden="true" style={{ position: 'absolute', left: CANVAS_RULER_WIDTH + CANVAS_GUTTER, top: 0, width: 1, height: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.9)' }} />
+          <div aria-hidden="true" style={{ position: 'absolute', left: CANVAS_RULER_WIDTH + CANVAS_GUTTER + canvas.width * zoom, top: 0, width: 1, height: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.5)' }} />
 
           <div
             aria-hidden="true"
             className="absolute left-0 border-r border-[#3b3324] bg-[#090d13] shadow-[inset_-1px_0_0_rgba(213,173,84,0.18)]"
             style={{
-              top: RULER_WIDTH,
-              width: RULER_WIDTH,
+              top: CANVAS_RULER_WIDTH,
+              width: CANVAS_RULER_WIDTH,
               height: CANVAS_GUTTER + canvas.height * zoom + CANVAS_GUTTER,
               overflow: 'visible',
               ...rulerTickBackground('y', gridSize, zoom),
@@ -183,15 +184,15 @@ export function TemplateCanvasStage({
           >
             {buildRulerLabels({ axis: 'y', canvasLength: canvas.height, gridSize, zoom })}
           </div>
-          <div aria-hidden="true" style={{ position: 'absolute', top: RULER_WIDTH + CANVAS_GUTTER, left: 0, height: 1, width: RULER_WIDTH, background: 'rgba(213,173,84,0.9)' }} />
-          <div aria-hidden="true" style={{ position: 'absolute', top: RULER_WIDTH + CANVAS_GUTTER + canvas.height * zoom, left: 0, height: 1, width: RULER_WIDTH, background: 'rgba(213,173,84,0.5)' }} />
+          <div aria-hidden="true" style={{ position: 'absolute', top: CANVAS_RULER_WIDTH + CANVAS_GUTTER, left: 0, height: 1, width: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.9)' }} />
+          <div aria-hidden="true" style={{ position: 'absolute', top: CANVAS_RULER_WIDTH + CANVAS_GUTTER + canvas.height * zoom, left: 0, height: 1, width: CANVAS_RULER_WIDTH, background: 'rgba(213,173,84,0.5)' }} />
 
           <div
             aria-hidden="true"
             style={{
               position: 'absolute',
-              left: RULER_WIDTH,
-              top: RULER_WIDTH,
+              left: CANVAS_RULER_WIDTH,
+              top: CANVAS_RULER_WIDTH,
               width: CANVAS_GUTTER + canvas.width * zoom + CANVAS_GUTTER,
               height: CANVAS_GUTTER + canvas.height * zoom + CANVAS_GUTTER,
               backgroundImage: showGrid

@@ -1,4 +1,5 @@
 import type { FreeformCardElement } from '@/types';
+import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
 
 export type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
 
@@ -50,8 +51,8 @@ export const calculateZoomAroundClientPoint = ({
   scrollTop,
   focalPoint,
   stageRect,
-  minZoom = 0.16,
-  maxZoom = 1.6,
+  minZoom = CANVAS_ZOOM.min,
+  maxZoom = CANVAS_ZOOM.max,
 }: {
   currentZoom: number;
   nextZoom: number;

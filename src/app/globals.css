@@ -157,7 +157,7 @@ body {
     padding: 1rem !important;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-x pan-y;
+    touch-action: none;
   }
 
   [data-cardforge-canvas="true"] {
@@ -178,8 +178,30 @@ body {
 
   @media (max-width: 767px) and (orientation: portrait) {
     .cardforge-studio-main {
-      padding-left: 1rem;
-      padding-right: 1rem;
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+    }
+
+    .cardforge-studio-context {
+      display: none;
+    }
+
+    .cardforge-editor-topbar {
+      padding: 0.5rem !important;
+    }
+
+    .cardforge-editor-mark,
+    .cardforge-editor-subtitle {
+      display: none !important;
+    }
+
+    .cardforge-editor-actions {
+      margin-top: 0.5rem !important;
+      gap: 0.25rem !important;
+    }
+
+    .cardforge-editor-actions button {
+      min-height: 2rem;
     }
 
     .cardforge-maker-shell {
@@ -226,6 +248,10 @@ body {
   }
 
   @media (min-width: 640px) and (max-width: 1023px) and (orientation: landscape) {
+    .cardforge-studio-context {
+      display: none;
+    }
+
     .cardforge-studio-header {
       padding-top: 0.5rem !important;
       padding-bottom: 0.5rem !important;
@@ -252,6 +278,18 @@ body {
     .cardforge-studio-main {
       padding-top: 1rem;
       padding-bottom: 1rem;
+    }
+
+    .cardforge-editor-topbar {
+      padding: 0.5rem !important;
+    }
+
+    .cardforge-editor-subtitle {
+      display: none !important;
+    }
+
+    .cardforge-editor-actions {
+      margin-top: 0.5rem !important;
     }
 
     .cardforge-studio-tabs {

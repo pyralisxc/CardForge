@@ -1,6 +1,6 @@
 "use client";
 
-import { BoxSelect, Eye, EyeOff, Grid3X3, Maximize2, PenTool, Redo2, Save, Search, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { BoxSelect, Crosshair, Eye, EyeOff, Grid3X3, Maximize2, PenTool, Redo2, Save, Search, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -19,6 +19,8 @@ interface TemplateEditorTopBarProps {
   onZoomOut: () => void;
   onZoomIn: () => void;
   onFitToScreen: () => void;
+  onActualSize: () => void;
+  onCenterCanvas: () => void;
   onCreateBackFace: () => void;
   onSetActiveFace: (face: 'front' | 'back') => void;
   onToggleGrid: () => void;
@@ -43,6 +45,8 @@ export function TemplateEditorTopBar({
   onZoomOut,
   onZoomIn,
   onFitToScreen,
+  onActualSize,
+  onCenterCanvas,
   onCreateBackFace,
   onSetActiveFace,
   onToggleGrid,
@@ -59,20 +63,21 @@ export function TemplateEditorTopBar({
     { label: 'Zoom out (-)', icon: ZoomOut, action: onZoomOut, disabled: false },
     { label: 'Zoom in (+)', icon: ZoomIn, action: onZoomIn, disabled: false },
     { label: 'Fit to screen', icon: Maximize2, action: onFitToScreen, disabled: false },
+    { label: 'Center canvas', icon: Crosshair, action: onCenterCanvas, disabled: false },
   ] as const;
 
   return (
-    <div className="flex flex-col border-b border-[#2b2415] bg-[#0b0d11] px-2 py-1.5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="cardforge-editor-topbar flex flex-col border-b border-[#2b2415] bg-[#0b0d11] px-2 py-1.5 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-[#6d5323] bg-[#171207] shadow-[inset_0_0_18px_rgba(213,173,84,0.12)]">
+        <div className="cardforge-editor-mark flex h-8 w-8 items-center justify-center rounded-[4px] border border-[#6d5323] bg-[#171207] shadow-[inset_0_0_18px_rgba(213,173,84,0.12)]">
           <PenTool className="h-4 w-4 text-[#d5ad54]" />
         </div>
         <div>
           <h2 className="text-sm font-semibold tracking-wide text-[#f3ead7]">Layout Studio</h2>
-          <p className="text-[10px] uppercase tracking-[0.18em] text-[#8f95a3]">Freeform arcane layout studio</p>
+          <p className="cardforge-editor-subtitle text-[10px] uppercase tracking-[0.18em] text-[#8f95a3]">Freeform arcane layout studio</p>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-1 lg:mt-0">
+      <div className="cardforge-editor-actions mt-3 flex flex-wrap items-center gap-1 lg:mt-0">
         {iconActions.map((item) => (
           <Tooltip key={item.label}>
             <TooltipTrigger asChild>
@@ -92,6 +97,22 @@ export function TemplateEditorTopBar({
             <TooltipContent>{item.label}</TooltipContent>
           </Tooltip>
         ))}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onActualSize}
+              aria-label="Set canvas to 100 percent"
+              title="Set canvas to 100%"
+              className="h-7 rounded-[4px] px-2 font-mono text-[10px] text-[#aeb4c0] hover:bg-[#171d29] hover:text-[#f3ead7]"
+            >
+              100%
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Set canvas to 100%</TooltipContent>
+        </Tooltip>
         {hasBackFace ? (
           <>
             <Tooltip>

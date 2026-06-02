@@ -349,7 +349,7 @@ export function CardForgeStudioShell() {
           </section>
         ) : null}
         <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full min-w-0">
-          <div className="mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
+          <div className="cardforge-studio-context mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
             <p><span className="font-semibold text-[#fff1c7]">Layout Studio</span> builds templates, text modes, and variables.</p>
             <p><span className="font-semibold text-[#fff1c7]">Generate</span> fills those contracts and keeps outputs visible for review, edits, and export.</p>
           </div>

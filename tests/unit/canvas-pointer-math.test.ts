@@ -85,4 +85,15 @@ describe('canvasPointerMath', () => {
       scrollTop: 310,
     });
   });
+
+  it('allows a deeper mobile-friendly zoom ceiling while clamping runaway zoom', () => {
+    expect(calculateZoomAroundClientPoint({
+      currentZoom: 1,
+      nextZoom: 3,
+      scrollLeft: 0,
+      scrollTop: 0,
+      focalPoint: { clientX: 100, clientY: 100 },
+      stageRect: { left: 0, top: 0 },
+    }).zoom).toBe(2.4);
+  });
 });

@@ -115,6 +115,13 @@ Every surface should be judged against these standards:
 - Responsiveness stays clean.
   - no flicker, layout jumps, broken drag states, or inspector/canvas desync
 
+Mobile Layout Studio contract:
+
+- The active mobile surface is one of `Canvas`, `Templates`, or `Inspector`; inactive surfaces should not remain stacked in page flow.
+- Canvas touch gestures are custom-owned by the editor: the canvas and resize handles use `touch-action: none` so pinch zoom, two-finger pan, drag, and resize stay inside the editor.
+- Side panels keep native vertical scroll with `touch-action: pan-y`.
+- Canvas recovery controls should stay available: zoom in/out, fit, 100%, and center.
+
 When grading a surface, treat “works correctly” as the baseline, not the finish line.
 
 ## Sequential Verification Gradebook

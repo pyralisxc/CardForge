@@ -81,6 +81,12 @@ import { useTemplateEditorController } from '@/features/template-editor/hooks/us
 import { useTemplateAssetLibrary } from '@/features/template-editor/hooks/useTemplateAssetLibrary';
 import { buildLayerTree } from '@/features/template-editor/lib/layerTree';
 import {
+  CANVAS_GUTTER,
+  CANVAS_RULER_WIDTH,
+  CANVAS_SCROLL_PADDING,
+  CANVAS_ZOOM,
+} from '@/features/template-editor/lib/canvasViewportConfig';
+import {
   getNextScopedVariableKey as buildNextScopedVariableKey,
   hasScopedVariableKeyConflict,
   normalizeTemplateVariableKey,
@@ -115,11 +121,6 @@ interface CardTemplateMakerProps {
 }
 
 const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
-const STAGE_RULER_WIDTH = 28;
-const STAGE_CANVAS_GUTTER = 32;
-const STAGE_SCROLL_PADDING = 24;
-const MIN_CANVAS_ZOOM = 0.16;
-const MAX_CANVAS_ZOOM = 1.6;
 
 type MobileMakerPanel = 'canvas' | 'library' | 'inspector';
 
@@ -362,12 +363,12 @@ export function CardTemplateMaker({
       const width = stageRef.current?.clientWidth || 0;
       const height = stageRef.current?.clientHeight || 0;
       if (!width || !height) return;
-      const chromeWidth = STAGE_RULER_WIDTH + STAGE_CANVAS_GUTTER * 2 + STAGE_SCROLL_PADDING;
-      const chromeHeight = STAGE_RULER_WIDTH + STAGE_CANVAS_GUTTER * 2 + STAGE_SCROLL_PADDING;
+      const chromeWidth = CANVAS_RULER_WIDTH + CANVAS_GUTTER * 2 + CANVAS_SCROLL_PADDING;
+      const chromeHeight = CANVAS_RULER_WIDTH + CANVAS_GUTTER * 2 + CANVAS_SCROLL_PADDING;
       const widthFit = (width - chromeWidth) / canvas.width;
       const heightFit = (height - chromeHeight) / canvas.height;
-      const fitted = width < 1024 ? Math.min(widthFit, 0.76) : Math.min(widthFit, heightFit, 0.76);
-      setZoom(clamp(Math.round(fitted * 100) / 100, MIN_CANVAS_ZOOM, 0.76));
+      const fitted = width < 1024 ? Math.min(widthFit, CANVAS_ZOOM.autoFitMax) : Math.min(widthFit, heightFit, CANVAS_ZOOM.autoFitMax);
+      setZoom(clamp(Math.round(fitted * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.autoFitMax));
     };
     updateFit();
     const observer = new ResizeObserver(updateFit);
@@ -792,11 +793,11 @@ export function CardTemplateMaker({
       scrollTop: gesture.scrollTop,
       focalPoint: gesture.midpoint,
       stageRect: stage.getBoundingClientRect(),
-      minZoom: MIN_CANVAS_ZOOM,
-      maxZoom: MAX_CANVAS_ZOOM,
+      minZoom: CANVAS_ZOOM.min,
+      maxZoom: CANVAS_ZOOM.max,
     });
 
-    setZoom(Math.round(nextViewport.zoom * 100) / 100);
+    setZoom(Math.round(nextViewport.zoom * CANVAS_ZOOM.precision) / CANVAS_ZOOM.precision);
     stage.scrollLeft = nextViewport.scrollLeft + (gesture.midpoint.clientX - currentMidpoint.clientX);
     stage.scrollTop = nextViewport.scrollTop + (gesture.midpoint.clientY - currentMidpoint.clientY);
   }, []);
@@ -825,13 +826,31 @@ export function CardTemplateMaker({
       scrollTop: stage.scrollTop,
       focalPoint: { clientX: event.clientX, clientY: event.clientY },
       stageRect: stage.getBoundingClientRect(),
-      minZoom: MIN_CANVAS_ZOOM,
-      maxZoom: MAX_CANVAS_ZOOM,
+      minZoom: CANVAS_ZOOM.min,
+      maxZoom: CANVAS_ZOOM.max,
     });
-    setZoom(Math.round(nextViewport.zoom * 100) / 100);
+    setZoom(Math.round(nextViewport.zoom * CANVAS_ZOOM.precision) / CANVAS_ZOOM.precision);
     stage.scrollLeft = nextViewport.scrollLeft;
     stage.scrollTop = nextViewport.scrollTop;
   }, [zoom]);
+
+  const centerCanvasViewport = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.scrollLeft = Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2);
+    stage.scrollTop = Math.max(0, (stage.scrollHeight - stage.clientHeight) / 2);
+  }, []);
+
+  const fitCanvasToViewport = useCallback(() => {
+    setAutoFitCanvas(true);
+    requestAnimationFrame(centerCanvasViewport);
+  }, [centerCanvasViewport]);
+
+  const resetCanvasZoom = useCallback(() => {
+    setAutoFitCanvas(false);
+    setZoom(CANVAS_ZOOM.actualSize);
+    requestAnimationFrame(centerCanvasViewport);
+  }, [centerCanvasViewport]);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -937,11 +956,11 @@ export function CardTemplateMaker({
       if (event.key.toLowerCase() === 'p') setPreviewMode(value => !value);
       if (event.key === '+' || event.key === '=') {
         setAutoFitCanvas(false);
-        setZoom(value => clamp(Math.round((value + 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
+        setZoom(value => clamp(Math.round((value + CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
       }
       if (event.key === '-' || event.key === '_') {
         setAutoFitCanvas(false);
-        setZoom(value => clamp(Math.round((value - 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
+        setZoom(value => clamp(Math.round((value - CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -1066,13 +1085,15 @@ export function CardTemplateMaker({
           onRedo={redo}
           onZoomOut={() => {
             setAutoFitCanvas(false);
-            setZoom(value => clamp(Math.round((value - 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
+            setZoom(value => clamp(Math.round((value - CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
           }}
           onZoomIn={() => {
             setAutoFitCanvas(false);
-            setZoom(value => clamp(Math.round((value + 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
+            setZoom(value => clamp(Math.round((value + CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
           }}
-          onFitToScreen={() => setAutoFitCanvas(true)}
+          onFitToScreen={fitCanvasToViewport}
+          onActualSize={resetCanvasZoom}
+          onCenterCanvas={centerCanvasViewport}
           onCreateBackFace={createBackFace}
           onSetActiveFace={setActiveFace}
           onToggleGrid={() => setShowGrid(value => !value)}
