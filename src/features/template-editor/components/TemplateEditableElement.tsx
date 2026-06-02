@@ -152,7 +152,7 @@ export function TemplateEditableElement({
   const renderedTextStyle = element.type === 'text' && textElementStyle
     ? { ...textElementStyle, fontSize: undefined as unknown as CSSProperties['fontSize'] }
     : null;
-  const resizeHandleSize = Math.round(Math.min(Math.max(20 / Math.max(zoom, 0.16), 18), 120));
+  const resizeHandleSize = Math.round(Math.min(Math.max(34 / Math.max(zoom, 0.16), 24), 150));
 
   return (
     <div

@@ -358,10 +358,10 @@ export function BulkGenerator({
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (!/\.(csv|json|txt)$/i.test(file.name)) {
+      if (!/\.(csv|json|txt|md)$/i.test(file.name)) {
         toast({
           title: ERROR_COPY.unsupportedFileType.title,
-          description: withNextStep('Only .csv, .json, and .txt files are supported for data import.', 'Choose a supported data file and upload again.'),
+          description: withNextStep('Only .csv, .json, .txt, and .md files are supported for data import.', 'Choose a supported data file and upload again.'),
           variant: 'destructive',
         });
         if (fileInputRef.current) fileInputRef.current.value = '';

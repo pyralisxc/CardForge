@@ -32,6 +32,7 @@ describe('structured row fields', () => {
 
     expect(parseStructuredRowsValue(stringifyStructuredRowsValue(rows))).toEqual(rows);
     expect(buildStructuredRowsText(rowElement, rows)).toBe('Flying: +1\nTrample: +2');
+    expect(buildStructuredRowsText(rowElement, rows, ' / ')).toBe('Flying: +1 / Trample: +2');
     expect(structuredRowToCardData('trait-row', rows[0])).toMatchObject({
       trait: 'Flying',
       value: '+1',

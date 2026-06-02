@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, DragEvent, KeyboardEvent, PointerEvent, ReactNode } from 'react';
+import type { CSSProperties, DragEvent, KeyboardEvent, PointerEvent, ReactNode, WheelEvent } from 'react';
 import { MousePointer2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
@@ -86,6 +86,10 @@ interface TemplateCanvasStageProps {
   onDeselectCanvas: () => void;
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
   onPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
+  onStagePointerDownCapture: (event: PointerEvent<HTMLDivElement>) => void;
+  onStagePointerMoveCapture: (event: PointerEvent<HTMLDivElement>) => void;
+  onStagePointerUpCapture: (event: PointerEvent<HTMLDivElement>) => void;
+  onStageWheel: (event: WheelEvent<HTMLDivElement>) => void;
   onPointerUp: (event: PointerEvent<HTMLDivElement>) => void;
   renderEditableElement: (element: FreeformCardElement) => ReactNode;
 }
@@ -110,12 +114,16 @@ export function TemplateCanvasStage({
   onDrop,
   onPointerMove,
   onPointerUp,
+  onStagePointerDownCapture,
+  onStagePointerMoveCapture,
+  onStagePointerUpCapture,
+  onStageWheel,
   renderEditableElement,
 }: TemplateCanvasStageProps) {
   return (
     <section className="cardforge-canvas-stage cardforge-maker-canvas min-w-0 overflow-hidden bg-[#05080c] lg:min-h-[760px]">
       <div className="flex items-center justify-between border-b border-[#252b35] bg-[#080c12] px-3 py-1.5 text-[11px] text-[#8f95a3]">
-        <span className="flex items-center gap-2"><MousePointer2 className="h-3.5 w-3.5 text-[#d5ad54]" /> Drag, snap, resize, layer, and tune every card surface.</span>
+        <span className="flex items-center gap-2"><MousePointer2 className="h-3.5 w-3.5 text-[#d5ad54]" /> Drag layers. On touch, pinch to zoom and use two fingers to pan.</span>
         <span className="font-mono text-[#d5ad54]">{Math.round(zoom * 100)}% / {canvas.width} x {canvas.height}</span>
       </div>
       <div
@@ -123,10 +131,15 @@ export function TemplateCanvasStage({
           stageRef.current = stage;
         }}
         data-cardforge-stage="true"
-        className="cardforge-canvas-scroll relative flex h-[calc(100vh-238px)] min-h-[720px] justify-center overflow-auto bg-[#05080c] p-8"
+        className="cardforge-canvas-scroll relative flex h-[calc(100vh-238px)] min-h-[520px] touch-none justify-center overflow-auto bg-[#05080c] p-4 md:min-h-[720px] md:p-8"
+        onPointerDownCapture={onStagePointerDownCapture}
+        onPointerMoveCapture={onStagePointerMoveCapture}
+        onPointerUpCapture={onStagePointerUpCapture}
+        onPointerCancelCapture={onStagePointerUpCapture}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onWheel={onStageWheel}
         onDragOver={(event) => event.preventDefault()}
         onDrop={onDrop}
       >

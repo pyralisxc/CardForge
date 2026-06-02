@@ -440,6 +440,22 @@ Transitions[1].Position: 421
     ]);
   });
 
+  it('parses numbered and bulleted Field value text as readable bulk input', () => {
+    expect(parseBulkDataSource([
+      '1. Name: Aetherglass Vanguard',
+      '- Type: Creature',
+      '* Rules Text: Flying',
+      '',
+      '2. Name: Ember Archive',
+      '- Type: Artifact',
+      '- Rules Text: Draw a card.',
+    ].join('\n'), 'structured')).toEqual([
+      ['Name', 'Type', 'Rules Text'],
+      ['Aetherglass Vanguard', 'Creature', 'Flying'],
+      ['Ember Archive', 'Artifact', 'Draw a card.'],
+    ]);
+  });
+
   it('creates preview warnings and row overrides from mapped CSV data', () => {
     expect(createBulkPreview({
       rows: [

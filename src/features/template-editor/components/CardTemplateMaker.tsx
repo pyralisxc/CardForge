@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, RefObject } from 'react';
+import type { ChangeEvent, PointerEvent as ReactPointerEvent, RefObject, WheelEvent as ReactWheelEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, FreeformCanvas, TCGCardTemplate } from '@/types';
@@ -41,6 +41,11 @@ import { ELEMENT_STYLE_PRESETS } from '@/features/template-editor/lib/elementSty
 import { PREDEFINED_FRAME_VISUAL_PROPERTIES } from '@/features/template-editor/lib/frameVisualPresets';
 import { ICON_OPTIONS } from '@/features/template-editor/lib/iconOptions';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
+import {
+  calculateZoomAroundClientPoint,
+  getTouchDistance,
+  getTouchMidpoint,
+} from '@/features/template-editor/lib/canvasPointerMath';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/lib/makerDimensions';
@@ -113,6 +118,8 @@ const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
 const STAGE_RULER_WIDTH = 28;
 const STAGE_CANVAS_GUTTER = 32;
 const STAGE_SCROLL_PADDING = 24;
+const MIN_CANVAS_ZOOM = 0.16;
+const MAX_CANVAS_ZOOM = 1.6;
 
 type MobileMakerPanel = 'canvas' | 'library' | 'inspector';
 
@@ -121,6 +128,16 @@ const MOBILE_MAKER_PANELS: Array<{ value: MobileMakerPanel; label: string }> = [
   { value: 'library', label: 'Templates' },
   { value: 'inspector', label: 'Inspector' },
 ];
+
+type TouchPoint = { clientX: number; clientY: number };
+
+interface TouchGestureState {
+  distance: number;
+  midpoint: TouchPoint;
+  zoom: number;
+  scrollLeft: number;
+  scrollTop: number;
+}
 
 export function CardTemplateMaker({
   canUseProjectFiles,
@@ -150,6 +167,8 @@ export function CardTemplateMaker({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const bgImageInputRef = useRef<HTMLInputElement | null>(null);
   const borderImageInputRef = useRef<HTMLInputElement | null>(null);
+  const touchPointersRef = useRef<Map<number, TouchPoint>>(new Map());
+  const touchGestureRef = useRef<TouchGestureState | null>(null);
   const variableKeyInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const variableCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -348,7 +367,7 @@ export function CardTemplateMaker({
       const widthFit = (width - chromeWidth) / canvas.width;
       const heightFit = (height - chromeHeight) / canvas.height;
       const fitted = width < 1024 ? Math.min(widthFit, 0.76) : Math.min(widthFit, heightFit, 0.76);
-      setZoom(clamp(Math.round(fitted * 100) / 100, 0.16, 0.76));
+      setZoom(clamp(Math.round(fitted * 100) / 100, MIN_CANVAS_ZOOM, 0.76));
     };
     updateFit();
     const observer = new ResizeObserver(updateFit);
@@ -704,6 +723,7 @@ export function CardTemplateMaker({
 
   const snapValue = useCallback((value: number) => snapToGrid ? Math.round(value / gridSize) * gridSize : Math.round(value), [gridSize, snapToGrid]);
   const {
+    cancelDrag,
     clearDepthSelection,
     getCanvasPoint,
     handleElementPointerDown,
@@ -722,6 +742,96 @@ export function CardTemplateMaker({
     updateCanvas,
     zoom,
   });
+
+  const beginTouchGesture = useCallback(() => {
+    const stage = stageRef.current;
+    const points = Array.from(touchPointersRef.current.values());
+    if (!stage || points.length < 2) {
+      touchGestureRef.current = null;
+      return;
+    }
+    const [first, second] = points;
+    touchGestureRef.current = {
+      distance: Math.max(1, getTouchDistance(first, second)),
+      midpoint: getTouchMidpoint(first, second),
+      zoom,
+      scrollLeft: stage.scrollLeft,
+      scrollTop: stage.scrollTop,
+    };
+  }, [zoom]);
+
+  const handleStagePointerDownCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch') return;
+    touchPointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+    if (touchPointersRef.current.size >= 2) {
+      event.preventDefault();
+      setAutoFitCanvas(false);
+      cancelDrag();
+      beginTouchGesture();
+    }
+  }, [beginTouchGesture, cancelDrag]);
+
+  const handleStagePointerMoveCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch' || !touchPointersRef.current.has(event.pointerId)) return;
+    touchPointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+    const stage = stageRef.current;
+    const gesture = touchGestureRef.current;
+    const points = Array.from(touchPointersRef.current.values());
+    if (!stage || !gesture || points.length < 2) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const [first, second] = points;
+    const currentDistance = Math.max(1, getTouchDistance(first, second));
+    const currentMidpoint = getTouchMidpoint(first, second);
+    const nextZoom = gesture.zoom * (currentDistance / gesture.distance);
+    const nextViewport = calculateZoomAroundClientPoint({
+      currentZoom: gesture.zoom,
+      nextZoom,
+      scrollLeft: gesture.scrollLeft,
+      scrollTop: gesture.scrollTop,
+      focalPoint: gesture.midpoint,
+      stageRect: stage.getBoundingClientRect(),
+      minZoom: MIN_CANVAS_ZOOM,
+      maxZoom: MAX_CANVAS_ZOOM,
+    });
+
+    setZoom(Math.round(nextViewport.zoom * 100) / 100);
+    stage.scrollLeft = nextViewport.scrollLeft + (gesture.midpoint.clientX - currentMidpoint.clientX);
+    stage.scrollTop = nextViewport.scrollTop + (gesture.midpoint.clientY - currentMidpoint.clientY);
+  }, []);
+
+  const handleStagePointerUpCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch') return;
+    touchPointersRef.current.delete(event.pointerId);
+    if (touchPointersRef.current.size >= 2) {
+      beginTouchGesture();
+      return;
+    }
+    touchGestureRef.current = null;
+  }, [beginTouchGesture]);
+
+  const handleStageWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    event.preventDefault();
+    setAutoFitCanvas(false);
+    const nextZoom = zoom * (event.deltaY > 0 ? 0.92 : 1.08);
+    const nextViewport = calculateZoomAroundClientPoint({
+      currentZoom: zoom,
+      nextZoom,
+      scrollLeft: stage.scrollLeft,
+      scrollTop: stage.scrollTop,
+      focalPoint: { clientX: event.clientX, clientY: event.clientY },
+      stageRect: stage.getBoundingClientRect(),
+      minZoom: MIN_CANVAS_ZOOM,
+      maxZoom: MAX_CANVAS_ZOOM,
+    });
+    setZoom(Math.round(nextViewport.zoom * 100) / 100);
+    stage.scrollLeft = nextViewport.scrollLeft;
+    stage.scrollTop = nextViewport.scrollTop;
+  }, [zoom]);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -827,11 +937,11 @@ export function CardTemplateMaker({
       if (event.key.toLowerCase() === 'p') setPreviewMode(value => !value);
       if (event.key === '+' || event.key === '=') {
         setAutoFitCanvas(false);
-        setZoom(value => clamp(Math.round((value + 0.08) * 100) / 100, 0.28, 1.2));
+        setZoom(value => clamp(Math.round((value + 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
       }
       if (event.key === '-' || event.key === '_') {
         setAutoFitCanvas(false);
-        setZoom(value => clamp(Math.round((value - 0.08) * 100) / 100, 0.28, 1.2));
+        setZoom(value => clamp(Math.round((value - 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -956,11 +1066,11 @@ export function CardTemplateMaker({
           onRedo={redo}
           onZoomOut={() => {
             setAutoFitCanvas(false);
-            setZoom(value => clamp(Math.round((value - 0.08) * 100) / 100, 0.28, 1.2));
+            setZoom(value => clamp(Math.round((value - 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
           }}
           onZoomIn={() => {
             setAutoFitCanvas(false);
-            setZoom(value => clamp(Math.round((value + 0.08) * 100) / 100, 0.28, 1.2));
+            setZoom(value => clamp(Math.round((value + 0.08) * 100) / 100, MIN_CANVAS_ZOOM, MAX_CANVAS_ZOOM));
           }}
           onFitToScreen={() => setAutoFitCanvas(true)}
           onCreateBackFace={createBackFace}
@@ -1119,6 +1229,10 @@ export function CardTemplateMaker({
             onDrop={handleDrop}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onStagePointerDownCapture={handleStagePointerDownCapture}
+            onStagePointerMoveCapture={handleStagePointerMoveCapture}
+            onStagePointerUpCapture={handleStagePointerUpCapture}
+            onStageWheel={handleStageWheel}
             renderEditableElement={renderEditableElement}
           />
 

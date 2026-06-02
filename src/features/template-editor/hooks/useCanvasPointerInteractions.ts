@@ -174,7 +174,12 @@ export function useCanvasPointerInteractions({
     depthSelectionRef.current = null;
   }, []);
 
+  const cancelDrag = useCallback(() => {
+    dragStateRef.current = null;
+  }, []);
+
   return {
+    cancelDrag,
     clearDepthSelection,
     getCanvasPoint,
     handleElementPointerDown,

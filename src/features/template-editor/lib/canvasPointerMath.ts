@@ -12,6 +12,11 @@ interface CanvasRectLike {
   top: number;
 }
 
+interface StageRectLike extends CanvasRectLike {
+  width?: number;
+  height?: number;
+}
+
 type SnapValue = (value: number) => number;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
@@ -24,6 +29,50 @@ export const getCanvasPointFromRect = (
   x: (event.clientX - rect.left) / zoom,
   y: (event.clientY - rect.top) / zoom,
 });
+
+export const getTouchDistance = (
+  first: CanvasPointerEventLike,
+  second: CanvasPointerEventLike,
+): number => Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+
+export const getTouchMidpoint = (
+  first: CanvasPointerEventLike,
+  second: CanvasPointerEventLike,
+): CanvasPointerEventLike => ({
+  clientX: (first.clientX + second.clientX) / 2,
+  clientY: (first.clientY + second.clientY) / 2,
+});
+
+export const calculateZoomAroundClientPoint = ({
+  currentZoom,
+  nextZoom,
+  scrollLeft,
+  scrollTop,
+  focalPoint,
+  stageRect,
+  minZoom = 0.16,
+  maxZoom = 1.6,
+}: {
+  currentZoom: number;
+  nextZoom: number;
+  scrollLeft: number;
+  scrollTop: number;
+  focalPoint: CanvasPointerEventLike;
+  stageRect: StageRectLike;
+  minZoom?: number;
+  maxZoom?: number;
+}) => {
+  const clampedZoom = clamp(nextZoom, minZoom, maxZoom);
+  const ratio = clampedZoom / Math.max(currentZoom, minZoom);
+  const focalX = focalPoint.clientX - stageRect.left;
+  const focalY = focalPoint.clientY - stageRect.top;
+
+  return {
+    zoom: clampedZoom,
+    scrollLeft: (scrollLeft + focalX) * ratio - focalX,
+    scrollTop: (scrollTop + focalY) * ratio - focalY,
+  };
+};
 
 export const calculateMovedElementPosition = ({
   original,

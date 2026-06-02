@@ -366,17 +366,17 @@ test('adds structured row columns in the layout studio text inspector', async ({
   await gotoStudio(page);
 
   await selectMainTab(page, /Layout Studio/i);
-  await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Create new template', exact: true })).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 
   await page.getByRole('button', { name: 'Create new template', exact: true }).click();
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
 
-  await page.getByRole('radio', { name: /Structured Rows/i }).click();
-  await expect(page.getByText('Row Pattern', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: /Add Row Columns/i }).click();
+  await page.getByRole('radio', { name: /Repeating Text/i }).click();
+  await expect(page.getByText('Repeating Text', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Add Label \+ Value/i }).click();
 
-  await expect(page.getByText(/CSV headers:/i)).toContainText('label');
+  await expect(page.getByText(/Variables:/i)).toContainText('label');
   await expect(page.getByLabel('Variable name for Label')).toBeVisible();
   await expect(page.getByLabel('Variable name for Value')).toBeVisible();
 });

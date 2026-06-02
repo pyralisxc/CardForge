@@ -37,7 +37,7 @@ export function BulkCsvInputPanel({
     <Card>
       <CardHeader>
         <CardTitle className="text-base">2. Data Source</CardTitle>
-        <CardDescription>Paste CSV, JSON, or structured text, or upload a data file to start mapping.</CardDescription>
+        <CardDescription>Upload or paste CSV, JSON, Markdown, or plain Field: value text.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
@@ -49,7 +49,7 @@ export function BulkCsvInputPanel({
             id="bulk-file-upload-csv"
             ref={fileInputRef}
             type="file"
-            accept=".csv,.json,.txt,text/csv,application/json,text/plain"
+            accept=".csv,.json,.txt,.md,text/csv,application/json,text/plain,text/markdown"
             className="sr-only"
             onChange={onFileUpload}
           />
@@ -67,14 +67,14 @@ export function BulkCsvInputPanel({
             disabled={!selectedTemplate}
             onClick={() => onDataInputChange(exampleStructuredText)}
           >
-            Use Field Text
+            Use Text Starter
           </Button>
         </div>
 
         {selectedTemplate ? (
           <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
             <p>Expected fields: {bulkFieldDefinitions.map((field) => field.label).join(', ')}</p>
-            <p>Multiline text stays safest in quoted CSV cells, JSON string values, or Field: value text blocks.</p>
+            <p>Readable text works too: use Field: value lines, with optional numbering or bullets between cards.</p>
           </div>
         ) : null}
 
@@ -84,7 +84,7 @@ export function BulkCsvInputPanel({
             id="bulkData"
             value={bulkDataInput}
             onChange={(event) => onDataInputChange(event.target.value)}
-            placeholder="Paste CSV, JSON object arrays, or structured Field: value text here"
+            placeholder="Paste CSV, JSON, Markdown, or Field: value text here"
             className="min-h-[220px] font-mono text-xs"
           />
         </div>

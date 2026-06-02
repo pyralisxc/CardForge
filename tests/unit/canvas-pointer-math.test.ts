@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateMovedElementPosition,
   calculateResizedElementBounds,
+  calculateZoomAroundClientPoint,
   getCanvasPointFromRect,
+  getTouchDistance,
+  getTouchMidpoint,
 } from '@/features/template-editor/lib/canvasPointerMath';
 import type { FreeformCardElement } from '@/types';
 
@@ -57,6 +60,29 @@ describe('canvasPointerMath', () => {
       y: 70,
       width: 90,
       height: 60,
+    });
+  });
+
+  it('calculates touch gesture distance and midpoint', () => {
+    const first = { clientX: 10, clientY: 20 };
+    const second = { clientX: 40, clientY: 60 };
+
+    expect(getTouchDistance(first, second)).toBe(50);
+    expect(getTouchMidpoint(first, second)).toEqual({ clientX: 25, clientY: 40 });
+  });
+
+  it('keeps the focal point stable when zooming the scrollable stage', () => {
+    expect(calculateZoomAroundClientPoint({
+      currentZoom: 0.5,
+      nextZoom: 1,
+      scrollLeft: 100,
+      scrollTop: 80,
+      focalPoint: { clientX: 250, clientY: 180 },
+      stageRect: { left: 50, top: 30 },
+    })).toEqual({
+      zoom: 1,
+      scrollLeft: 400,
+      scrollTop: 310,
     });
   });
 });

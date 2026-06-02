@@ -20,6 +20,7 @@ import {
 } from '@/lib/textBindings';
 import {
   buildStructuredRowsDataKey,
+  buildStructuredRowsSeparatorDataKey,
   buildStructuredRowsText,
   parseStructuredRowsValue,
   structuredRowToCardData,
@@ -226,8 +227,9 @@ export function CardTextContent({
   const structuredRows = contentModel === 'structuredRows'
     ? parseStructuredRowsValue(data[buildStructuredRowsDataKey(element.id)])
     : [];
+  const structuredRowsSeparator = String(data[buildStructuredRowsSeparatorDataKey(element.id)] ?? '\n');
   const processedText = structuredRows.length > 0
-    ? buildStructuredRowsText(element, structuredRows)
+    ? buildStructuredRowsText(element, structuredRows, structuredRowsSeparator)
     : resolveTemplateTextSegments(
     element.id,
     element.content,
@@ -238,7 +240,7 @@ export function CardTextContent({
     ? structuredRows.flatMap((row, index) => {
         const segments = buildResolvedTextSegments(template, element, structuredRowToCardData(element.id, row), scale);
         return index < structuredRows.length - 1
-          ? [...segments, { text: '\n' }]
+          ? [...segments, { text: structuredRowsSeparator }]
           : segments;
       })
     : buildResolvedTextSegments(template, element, data, scale);

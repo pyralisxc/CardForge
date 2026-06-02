@@ -247,6 +247,10 @@ export const normalizeJsonObjectsToRows = (value: unknown): string[][] => {
 };
 
 const FIELD_LINE_REGEX = /^([^:\n]+):\s*(.*)$/;
+const STRUCTURED_TEXT_LIST_PREFIX_REGEX = /^\s*(?:[-*]\s+|\d+[\.)]\s+)/;
+
+const stripStructuredTextListPrefix = (line: string): string =>
+  line.replace(STRUCTURED_TEXT_LIST_PREFIX_REGEX, '');
 
 const pushStructuredRecord = (
   records: Array<Record<string, string>>,
@@ -285,10 +289,14 @@ export const parseStructuredTextToRows = (raw: string): string[][] => {
     }
 
     blankLineCount = 0;
-    const fieldMatch = FIELD_LINE_REGEX.exec(line);
+    const normalizedLine = stripStructuredTextListPrefix(line);
+    const fieldMatch = FIELD_LINE_REGEX.exec(normalizedLine);
     if (fieldMatch) {
       const key = fieldMatch[1].trim();
       if (!key) return;
+      if (Object.prototype.hasOwnProperty.call(currentRecord, key)) {
+        pushStructuredRecord(records, currentRecord, activeKeyRef);
+      }
       activeKeyRef.value = key;
       currentRecord[key] = fieldMatch[2] ?? '';
       return;

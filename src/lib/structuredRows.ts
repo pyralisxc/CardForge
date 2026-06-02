@@ -4,9 +4,13 @@ import { buildScopedFieldDataKey, resolveTemplateTextSegments } from '@/lib/text
 export type StructuredRowValue = Record<string, string>;
 
 export const STRUCTURED_ROWS_DATA_PREFIX = '__cardforgeStructuredRows__';
+export const STRUCTURED_ROWS_SEPARATOR_PREFIX = '__cardforgeStructuredRowsSeparator__';
 
 export const buildStructuredRowsDataKey = (elementId: string): string =>
   `${STRUCTURED_ROWS_DATA_PREFIX}${elementId}`;
+
+export const buildStructuredRowsSeparatorDataKey = (elementId: string): string =>
+  `${STRUCTURED_ROWS_SEPARATOR_PREFIX}${elementId}`;
 
 export const parseStructuredRowsValue = (value: CardData[string]): StructuredRowValue[] => {
   if (value === undefined || value === null || value === '') return [];
@@ -43,8 +47,9 @@ export const structuredRowToCardData = (
 export const buildStructuredRowsText = (
   element: Pick<FreeformCardElement, 'id' | 'content'>,
   rows: StructuredRowValue[],
+  separator = '\n',
 ): string =>
   rows
     .map((row) => resolveTemplateTextSegments(element.id, element.content, structuredRowToCardData(element.id, row), true))
     .filter((rowText) => rowText.trim().length > 0)
-    .join('\n');
+    .join(separator);

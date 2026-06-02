@@ -28,8 +28,8 @@ const textContractTypeOptions: Array<{ value: TextFieldContractType; label: stri
   },
   {
     value: 'structuredRows',
-    label: 'Structured Rows',
-    description: 'Repeatable rows using the variables inside this text element.',
+    label: 'Repeating Text',
+    description: 'Repeat this text element as list items. Variables become the editable parts.',
   },
 ];
 
@@ -58,7 +58,7 @@ export function TextElementFieldModeControl({
   }) ? 'structuredRows' : 'text';
 
   const description = mode === 'structuredRows'
-    ? 'Repeat this whole text element as rows in the generator. Every variable inside this element becomes a column in each row.'
+    ? 'Use this text element as a repeatable list. In Generate, each item fills these variables and uses a chosen separator.'
     : 'Use this text element as normal generator text. Static/base copy and inline variables compose into one authored text area.';
   const baseTextCount = parseTemplateTextSegments(element.content)
     .filter((segment) => segment.type === 'text' && segment.text.trim().length > 0)
@@ -113,7 +113,7 @@ export function TextElementFieldModeControl({
           <span className="rounded border border-[#252b35] bg-[#090d13] px-2 py-1">Base text zones: {baseTextCount}</span>
           <span className="rounded border border-[#252b35] bg-[#090d13] px-2 py-1">Inline variables: {variableCount}</span>
           <span className="rounded border border-[#252b35] bg-[#090d13] px-2 py-1">
-            {mode === 'structuredRows' ? `${variableCount} row ${variableCount === 1 ? 'column' : 'columns'}` : 'One composed field'}
+            {mode === 'structuredRows' ? `${variableCount} editable ${variableCount === 1 ? 'part' : 'parts'}` : 'One composed field'}
           </span>
         </div>
         {variableFields.length > 0 && (
@@ -125,9 +125,9 @@ export function TextElementFieldModeControl({
           <div className="rounded-[6px] border border-[#252b35] bg-[#090d13] p-2">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#f3ead7]">Row Pattern</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#f3ead7]">Repeating Text</p>
                 <p className="text-[10px] leading-4 text-[#8f95a3]">
-                  A structured row repeats this text element in Generate. Add columns here, then add actual rows in the Generator.
+                  Add variables for the pieces users fill in. In Generate, users can add items and pick a separator like dash, slash, or line break.
                 </p>
               </div>
               <Button
@@ -138,11 +138,11 @@ export function TextElementFieldModeControl({
                 onClick={onAddStructuredRowPattern}
               >
                 <Plus className="h-3.5 w-3.5" />
-                Add Row Columns
+                Add Label + Value
               </Button>
             </div>
             <div className="mt-2 rounded-[4px] border border-[#1f2631] bg-[#0b0f15] px-2 py-1.5 font-mono text-[10px] text-[#aeb4c0]">
-              CSV headers: {variableFields.length > 0 ? variableFields.map((field) => field.key).join(', ') : 'add row columns first'}
+              Variables: {variableFields.length > 0 ? variableFields.map((field) => field.key).join(', ') : 'add label and value first'}
             </div>
           </div>
         )}

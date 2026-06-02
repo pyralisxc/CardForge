@@ -13,10 +13,12 @@ import { RichTextContent } from '@/lib/textTools';
 import { GeneratorFieldInput, getFieldStringValue } from '@/features/card-generator/components/GeneratorFieldInput';
 import {
   buildStructuredRowsDataKey,
+  buildStructuredRowsSeparatorDataKey,
   parseStructuredRowsValue,
   stringifyStructuredRowsValue,
   structuredRowToCardData,
 } from '@/lib/structuredRows';
+import { buildFieldStyleDataKey, type FieldStyleProperty } from '@/lib/fieldStyleOverrides';
 
 interface FieldGroup {
   id: string;
@@ -98,8 +100,16 @@ function StructuredRowsEditor({
   onFieldChange: (fieldKey: string, value: string) => void;
 }) {
   const dataKey = buildStructuredRowsDataKey(group.id);
+  const separatorKey = buildStructuredRowsSeparatorDataKey(group.id);
   const rows = parseStructuredRowsValue(data[dataKey]);
   const effectiveRows = rows.length > 0 ? rows : buildDefaultStructuredRows(fields, data);
+  const separator = String(data[separatorKey] ?? '\n');
+  const separatorOptions = [
+    { label: 'Line', value: '\n' },
+    { label: 'Dash', value: ' - ' },
+    { label: 'Slash', value: ' / ' },
+    { label: 'Star', value: ' * ' },
+  ];
 
   const writeRows = (nextRows: Array<Record<string, string>>) => {
     onFieldChange(dataKey, stringifyStructuredRowsValue(nextRows));
@@ -111,13 +121,10 @@ function StructuredRowsEditor({
         <div className="space-y-1">
           <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
             <Table2 className="h-3.5 w-3.5 text-primary" />
-            Repeatable row group
+            Repeating text
           </p>
           <p className="text-xs text-muted-foreground">
-            The authored text above is the row pattern. Each row below fills the nested variables inside that same text element.
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            Columns: {fields.map((field) => field.label || field.key).join(', ')}
+            Each item fills this text element&apos;s variables. Choose how items are separated on the card.
           </p>
         </div>
         <Button
@@ -132,6 +139,28 @@ function StructuredRowsEditor({
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border/60 bg-background/60 p-2 text-xs">
+        <span className="mr-1 text-muted-foreground">Separator</span>
+        {separatorOptions.map((option) => (
+          <Button
+            key={option.label}
+            type="button"
+            size="sm"
+            variant={separator === option.value ? 'default' : 'outline'}
+            className="h-7 px-2 text-xs"
+            onClick={() => onFieldChange(separatorKey, option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+        <Input
+          value={separator}
+          onChange={(event) => onFieldChange(separatorKey, event.target.value)}
+          className="h-7 w-24 font-mono text-xs"
+          aria-label="Custom repeating text separator"
+        />
+      </div>
+
       {effectiveRows.map((row, rowIndex) => {
         const rowSourceContent = fields[0]?.sourceElementContent;
         const rowPreview = rowSourceContent
@@ -139,11 +168,10 @@ function StructuredRowsEditor({
           : group.preview;
 
         return (
-          <div key={`structured-row-${group.id}-${rowIndex}`} className="space-y-2 rounded-md border border-border/60 bg-background/60 p-3">
+          <div key={`structured-row-${group.id}-${rowIndex}`} className="space-y-2 rounded-md border border-border/60 bg-background/60 p-2.5">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Row {rowIndex + 1}</p>
-                <p className="text-[11px] text-muted-foreground">This row renders as one repeated copy of the text pattern.</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Item {rowIndex + 1}</p>
               </div>
               <Button
                 type="button"
@@ -177,6 +205,7 @@ function StructuredRowsEditor({
                         writeRows(nextRows);
                       }}
                       placeholder={field.defaultValue || field.label}
+                      className="h-8 text-sm"
                     />
                   </div>
                 );
@@ -263,6 +292,14 @@ export function GeneratorFieldGroups({
                     field={field}
                     value={getFieldStringValue(data, field)}
                     onChange={(value) => onFieldChange(field.key, value)}
+                    styleValues={{
+                      fontSizePx: String(data[buildFieldStyleDataKey(field.key, 'fontSizePx')] ?? ''),
+                      fontWeight: String(data[buildFieldStyleDataKey(field.key, 'fontWeight')] ?? ''),
+                      fontStyle: String(data[buildFieldStyleDataKey(field.key, 'fontStyle')] ?? ''),
+                    }}
+                    onStyleChange={(property: FieldStyleProperty, value) => {
+                      onFieldChange(buildFieldStyleDataKey(field.key, property), value);
+                    }}
                     highlightColor={highlightColor}
                     onHighlightColorChange={onHighlightColorChange}
                     fileInputRef={(el) => {
