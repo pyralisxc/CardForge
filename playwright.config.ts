@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseURL = process.env.CARDFORGE_E2E_BASE_URL || 'http://localhost:9002';
+
 export default defineConfig({
   testDir: './tests/smoke',
   timeout: 30_000,
@@ -8,12 +10,12 @@ export default defineConfig({
   },
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:9002',
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 120_000,
   },
   use: {
-    baseURL: 'http://localhost:9002',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [

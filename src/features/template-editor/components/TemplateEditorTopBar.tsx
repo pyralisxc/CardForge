@@ -1,6 +1,6 @@
 "use client";
 
-import { BoxSelect, Eye, EyeOff, Grid3X3, Maximize2, PenTool, Redo2, Save, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { BoxSelect, Eye, EyeOff, Grid3X3, Maximize2, PenTool, Redo2, Save, Search, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,6 +24,7 @@ interface TemplateEditorTopBarProps {
   onToggleGrid: () => void;
   onToggleSnapToGrid: () => void;
   onTogglePreviewMode: () => void;
+  onOpenCommandPalette: () => void;
   onSave: () => void;
   toolButtonClassName: string;
   activeButtonClassName: string;
@@ -47,6 +48,7 @@ export function TemplateEditorTopBar({
   onToggleGrid,
   onToggleSnapToGrid,
   onTogglePreviewMode,
+  onOpenCommandPalette,
   onSave,
   toolButtonClassName,
   activeButtonClassName,
@@ -178,6 +180,21 @@ export function TemplateEditorTopBar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Toggle preview mode (P)</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenCommandPalette}
+              aria-keyshortcuts="Control+K Meta+K"
+              className={cn(toolButtonClassName, 'gap-1 px-2 text-xs')}
+            >
+              <Search className="h-4 w-4" /> Command
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Open command palette (Ctrl+K)</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>

@@ -47,6 +47,23 @@ const isTemplateLike = (value: unknown): value is TemplateWithRequiredIdentity =
     && typeof candidate.aspectRatio === 'string';
 };
 
+const isLegacyRelicDemoTemplate = (template: TCGCardTemplate): boolean => {
+  const searchableText = [
+    template.id,
+    template.name,
+    template.templateDescription,
+    template.templateCategory,
+    JSON.stringify(template.templatePreviewData ?? {}),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return searchableText.includes('forge demo 202605260814 relic duel')
+    || searchableText.includes('ashen relic')
+    || searchableText.includes('arcane relic');
+};
+
 const readTemplatesFromDirectory = async (
   directory: string,
   templateSource: NonNullable<TCGCardTemplate['templateSource']>
@@ -221,7 +238,8 @@ export async function GET() {
       readTemplatesFromRegistry(),
       readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
     ]);
-    return createNoStoreJsonResponse({ defaults: registryDefaults, userTemplates });
+    const visibleRegistryDefaults = registryDefaults.filter((template) => !isLegacyRelicDemoTemplate(template));
+    return createNoStoreJsonResponse({ defaults: visibleRegistryDefaults, userTemplates });
   } catch (error) {
     console.error('Failed to load template library:', error);
     return createApiErrorResponse(

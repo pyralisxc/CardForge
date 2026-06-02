@@ -20,6 +20,24 @@ import type { TemplateFieldAllowedFormatting } from '@/types';
 
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 
+const DEFAULT_HIGHLIGHT_HEX = '#ffd700';
+
+const toHexPickerColor = (value: string | undefined): string => {
+  if (!value) return DEFAULT_HIGHLIGHT_HEX;
+  const trimmed = value.trim();
+  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed;
+  if (/^#[0-9a-f]{3}$/i.test(trimmed)) {
+    return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`;
+  }
+  const rgbaMatch = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i.exec(trimmed);
+  if (!rgbaMatch) return DEFAULT_HIGHLIGHT_HEX;
+  const [, red, green, blue] = rgbaMatch;
+  return [red, green, blue]
+    .map((channel) => Math.max(0, Math.min(255, Number(channel))).toString(16).padStart(2, '0'))
+    .join('')
+    .replace(/^/, '#');
+};
+
 const CardForgeVariableNode = Node.create({
   name: 'cardForgeVariable',
   group: 'inline',
@@ -108,6 +126,7 @@ export function CardForgeRichTextEditor({
         code: false,
         codeBlock: false,
         horizontalRule: false,
+        underline: false,
       }),
       TextStyle,
       Color.configure({ types: ['textStyle'] }),
@@ -205,6 +224,7 @@ export function CardForgeRichTextEditor({
   }, []);
 
   const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[#111720] text-[#d8d1c4] transition-colors hover:border-[#d5ad54] hover:text-[#f5d27b] disabled:cursor-not-allowed disabled:opacity-45';
+  const pickerHighlightColor = toHexPickerColor(highlightColor);
   const isActive = useCallback((name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false, [editor]);
   const canUse = useCallback((format: TemplateFieldAllowedFormatting): boolean => (
     !allowedFormatting || allowedFormatting.includes(format)
@@ -351,7 +371,7 @@ export function CardForgeRichTextEditor({
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto border-[#252b35] bg-[#0d1117] p-2" side="left" align="start">
-              <HexColorPicker color={highlightColor} onChange={onHighlightColorChange} />
+              <HexColorPicker color={pickerHighlightColor} onChange={onHighlightColorChange} />
               <Input value={highlightColor} onChange={event => onHighlightColorChange(event.target.value)} className="mt-2 h-7 font-mono text-xs" />
             </PopoverContent>
           </Popover>

@@ -87,7 +87,7 @@ export const useAppStore = create<AppState>()(
 
         selectedPaperSize: PAPER_SIZES[0],
         activeTab: TABS_CONFIG[0].value,
-        richTextHighlightColor: 'rgba(255,215,0,0.35)',
+        richTextHighlightColor: '#ffd700',
         singleCardGeneratorSelectedTemplateId: null,
 
         pdfMarginMm: 5,

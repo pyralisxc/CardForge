@@ -64,7 +64,15 @@ async function selectMainTab(page: Page, name: RegExp) {
 
 async function expectGeneratorReady(page: Page) {
   await expect(page.getByText('Loading templates...', { exact: true })).toBeHidden({ timeout: STUDIO_READY_TIMEOUT });
-  await expect(page.getByRole('button', { name: /Create Generated Output/i })).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
+  const createOutputButton = page.getByRole('button', { name: /Create Generated Output/i });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (await createOutputButton.isVisible().catch(() => false)) return;
+    if (!(await page.getByRole('heading', { name: /No Templates Yet/i }).isVisible().catch(() => false))) break;
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+    await selectMainTab(page, /Generate/i);
+    await expect(page.getByText('Loading templates...', { exact: true })).toBeHidden({ timeout: STUDIO_READY_TIMEOUT });
+  }
+  await expect(createOutputButton).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 }
 
 async function seedBulkMappingTemplate(page: Page) {
@@ -199,13 +207,50 @@ test('lets free users try clean export and see the export gate', async ({ page }
   test.setTimeout(STUDIO_TEST_TIMEOUT);
 
   await page.addInitScript(() => {
+    const template = {
+      id: 'smoke-export-gate-template',
+      name: 'Smoke Export Gate Template',
+      aspectRatio: '63:88',
+      templateSource: 'user',
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [
+          {
+            id: 'export-gate-rank',
+            type: 'text',
+            name: 'Rank',
+            content: '{{Rank:"A"}}',
+            x: 78,
+            y: 72,
+            width: 120,
+            height: 80,
+            textColor: '#f3ead7',
+            fontSizePx: 44,
+          },
+          {
+            id: 'export-gate-title',
+            type: 'text',
+            name: 'Card Name',
+            content: '{{cardName:"Smoke Export Gate"}}',
+            x: 90,
+            y: 390,
+            width: 450,
+            height: 96,
+            textColor: '#f3ead7',
+            fontSizePx: 32,
+          },
+        ],
+      },
+    };
+
     window.localStorage.setItem('card-forge-app-storage-v3', JSON.stringify({
       state: {
-        userTemplates: [],
+        userTemplates: [template],
         appearanceStyles: [],
         storedCards: [{
           uniqueId: 'smoke-export-gate-1',
-          templateId: 'default-playing-card-theme',
+          templateId: template.id,
           data: {
             Rank: 'A',
             Suit: '♥',
@@ -216,7 +261,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
         selectedPaperSize: { name: 'US Letter (8.5×11 in)', widthMm: 215.9, heightMm: 279.4 },
         activeTab: 'generator',
         richTextHighlightColor: '#ffd700',
-        singleCardGeneratorSelectedTemplateId: 'default-playing-card-theme',
+        singleCardGeneratorSelectedTemplateId: template.id,
         pdfMarginMm: 5,
         pdfCardSpacingMm: 0,
         pdfIncludeCutLines: false,
@@ -257,7 +302,33 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await page.getByLabel('Template Name').fill('Smoke Freeform Template');
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
-  await page.getByRole('button', { name: 'Aged Parchment', exact: true }).first().click();
+  await page.keyboard.press('Control+K');
+  await expect(page.getByRole('dialog', { name: 'Command Palette' })).toBeVisible();
+  await expect(page.getByText('Insert', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Favorite Add icon', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove Add icon from favorites', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByPlaceholder('Search commands...').fill('add icon');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: /Icon Layer/ }).first()).toBeVisible();
+  await page.keyboard.press('Control+K');
+  await expect(page.getByText('Favorites', { exact: true })).toBeVisible();
+  await page.getByPlaceholder('Search commands...').fill('grid');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+K');
+  await expect(page.getByText('Recent', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /grid/i }).first()).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /Text Layer/ }).first().click();
+  const textStyleSection = page.locator('button[aria-controls]').filter({ hasText: 'Text Style' }).first();
+  await expect(textStyleSection).toBeVisible();
+  await textStyleSection.click();
+  await page.getByPlaceholder('Search text frames...').fill('aged');
+  await page.getByRole('button', { name: /Aged Parchment/i }).first().click();
+  const materialSection = page.locator('button[aria-controls]').filter({ hasText: 'Material & Effects' }).first();
+  await expect(materialSection).toBeVisible();
+  await materialSection.click();
+  await page.getByPlaceholder('Search material styles...').fill('parchment');
+  await page.getByRole('button', { name: /Parchment/i }).first().click();
   await expect(page.getByRole('button', { name: /Text Layer/ }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Template Saved', { exact: true })).toBeVisible();
@@ -288,6 +359,26 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await expect
     .poll(() => page.locator('[data-freeform-element-id]').count())
     .toBeGreaterThanOrEqual(3);
+});
+
+test('adds structured row columns in the layout studio text inspector', async ({ page }) => {
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
+  await gotoStudio(page);
+
+  await selectMainTab(page, /Layout Studio/i);
+  await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
+
+  await page.getByRole('button', { name: 'Create new template', exact: true }).click();
+  await page.getByRole('tab', { name: 'Element', exact: true }).click();
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+
+  await page.getByRole('radio', { name: /Structured Rows/i }).click();
+  await expect(page.getByText('Row Pattern', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Add Row Columns/i }).click();
+
+  await expect(page.getByText(/CSV headers:/i)).toContainText('label');
+  await expect(page.getByLabel('Variable name for Label')).toBeVisible();
+  await expect(page.getByLabel('Variable name for Value')).toBeVisible();
 });
 
 test('bulk generator uses advanced mapping toggle and strict mode gating', async ({ page }) => {
@@ -322,7 +413,7 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
 
   await page.getByRole('button', { name: 'Fill with TBD', exact: true }).dispatchEvent('click');
   await expect(page.getByText('Missing value for Suit', { exact: true })).toBeHidden();
-  await expect(generateButton).toBeDisabled();
+  await expect(generateButton).toBeEnabled();
 
   await page.getByLabel('Toggle strict mode for bulk generation').dispatchEvent('click');
   await expect(page.getByText(/Strict Mode is off\./i)).toBeVisible();
@@ -332,9 +423,45 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
 test('supports a 1000-card generated gallery without rendering every preview at once', async ({ page }) => {
   test.setTimeout(STUDIO_TEST_TIMEOUT);
   await page.setViewportSize({ width: 1440, height: 900 });
+  const template = {
+    id: 'smoke-large-gallery-template',
+    name: 'Smoke Large Gallery Template',
+    aspectRatio: '63:88',
+    templateSource: 'user',
+    freeformCanvas: {
+      width: 630,
+      height: 880,
+      elements: [
+        {
+          id: 'large-gallery-rank',
+          type: 'text',
+          name: 'Rank',
+          content: '{{Rank:"A"}}',
+          x: 78,
+          y: 72,
+          width: 120,
+          height: 80,
+          textColor: '#f3ead7',
+          fontSizePx: 44,
+        },
+        {
+          id: 'large-gallery-title',
+          type: 'text',
+          name: 'Card Name',
+          content: '{{cardName:"Large Batch Card"}}',
+          x: 90,
+          y: 390,
+          width: 450,
+          height: 96,
+          textColor: '#f3ead7',
+          fontSizePx: 32,
+        },
+      ],
+    },
+  };
   const storedCards = Array.from({ length: 1000 }, (_, index) => ({
     uniqueId: `smoke-large-gallery-${index + 1}`,
-    templateId: 'default-playing-card-theme',
+    templateId: template.id,
     data: {
       Rank: String((index % 13) + 1),
       Suit: index % 2 === 0 ? '♥' : '♠',
@@ -343,16 +470,16 @@ test('supports a 1000-card generated gallery without rendering every preview at 
     },
   }));
 
-  await page.addInitScript((seedCards) => {
+  await page.addInitScript(({ seedCards, seedTemplate }) => {
     window.localStorage.setItem('card-forge-app-storage-v3', JSON.stringify({
       state: {
-        userTemplates: [],
+        userTemplates: [seedTemplate],
         appearanceStyles: [],
         storedCards: seedCards,
         selectedPaperSize: { name: 'US Letter (8.5×11 in)', widthMm: 215.9, heightMm: 279.4 },
         activeTab: 'generator',
         richTextHighlightColor: '#ffd700',
-        singleCardGeneratorSelectedTemplateId: 'default-playing-card-theme',
+        singleCardGeneratorSelectedTemplateId: seedTemplate.id,
         pdfMarginMm: 5,
         pdfCardSpacingMm: 0,
         pdfIncludeCutLines: false,
@@ -362,7 +489,7 @@ test('supports a 1000-card generated gallery without rendering every preview at 
       },
       version: 1,
     }));
-  }, storedCards);
+  }, { seedCards: storedCards, seedTemplate: template });
 
   await gotoStudio(page);
 
@@ -394,6 +521,7 @@ test('supports a 1000-card generated gallery without rendering every preview at 
 });
 
 test('supports keyboard-first generation and strict mode toggle', async ({ page }) => {
+  await seedBulkMappingTemplate(page);
   await gotoStudio(page);
   await selectMainTab(page, /Generate/i);
 

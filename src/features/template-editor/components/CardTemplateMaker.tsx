@@ -11,7 +11,7 @@ import {
   AVAILABLE_FONTS,
   PADDING_OPTIONS,
 } from '@/lib/constants';
-import { replacePlaceholdersLocal } from '@/lib/textBindings';
+import { extractPlaceholderKeysFromText, replacePlaceholdersLocal } from '@/lib/textBindings';
 import { cn, toTitleCase } from '@/lib/utils';
 import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
 import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/lib/cardFrameKits';
@@ -70,6 +70,7 @@ import { TypographyInspectorPanel } from '@/features/template-editor/components/
 import { ImageInspectorPanel } from '@/features/template-editor/components/ImageInspectorPanel';
 import { BorderInspectorPanel } from '@/features/template-editor/components/BorderInspectorPanel';
 import { LayerTreePanel } from '@/features/template-editor/components/LayerTreePanel';
+import { TemplateCommandPalette } from '@/features/template-editor/components/TemplateCommandPalette';
 import { useCanvasPointerInteractions } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { useTemplateAssetLibrary } from '@/features/template-editor/hooks/useTemplateAssetLibrary';
@@ -215,6 +216,7 @@ export function CardTemplateMaker({
   const [zoom, setZoom] = useState(0.62);
   const [autoFitCanvas, setAutoFitCanvas] = useState(true);
   const [mobilePanel, setMobilePanel] = useState<MobileMakerPanel>('canvas');
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [previewMode, setPreviewMode] = useState(false);
@@ -474,6 +476,55 @@ export function CardTemplateMaker({
     return nextKey;
   }, [currentTemplate, focusVariableCard, getNextScopedVariableKey, selectedElement, toast, upsertFieldContract]);
 
+  const addStructuredRowPattern = useCallback(() => {
+    if (!selectedElement || selectedElement.type !== 'text') return;
+
+    const existingKeys = new Set([
+      ...extractPlaceholderKeysFromText(selectedElement.content),
+      ...(currentTemplate.fieldContracts || [])
+        .filter((contract) => contract.elementId === selectedElement.id)
+        .map((contract) => contract.key),
+    ]);
+    const createUniqueKey = (baseKey: string) => {
+      const cleanBase = normalizeTemplateVariableKey(baseKey) || 'row';
+      let candidate = cleanBase;
+      let index = 2;
+      while (existingKeys.has(candidate) || hasScopedVariableKeyConflict(currentTemplate.fieldContracts, selectedElement.id, '', candidate)) {
+        candidate = `${cleanBase}${index}`;
+        index += 1;
+      }
+      existingKeys.add(candidate);
+      return candidate;
+    };
+    const labelKey = createUniqueKey('label');
+    const valueKey = createUniqueKey('value');
+    const rowPattern = `{{${labelKey}:"Flying"}}: {{${valueKey}:"+1"}}`;
+    const currentContent = selectedElement.content?.trim();
+    const nextContent = currentContent ? `${selectedElement.content}\n${rowPattern}` : rowPattern;
+
+    updateElement(selectedElement.id, { content: nextContent });
+    [
+      { key: labelKey, label: 'Label', example: 'Flying' },
+      { key: valueKey, label: 'Value', example: '+1' },
+    ].forEach((field) => {
+      upsertFieldContract(field.key, {
+        key: field.key,
+        elementId: selectedElement.id,
+        label: field.label,
+        type: 'structuredRows',
+        required: field.key === labelKey,
+        defaultValue: field.example,
+        example: field.example,
+      });
+    });
+    setActiveVariableKey(labelKey);
+    toast({
+      title: 'Structured row columns added',
+      description: `${labelKey} and ${valueKey} were added to this text element. Add actual rows in Generate.`,
+    });
+    requestAnimationFrame(() => focusVariableCard(labelKey));
+  }, [currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast, updateElement, upsertFieldContract]);
+
   const applyAppearancePreset = useCallback((style: AppearanceStylePreset) => {
     if (!selectedElement) return;
     const nextElement = { ...selectedElement, appearance: style.appearance };
@@ -518,14 +569,47 @@ export function CardTemplateMaker({
   const addElement = useCallback((type: FreeformCardElement['type'], placement?: { x: number; y: number }, preset: Partial<FreeformCardElement> = {}) => {
     const maxZ = Math.max(0, ...canvas.elements.map(element => element.zIndex));
     const id = nanoid();
+    const fallbackWidth = type === 'text' ? 260 : type === 'icon' ? 72 : 220;
+    const fallbackHeight = type === 'text' ? 72 : type === 'icon' ? 72 : type === 'shape' ? 120 : 160;
+    const elementWidth = preset.width ?? fallbackWidth;
+    const elementHeight = preset.height ?? fallbackHeight;
+    const centeredPlacement = {
+      x: Math.max(0, Math.round((canvas.width - elementWidth) / 2)),
+      y: Math.max(0, Math.round((canvas.height - elementHeight) / 2)),
+    };
+    const findSafePlacement = () => {
+      if (placement) return placement;
+      if (preset.x !== undefined || preset.y !== undefined) {
+        return { x: preset.x ?? centeredPlacement.x, y: preset.y ?? centeredPlacement.y };
+      }
+      const maxX = Math.max(0, canvas.width - elementWidth);
+      const maxY = Math.max(0, canvas.height - elementHeight);
+      const overlaps = (point: { x: number; y: number }) => canvas.elements.some((element) => {
+        if (element.locked) return false;
+        return point.x < element.x + element.width
+          && point.x + elementWidth > element.x
+          && point.y < element.y + element.height
+          && point.y + elementHeight > element.y;
+      });
+
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const point = {
+          x: Math.min(maxX, centeredPlacement.x + attempt * 24),
+          y: Math.min(maxY, centeredPlacement.y + attempt * 24),
+        };
+        if (!overlaps(point)) return point;
+      }
+      return centeredPlacement;
+    };
+    const safePlacement = findSafePlacement();
     const base: FreeformCardElement = {
       id,
       type,
       name: type === 'text' ? 'Text Layer' : type === 'image' ? 'Image Layer' : type === 'icon' ? 'Icon Layer' : 'Shape Layer',
-      x: placement?.x ?? 82,
-      y: placement?.y ?? 82,
-      width: type === 'text' ? 260 : type === 'icon' ? 72 : 220,
-      height: type === 'text' ? 72 : type === 'icon' ? 72 : type === 'shape' ? 120 : 160,
+      x: safePlacement.x,
+      y: safePlacement.y,
+      width: elementWidth,
+      height: elementHeight,
       rotation: 0,
       opacity: 1,
       zIndex: maxZ + 1,
@@ -557,8 +641,8 @@ export function CardTemplateMaker({
       ...preset,
       id,
       type,
-      x: placement?.x ?? preset.x ?? 82,
-      y: placement?.y ?? preset.y ?? 82,
+      x: safePlacement.x,
+      y: safePlacement.y,
       zIndex: maxZ + 1,
     };
     const newElement: FreeformCardElement = {
@@ -710,6 +794,11 @@ export function CardTemplateMaker({
       if (mod && event.key.toLowerCase() === 's') {
         event.preventDefault();
         handleSave();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
         return;
       }
       if (mod && event.key.toLowerCase() === 'z') {
@@ -879,9 +968,38 @@ export function CardTemplateMaker({
           onToggleGrid={() => setShowGrid(value => !value)}
           onToggleSnapToGrid={() => setSnapToGrid(value => !value)}
           onTogglePreviewMode={() => setPreviewMode(value => !value)}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onSave={handleSave}
           toolButtonClassName={makerTheme.toolButton}
           activeButtonClassName={makerTheme.activeButton}
+        />
+
+        <TemplateCommandPalette
+          open={commandPaletteOpen}
+          selectedElement={selectedElement}
+          showGrid={showGrid}
+          snapToGrid={snapToGrid}
+          previewMode={previewMode}
+          onOpenChange={setCommandPaletteOpen}
+          onAddElement={(type, preset) => {
+            addElement(type, undefined, preset);
+            setMobilePanel('canvas');
+          }}
+          onDuplicateSelected={duplicateSelected}
+          onDeleteSelected={deleteSelected}
+          onSave={handleSave}
+          onShowLibrary={() => setMobilePanel('library')}
+          onShowInspector={() => {
+            setActiveInspectorTab('element');
+            setMobilePanel('inspector');
+          }}
+          onShowTemplateSettings={() => {
+            setActiveInspectorTab('template');
+            setMobilePanel('inspector');
+          }}
+          onToggleGrid={() => setShowGrid(value => !value)}
+          onToggleSnap={() => setSnapToGrid(value => !value)}
+          onTogglePreview={() => setPreviewMode(value => !value)}
         />
 
         <div className="cardforge-maker-mobile-switcher no-print border-b border-[#252b35] bg-[#080c12] p-2 lg:hidden" role="group" aria-label="Layout Studio surface">
@@ -1013,6 +1131,7 @@ export function CardTemplateMaker({
                   panelClassName={makerTheme.panel}
                   hasSelectedElement={Boolean(selectedElement)}
                   selectedElementType={selectedElement?.type}
+                  selectedElementName={selectedElement?.name}
                   templateContent={
                     <TemplateSettingsPanel
                       currentTemplate={currentTemplate}
@@ -1042,6 +1161,8 @@ export function CardTemplateMaker({
                         {(canUseTypography || canUseImageSource) && (
                           <InspectorFlowSection
                             title={canUseImageSource ? 'Image Source' : 'Source & Content'}
+                            badge="Start here"
+                            defaultOpen
                             description={canUseImageSource
                               ? 'Choose the selected image or overlay source. Frame, crop, and edge controls stay in later sections.'
                               : 'Write the selected text and define which fields the generator will ask users to fill.'}
@@ -1057,6 +1178,7 @@ export function CardTemplateMaker({
                               onSetActiveVariableKey={setActiveVariableKey}
                               onSetRichTextHighlightColor={setRichTextHighlightColorAction}
                               onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
+                              onAddStructuredRowPattern={addStructuredRowPattern}
                               onCreateEditorVariableFromSelection={createEditorVariableFromSelection}
                               onFocusVariableCard={focusVariableCard}
                               onRemoveSelectedElementVariableContract={removeSelectedElementVariableContract}
@@ -1079,6 +1201,8 @@ export function CardTemplateMaker({
                         {canUseIconLibrary && (
                           <InspectorFlowSection
                             title="Source & Symbol"
+                            badge="Start here"
+                            defaultOpen
                             description="Pick a built-in icon, upload a symbol, or choose a reviewed icon asset before styling the glyph."
                           >
                             <IconInspectorPanel
@@ -1102,6 +1226,8 @@ export function CardTemplateMaker({
                         {(canUseShapeControls || canUseDividerControls) && (
                           <InspectorFlowSection
                             title={canUseDividerControls ? 'Divider Builder' : 'Shape Builder'}
+                            badge="Shape"
+                            defaultOpen
                             description={canUseDividerControls
                               ? 'Build the divider rail itself; material and edge controls stay below.'
                               : 'Choose the primitive geometry or apply a reviewed shape role recipe.'}
@@ -1132,6 +1258,8 @@ export function CardTemplateMaker({
                         {canUseTypography && (
                           <InspectorFlowSection
                             title="Text Style"
+                            badge="Style"
+                            defaultOpen={false}
                             description="Control characters, typography, field behavior, and reviewed text-frame recipes for this text element."
                           >
                             <TypographyInspectorPanel
@@ -1151,6 +1279,8 @@ export function CardTemplateMaker({
                         {canUseAppearanceStudio && (
                           <InspectorFlowSection
                             title="Material & Effects"
+                            badge="Look"
+                            defaultOpen={false}
                             description="Change fill, texture, gradient, glow, and surface treatment without moving the element."
                           >
                             <AppearanceStudioPanel
@@ -1179,6 +1309,8 @@ export function CardTemplateMaker({
                         {canUseElementBorder && (
                           <InspectorFlowSection
                             title="Frame & Edge"
+                            badge="Frame"
+                            defaultOpen={false}
                             description="Control the selected element container: text box edge, image frame, icon backplate, or shape stroke."
                           >
                             <BorderInspectorPanel
@@ -1193,6 +1325,8 @@ export function CardTemplateMaker({
 
                         <InspectorFlowSection
                           title="Align To Canvas & Layer"
+                          badge="Layout"
+                          defaultOpen={false}
                           description="Move, size, rotate, lock, duplicate, delete, and align the selected element against the card canvas."
                         >
                           <ElementTransformPanel

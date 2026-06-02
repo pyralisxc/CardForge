@@ -23,9 +23,10 @@ interface ExportCardImageButtonProps {
   disabled?: boolean;
   gateMessage?: string | null;
   className?: string;
+  ariaLabel?: string;
 }
 
-export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = false, gateMessage, className }: ExportCardImageButtonProps) {
+export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = false, gateMessage, className, ariaLabel }: ExportCardImageButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -94,7 +95,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={disabled || isLoading} className={className}>
+        <Button variant="outline" disabled={disabled || isLoading} className={className} aria-label={ariaLabel}>
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageDown className="h-4 w-4" />}
           Export Image
         </Button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef } from 'react';
 import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -118,6 +119,7 @@ export function GenerationWorkspace({
   onGallerySortChange,
   onEditCardRequest,
 }: GenerationWorkspaceProps) {
+  const galleryRegionRef = useRef<HTMLDivElement | null>(null);
   const exportFaceCount = generatedDisplayCards.reduce(
     (count, card) => count + (card.template.backCanvas ? 2 : 1),
     0
@@ -130,6 +132,22 @@ export function GenerationWorkspace({
   const zipExportLabel = exportMode === 'physical'
     ? `Export Print PNG ZIP (${exportFaceCount} faces)`
     : `Export Digital PNG ZIP (${exportFaceCount} images)`;
+
+  const scrollGalleryIntoView = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      galleryRegionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+
+  const handleSingleCardAdded = useCallback((card: DisplayCard) => {
+    onSingleCardAdded(card);
+    scrollGalleryIntoView();
+  }, [onSingleCardAdded, scrollGalleryIntoView]);
+
+  const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
+    onBulkCardsGenerated(cards);
+    if (cards.length > 0) scrollGalleryIntoView();
+  }, [onBulkCardsGenerated, scrollGalleryIntoView]);
 
   if (isLoadingTemplates) {
     return (
@@ -178,7 +196,7 @@ export function GenerationWorkspace({
           <TabsContent value="single" className="mt-0">
             <SingleCardGenerator
               templates={templates}
-              onSingleCardAdded={onSingleCardAdded}
+              onSingleCardAdded={handleSingleCardAdded}
               onTemplateSelectionChange={onTemplateSelectionChange}
               selectedTemplateIdProp={generatorSelectedTemplateId}
             />
@@ -187,7 +205,7 @@ export function GenerationWorkspace({
           <TabsContent value="bulk" className="mt-0">
             <BulkGenerator
               templates={templates}
-              onCardsGenerated={onBulkCardsGenerated}
+              onCardsGenerated={handleBulkCardsGenerated}
               selectedTemplateIdProp={generatorSelectedTemplateId}
               onTemplateSelectionChange={onTemplateSelectionChange}
             />
@@ -383,19 +401,21 @@ export function GenerationWorkspace({
         </Tabs>
       </div>
 
-      <GeneratedCardGallery
-        templates={templates}
-        generatorSelectedTemplateId={generatorSelectedTemplateId}
-        generatedDisplayCards={generatedDisplayCards}
-        gallerySearch={gallerySearch}
-        gallerySort={gallerySort}
-        exportMode={exportMode}
-        exportDpi={exportDpi}
-        onGallerySearchChange={onGallerySearchChange}
-        onGallerySortChange={onGallerySortChange}
-        onEditCardRequest={onEditCardRequest}
-        exportGateMessage={exportGateMessage}
-      />
+      <div ref={galleryRegionRef} className="min-w-0 scroll-mt-4">
+        <GeneratedCardGallery
+          templates={templates}
+          generatorSelectedTemplateId={generatorSelectedTemplateId}
+          generatedDisplayCards={generatedDisplayCards}
+          gallerySearch={gallerySearch}
+          gallerySort={gallerySort}
+          exportMode={exportMode}
+          exportDpi={exportDpi}
+          onGallerySearchChange={onGallerySearchChange}
+          onGallerySortChange={onGallerySortChange}
+          onEditCardRequest={onEditCardRequest}
+          exportGateMessage={exportGateMessage}
+        />
+      </div>
     </div>
     {isZipExporting && zipProgress && (
       <div

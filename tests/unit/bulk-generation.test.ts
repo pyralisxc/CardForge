@@ -33,6 +33,51 @@ describe('bulk generation helpers', () => {
     });
   });
 
+  it('builds initial column mapping from field labels and spaced headers', () => {
+    const headers = ['Center Mark', 'New Text', 'Artwork Url'];
+    const fields = [
+      {
+        key: 'CenterMark',
+        label: 'Center Mark',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'newText',
+        label: 'New Text',
+        control: 'textarea' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: false,
+        isImage: false,
+        isMultiline: true,
+        supportsRichText: true,
+      },
+      {
+        key: 'artworkUrl',
+        label: 'Artwork Url',
+        control: 'input' as const,
+        editor: 'image-input' as const,
+        contentModel: 'image' as const,
+        required: false,
+        isImage: true,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+    ];
+
+    expect(buildInitialColumnMapping(headers, fields)).toEqual({
+      'Center Mark': 'CenterMark',
+      'New Text': 'newText',
+      'Artwork Url': 'artworkUrl',
+    });
+  });
+
   it('updates column mapping for advanced interactions', () => {
     const current = {
       rulesText: 'rulesText',
@@ -325,8 +370,18 @@ describe('bulk generation helpers', () => {
         { key: 'trait', label: 'Trait', type: 'structuredRows' },
         { key: 'value', label: 'Value', type: 'structuredRows' },
       ],
+      optionalFields: [
+        { key: 'art', label: 'Art', type: 'image' },
+      ],
       structuredRowGroups: [
-        { id: 'trait-row', label: 'Trait Row', columns: ['Trait', 'Value'] },
+        {
+          id: 'trait-row',
+          label: 'Trait Row',
+          columns: [
+            { key: 'trait', label: 'Trait' },
+            { key: 'value', label: 'Value' },
+          ],
+        },
       ],
     });
   });

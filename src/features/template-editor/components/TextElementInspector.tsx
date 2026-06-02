@@ -1,7 +1,7 @@
 "use client";
 
 import type { MutableRefObject } from 'react';
-import { AlignCenter, AlignLeft, AlignRight, ListPlus, TextCursorInput, Trash2 } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, ListPlus, Plus, TextCursorInput, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,7 @@ interface TextElementFieldModeControlProps {
   fields: TemplateFieldDefinition[];
   element: FreeformCardElement;
   fieldContracts?: FieldContract[];
+  onAddStructuredRowPattern: () => void;
   onUpdateContract: (key: string, updates: Partial<FieldContract>) => void;
 }
 
@@ -46,6 +47,7 @@ export function TextElementFieldModeControl({
   fields,
   element,
   fieldContracts,
+  onAddStructuredRowPattern,
   onUpdateContract,
 }: TextElementFieldModeControlProps) {
   const variableFields = fields.filter((field) => !isStaticSegmentFieldKey(field.key));
@@ -119,6 +121,31 @@ export function TextElementFieldModeControl({
             Save the template before moving to Generate so these field contracts are available for single and bulk output.
           </p>
         )}
+        {mode === 'structuredRows' && (
+          <div className="rounded-[6px] border border-[#252b35] bg-[#090d13] p-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#f3ead7]">Row Pattern</p>
+                <p className="text-[10px] leading-4 text-[#8f95a3]">
+                  A structured row repeats this text element in Generate. Add columns here, then add actual rows in the Generator.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(makerTheme.button, 'h-8 shrink-0 gap-1 px-2 text-[10px]')}
+                onClick={onAddStructuredRowPattern}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Row Columns
+              </Button>
+            </div>
+            <div className="mt-2 rounded-[4px] border border-[#1f2631] bg-[#0b0f15] px-2 py-1.5 font-mono text-[10px] text-[#aeb4c0]">
+              CSV headers: {variableFields.length > 0 ? variableFields.map((field) => field.key).join(', ') : 'add row columns first'}
+            </div>
+          </div>
+        )}
       </div>
       {variableFields.length === 0 && (
         <p className="mt-2 text-[10px] text-[#8f95a3]">
@@ -171,8 +198,8 @@ export function TextExpressionEditor({
 
       <div>
         <div className="mb-1 flex items-center justify-between gap-2">
-          <Label htmlFor="element-template-expression" className="text-xs">Text</Label>
-          <span className="text-[10px] text-[#8f95a3]">Select text, then use variable or right-click a variable span</span>
+          <Label htmlFor="element-template-expression" className="text-xs">Template Text</Label>
+          <span className="text-[10px] text-[#8f95a3]">Quoted variable values are preview/default text</span>
         </div>
 
         <CardForgeRichTextEditor
@@ -214,6 +241,9 @@ export function TextExpressionEditor({
           Prefix paragraphs with [ability], [effect], [reminder], [flavor], or [subtitle] to control semantic card-text rendering.
         </p>
       )}
+      <p className="text-[10px] leading-4 text-[#8f95a3]">
+        Example: {'{{name:"Aetherglass Vanguard"}}'} shows that value on the canvas and uses it as the generator fallback until a card row replaces it.
+      </p>
     </div>
   );
 }
@@ -343,7 +373,7 @@ export function TextFieldSettingsList({
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-[10px] text-[#8f95a3]">Default Value</Label>
+                    <Label className="text-[10px] text-[#8f95a3]">Preview Default</Label>
                     <Input
                       value={contract?.defaultValue || ''}
                       placeholder={field.defaultValue || 'No default'}
@@ -355,7 +385,7 @@ export function TextFieldSettingsList({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] text-[#8f95a3]">Example</Label>
+                    <Label className="text-[10px] text-[#8f95a3]">CSV Example</Label>
                     <Input
                       value={contract?.example || ''}
                       placeholder="Sample value"

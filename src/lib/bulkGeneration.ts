@@ -54,7 +54,8 @@ export interface BulkContractSummary {
   structuredRowFieldCount: number;
   structuredRowGroupCount: number;
   requiredFields: Array<{ key: string; label: string; type: string }>;
-  structuredRowGroups: Array<{ id: string; label: string; columns: string[] }>;
+  optionalFields: Array<{ key: string; label: string; type: string }>;
+  structuredRowGroups: Array<{ id: string; label: string; columns: Array<{ key: string; label: string }> }>;
 }
 
 export const normalizeCsvHeaders = (headers: string[]): string[] =>
@@ -126,7 +127,7 @@ const createFieldStyleOverrideColumns = (field: TemplateFieldDefinition): string
 };
 
 export const createBulkContractSummary = (fieldDefinitions: TemplateFieldDefinition[]): BulkContractSummary => {
-  const structuredRowGroups = new Map<string, { id: string; label: string; columns: string[] }>();
+  const structuredRowGroups = new Map<string, { id: string; label: string; columns: Array<{ key: string; label: string }> }>();
 
   fieldDefinitions
     .filter((field) => field.contentModel === 'structuredRows')
@@ -137,12 +138,19 @@ export const createBulkContractSummary = (fieldDefinitions: TemplateFieldDefinit
         label: field.sourceElementName || 'Structured Rows',
         columns: [],
       };
-      group.columns.push(field.label || field.key);
+      group.columns.push({ key: field.key, label: field.label || field.key });
       structuredRowGroups.set(groupId, group);
     });
 
   const requiredFields = fieldDefinitions
     .filter((field) => field.required)
+    .map((field) => ({
+      key: field.key,
+      label: field.label,
+      type: fieldTypeLabel(field),
+    }));
+  const optionalFields = fieldDefinitions
+    .filter((field) => !field.required)
     .map((field) => ({
       key: field.key,
       label: field.label,
@@ -158,6 +166,7 @@ export const createBulkContractSummary = (fieldDefinitions: TemplateFieldDefinit
     structuredRowFieldCount: fieldDefinitions.filter((field) => field.contentModel === 'structuredRows').length,
     structuredRowGroupCount: structuredRowGroups.size,
     requiredFields,
+    optionalFields,
     structuredRowGroups: Array.from(structuredRowGroups.values()),
   };
 };
@@ -327,14 +336,29 @@ export const parseBulkDataSource = (
   return parseCSV(trimmed);
 };
 
+type InitialColumnMappingField = Pick<TemplateFieldDefinition, 'key' | 'label'>;
+
+const getInitialMappingFields = (
+  fieldKeysOrDefinitions: string[] | InitialColumnMappingField[]
+): InitialColumnMappingField[] => fieldKeysOrDefinitions.map((field) => (
+  typeof field === 'string'
+    ? { key: field, label: field }
+    : field
+));
+
 export const buildInitialColumnMapping = (
   headers: string[],
-  fieldKeys: string[]
+  fieldKeysOrDefinitions: string[] | InitialColumnMappingField[]
 ): Record<string, string> => {
+  const fields = getInitialMappingFields(fieldKeysOrDefinitions);
   const mapping: Record<string, string> = {};
   headers.forEach((header) => {
-    const normalized = header.trim().toLowerCase();
-    mapping[header] = fieldKeys.find((key) => key.toLowerCase() === normalized) ?? '';
+    const normalized = normalizeMappingToken(header);
+    const matchingField = fields.find((field) => (
+      normalizeMappingToken(field.key) === normalized
+      || normalizeMappingToken(field.label) === normalized
+    ));
+    mapping[header] = matchingField?.key ?? '';
   });
   return mapping;
 };

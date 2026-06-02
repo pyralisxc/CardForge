@@ -101,9 +101,10 @@ export function GeneratedCardGallery({
   }, [galleryDensity, gallerySearch, gallerySort, generatedDisplayCards.length, virtualizer]);
 
   const virtualRows = virtualizer.getVirtualItems();
+  const hasRepeatedExportButtons = filteredSortedCards.length > 1;
 
   return (
-    <div className="min-w-0">
+    <div>
       <div className="sticky top-0 z-10 bg-background pb-2 flex items-center justify-between mb-2 gap-3 flex-wrap">
         <h2 className="min-w-0 text-xl font-semibold text-foreground sm:text-2xl">
           Generated Outputs ({generatedDisplayCards.length})
@@ -202,6 +203,11 @@ export function GeneratedCardGallery({
                             exportDpi={exportDpi}
                             disabled={false}
                             gateMessage={exportGateMessage}
+                            ariaLabel={
+                              hasRepeatedExportButtons
+                                ? `Export image for output ${rowStart + cardIndex + 1}`
+                                : undefined
+                            }
                           />
                         </div>
                       </div>

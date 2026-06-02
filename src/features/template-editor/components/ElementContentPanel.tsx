@@ -20,6 +20,7 @@ interface ElementContentPanelProps {
   onSetActiveVariableKey: (key: string | null) => void;
   onSetRichTextHighlightColor: (color: string) => void;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
+  onAddStructuredRowPattern: () => void;
   onCreateEditorVariableFromSelection: (text: string) => string | undefined;
   onFocusVariableCard: (key: string) => void;
   onRemoveSelectedElementVariableContract: (key: string) => void;
@@ -38,6 +39,7 @@ export function ElementContentPanel({
   onSetActiveVariableKey,
   onSetRichTextHighlightColor,
   onUpdateElement,
+  onAddStructuredRowPattern,
   onCreateEditorVariableFromSelection,
   onFocusVariableCard,
   onRemoveSelectedElementVariableContract,
@@ -51,6 +53,7 @@ export function ElementContentPanel({
           fields={selectedElementTemplateFields}
           element={element}
           fieldContracts={currentTemplate.fieldContracts}
+          onAddStructuredRowPattern={onAddStructuredRowPattern}
           onUpdateContract={onUpsertFieldContract}
         />
         <TextExpressionEditor

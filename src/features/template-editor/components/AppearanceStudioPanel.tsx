@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Save, Upload } from 'lucide-react';
+import { Search, Save, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +65,27 @@ export function AppearanceStudioPanel({
 }: AppearanceStudioPanelProps) {
   const textureAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
   const dividerAssetUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [styleSearch, setStyleSearch] = useState('');
+  const [showAllStyles, setShowAllStyles] = useState(false);
+  const normalizedStyleSearch = styleSearch.trim().toLowerCase();
+  const filteredLocalMaterials = useMemo(() => (
+    elementStylePresets.filter((preset) => preset.label.toLowerCase().includes(normalizedStyleSearch))
+  ), [elementStylePresets, normalizedStyleSearch]);
+  const filteredReviewedStyles = useMemo(() => (
+    compatibleAppearanceStyles.filter((style) => (
+      style.name.toLowerCase().includes(normalizedStyleSearch)
+      || style.kind.toLowerCase().includes(normalizedStyleSearch)
+      || style.targets.some((target) => target.toLowerCase().includes(normalizedStyleSearch))
+    ))
+  ), [compatibleAppearanceStyles, normalizedStyleSearch]);
+  const visibleLocalMaterials = showAllStyles || normalizedStyleSearch
+    ? filteredLocalMaterials
+    : filteredLocalMaterials.slice(0, 4);
+  const visibleReviewedStyles = showAllStyles || normalizedStyleSearch
+    ? filteredReviewedStyles
+    : filteredReviewedStyles.slice(0, 6);
+  const hiddenStyleCount = filteredLocalMaterials.length + filteredReviewedStyles.length - visibleLocalMaterials.length - visibleReviewedStyles.length;
+
   const applyLocalMaterialPreset = (preset: LocalMaterialPreset) => {
     onUpdateAppearance((appearance) => {
       const surfaceColor = preset.updates.backgroundColor || preset.updates.fillColor || appearance.material?.baseColor;
@@ -89,18 +110,32 @@ export function AppearanceStudioPanel({
   };
 
   return (
-    <div className="space-y-3 rounded-[6px] border border-[#3a2e17] bg-[#100d08] p-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">Material & Effects</Label>
+        <div>
+          <Label className="text-[11px] uppercase tracking-[0.14em] text-[#d5ad54]">Surface presets</Label>
+          <p className="mt-1 text-[11px] leading-4 text-[#8f95a3]">Apply a recipe first, then tune colors and effects below.</p>
+        </div>
         <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={onSaveStyle}>
           <Save className="mr-1 h-3.5 w-3.5" /> Save Style
         </Button>
       </div>
+      {(elementStylePresets.length > 0 || compatibleAppearanceStyles.length > 0) && (
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
+          <Input
+            className={cn(controlClassName, 'pl-7')}
+            placeholder="Search material styles..."
+            value={styleSearch}
+            onChange={(event) => setStyleSearch(event.target.value)}
+          />
+        </div>
+      )}
       {!canUseImageSource && !canUseDividerControls && (element.type === 'text' || element.type === 'shape') && (
         <div>
           <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Local Materials</Label>
           <div className="grid grid-cols-2 gap-1">
-            {elementStylePresets.map((preset) => (
+            {visibleLocalMaterials.map((preset) => (
               <Button
                 key={preset.label}
                 type="button"
@@ -119,11 +154,11 @@ export function AppearanceStudioPanel({
           </div>
         </div>
       )}
-      {compatibleAppearanceStyles.length > 0 && (
+      {filteredReviewedStyles.length > 0 && (
         <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Material Styles</Label>
       )}
       <div className="grid grid-cols-2 gap-1.5">
-        {compatibleAppearanceStyles.map((style) => (
+        {visibleReviewedStyles.map((style) => (
           <Tooltip key={style.id}>
             <TooltipTrigger asChild>
               <Button
@@ -141,6 +176,22 @@ export function AppearanceStudioPanel({
           </Tooltip>
         ))}
       </div>
+      {hiddenStyleCount > 0 ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(buttonClassName, 'h-8 w-full text-xs')}
+          onClick={() => setShowAllStyles((showAll) => !showAll)}
+        >
+          {showAllStyles ? 'Show fewer styles' : `Show ${hiddenStyleCount} more styles`}
+        </Button>
+      ) : null}
+      {normalizedStyleSearch && filteredLocalMaterials.length + filteredReviewedStyles.length === 0 ? (
+        <div className="rounded-[5px] border border-dashed border-[#2d3340] bg-[#090d13] p-2 text-[11px] text-[#8f95a3]">
+          No material styles match that search.
+        </div>
+      ) : null}
       <div className="grid grid-cols-3 gap-2">
         <div>
           <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Material</Label>

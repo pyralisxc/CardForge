@@ -210,8 +210,7 @@ export function BulkGenerator({
       if (rows.length < 1) return;
       const headers = normalizeCsvHeaders(rows[0]);
       setCsvHeaders(headers);
-      const keys = bulkFieldDefinitions.map((field) => field.key);
-      setColumnMapping(buildInitialColumnMapping(headers, keys));
+      setColumnMapping(buildInitialColumnMapping(headers, bulkFieldDefinitions));
     } catch {
       setCsvHeaders([]);
       setColumnMapping({});
@@ -235,8 +234,7 @@ export function BulkGenerator({
 
   const handleAutoMapAgain = useCallback(() => {
     if (csvHeaders.length === 0 || bulkFieldDefinitions.length === 0) return;
-    const keys = bulkFieldDefinitions.map((field) => field.key);
-    setColumnMapping(buildInitialColumnMapping(csvHeaders, keys));
+    setColumnMapping(buildInitialColumnMapping(csvHeaders, bulkFieldDefinitions));
     toast({
       title: 'Auto-mapping refreshed',
       description: 'Column mappings were rebuilt from CSV headers. Next step: review mapping conflicts before generating.',

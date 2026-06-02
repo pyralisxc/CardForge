@@ -50,6 +50,7 @@ export function BulkMappingReviewPanel({
   onColumnMappingChange,
 }: BulkMappingReviewPanelProps) {
   const fieldOptions = fieldDefinitions.map((field) => ({ value: field.key, label: field.label, required: field.required }));
+  const unmappedHeaders = headers.filter((header) => !columnMapping[header]);
 
   return (
     <Card>
@@ -73,6 +74,24 @@ export function BulkMappingReviewPanel({
 
         {showUnmappedOnly ? (
           <p className="text-xs text-muted-foreground">Showing {visibleHeaders.length} unmapped columns.</p>
+        ) : null}
+
+        {unmappedHeaders.length > 0 ? (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-medium">Skipped columns need review</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  These columns will not appear in generated outputs unless you map them: {unmappedHeaders.join(', ')}
+                </p>
+              </div>
+              {!showUnmappedOnly ? (
+                <Button type="button" size="sm" variant="outline" onClick={onToggleShowUnmappedOnly}>
+                  Review Skipped
+                </Button>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
         {unmappedRequiredFields.length > 0 ? (

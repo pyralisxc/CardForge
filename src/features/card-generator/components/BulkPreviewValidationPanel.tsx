@@ -10,6 +10,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 
+const FALLBACK_HIGHLIGHT_COLOR = '#ffd700';
+
+const toColorInputValue = (value: string): string => {
+  const trimmed = value.trim();
+  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed;
+  if (/^#[0-9a-f]{3}$/i.test(trimmed)) {
+    return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`;
+  }
+  const rgbaMatch = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i.exec(trimmed);
+  if (!rgbaMatch) return FALLBACK_HIGHLIGHT_COLOR;
+  const [, red, green, blue] = rgbaMatch;
+  return [red, green, blue]
+    .map((channel) => Math.max(0, Math.min(255, Number(channel))).toString(16).padStart(2, '0'))
+    .join('')
+    .replace(/^/, '#');
+};
+
 interface BulkPreviewRow {
   rowNumber: number;
   mappedData: Record<string, string>;
@@ -78,7 +95,7 @@ export function BulkPreviewValidationPanel({
             <Input
               id="bulk-rich-text-highlight"
               type="color"
-              value={richTextHighlightColor}
+              value={toColorInputValue(richTextHighlightColor)}
               onChange={(event) => onSetRichTextHighlightColor(event.target.value)}
               className="h-10 w-20 p-1"
             />

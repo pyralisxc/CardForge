@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
@@ -171,11 +171,7 @@ export function CardForgeStudioShell() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showFirstRunGuide, setShowFirstRunGuide] = useState(() => (
-    typeof window === 'undefined'
-      ? true
-      : window.localStorage.getItem(STUDIO_GUIDE_STORAGE_KEY) !== 'dismissed'
-  ));
+  const [showFirstRunGuide, setShowFirstRunGuide] = useState(true);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
 
@@ -292,6 +288,10 @@ export function CardForgeStudioShell() {
   const handleDismissFirstRunGuide = useCallback(() => {
     setShowFirstRunGuide(false);
     window.localStorage.setItem(STUDIO_GUIDE_STORAGE_KEY, 'dismissed');
+  }, []);
+
+  useEffect(() => {
+    setShowFirstRunGuide(window.localStorage.getItem(STUDIO_GUIDE_STORAGE_KEY) !== 'dismissed');
   }, []);
 
   const effectiveActiveTab = TABS_CONFIG.some(tab => tab.value === activeTab) ? activeTab : TABS_CONFIG[0].value;

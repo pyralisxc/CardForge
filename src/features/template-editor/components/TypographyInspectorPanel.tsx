@@ -1,5 +1,8 @@
 "use client";
 
+import { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,13 +42,45 @@ export function TypographyInspectorPanel({
   onUpdateElement,
   onUpsertFieldContract,
 }: TypographyInspectorPanelProps) {
+  const [frameSearch, setFrameSearch] = useState('');
+  const [showAllFramePresets, setShowAllFramePresets] = useState(false);
+  const normalizedFrameSearch = frameSearch.trim().toLowerCase();
+  const filteredFramePresets = useMemo(() => {
+    if (!normalizedFrameSearch) return framePresets;
+    return framePresets.filter((preset) => [
+      preset.label,
+      preset.description,
+      preset.kind,
+      preset.source,
+      preset.status,
+      preset.tier,
+      preset.contributorName,
+    ].filter(Boolean).join(' ').toLowerCase().includes(normalizedFrameSearch));
+  }, [framePresets, normalizedFrameSearch]);
+  const visibleFramePresets = showAllFramePresets ? filteredFramePresets : filteredFramePresets.slice(0, 6);
+
   return (
     <>
       <div className="space-y-2">
         <div>
-          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Text Frames</Label>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Text Frames</Label>
+            <span className="text-[10px] text-[#626b78]">{filteredFramePresets.length} styles</span>
+          </div>
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8f95a3]" />
+            <Input
+              value={frameSearch}
+              onChange={(event) => {
+                setFrameSearch(event.target.value);
+                setShowAllFramePresets(false);
+              }}
+              placeholder="Search text frames..."
+              className="h-8 rounded-[4px] border-[#2d3340] bg-[#0f1520] pl-8 text-[11px] text-[#f3ead7] placeholder:text-[#626b78]"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-1">
-            {framePresets.map((preset) => (
+            {visibleFramePresets.map((preset) => (
               <Button
                 key={preset.id}
                 type="button"
@@ -67,6 +102,22 @@ export function TypographyInspectorPanel({
               </Button>
             ))}
           </div>
+          {filteredFramePresets.length === 0 ? (
+            <div className="mt-2 rounded-[4px] border border-dashed border-[#2d3340] px-2 py-3 text-center text-[11px] text-[#8f95a3]">
+              No text frames match that search.
+            </div>
+          ) : null}
+          {filteredFramePresets.length > 6 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2 h-7 w-full rounded-[4px] border border-[#2d3340] text-[10px] text-[#c8b07f] hover:bg-[#171d29]"
+              onClick={() => setShowAllFramePresets((value) => !value)}
+            >
+              {showAllFramePresets ? 'Show fewer text frames' : `Show ${filteredFramePresets.length - 6} more text frames`}
+            </Button>
+          ) : null}
         </div>
       </div>
 
