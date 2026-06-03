@@ -1,5 +1,5 @@
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
-import { DEFAULT_SITE_MECHANICS_SETTINGS, type SiteMechanicsSettings } from '@/lib/ownerConsole';
+import { DEFAULT_OWNER_SETTINGS, DEFAULT_SITE_MECHANICS_SETTINGS, type SiteMechanicsSettings } from '@/lib/ownerConsole';
 import { getOwnerConsolePayload } from '@/lib/ownerConsoleStore';
 import {
   calculateMrrUnlockTargetCents,
@@ -13,7 +13,7 @@ import {
   shouldArchiveUserRoadmapItem,
 } from '@/lib/roadmap';
 
-export const DEVELOPER_REQUEST_EMAIL = 'Cameron.r.locke96@gmail.com';
+export const DEVELOPER_REQUEST_EMAIL = DEFAULT_OWNER_SETTINGS.supportEmail;
 
 type RoadmapItemRow = {
   id: string;

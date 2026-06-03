@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeveloperAssetHubPanel } from '@/features/developer-assets/components/DeveloperAssetHubPanel';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
+import { createDeveloperRequestMailto } from '@/lib/contactLinks';
 
 const programStandards = [
   'Share polished assets that make real card systems easier to build.',
@@ -48,26 +49,12 @@ const developerSteps = [
   },
 ];
 
-const createDeveloperRequestMailto = (accountEmail: string | null) => {
-  const subject = 'CardForge developer program request';
-  const body = [
-    'CardForge developer program request',
-    '',
-    `Account email: ${accountEmail ?? ''}`,
-    'Portfolio or asset examples:',
-    '',
-    'Asset types I want to contribute:',
-    '',
-    'Notes:',
-  ].join('\n');
-
-  return `mailto:Cameron.r.locke96@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-};
-
 export function DeveloperProgramPage({
   initialAuthConfigured = false,
+  supportEmail,
 }: {
   initialAuthConfigured?: boolean;
+  supportEmail?: string | null;
 }) {
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [clerkIdentity, setClerkIdentity] = useState({
@@ -87,7 +74,10 @@ export function DeveloperProgramPage({
   const isDeveloper = entitlement.authConfigured
     && effectiveSignedIn
     && (entitlement.accessMode === 'dev' || entitlement.ownerAccess.isOwner);
-  const developerRequestMailto = useMemo(() => createDeveloperRequestMailto(accountEmail), [accountEmail]);
+  const developerRequestMailto = useMemo(
+    () => createDeveloperRequestMailto({ accountEmail, supportEmail }),
+    [accountEmail, supportEmail]
+  );
 
   if (!isDeveloper) {
     return (

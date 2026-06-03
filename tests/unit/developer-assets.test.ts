@@ -12,6 +12,7 @@ import {
   normalizeDeveloperProgramSettingsInput,
 } from '@/lib/developerAssets';
 import {
+  developerAssetSubmissionGuidance,
   getReviewProgressLabel,
   getReviewProgressPercent,
   getSubmissionNextStep,
@@ -50,6 +51,29 @@ const baseSubmission: DeveloperAssetSubmission = {
 };
 
 describe('developer asset program rules', () => {
+  it('defines submission guidance for every supported asset family', () => {
+    for (const assetType of [
+      'templates',
+      'elementPresets',
+      'textures',
+      'dividers',
+      'icons',
+      'imageAssets',
+      'parts',
+    ] as const) {
+      const guidance = developerAssetSubmissionGuidance[assetType];
+
+      expect(guidance.destination).toBeTruthy();
+      expect(guidance.sourceLabel).toBeTruthy();
+      expect(guidance.accept).toBeTruthy();
+      expect(guidance.notesHelp).toBeTruthy();
+      expect(guidance.checklist).toHaveLength(3);
+    }
+
+    expect(developerAssetSubmissionGuidance.templates.accept).toContain('application/json');
+    expect(developerAssetSubmissionGuidance.icons.accept).toContain('image/svg+xml');
+  });
+
   it('normalizes owner settings with launch defaults and guardrails', () => {
     const settings = normalizeDeveloperProgramSettingsInput({
       maxActiveDevelopers: '200',

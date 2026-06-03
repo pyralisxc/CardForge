@@ -15,7 +15,6 @@ import {
 } from '@/lib/pipelineAssetTaxonomy';
 
 export type DeveloperAssetSubmission = DeveloperAssetProgramView['submissions'][number];
-export type ReviewLane = 'defaults' | 'uploads' | 'archive';
 export type VoteFilter = 'all' | 'unvoted' | 'upvoted' | 'downvoted';
 export type PersonalLibraryFilter = DeveloperAssetType | 'all';
 
@@ -30,16 +29,82 @@ export interface PersonalLibraryItem {
   createFile: () => Promise<File>;
 }
 
-export const reviewLaneLabels: Record<ReviewLane, string> = {
-  defaults: 'Live Library',
-  uploads: 'Review Candidates',
-  archive: 'Recovery Archive',
-};
+export interface DeveloperAssetSubmissionGuidance {
+  destination: string;
+  sourceLabel: string;
+  sourceHelp: string;
+  acceptedFileTypes: string;
+  accept: string;
+  notesHelp: string;
+  checklist: [string, string, string];
+}
 
-export const reviewLaneHelp: Record<ReviewLane, string> = {
-  defaults: 'Published pipeline assets currently available to the site library. Developers can keep voting on them while they remain live.',
-  uploads: 'New uploads and candidates gathering enough signal to fill open library caps or graduate into the default library.',
-  archive: 'Retired or underperforming assets. Votes still count here so a strong recovery signal can surface them again.',
+export const reviewQueueHelp = 'All voteable assets live in one queue. Use status, tier, family, and vote filters to narrow candidate uploads, published library assets, and recoverable archived assets.';
+
+export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, DeveloperAssetSubmissionGuidance> = {
+  templates: {
+    destination: 'Layout Studio template library',
+    sourceLabel: 'Template JSON',
+    sourceHelp: 'Submit a saved CardForge template JSON so reviewers can inspect the full canvas, layers, sample text, and generator-ready fields.',
+    acceptedFileTypes: 'JSON template export',
+    accept: '.json,application/json',
+    notesHelp: 'Mention the card genre, intended generator fields, readable text constraints, and any layout assumptions.',
+    checklist: ['Complete layout', 'Readable sample text', 'Generator fields named clearly'],
+  },
+  elementPresets: {
+    destination: 'Layout Studio recipe and preset tools',
+    sourceLabel: 'Preset or style JSON',
+    sourceHelp: 'Submit a structured recipe, appearance style, or element preset JSON that can apply predictably to a specific element role.',
+    acceptedFileTypes: 'JSON recipe or style export',
+    accept: '.json,application/json',
+    notesHelp: 'Mention which element roles it applies to, what visual state it creates, and when creators should use it.',
+    checklist: ['Specific element role', 'Visible style change', 'Reusable naming'],
+  },
+  textures: {
+    destination: 'Texture swatches and fills',
+    sourceLabel: 'Texture image',
+    sourceHelp: 'Submit a tileable or full-surface texture image that can be applied to panels, frames, shapes, or backgrounds.',
+    acceptedFileTypes: 'PNG, JPG, WEBP, or SVG',
+    accept: '.png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml',
+    notesHelp: 'Mention tile behavior, best surfaces, color range, and whether the texture should repeat or stretch.',
+    checklist: ['Works at small size', 'Clear repeat/stretch intent', 'Readable behind text'],
+  },
+  dividers: {
+    destination: 'Divider rails and section breaks',
+    sourceLabel: 'Divider image',
+    sourceHelp: 'Submit a horizontal or decorative divider asset that separates rules text, stats, titles, or card sections.',
+    acceptedFileTypes: 'SVG, PNG, or WEBP',
+    accept: '.svg,.png,.webp,image/svg+xml,image/png,image/webp',
+    notesHelp: 'Mention orientation, ideal width, whether it stretches, and which card sections it is meant to separate.',
+    checklist: ['Clear at narrow widths', 'Stretch intent noted', 'Section role described'],
+  },
+  icons: {
+    destination: 'Icon picker and symbol controls',
+    sourceLabel: 'Icon image',
+    sourceHelp: 'Submit a clean icon or symbol that remains readable at small sizes in stats, labels, costs, and badges.',
+    acceptedFileTypes: 'SVG, PNG, or WEBP',
+    accept: '.svg,.png,.webp,image/svg+xml,image/png,image/webp',
+    notesHelp: 'Mention semantic use, minimum readable size, color expectations, and whether it should be recolorable.',
+    checklist: ['Readable at small size', 'Semantic use named', 'Transparent background preferred'],
+  },
+  imageAssets: {
+    destination: 'Image asset picker',
+    sourceLabel: 'Image asset',
+    sourceHelp: 'Submit reusable illustration, placeholder, or image-frame content that creators can place directly on a card.',
+    acceptedFileTypes: 'PNG, JPG, WEBP, or SVG',
+    accept: '.png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml',
+    notesHelp: 'Mention intended crop, aspect ratio, visual style, and whether the asset is a placeholder or finished art.',
+    checklist: ['Crop intent clear', 'Aspect ratio noted', 'Source rights described'],
+  },
+  parts: {
+    destination: 'Overlay asset and frame-part picker',
+    sourceLabel: 'Overlay image',
+    sourceHelp: 'Submit a reusable ornament, frame piece, plate, flourish, or overlay that can sit on top of layouts.',
+    acceptedFileTypes: 'SVG, PNG, or WEBP',
+    accept: '.svg,.png,.webp,image/svg+xml,image/png,image/webp',
+    notesHelp: 'Mention target placement, stacking behavior, resize constraints, and which element or card surface it decorates.',
+    checklist: ['Transparent edges', 'Placement intent clear', 'Scales without artifacts'],
+  },
 };
 
 export const assetTierOrder: DeveloperAssetAccessTier[] = ['hidden', 'free', 'paid', 'developer'];

@@ -10,8 +10,10 @@ import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitl
 
 export function RoadmapPage({
   initialAuthConfigured = false,
+  supportEmail,
 }: {
   initialAuthConfigured?: boolean;
+  supportEmail?: string | null;
 }) {
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [clerkIdentity, setClerkIdentity] = useState({
@@ -59,6 +61,7 @@ export function RoadmapPage({
         isDeveloper={isDeveloper}
         isSignedIn={effectiveSignedIn}
         accountEmail={accountEmail}
+        supportEmail={supportEmail}
       />
     </main>
   );

@@ -18,6 +18,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { createRoadmapDeveloperRequestMailto } from '@/lib/contactLinks';
 import {
   buildRoadmapTimelineCheckpoints,
   isChronicleTimelineItem,
@@ -35,6 +36,7 @@ interface RoadmapPanelProps {
   isDeveloper: boolean;
   isSignedIn: boolean;
   accountEmail: string | null;
+  supportEmail?: string | null;
 }
 
 const statusLabels: Record<RoadmapStatus, string> = {
@@ -65,22 +67,6 @@ const getApiErrorMessage = async (response: Response, fallback: string) => {
   } catch {
     return fallback;
   }
-};
-
-const createDeveloperRequestMailto = (accountEmail: string | null) => {
-  const subject = 'Card Forge developer account request';
-  const body = [
-    'Card Forge developer account request',
-    '',
-    `Account email: ${accountEmail ?? ''}`,
-    'Reason for developer access:',
-    '',
-    'What I want to help test or build:',
-    '',
-    'Relevant links or notes:',
-  ].join('\n');
-
-  return `mailto:Cameron.r.locke96@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 };
 
 const formatMonth = (value: string) => {
@@ -399,7 +385,7 @@ function FinancialMetric({
   );
 }
 
-export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapPanelProps) {
+export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEmail }: RoadmapPanelProps) {
   const { toast } = useToast();
   const [payload, setPayload] = useState<RoadmapPayload | null>(null);
   const [suggestion, setSuggestion] = useState('');
@@ -414,7 +400,10 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail }: RoadmapP
     visibleMonth: '2026-06',
     monthlyCostDollars: '',
   });
-  const developerRequestMailto = useMemo(() => createDeveloperRequestMailto(accountEmail), [accountEmail]);
+  const developerRequestMailto = useMemo(
+    () => createRoadmapDeveloperRequestMailto({ accountEmail, supportEmail }),
+    [accountEmail, supportEmail]
+  );
 
   const chronicleItems = useMemo(() => payload?.items.filter(isChronicleTimelineItem) ?? [], [payload]);
   const featureBoardItems = useMemo(() => payload?.items.filter((item) => item.itemType === 'feature') ?? [], [payload]);

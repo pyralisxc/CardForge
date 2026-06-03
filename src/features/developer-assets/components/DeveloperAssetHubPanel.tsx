@@ -28,6 +28,7 @@ import {
   createAssetFile,
   createJsonFile,
   assetTierOrder,
+  developerAssetSubmissionGuidance,
   getApiErrorMessage,
   getExtensionForAssetUrl,
   getSearchableSubmissionText,
@@ -35,15 +36,13 @@ import {
   isCurrentContributorSubmission,
   isEditableSubmission,
   readStoredCardAssets,
-  reviewLaneHelp,
-  reviewLaneLabels,
+  reviewQueueHelp,
   slugifyFileName,
   statusGlossary,
   tierGlossary,
   type DeveloperAssetSubmission,
   type PersonalLibraryFilter,
   type PersonalLibraryItem,
-  type ReviewLane,
   type VoteFilter,
 } from '@/features/developer-assets/components/DeveloperAssetHubModel';
 import { AssetRow, EditSubmissionForm, QueuePager, VoteButtons } from '@/features/developer-assets/components/DeveloperAssetRows';
@@ -91,7 +90,6 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [reviewLane, setReviewLane] = useState<ReviewLane>('uploads');
   const [reviewSearch, setReviewSearch] = useState('');
   const [reviewType, setReviewType] = useState<DeveloperAssetType | 'all'>('all');
   const [reviewStatus, setReviewStatus] = useState<DeveloperAssetStatus | 'all'>('all');
@@ -114,6 +112,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const openDefaultSlotCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0) ?? 0;
   const reviewCandidateCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.candidateCount, 0) ?? 0;
   const archiveCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0) ?? 0;
+  const submissionGuidance = developerAssetSubmissionGuidance[assetType];
 
   useEffect(() => {
     const loadPersonalLibraryAssets = () => {
@@ -190,23 +189,17 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
       : personalLibraryItems.filter((item) => item.assetType === personalLibraryFilter)
   ), [personalLibraryFilter, personalLibraryItems]);
 
-  const reviewLaneSubmissions = useMemo(() => {
+  const reviewQueueSubmissions = useMemo(() => {
     if (!program) return [];
-    const reviewableSubmissions = program.settings.allowContributorSelfVoting
+    return (program.settings.allowContributorSelfVoting
       ? program.submissions
-      : program.submissions.filter((submission) => !isCurrentContributorSubmission(submission, program));
-    if (reviewLane === 'archive') return reviewableSubmissions.filter((submission) => submission.status === 'archived');
-    if (reviewLane === 'defaults') return reviewableSubmissions.filter((submission) => submission.status === 'published');
-    return reviewableSubmissions.filter((submission) => (
-      submission.status !== 'published'
-      && submission.status !== 'archived'
-      && submission.status !== 'rejected'
-    ));
-  }, [program, reviewLane]);
+      : program.submissions.filter((submission) => !isCurrentContributorSubmission(submission, program))
+    ).filter((submission) => submission.status !== 'rejected');
+  }, [program]);
 
   const filteredReviewSubmissions = useMemo(() => {
     const query = reviewSearch.trim().toLowerCase();
-    return reviewLaneSubmissions.filter((submission) => {
+    return reviewQueueSubmissions.filter((submission) => {
       if (query && !getSearchableSubmissionText(submission).includes(query)) return false;
       if (reviewType !== 'all' && submission.assetType !== reviewType) return false;
       if (reviewStatus !== 'all' && submission.status !== reviewStatus) return false;
@@ -216,7 +209,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
       if (reviewVoteFilter === 'downvoted' && submission.currentUserVote !== 'negative') return false;
       return true;
     });
-  }, [reviewLaneSubmissions, reviewSearch, reviewStatus, reviewTier, reviewType, reviewVoteFilter]);
+  }, [reviewQueueSubmissions, reviewSearch, reviewStatus, reviewTier, reviewType, reviewVoteFilter]);
 
   const reviewPageCount = Math.max(1, Math.ceil(filteredReviewSubmissions.length / reviewPageSize));
   const visibleReviewSubmissions = filteredReviewSubmissions.slice(
@@ -226,7 +219,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
   useEffect(() => {
     setReviewPage(1);
-  }, [reviewLane, reviewPageSize, reviewSearch, reviewStatus, reviewTier, reviewType, reviewVoteFilter]);
+  }, [reviewPageSize, reviewSearch, reviewStatus, reviewTier, reviewType, reviewVoteFilter]);
 
   const loadProgram = useCallback(async (attempt = 0) => {
     setIsLoading(true);
@@ -291,6 +284,11 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     selectCandidateFile(event.target.files?.[0] ?? null);
+  };
+
+  const changeAssetType = (nextAssetType: DeveloperAssetType) => {
+    setAssetType(nextAssetType);
+    setPersonalLibraryFilter(nextAssetType);
   };
 
   const handleCandidateDrop = (event: DragEvent<HTMLLabelElement>) => {
@@ -595,19 +593,19 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             </p>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <GuidanceCard
-                eyebrow="Before upload"
-                title="Use the right family"
-                body="Templates, recipes, textures, dividers, icons, images, and overlays each publish into different studio surfaces."
+                eyebrow="Destination"
+                title={submissionGuidance.destination}
+                body={`${getDeveloperAssetTypeLabel(assetType)} publish into this Studio surface after voting, owner review, and cap checks.`}
               />
               <GuidanceCard
-                eyebrow="Before upload"
-                title="Attach the real source"
-                body="The source file is what the pipeline stores, previews, votes on, and eventually publishes."
+                eyebrow="Source"
+                title={submissionGuidance.sourceLabel}
+                body={submissionGuidance.sourceHelp}
               />
               <GuidanceCard
-                eyebrow="Before upload"
-                title="Explain the use case"
-                body="Notes should tell reviewers where the asset belongs and what makes it useful."
+                eyebrow="Reviewers check"
+                title={submissionGuidance.checklist.join(' / ')}
+                body={submissionGuidance.notesHelp}
               />
             </div>
             <div className="mt-4 grid gap-3">
@@ -620,7 +618,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                   id="developer-asset-family"
                   className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
                   value={assetType}
-                  onChange={(event) => setAssetType(event.target.value as DeveloperAssetType)}
+                  onChange={(event) => changeAssetType(event.target.value as DeveloperAssetType)}
                 >
                   {DEVELOPER_ASSET_TYPES.map((type) => (
                     <option key={type} value={type}>{getDeveloperAssetTypeLabel(type, { plural: false })}</option>
@@ -704,13 +702,13 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                       </span>
                       <span className="text-sm font-medium text-[#ffe7ad]">Drop a file or browse</span>
                       <span className="text-xs leading-5 text-[#a98a55]">
-                        SVG, PNG, JPG, WEBP, and JSON up to 10 MB.
+                        {submissionGuidance.acceptedFileTypes} up to 10 MB.
                       </span>
                       <input
                         key={fileInputKey}
                         type="file"
                         aria-label="Asset source file"
-                        accept=".svg,.png,.jpg,.jpeg,.webp,.json,image/svg+xml,image/png,image/jpeg,image/webp,application/json"
+                        accept={submissionGuidance.accept}
                         className="sr-only"
                         onChange={handleFileChange}
                       />
@@ -735,9 +733,15 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
               <label htmlFor="developer-asset-notes" className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
                   Notes
-                  <FieldHelp text="Mention intended use, style, licensing/source context, and anything reviewers need to know." />
+                  <FieldHelp text={submissionGuidance.notesHelp} />
                 </span>
-                <textarea id="developer-asset-notes" className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={description} onChange={(event) => setDescription(event.target.value)} />
+                <textarea
+                  id="developer-asset-notes"
+                  className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+                  placeholder={submissionGuidance.notesHelp}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
               </label>
               <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
                 {isSaving ? 'Uploading...' : 'Send to Forge Review'}
@@ -752,20 +756,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
               <p className="mt-2 text-sm leading-6 text-[#c7b288]">
                 Vote on candidate uploads, live library assets, and archived assets. Assets graduate into the shared library when there is room or enough vote signal, and archive votes can surface recovery candidates.
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(Object.keys(reviewLaneLabels) as ReviewLane[]).map((lane) => (
-                  <Button
-                    key={lane}
-                    size="sm"
-                    variant="outline"
-                    className={`border-[#5f4526] bg-transparent text-[#c7b288] hover:border-[#d8b365] hover:bg-[#1e160d] ${reviewLane === lane ? 'border-[#d8b365] bg-[#2a1b0d] text-[#ffe7ad]' : ''}`}
-                    onClick={() => setReviewLane(lane)}
-                  >
-                    {reviewLaneLabels[lane]}
-                  </Button>
-                ))}
-              </div>
-              <p className="mt-3 text-xs leading-5 text-[#a98a55]">{reviewLaneHelp[reviewLane]}</p>
+              <p className="mt-3 text-xs leading-5 text-[#a98a55]">{reviewQueueHelp}</p>
               <div className="mt-4 grid gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 lg:grid-cols-[minmax(14rem,1fr)_repeat(5,minmax(8rem,auto))]">
                 <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
                   Search

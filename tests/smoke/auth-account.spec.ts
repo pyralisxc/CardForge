@@ -433,6 +433,10 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       } else {
         await expect(page.getByText(/private asset hub/i)).toBeVisible();
         await expect(page.getByText('Developer Asset Hub', { exact: true })).toHaveCount(0);
+        const requestAccessLink = page.getByRole('link', { name: /Request developer access/i });
+        await expect(requestAccessLink).toHaveAttribute('href', /^mailto:/);
+        await expect(requestAccessLink).toHaveAttribute('href', /subject=CardForge%20developer%20program%20request/);
+        await expect(requestAccessLink).toHaveAttribute('href', new RegExp(encodeURIComponent(qaUser.email)));
       }
 
       await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -565,7 +569,12 @@ test('reusable owner QA account can submit and publish through the developer ass
     await expect(page.getByText(/Drop a file or browse/i)).toBeVisible();
 
     const uiAssetName = `Smoke UI Asset Hub ${uniqueSuffix}`;
+    await page.getByLabel('Asset family').selectOption('templates');
+    await expect(page.getByText('Template JSON', { exact: true })).toBeVisible();
+    await expect(page.locator('input[type="file"][accept*="application/json"]')).toHaveCount(1);
     await page.getByLabel('Asset family').selectOption('icons');
+    await expect(page.getByText('Icon image', { exact: true })).toBeVisible();
+    await expect(page.locator('input[type="file"][accept*="image/svg+xml"]')).toHaveCount(1);
     await page.getByLabel('Name').fill(uiAssetName);
     await page.getByLabel('Notes').fill('Smoke test SVG submitted through the visible developer Asset Hub.');
     await page.locator('input[type="file"][accept*=".svg"]').setInputFiles({
@@ -603,9 +612,10 @@ test('reusable owner QA account can submit and publish through the developer ass
     await page.getByRole('tab', { name: 'My Pipeline', exact: true }).click();
     await expect(page.getByText(uiAssetName, { exact: true })).toBeVisible({ timeout: 30_000 });
     await page.getByRole('tab', { name: 'Review Queue', exact: true }).click();
-    await expect(page.getByRole('button', { name: /Live Library/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Review Candidates/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Recovery Archive/i })).toBeVisible();
+    await expect(page.getByText(/All voteable assets live in one queue/i)).toBeVisible();
+    await expect(page.getByLabel('Status')).toBeVisible();
+    await expect(page.getByLabel('Tier')).toBeVisible();
+    await expect(page.getByText(uiAssetName, { exact: true })).toBeVisible({ timeout: 30_000 });
 
     const uniqueAssetName = `Smoke Developer Pipeline ${uniqueSuffix}`;
     const submitResponse = await page.request.post('/api/developer-assets', {

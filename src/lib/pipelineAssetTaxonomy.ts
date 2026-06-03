@@ -69,15 +69,15 @@ export const getDeveloperAssetStatusDescription = (status: DeveloperAssetStatus 
 export const getDeveloperAssetTierLabel = (tier: DeveloperAssetAccessTier): string => {
   if (tier === 'free') return 'Starter Library';
   if (tier === 'paid') return 'Creator Pass';
-  if (tier === 'developer') return 'Forge Review';
-  return 'Hidden';
+  if (tier === 'developer') return 'Pipeline Only';
+  return 'Not Live';
 };
 
 export const getDeveloperAssetTierDescription = (tier: DeveloperAssetAccessTier): string => {
-  if (tier === 'free') return 'Visible to Starter Library users when published.';
-  if (tier === 'paid') return 'Visible to Creator Pass users when published.';
-  if (tier === 'developer') return 'Still in review, waiting on votes, caps, or owner decision.';
-  return 'Not visible in the public/shared library.';
+  if (tier === 'free') return 'Published into the free Starter Library.';
+  if (tier === 'paid') return 'Published into the paid Creator Pass library.';
+  if (tier === 'developer') return 'Kept inside the developer pipeline and not loaded into creator-facing Studio libraries.';
+  return 'Archived, rejected, or owner-held outside the creator-facing Studio libraries.';
 };
 
 export const getLibrarySourceLabel = (source?: CardAssetOption['librarySource']): string => {

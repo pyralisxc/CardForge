@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Database, ExternalLink, FileText, Gift, Info, KeyRound, Rocket, Save, Settings2, ShieldCheck, Users } from 'lucide-react';
+import { CheckCircle2, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Settings2, ShieldCheck, Users } from 'lucide-react';
 
 import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,13 @@ interface OwnerConsoleResponse {
       missing: string[];
     };
     ownerAllowlistConfigured: boolean;
+    email: {
+      contactMode: 'mailto' | 'ready_for_server_delivery';
+      resendConfigured: boolean;
+      fromConfigured: boolean;
+      replyToConfigured: boolean;
+      missing: string[];
+    };
     links: Array<{ label: string; href: string }>;
   };
   console: OwnerConsolePayload;
@@ -599,6 +606,50 @@ export function OwnerConsolePage() {
                 </div>
               </section>
             </div>
+
+            <section className="mt-6 border border-[#6d4f2b] bg-[#15100a] p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex items-center gap-3 text-[#e2aa4a]">
+                    <Mail className="h-5 w-5" />
+                    <h2 className="font-serif text-2xl text-[#fff1c7]">Email routing</h2>
+                  </div>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
+                    Contact and developer-request links currently use the owner support email. When the business domain is ready, configure Resend and switch selected flows to server-sent transactional email without changing the public workflow.
+                  </p>
+                </div>
+                <StatusPill ready={payload.integrationStatus.email.resendConfigured} />
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-4">
+                <MetricTile label="Current mode" value={payload.integrationStatus.email.contactMode === 'mailto' ? 'Mailto links' : 'Server-ready'} />
+                <MetricTile label="Support inbox" value={settings.supportEmail || 'Not set'} />
+                <MetricTile label="From address" value={payload.integrationStatus.email.fromConfigured ? 'Configured' : 'Pending'} />
+                <MetricTile label="Reply-to" value={payload.integrationStatus.email.replyToConfigured ? 'Configured' : 'Pending'} />
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
+                <div className="border border-[#4a3823] bg-[#100c08] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Migration path</p>
+                  <ol className="mt-3 space-y-2 text-sm leading-6 text-[#c7b288]">
+                    <li>1. Set the business support inbox in Business profile.</li>
+                    <li>2. Verify the sending domain or subdomain in Resend.</li>
+                    <li>3. Add `RESEND_API_KEY`, `CARDFORGE_EMAIL_FROM`, and `CARDFORGE_EMAIL_REPLY_TO` in Vercel.</li>
+                    <li>4. Convert contact/developer requests from mailto links to server-sent forms.</li>
+                  </ol>
+                </div>
+                <div className="border border-[#4a3823] bg-[#100c08] p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Missing delivery config</p>
+                  {payload.integrationStatus.email.missing.length === 0 ? (
+                    <p className="mt-3 text-sm leading-6 text-[#bde3a8]">Transactional delivery env vars are present. Domain verification and a test email should be checked before switching forms on.</p>
+                  ) : (
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-[#c7b288]">
+                      {payload.integrationStatus.email.missing.map((item) => (
+                        <li key={item} className="border border-[#3c2c1b] bg-[#15100a] px-3 py-2 text-[#ffe7ad]">{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </section>
 
             <section className="mt-6 border border-[#6d4f2b] bg-[#15100a] p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

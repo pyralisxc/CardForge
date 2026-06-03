@@ -89,7 +89,7 @@ Implemented writes:
 - Starter defaults are Cameron-owned pipeline submissions. Use `npm run pipeline:sync-defaults` to import repo starter material into Supabase Storage, `cardforge_asset_registry`, and linked submission rows.
 - Default template/style saves through `/api/templates` and `/api/styles` sync registry-backed payloads when shipped-library writes are enabled.
 
-Pipeline lifecycle terms are `draft`, `submitted`, `voting`, `publish_candidate`, `published`, `archived`, and `rejected`. Access tier is separate: `hidden`, `free`, `paid`, or `developer`. A published asset is site-visible only when its tier allows it: Starter Library uses `free`, Creator Pass uses `paid`, and Forge Review uses `developer`.
+Pipeline lifecycle terms are `draft`, `submitted`, `voting`, `publish_candidate`, `published`, `archived`, and `rejected`. Access tier is separate: `free` and `paid` are the only creator-facing published tiers, while internal `developer` and `hidden` values mean pipeline-only or not-live inventory.
 
 Developer contribution records are durable history. Deleting or disabling a Clerk account must not delete developer submissions, votes, published registry rows, or source-file references. The pipeline stores contributor ids/emails as snapshots instead of foreign keys to live account rows; if a developer leaves, mark the profile inactive/suspended or let the Clerk account disappear while preserving the contribution ledger.
 

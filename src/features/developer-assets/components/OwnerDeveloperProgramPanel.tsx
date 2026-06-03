@@ -295,7 +295,7 @@ export function OwnerDeveloperProgramPanel() {
         <h2 className="font-serif text-2xl text-[#fff1c7]">Asset Pipeline Command</h2>
       </div>
       <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-        Control developer slots, monthly contribution rules, vote thresholds, tier visibility, archive visibility, and per-type caps before financial launch. Current site defaults are owner-contributed assets in the same voting pipeline as every developer upload.
+        Control developer slots, monthly contribution rules, vote thresholds, free/paid published visibility, archive visibility, and per-type caps before financial launch. Published assets are the only assets loaded into creator-facing Studio libraries; everything else remains managed in the pipeline.
       </p>
       <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -303,7 +303,7 @@ export function OwnerDeveloperProgramPanel() {
             <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Owner control map</p>
             <h3 className="mt-1 font-serif text-xl text-[#fff1c7]">These rules change the live pipeline after you save.</h3>
             <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Saving updates developer limits, vote thresholds, self-voting, tier caps, and review behavior. It does not delete contribution history; assets move between live defaults, candidates, hidden tiers, and archive according to the same rules.
+              Saving updates developer limits, vote thresholds, self-voting, tier caps, and review behavior. It does not delete contribution history; assets move between pipeline-only, published free/paid, and archive states according to the same rules.
             </p>
           </div>
           <div className="min-w-48 border border-[#3c2c1b] bg-[#15100a] p-3 text-sm text-[#c7b288]">
@@ -318,15 +318,15 @@ export function OwnerDeveloperProgramPanel() {
         <DecisionCard label="Submissions" body={`${program.submissions.length} total developer asset submission${program.submissions.length === 1 ? '' : 's'} in the review system.`} />
         <DecisionCard label="Review queue" body={`${program.votingQueue.length} active asset${program.votingQueue.length === 1 ? '' : 's'} remain open for developer voting until archived or rejected.`} />
         <DecisionCard label="Active developers" body={`${program.activeDeveloperCount} active developer${program.activeDeveloperCount === 1 ? '' : 's'} currently count toward voting presets.`} />
-        <DecisionCard label="Default policy" body="Defaults are just published pipeline assets. If voting or cap rules push them out, they move through the same candidate/archive states as any other asset." />
+        <DecisionCard label="Published policy" body="Creator-facing assets are published pipeline rows with a free or paid tier. If voting or cap rules push them out, they move back through candidate/archive states." />
         <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; rebalance moves lowest-signal live assets back to candidates.`} />
-        <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads during solo/demo review.' : 'Only peer votes count; own assets stay out of review lanes for that contributor.'} />
+        <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads during solo/demo review.' : 'Only peer votes count; own assets stay out of the review queue for that contributor.'} />
         <DecisionCard label="Owner vote mode" body={settings.ownerVoteWeight === 1 ? 'Owner votes count like one developer vote.' : `Owner votes count as ${settings.ownerVoteWeight}x signal in asset grading.`} />
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <DecisionCard label="Live defaults" body={`${liveDefaultCount} published assets currently feed creator-facing libraries and remain open to developer voting.`} />
-        <DecisionCard label="Waiting for signal" body={`${candidateCount} candidate assets are waiting for votes, owner review, or open caps before they become defaults.`} />
+        <DecisionCard label="Live library" body={`${liveDefaultCount} published assets currently feed creator-facing libraries and remain open to developer voting.`} />
+        <DecisionCard label="Waiting for signal" body={`${candidateCount} candidate assets are waiting for votes, owner review, or open caps before they become live library assets.`} />
         <DecisionCard label="Recoverable archive" body={`${archiveCount} archived assets remain visible for owner review and can be recovered when signal improves.`} />
       </div>
 
@@ -486,9 +486,9 @@ export function OwnerDeveloperProgramPanel() {
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_0.9fr]">
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
-          <h3 className="font-serif text-xl text-[#fff1c7]">Published cap pressure</h3>
+          <h3 className="font-serif text-xl text-[#fff1c7]">Live library cap pressure</h3>
           <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-            Caps control which assets can remain current defaults. Reducing a cap moves the lowest-signal live assets back into candidate review; failed assets move to archive.
+            Caps control which free and paid assets can remain live in Studio libraries. Reducing a cap moves the lowest-signal live assets back into candidate review; failed assets move to archive.
           </p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[42rem] border-collapse text-sm">
@@ -627,8 +627,8 @@ export function OwnerDeveloperProgramPanel() {
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
-        <DecisionCard label="Review only" body={`Under ${settings.minimumVotesForTierAssignment} votes stays in Forge Review.`} />
-        <DecisionCard label="Hidden/archive" body={`Below ${settings.freeAssetMinimumPositiveVotePercent}% positive stays hidden or moves to archive.`} />
+        <DecisionCard label="Pipeline only" body={`Under ${settings.minimumVotesForTierAssignment} votes stays out of creator-facing libraries.`} />
+        <DecisionCard label="Archive path" body={`Below ${settings.freeAssetMinimumPositiveVotePercent}% positive stays pipeline-only or moves to archive.`} />
         <DecisionCard label="Starter" body={`${settings.freeAssetMinimumPositiveVotePercent}-${settings.paidAssetMinimumPositiveVotePercent - 1}% positive can enter Starter Library.`} />
         <DecisionCard label="Creator Pass" body={`${settings.paidAssetMinimumPositiveVotePercent}%+ positive can enter Creator Pass Library.`} />
       </div>

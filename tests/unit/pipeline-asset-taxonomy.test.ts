@@ -51,7 +51,7 @@ describe('pipeline asset taxonomy', () => {
   it('explains status and tier labels for developer-facing pipeline context', () => {
     expect(getDeveloperAssetStatusDescription('voting')).toMatch(/thumbs-up and thumbs-down/i);
     expect(getDeveloperAssetStatusDescription('published')).toMatch(/shared CardForge library/i);
-    expect(getDeveloperAssetTierDescription('developer')).toMatch(/waiting on votes/i);
+    expect(getDeveloperAssetTierDescription('developer')).toMatch(/developer pipeline/i);
     expect(getDeveloperAssetTierDescription('free')).toMatch(/Starter Library/i);
     expect(getDeveloperAssetTierDescription('paid')).toMatch(/Creator Pass/i);
   });

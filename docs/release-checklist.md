@@ -605,7 +605,7 @@ Current finding:
 - Owner Site Mechanics now control public feature-board caps and negative-signal archive thresholds separately from developer asset voting rules.
 - Owner Launch Readiness can now move CardForge-authored roadmap checkpoints through Plan, Start, Test, and Complete; Complete sets the shipped date used by the public roadmap.
 - Owner Access & Promos can now show Founder Beta wave capacity, public cap capacity, next-wave availability, and active claim records.
-- Asset lifecycle status is now separate from user-facing access tier: owner rules can place voted assets into Forge Review, Starter Library, Creator Pass, or Hidden visibility. The active asset tier model is `developer`, `free`, `paid`, or `hidden`; published-to-site is not a separate tier.
+- Asset lifecycle status is separate from creator-facing visibility. Creator-facing published visibility is `free` or `paid`; internal `developer`/`hidden` tier values represent pipeline-only or not-live inventory and should not be presented as extra customer-facing library tiers.
 - The default access ladder is 5 votes before tier assignment, 60% positive for Starter Library, and 80% positive for Creator Pass, with owner overrides available from `/owner`.
 - Publish Total is derived from Starter plus Creator Pass caps so owners cannot create conflicting per-type library limits.
 - Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe should later own real coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks.
@@ -620,21 +620,21 @@ Current finding:
 - `202605240004_developer_profile_names.sql` adds first/last name fields to developer profiles so queues and ledgers can show a contributor name first, falling back to email when no name is available.
 - `202605240005_developer_self_voting_rule.sql` adds owner-configurable contributor self-voting. It defaults on for solo/demo review and can be disabled for strict peer-only voting.
 - `202605240006_owner_vote_weight.sql` adds owner-configurable vote weight. It defaults to 1x so the owner votes like any other developer, with 2x/3x available from `/owner` for stronger owner signal in close grading decisions.
-- The developer Asset Hub review queue is split into Live Library, Review Candidates, and Recovery Archive, with filtering, paging, expanded previews, archive voting, and uploader edits for unpublished/non-rejected submissions.
+- The developer Asset Hub review queue is one shared voting surface with status, tier, family, vote, search, paging, expanded previews, archive voting, and uploader edits for unpublished/non-rejected submissions.
 - The developer submit flow accepts candidate sources from three places: Personal Library saved templates/styles/local art, file-directory browse, or drag/drop. Personal Library items stay browser-local until the developer explicitly sends them to Forge Review, and project export remains the portability backup for moving that local library between devices.
-- Authenticated smoke now exercises the visible developer Asset Hub path: a reusable owner/dev QA account opens `/developer`, uploads a tiny SVG through the submission form, sends it to Forge Review, confirms it appears in My Pipeline and review lanes, then continues owner publish and `/api/assets` registry verification.
+- Authenticated smoke now exercises the visible developer Asset Hub path: a reusable owner/dev QA account opens `/developer`, uploads a tiny SVG through the submission form, sends it to Forge Review, confirms it appears in My Pipeline and the shared review queue, then continues owner publish and `/api/assets` registry verification.
 - Authenticated smoke prefers reusable Clerk QA accounts from `.env.local`:
   - `CARDFORGE_E2E_FREE_EMAIL` should point at a reusable free QA account for Founder Beta, roadmap voting, and profile-route checks.
   - `CARDFORGE_E2E_PAID_EMAIL` should point at a reusable paid QA account so the account matrix can verify Creator Pass export state.
   - `CARDFORGE_E2E_DEV_EMAIL` should point at a reusable developer QA account so the account matrix can verify developer hub access without owner access.
-  - `CARDFORGE_E2E_OWNER_EMAIL` should point at a reusable owner/dev QA account for Developer Asset Hub upload, My Pipeline, review lanes, owner publish, and `/api/assets` verification.
+  - `CARDFORGE_E2E_OWNER_EMAIL` should point at a reusable owner/dev QA account for Developer Asset Hub upload, My Pipeline, shared review queue, owner publish, and `/api/assets` verification.
   - `CARDFORGE_E2E_ALLOW_DISPOSABLE_USERS=true` is an explicit fallback only; leave it false/blank when avoiding stray Clerk accounts.
 - Authenticated smoke now verifies developer voting rules across reusable developer and owner accounts: contributor self-voting can be disabled/enabled, owner vote weight changes vote totals, and owner archive/recovery can move a submission back into voting.
 - Owner Developer Program queue actions now expose explicit archive/recovery labels, and authenticated smoke clicks the visible `/owner` archive and recover controls for a real submitted asset.
 - `202605240006_owner_vote_weight.sql` has been applied to the connected Supabase QA project; without it, owner vote-weight controls degrade to 1x and weighted-vote smoke cannot pass.
 - The `/account` management CTA now reads `Manage Account`, and authenticated profile smoke checks the embedded Clerk profile panel uses readable CardForge text colors.
 - Account entitlement refreshes after Clerk identity changes, so reusable QA account switching and real sign-in transitions do not leave stale free/paid/dev tier copy on `/account`.
-- Developer Asset Hub badges should read as status, contributor, and current tier. Starter rows are normal contributor-owned pipeline rows; self-voting and whether own rows appear in review lanes is controlled by the contributor self-voting owner rule.
+- Developer Asset Hub badges should read as status, contributor, and current visibility. Starter rows are normal contributor-owned pipeline rows; self-voting and whether own rows appear in the shared review queue is controlled by the contributor self-voting owner rule.
 - Developer account deletion must not delete contribution history. Submissions, votes, published registry rows, source references, and contributor credit are durable platform records; removal from the program should use profile status/access changes and asset archive/reject/hidden states.
 - Structured template submissions now render a real card preview in the expanded asset view when the embedded/default template payload is available; broken image previews fall back to an explicit unavailable state instead of a silent blank.
 - Layout Studio template library rows use scaled real `CardPreview` renders instead of symbolic thumbnail placeholders.
@@ -669,14 +669,14 @@ Recommended handling:
 - verify the owner account sees Library Command, the developer account sees Forge Review, paid accounts see Creator Pass Library, and free users see Starter Library messaging
 - verify `/api/assets` includes the expected registry counts after the pipeline sync has imported starter material; missing database content should surface as an unavailable/empty catalog rather than silently repopulating from repo folders
 - verify the developer review queue includes active/published CardForge default assets, separates candidate uploads from current defaults and archive, and keeps defaults/archive assets voteable until rejected or owner-hidden
-- verify toggling contributor self-voting changes whether own/CardForge-default assets appear in review lanes and whether the vote route accepts those votes
+- verify toggling contributor self-voting changes whether own/CardForge-default assets appear in the shared review queue and whether the vote route accepts those votes
 - verify changing owner vote weight between 1x, 2x, and 3x changes owner vote impact without changing which assets the owner can manage
 - verify Owner Developer Program shows cap pressure, CardForge default counts, per-developer submissions left, and required published progress
 - verify developer and owner asset rows show status, contributor name/email, current tier, preview state, and expanded template/image previews without broken thumbnails
 - verify generator template selectors label Default vs User templates, especially when a modified default and user template share similar names
 - verify the owner can complete a CardForge-authored roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
 - verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
-- verify a developer can choose a Personal Library template/style/local art item, browse for an SVG/PNG/JPG/WEBP/JSON source file, or drag/drop that file, submit it to voting, see it in My Pipeline/review lanes, and have an owner-published submission appear through `/api/assets`
+- verify a developer can choose a Personal Library template/style/local art item, browse for an SVG/PNG/JPG/WEBP/JSON source file, or drag/drop that file, submit it to voting, see it in My Pipeline and the shared review queue, and have an owner-published submission appear through `/api/assets`
 - treat payout reports as planning data until Stripe Connect, tax/legal terms, refund handling, and billing webhooks are implemented
 
 Risk rating: `Medium / Known / Launch Blocking for developer-program rollout, not for core local authoring`
