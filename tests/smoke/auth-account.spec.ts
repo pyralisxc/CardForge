@@ -375,6 +375,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       developerText: /Help shape the shared CardForge library/i,
       studioText: /Free preview mode/i,
       entitlement: { accessMode: 'free' as const, canExportClean: false, isOwner: false },
+      privateMetadata: {},
     },
     {
       role: 'paid',
@@ -384,6 +385,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       developerText: /Help shape the shared CardForge library/i,
       studioText: /Paid export entitlement active/i,
       entitlement: { accessMode: 'paid' as const, canExportClean: true, isOwner: false },
+      privateMetadata: { cardforgeAccess: 'paid' },
     },
     {
       role: 'developer',
@@ -393,6 +395,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       developerText: /Developer Asset Hub/i,
       studioText: /Dev export entitlement active/i,
       entitlement: { accessMode: 'dev' as const, canExportClean: true, isOwner: false },
+      privateMetadata: { cardforgeAccess: 'dev' },
     },
     {
       role: 'owner',
@@ -402,6 +405,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       developerText: /Developer Asset Hub/i,
       studioText: /Dev export entitlement active/i,
       entitlement: { accessMode: 'dev' as const, canExportClean: true, isOwner: true },
+      privateMetadata: { cardforgeAccess: 'dev', cardforgeRole: 'owner' },
     },
   ];
 
@@ -409,7 +413,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
   test.skip(missing.length > 0 && !allowDisposableUsers(), `Set reusable QA emails for account matrix: ${missing.join(', ')}.`);
 
   await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 120_000 });
-  await expect(page.getByRole('heading', { name: /Build cards faster/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /Build card systems/i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/Free demo seats/i)).toBeVisible();
   await expect(page.locator('header').getByRole('link', { name: /Open Studio/i })).toBeVisible();
 
@@ -418,6 +422,10 @@ test('reusable QA account matrix exposes the correct account, developer, and own
     const originalPrivateMetadata = qaUser.reusable ? await getPrivateMetadata(qaUser.userId) : null;
 
     try {
+      await setPrivateMetadata(qaUser.userId, {
+        ...(account.role === 'free' ? withoutCardForgeRole(originalPrivateMetadata ?? {}) : originalPrivateMetadata),
+        ...account.privateMetadata,
+      });
       await signInWithClerkTestingToken(page, qaUser.email, '/account');
       await expectEntitlement(page, account.entitlement);
       await expect(page.getByRole('heading', { level: 1, name: /Forge|Your Forge/i })).toBeVisible({ timeout: 45_000 });
@@ -452,7 +460,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
         await expect(page.locator('main')).toContainText(/Owner access is required|not authorized/i);
       }
     } finally {
-      if (!qaUser.reusable && originalPrivateMetadata) {
+      if (originalPrivateMetadata) {
         await setPrivateMetadata(qaUser.userId, originalPrivateMetadata);
       }
     }
@@ -563,7 +571,7 @@ test('reusable owner QA account can submit and publish through the developer ass
     await page.getByRole('tab', { name: 'Asset Hub', exact: true }).click();
     await expect(page.getByText('Developer Asset Hub', { exact: true })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByRole('tab', { name: 'Submit', exact: true })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Review Queue', exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Voting Lane', exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'My Pipeline', exact: true })).toBeVisible();
     await expect(page.getByText(/Personal Library/i)).toBeVisible();
     await expect(page.getByText(/Drop a file or browse/i)).toBeVisible();
@@ -611,8 +619,8 @@ test('reusable owner QA account can submit and publish through the developer ass
 
     await page.getByRole('tab', { name: 'My Pipeline', exact: true }).click();
     await expect(page.getByText(uiAssetName, { exact: true })).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('tab', { name: 'Review Queue', exact: true }).click();
-    await expect(page.getByText(/All voteable assets live in one queue/i)).toBeVisible();
+    await page.getByRole('tab', { name: 'Voting Lane', exact: true }).click();
+    await expect(page.getByText(/All voteable assets live in one lane/i)).toBeVisible();
     await expect(page.getByLabel('Status')).toBeVisible();
     await expect(page.getByLabel('Tier')).toBeVisible();
     await expect(page.getByText(uiAssetName, { exact: true })).toBeVisible({ timeout: 30_000 });

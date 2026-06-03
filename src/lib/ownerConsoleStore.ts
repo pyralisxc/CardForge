@@ -151,12 +151,33 @@ const mapLegalRow = (row: LegalDocumentRow): LegalDocument => ({
   publishedAt: row.published_at,
 });
 
+const LEGACY_DEFAULT_SITE_CONTENT_BODIES: Partial<Record<SiteContentBlockSlug, string[]>> = {
+  'landing.hero.headline': [
+    'Build cards faster. Generate complete sets. Shape the forge together.',
+    'Build card systems, not one-off cards.',
+  ],
+  'landing.hero.body': [
+    'CardForge helps creators turn card ideas into full, export-ready sets while the community helps build the shared library that powers the studio.',
+  ],
+  'landing.hero.support': [
+    'The fantasy forge is the doorway; underneath is a serious production workflow for reusable templates, structured data, bulk generation, and clean exports.',
+  ],
+  'about.hero.headline': [
+    'A fantasy-forged studio for serious card production.',
+  ],
+  'about.hero.body': [
+    'CardForge helps creators design reusable card systems, generate complete sets from structured data, and export clean files. The forge theme gives the product a memorable doorway; the deeper promise is a practical workbench for creators who need repeatable layouts, shared assets, and faster iteration.',
+  ],
+};
+
 const mapSiteContentRow = (row: SiteContentBlockRow): SiteContentBlock => {
   const defaultBlock = getDefaultSiteContentBlock(row.slug);
+  const isLegacyDefault = LEGACY_DEFAULT_SITE_CONTENT_BODIES[row.slug]?.includes(row.body) ?? false;
+
   return {
     ...defaultBlock,
-    body: row.body,
-    updatedAt: row.updated_at,
+    body: isLegacyDefault ? defaultBlock.body : row.body,
+    updatedAt: isLegacyDefault ? null : row.updated_at,
   };
 };
 

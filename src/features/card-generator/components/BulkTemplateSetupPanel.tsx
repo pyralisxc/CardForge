@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileJson, Table2 } from 'lucide-react';
+import { Download, FileJson, FileText, Table2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ interface BulkTemplateSetupPanelProps {
   onTemplateSelectionChange: (templateId: string | null) => void;
   onDownloadExampleCsv: () => void;
   onDownloadExampleJson: () => void;
+  onDownloadStructuredText: () => void;
   onDownloadContractJson: () => void;
 }
 
@@ -30,6 +31,7 @@ export function BulkTemplateSetupPanel({
   onTemplateSelectionChange,
   onDownloadExampleCsv,
   onDownloadExampleJson,
+  onDownloadStructuredText,
   onDownloadContractJson,
 }: BulkTemplateSetupPanelProps) {
   const contractSummary = createBulkContractSummary(bulkFieldDefinitions);
@@ -72,6 +74,10 @@ export function BulkTemplateSetupPanel({
           <Button type="button" variant="outline" onClick={onDownloadExampleJson} disabled={!selectedTemplate}>
             <FileJson className="mr-2 h-4 w-4" />
             Download JSON Starter
+          </Button>
+          <Button type="button" variant="outline" onClick={onDownloadStructuredText} disabled={!selectedTemplate}>
+            <FileText className="mr-2 h-4 w-4" />
+            Download Text Starter
           </Button>
           <Button type="button" variant="ghost" onClick={onDownloadContractJson} disabled={!selectedTemplate}>
             <FileJson className="mr-2 h-4 w-4" />
@@ -116,11 +122,10 @@ export function BulkTemplateSetupPanel({
             </div>
 
             <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-              <span className="rounded-full border bg-background/50 px-2 py-0.5">CSV</span>
-              <span className="rounded-full border bg-background/50 px-2 py-0.5">JSON</span>
-              <span className="rounded-full border bg-background/50 px-2 py-0.5">TXT / MD Field: value</span>
-              <span className="rounded-full border bg-background/50 px-2 py-0.5">Numbered or bulleted text</span>
-              <span className="rounded-full border bg-background/50 px-2 py-0.5">Rich markers</span>
+              <span className="rounded-full border bg-background/50 px-2 py-0.5">CSV for spreadsheets</span>
+              <span className="rounded-full border bg-background/50 px-2 py-0.5">JSON for tools</span>
+              <span className="rounded-full border bg-background/50 px-2 py-0.5">TXT / MD for regular writing</span>
+              <span className="rounded-full border bg-background/50 px-2 py-0.5">Rich markers allowed</span>
             </div>
           </div>
         ) : null}

@@ -23,23 +23,23 @@ export const dynamic = 'force-dynamic';
 const featureBands = [
   {
     icon: PenTool,
-    title: 'Design the system',
-    copy: 'Create reusable fronts and backs with text, images, icons, frames, textures, and variables that scale past one card.',
+    title: 'Build reusable systems',
+    copy: 'Create fronts, backs, text fields, image zones, icons, frames, textures, and variables that scale past one card.',
   },
   {
     icon: Database,
-    title: 'Generate complete sets',
-    copy: 'Fill one card by hand or turn CSV, JSON, and structured notes into a full browsable card batch.',
-  },
-  {
-    icon: Layers3,
-    title: 'Shape the shared library',
-    copy: 'Use the live Forge library, add local assets, and follow reviewed community contributions as the studio improves.',
+    title: 'Generate from data',
+    copy: 'Fill one card by hand or turn CSV, JSON, and structured notes into a full browsable set.',
   },
   {
     icon: FileDown,
-    title: 'Export when ready',
-    copy: 'Preview, proof, and unlock clean PDF, PNG, and ZIP files when the deck is ready to leave the studio.',
+    title: 'Export with proof',
+    copy: 'Preview, validate, and unlock clean PNG, PDF, ZIP, and Tabletop-ready files when the set is ready.',
+  },
+  {
+    icon: Layers3,
+    title: 'Grow the library',
+    copy: 'Use starter assets, add local art, and follow reviewed contributor work as the shared library improves.',
   },
 ];
 
@@ -59,9 +59,9 @@ const accessRows = [
 ];
 
 const creationPaths = [
-  'Trading-card layouts with frames, icons, textures, and rich text.',
-  'Bulk decks generated from spreadsheets, JSON, or structured notes.',
-  'Printable fronts and backs for prototypes, encounters, badges, and reference cards.',
+  'Trading-card, reference-card, encounter, badge, and prototype layouts.',
+  'Full sets generated from spreadsheets, JSON, or structured notes.',
+  'Reusable front/back templates with variables, rich text, art, and proofing.',
 ];
 
 const libraryLadder = [
@@ -112,9 +112,9 @@ export default async function LandingPage() {
               </Button>
             </div>
             <div className="mt-6 flex flex-wrap gap-2 text-xs text-[#c8b07f]">
-              <span className="border border-[#87683a]/60 bg-[#100d09]/65 px-3 py-2">Try before sign-in</span>
-              <span className="border border-[#87683a]/60 bg-[#100d09]/65 px-3 py-2">Local project files</span>
-              <span className="border border-[#87683a]/60 bg-[#100d09]/65 px-3 py-2">Bulk generation</span>
+              <span className="border border-[#87683a]/60 bg-[#100d09]/65 px-3 py-2">Reusable templates</span>
+              <span className="border border-[#87683a]/60 bg-[#100d09]/65 px-3 py-2">Bulk data generation</span>
+              <span className="border border-[#87683a]/60 bg-[#100d09]/65 px-3 py-2">Proofed exports</span>
             </div>
           </div>
         </div>
@@ -167,10 +167,10 @@ export default async function LandingPage() {
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <h2 className="font-serif text-3xl font-semibold text-[#fff1c7] md:text-4xl">
-              Design once. Generate the set. Improve the forge together.
+              Design once. Generate the set. Export with confidence.
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#cbb58b]">
-              Make one layout, bind the changing text, preview the output, then feed it rows of content. Developers help raise the quality of the shared library, while creators get a stronger studio without learning traditional design software.
+              Make one reusable layout, bind the changing fields, preview the output, then feed it rows of content. CardForge is built for creators who need production flow without learning traditional design software.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild className="bg-[#d69c3a] text-[#16100a] hover:bg-[#f1bd58]">
@@ -200,10 +200,10 @@ export default async function LandingPage() {
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">Start fast</span>
             </div>
             <h2 className="mt-4 font-serif text-3xl font-semibold text-[#fff1c7] md:text-4xl">
-              Try the studio first. Join the forge when the work needs more.
+              Start in the studio. Add access when production needs more.
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#cbb58b]">
-              You can explore the maker and generator before signing in. Accounts matter when you want local uploads, cleaner exports, Creator Pass assets, or a contributor path into the reviewed library.
+              Explore the maker and generator before signing in. Accounts matter when you want local uploads, clean exports, Creator Pass assets, or a contributor path into the reviewed library.
             </p>
             <div className="mt-6 flex gap-3">
               <Button asChild className="bg-[#d69c3a] text-[#16100a] hover:bg-[#f1bd58]">
@@ -233,10 +233,10 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
             <h2 className="font-serif text-3xl font-semibold text-[#fff1c7] md:text-4xl">
-              A reviewed library that gets better as the community builds.
+              A production library that gets better as creators build.
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#cbb58b]">
-              Start with the live Forge library, add your own browser-local art, and unlock stronger libraries as your workflow grows. Developer-submitted assets enter review before they become shared options for everyone.
+              Start with the live library, add your own browser-local art, and unlock stronger assets as your workflow grows. Developer-submitted work enters review before it becomes a shared option for everyone.
             </p>
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-4">
@@ -258,7 +258,7 @@ export default async function LandingPage() {
               <span className="text-sm font-semibold uppercase tracking-[0.2em]">Ready for real work</span>
             </div>
             <h2 className="mt-2 font-serif text-2xl text-[#fff1c7]">Open the studio and build the first system.</h2>
-            <p className="mt-2 text-sm text-[#baa67e]">Start with the editor. Add an account when your set needs uploads, clean export, or the community-shaped library.</p>
+            <p className="mt-2 text-sm text-[#baa67e]">Start with the editor. Add an account when your set needs uploads, clean export, or the reviewed library.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">

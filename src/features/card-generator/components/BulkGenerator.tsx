@@ -42,6 +42,31 @@ interface BulkGeneratorProps {
 type PreviewFilter = 'all' | 'warnings' | 'clean';
 type SupportedFileType = 'auto';
 
+const downloadTextFile = ({
+  content,
+  fileName,
+  mimeType,
+}: {
+  content: string;
+  fileName: string;
+  mimeType: string;
+}) => {
+  const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', fileName);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+const getSafeTemplateFileName = (template: TCGCardTemplate, fallback: string): string => (
+  (template.name || template.id || fallback).replace(/[^a-z0-9_]/gi, '_').substring(0, 20) || fallback
+);
+
 export function BulkGenerator({
   templates,
   onCardsGenerated,
@@ -406,18 +431,9 @@ export function BulkGenerator({
       return;
     }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    const safeTemplateName = selectedTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0, 20);
+    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'layout');
     const fileName = `template_${safeTemplateName}.csv`;
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadTextFile({ content: csvContent, fileName, mimeType: 'text/csv' });
     toast({ title: 'Example CSV downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
   };
 
@@ -439,19 +455,42 @@ export function BulkGenerator({
       return;
     }
 
-    const blob = new Blob([exampleJSON], { type: 'application/json;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    const safeTemplateName = selectedTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0, 20);
+    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'layout');
     const fileName = `template_${safeTemplateName || 'layout'}.json`;
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadTextFile({ content: exampleJSON, fileName, mimeType: 'application/json' });
     toast({ title: 'Example JSON downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
+  };
+
+  const handleDownloadStructuredText = () => {
+    if (!selectedTemplate) {
+      toast({
+        title: ERROR_COPY.selectTemplateFirst.title,
+        description: withNextStep('A template is required before downloading a text starter.', 'Choose a template in step 1 and try again.'),
+        variant: 'default',
+      });
+      return;
+    }
+    if (!exampleStructuredText.trim() || exampleStructuredText.startsWith('Select a template first.')) {
+      toast({
+        title: 'Text starter unavailable',
+        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Layout Studio, save, then download again.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'layout');
+    const fileName = `template_${safeTemplateName}.md`;
+    const content = [
+      '# CardForge bulk text starter',
+      '',
+      'Duplicate this block for each card. Keep each value after its Field: label.',
+      'Separate cards with --- or a blank line between repeated field groups.',
+      '',
+      exampleStructuredText,
+    ].join('\n');
+    downloadTextFile({ content, fileName, mimeType: 'text/markdown' });
+    toast({ title: 'Text starter downloaded', description: `${fileName} is ready for a no-spreadsheet bulk workflow.` });
   };
 
   const handleDownloadContractJson = useCallback(() => {
@@ -469,16 +508,12 @@ export function BulkGenerator({
       fieldDefinitions: bulkFieldDefinitions,
     });
 
-    const blob = new Blob([JSON.stringify(contract, null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const safeTemplateName = selectedTemplate.name.replace(/[^a-z0-9_]/gi, '_').substring(0, 20);
-    link.href = url;
-    link.download = `contract_${safeTemplateName || 'template'}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'template');
+    downloadTextFile({
+      content: JSON.stringify(contract, null, 2),
+      fileName: `contract_${safeTemplateName}.json`,
+      mimeType: 'application/json',
+    });
     toast({ title: 'Contract JSON downloaded', description: 'Use this contract as the source of truth for bulk validation and external pipelines.' });
   }, [bulkFieldDefinitions, selectedTemplate, toast]);
 
@@ -502,6 +537,7 @@ export function BulkGenerator({
           onTemplateSelectionChange={handleTemplateSelectChange}
           onDownloadExampleCsv={handleDownloadTemplateCSV}
           onDownloadExampleJson={handleDownloadTemplateJSON}
+          onDownloadStructuredText={handleDownloadStructuredText}
           onDownloadContractJson={handleDownloadContractJson}
         />
 

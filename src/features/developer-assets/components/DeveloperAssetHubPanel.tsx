@@ -197,6 +197,17 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
     ).filter((submission) => submission.status !== 'rejected');
   }, [program]);
 
+  const reviewStatusCounts = useMemo(() => {
+    const counts = DEVELOPER_ASSET_STATUSES.reduce<Record<DeveloperAssetStatus, number>>((nextCounts, status) => {
+      nextCounts[status] = 0;
+      return nextCounts;
+    }, {} as Record<DeveloperAssetStatus, number>);
+    for (const submission of reviewQueueSubmissions) {
+      counts[submission.status] += 1;
+    }
+    return counts;
+  }, [reviewQueueSubmissions]);
+
   const filteredReviewSubmissions = useMemo(() => {
     const query = reviewSearch.trim().toLowerCase();
     return reviewQueueSubmissions.filter((submission) => {
@@ -497,8 +508,8 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
         <div className="mt-4 grid gap-3 border border-[#5f4526] bg-[#100c08] p-4 md:grid-cols-3">
           <ProgramRule label="Current defaults" value={liveLibraryCount} body="Published pipeline assets currently feeding the live site library." />
-          <ProgramRule label="Open default slots" value={openDefaultSlotCount} body="Available published slots across all asset types before candidates have to wait." />
-          <ProgramRule label="Review candidates" value={reviewCandidateCount} body="Uploads and publish candidates collecting signal before live library placement." />
+          <ProgramRule label="Open live slots" value={openDefaultSlotCount} body="Available Starter and Creator Pass slots before passing assets have to wait in candidate review." />
+          <ProgramRule label="Voting lane" value={reviewQueueSubmissions.length} body="Voteable uploads, publish candidates, live assets, and recoverable archived assets in one shared lane." />
         </div>
 
         <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
@@ -527,7 +538,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             />
             <GuidanceCard
               eyebrow="2. Review"
-              title={`${reviewCandidateCount} candidates`}
+              title={`${reviewQueueSubmissions.length} voteable assets`}
               body={program.settings.allowContributorSelfVoting
                 ? 'Self-voting is enabled, so you can review your own uploads and peer work.'
                 : 'Self-voting is off, so your own uploads are hidden from your review queue.'}
@@ -580,7 +591,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         <Tabs defaultValue="submit" className="mt-6">
           <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
             <TabsTrigger value="submit" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Submit</TabsTrigger>
-            <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Review Queue</TabsTrigger>
+            <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Voting Lane</TabsTrigger>
             <TabsTrigger value="pipeline" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">My Pipeline</TabsTrigger>
             <TabsTrigger value="program" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Program</TabsTrigger>
           </TabsList>
@@ -752,11 +763,36 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
           <TabsContent value="voting" className="mt-4">
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
-              <h3 className="font-serif text-xl text-[#fff1c7]">Continuous review queue</h3>
+              <h3 className="font-serif text-xl text-[#fff1c7]">Continuous voting lane</h3>
               <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-                Vote on candidate uploads, live library assets, and archived assets. Assets graduate into the shared library when there is room or enough vote signal, and archive votes can surface recovery candidates.
+                Vote on new uploads, publish candidates, live library assets, and archived assets in the same lane. Status badges explain what the signal currently means; filters only narrow the view.
               </p>
               <p className="mt-3 text-xs leading-5 text-[#a98a55]">{reviewQueueHelp}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={`rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad] ${reviewStatus === 'all' ? 'border-[#d8b365] bg-[#2a1b0d]' : ''}`}
+                  onClick={() => setReviewStatus('all')}
+                >
+                  All ({reviewQueueSubmissions.length})
+                </Button>
+                {DEVELOPER_ASSET_STATUSES
+                  .filter((status) => status !== 'draft' && status !== 'rejected')
+                  .map((status) => (
+                    <Button
+                      key={status}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className={`rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad] ${reviewStatus === status ? 'border-[#d8b365] bg-[#2a1b0d]' : ''}`}
+                      onClick={() => setReviewStatus(status)}
+                    >
+                      {getDeveloperAssetStatusLabel(status)} ({reviewStatusCounts[status]})
+                    </Button>
+                  ))}
+              </div>
               <div className="mt-4 grid gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 lg:grid-cols-[minmax(14rem,1fr)_repeat(5,minmax(8rem,auto))]">
                 <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
                   Search

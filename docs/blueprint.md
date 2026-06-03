@@ -2,18 +2,18 @@
 
 ## Product Position
 
-CardForge helps creators turn card ideas into full, export-ready sets. The fantasy forge is the doorway; underneath is a serious production workflow for reusable templates, structured data, bulk generation, clean exports, and a reviewed contributor library.
+CardForge helps creators build card systems, not single cards. The fantasy forge is the doorway; underneath is a serious production workflow for reusable templates, structured data, bulk generation, proofing, clean exports, and a reviewed contributor library.
 
 ## Product Promise
 
-- Build cards faster with reusable templates and live previews.
+- Build reusable card systems with templates, variables, and live previews.
 - Generate complete sets from hand-entered content, CSV, JSON, or structured notes.
 - Export clean PNG, ZIP, PDF, and Tabletop Simulator files when the set is ready.
 - Shape the forge together through a reviewed developer pipeline for templates, overlays, icons, dividers, textures, and element recipes.
 
 ## Product Spirit
 
-CardForge should feel handcrafted and imaginative without hiding its practical workflow. Use forge language for identity and community; use plain product language when explaining what a tool does, what data is stored, or what a user gets.
+CardForge should feel handcrafted and imaginative without hiding its practical workflow. Use forge language for identity and community; use plain product language when explaining what a tool does, what data is stored, or what a user gets. Public positioning should make clear that CardForge is the full production studio for custom card systems, not a single-card image generator.
 
 ## Current Architecture (Source of Truth)
 
@@ -534,7 +534,7 @@ Why this matters:
   - multiline quoting examples
   - rich text examples
 - Allow download of example CSV and machine-readable contract JSON.
-- Current bulk setup should summarize the selected template contract before data entry: required/optional counts, rich-text fields, structured row groups with their row columns, supported source formats, and import-ready CSV/JSON/Field-text examples.
+- Current bulk setup should summarize the selected template contract before data entry: required/optional counts, rich-text fields, structured row groups with their row columns, supported source formats, and import-ready CSV/JSON/TXT/MD Field-text examples. CSV is the spreadsheet path, JSON is the tool/export path, and TXT/MD is the normal-writing path for users who do not want to edit structured data by hand.
 
 Why this matters:
 - Faster onboarding for bulk users.

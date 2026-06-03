@@ -6,7 +6,7 @@ Use this page as the docs entrypoint. Keep MVP source-of-truth docs current and 
 
 ## Product Spirit
 
-CardForge helps creators build cards faster, generate complete sets, and shape the forge together. The theme should feel imaginative and handcrafted, but the product should read like a serious production workflow for reusable templates, structured data, clean exports, and a reviewed shared library.
+CardForge helps creators build card systems, not single cards. The theme should feel imaginative and handcrafted, but the website and product copy should position CardForge as a serious production workflow for reusable templates, structured data, bulk generation, clean exports, and a reviewed shared library.
 
 ## Source Of Truth
 

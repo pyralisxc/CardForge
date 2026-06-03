@@ -39,7 +39,7 @@ export interface DeveloperAssetSubmissionGuidance {
   checklist: [string, string, string];
 }
 
-export const reviewQueueHelp = 'All voteable assets live in one queue. Use status, tier, family, and vote filters to narrow candidate uploads, published library assets, and recoverable archived assets.';
+export const reviewQueueHelp = 'All voteable assets live in one lane. Use status, tier, family, and vote filters to narrow new uploads, publish candidates, live library assets, and recoverable archived assets.';
 
 export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, DeveloperAssetSubmissionGuidance> = {
   templates: {

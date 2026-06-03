@@ -12,7 +12,7 @@ const pillars = [
   {
     icon: Database,
     title: 'Structured creation',
-    copy: 'CardForge treats cards like reusable layouts powered by variables, rows of data, and repeatable export settings.',
+    copy: 'CardForge treats cards like reusable production systems powered by variables, rows of data, and repeatable export settings.',
   },
   {
     icon: Users,
@@ -22,7 +22,7 @@ const pillars = [
   {
     icon: FileDown,
     title: 'Production-minded exports',
-    copy: 'The studio is built around proofing, clean PNG/PDF/ZIP output, and workflows that can grow beyond a single prototype.',
+    copy: 'The studio is built around proofing, clean PNG/PDF/ZIP output, Tabletop-ready files, and workflows that can grow beyond a single prototype.',
   },
 ] as const;
 

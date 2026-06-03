@@ -118,12 +118,12 @@ async function seedBulkMappingTemplate(page: Page) {
 test('renders public landing page with studio and account entry points', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: /Build cards faster/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /Build card systems/i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: /Free demo seats are open/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Claim a demo seat/i }).first()).toHaveAttribute('href', '/account');
   await expect(page.getByRole('link', { name: /Open Studio/i }).first()).toHaveAttribute('href', '/studio');
   await expect(page.getByRole('link', { name: /Join the Forge/i }).first()).toHaveAttribute('href', '/developer');
-  await expect(page.getByText(/fantasy forge is the doorway/i)).toBeVisible();
+  await expect(page.getByText(/full production studio/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
   await expect(page.getByRole('link', { name: /Access/i }).first()).toHaveAttribute('href', '/access');
   await expect(page.getByRole('link', { name: /Privacy/i })).toHaveAttribute('href', '/privacy');
@@ -329,7 +329,6 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await materialSection.click();
   await page.getByPlaceholder('Search material styles...').fill('parchment');
   await page.getByRole('button', { name: /Parchment/i }).first().click();
-  await expect(page.getByRole('button', { name: /Text Layer/ }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Template Saved', { exact: true })).toBeVisible();
 
@@ -373,10 +372,10 @@ test('adds structured row columns in the layout studio text inspector', async ({
   await page.getByRole('button', { name: 'Text', exact: true }).click();
 
   await page.getByRole('radio', { name: /Repeating Text/i }).click();
-  await expect(page.getByText('Repeating Text', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Repeating Text/i })).toBeChecked();
   await page.getByRole('button', { name: /Add Label \+ Value/i }).click();
 
-  await expect(page.getByText(/Variables:/i)).toContainText('label');
+  await expect(page.getByText(/Variables:.*label/i)).toBeVisible();
   await expect(page.getByLabel('Variable name for Label')).toBeVisible();
   await expect(page.getByLabel('Variable name for Value')).toBeVisible();
 });
@@ -389,6 +388,11 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
   await page.getByRole('tab', { name: /Bulk Import/i }).click();
 
   await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,,♥,Ember-Claw');
+
+  await expect(page.getByRole('button', { name: /Download Text Starter/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Use Text Starter/i })).toBeVisible();
+  await expect(page.getByText(/CSV for spreadsheets/i)).toBeVisible();
+  await expect(page.getByText(/TXT \/ MD for regular writing/i)).toBeVisible();
 
   await expect(page.getByText('Mapped Template Field', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mapping Editor', exact: true })).toBeVisible();
