@@ -82,7 +82,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
     overrides.height || DEFAULT_FREEFORM_CANVAS_HEIGHT
   ),
   ...overrides,
-  elements: overrides.elements && overrides.elements.length > 0 ? overrides.elements : [
+  elements: Array.isArray(overrides.elements) ? overrides.elements : [
     createDefaultFreeformElement('shape', {
       id: 'default-frame',
       name: 'Card Frame',
@@ -158,7 +158,7 @@ export const createDefaultFreeformCanvas = (overrides: Partial<FreeformCanvas> =
 
 export const reconstructFreeformCanvas = (canvas?: Partial<FreeformCanvas>): FreeformCanvas => {
   const defaults = createDefaultFreeformCanvas();
-  const sourceElements = canvas?.elements && Array.isArray(canvas.elements) && canvas.elements.length > 0 ? canvas.elements : defaults.elements;
+  const sourceElements = Array.isArray(canvas?.elements) ? canvas.elements : defaults.elements;
   return {
     width: Number(canvas?.width) > 0 ? Number(canvas?.width) : defaults.width,
     height: Number(canvas?.height) > 0 ? Number(canvas?.height) : defaults.height,

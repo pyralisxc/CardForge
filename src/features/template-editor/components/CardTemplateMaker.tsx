@@ -1165,6 +1165,7 @@ export function CardTemplateMaker({
               <div className="space-y-3 p-2">
                 <TemplateLibraryPanel
                   canUseProjectFiles={canUseProjectFiles}
+                  currentTemplate={currentTemplate}
                   currentTemplateId={currentTemplate.id}
                   defaultTemplates={defaultTemplates}
                   backFaceTemplates={backFaceTemplates}

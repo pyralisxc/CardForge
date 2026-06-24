@@ -13,6 +13,7 @@ import type { TCGCardTemplate } from '@/types';
 
 interface TemplateLibraryPanelProps {
   canUseProjectFiles: boolean;
+  currentTemplate: TCGCardTemplate;
   currentTemplateId: string | null;
   defaultTemplates: TCGCardTemplate[];
   backFaceTemplates: TCGCardTemplate[];
@@ -36,6 +37,7 @@ interface TemplateLibraryPanelProps {
 
 export function TemplateLibraryPanel({
   canUseProjectFiles,
+  currentTemplate,
   currentTemplateId,
   defaultTemplates,
   backFaceTemplates,
@@ -56,6 +58,11 @@ export function TemplateLibraryPanel({
   controlClassName,
   buttonClassName,
 }: TemplateLibraryPanelProps) {
+  const allListedTemplates = [...defaultTemplates, ...userTemplates, ...backFaceTemplates];
+  const shouldShowUnsavedCurrentTemplate = Boolean(
+    currentTemplateId && !allListedTemplates.some((template) => template.id === currentTemplateId)
+  );
+
   return (
     <Card className={cn(panelClassName, 'rounded-[8px]')}>
       <CardHeader className="p-2.5">
@@ -73,7 +80,10 @@ export function TemplateLibraryPanel({
         >
           <SelectTrigger className={controlClassName} aria-label="Choose template"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__new__">Unsaved Template</SelectItem>
+            <SelectItem value="__new__">New Blank Template</SelectItem>
+            {shouldShowUnsavedCurrentTemplate ? (
+              <SelectItem value={currentTemplateId!}>Unsaved / {currentTemplate.name || 'New Card Template'}</SelectItem>
+            ) : null}
             {defaultTemplates.map((template) => (
               <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
             ))}
@@ -141,7 +151,7 @@ export function TemplateLibraryPanel({
         {backFaceTemplates.length > 0 ? (
           <div className="space-y-1.5 border-t border-[#1b2029] pt-2">
             <p className="text-[10px] uppercase tracking-[0.14em] text-[#757d8c]">
-              Back Face Presets
+              Card Back Example
             </p>
             {backFaceTemplates.map((template) => (
               <button
@@ -153,7 +163,7 @@ export function TemplateLibraryPanel({
                 <TemplateLibraryPreview template={template} />
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#b9f3ff]">{template.name}</span>
-                  <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Back face preset'}</span>
+                  <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Card back example'}</span>
                 </span>
               </button>
             ))}

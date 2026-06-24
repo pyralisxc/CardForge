@@ -14,5 +14,5 @@ export const makeNewFreeformTemplate = (name = 'New Card Template'): TCGCardTemp
   cardBorderWidth: '4px',
   cardBorderStyle: 'solid',
   cardBorderRadius: '0.75rem',
-  freeformCanvas: createDefaultFreeformCanvas(),
+  freeformCanvas: createDefaultFreeformCanvas({ elements: [] }),
 });
