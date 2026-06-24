@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getBulkHeaderRowIdentity } from '@/features/card-generator/lib/bulkMappingReview';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 
 interface BulkMappingReviewPanelProps {
@@ -153,40 +154,43 @@ export function BulkMappingReviewPanel({
         ) : null}
 
         <div className="space-y-3">
-          {visibleHeaders.map((header) => (
-            <div key={header} className="grid gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
-              <div>
-                <Label className="text-sm font-medium">CSV Column</Label>
-                <p className="font-mono text-sm">{header}</p>
+          {visibleHeaders.map((header, index) => {
+            const rowIdentity = getBulkHeaderRowIdentity(header, index);
+            return (
+              <div key={rowIdentity.key} className="grid gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
+                <div>
+                  <Label className="text-sm font-medium">CSV Column</Label>
+                  <p className="font-mono text-sm">{header}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={rowIdentity.inputId} className="text-sm">
+                    Template Field
+                  </Label>
+                  <Select
+                    value={columnMapping[header] ?? '__ignore__'}
+                    onValueChange={(value) => {
+                      onColumnMappingChange({
+                        ...columnMapping,
+                        [header]: value === '__ignore__' ? '' : value,
+                      });
+                    }}
+                  >
+                    <SelectTrigger id={rowIdentity.inputId} aria-label={`Map CSV column ${header} to template field`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__ignore__">Ignore</SelectItem>
+                      {fieldOptions.map((field) => (
+                        <SelectItem key={field.value} value={field.value}>
+                          {field.label}{field.required ? ' *' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor={`mapping-${header}`} className="text-sm">
-                  Template Field
-                </Label>
-                <Select
-                  value={columnMapping[header] ?? '__ignore__'}
-                  onValueChange={(value) => {
-                    onColumnMappingChange({
-                      ...columnMapping,
-                      [header]: value === '__ignore__' ? '' : value,
-                    });
-                  }}
-                >
-                  <SelectTrigger id={`mapping-${header}`} aria-label={`Map CSV column ${header} to template field`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__ignore__">Ignore</SelectItem>
-                    {fieldOptions.map((field) => (
-                      <SelectItem key={field.value} value={field.value}>
-                        {field.label}{field.required ? ' *' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

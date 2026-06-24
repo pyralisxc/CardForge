@@ -187,8 +187,8 @@ describe('structured appearance helpers', () => {
     const styleFiles = [
       'data/styles/material-arcane-forge-parchment.json',
       'data/styles/material-obsidian-neon-premium.json',
-      'data/styles/frame-gilded-relic-premium.json',
-      'data/styles/frame-ttrpg-vellum-premium.json',
+      'data/styles/material-purple-foil.json',
+      'data/styles/divider-gem-center.json',
     ];
 
     await Promise.all(styleFiles.map(async (relativePath) => {

@@ -357,7 +357,7 @@ The current makerspace map is intentionally mixed while the pipeline is being co
 | Frame presets, border presets, symbol presets, shape presets, role presets, divider quick presets | No, currently repo constants | Migrate into registry-backed `elementPreset` records with applicability metadata. |
 | Shape Studio primitives | No, local editor behavior | Keep primitive creation local, but role/style recipes should be pipeline assets. |
 
-Shape Studio is the first consolidation lane: blank primitive shapes remain local editor tools, while shape role recipes now use typed `ElementPresetRecipe` seeds with contributor, status, tier, and applicability metadata. Text frames, borders, icon styles, divider recipes, and frame kits now use the same typed recipe model, and registry-backed `/api/styles` entries are hydrated into that model for maker display.
+Shape Studio is the first consolidation lane: blank primitive shapes remain local editor tools, while shape role recipes now use typed `ElementPresetRecipe` seeds with contributor, status, tier, and applicability metadata. Borders, icon styles, divider recipes, and frame kits now use the same typed recipe model, and registry-backed `/api/styles` entries are hydrated into that model for maker display.
 
 The next makerspace model should stop using broad `element` targets for every preset. Pipeline assets and presets should declare applicability by `elementType`, semantic `role`, styled `surface`, and `assetKind/styleKind`; for example, divider recipes apply to `dividerRail`, icon controls apply to `iconGlyph`, texture assets apply to `textPanel`, `shapeFill`, or `templateCanvas`, and frame kits apply to `templateCanvas`.
 

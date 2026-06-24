@@ -469,34 +469,6 @@ const collectSeededRecipeItems = async () => {
     },
   ];
 
-  const textFrames = [
-    ['text-frame-mtg-rules', 'MTG Rules Frame', 'rgba(244,226,186,0.94)', '#20140a', '#4a2f12', 4, 6, { padding: 'p-3' }],
-    ['text-frame-black-legendary', 'Black Legendary', '#15100b', '#f7e6b0', '#d5ad54', 2, 10, { padding: 'p-3' }],
-    ['text-frame-violet-spellbox', 'Violet Spellbox', '#1a102c', '#f1e8ff', '#bda2ff', 2, 12, { padding: 'p-3' }],
-    ['text-frame-gold-nameplate', 'Gold Nameplate', '#17100b', '#f7df9d', '#d5ad54', 2, 6, { padding: 'p-2', fontWeight: 'font-bold', textAlign: 'center' }],
-    ['text-frame-flavor-scroll', 'Flavor Scroll', 'rgba(248,235,201,0.9)', '#3a2411', '#8b6424', 2, 12, { padding: 'p-4', fontStyle: 'italic' }],
-    ['text-frame-aged-parchment', 'Aged Parchment', 'rgba(235,211,159,0.96)', '#221407', '#5a3410', 4, 6, { padding: 'p-4' }],
-    ['text-frame-carved-obsidian', 'Carved Obsidian', '#0d0b09', '#f7e6b0', '#d5ad54', 4, 10, { padding: 'p-4' }],
-  ].map(([id, name, baseColor, textColor, borderColor, width, radius, updates]) => ({
-    id,
-    name,
-    kind: 'textFrame',
-    targets: ['text'],
-    appearance: {
-      material: { baseColor, textColor, texture: { kind: 'none' } },
-      border: { kind: width > 2 ? 'relic' : 'solid', color: borderColor, width, radius },
-      effects: { innerHighlight: 18, bevel: 12 },
-    },
-    updates: {
-      backgroundColor: baseColor,
-      textColor,
-      borderColor,
-      borderWidth: width >= 4 ? 'border-4' : width >= 2 ? 'border-2' : 'border',
-      borderRadius: radius >= 12 ? 'rounded-xl' : radius >= 10 ? 'rounded-lg' : 'rounded-md',
-      ...updates,
-    },
-  }));
-
   const borders = [
     ['border-none', 'None', '#111720', { kind: 'none', width: 0, radius: 0 }],
     ['border-gold-hairline', 'Gold Hairline', '#111720', { kind: 'solid', color: '#d5ad54', width: 1, radius: 6 }],
@@ -547,7 +519,6 @@ const collectSeededRecipeItems = async () => {
 
   return [
     ...shapeRoles,
-    ...textFrames,
     ...borders,
     ...dividers,
     ...icons,

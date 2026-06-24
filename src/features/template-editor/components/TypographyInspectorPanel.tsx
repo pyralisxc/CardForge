@@ -1,21 +1,15 @@
 "use client";
 
-import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
-import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
 import { parseTextBinding } from '@/lib/textBindings';
 import { shouldAutoFitTextElement } from '@/lib/textElementContracts';
 import { textFontSizePx } from '@/lib/textTools';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
-import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 
@@ -24,9 +18,7 @@ interface TypographyInspectorPanelProps {
   currentTemplate: TCGCardTemplate;
   availableFonts: Array<{ value: string; name: string }>;
   paddingOptions: Array<{ value: string; label: string }>;
-  framePresets: ElementPresetRecipe[];
   controlClassName: string;
-  onApplyPreset: (preset: ElementPresetRecipe) => void;
   onUpdateElement: (updates: Partial<FreeformCardElement>, trackHistory?: boolean) => void;
   onUpsertFieldContract: (key: string, updates: Partial<FieldContract>) => void;
 }
@@ -36,91 +28,12 @@ export function TypographyInspectorPanel({
   currentTemplate,
   availableFonts,
   paddingOptions,
-  framePresets,
   controlClassName,
-  onApplyPreset,
   onUpdateElement,
   onUpsertFieldContract,
 }: TypographyInspectorPanelProps) {
-  const [frameSearch, setFrameSearch] = useState('');
-  const [showAllFramePresets, setShowAllFramePresets] = useState(false);
-  const normalizedFrameSearch = frameSearch.trim().toLowerCase();
-  const filteredFramePresets = useMemo(() => {
-    if (!normalizedFrameSearch) return framePresets;
-    return framePresets.filter((preset) => [
-      preset.label,
-      preset.description,
-      preset.kind,
-      preset.source,
-      preset.status,
-      preset.tier,
-      preset.contributorName,
-    ].filter(Boolean).join(' ').toLowerCase().includes(normalizedFrameSearch));
-  }, [framePresets, normalizedFrameSearch]);
-  const visibleFramePresets = showAllFramePresets ? filteredFramePresets : filteredFramePresets.slice(0, 6);
-
   return (
     <>
-      <div className="space-y-2">
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Text Frames</Label>
-            <span className="text-[10px] text-[#626b78]">{filteredFramePresets.length} styles</span>
-          </div>
-          <div className="relative mb-2">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8f95a3]" />
-            <Input
-              value={frameSearch}
-              onChange={(event) => {
-                setFrameSearch(event.target.value);
-                setShowAllFramePresets(false);
-              }}
-              placeholder="Search text frames..."
-              className="h-8 rounded-[4px] border-[#2d3340] bg-[#0f1520] pl-8 text-[11px] text-[#f3ead7] placeholder:text-[#626b78]"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-1">
-            {visibleFramePresets.map((preset) => (
-              <Button
-                key={preset.id}
-                type="button"
-                variant="outline"
-                size="sm"
-                title={getPipelineRecipeTitle(preset)}
-                aria-label={`Apply ${preset.label} text frame recipe`}
-                className="h-auto min-h-9 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 py-1.5 text-left text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-                onClick={() => onApplyPreset(preset)}
-              >
-                <span
-                  className="h-5 w-4 shrink-0 rounded-[3px] border border-[#3a2e17]"
-                  style={{ background: preset.preview?.background || preset.updates?.backgroundColor || '#222', borderColor: preset.preview?.borderColor || preset.updates?.borderColor || '#3a2e17' }}
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-[#f1dfb4]">{preset.label}</span>
-                  <PipelineRecipeMeta recipe={preset} />
-                </span>
-              </Button>
-            ))}
-          </div>
-          {filteredFramePresets.length === 0 ? (
-            <div className="mt-2 rounded-[4px] border border-dashed border-[#2d3340] px-2 py-3 text-center text-[11px] text-[#8f95a3]">
-              No text frames match that search.
-            </div>
-          ) : null}
-          {filteredFramePresets.length > 6 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mt-2 h-7 w-full rounded-[4px] border border-[#2d3340] text-[10px] text-[#c8b07f] hover:bg-[#171d29]"
-              onClick={() => setShowAllFramePresets((value) => !value)}
-            >
-              {showAllFramePresets ? 'Show fewer text frames' : `Show ${filteredFramePresets.length - 6} more text frames`}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
       <details className="rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
         <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8f95a3]">Text Details</summary>
         <div className="mt-2 space-y-2">

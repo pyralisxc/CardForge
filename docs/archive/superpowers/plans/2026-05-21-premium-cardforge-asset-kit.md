@@ -38,8 +38,6 @@
 **Files:**
 - Create: `data/styles/material-arcane-forge-parchment.json`
 - Create: `data/styles/material-obsidian-neon-premium.json`
-- Create: `data/styles/frame-gilded-relic-premium.json`
-- Create: `data/styles/frame-ttrpg-vellum-premium.json`
 
 - [ ] Add style presets that expose the new visual language inside Appearance Studio.
 - [ ] Keep names user-facing and not implementation-coded.

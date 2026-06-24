@@ -395,9 +395,10 @@ export function CardForgeStudioShell() {
             ))}
           </TabsList>
 
-          <TabsContent value="template-maker">
+          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" className="data-[state=inactive]:hidden">
             <CardTemplateMaker
               canUseProjectFiles={projectCapabilities.canExportClean}
+              isActive={effectiveActiveTab === 'template-maker'}
               onSaveTemplate={handleSaveTemplate}
               templates={templatesFromStore}
               defaultTemplates={standardDefaultTemplates}
@@ -421,7 +422,7 @@ export function CardForgeStudioShell() {
             />
           </TabsContent>
 
-          <TabsContent value="generator">
+          <TabsContent value="generator" data-testid="generator-panel">
             <GenerationWorkspace
               isLoadingTemplates={isLoadingTemplates}
               templates={freeformTemplatesForGenerator}

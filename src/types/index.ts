@@ -10,7 +10,7 @@ export type TemplateUsage = 'standard' | 'back-preset';
 export type PdfDuplexLayout = 'separate-pages' | 'same-page';
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
-export type AppearanceStyleKind = 'material' | 'textFrame' | 'border' | 'divider' | 'icon' | 'theme' | 'shapeRole' | 'frameKit';
+export type AppearanceStyleKind = 'material' | 'border' | 'divider' | 'icon' | 'theme' | 'shapeRole' | 'frameKit';
 export type AppearanceGradientType = 'linear' | 'radial' | 'none';
 export type AppearanceTextureKind = 'none' | 'parchment' | 'foil' | 'etched' | 'grain' | 'hatch' | 'uploaded';
 export type AppearanceBorderKind = 'none' | 'solid' | 'double' | 'etched' | 'relic' | 'foil';

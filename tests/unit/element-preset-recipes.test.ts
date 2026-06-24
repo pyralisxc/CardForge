@@ -6,7 +6,6 @@ import {
   DIVIDER_PRESET_RECIPES,
   ICON_STYLE_PRESET_RECIPES,
   SHAPE_ROLE_PRESET_RECIPES,
-  TEXT_FRAME_PRESET_RECIPES,
   buildElementPresetElementUpdates,
   createRecipesFromAppearanceStyles,
   isElementPresetApplicable,
@@ -55,12 +54,10 @@ describe('element preset recipes', () => {
   });
 
   it('converts major preset families into typed pipeline recipes', () => {
-    expect(TEXT_FRAME_PRESET_RECIPES.every((preset) => preset.kind === 'textFrame')).toBe(true);
     expect(BORDER_PRESET_RECIPES.every((preset) => preset.kind === 'borderTreatment')).toBe(true);
     expect(ICON_STYLE_PRESET_RECIPES.every((preset) => preset.kind === 'iconStyle')).toBe(true);
     expect(DIVIDER_PRESET_RECIPES.every((preset) => preset.kind === 'dividerRecipe')).toBe(true);
     expect([
-      ...TEXT_FRAME_PRESET_RECIPES,
       ...BORDER_PRESET_RECIPES,
       ...ICON_STYLE_PRESET_RECIPES,
       ...DIVIDER_PRESET_RECIPES,
@@ -80,7 +77,7 @@ describe('element preset recipes', () => {
     const [recipe] = createRecipesFromAppearanceStyles([{
       id: 'developer-frame',
       name: 'Developer Frame',
-      kind: 'textFrame',
+      kind: 'material',
       targets: ['text'],
       appearance: {
         material: { baseColor: '#123456', textColor: '#ffffff' },
@@ -91,7 +88,7 @@ describe('element preset recipes', () => {
     expect(recipe).toMatchObject({
       id: 'style-developer-frame',
       label: 'Developer Frame',
-      kind: 'textFrame',
+      kind: 'material',
       source: 'registry-style',
       contributorName: 'Cameron Locke',
       preview: { background: '#123456', borderColor: '#abcdef' },
@@ -101,22 +98,22 @@ describe('element preset recipes', () => {
 
   it('dedupes seeded and registry recipes by kind and label while preferring registry-backed assets', () => {
     const [registryRecipe] = createRecipesFromAppearanceStyles([{
-      id: 'frame-mtg-rules',
-      name: 'MTG Rules Frame',
-      kind: 'textFrame',
-      targets: ['text'],
+      id: 'icon-style-fire',
+      name: 'Fire',
+      kind: 'icon',
+      targets: ['icon'],
       appearance: {
         material: { baseColor: '#123456', textColor: '#ffffff' },
         border: { kind: 'solid', color: '#abcdef', width: 2, radius: 6 },
       },
     }]);
-    const seededRecipe = TEXT_FRAME_PRESET_RECIPES.find((preset) => preset.label === 'MTG Rules Frame');
+    const seededRecipe = ICON_STYLE_PRESET_RECIPES.find((preset) => preset.label === 'Fire');
     expect(seededRecipe).toBeDefined();
 
     const merged = mergeElementPresetRecipes([seededRecipe!], [registryRecipe]);
 
     expect(merged).toHaveLength(1);
-    expect(merged[0].id).toBe('style-frame-mtg-rules');
+    expect(merged[0].id).toBe('style-icon-style-fire');
     expect(merged[0].source).toBe('registry-style');
   });
 

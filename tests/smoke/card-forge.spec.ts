@@ -75,6 +75,16 @@ async function expectGeneratorReady(page: Page) {
   await expect(createOutputButton).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 }
 
+async function visibleFreeformPreviewElementCount(page: Page) {
+  return page.locator('.tcg-card-preview [data-freeform-element-id]').evaluateAll((elements) => (
+    elements.filter((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    }).length
+  ));
+}
+
 async function seedBulkMappingTemplate(page: Page) {
   await page.addInitScript(() => {
     const template = {
@@ -322,8 +332,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   const textStyleSection = page.locator('button[aria-controls]').filter({ hasText: 'Text Style' }).first();
   await expect(textStyleSection).toBeVisible();
   await textStyleSection.click();
-  await page.getByPlaceholder('Search text frames...').fill('aged');
-  await page.getByRole('button', { name: /Aged Parchment/i }).first().click();
+  await expect(page.getByText('Text Details', { exact: true })).toBeVisible();
   const materialSection = page.locator('button[aria-controls]').filter({ hasText: 'Material & Effects' }).first();
   await expect(materialSection).toBeVisible();
   await materialSection.click();
@@ -340,7 +349,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await expect
     .poll(() => page.locator('.tcg-card-preview').count())
     .toBeGreaterThanOrEqual(1);
-  await expect(page.locator('[data-freeform-element-id]').first()).toBeVisible();
+  await expect.poll(() => visibleFreeformPreviewElementCount(page)).toBeGreaterThanOrEqual(1);
 
   await page.getByRole('tab', { name: /Bulk Import/i }).click();
   await page.locator('#bulk-file-upload-csv').setInputFiles({
@@ -356,8 +365,30 @@ test('creates a freeform template and renders it in the generator', async ({ pag
     .poll(() => page.locator('.tcg-card-preview').count())
     .toBeGreaterThanOrEqual(3);
   await expect
-    .poll(() => page.locator('[data-freeform-element-id]').count())
+    .poll(() => visibleFreeformPreviewElementCount(page))
     .toBeGreaterThanOrEqual(3);
+});
+
+test('keeps an unsaved layout draft when visiting the generator before saving', async ({ page }) => {
+  test.setTimeout(STUDIO_TEST_TIMEOUT);
+  await gotoStudio(page);
+
+  await selectMainTab(page, /Layout Studio/i);
+  await expect(page.getByRole('button', { name: 'Create new template', exact: true })).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
+
+  await page.getByRole('button', { name: 'Create new template', exact: true }).click();
+  await page.getByRole('tab', { name: 'Element', exact: true }).click();
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
+
+  await selectMainTab(page, /Generate/i);
+  await expect(page.getByRole('tab', { name: /Generate/i })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('layout-studio-panel')).toBeHidden();
+  await expect(page.getByTestId('generator-panel')).toBeVisible();
+  await selectMainTab(page, /Layout Studio/i);
+
+  await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
+  await expect(page.getByRole('button', { name: /Text Layer/ }).first()).toBeVisible();
 });
 
 test('adds structured row columns in the layout studio text inspector', async ({ page }) => {

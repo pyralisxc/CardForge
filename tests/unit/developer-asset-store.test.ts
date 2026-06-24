@@ -34,7 +34,7 @@ describe('developer asset store helpers', () => {
     const metadata = mergeRegistryMetadataForSubmission(
       {
         sourceKind: 'pipeline-owner-import',
-        style: { id: 'frame-mtg-rules', name: 'MTG Rules Frame' },
+        style: { id: 'material-parchment-aged', name: 'Aged Parchment' },
       },
       {
         developerId: 'owner-1',
@@ -45,7 +45,7 @@ describe('developer asset store helpers', () => {
 
     expect(metadata).toMatchObject({
       sourceKind: 'pipeline-owner-import',
-      style: { id: 'frame-mtg-rules', name: 'MTG Rules Frame' },
+      style: { id: 'material-parchment-aged', name: 'Aged Parchment' },
       developerId: 'owner-1',
       developerEmail: 'owner@example.test',
       sourceMimeType: 'application/json',

@@ -16,7 +16,6 @@ const DEFAULT_OWNER_CONTRIBUTOR_NAME = DEFAULT_OWNER_SETTINGS.ownerName || DEFAU
 
 export type ElementPresetKind =
   | 'shapeRole'
-  | 'textFrame'
   | 'borderTreatment'
   | 'iconStyle'
   | 'dividerRecipe'
@@ -362,159 +361,6 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
   },
 ];
 
-export const TEXT_FRAME_PRESET_RECIPES: ElementPresetRecipe[] = [
-  {
-    id: 'text-frame-mtg-rules',
-    label: 'MTG Rules Frame',
-    description: 'Readable fantasy rules text panel.',
-    kind: 'textFrame',
-    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
-    status: 'published',
-    tier: 'free',
-    source: 'developer-pipeline',
-    appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
-    preview: { background: 'rgba(244,226,186,0.94)', borderColor: '#4a2f12' },
-    updates: {
-      backgroundColor: 'rgba(244,226,186,0.94)',
-      backgroundImageUrl: 'linear-gradient(180deg, rgba(255,250,230,0.96), rgba(214,178,105,0.38))',
-      textColor: '#20140a',
-      borderColor: '#4a2f12',
-      borderWidth: 'border-4',
-      borderRadius: 'rounded-md',
-      padding: 'p-3',
-    },
-  },
-  {
-    id: 'text-frame-black-legendary',
-    label: 'Black Legendary',
-    description: 'Dark relic text panel for premium fantasy cards.',
-    kind: 'textFrame',
-    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
-    status: 'published',
-    tier: 'free',
-    source: 'developer-pipeline',
-    appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
-    preview: { background: '#15100b', borderColor: '#d5ad54' },
-    updates: {
-      backgroundColor: '#15100b',
-      backgroundImageUrl: 'linear-gradient(180deg, rgba(213,173,84,0.2), rgba(0,0,0,0.2))',
-      textColor: '#f7e6b0',
-      borderColor: '#d5ad54',
-      borderWidth: 'border-2',
-      borderRadius: 'rounded-lg',
-      padding: 'p-3',
-    },
-  },
-  {
-    id: 'text-frame-violet-spellbox',
-    label: 'Violet Spellbox',
-    description: 'Arcane spell panel with violet light and readable contrast.',
-    kind: 'textFrame',
-    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
-    status: 'published',
-    tier: 'free',
-    source: 'developer-pipeline',
-    appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
-    preview: { background: '#1a102c', borderColor: '#bda2ff' },
-    updates: {
-      backgroundColor: '#1a102c',
-      backgroundImageUrl: 'linear-gradient(135deg, rgba(122,82,204,0.44), rgba(7,9,14,0.96))',
-      textColor: '#f1e8ff',
-      borderColor: '#bda2ff',
-      borderWidth: 'border-2',
-      borderRadius: 'rounded-xl',
-      padding: 'p-3',
-    },
-  },
-  {
-    id: 'text-frame-gold-nameplate',
-    label: 'Gold Nameplate',
-    description: 'Centered title plate treatment for names and type lines.',
-    kind: 'textFrame',
-    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
-    status: 'published',
-    tier: 'free',
-    source: 'developer-pipeline',
-    appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
-    preview: { background: '#17100b', borderColor: '#d5ad54' },
-    updates: {
-      backgroundColor: '#17100b',
-      backgroundImageUrl: 'linear-gradient(90deg, rgba(0,0,0,0.38), rgba(213,173,84,0.24), rgba(0,0,0,0.38))',
-      textColor: '#f7df9d',
-      borderColor: '#d5ad54',
-      borderWidth: 'border-2',
-      borderRadius: 'rounded-md',
-      padding: 'p-2',
-      fontWeight: 'font-bold',
-      textAlign: 'center',
-    },
-  },
-  {
-    id: 'text-frame-flavor-scroll',
-    label: 'Flavor Scroll',
-    description: 'Soft scroll-style panel for flavor copy.',
-    kind: 'textFrame',
-    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
-    status: 'published',
-    tier: 'free',
-    source: 'developer-pipeline',
-    appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
-    preview: { background: 'rgba(248,235,201,0.9)', borderColor: '#8b6424' },
-    updates: {
-      backgroundColor: 'rgba(248,235,201,0.9)',
-      backgroundImageUrl: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.54), transparent 42%), linear-gradient(180deg, rgba(255,246,218,0.95), rgba(207,166,89,0.3))',
-      textColor: '#3a2411',
-      borderColor: '#8b6424',
-      borderWidth: 'border-2',
-      borderRadius: 'rounded-xl',
-      padding: 'p-4',
-      fontStyle: 'italic',
-    },
-  },
-  {
-    id: 'text-frame-aged-parchment',
-    label: 'Aged Parchment',
-    description: 'Grain-heavy parchment panel for rules or lore.',
-    kind: 'textFrame',
-    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
-    status: 'published',
-    tier: 'free',
-    source: 'developer-pipeline',
-    appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
-    preview: { background: 'rgba(235,211,159,0.96)', borderColor: '#5a3410' },
-    updates: {
-      backgroundColor: 'rgba(235,211,159,0.96)',
-      backgroundImageUrl: 'radial-gradient(circle at 15% 20%, rgba(80,42,13,0.14), transparent 18%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.38), transparent 22%), repeating-linear-gradient(0deg, rgba(80,42,13,0.045) 0 1px, transparent 1px 8px), linear-gradient(180deg, rgba(255,249,220,0.96), rgba(198,147,67,0.36))',
-      textColor: '#221407',
-      borderColor: '#5a3410',
-      borderWidth: 'border-4',
-      borderRadius: 'rounded-md',
-      padding: 'p-4',
-    },
-  },
-  {
-    id: 'text-frame-carved-obsidian',
-    label: 'Carved Obsidian',
-    description: 'Etched dark panel with strong fantasy frame styling.',
-    kind: 'textFrame',
-    contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
-    status: 'published',
-    tier: 'free',
-    source: 'developer-pipeline',
-    appliesTo: { elementTypes: ['text'], surfaces: ['textPanel'] },
-    preview: { background: '#0d0b09', borderColor: '#d5ad54' },
-    updates: {
-      backgroundColor: '#0d0b09',
-      backgroundImageUrl: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.055) 0 2px, transparent 2px 10px), linear-gradient(180deg, rgba(213,173,84,0.18), rgba(0,0,0,0.38))',
-      textColor: '#f7e6b0',
-      borderColor: '#d5ad54',
-      borderWidth: 'border-4',
-      borderRadius: 'rounded-lg',
-      padding: 'p-4',
-    },
-  },
-];
-
 const createBorderTreatmentRecipe = ({
   id,
   label,
@@ -637,7 +483,6 @@ export const createFrameKitPresetRecipes = (frameKits: CardFrameKit[]): ElementP
 const appearanceKindToRecipeKind = (kind: AppearanceStylePreset['kind']): ElementPresetKind => {
   if (kind === 'shapeRole') return 'shapeRole';
   if (kind === 'frameKit' || kind === 'theme') return 'frameKit';
-  if (kind === 'textFrame') return 'textFrame';
   if (kind === 'border') return 'borderTreatment';
   if (kind === 'divider') return 'dividerRecipe';
   if (kind === 'icon') return 'iconStyle';
@@ -654,7 +499,6 @@ const targetToElementType = (target: AppearanceStylePreset['targets'][number]): 
 const appearanceSurfacesForStyle = (style: AppearanceStylePreset): ElementPresetSurface[] => {
   if (style.kind === 'shapeRole') return ['shapeFill', 'shapeStroke'];
   if (style.kind === 'frameKit') return ['templateCanvas'];
-  if (style.kind === 'textFrame') return ['textPanel'];
   if (style.kind === 'border') return ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'];
   if (style.kind === 'divider') return ['dividerRail'];
   if (style.kind === 'icon') return ['iconGlyph', 'iconBackplate'];

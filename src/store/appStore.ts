@@ -22,6 +22,10 @@ const normalizeActiveTab = (tab: string): string => {
   return TABS_CONFIG.some(config => config.value === tab) ? tab : TABS_CONFIG[0].value;
 };
 
+const isDraftTemplateSelection = (templateId: string | null): boolean => (
+  typeof templateId === 'string' && templateId.startsWith('draft-')
+);
+
 interface AppState {
   defaultTemplates: TCGCardTemplate[];
   userTemplates: TCGCardTemplate[];
@@ -138,7 +142,8 @@ export const useAppStore = create<AppState>()(
             const allTemplates = [...reconstructedTemplates, ...state.userTemplates];
 
             const selectedStillExists = state.singleCardGeneratorSelectedTemplateId
-              ? allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
+              ? isDraftTemplateSelection(state.singleCardGeneratorSelectedTemplateId)
+                || allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
               : false;
 
             return {
@@ -159,7 +164,8 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             const allTemplates = [...state.defaultTemplates, ...reconstructedTemplates];
             const selectedStillExists = state.singleCardGeneratorSelectedTemplateId
-              ? allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
+              ? isDraftTemplateSelection(state.singleCardGeneratorSelectedTemplateId)
+                || allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
               : false;
 
             return {
@@ -191,7 +197,8 @@ export const useAppStore = create<AppState>()(
             const nextUserTemplates = Array.from(byId.values());
             const allTemplates = [...state.defaultTemplates, ...nextUserTemplates];
             const selectedStillExists = state.singleCardGeneratorSelectedTemplateId
-              ? allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
+              ? isDraftTemplateSelection(state.singleCardGeneratorSelectedTemplateId)
+                || allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
               : false;
 
             return {

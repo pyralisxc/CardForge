@@ -11,11 +11,11 @@ The first consolidation pass now separates Shape Studio into two lanes:
 - **Blank Primitives** are local editor tools. They create/reset rectangle, ellipse, capsule, diamond, hexagon, banner, notch-panel, bracket-frame, corner-frame, and line shapes without contributor or voting metadata.
 - **Pipeline Recipes** are typed `ElementPresetRecipe` records in `src/lib/elementPresetRecipes.ts`. Current shape role recipes are starter pipeline recipes with applicability metadata, contributor display, and tier/status fields.
 
-This is the pattern to reuse for text frames, borders, icon styles, divider recipes, and frame kits.
+This is the pattern to reuse for borders, icon styles, divider recipes, and frame kits.
 
 The second consolidation pass applies that pattern across the high-visibility preset families:
 
-- **Text frame, border, icon, divider, and frame-kit offerings** now flow through typed `ElementPresetRecipe` records instead of raw button-local update blobs.
+- **Border, icon, divider, and frame-kit offerings** now flow through typed `ElementPresetRecipe` records instead of raw button-local update blobs.
 - **Registry appearance styles** from `/api/styles` are converted into typed recipe records, so database-backed `elementPreset` style payloads can show in the same UI language as starter recipes.
 - **Recipe controls now expose status and tier badges** in the maker, with simple visual swatches/previews where the source data supports it.
 - **Text elements can use texture assets** because the text capability set now includes `texture`, matching the texture asset metadata that already allowed text targets.
@@ -46,7 +46,7 @@ Overall grade: B-
 | --- | --- | --- | --- |
 | Pipeline centralization | B- | `/api/assets`, `/api/templates`, and `/api/styles` are registry-backed, and image/overlay source assets now flow through the image source picker. Some maker primitives/tool presets remain local constants. | Pipeline should own all offerable creative recipes; local constants should be primitives/tools, not hidden default catalogs. |
 | Element applicability | C | Panels are gated by element capabilities, but preset records do not declare element type, role, surface, or conflict behavior. | Presets should be filtered by `elementType`, `role`, `surface`, and `assetKind/styleKind`. |
-| Visible user value | B- | Text frames, divider assets, symbol presets, and shape role presets visibly change cards. Generic style and shape presets are weaker. | Keep high-signal recipes; remove or demote presets that only resize/recolor without a clear element-specific purpose. |
+| Visible user value | B- | Divider assets, symbol presets, and shape role presets visibly change cards. Generic style and shape presets are weaker. | Keep high-signal recipes; remove or demote presets that only resize/recolor without a clear element-specific purpose. |
 | Developer ownership | C | Registry supports `elementPreset`, pipeline starter content is imported as Cameron-owned submissions, and recipes expose status/tier/contributor metadata. Some recipe families still need richer registry hydration. | Developer-created, starter, and archived presets should all live in the same review/voting model. |
 | UX clarity | B- | The inspector now follows Source & Content, element builder/style, Material & Effects, Frame & Border, and Layout & Layer. Some panel internals still mix source and styling. | Keep splitting source assets, style recipes, material editing, and layout controls into clearer lanes. |
 | Render correctness | B | Recent border and structured-row work improved real output. The remaining issue is less "does it render" and more "does the control belong here." | Add applicability tests and visual QA for each preset family. |
@@ -66,7 +66,6 @@ Overall grade: B-
 | Symbol presets | `ICON_STYLE_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Icon Inspector | Sets icon palette/backplate; Lucide icon recipes no longer wipe uploaded icon art. | B | Typed icon recipes are in place with conflict-safe application for custom uploads. |
 | Icon assets | `/api/assets` plus local uploads | Icon Inspector | Applies uploaded/shipped icon art and renders relative shipped asset URLs. | A- | Needs clearer source/tier/status and developer contributor badges in the picker. |
 | Image assets | `/api/assets` plus local uploads | Image Inspector | Applies shipped/pipeline image assets to image elements and updates the rendered preview source. | A- | Add upload controls and contributor/tier/status badges matching the icon picker. |
-| Text frame presets | `TEXT_FRAME_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Typography Inspector | Applies useful text-panel backgrounds, borders, padding, and typography. | B+ | Typed recipe lane is in place; next step is richer live thumbnails and contributor provenance from registry rows. |
 | Frame kits | `createFrameKitPresetRecipes` over `CARD_FRAME_KITS` | Template-level frame updates | Applies full-template frame art and card-level colors. | B+ | Now uses the same recipe/badge pattern; next step is a dedicated registry-backed `frameKit` or template-canvas recipe payload. |
 | Global frame styles | `FRAME_STYLES` and template visual properties | Template style controls | Applies broad whole-card theme values. | C | Keep only as advanced controls until frame kits and template presets fully replace it. |
 | Texture asset picker | `/api/assets` plus local uploads | Text and shape Material & Effects | Applies registry texture assets to supported element appearance. | B | Text now has the `texture` capability; next pass should split decorative material recipes from raw texture asset selection more clearly. |
@@ -75,7 +74,7 @@ Overall grade: B-
 
 1. Panel organization still overlaps too much
 
-   Text is improved but still has the most confusing surface area: typography, text frame recipes, Material & Effects, and border recipes can all affect what feels like "the text box." The next UX pass should split source, text style, text box, and material details inside the panels themselves.
+   Text is improved, and the primary Typography Inspector stays focused on typography. The remaining overlap is between Material & Effects and Frame & Edge for what makers perceive as "the text box."
 
 2. Broad recipe semantics still need product decisions
 
@@ -109,7 +108,7 @@ Findings from the sweep:
 
 | Tool area | Finding | User expectation risk | Resolution / next |
 | --- | --- | --- | --- |
-| Text Style | Text frame recipes, material, and edge controls all touch the text-box look. | Users can change the same visible text box from multiple places and wonder which tool "won." | Done: Text Style no longer exposes panel fill or border color. Text frame recipes remain as reviewed presets. |
+| Text Style | Material and edge controls both touch the text-box look. | Users could change the same visible text box from multiple places and wonder which tool "won." | Done: Text Style stays focused on typography and no longer exposes panel fill or border color. |
 | Image Source | Image URL/data key, file upload, and reviewed assets were split across panels. | Users may not understand whether the URL field, file upload, or asset picker is the canonical image source. | Done: image source controls now live together in Image Source. |
 | Image Inspector | `Frame Color` duplicated Frame & Edge. | Users expected frame color to affect the same thing as Frame & Edge. | Done: removed the local frame color control so Frame & Edge owns image frame color. |
 | Icon Source & Symbol | Stroke/fill/line-weight controls only affect built-in Lucide icons. Uploaded icon images render as `<img>`, so those controls do not recolor them. | Users expect symbol color controls to affect uploaded symbols too. | Done: glyph style controls only appear for built-in icons. Later SVG recolor support could make uploaded vector icons editable too. |
@@ -133,7 +132,7 @@ The latest browser-driven sanity check verified:
 - A selected text element shows Source & Content, Text Style, Material & Effects, Frame & Border, and Layout & Layer; the old `Appearance Studio` label is gone.
 - Image elements expose `Image & Overlay Source Assets`; selecting `Arcane Landscape` renders `/card-assets/images/arcane-landscape.svg`.
 - Icon elements expose `Icon Source Assets`; selecting `Arcane Star` renders `/card-assets/icons/arcane-star.svg`.
-- Icon Appearance Studio still shows relevant icon-targeted styles such as `Fire Relic Icon` and `Purple Foil`, while broad text-frame styles such as `Gilded Relic Frame` and `TTRPG Vellum Frame` no longer appear on icon selection.
+- Icon Appearance Studio still shows relevant icon-targeted styles such as `Fire Relic Icon` and `Purple Foil`, while broad non-icon styles no longer appear on icon selection.
 
 ## Recommended Makerspace Model
 
@@ -142,7 +141,7 @@ Use three lanes, not one pile of buttons:
 | Lane | Owned by | Examples | Voting/pipeline |
 | --- | --- | --- | --- |
 | Local editor controls | Product code | position, size, z-index, primitive shape, raw colors, font family, alignment, padding, border width | No voting. These are tools, not assets. |
-| Pipeline recipes | Developer asset registry | text frames, icon styles, divider recipes, shape roles, border treatments, frame kits | Yes. Starter library content and developer uploads use the same voting, archive, and recovery loop. |
+| Pipeline recipes | Developer asset registry | icon styles, divider recipes, shape roles, border treatments, frame kits | Yes. Starter library content and developer uploads use the same voting, archive, and recovery loop. |
 | User-local assets | Browser/project storage | paid/free user uploads that are not submitted to developer program | No public voting unless explicitly submitted into the developer pipeline; these stay `localOnly`. |
 
 ## Element Preset Contract Target
@@ -151,7 +150,6 @@ Every pipeline-backed preset should carry at least:
 
 ```ts
 type ElementPresetKind =
-  | 'textFrame'
   | 'borderTreatment'
   | 'iconStyle'
   | 'dividerRecipe'

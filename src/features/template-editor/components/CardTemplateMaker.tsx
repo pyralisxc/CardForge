@@ -22,7 +22,6 @@ import {
   DIVIDER_PRESET_RECIPES,
   ICON_STYLE_PRESET_RECIPES,
   SHAPE_ROLE_PRESET_RECIPES,
-  TEXT_FRAME_PRESET_RECIPES,
   buildElementPresetElementUpdates,
   createFrameKitPresetRecipes,
   createRecipesFromAppearanceStyles,
@@ -117,6 +116,7 @@ interface CardTemplateMakerProps {
   canUploadCustomAssets: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
   isCheckoutStarting: boolean;
+  isActive: boolean;
   projectFileGateMessage?: string | null;
 }
 
@@ -161,6 +161,7 @@ export function CardTemplateMaker({
   canUploadCustomAssets,
   fileInputRef,
   isCheckoutStarting,
+  isActive,
   projectFileGateMessage,
 }: CardTemplateMakerProps) {
   const { toast } = useToast();
@@ -172,12 +173,15 @@ export function CardTemplateMaker({
   const touchGestureRef = useRef<TouchGestureState | null>(null);
   const variableKeyInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const variableCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [localDraftTemplate, setLocalDraftTemplate] = useState<TCGCardTemplate | null>(null);
 
   const freeformTemplates = templates;
   const initialTemplate = useMemo(() => {
+    if (localDraftTemplate) return localDraftTemplate;
     const selected = templates.find(template => template.id === selectedTemplateIdForEditing);
-    return reconstructMinimalTemplate(selected || freeformTemplates[0] || makeNewFreeformTemplate());
-  }, [freeformTemplates, selectedTemplateIdForEditing, templates]);
+    if (selected) return reconstructMinimalTemplate(selected);
+    return reconstructMinimalTemplate(freeformTemplates[0] || makeNewFreeformTemplate());
+  }, [freeformTemplates, localDraftTemplate, selectedTemplateIdForEditing, templates]);
 
   const {
     activeFace,
@@ -318,7 +322,6 @@ export function CardTemplateMaker({
         divider: [] as ElementPresetRecipe[],
         icon: [] as ElementPresetRecipe[],
         shapeRole: [] as ElementPresetRecipe[],
-        textFrame: [] as ElementPresetRecipe[],
       };
     }
     const applicableRegistryRecipes = registryElementPresetRecipes.filter((preset) => isElementPresetApplicable(preset, selectedElement));
@@ -338,10 +341,6 @@ export function CardTemplateMaker({
       shapeRole: mergeElementPresetRecipes(
         SHAPE_ROLE_PRESET_RECIPES,
         applicableRegistryRecipes.filter((preset) => preset.kind === 'shapeRole'),
-      ),
-      textFrame: mergeElementPresetRecipes(
-        TEXT_FRAME_PRESET_RECIPES,
-        applicableRegistryRecipes.filter((preset) => preset.kind === 'textFrame'),
       ),
     };
   }, [registryElementPresetRecipes, selectedElement]);
@@ -906,10 +905,13 @@ export function CardTemplateMaker({
       freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas),
       backCanvas: currentTemplate.backCanvas ? reconstructFreeformCanvas(currentTemplate.backCanvas) : undefined,
     });
+    setLocalDraftTemplate(null);
     onSelectTemplateForEditing(savedId);
   }, [currentTemplate, onSaveTemplate, onSelectTemplateForEditing, toast]);
 
   useEffect(() => {
+    if (!isActive) return;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
@@ -965,16 +967,21 @@ export function CardTemplateMaker({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [deleteSelected, duplicateSelected, handleSave, redo, selectedElementId, undo]);
+  }, [deleteSelected, duplicateSelected, handleSave, isActive, redo, selectedElementId, undo]);
 
   const handleNewTemplate = useCallback(() => {
-    const fresh = makeNewFreeformTemplate();
+    const fresh = {
+      ...makeNewFreeformTemplate(),
+      id: `draft-${nanoid()}`,
+    };
+    setLocalDraftTemplate(fresh);
     resetTemplate(fresh);
-    onSelectTemplateForEditing(null);
+    onSelectTemplateForEditing(fresh.id);
   }, [onSelectTemplateForEditing, resetTemplate]);
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
+    setLocalDraftTemplate(null);
     onSelectTemplateForEditing(template.id);
     resetTemplate(template);
   }, [onSelectTemplateForEditing, resetTemplate]);
@@ -1395,16 +1402,14 @@ export function CardTemplateMaker({
                             title="Text Style"
                             badge="Style"
                             defaultOpen={false}
-                            description="Control characters, typography, field behavior, and reviewed text-frame recipes for this text element."
+                            description="Control characters, typography, spacing, and field behavior for this text element."
                           >
                             <TypographyInspectorPanel
                               element={selectedElement}
                               currentTemplate={currentTemplate}
                               availableFonts={AVAILABLE_FONTS}
                               paddingOptions={PADDING_OPTIONS}
-                              framePresets={selectedElementPresetRecipeGroups.textFrame}
                               controlClassName={makerTheme.control}
-                              onApplyPreset={applyElementPresetRecipe}
                               onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
                               onUpsertFieldContract={upsertFieldContract}
                             />
