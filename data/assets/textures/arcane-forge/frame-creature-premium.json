@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-frame-creature-premium",
+  "name": "Arcane Creature Full Frame",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["shape", "template", "imageFrame"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-frame-playing-premium",
+  "name": "Arcane Playing Full Frame",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["shape", "template", "imageFrame"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

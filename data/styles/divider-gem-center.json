@@ -1,0 +1,29 @@
+{
+  "id": "divider-gem-center",
+  "name": "Gem Center Divider",
+  "kind": "divider",
+  "targets": ["divider", "shape"],
+  "appearance": {
+    "dividerAsset": "/card-assets/dividers/gem-center.svg",
+    "assetKind": "divider",
+    "shapeRole": "divider",
+    "material": {
+      "baseColor": "#d5ad54",
+      "gradient": {
+        "type": "linear",
+        "angle": 90,
+        "stops": [
+          { "id": "a", "color": "transparent", "position": 0 },
+          { "id": "b", "color": "#7f5d1f", "position": 20 },
+          { "id": "c", "color": "#f5d27b", "position": 47 },
+          { "id": "d", "color": "#7a52cc", "position": 50 },
+          { "id": "e", "color": "#f5d27b", "position": 53 },
+          { "id": "f", "color": "#7f5d1f", "position": 80 },
+          { "id": "g", "color": "transparent", "position": 100 }
+        ]
+      },
+      "texture": { "kind": "none" }
+    },
+    "border": { "kind": "none", "radius": 999 }
+  }
+}

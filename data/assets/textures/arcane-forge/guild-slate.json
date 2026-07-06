@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-guild-slate",
+  "name": "Guild Slate",
+  "tileMode": "repeat",
+  "seamless": true,
+  "allowedTargets": ["shape", "template", "imageFrame"],
+  "defaultBlendMode": "overlay",
+  "defaultOpacity": 50,
+  "defaultScale": 220
+}

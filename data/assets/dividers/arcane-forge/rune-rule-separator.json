@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-rune-rule-separator",
+  "name": "Rune Rule Separator",
+  "tileMode": "stretch",
+  "seamless": false,
+  "allowedTargets": ["divider", "shape"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

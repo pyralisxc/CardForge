@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-astral-paper",
+  "name": "Astral Paper",
+  "tileMode": "repeat",
+  "seamless": true,
+  "allowedTargets": ["text", "shape", "template"],
+  "defaultBlendMode": "screen",
+  "defaultOpacity": 44,
+  "defaultScale": 260
+}

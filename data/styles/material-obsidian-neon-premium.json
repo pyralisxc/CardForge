@@ -1,0 +1,46 @@
+{
+  "id": "material-obsidian-neon-premium",
+  "name": "Obsidian Neon Premium",
+  "kind": "material",
+  "targets": ["text", "shape", "element", "template"],
+  "appearance": {
+    "material": {
+      "baseColor": "#080a12",
+      "textColor": "#f4eaff",
+      "gradient": {
+        "type": "radial",
+        "stops": [
+          { "id": "core", "color": "#7d5cff", "position": 0, "opacity": 0.22 },
+          { "id": "falloff", "color": "#151123", "position": 56, "opacity": 0.88 },
+          { "id": "edge", "color": "#030408", "position": 100, "opacity": 1 }
+        ]
+      },
+      "texture": {
+        "kind": "uploaded",
+        "imageSource": "/card-assets/textures/arcane-forge/obsidian-vellum.svg",
+        "assetSource": "/card-assets/textures/arcane-forge/obsidian-vellum.svg",
+        "assetKind": "texture",
+        "intensity": 76,
+        "scale": 12,
+        "textureOpacity": 58,
+        "textureScale": 240,
+        "blendMode": "overlay",
+        "tileMode": "repeat"
+      }
+    },
+    "border": {
+      "kind": "foil",
+      "color": "#7d5cff",
+      "secondaryColor": "#f3d47c",
+      "width": 4,
+      "radius": 12,
+      "innerWidth": 1
+    },
+    "effects": {
+      "shadow": 34,
+      "glow": 30,
+      "bevel": 28,
+      "innerHighlight": 22
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "arcane-forge-rules-vellum-panel",
+  "name": "Rules Vellum Panel",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["imageFrame", "shape", "template"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100,
+  "partRole": "rulesBox",
+  "defaultWidth": 450,
+  "defaultHeight": 230
+}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Arcane star icon">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="44%" r="50%">
+      <stop offset="0%" stop-color="#f7e6b0"/>
+      <stop offset="54%" stop-color="#7a52cc"/>
+      <stop offset="100%" stop-color="#160d25"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="29" fill="#120f1f" stroke="#d5ad54" stroke-width="3"/>
+  <path d="M32 7l6.9 17.1L57 32l-18.1 7.9L32 57l-6.9-17.1L7 32l18.1-7.9L32 7z" fill="url(#glow)" stroke="#f5d27b" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="5" fill="#fff0c4"/>
+</svg>

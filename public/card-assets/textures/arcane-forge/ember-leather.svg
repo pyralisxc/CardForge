@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720">
+  <defs>
+    <filter id="leather">
+      <feTurbulence type="fractalNoise" baseFrequency=".034 .08" numOctaves="5" seed="23"/>
+      <feColorMatrix type="matrix" values=".42 0 0 0 .08 0 .18 0 0 .025 0 0 .08 0 .01 0 0 0 .78 0"/>
+    </filter>
+    <radialGradient id="ember" cx="52%" cy="38%" r="76%">
+      <stop offset="0" stop-color="#8e3b19"/>
+      <stop offset=".55" stop-color="#2a120d"/>
+      <stop offset="1" stop-color="#080405"/>
+    </radialGradient>
+    <pattern id="stitch" width="72" height="72" patternUnits="userSpaceOnUse">
+      <path d="M0 36h72M36 0v72" stroke="#ffbc5e" stroke-opacity=".1" stroke-width="2" stroke-dasharray="8 12"/>
+      <circle cx="36" cy="36" r="3" fill="#ff8d32" opacity=".32"/>
+    </pattern>
+  </defs>
+  <rect width="720" height="720" fill="url(#ember)"/>
+  <rect width="720" height="720" filter="url(#leather)" opacity=".86"/>
+  <rect width="720" height="720" fill="url(#stitch)" opacity=".9"/>
+  <path d="M0 690C180 624 278 748 448 672c114-51 182-18 272 16v32H0Z" fill="#ff7a25" opacity=".1"/>
+</svg>

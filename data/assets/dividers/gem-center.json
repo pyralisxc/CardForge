@@ -1,0 +1,9 @@
+{
+  "name": "Gem Center",
+  "tileMode": "stretch",
+  "seamless": false,
+  "allowedTargets": ["divider"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

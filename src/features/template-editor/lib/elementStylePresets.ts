@@ -1,0 +1,96 @@
+import type { FreeformCardElement } from '@/types';
+
+export const ELEMENT_STYLE_PRESETS: Array<{ label: string; updates: Partial<FreeformCardElement> }> = [
+  {
+    label: 'Parchment Gold',
+    updates: {
+      backgroundColor: 'rgba(246,232,199,0.88)',
+      fillColor: 'rgba(246,232,199,0.88)',
+      backgroundImageUrl: 'linear-gradient(135deg, rgba(255,248,222,0.96), rgba(214,174,92,0.25))',
+      textColor: '#24190d',
+      borderColor: '#b58b35',
+      strokeColor: '#b58b35',
+      borderWidth: 'border',
+      borderRadius: 'rounded-md',
+    },
+  },
+  {
+    label: 'Arcane Violet',
+    updates: {
+      backgroundColor: 'rgba(35,19,62,0.9)',
+      fillColor: 'rgba(35,19,62,0.9)',
+      backgroundImageUrl: 'linear-gradient(135deg, rgba(122,82,204,0.38), rgba(13,17,23,0.94))',
+      textColor: '#f1e8ff',
+      borderColor: '#7a52cc',
+      strokeColor: '#bda2ff',
+      borderWidth: 'border',
+      borderRadius: 'rounded-lg',
+    },
+  },
+  {
+    label: 'Obsidian Gilt',
+    updates: {
+      backgroundColor: '#120f0b',
+      fillColor: '#120f0b',
+      backgroundImageUrl: 'linear-gradient(180deg, rgba(213,173,84,0.18), rgba(0,0,0,0.18))',
+      textColor: '#f5d27b',
+      borderColor: '#d5ad54',
+      strokeColor: '#d5ad54',
+      borderWidth: 'border-2',
+      borderRadius: 'rounded-md',
+    },
+  },
+  {
+    label: 'Dragonfire',
+    updates: {
+      backgroundColor: '#2a0e08',
+      fillColor: '#2a0e08',
+      backgroundImageUrl: 'linear-gradient(135deg, rgba(132,37,15,0.92), rgba(213,106,37,0.34), rgba(10,10,12,0.94))',
+      textColor: '#ffe3a2',
+      borderColor: '#d67425',
+      strokeColor: '#ffb35f',
+      borderWidth: 'border',
+      borderRadius: 'rounded-md',
+    },
+  },
+  {
+    label: 'Moonlit Glass',
+    updates: {
+      backgroundColor: 'rgba(18,24,36,0.58)',
+      fillColor: 'rgba(18,24,36,0.58)',
+      backgroundImageUrl: 'linear-gradient(135deg, rgba(255,255,255,0.16), rgba(122,82,204,0.18), rgba(255,255,255,0.04))',
+      textColor: '#e6ecff',
+      borderColor: '#7f8aa3',
+      strokeColor: '#dfe7ff',
+      borderWidth: 'border',
+      borderRadius: 'rounded-xl',
+      opacity: 0.88,
+    },
+  },
+  {
+    label: 'Etched Gilding',
+    updates: {
+      backgroundColor: '#140f09',
+      fillColor: '#140f09',
+      backgroundImageUrl: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.055) 0 2px, transparent 2px 9px), radial-gradient(circle at 50% 0%, rgba(213,173,84,0.22), transparent 48%), linear-gradient(180deg, rgba(213,173,84,0.18), rgba(0,0,0,0.28))',
+      textColor: '#f7df9d',
+      borderColor: '#d5ad54',
+      strokeColor: '#d5ad54',
+      borderWidth: 'border-4',
+      borderRadius: 'rounded-lg',
+    },
+  },
+  {
+    label: 'Purple Foil',
+    updates: {
+      backgroundColor: '#160d25',
+      fillColor: '#160d25',
+      backgroundImageUrl: 'repeating-linear-gradient(115deg, rgba(255,255,255,0.12) 0 3px, transparent 3px 16px), linear-gradient(135deg, rgba(122,82,204,0.92), rgba(38,14,74,0.96) 52%, rgba(213,173,84,0.24))',
+      textColor: '#f4eaff',
+      borderColor: '#d5ad54',
+      strokeColor: '#d8c4ff',
+      borderWidth: 'border-2',
+      borderRadius: 'rounded-lg',
+    },
+  },
+];

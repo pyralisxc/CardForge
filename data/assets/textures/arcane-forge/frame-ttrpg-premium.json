@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-frame-ttrpg-premium",
+  "name": "Arcane TTRPG Full Sheet",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["shape", "template", "imageFrame"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

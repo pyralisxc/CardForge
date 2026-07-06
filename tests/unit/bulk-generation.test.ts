@@ -1,0 +1,764 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  buildInitialColumnMapping,
+  autoMapRequiredFields,
+  createBulkContractSummary,
+  createBulkDisplayCards,
+  createBulkExampleCsv,
+  createBulkExampleJson,
+  createBulkExampleStructuredText,
+  createBulkImportContract,
+  createBulkPreview,
+  getBulkGenerationBlockingIssues,
+  getUnmappedRequiredFieldKeys,
+  normalizeJsonObjectsToRows,
+  parseBulkDataSource,
+  parseStructuredTextToRows,
+  resolveDuplicateFieldMapping,
+  shouldBlockBulkGeneration,
+  updateColumnMapping,
+} from '@/lib/bulkGeneration';
+import type { TCGCardTemplate } from '@/types';
+
+describe('bulk generation helpers', () => {
+  it('builds initial column mapping with case-insensitive matching', () => {
+    const headers = ['RulesText', 'TYPELINE', 'unknownCol'];
+    const fieldKeys = ['rulesText', 'typeLine', 'setCode'];
+
+    expect(buildInitialColumnMapping(headers, fieldKeys)).toEqual({
+      RulesText: 'rulesText',
+      TYPELINE: 'typeLine',
+      unknownCol: '',
+    });
+  });
+
+  it('builds initial column mapping from field labels and spaced headers', () => {
+    const headers = ['Center Mark', 'New Text', 'Artwork Url'];
+    const fields = [
+      {
+        key: 'CenterMark',
+        label: 'Center Mark',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'newText',
+        label: 'New Text',
+        control: 'textarea' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: false,
+        isImage: false,
+        isMultiline: true,
+        supportsRichText: true,
+      },
+      {
+        key: 'artworkUrl',
+        label: 'Artwork Url',
+        control: 'input' as const,
+        editor: 'image-input' as const,
+        contentModel: 'image' as const,
+        required: false,
+        isImage: true,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+    ];
+
+    expect(buildInitialColumnMapping(headers, fields)).toEqual({
+      'Center Mark': 'CenterMark',
+      'New Text': 'newText',
+      'Artwork Url': 'artworkUrl',
+    });
+  });
+
+  it('updates column mapping for advanced interactions', () => {
+    const current = {
+      rulesText: 'rulesText',
+      typeLine: 'typeLine',
+    };
+
+    const remapped = updateColumnMapping(current, 'typeLine', 'setCode');
+    expect(remapped).toEqual({
+      rulesText: 'rulesText',
+      typeLine: 'setCode',
+    });
+
+    const ignored = updateColumnMapping(remapped, 'rulesText', '__unmapped__');
+    expect(ignored).toEqual({
+      rulesText: '',
+      typeLine: 'setCode',
+    });
+  });
+
+  it('blocks generation only when strict mode has warnings', () => {
+    expect(shouldBlockBulkGeneration(false, 1, 0)).toBe(false);
+    expect(shouldBlockBulkGeneration(true, 0, 0)).toBe(false);
+    expect(shouldBlockBulkGeneration(true, 1, 0)).toBe(true);
+    expect(shouldBlockBulkGeneration(true, 0, 2)).toBe(true);
+  });
+
+  it('flags structurally invalid CSV before generation', () => {
+    expect(
+      getBulkGenerationBlockingIssues(
+        ['Rank', 'Suit'],
+        [
+          ['Rank', 'Suit'],
+          ['A'],
+          ['K', 'Hearts', 'Extra'],
+        ],
+        { Rank: 'rank', Suit: 'suit' }
+      )
+    ).toEqual([
+      'Row 2 has 1 column; expected 2.',
+      'Row 3 has 3 columns; expected 2.',
+    ]);
+  });
+
+  it('flags duplicate headers and missing mappings as blocking issues', () => {
+    expect(
+      getBulkGenerationBlockingIssues(
+        ['Rank', 'rank', 'Suit'],
+        [['Rank', 'rank', 'Suit'], ['A', 'Ace', 'Spades']],
+        { Rank: '', rank: '', Suit: '' }
+      )
+    ).toEqual([
+      'Duplicate CSV header detected: Rank',
+      'Map at least one CSV column to a template field before generating.',
+    ]);
+  });
+
+  it('creates template-specific example CSV data from field definitions', () => {
+    const template: TCGCardTemplate = {
+      id: 'example-template',
+      name: 'Example Template',
+      aspectRatio: '63:88',
+      templatePreviewData: {
+        cardName: 'Preview Name',
+      },
+    };
+
+    expect(createBulkExampleCsv({
+      template,
+      fieldDefinitions: [
+        {
+          key: 'cardName',
+          label: 'Card Name',
+          control: 'input',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: false,
+        },
+        {
+          key: 'artworkUrl',
+          label: 'Artwork URL',
+          control: 'input',
+          editor: 'text-editor',
+          contentModel: 'image',
+          required: false,
+          isImage: true,
+          isMultiline: false,
+          supportsRichText: false,
+        },
+      ],
+    })).toContain('Preview Name');
+  });
+
+  it('auto-maps unmapped required fields from matching keys, labels, or label words', () => {
+    const fields = [
+      {
+        key: 'cardName',
+        label: 'Card Name',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'rulesText',
+        label: 'Rules Text',
+        control: 'textarea' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: true,
+        supportsRichText: true,
+      },
+    ];
+
+    const nextMapping = autoMapRequiredFields(
+      ['Name', 'Rules Text', 'Notes'],
+      fields,
+      { Name: '', 'Rules Text': '', Notes: '' }
+    );
+
+    expect(nextMapping).toEqual({
+      Name: 'cardName',
+      'Rules Text': 'rulesText',
+      Notes: '',
+    });
+    expect(getUnmappedRequiredFieldKeys(fields, nextMapping)).toEqual([]);
+  });
+
+  it('resolves duplicate field mapping by keeping the first mapped header', () => {
+    expect(resolveDuplicateFieldMapping({
+      Name: 'cardName',
+      Title: 'cardName',
+      Rules: 'rulesText',
+    }, 'cardName')).toEqual({
+      Name: 'cardName',
+      Title: '',
+      Rules: 'rulesText',
+    });
+  });
+
+  it('creates template-specific import-ready JSON data from field definitions', () => {
+    const template: TCGCardTemplate = {
+      id: 'example-template',
+      name: 'Example Template',
+      aspectRatio: '63:88',
+      templatePreviewData: {
+        cardName: 'Preview Name',
+      },
+    };
+
+    const json = createBulkExampleJson({
+      template,
+      fieldDefinitions: [
+        {
+          key: 'cardName',
+          label: 'Card Name',
+          control: 'input',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: false,
+        },
+        {
+          key: 'rulesText',
+          label: 'Rules Text',
+          control: 'textarea',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: false,
+          isImage: false,
+          isMultiline: true,
+          supportsRichText: true,
+          defaultValue: 'Default rules',
+        },
+      ],
+    });
+
+    expect(JSON.parse(json)).toEqual([
+      {
+        cardName: 'Preview Name',
+        rulesText: 'Default rules',
+      },
+    ]);
+  });
+
+  it('creates structured Field: value example text from field definitions', () => {
+    expect(createBulkExampleStructuredText({
+      template: {
+        id: 'structured-example-template',
+        name: 'Structured Example',
+        aspectRatio: '63:88',
+      },
+      fieldDefinitions: [
+        {
+          key: 'cardName',
+          label: 'Card Name',
+          control: 'input',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: false,
+          defaultValue: 'Ashen Crown',
+        },
+        {
+          key: 'rulesText',
+          label: 'Rules Text',
+          control: 'textarea',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: false,
+          isImage: false,
+          isMultiline: true,
+          supportsRichText: true,
+        },
+      ],
+    })).toContain('cardName: Ashen Crown');
+  });
+
+  it('summarizes contract fields for the bulk setup panel', () => {
+    expect(createBulkContractSummary([
+      {
+        key: 'name',
+        label: 'Name',
+        control: 'input',
+        editor: 'text-editor',
+        contentModel: 'text',
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: true,
+      },
+      {
+        key: 'art',
+        label: 'Art',
+        control: 'input',
+        editor: 'image-input',
+        contentModel: 'image',
+        required: false,
+        isImage: true,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'trait',
+        label: 'Trait',
+        control: 'input',
+        editor: 'structured-rows',
+        contentModel: 'structuredRows',
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: true,
+        sourceElementId: 'trait-row',
+        sourceElementName: 'Trait Row',
+      },
+      {
+        key: 'value',
+        label: 'Value',
+        control: 'input',
+        editor: 'structured-rows',
+        contentModel: 'structuredRows',
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: true,
+        sourceElementId: 'trait-row',
+        sourceElementName: 'Trait Row',
+      },
+    ])).toMatchObject({
+      fieldCount: 4,
+      requiredFieldCount: 3,
+      optionalFieldCount: 1,
+      richTextFieldCount: 3,
+      imageFieldCount: 1,
+      structuredRowFieldCount: 2,
+      structuredRowGroupCount: 1,
+      requiredFields: [
+        { key: 'name', label: 'Name', type: 'text' },
+        { key: 'trait', label: 'Trait', type: 'structuredRows' },
+        { key: 'value', label: 'Value', type: 'structuredRows' },
+      ],
+      optionalFields: [
+        { key: 'art', label: 'Art', type: 'image' },
+      ],
+      structuredRowGroups: [
+        {
+          id: 'trait-row',
+          label: 'Trait Row',
+          columns: [
+            { key: 'trait', label: 'Trait' },
+            { key: 'value', label: 'Value' },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('normalizes JSON object arrays into bulk rows', () => {
+    expect(normalizeJsonObjectsToRows([
+      { Name: 'Badge One', Company: 'Northstar' },
+      { Company: 'ForgeWorks', Role: 'Speaker' },
+    ])).toEqual([
+      ['Name', 'Company', 'Role'],
+      ['Badge One', 'Northstar', ''],
+      ['', 'ForgeWorks', 'Speaker'],
+    ]);
+  });
+
+  it('rejects nested JSON values for bulk rows', () => {
+    expect(() => normalizeJsonObjectsToRows([
+      { Name: 'Nested', Stats: { Power: 2 } },
+    ])).toThrow('JSON row 1 field "Stats" must be a string, number, boolean, or empty value.');
+  });
+
+  it('parses structured text records into bulk rows', () => {
+    expect(parseStructuredTextToRows(`
+Name: Emberclaw Whelp
+Type Line: Creature - Dragon
+Rules Text:
+Flying.
+When this enters play, deal 1 damage.
+Transitions[1].Position: 908
+
+---
+
+Name: Moonlit Ranger
+Type Line: Hero - Scout
+Rules Text: Draw a card.
+Transitions[1].Position: 421
+    `)).toEqual([
+      ['Name', 'Type Line', 'Rules Text', 'Transitions[1].Position'],
+      ['Emberclaw Whelp', 'Creature - Dragon', 'Flying.\nWhen this enters play, deal 1 damage.', '908'],
+      ['Moonlit Ranger', 'Hero - Scout', 'Draw a card.', '421'],
+    ]);
+  });
+
+  it('auto-detects CSV, JSON, and structured text data sources', () => {
+    expect(parseBulkDataSource('Name,Role\nAvery,Designer', 'auto')).toEqual([
+      ['Name', 'Role'],
+      ['Avery', 'Designer'],
+    ]);
+    expect(parseBulkDataSource('[{"Name":"Avery","Role":"Designer"}]', 'auto')).toEqual([
+      ['Name', 'Role'],
+      ['Avery', 'Designer'],
+    ]);
+    expect(parseBulkDataSource('Name: Avery\nRole: Designer', 'auto')).toEqual([
+      ['Name', 'Role'],
+      ['Avery', 'Designer'],
+    ]);
+  });
+
+  it('parses numbered and bulleted Field value text as readable bulk input', () => {
+    expect(parseBulkDataSource([
+      '1. Name: Aetherglass Vanguard',
+      '- Type: Creature',
+      '* Rules Text: Flying',
+      '',
+      '2. Name: Ember Archive',
+      '- Type: Artifact',
+      '- Rules Text: Draw a card.',
+    ].join('\n'), 'structured')).toEqual([
+      ['Name', 'Type', 'Rules Text'],
+      ['Aetherglass Vanguard', 'Creature', 'Flying'],
+      ['Ember Archive', 'Artifact', 'Draw a card.'],
+    ]);
+  });
+
+  it('creates preview warnings and row overrides from mapped CSV data', () => {
+    expect(createBulkPreview({
+      rows: [
+        ['Name', 'Rules', 'Ignored'],
+        ['Card 1', '', 'unused'],
+      ],
+      columnMapping: {
+        Name: 'name',
+        Rules: 'rulesText',
+        Ignored: '',
+      },
+      fieldDefinitions: [
+        {
+          key: 'name',
+          label: 'Name',
+          control: 'input',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: false,
+        },
+        {
+          key: 'rulesText',
+          label: 'Rules Text',
+          control: 'textarea',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: true,
+          isImage: false,
+          isMultiline: true,
+          supportsRichText: true,
+        },
+      ],
+      previewOverrides: {
+        2: {
+          rulesText: 'Overridden rules',
+        },
+      },
+    })).toMatchObject({
+      globalWarnings: ['Unmapped CSV columns will be skipped: Ignored'],
+      rows: [
+        {
+          rowNumber: 2,
+          mappedData: {
+            name: 'Card 1',
+            rulesText: 'Overridden rules',
+          },
+          warnings: [],
+        },
+      ],
+    });
+  });
+
+  it('generates at least 1000 cards from mapped CSV rows without dropping row data', () => {
+    const template: TCGCardTemplate = {
+      id: 'bulk-1000-template',
+      name: 'Bulk 1000 Template',
+      aspectRatio: '63:88',
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [],
+      },
+    };
+    const fieldDefinitions = [
+      {
+        key: 'Rank',
+        label: 'Rank',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'Suit',
+        label: 'Suit',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+      {
+        key: 'RulesText',
+        label: 'Rules Text',
+        control: 'textarea' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: false,
+        isImage: false,
+        isMultiline: true,
+        supportsRichText: true,
+        defaultValue: 'Default rules text',
+      },
+    ];
+    const rows = [
+      ['Rank', 'Suit', 'RulesText'],
+      ...Array.from({ length: 1000 }, (_, index) => [
+        String(index + 1),
+        index % 2 === 0 ? 'Hearts' : 'Spades',
+        `Rules line ${index + 1}`,
+      ]),
+    ];
+
+    const cards = createBulkDisplayCards({
+      template,
+      fieldDefinitions,
+      rows,
+      columnMapping: {
+        Rank: 'Rank',
+        Suit: 'Suit',
+        RulesText: 'RulesText',
+      },
+      createId: (rowNumber) => `bulk-card-${rowNumber}`,
+    });
+
+    expect(cards).toHaveLength(1000);
+    expect(cards[0]).toMatchObject({
+      uniqueId: 'bulk-card-2',
+      data: {
+        Rank: '1',
+        Suit: 'Hearts',
+        RulesText: 'Rules line 1',
+      },
+    });
+    expect(cards[999]).toMatchObject({
+      uniqueId: 'bulk-card-1001',
+      data: {
+        Rank: '1000',
+        Suit: 'Spades',
+        RulesText: 'Rules line 1000',
+      },
+    });
+  });
+
+  it('warns when mapped values exceed field contract max length', () => {
+    expect(createBulkPreview({
+      rows: [
+        ['Name'],
+        ['Overlong Card Name'],
+      ],
+      columnMapping: {
+        Name: 'name',
+      },
+      fieldDefinitions: [
+        {
+          key: 'name',
+          label: 'Name',
+          control: 'input',
+          editor: 'text-editor',
+          contentModel: 'text',
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: false,
+          maxLength: 8,
+        },
+      ],
+    })).toMatchObject({
+      rows: [
+        {
+          rowNumber: 2,
+          warnings: ['Name is 18 characters; maximum is 8.'],
+        },
+      ],
+    });
+  });
+
+  it('preserves recognized per-field style override columns as generated output metadata', () => {
+    const template: TCGCardTemplate = {
+      id: 'style-data-template',
+      name: 'Style Data Template',
+      aspectRatio: '63:88',
+    };
+    const fieldDefinitions = [
+      {
+        key: 'Name',
+        label: 'Name',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: true,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: true,
+      },
+      {
+        key: 'Stat',
+        label: 'Stat',
+        control: 'input' as const,
+        editor: 'text-editor' as const,
+        contentModel: 'text' as const,
+        required: false,
+        isImage: false,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+    ];
+
+    const cards = createBulkDisplayCards({
+      template,
+      fieldDefinitions,
+      rows: [
+        ['Name', 'Name.textColor', 'Name.fontWeight', 'Stat.style.fontSizePx', 'Ignored.textColor'],
+        ['Avery', '#00ffaa', 'font-semibold', '28', '#ff0000'],
+      ],
+      columnMapping: {
+        Name: 'Name',
+      },
+      createId: (rowNumber) => `style-card-${rowNumber}`,
+    });
+
+    expect(cards).toHaveLength(1);
+    expect(cards[0].data).toMatchObject({
+      Name: 'Avery',
+      '__cardforgeFieldStyle.Name.textColor': '#00ffaa',
+      '__cardforgeFieldStyle.Name.fontWeight': 'font-semibold',
+      '__cardforgeFieldStyle.Stat.fontSizePx': '28',
+    });
+    expect(cards[0].data['__cardforgeFieldStyle.Ignored.textColor']).toBeUndefined();
+  });
+
+  it('accepts style override fields from JSON object arrays and structured text imports', () => {
+    expect(parseBulkDataSource('[{"Name":"Avery","Name.textColor":"#00ffaa","Name.style.fontWeight":"font-semibold"}]', 'json')).toEqual([
+      ['Name', 'Name.textColor', 'Name.style.fontWeight'],
+      ['Avery', '#00ffaa', 'font-semibold'],
+    ]);
+
+    expect(parseBulkDataSource('Name: Avery\nName.textColor: #00ffaa\nName.style.fontWeight: font-semibold', 'structured')).toEqual([
+      ['Name', 'Name.textColor', 'Name.style.fontWeight'],
+      ['Avery', '#00ffaa', 'font-semibold'],
+    ]);
+  });
+
+  it('documents optional style override columns in the downloadable bulk contract', () => {
+    const contract = createBulkImportContract({
+      template: {
+        id: 'contract-template',
+        name: 'Contract Template',
+        aspectRatio: '63:88',
+      },
+      fieldDefinitions: [
+        {
+          key: 'Name',
+          label: 'Name',
+          control: 'input' as const,
+          editor: 'text-editor' as const,
+          contentModel: 'text' as const,
+          required: true,
+          isImage: false,
+          isMultiline: false,
+          supportsRichText: true,
+          description: 'Primary card name.',
+          example: 'Ashen Crown',
+          maxLength: 40,
+          allowedFormatting: ['bold', 'italic', 'color'],
+        },
+        {
+          key: 'Portrait',
+          label: 'Portrait',
+          control: 'input' as const,
+          editor: 'text-editor' as const,
+          contentModel: 'image' as const,
+          required: false,
+          isImage: true,
+          isMultiline: false,
+          supportsRichText: false,
+        },
+      ],
+      generatedAt: '2026-05-21T00:00:00.000Z',
+    });
+
+    expect(contract).toMatchObject({
+      contractVersion: 1,
+      templateId: 'contract-template',
+      templateName: 'Contract Template',
+      generatedAt: '2026-05-21T00:00:00.000Z',
+      styleOverrideSyntax: {
+        summary: expect.stringContaining('Optional row-level styling'),
+        supportedProperties: ['textColor', 'fontFamily', 'fontSizePx', 'fontWeight', 'fontStyle', 'textDecoration', 'lineHeight', 'letterSpacing'],
+        examples: ['Name.textColor', 'Name.style.fontWeight'],
+      },
+      fields: [
+        {
+          key: 'Name',
+          description: 'Primary card name.',
+          example: 'Ashen Crown',
+          maxLength: 40,
+          allowedFormatting: ['bold', 'italic', 'color'],
+          styleOverrideColumns: ['Name.textColor', 'Name.fontFamily', 'Name.fontSizePx', 'Name.fontWeight', 'Name.fontStyle', 'Name.textDecoration', 'Name.lineHeight', 'Name.letterSpacing'],
+        },
+        {
+          key: 'Portrait',
+          styleOverrideColumns: [],
+        },
+      ],
+    });
+  });
+});

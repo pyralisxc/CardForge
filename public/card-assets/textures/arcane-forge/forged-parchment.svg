@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720">
+  <defs>
+    <filter id="grain" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency=".012 .038" numOctaves="4" seed="41"/>
+      <feColorMatrix type="matrix" values=".55 0 0 0 .18 0 .42 0 0 .12 0 0 .24 0 .06 0 0 0 .38 0"/>
+      <feBlend mode="multiply" in2="SourceGraphic"/>
+    </filter>
+    <radialGradient id="warm" cx="50%" cy="35%" r="78%">
+      <stop offset="0" stop-color="#fff1c4"/>
+      <stop offset=".48" stop-color="#d5a95a"/>
+      <stop offset="1" stop-color="#7c5224"/>
+    </radialGradient>
+    <pattern id="sigils" width="120" height="120" patternUnits="userSpaceOnUse">
+      <path d="M60 12 72 44l34 4-26 22 8 34-28-18-28 18 8-34-26-22 34-4Z" fill="none" stroke="#5d3816" stroke-opacity=".16" stroke-width="2"/>
+      <path d="M8 112C36 88 84 88 112 112M8 8C36 32 84 32 112 8" fill="none" stroke="#f6d98a" stroke-opacity=".18" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="720" height="720" fill="url(#warm)"/>
+  <rect width="720" height="720" fill="url(#sigils)" opacity=".72"/>
+  <g filter="url(#grain)">
+    <rect width="720" height="720" fill="transparent"/>
+  </g>
+  <path d="M0 84C108 42 168 132 270 88c110-48 210-86 330-18 48 27 84 24 120 8v642H0Z" fill="#fff7d2" opacity=".09"/>
+  <path d="M36 40h648v640H36z" fill="none" stroke="#5f3815" stroke-opacity=".18" stroke-width="8"/>
+</svg>

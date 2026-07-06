@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-obsidian-vellum",
+  "name": "Obsidian Vellum",
+  "tileMode": "repeat",
+  "seamless": true,
+  "allowedTargets": ["text", "shape", "template"],
+  "defaultBlendMode": "overlay",
+  "defaultOpacity": 58,
+  "defaultScale": 240
+}
