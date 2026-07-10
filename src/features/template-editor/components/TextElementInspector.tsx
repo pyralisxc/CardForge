@@ -1,6 +1,7 @@
 "use client";
 
-import type { MutableRefObject } from 'react';
+import { useMemo } from 'react';
+import type { CSSProperties, MutableRefObject } from 'react';
 import { AlignCenter, AlignLeft, AlignRight, ListPlus, Plus, TextCursorInput, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import { isStaticSegmentFieldKey, parseTemplateTextSegments } from '@/lib/textBi
 import { textFontSizePx } from '@/lib/textTools';
 import { cn } from '@/lib/utils';
 import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
-import { AVAILABLE_FONTS } from '@/lib/constants';
+import { buildContractSegmentStyle } from '@/lib/cardTextRender';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 
@@ -170,6 +171,7 @@ interface TextExpressionEditorProps {
   onRenameVariable: (key: string) => void;
   onRemoveVariable: (key: string) => void;
   showTextMarkerHint: boolean;
+  fieldContracts?: FieldContract[];
 }
 
 export function TextExpressionEditor({
@@ -186,7 +188,19 @@ export function TextExpressionEditor({
   onRenameVariable,
   onRemoveVariable,
   showTextMarkerHint,
+  fieldContracts,
 }: TextExpressionEditorProps) {
+  const variableStyles = useMemo(() => {
+    const styles: Record<string, CSSProperties> = {};
+    (fieldContracts || [])
+      .filter((contract) => contract.elementId === element.id)
+      .forEach((contract) => {
+        const style = buildContractSegmentStyle(contract);
+        if (style) styles[contract.key] = style;
+      });
+    return styles;
+  }, [element.id, fieldContracts]);
+
   return (
     <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
       <div className="flex items-center justify-between gap-2">
@@ -214,6 +228,7 @@ export function TextExpressionEditor({
           onEditVariable={onEditVariable}
           onRenameVariable={onRenameVariable}
           onRemoveVariable={onRemoveVariable}
+          variableStyles={variableStyles}
           placeholder="Write card text here..."
         >
           <Input
@@ -252,6 +267,7 @@ interface TextFieldSettingsListProps {
   fields: TemplateFieldDefinition[];
   element: FreeformCardElement;
   fieldContracts?: FieldContract[];
+  availableFonts: Array<{ value: string; name: string }>;
   activeVariableKey: string | null;
   variableKeyInputRefs: MutableRefObject<Record<string, HTMLInputElement | null>>;
   variableCardRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
@@ -265,6 +281,7 @@ export function TextFieldSettingsList({
   fields,
   element,
   fieldContracts,
+  availableFonts,
   activeVariableKey,
   variableKeyInputRefs,
   variableCardRefs,
@@ -458,7 +475,7 @@ export function TextFieldSettingsList({
                         className={fieldSelectClassName}
                       >
                         <option value="">Inherited</option>
-                        {AVAILABLE_FONTS.map((font) => (
+                        {availableFonts.map((font) => (
                           <option key={font.value} value={font.value}>{font.name}</option>
                         ))}
                       </select>

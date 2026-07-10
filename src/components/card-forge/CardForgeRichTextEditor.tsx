@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Node, mergeAttributes, type JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -36,6 +37,30 @@ const toHexPickerColor = (value: string | undefined): string => {
     .map((channel) => Math.max(0, Math.min(255, Number(channel))).toString(16).padStart(2, '0'))
     .join('')
     .replace(/^/, '#');
+};
+
+const cssPropertyName = (property: string): string => property.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+
+const cssValue = (value: string | number): string => (
+  typeof value === 'number' ? `${value}px` : value.replace(/[;{}]/g, '')
+);
+
+const escapeCssAttributeValue = (value: string): string => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+const buildVariableStyleCss = (variableStyles?: Record<string, CSSProperties>): string => {
+  if (!variableStyles) return '';
+
+  return Object.entries(variableStyles)
+    .map(([key, style]) => {
+      const declarations = Object.entries(style)
+        .filter((entry): entry is [string, string | number] => entry[1] !== undefined && (typeof entry[1] === 'string' || typeof entry[1] === 'number'))
+        .map(([property, value]) => `${cssPropertyName(property)}: ${cssValue(value)};`)
+        .join(' ');
+      if (!declarations) return '';
+      return `.cardforge-rich-text-editor [data-cardforge-variable-key="${escapeCssAttributeValue(key)}"] { ${declarations} }`;
+    })
+    .filter(Boolean)
+    .join('\n');
 };
 
 const CardForgeVariableNode = Node.create({
@@ -89,6 +114,7 @@ interface CardForgeRichTextEditorProps {
   onRenameVariable?: (key: string) => void;
   onRemoveVariable?: (key: string) => void;
   allowedFormatting?: TemplateFieldAllowedFormatting[];
+  variableStyles?: Record<string, CSSProperties>;
   children?: React.ReactNode;
 }
 
@@ -108,6 +134,7 @@ export function CardForgeRichTextEditor({
   onRenameVariable,
   onRemoveVariable,
   allowedFormatting,
+  variableStyles,
   children,
 }: CardForgeRichTextEditorProps) {
   const [textColorOpen, setTextColorOpen] = useState(false);
@@ -225,6 +252,7 @@ export function CardForgeRichTextEditor({
 
   const btn = 'flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#2d3340] bg-[#111720] text-[#d8d1c4] transition-colors hover:border-[#d5ad54] hover:text-[#f5d27b] disabled:cursor-not-allowed disabled:opacity-45';
   const pickerHighlightColor = toHexPickerColor(highlightColor);
+  const variableStyleCss = useMemo(() => buildVariableStyleCss(variableStyles), [variableStyles]);
   const isActive = useCallback((name: string, attrs?: Record<string, unknown>) => editor?.isActive(name, attrs) ?? false, [editor]);
   const canUse = useCallback((format: TemplateFieldAllowedFormatting): boolean => (
     !allowedFormatting || allowedFormatting.includes(format)
@@ -486,6 +514,8 @@ export function CardForgeRichTextEditor({
         .cardforge-variable-token:hover {
           box-shadow: inset 0 0 0 1px rgba(245, 210, 123, 0.95), 0 0 0 2px rgba(213, 173, 84, 0.12);
         }
+
+        ${variableStyleCss}
       `}</style>
     </div>
   );

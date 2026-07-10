@@ -15,6 +15,7 @@ interface ElementContentPanelProps {
   selectedElementTemplateFields: TemplateFieldDefinition[];
   activeVariableKey: string | null;
   richTextHighlightColor: string;
+  availableFonts: Array<{ value: string; name: string }>;
   variableKeyInputRefs: MutableRefObject<Record<string, HTMLInputElement | null>>;
   variableCardRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
   onSetActiveVariableKey: (key: string | null) => void;
@@ -34,6 +35,7 @@ export function ElementContentPanel({
   selectedElementTemplateFields,
   activeVariableKey,
   richTextHighlightColor,
+  availableFonts,
   variableKeyInputRefs,
   variableCardRefs,
   onSetActiveVariableKey,
@@ -70,11 +72,13 @@ export function ElementContentPanel({
           onRenameVariable={onFocusVariableCard}
           onRemoveVariable={onRemoveSelectedElementVariableContract}
           showTextMarkerHint={inferTextElementContentModel(currentTemplate, element) === 'text'}
+          fieldContracts={currentTemplate.fieldContracts}
         />
         <TextFieldSettingsList
           fields={selectedElementTemplateFields}
           element={element}
           fieldContracts={currentTemplate.fieldContracts}
+          availableFonts={availableFonts}
           activeVariableKey={activeVariableKey}
           variableKeyInputRefs={variableKeyInputRefs}
           variableCardRefs={variableCardRefs}

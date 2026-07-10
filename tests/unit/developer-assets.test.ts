@@ -13,6 +13,8 @@ import {
 } from '@/lib/developerAssets';
 import {
   developerAssetSubmissionGuidance,
+  getCandidateBrowseLabel,
+  getCandidateSourceEmptyMessage,
   getReviewProgressLabel,
   getReviewProgressPercent,
   getSubmissionNextStep,
@@ -60,6 +62,7 @@ describe('developer asset program rules', () => {
       'icons',
       'imageAssets',
       'parts',
+      'fonts',
     ] as const) {
       const guidance = developerAssetSubmissionGuidance[assetType];
 
@@ -72,6 +75,16 @@ describe('developer asset program rules', () => {
 
     expect(developerAssetSubmissionGuidance.templates.accept).toContain('application/json');
     expect(developerAssetSubmissionGuidance.icons.accept).toContain('image/svg+xml');
+    expect(developerAssetSubmissionGuidance.fonts.accept).toContain('font/woff2');
+    expect(developerAssetSubmissionGuidance.fonts.accept).toContain('.ttf');
+    expect(developerAssetSubmissionGuidance.fonts.acceptedFileTypes).toContain('WOFF2');
+  });
+
+  it('gives font submissions a visible file-source affordance', () => {
+    expect(getCandidateBrowseLabel('fonts')).toBe('Drop or browse a font file');
+    expect(getCandidateSourceEmptyMessage('fonts')).toContain('local font file');
+    expect(getCandidateSourceEmptyMessage('fonts')).toContain('WOFF2');
+    expect(getCandidateBrowseLabel('icons')).toBe('Drop a file or browse');
   });
 
   it('normalizes owner settings with launch defaults and guardrails', () => {

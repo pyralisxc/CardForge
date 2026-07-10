@@ -33,7 +33,7 @@ describe('field style overrides', () => {
 
     expect(resolved?.fontFamily).toBe('font-mono');
     expect(buildContractSegmentStyle(resolved)).toMatchObject({
-      fontFamily: 'Menlo, Consolas, monospace',
+      fontFamily: 'var(--font-cardforge-mono), Menlo, Consolas, monospace',
     });
   });
 });

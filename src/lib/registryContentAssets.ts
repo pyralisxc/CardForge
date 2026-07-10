@@ -2,7 +2,7 @@ import { resolveWithTimeout } from '@/lib/asyncTimeout';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 import type { PostgrestError } from '@supabase/supabase-js';
 
-export type RegistryContentAssetType = 'template' | 'elementPreset';
+export type RegistryContentAssetType = 'template' | 'elementPreset' | 'font';
 
 export interface RegistryContentAssetRow {
   asset_id: string;

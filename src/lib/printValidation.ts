@@ -60,6 +60,9 @@ const computeCanvasPixelRatio = (dpi: number): number => {
 const KNOWN_FONT_VALUES = new Set(AVAILABLE_FONTS.map((font) => font.value));
 const PHYSICAL_SAFE_AREA_RATIO = 0.04;
 
+const isKnownFontValue = (fontFamily: string): boolean =>
+  KNOWN_FONT_VALUES.has(fontFamily) || fontFamily.startsWith('font-dev-');
+
 const isLikelyImageSource = (value: string): boolean => {
   return (
     value.startsWith('http://') ||
@@ -161,7 +164,7 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
     ]
       .map((element) => element.fontFamily)
       .filter((fontFamily): fontFamily is string => !!fontFamily && fontFamily.trim().length > 0)
-      .filter((fontFamily) => !KNOWN_FONT_VALUES.has(fontFamily))
+      .filter((fontFamily) => !isKnownFontValue(fontFamily))
   );
 
   if (customFontClasses.size > 0) {

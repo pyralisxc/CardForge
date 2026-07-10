@@ -1,6 +1,6 @@
 # CardForge Print and Digital Export Handoff
 
-Last updated: May 25, 2026
+Last updated: July 7, 2026
 
 CardForge exports are built for creator workflows first: local preview, home print, print-vendor handoff, and digital tabletop setup. Browser export is not a full prepress system, so production print runs should include a final vendor/prepress review.
 
@@ -29,7 +29,7 @@ CardForge physical validation warns about:
 
 - placeholder image sources
 - missing required fields or images
-- custom font classes that may not be loaded
+- unknown custom font classes that are neither built-in CardForge fonts nor reviewed `font-dev-*` registry fonts
 - text and icons inside the 4% print safe area
 - RGB browser export limits
 

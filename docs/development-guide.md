@@ -1,6 +1,6 @@
 # CardForge Development Guide
 
-Last updated: May 25, 2026
+Last updated: July 7, 2026
 
 This guide is the practical map for working in CardForge without rediscovering the whole app. CardForge helps creators build cards faster, generate complete sets from structured content, and shape the forge together through a reviewed developer asset pipeline. Use `README.md` for setup, `docs/blueprint.md` for product architecture, `docs/backend-data-flow.md` for API/write boundaries, and `docs/release-checklist.md` for launch readiness.
 
@@ -78,7 +78,8 @@ See `docs/backend-data-flow.md` for the durable route-by-route write-boundary ma
 
 - `src/app/api/templates/route.ts`: reads pipeline-backed default templates plus browser-local user templates; default writes sync registry/submission rows.
 - `src/app/api/styles/route.ts`: reads and writes pipeline-backed appearance/style presets.
-- `src/app/api/assets/route.ts`: reads published database registry assets only.
+- `src/app/api/assets/route.ts`: reads published database registry visual/source assets only.
+- `src/app/api/fonts/route.ts`: reads published database registry font assets and returns Studio font-picker options.
 - `src/app/api/account/entitlement/route.ts`: returns account entitlement and setup status.
 - `src/app/api/billing/checkout/route.ts`: Stripe Checkout entrypoint.
 - `src/app/api/billing/status/route.ts`: billing/auth/library-write status and Founder Beta public status.
@@ -101,6 +102,7 @@ See `docs/backend-data-flow.md` for the durable route-by-route write-boundary ma
 - `src/lib/developerAssets.ts`: pure developer asset rules, thresholds, caps, decisions, and monthly stats.
 - `src/lib/developerAssetStore.ts`: Supabase-backed developer asset program adapter.
 - `src/lib/pipelineAssetTaxonomy.ts`: app-facing labels and taxonomy mapping for pipeline assets.
+- `src/lib/cardFonts.ts` and `src/lib/registryFonts.ts`: built-in/local font registry, reviewed developer font mapping, font-face CSS generation, and `/api/fonts` payload shaping.
 - `src/lib/apiResponses.ts`: no-store JSON responses and error envelopes.
 - `src/lib/apiValidation.ts`: request validation helpers.
 
@@ -128,7 +130,7 @@ Startup bootstrap refreshes shipped templates from `/api/templates` and merges a
 
 ### Pipeline-Owned Starter Content
 
-The user-facing creative catalog is Supabase-first. Templates, textures, dividers, custom icons, image assets, overlays, and appearance/style recipes should appear in Studio only after they are present in `cardforge_asset_registry` and linked to `cardforge_developer_asset_submissions`.
+The user-facing creative catalog is Supabase-first. Templates, textures, dividers, custom icons, image assets, overlays, fonts, and appearance/style recipes should appear in Studio only after they are present in `cardforge_asset_registry` and linked to `cardforge_developer_asset_submissions`.
 
 The repo still contains historical starter files under `data/default-templates`, `data/styles`, and `public/card-assets` as migration/import source material. Runtime library APIs must not silently repopulate the Studio from those folders. If the Forge Pipeline is unavailable, the app should surface an unavailable/empty catalog and still let users work with primitives and personal uploads.
 
@@ -150,13 +152,14 @@ Service-role access stays server-side. Browser-direct Supabase writes are not pa
 
 The developer pipeline is one shared lifecycle for starter library content and developer uploads:
 
-1. A developer submits a source asset, template, style, or recipe into Forge Review.
+1. A developer submits a source asset, template, style, font, or recipe into Forge Review.
 2. Developers vote while the asset is candidate, published, or archived.
 3. Owner settings control self-voting, vote thresholds, owner vote weight, archive size, and tier caps.
 4. Assets move through `draft`, `submitted`, `voting`, `publish_candidate`, `published`, `archived`, or `rejected`.
 5. Access tier is separate: `hidden`, `free`, `paid`, or `developer`. Published-to-site is lifecycle status; Starter Library and Creator Pass are the user-facing visibility tiers.
 6. Published assets sync into `cardforge_asset_registry`.
-7. Archive keeps assets recoverable and voteable unless rejected or hidden by owner policy.
+7. Published fonts are exposed through `/api/fonts` and merged into Studio typography controls.
+8. Archive keeps assets recoverable and voteable unless rejected or hidden by owner policy.
 
 Owner Developer Program rules are base-plus-account:
 
@@ -198,6 +201,14 @@ npm run audit:site
 ```
 
 Run this while the local dev server is active on `http://localhost:9002`. The audit checks public, Studio, account, developer, and owner routes; uses reusable QA accounts from `.env.local` when present; captures screenshots; and reports route timings, API `Server-Timing` headers, stuck loaders, horizontal overflow, unlabeled visible controls, console warnings, and request failures. Use it before large UI/pipeline handoffs and after changing auth, owner, developer, or Studio shell loading behavior.
+
+Fresh checkouts do not carry the ignored `.env.local` file. After adding the Clerk and Supabase keys, run:
+
+```bash
+npm run qa:setup-accounts
+```
+
+The setup creates or reuses the Fresh QA free, paid, developer, and owner Clerk accounts, writes their `CARDFORGE_E2E_*` email values plus local paid/dev entitlement fallback lists to `.env.local`, creates active developer profiles for the dev/owner accounts, and ensures the developer asset storage bucket exists.
 
 Run `git diff --check` before handoff to catch whitespace issues. CRLF warnings on Windows are expected in this repo; actual whitespace errors should be fixed.
 

@@ -27,6 +27,14 @@ import {
 import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
 import type { TCGCardTemplate } from '@/types';
 
+const getFontPreviewFormat = (url: string): string => {
+  const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase();
+  if (extension === 'woff2') return 'woff2';
+  if (extension === 'woff') return 'woff';
+  if (extension === 'ttf') return 'truetype';
+  return 'opentype';
+};
+
 export function VoteButtons({
   submission,
   onVote,
@@ -292,6 +300,42 @@ function AssetPreview({
           targetWidthPx={260}
           isEditorPreview
         />
+      </div>
+    );
+  }
+
+  if (submission.assetType === 'fonts') {
+    const fontFamily = `developer-preview-${submission.id}`;
+    const fontUrl = submission.sourceUrl || submission.previewUrl;
+    return (
+      <div className={`grid h-full w-full place-items-center text-center ${expanded ? 'gap-4 p-6' : 'p-2'}`}>
+        {fontUrl ? (
+          <style>{[
+            '@font-face {',
+            `  font-family: "${fontFamily}";`,
+            `  src: url("${fontUrl.replace(/"/g, '\\"')}") format("${getFontPreviewFormat(fontUrl)}");`,
+            '  font-weight: 100 900;',
+            '  font-style: normal;',
+            '  font-display: swap;',
+            '}',
+          ].join('\n')}</style>
+        ) : null}
+        <p
+          className={expanded ? 'text-4xl leading-none text-[#ffe7ad]' : 'text-xl leading-none text-[#ffe7ad]'}
+          style={{ fontFamily: fontUrl ? `"${fontFamily}", serif` : undefined }}
+        >
+          Aa
+        </p>
+        {expanded ? (
+          <div className="space-y-2">
+            <p className="text-sm text-[#ffe7ad]" style={{ fontFamily: fontUrl ? `"${fontFamily}", serif` : undefined }}>
+              The quick forge preview
+            </p>
+            <p className="text-xs leading-5 text-[#a98a55]">
+              Review readability, license notes, and intended text role before voting.
+            </p>
+          </div>
+        ) : null}
       </div>
     );
   }

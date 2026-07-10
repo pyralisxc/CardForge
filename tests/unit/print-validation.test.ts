@@ -93,6 +93,54 @@ describe('print validation', () => {
     expect(validation.warnings.some((message) => message.includes('inside the print safe area'))).toBe(true);
   });
 
+  it('does not warn for reviewed developer font ids', () => {
+    const template: TCGCardTemplate = {
+      ...baseTemplate,
+      freeformCanvas: {
+        ...baseTemplate.freeformCanvas!,
+        elements: [
+          {
+            ...baseTemplate.freeformCanvas!.elements[0],
+            fontFamily: 'font-dev-aurora-display',
+          },
+        ],
+      },
+    };
+    const card: DisplayCard = {
+      uniqueId: 'card-font-export',
+      template,
+      data: { rulesText: 'Text' },
+    };
+
+    const validation = validateCardExportQuality(card, 'virtual');
+
+    expect(validation.warnings.some((message) => message.includes('Custom font classes'))).toBe(false);
+  });
+
+  it('still warns for unknown custom font classes', () => {
+    const template: TCGCardTemplate = {
+      ...baseTemplate,
+      freeformCanvas: {
+        ...baseTemplate.freeformCanvas!,
+        elements: [
+          {
+            ...baseTemplate.freeformCanvas!.elements[0],
+            fontFamily: 'bespoke-local-font',
+          },
+        ],
+      },
+    };
+    const card: DisplayCard = {
+      uniqueId: 'card-custom-font-export',
+      template,
+      data: { rulesText: 'Text' },
+    };
+
+    const validation = validateCardExportQuality(card, 'virtual');
+
+    expect(validation.warnings.some((message) => message.includes('bespoke-local-font'))).toBe(true);
+  });
+
   it('uses field contract validation for export quality warnings', () => {
     const template: TCGCardTemplate = {
       ...baseTemplate,

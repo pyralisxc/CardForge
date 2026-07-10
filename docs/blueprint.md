@@ -9,7 +9,7 @@ CardForge helps creators build card systems, not single cards. The fantasy forge
 - Build reusable card systems with templates, variables, and live previews.
 - Generate complete sets from hand-entered content, CSV, JSON, or structured notes.
 - Export clean PNG, ZIP, PDF, and Tabletop Simulator files when the set is ready.
-- Shape the forge together through a reviewed developer pipeline for templates, overlays, icons, dividers, textures, and element recipes.
+- Shape the forge together through a reviewed developer pipeline for templates, overlays, icons, dividers, textures, fonts, and element recipes.
 
 ## Product Spirit
 
@@ -17,7 +17,7 @@ CardForge should feel handcrafted and imaginative without hiding its practical w
 
 ## Current Architecture (Source of Truth)
 
-> Last updated: May 2026. Keep this section current whenever the data model or storage strategy changes.
+> Last updated: July 2026. Keep this section current whenever the data model or storage strategy changes.
 
 ### Tech Stack
 - **Framework**: Next.js 15+ (App Router), TypeScript strict
@@ -154,6 +154,7 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 | `src/app/api/templates/route.ts` | REST API for pipeline-backed default templates and browser-local user templates |
 | `src/app/api/styles/route.ts` | REST API for pipeline-backed appearance/style presets |
 | `src/app/api/assets/route.ts` | Registry-backed live asset catalog for textures, dividers, icons, images, overlays, templates, and element presets |
+| `src/app/api/fonts/route.ts` | Registry-backed reviewed font catalog for Studio typography controls |
 | `src/app/api/account/entitlement/route.ts` | Account entitlement snapshot for export gating |
 | `src/app/api/billing/checkout/route.ts` | Stripe Checkout session entrypoint for paid export |
 | `src/app/api/billing/status/route.ts` | Safe billing/auth/library-write configuration status and public Founder Beta campaign status for account/dev tooling |
@@ -192,7 +193,7 @@ Zustand keeps `defaultTemplates` and `userTemplates` separate, then exposes a de
 | `src/features/template-editor/lib/frameVisualPresets.ts` | Whole-template frame visual defaults for the template settings panel |
 | `src/features/template-editor/lib/iconOptions.ts` | Built-in icon name options for icon elements |
 | `src/features/template-editor/lib/elementKits.tsx` | Local element rail seed kits for insertable text, image, icon, shape, divider, and ornament elements |
-| `src/features/template-editor/lib/elementStylePresets.ts` | Legacy local material/style presets for the Material & Effects panel |
+| `src/features/template-editor/lib/elementStylePresets.ts` | Built-in fill/effect style presets for the Fill & Effects panel |
 | `src/features/template-editor/lib/makerTheme.ts` | Template editor theme class tokens shared by editor panels |
 | `src/features/template-editor/lib/makerGeometry.ts` | Template editor geometry helpers such as unit conversion and clamping |
 | `src/features/template-editor/lib/makerTemplateFactory.ts` | New freeform template factory |
@@ -231,7 +232,7 @@ These files are still intentionally large:
 - `src/features/template-editor/components/CardTemplateMaker.tsx`
   Editor orchestration, canvas state, pointer/depth-selection logic, history, and feature-panel composition. Do not split just for line count; the next good seam is an editor-state/action controller or a future canvas library adapter.
 - `src/features/template-editor/lib/elementKits.tsx` and `src/features/template-editor/lib/elementStylePresets.ts`
-  Local element insertion kits and remaining hardcoded style presets. Frame visuals, icon names, theme tokens, geometry helpers, color UI, and the new-template factory now live in focused template-editor modules.
+  Built-in element insertion kits and fill/effect presets. Frame visuals, icon names, theme tokens, geometry helpers, color UI, and the new-template factory live in focused template-editor modules.
 - `src/components/card-forge/CardPreview.tsx`
   Shared visual renderer for generated cards and export capture. Keep preview behavior centralized here unless a future renderer abstraction replaces it.
 - `src/store/appStore.ts`

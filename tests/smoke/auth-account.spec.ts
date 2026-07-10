@@ -577,10 +577,11 @@ test('reusable owner QA account can submit and publish through the developer ass
     await expect(page.getByText(/Drop a file or browse/i)).toBeVisible();
 
     const uiAssetName = `Smoke UI Asset Hub ${uniqueSuffix}`;
-    await page.getByLabel('Asset family').selectOption('templates');
+    const assetFamilySelect = page.locator('#developer-asset-family');
+    await assetFamilySelect.selectOption('templates');
     await expect(page.getByText('Template JSON', { exact: true })).toBeVisible();
     await expect(page.locator('input[type="file"][accept*="application/json"]')).toHaveCount(1);
-    await page.getByLabel('Asset family').selectOption('icons');
+    await assetFamilySelect.selectOption('icons');
     await expect(page.getByText('Icon image', { exact: true })).toBeVisible();
     await expect(page.locator('input[type="file"][accept*="image/svg+xml"]')).toHaveCount(1);
     await page.getByLabel('Name').fill(uiAssetName);
@@ -619,6 +620,50 @@ test('reusable owner QA account can submit and publish through the developer ass
 
     await page.getByRole('tab', { name: 'My Pipeline', exact: true }).click();
     await expect(page.getByText(uiAssetName, { exact: true })).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('tab', { name: 'Submit', exact: true }).click();
+    const fontAssetName = `Smoke Font Asset Hub ${uniqueSuffix}`;
+    await assetFamilySelect.selectOption('fonts');
+    await expect(page.getByText('Font file', { exact: true })).toBeVisible();
+    await expect(page.getByText('Drop or browse a font file', { exact: true })).toBeVisible();
+    await expect(page.locator('input[type="file"][accept*=".woff2"]')).toHaveCount(1);
+    await page.getByLabel('Name').fill(fontAssetName);
+    await page.getByLabel('Notes').fill('Smoke test font submitted through the visible developer Asset Hub.');
+    await page.locator('input[type="file"][accept*=".woff2"]').setInputFiles({
+      name: `smoke-ui-font-${uniqueSuffix}.woff2`,
+      mimeType: 'font/woff2',
+      buffer: Buffer.from('wOF2CardForgeSmokeFont'),
+    });
+    await expect(page.getByText(new RegExp(`smoke-ui-font-${uniqueSuffix}\\.woff2`))).toBeVisible();
+
+    const fontUploadResponsePromise = page.waitForResponse((response) => (
+      response.url().includes('/api/developer-assets/upload')
+      && response.request().method() === 'POST'
+    ));
+    const fontSubmitResponsePromise = page.waitForResponse((response) => (
+      response.url().endsWith('/api/developer-assets')
+      && response.request().method() === 'POST'
+    ));
+    await page.getByRole('button', { name: /Send to Forge Review/i }).click();
+    const fontUploadResponse = await fontUploadResponsePromise;
+    expect(fontUploadResponse.status()).toBe(201);
+    const fontUploadBody = await fontUploadResponse.json() as { path?: string };
+    if (fontUploadBody.path) createdDeveloperUploadPaths.add(fontUploadBody.path);
+    const fontSubmitResponse = await fontSubmitResponsePromise;
+    expect(fontSubmitResponse.status()).toBe(201);
+    const fontSubmitBody = await fontSubmitResponse.json() as {
+      program?: { submissions?: Array<{ id: string; name: string; status: string; sourceUrl: string | null }> };
+    };
+    const fontSubmittedAsset = fontSubmitBody.program?.submissions?.find((submission) => submission.name === fontAssetName);
+    expect(fontSubmittedAsset).toMatchObject({
+      name: fontAssetName,
+      status: 'voting',
+    });
+    createdDeveloperSubmissionIds.add(fontSubmittedAsset!.id);
+
+    await page.getByRole('tab', { name: 'My Pipeline', exact: true }).click();
+    await expect(page.getByText(fontAssetName, { exact: true })).toBeVisible({ timeout: 30_000 });
+
     await page.getByRole('tab', { name: 'Voting Lane', exact: true }).click();
     await expect(page.getByText(/All voteable assets live in one lane/i)).toBeVisible();
     await expect(page.getByLabel('Status')).toBeVisible();

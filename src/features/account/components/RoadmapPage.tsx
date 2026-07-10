@@ -22,7 +22,7 @@ export function RoadmapPage({
     email: entitlement.accountEmail,
   });
   const effectiveSignedIn = entitlement.authConfigured && clerkIdentity.isLoaded
-    ? clerkIdentity.isSignedIn
+    ? clerkIdentity.isSignedIn || entitlement.isSignedIn
     : entitlement.isSignedIn;
   const accountEmail = clerkIdentity.email ?? entitlement.accountEmail ?? null;
   const isDeveloper = entitlement.authConfigured

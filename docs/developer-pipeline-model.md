@@ -8,7 +8,7 @@ Developer submissions enter the voting pipeline immediately after submit. There 
 
 The owner can still intervene at any point, but the normal path is:
 
-1. A developer submits a template, element recipe, texture, divider, icon, image, or overlay asset.
+1. A developer submits a template, element recipe, texture, divider, icon, image, overlay asset, or font.
 2. The asset appears in the shared voting queue for eligible developers.
 3. Votes, owner vote weight, thresholds, and per-type caps determine whether the asset stays pipeline-only, becomes a publish candidate, publishes, or archives.
 4. Published assets remain voteable so future signal and cap changes can re-rank them.
@@ -47,6 +47,7 @@ The submit form should adapt to the selected asset family. The core fields stay 
 - Icons should call out semantic use, small-size readability, and transparent/recolorable expectations.
 - Images should call out crop intent, aspect ratio, source rights, and whether the asset is placeholder or finished art.
 - Overlay Assets should call out placement, stacking behavior, resize constraints, and transparent edges.
+- Fonts should call out license rights, intended text role, readable size range, category, and whether the family is display-only or body-safe.
 
 This keeps the form dense enough for professional submission quality without forcing every asset type through a confusing universal checklist.
 

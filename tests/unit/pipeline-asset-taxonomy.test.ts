@@ -33,6 +33,7 @@ describe('pipeline asset taxonomy', () => {
       'icon',
       'image',
       'part',
+      'font',
     ]);
     expect(DEVELOPER_ASSET_TYPES.map((type) => getDeveloperAssetTypeLabel(type, { plural: false }))).toEqual([
       'Template',
@@ -42,10 +43,12 @@ describe('pipeline asset taxonomy', () => {
       'Icon',
       'Image',
       'Overlay Asset',
+      'Font',
     ]);
     expect(developerAssetTypeToRegistryAssetKind('parts')).toBe('part');
     expect(developerAssetTypeToRegistryAssetKind('imageAssets')).toBe('image');
     expect(developerAssetTypeToRegistryAssetKind('elementPresets')).toBe('elementPreset');
+    expect(developerAssetTypeToRegistryAssetKind('fonts')).toBe('font');
   });
 
   it('explains status and tier labels for developer-facing pipeline context', () => {

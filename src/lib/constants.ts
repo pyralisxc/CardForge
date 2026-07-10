@@ -26,18 +26,7 @@ export const FONT_WEIGHTS = ['font-normal', 'font-medium', 'font-semibold', 'fon
 export const TEXT_ALIGNS = ['left', 'center', 'right', 'justify'] as const;
 export const FONT_STYLES = ['normal', 'italic'] as const;
 
-export const AVAILABLE_FONTS: Array<{name: string, value: string}> = [
-  { name: 'System Sans', value: 'font-sans' },
-  { name: 'Serif Classic', value: 'font-serif' },
-  { name: 'Monospaced', value: 'font-mono' },
-  { name: 'Fantasy Display (Cinzel)', value: 'font-cinzel' },
-  { name: 'Clean Sans (Lato)', value: 'font-lato' },
-  { name: 'Trajan-Style Small Caps', value: 'font-trajan' },
-  { name: 'Oldstyle Book', value: 'font-book' },
-  { name: 'Humanist Card Text', value: 'font-humanist' },
-  { name: 'Condensed Title', value: 'font-condensed' },
-  { name: 'Engraved Serif', value: 'font-engraved' },
-];
+export { AVAILABLE_FONTS } from '@/lib/cardFonts';
 
 export const PADDING_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'None (0px)', value: 'p-0' }, { label: 'XS (0.125rem)', value: 'p-0.5' },

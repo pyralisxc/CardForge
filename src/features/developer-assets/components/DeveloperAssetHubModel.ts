@@ -105,6 +105,15 @@ export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, Develo
     notesHelp: 'Mention target placement, stacking behavior, resize constraints, and which element or card surface it decorates.',
     checklist: ['Transparent edges', 'Placement intent clear', 'Scales without artifacts'],
   },
+  fonts: {
+    destination: 'Studio typography picker',
+    sourceLabel: 'Font file',
+    sourceHelp: 'Submit a web-usable font file that can become a reviewed text family in Layout Studio after approval.',
+    acceptedFileTypes: 'WOFF2, WOFF, TTF, or OTF',
+    accept: '.woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf,application/font-woff,application/x-font-ttf,application/x-font-otf,application/octet-stream',
+    notesHelp: 'Mention license rights, best text role, readable size range, category, and whether it is display-only or body-safe.',
+    checklist: ['License rights clear', 'Readable sample role', 'Weights/styles noted'],
+  },
 };
 
 export const assetTierOrder: DeveloperAssetAccessTier[] = ['hidden', 'free', 'paid', 'developer'];
@@ -194,6 +203,18 @@ export const isCurrentContributorSubmission = (
   program: DeveloperAssetProgramView,
 ) => program.currentContributorIds.includes(submission.developerId);
 
+export const getCandidateSourceEmptyMessage = (assetType: DeveloperAssetType): string => {
+  if (assetType === 'fonts') {
+    return 'Fonts are submitted from a local font file. Use the font file drop zone or browse for WOFF2, WOFF, TTF, or OTF.';
+  }
+  return 'Save a template or upload local art in Studio first, then it will appear here as a review candidate source.';
+};
+
+export const getCandidateBrowseLabel = (assetType: DeveloperAssetType): string => {
+  if (assetType === 'fonts') return 'Drop or browse a font file';
+  return 'Drop a file or browse';
+};
+
 export const getSearchableSubmissionText = (submission: DeveloperAssetSubmission) => [
   submission.name,
   submission.description,
@@ -215,6 +236,7 @@ export const getContributorLabel = (submission: DeveloperAssetSubmission) => {
 
 export const canRenderImagePreview = (submission: DeveloperAssetSubmission) => (
   Boolean(submission.previewUrl)
+  && submission.assetType !== 'fonts'
   && !submission.previewUrl.startsWith('/api/templates')
   && !submission.previewUrl.startsWith('/api/styles')
 );
@@ -240,6 +262,10 @@ export const getExtensionForMimeType = (mimeType: string) => {
   if (mimeType === 'image/jpeg') return 'jpg';
   if (mimeType === 'image/webp') return 'webp';
   if (mimeType === 'application/json') return 'json';
+  if (mimeType === 'font/woff2') return 'woff2';
+  if (mimeType === 'font/woff' || mimeType === 'application/font-woff') return 'woff';
+  if (mimeType === 'font/ttf' || mimeType === 'application/x-font-ttf') return 'ttf';
+  if (mimeType === 'font/otf' || mimeType === 'application/x-font-otf') return 'otf';
   return 'bin';
 };
 
@@ -249,7 +275,7 @@ export const getExtensionForAssetUrl = (url: string) => {
     return getExtensionForMimeType(mimeType);
   }
   const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase();
-  return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp', 'json'].includes(extension) ? extension : 'asset';
+  return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp', 'json', 'woff2', 'woff', 'ttf', 'otf'].includes(extension) ? extension : 'asset';
 };
 
 export const readStoredCardAssets = (storageKey: string): CardAssetOption[] => {

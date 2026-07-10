@@ -16,7 +16,7 @@ const clerkAppearance = {
     colorText: '#f7ead0',
     colorTextSecondary: '#cbb58b',
     borderRadius: '4px',
-    fontFamily: 'var(--font-lato), sans-serif',
+    fontFamily: 'var(--font-cardforge-lato), sans-serif',
   },
   elements: {
     rootBox: 'w-full',

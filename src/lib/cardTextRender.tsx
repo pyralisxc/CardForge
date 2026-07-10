@@ -33,6 +33,7 @@ import {
   shouldAutoFitTextElement,
 } from '@/lib/textElementContracts';
 import { resolveFieldContractStyleOverrides } from '@/lib/fieldStyleOverrides';
+import { cardFontFamilyToCss } from '@/lib/cardFonts';
 
 const resolveRenderContentModel = (
   contentModel: TextElementContentModel,
@@ -49,20 +50,6 @@ const fontWeightToCss = (fontWeight?: FreeformCardElement['fontWeight']): React.
   if (fontWeight === 'font-bold') return 700;
   if (fontWeight === 'font-normal') return 400;
   return undefined;
-};
-
-const fontFamilyToCss = (fontFamily?: string): React.CSSProperties['fontFamily'] | undefined => {
-  if (fontFamily === 'font-sans') return 'system-ui, sans-serif';
-  if (fontFamily === 'font-serif') return 'Georgia, "Times New Roman", serif';
-  if (fontFamily === 'font-mono') return 'Menlo, Consolas, monospace';
-  if (fontFamily === 'font-cinzel') return 'Cinzel, serif';
-  if (fontFamily === 'font-lato') return 'Lato, sans-serif';
-  if (fontFamily === 'font-trajan') return 'Cinzel, "Trajan Pro", "Palatino Linotype", serif';
-  if (fontFamily === 'font-book') return '"Iowan Old Style", "Book Antiqua", "Palatino Linotype", Georgia, serif';
-  if (fontFamily === 'font-humanist') return 'Optima, "Segoe UI", "Trebuchet MS", Arial, sans-serif';
-  if (fontFamily === 'font-condensed') return '"Arial Narrow", "Roboto Condensed", Arial, sans-serif';
-  if (fontFamily === 'font-engraved') return 'Garamond, Baskerville, "Times New Roman", serif';
-  return fontFamily || undefined;
 };
 
 export const applyContractRichTextStyle = (
@@ -85,7 +72,7 @@ export const buildContractSegmentStyle = (
   if (!contract) return undefined;
   const style: React.CSSProperties = {};
   if (contract.textColor) style.color = contract.textColor;
-  const fontFamily = fontFamilyToCss(contract.fontFamily);
+  const fontFamily = cardFontFamilyToCss(contract.fontFamily);
   if (fontFamily) style.fontFamily = fontFamily;
   if (contract.fontSizePx) style.fontSize = `${contract.fontSizePx * scale}px`;
   const fontWeight = fontWeightToCss(contract.fontWeight);

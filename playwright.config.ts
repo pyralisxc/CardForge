@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.CARDFORGE_E2E_BASE_URL || 'http://localhost:9002';
+const chromiumExecutablePath = process.env.CARDFORGE_E2E_CHROMIUM_EXECUTABLE_PATH?.trim();
 
 export default defineConfig({
   testDir: './tests/smoke',
@@ -21,7 +22,10 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(chromiumExecutablePath ? { launchOptions: { executablePath: chromiumExecutablePath } } : {}),
+      },
     },
   ],
 });

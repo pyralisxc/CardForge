@@ -1,36 +1,10 @@
 
 import type {Metadata} from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { Geist, Geist_Mono } from 'next/font/google';
-import { Cinzel, Lato } from 'next/font/google'; // Added Cinzel and Lato
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
 import { getPublicAppUrl } from '@/lib/siteUrl';
-
-const geistSans = Geist({ 
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({ 
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
-
-// Initialize new fonts
-const cinzel = Cinzel({
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  variable: '--font-cinzel',
-});
-
-const lato = Lato({
-  weight: ['400', '700', '900'],
-  subsets: ['latin'],
-  variable: '--font-lato',
-});
-
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
@@ -87,7 +61,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} ${lato.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         {isClerkServerConfigPresent()
           ? <ClerkProvider>{app}</ClerkProvider>
           : app}
@@ -95,4 +69,3 @@ export default function RootLayout({
     </html>
   );
 }
-

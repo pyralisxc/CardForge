@@ -49,7 +49,7 @@ npm run smoke      # Playwright smoke suite
 - `src/features/template-editor/`: Layout Studio panels, inspector tools, canvas commands, and editor controller hooks.
 - `src/features/card-generator/`: Single output entry, bulk data import, generated gallery, export controls, and paper/export settings.
 - `src/features/account/`: Account overview, roadmap panels, and profile surface.
-- `src/features/developer-assets/`: Developer Asset Hub, owner asset program controls, voting/review UI.
+- `src/features/developer-assets/`: Developer Asset Hub, owner asset program controls, voting/review UI, and reviewed shared-library submissions including fonts.
 - `src/features/owner/`: Owner console for launch, account, legal, promo, and pipeline command surfaces.
 - `src/lib/`: Shared model, rendering, export, auth, Supabase, pipeline, and validation helpers.
 - `src/store/`: Zustand persisted local app state and derived selectors.
@@ -63,7 +63,7 @@ npm run smoke      # Playwright smoke suite
 CardForge has three storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
-- Supabase-backed Forge Pipeline state for roadmap voting, Founder Beta claims, owner settings, asset registry metadata, developer submissions, votes, and published shared-library assets.
+- Supabase-backed Forge Pipeline state for roadmap voting, Founder Beta claims, owner settings, asset registry metadata, developer submissions, votes, and published shared-library assets including reviewed fonts.
 - Repo starter/import files that can seed the pipeline with `npm run pipeline:sync-defaults`, but should not silently replace a missing database catalog at runtime.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.
@@ -85,6 +85,14 @@ NEXT_PUBLIC_APP_URL=http://localhost:9002
 ```
 
 Reusable authenticated QA accounts are preferred over disposable user creation. Set the `CARDFORGE_E2E_*` values documented in `.env.example` when running the authenticated smoke suite.
+
+For a fresh local checkout, fill the Clerk and Supabase values in `.env.local`, then run:
+
+```bash
+npm run qa:setup-accounts
+```
+
+That creates or reuses the Fresh QA free, paid, developer, and owner accounts, marks the paid/dev/owner accounts with the right Clerk metadata, and updates both the reusable QA email variables and local paid/dev entitlement fallback lists in `.env.local`.
 
 ## Documentation
 

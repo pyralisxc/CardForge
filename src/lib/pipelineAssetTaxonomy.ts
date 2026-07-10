@@ -8,9 +8,9 @@ import type {
 export type RegistryCreationAssetKind = Extract<
   CardAssetOption['kind'],
   'texture' | 'divider' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset'
->;
+> | 'font';
 
-const assetKindLabels: Record<CardAssetOption['kind'], { singular: string; plural: string }> = {
+const assetKindLabels: Record<CardAssetOption['kind'] | 'font', { singular: string; plural: string }> = {
   texture: { singular: 'Texture', plural: 'Textures' },
   divider: { singular: 'Divider', plural: 'Dividers' },
   border: { singular: 'Border', plural: 'Borders' },
@@ -20,6 +20,7 @@ const assetKindLabels: Record<CardAssetOption['kind'], { singular: string; plura
   image: { singular: 'Image', plural: 'Images' },
   template: { singular: 'Template', plural: 'Templates' },
   elementPreset: { singular: 'Pipeline Recipe', plural: 'Pipeline Recipes' },
+  font: { singular: 'Font', plural: 'Fonts' },
 };
 
 export const developerAssetTypeToRegistryAssetKind = (
@@ -31,11 +32,12 @@ export const developerAssetTypeToRegistryAssetKind = (
   if (assetType === 'dividers') return 'divider';
   if (assetType === 'icons') return 'icon';
   if (assetType === 'imageAssets') return 'image';
+  if (assetType === 'fonts') return 'font';
   return 'part';
 };
 
 export const getAssetKindLabel = (
-  kind: CardAssetOption['kind'],
+  kind: CardAssetOption['kind'] | 'font',
   options: { plural?: boolean } = {},
 ): string => {
   const labels = assetKindLabels[kind];

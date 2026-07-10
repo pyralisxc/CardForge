@@ -9,46 +9,83 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outputDir = path.join(rootDir, 'test-results', 'site-health');
 const summaryPath = path.join(outputDir, 'summary.json');
 const defaultBaseUrl = 'http://localhost:9002';
+const chromiumExecutablePath = process.env.CARDFORGE_E2E_CHROMIUM_EXECUTABLE_PATH?.trim();
+const clerkConfiguredForbiddenText = ['Clerk setup incomplete'];
+
+const parseFilter = (value) => new Set((value || '')
+  .split(',')
+  .map((entry) => entry.trim())
+  .filter(Boolean));
 
 const publicRoutes = [
-  { route: '/', name: 'landing' },
-  { route: '/about', name: 'about' },
-  { route: '/access', name: 'access' },
-  { route: '/studio', name: 'studio' },
-  { route: '/roadmap', name: 'roadmap' },
-  { route: '/developer', name: 'developer-public' },
-  { route: '/account', name: 'account-public' },
-  { route: '/privacy', name: 'privacy' },
-  { route: '/terms', name: 'terms' },
-  { route: '/refund', name: 'refund' },
-  { route: '/contact', name: 'contact' },
-  { route: '/developer-terms', name: 'developer-terms' },
-  { route: '/creator-pool', name: 'creator-pool' },
+  { route: '/', name: 'landing', expectedText: ['CardForge Studio'] },
+  { route: '/about', name: 'about', expectedText: ['About CardForge'] },
+  { route: '/access', name: 'access', expectedText: ['Access and demo seats'] },
+  { route: '/studio', name: 'studio', expectedText: ['Layout Studio'] },
+  { route: '/roadmap', name: 'roadmap', expectedText: ['Roadmap'] },
+  { route: '/developer', name: 'developer-public', expectedText: ['Join the community shaping the forge'] },
+  { route: '/account', name: 'account-public', expectedText: ['Your Forge is ready', 'Sign in'] },
+  { route: '/profile', name: 'profile-public', expectedText: ['Sign in to manage identity'] },
+  { route: '/owner', name: 'owner-public', expectedText: ['Owner access is required'] },
+  { route: '/privacy', name: 'privacy', expectedText: ['Privacy'] },
+  { route: '/terms', name: 'terms', expectedText: ['Terms'] },
+  { route: '/refund', name: 'refund', expectedText: ['Refund'] },
+  { route: '/contact', name: 'contact', expectedText: ['Contact'] },
+  { route: '/developer-terms', name: 'developer-terms', expectedText: ['Forge Review'] },
+  { route: '/creator-pool', name: 'creator-pool', expectedText: ['Creator Pool'] },
 ];
 
 const authRouteGroups = [
   {
-    role: 'owner',
-    emailEnv: 'CARDFORGE_E2E_OWNER_EMAIL',
+    role: 'free',
+    emailEnv: 'CARDFORGE_E2E_FREE_EMAIL',
     routes: [
-      { route: '/owner', name: 'owner-console' },
-      { route: '/developer', name: 'developer-owner' },
-      { route: '/account', name: 'account-owner' },
-    ],
-  },
-  {
-    role: 'developer',
-    emailEnv: 'CARDFORGE_E2E_DEV_EMAIL',
-    routes: [
-      { route: '/developer', name: 'developer-dev' },
-      { route: '/account', name: 'account-dev' },
+      { route: '/', name: 'landing-free', expectedText: ['CardForge Studio'] },
+      { route: '/studio', name: 'studio-free', expectedText: ['Layout Studio', 'Free preview'] },
+      { route: '/roadmap', name: 'roadmap-free', expectedText: ['Roadmap'] },
+      { route: '/developer', name: 'developer-free', expectedText: ['Join the community shaping the forge', 'Request developer access'] },
+      { route: '/account', name: 'account-free', expectedText: ['Forge: Starter Library', 'Locked'] },
+      { route: '/profile', name: 'profile-free', expectedText: ['CardForge profile'] },
+      { route: '/owner', name: 'owner-free', expectedText: ['Owner access is required'] },
     ],
   },
   {
     role: 'paid',
     emailEnv: 'CARDFORGE_E2E_PAID_EMAIL',
     routes: [
-      { route: '/account', name: 'account-paid' },
+      { route: '/', name: 'landing-paid', expectedText: ['CardForge Studio'] },
+      { route: '/studio', name: 'studio-paid', expectedText: ['Layout Studio'] },
+      { route: '/roadmap', name: 'roadmap-paid', expectedText: ['Roadmap'] },
+      { route: '/developer', name: 'developer-paid', expectedText: ['Join the community shaping the forge', 'Request developer access'] },
+      { route: '/account', name: 'account-paid', expectedText: ['Forge: Creator Pass', 'Unlocked'] },
+      { route: '/profile', name: 'profile-paid', expectedText: ['CardForge profile'] },
+      { route: '/owner', name: 'owner-paid', expectedText: ['Owner access is required'] },
+    ],
+  },
+  {
+    role: 'developer',
+    emailEnv: 'CARDFORGE_E2E_DEV_EMAIL',
+    routes: [
+      { route: '/', name: 'landing-dev', expectedText: ['CardForge Studio'] },
+      { route: '/studio', name: 'studio-dev', expectedText: ['Layout Studio'] },
+      { route: '/roadmap', name: 'roadmap-dev', expectedText: ['Roadmap'] },
+      { route: '/developer', name: 'developer-dev', expectedText: ['Shape the library behind the forge', 'Developer Asset Hub'] },
+      { route: '/account', name: 'account-dev', expectedText: ['Forge: Forge Review', 'developer account can submit building blocks'] },
+      { route: '/profile', name: 'profile-dev', expectedText: ['CardForge profile'] },
+      { route: '/owner', name: 'owner-dev', expectedText: ['Owner access is required'] },
+    ],
+  },
+  {
+    role: 'owner',
+    emailEnv: 'CARDFORGE_E2E_OWNER_EMAIL',
+    routes: [
+      { route: '/', name: 'landing-owner', expectedText: ['CardForge Studio'] },
+      { route: '/studio', name: 'studio-owner', expectedText: ['Layout Studio'] },
+      { route: '/roadmap', name: 'roadmap-owner', expectedText: ['Roadmap'] },
+      { route: '/developer', name: 'developer-owner', expectedText: ['Shape the library behind the forge', 'Developer Asset Hub'] },
+      { route: '/account', name: 'account-owner', expectedText: ['Forge: Library Command', 'Open owner console'] },
+      { route: '/profile', name: 'profile-owner', expectedText: ['CardForge profile'] },
+      { route: '/owner', name: 'owner-console', expectedText: ['Run the forge like a product'] },
     ],
   },
 ];
@@ -98,12 +135,58 @@ function summarizeFailures(failures) {
     .slice(0, 12);
 }
 
-async function waitForRouteReady(page, route) {
+async function waitForRouteReady(page, route, label) {
   if (route === '/owner') {
     await page.waitForFunction(
       () => !document.body.innerText.includes('Preparing command center')
         || document.body.innerText.includes('Run the forge like a product.')
         || document.body.innerText.includes('Owner console unavailable'),
+      null,
+      { timeout: 30_000 },
+    ).catch(() => {});
+    return;
+  }
+
+  if (route === '/account' && label !== 'public') {
+    const expectedByRole = {
+      free: 'Starter Library',
+      paid: 'Creator Pass',
+      developer: 'Forge Review',
+      owner: 'Library Command',
+    };
+    await page.waitForFunction(
+      (expected) => {
+        const body = document.body.innerText;
+        return !body.includes('No signed-in account') && (!expected || body.includes(expected));
+      },
+      expectedByRole[label],
+      { timeout: 30_000 },
+    ).catch(() => {});
+    return;
+  }
+
+  if (route === '/developer' && (label === 'developer' || label === 'owner')) {
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Developer Asset Hub')
+        || document.body.innerText.includes('Shape the library behind the forge'),
+      null,
+      { timeout: 30_000 },
+    ).catch(() => {});
+    return;
+  }
+
+  if (route === '/developer' && (label === 'free' || label === 'paid')) {
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Request developer access'),
+      null,
+      { timeout: 30_000 },
+    ).catch(() => {});
+    return;
+  }
+
+  if (route === '/profile') {
+    await page.waitForFunction(
+      () => !document.body.innerText.includes('Warming the profile vault'),
       null,
       { timeout: 30_000 },
     ).catch(() => {});
@@ -175,6 +258,7 @@ async function collectPageState(page) {
     return {
       title: document.title,
       h1: Array.from(document.querySelectorAll('h1')).filter(visible).map(text).filter(Boolean).slice(0, 4),
+      bodyText,
       bodySample: bodyText.slice(0, 800),
       innerWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
@@ -214,11 +298,30 @@ async function auditRoute(context, baseUrl, routeInfo, label) {
   const startedAt = Date.now();
   let status = null;
   let routeError = null;
+  let entitlementProbe = null;
 
   try {
     const response = await page.goto(baseUrl + routeInfo.route, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     status = response?.status() ?? null;
-    await waitForRouteReady(page, routeInfo.route);
+    await waitForRouteReady(page, routeInfo.route, label);
+    if (label !== 'public') {
+      entitlementProbe = await page.evaluate(async () => {
+        try {
+          const response = await fetch('/api/account/entitlement', { cache: 'no-store' });
+          return {
+            ok: response.ok,
+            status: response.status,
+            body: await response.json(),
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            status: null,
+            body: { error: error instanceof Error ? error.message : String(error) },
+          };
+        }
+      });
+    }
   } catch (error) {
     routeError = error instanceof Error ? error.message : String(error);
   }
@@ -228,6 +331,7 @@ async function auditRoute(context, baseUrl, routeInfo, label) {
   const pageState = await collectPageState(page).catch((error) => ({
     title: '',
     h1: [],
+    bodyText: '',
     bodySample: '',
     innerWidth: 0,
     scrollWidth: 0,
@@ -245,6 +349,16 @@ async function auditRoute(context, baseUrl, routeInfo, label) {
   if (pageState.overflowX) hardFailures.push(`Horizontal overflow: ${pageState.scrollWidth}px > ${pageState.innerWidth}px`);
   if (pageState.unlabeledControls.length > 0) hardFailures.push(`${pageState.unlabeledControls.length} unlabeled visible control(s)`);
   if (pageState.stuckLoaders.length > 0) hardFailures.push(`Stuck loader(s): ${pageState.stuckLoaders.join(', ')}`);
+  const normalizedBodyText = pageState.bodyText?.toLowerCase() ?? '';
+  for (const expected of routeInfo.expectedText ?? []) {
+    if (!normalizedBodyText.includes(expected.toLowerCase())) hardFailures.push(`Missing expected copy: "${expected}"`);
+  }
+  for (const forbidden of [
+    ...clerkConfiguredForbiddenText,
+    ...(routeInfo.forbiddenText ?? []),
+  ]) {
+    if (normalizedBodyText.includes(forbidden.toLowerCase())) hardFailures.push(`Unexpected copy visible: "${forbidden}"`);
+  }
 
   return {
     label,
@@ -256,6 +370,7 @@ async function auditRoute(context, baseUrl, routeInfo, label) {
     consoleMessages: summarizeMessages(consoleMessages),
     requestFailures: summarizeFailures(requestFailures),
     apiResponses,
+    entitlementProbe,
     screenshot: path.relative(rootDir, screenshot),
     ...pageState,
   };
@@ -355,16 +470,24 @@ async function main() {
   ensureOutputDir();
 
   const baseUrl = process.env.CARDFORGE_E2E_BASE_URL || defaultBaseUrl;
-  const browser = await chromium.launch({ headless: true });
+  const labelFilter = parseFilter(process.env.CARDFORGE_AUDIT_LABELS);
+  const routeFilter = parseFilter(process.env.CARDFORGE_AUDIT_ROUTES);
+  const browser = await chromium.launch({
+    headless: true,
+    ...(chromiumExecutablePath ? { executablePath: chromiumExecutablePath } : {}),
+  });
   const results = [];
   const skippedAuth = [];
 
   try {
-    const publicContext = await browser.newContext({ viewport: { width: 1440, height: 1100 }, baseURL: baseUrl });
-    for (const routeInfo of publicRoutes) {
-      results.push(await auditRoute(publicContext, baseUrl, routeInfo, 'public'));
+    if (labelFilter.size === 0 || labelFilter.has('public')) {
+      const publicContext = await browser.newContext({ viewport: { width: 1440, height: 1100 }, baseURL: baseUrl });
+      for (const routeInfo of publicRoutes) {
+        if (routeFilter.size > 0 && !routeFilter.has(routeInfo.route)) continue;
+        results.push(await auditRoute(publicContext, baseUrl, routeInfo, 'public'));
+      }
+      await publicContext.close();
     }
-    await publicContext.close();
 
     let clerkReady = true;
     try {
@@ -376,6 +499,7 @@ async function main() {
 
     if (clerkReady) {
       for (const group of authRouteGroups) {
+        if (labelFilter.size > 0 && !labelFilter.has(group.role)) continue;
         const email = process.env[group.emailEnv]?.trim();
         if (!email) {
           skippedAuth.push(group.role);
@@ -386,6 +510,7 @@ async function main() {
         try {
           context = await createSignedInContext(browser, baseUrl, email);
           for (const routeInfo of group.routes) {
+            if (routeFilter.size > 0 && !routeFilter.has(routeInfo.route)) continue;
             results.push(await auditRoute(context, baseUrl, routeInfo, group.role));
           }
         } catch (error) {
@@ -402,6 +527,7 @@ async function main() {
             screenshot: null,
             title: '',
             h1: [],
+            bodyText: '',
             bodySample: '',
             innerWidth: 0,
             scrollWidth: 0,

@@ -611,7 +611,8 @@ Current finding:
 - Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe should later own real coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks.
 - `/api/assets` now exposes one asset registry payload from `cardforge_asset_registry`; it does not silently rebuild the catalog from repo starter files.
 - Starter textures, dividers, templates, and element presets are synced into the pipeline as published starter-library assets so they remain visible in the app and stay voteable.
-- `202605230003_asset_registry_all_creation_assets.sql` expands the registry to all reusable creation asset classes: textures, dividers, parts, icons, images, templates, and element presets.
+- `202605230003_asset_registry_all_creation_assets.sql` expands the registry to reusable visual/source creation asset classes: textures, dividers, parts, icons, images, templates, and element presets.
+- `202607060001_developer_font_assets.sql` expands the developer submission and asset registry constraints for reviewed font assets.
 - `202605230004_developer_asset_upload_bridge.sql` adds the public `cardforge-developer-assets` storage bucket and source-file metadata columns that let approved developer submissions publish into the same live registry.
 - `202605240001_official_asset_review_submissions.sql` backfills CardForge-owned registry assets into `cardforge_developer_asset_submissions` and links them back to the registry, making default assets part of the continuous developer voting surface.
 - `202605240002_official_layout_registry_content.sql` backfills CardForge-owned templates and element presets into `cardforge_asset_registry` with embedded JSON payloads, then links those records into developer submissions so Layout Studio defaults are also database-backed and voteable.
@@ -648,7 +649,7 @@ Current finding:
 - Owner Launch Readiness now includes database footprint metrics after the asset-registry migration function is applied.
 - The framework tracks contribution eligibility for a future financial launch, but it intentionally does not move money or create Stripe Connect accounts.
 - Signed-in paid/free user uploads remain `localOnly` and are not promoted to site defaults without a future explicit submission flow.
-- Current starter templates, styles, textures, dividers, icons, and image assets are synced into the registry/developer pipeline for app-facing use. Repo/static files remain import material and historical source references, while developer-submitted image/source assets use the upload bridge.
+- Current starter templates, styles, textures, dividers, icons, image assets, and reviewed fonts are synced or loaded through the registry/developer pipeline for app-facing use. Repo/static files remain import material and historical source references, while developer-submitted image/source/font assets use the upload bridge and `/api/fonts`.
 
 Recommended handling:
 - run `supabase/migrations/202605230001_developer_asset_pipeline.sql` before testing the developer Asset Hub
@@ -662,6 +663,7 @@ Recommended handling:
 - run `supabase/migrations/202605240004_developer_profile_names.sql` before expecting contributor first/last names in developer queues and owner ledgers
 - run `supabase/migrations/202605240005_developer_self_voting_rule.sql` before expecting the owner self-voting rule to persist
 - run `supabase/migrations/202605240006_owner_vote_weight.sql` before expecting owner vote weight to persist and affect developer asset grading
+- run `supabase/migrations/202607060001_developer_font_assets.sql` before submitting or publishing developer font assets
 - run `supabase/migrations/202605250001_roadmap_level_up_copy.sql` before expecting existing Supabase projects to show the polished level-up roadmap checkpoint names and descriptions
 - run `supabase/migrations/202605250002_roadmap_annual_coverage_targets.sql` before expecting existing Supabase projects to store checkpoint targets as 12x the cumulative running monthly cost; the filename reflects the original wording, but the stored value is the monthly unlock target
 - rerun `supabase/migrations/202605220003_owner_console.sql` or apply its `cardforge_owner_settings` `alter table ... add column if not exists` block before testing Site Mechanics
@@ -676,7 +678,7 @@ Recommended handling:
 - verify generator template selectors label Default vs User templates, especially when a modified default and user template share similar names
 - verify the owner can complete a CardForge-authored roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
 - verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
-- verify a developer can choose a Personal Library template/style/local art item, browse for an SVG/PNG/JPG/WEBP/JSON source file, or drag/drop that file, submit it to voting, see it in My Pipeline and the shared review queue, and have an owner-published submission appear through `/api/assets`
+- verify a developer can choose a Personal Library template/style/local art item, browse for an SVG/PNG/JPG/WEBP/JSON/font source file, or drag/drop that file, submit it to voting, see it in My Pipeline and the shared review queue, and have an owner-published visual/source submission appear through `/api/assets` or an owner-published font appear through `/api/fonts`
 - treat payout reports as planning data until Stripe Connect, tax/legal terms, refund handling, and billing webhooks are implemented
 
 Risk rating: `Medium / Known / Launch Blocking for developer-program rollout, not for core local authoring`

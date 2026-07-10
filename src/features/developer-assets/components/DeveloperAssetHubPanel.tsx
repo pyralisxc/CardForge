@@ -30,6 +30,8 @@ import {
   assetTierOrder,
   developerAssetSubmissionGuidance,
   getApiErrorMessage,
+  getCandidateBrowseLabel,
+  getCandidateSourceEmptyMessage,
   getExtensionForAssetUrl,
   getSearchableSubmissionText,
   getTemplatePreviewId,
@@ -620,11 +622,30 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
               />
             </div>
             <div className="mt-4 grid gap-3">
-              <label htmlFor="developer-asset-family" className="grid gap-2 text-sm text-[#c7b288]">
-                <span className="flex items-center justify-between gap-2">
+              <div className="grid gap-2 text-sm text-[#c7b288]">
+                <label htmlFor="developer-asset-family" className="flex items-center justify-between gap-2">
                   Asset family
                   <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
-                </span>
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Submission quick picks">
+                  {DEVELOPER_ASSET_TYPES.map((type) => {
+                    const isActive = assetType === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        className={`border p-3 text-left transition-colors ${isActive ? 'border-[#d8b365] bg-[#2a1b0d] text-[#ffe7ad]' : 'border-[#5f4526] bg-[#0c0b09] text-[#c7b288] hover:border-[#8a642f] hover:text-[#ffe7ad]'}`}
+                        aria-pressed={isActive}
+                        onClick={() => changeAssetType(type)}
+                      >
+                        <span className="block text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                          {type === 'fonts' ? 'Font upload' : 'Asset upload'}
+                        </span>
+                        <span className="mt-1 block font-medium">{getDeveloperAssetTypeLabel(type, { plural: false })}</span>
+                      </button>
+                    );
+                  })}
+                </div>
                 <select
                   id="developer-asset-family"
                   className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
@@ -635,7 +656,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                     <option key={type} value={type}>{getDeveloperAssetTypeLabel(type, { plural: false })}</option>
                   ))}
                 </select>
-              </label>
+              </div>
               <label htmlFor="developer-asset-name" className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
                   Name
@@ -672,7 +693,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                     <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
                       {visiblePersonalLibraryItems.length === 0 ? (
                         <p className="border border-dashed border-[#3c2c1b] p-3 text-xs leading-5 text-[#a98a55]">
-                          Save a template or upload local art in Studio first, then it will appear here as a review candidate source.
+                          {getCandidateSourceEmptyMessage(personalLibraryFilter === 'all' ? assetType : personalLibraryFilter)}
                         </p>
                       ) : visiblePersonalLibraryItems.map((item) => (
                         <button
@@ -711,14 +732,14 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                       <span className="mx-auto grid h-12 w-12 place-items-center border border-[#5f4526] bg-[#15100a] text-[#d7b469]">
                         <UploadCloud className="h-5 w-5" />
                       </span>
-                      <span className="text-sm font-medium text-[#ffe7ad]">Drop a file or browse</span>
+                      <span className="text-sm font-medium text-[#ffe7ad]">{getCandidateBrowseLabel(assetType)}</span>
                       <span className="text-xs leading-5 text-[#a98a55]">
                         {submissionGuidance.acceptedFileTypes} up to 10 MB.
                       </span>
                       <input
                         key={fileInputKey}
                         type="file"
-                        aria-label="Asset source file"
+                        aria-label={`${getDeveloperAssetTypeLabel(assetType, { plural: false })} source file`}
                         accept={submissionGuidance.accept}
                         className="sr-only"
                         onChange={handleFileChange}

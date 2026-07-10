@@ -3,8 +3,159 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "CardForge Cinzel";
+  src: url("/fonts/cinzel/Cinzel-wght.ttf") format("truetype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Lato";
+  src: url("/fonts/lato/Lato-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Lato";
+  src: url("/fonts/lato/Lato-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Lato";
+  src: url("/fonts/lato/Lato-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge EB Garamond";
+  src: url("/fonts/eb-garamond/EBGaramond-wght.ttf") format("truetype");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Cormorant";
+  src: url("/fonts/cormorant-garamond/CormorantGaramond-wght.ttf") format("truetype");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Alegreya";
+  src: url("/fonts/alegreya/Alegreya-wght.ttf") format("truetype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Uncial";
+  src: url("/fonts/uncial-antiqua/UncialAntiqua-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Orbitron";
+  src: url("/fonts/orbitron/Orbitron-wght.ttf") format("truetype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Rajdhani";
+  src: url("/fonts/rajdhani/Rajdhani-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Rajdhani";
+  src: url("/fonts/rajdhani/Rajdhani-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Rajdhani";
+  src: url("/fonts/rajdhani/Rajdhani-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Barlow Condensed";
+  src: url("/fonts/barlow-condensed/BarlowCondensed-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Barlow Condensed";
+  src: url("/fonts/barlow-condensed/BarlowCondensed-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Barlow Condensed";
+  src: url("/fonts/barlow-condensed/BarlowCondensed-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Spectral";
+  src: url("/fonts/spectral/Spectral-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CardForge Spectral";
+  src: url("/fonts/spectral/Spectral-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-cardforge-ui: "CardForge Lato";
+  --font-cardforge-mono: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-cardforge-cinzel: "CardForge Cinzel";
+  --font-cardforge-lato: "CardForge Lato";
+  --font-cardforge-eb-garamond: "CardForge EB Garamond";
+  --font-cardforge-cormorant: "CardForge Cormorant";
+  --font-cardforge-alegreya: "CardForge Alegreya";
+  --font-cardforge-uncial: "CardForge Uncial";
+  --font-cardforge-orbitron: "CardForge Orbitron";
+  --font-cardforge-rajdhani: "CardForge Rajdhani";
+  --font-cardforge-barlow-condensed: "CardForge Barlow Condensed";
+  --font-cardforge-spectral: "CardForge Spectral";
+}
+
 body {
-  font-family: var(--font-geist-sans), "Helvetica Neue", Arial, sans-serif; /* Added Helvetica Neue as a common fantasy game font fallback */
+  font-family: var(--font-cardforge-ui), "Helvetica Neue", Arial, sans-serif;
 }
 
 @layer base {

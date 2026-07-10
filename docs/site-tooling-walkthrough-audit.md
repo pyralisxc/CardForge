@@ -2,6 +2,8 @@
 
 Date: 2026-05-25
 
+Maintenance note, 2026-07-07: the current Studio wording uses `Fill & Effects` for fill, fill texture, gradient, and glow ownership. Developer pipeline vocabulary now includes reviewed font submissions.
+
 ## Scope
 
 This pass walked the local site at `http://localhost:9002` across the public landing page, Studio, account, developer, roadmap, owner gate, profile gate, and legal/support pages. The audit focused on user-facing wording, whether controls explain what they affect, whether obvious buttons respond, and whether the Studio tool model feels useful instead of stitched together.
@@ -14,7 +16,7 @@ The first pass used an unauthenticated local browser state. A follow-up authenti
 - Renamed the element rail helper copy from `Primitives only; styles live in inspector` to `Add building blocks; tune the selected element in the inspector`.
 - Changed the primitive divider element from `Line / Divider` to `Divider / Rule` so it reads like a useful card-making element instead of an implementation category.
 - Renamed `Export` and `Import` in the template panel to `Export Project` and `Import Project`.
-- Replaced public developer wording around `frame parts` with clearer pipeline language: templates, overlays, icons, dividers, textures, and element recipes.
+- Replaced public developer wording around `frame parts` with clearer pipeline language: templates, overlays, icons, dividers, textures, fonts, and element recipes.
 - Clarified developer onboarding around pipeline-first submissions, continuous voting, durable contribution records, and the future-only 10% creator-pool plan.
 - Clarified the owner console control map so owners can tell what is editable in CardForge, what remains provider-owned, and which financial/legal systems are still future launch gates.
 - Added visible save-state feedback to owner and developer program controls so saves feel intentional rather than silent.
@@ -67,7 +69,7 @@ Target model:
 | What am I adding? | Elements |
 | What content/source does it use? | Source & Content |
 | What reviewed style or recipe should it use? | Reviewed Recipes |
-| What exact surface/material values do I want? | Material & Effects |
+| What exact fill, fill texture, or effect values do I want? | Fill & Effects |
 | What edge/frame/stroke should contain it? | Frame & Edge |
 | Where does it sit on the card? | Layout & Layer |
 
@@ -76,7 +78,7 @@ Target model:
 Terms to keep:
 
 - `Elements`: local building blocks placed on the card.
-- `Source Assets`: uploaded or shipped files used by an element, such as images, overlays, icons, textures, and dividers.
+- `Source Assets`: uploaded or shipped files used by an element, such as images, overlays, icons, textures, dividers, and reviewed fonts.
 - `Element Recipes`: reviewed style/behavior packages that change an element in a purposeful way.
 - `Templates`: full card layouts.
 - `Personal Library`: user-local uploads and exported projects.

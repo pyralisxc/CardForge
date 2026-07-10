@@ -148,7 +148,7 @@ export function AccountProfilePage({
     displayName: null,
   });
   const effectiveSignedIn = entitlement.authConfigured && clerkIdentity.isLoaded
-    ? clerkIdentity.isSignedIn
+    ? clerkIdentity.isSignedIn || entitlement.isSignedIn
     : entitlement.isSignedIn;
   const [platformStatus, setPlatformStatus] = useState<PlatformStatusPayload | null>(null);
   const [isClaimingFounderBeta, setIsClaimingFounderBeta] = useState(false);

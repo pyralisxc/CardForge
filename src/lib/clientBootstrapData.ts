@@ -1,5 +1,6 @@
 import type { AppearanceStyleLibrary, TCGCardTemplate } from '@/types';
 import type { CardAssetOption } from '@/lib/cardAssets';
+import type { CardFontOption } from '@/lib/cardFonts';
 
 type TemplatesPayload = { defaults?: Partial<TCGCardTemplate>[]; userTemplates?: Partial<TCGCardTemplate>[] };
 type StylesPayload = Partial<AppearanceStyleLibrary>;
@@ -17,10 +18,19 @@ type AssetsPayload = {
     total: number;
   };
 };
+type FontsPayload = {
+  fonts?: CardFontOption[];
+  registry?: {
+    configured: boolean;
+    source: 'database';
+    total: number;
+  };
+};
 
 let templatesPromise: Promise<TemplatesPayload> | null = null;
 let stylesPromise: Promise<StylesPayload> | null = null;
 let assetsPromise: Promise<AssetsPayload> | null = null;
+let fontsPromise: Promise<FontsPayload> | null = null;
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url, { cache: 'no-store' });
@@ -66,4 +76,14 @@ export function loadBootstrapAssets() {
     },
   );
   return assetsPromise;
+}
+
+export function loadBootstrapFonts() {
+  fontsPromise ??= withBootstrapRetry(
+    () => fetchJson<FontsPayload>('/api/fonts'),
+    () => {
+      fontsPromise = null;
+    },
+  );
+  return fontsPromise;
 }

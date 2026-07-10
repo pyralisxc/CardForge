@@ -41,11 +41,26 @@ const developerSteps = [
   },
   {
     title: 'Submit useful building blocks',
-    copy: 'Templates, overlays, icons, dividers, textures, and element recipes enter review before they shape the studio.',
+    copy: 'Templates, overlays, icons, dividers, textures, fonts, and element recipes enter review before they shape the studio.',
   },
   {
     title: 'Help the forge improve',
     copy: 'Peer voting keeps the shared library curated and gives strong work a path into the live CardForge catalog.',
+  },
+];
+
+const activeDeveloperSteps = [
+  {
+    title: 'Submit useful building blocks',
+    copy: 'Templates, overlays, icons, dividers, textures, fonts, and element recipes enter review before they shape the studio.',
+  },
+  {
+    title: 'Review peer work',
+    copy: 'Vote on uploaded, published, and archived assets so the shared library keeps improving.',
+  },
+  {
+    title: 'Keep the forge practical',
+    copy: 'Favor assets with clear previews, source notes, flexible use, and real creator value.',
   },
 ];
 
@@ -64,7 +79,7 @@ export function DeveloperProgramPage({
     displayName: null as string | null,
   });
   const effectiveSignedIn = entitlement.authConfigured && clerkIdentity.isLoaded
-    ? clerkIdentity.isSignedIn
+    ? clerkIdentity.isSignedIn || entitlement.isSignedIn
     : entitlement.isSignedIn;
   const accountEmail = clerkIdentity.email ?? entitlement.accountEmail ?? null;
   const accountDisplayName = getAccountDisplayName({
@@ -121,7 +136,7 @@ export function DeveloperProgramPage({
           <div className="flex items-center gap-3 text-[#e2aa4a]">
             <UploadCloud className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.18em]">
-              {isDeveloper ? 'Forge Review developer' : 'Become a developer'}
+              Forge Review developer
             </span>
           </div>
           <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end">
@@ -130,7 +145,7 @@ export function DeveloperProgramPage({
                 Shape the library behind the forge.
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                Forge Review is the contribution path for people who want to improve the templates, overlays, icons, textures, dividers, and element recipes creators build from. Developers do not pay for access; they help make the shared library stronger for everyone.
+                Forge Review is the contribution path for people who want to improve the templates, overlays, icons, textures, dividers, fonts, and element recipes creators build from. Developers do not pay for access; they help make the shared library stronger for everyone.
               </p>
             </div>
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
@@ -142,23 +157,22 @@ export function DeveloperProgramPage({
                 <p className="mt-1 truncate text-xs text-[#c7b288]" title={accountEmail}>{accountEmail}</p>
               ) : null}
               <p className="mt-2 text-xs text-[#c7b288]">
-                {isDeveloper ? 'Developer tools are active.' : 'Apply after signing in so the account can be approved.'}
+                Developer tools are active.
               </p>
             </div>
           </div>
         </div>
 
-        <Tabs defaultValue={isDeveloper ? 'hub' : 'overview'} className="mt-4">
+        <Tabs defaultValue="hub" className="mt-4">
           <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
             <TabsTrigger value="overview" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Overview</TabsTrigger>
             <TabsTrigger value="hub" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Asset Hub</TabsTrigger>
             <TabsTrigger value="standards" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Standards</TabsTrigger>
-            <TabsTrigger value="apply" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Apply</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-3">
             <div className="grid gap-3 md:grid-cols-3">
-              {developerSteps.map((step, index) => (
+              {activeDeveloperSteps.map((step, index) => (
                 <article key={step.title} className="border border-[#5f4526] bg-[#15100a] p-4">
                   <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{String(index + 1).padStart(2, '0')}</span>
                   <h2 className="mt-2 font-serif text-lg text-[#fff1c7]">{step.title}</h2>
@@ -213,50 +227,6 @@ export function DeveloperProgramPage({
             </section>
           </TabsContent>
 
-          <TabsContent value="apply" className="mt-3">
-            <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-              <div className="border border-[#5f4526] bg-[#15100a] p-4">
-                <div className="flex items-center gap-3 text-[#e2aa4a]">
-                  <Sparkles className="h-5 w-5" />
-                  <h2 className="font-serif text-xl text-[#fff1c7]">Apply to contribute</h2>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-                  Bring a clear style, usable assets, and a practical sense for what creators need when a card project gets real. Accepted developers get review tools, clean export, and a direct way to improve the shared library. The future creator pool is planned as an owner-controlled 10% eligible-profit share after billing, tax, payout, and legal systems are ready.
-                </p>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  {!entitlement.authConfigured ? (
-                    <Button disabled className="border-[#755632] bg-transparent text-[#bea97f]" variant="outline">
-                      Clerk setup incomplete
-                    </Button>
-                  ) : !effectiveSignedIn ? (
-                    <>
-                      <SignInButton mode="modal">
-                        <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">Sign in first</Button>
-                      </SignInButton>
-                      <SignUpButton mode="modal">
-                        <Button variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">Create account</Button>
-                      </SignUpButton>
-                    </>
-                  ) : (
-                    <Button asChild className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
-                      <a href={developerRequestMailto}>
-                        Request developer access <ArrowRight className="ml-2 h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <div className="border border-[#5f4526] bg-[#15100a] p-4">
-                <div className="flex items-center gap-3 text-[#e2aa4a]">
-                  <Vote className="h-5 w-5" />
-                  <h2 className="font-serif text-xl text-[#fff1c7]">Review keeps it useful</h2>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-                  Developer votes help strong assets rise and keep clutter out of the creator experience.
-                </p>
-              </div>
-            </section>
-          </TabsContent>
         </Tabs>
       </section>
     </main>
@@ -310,7 +280,7 @@ function PublicDeveloperRecruitment({
             Join the community shaping the forge.
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
-            Help shape the shared CardForge library by contributing templates, overlays, icons, dividers, textures, and element recipes. Approved developers get a private asset hub for submissions, continuous voting, and pipeline status, while creators get a better studio for building complete sets.
+            Help shape the shared CardForge library by contributing templates, overlays, icons, dividers, textures, fonts, and element recipes. Approved developers get a private asset hub for submissions, continuous voting, and pipeline status, while creators get a better studio for building complete sets.
           </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {developerRealityChecks.map((item) => (

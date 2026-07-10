@@ -16,8 +16,18 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/webp',
   'application/json',
+  'font/woff2',
+  'font/woff',
+  'font/ttf',
+  'font/otf',
+  'application/font-woff',
+  'application/x-font-ttf',
+  'application/x-font-otf',
+  'application/octet-stream',
 ]);
-const ALLOWED_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp', 'json']);
+const ALLOWED_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp', 'json', 'woff2', 'woff', 'ttf', 'otf']);
+const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
+const NON_FONT_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp', 'json']);
 
 const getDeveloperAccess = async () => {
   const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
@@ -64,6 +74,10 @@ const getFileExtension = (file: File): string => {
   if (file.type === 'image/jpeg') return 'jpg';
   if (file.type === 'image/webp') return 'webp';
   if (file.type === 'application/json') return 'json';
+  if (file.type === 'font/woff2') return 'woff2';
+  if (file.type === 'font/woff' || file.type === 'application/font-woff') return 'woff';
+  if (file.type === 'font/ttf' || file.type === 'application/x-font-ttf') return 'ttf';
+  if (file.type === 'font/otf' || file.type === 'application/x-font-otf') return 'otf';
   return '';
 };
 
@@ -90,8 +104,12 @@ export async function POST(request: Request) {
       return createApiErrorResponse(413, 'payload_too_large', 'Developer asset files must be 10 MB or smaller.');
     }
     const extension = getFileExtension(file);
-    if (!ALLOWED_EXTENSIONS.has(extension) || (file.type && !ALLOWED_MIME_TYPES.has(file.type))) {
-      return createApiErrorResponse(400, 'developer_asset_request_invalid', 'Upload SVG, PNG, JPG, WEBP, or JSON assets.');
+    const isFontUpload = assetTypeValue === 'fonts';
+    const extensionAllowedForType = isFontUpload ? FONT_EXTENSIONS.has(extension) : NON_FONT_EXTENSIONS.has(extension);
+    if (!ALLOWED_EXTENSIONS.has(extension) || !extensionAllowedForType || (file.type && !ALLOWED_MIME_TYPES.has(file.type))) {
+      return createApiErrorResponse(400, 'developer_asset_request_invalid', isFontUpload
+        ? 'Upload WOFF2, WOFF, TTF, or OTF font assets.'
+        : 'Upload SVG, PNG, JPG, WEBP, or JSON assets.');
     }
 
     const assetType = assetTypeValue as DeveloperAssetType;

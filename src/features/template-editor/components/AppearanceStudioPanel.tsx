@@ -17,7 +17,7 @@ import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/types';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 
-type LocalMaterialPreset = {
+type LocalFillPreset = {
   label: string;
   updates: Partial<FreeformCardElement>;
 };
@@ -28,7 +28,7 @@ interface AppearanceStudioPanelProps {
   compatibleAppearanceStyles: AppearanceStylePreset[];
   compatibleTextureAssets: CardAssetOption[];
   compatibleDividerAssets: CardAssetOption[];
-  elementStylePresets: LocalMaterialPreset[];
+  elementStylePresets: LocalFillPreset[];
   canUseImageSource: boolean;
   canUseDividerControls: boolean;
   canUseBackgroundTexture: boolean;
@@ -68,7 +68,7 @@ export function AppearanceStudioPanel({
   const [styleSearch, setStyleSearch] = useState('');
   const [showAllStyles, setShowAllStyles] = useState(false);
   const normalizedStyleSearch = styleSearch.trim().toLowerCase();
-  const filteredLocalMaterials = useMemo(() => (
+  const filteredLocalFills = useMemo(() => (
     elementStylePresets.filter((preset) => preset.label.toLowerCase().includes(normalizedStyleSearch))
   ), [elementStylePresets, normalizedStyleSearch]);
   const filteredReviewedStyles = useMemo(() => (
@@ -78,15 +78,15 @@ export function AppearanceStudioPanel({
       || style.targets.some((target) => target.toLowerCase().includes(normalizedStyleSearch))
     ))
   ), [compatibleAppearanceStyles, normalizedStyleSearch]);
-  const visibleLocalMaterials = showAllStyles || normalizedStyleSearch
-    ? filteredLocalMaterials
-    : filteredLocalMaterials.slice(0, 4);
+  const visibleLocalFills = showAllStyles || normalizedStyleSearch
+    ? filteredLocalFills
+    : filteredLocalFills.slice(0, 4);
   const visibleReviewedStyles = showAllStyles || normalizedStyleSearch
     ? filteredReviewedStyles
     : filteredReviewedStyles.slice(0, 6);
-  const hiddenStyleCount = filteredLocalMaterials.length + filteredReviewedStyles.length - visibleLocalMaterials.length - visibleReviewedStyles.length;
+  const hiddenStyleCount = filteredLocalFills.length + filteredReviewedStyles.length - visibleLocalFills.length - visibleReviewedStyles.length;
 
-  const applyLocalMaterialPreset = (preset: LocalMaterialPreset) => {
+  const applyLocalFillPreset = (preset: LocalFillPreset) => {
     onUpdateAppearance((appearance) => {
       const surfaceColor = preset.updates.backgroundColor || preset.updates.fillColor || appearance.material?.baseColor;
       const fillColor = preset.updates.fillColor || preset.updates.backgroundColor || appearance.material?.fillColor;
@@ -113,8 +113,8 @@ export function AppearanceStudioPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-[11px] uppercase tracking-[0.14em] text-[#d5ad54]">Surface presets</Label>
-          <p className="mt-1 text-[11px] leading-4 text-[#8f95a3]">Apply a recipe first, then tune colors and effects below.</p>
+          <Label className="text-[11px] uppercase tracking-[0.14em] text-[#d5ad54]">Fill presets</Label>
+          <p className="mt-1 text-[11px] leading-4 text-[#8f95a3]">Choose the element fill; borders stay in Frame & Edge.</p>
         </div>
         <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={onSaveStyle}>
           <Save className="mr-1 h-3.5 w-3.5" /> Save Style
@@ -125,7 +125,7 @@ export function AppearanceStudioPanel({
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
           <Input
             className={cn(controlClassName, 'pl-7')}
-            placeholder="Search material styles..."
+            placeholder="Search fill styles..."
             value={styleSearch}
             onChange={(event) => setStyleSearch(event.target.value)}
           />
@@ -133,16 +133,16 @@ export function AppearanceStudioPanel({
       )}
       {!canUseImageSource && !canUseDividerControls && (element.type === 'text' || element.type === 'shape') && (
         <div>
-          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Local Materials</Label>
+          <Label className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Local Fills</Label>
           <div className="grid grid-cols-2 gap-1">
-            {visibleLocalMaterials.map((preset) => (
+            {visibleLocalFills.map((preset) => (
               <Button
                 key={preset.label}
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-7 justify-start gap-1.5 rounded-[4px] border-[#2d3340] bg-[#111720] px-2 text-[10px] text-[#d8d1c4] hover:border-[#d5ad54]"
-                onClick={() => applyLocalMaterialPreset(preset)}
+                onClick={() => applyLocalFillPreset(preset)}
               >
                 <span
                   className="h-3 w-3 shrink-0 rounded-[2px]"
@@ -155,7 +155,7 @@ export function AppearanceStudioPanel({
         </div>
       )}
       {filteredReviewedStyles.length > 0 && (
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Material Styles</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed Fill Styles</Label>
       )}
       <div className="grid grid-cols-2 gap-1.5">
         {visibleReviewedStyles.map((style) => (
@@ -187,14 +187,14 @@ export function AppearanceStudioPanel({
           {showAllStyles ? 'Show fewer styles' : `Show ${hiddenStyleCount} more styles`}
         </Button>
       ) : null}
-      {normalizedStyleSearch && filteredLocalMaterials.length + filteredReviewedStyles.length === 0 ? (
+      {normalizedStyleSearch && filteredLocalFills.length + filteredReviewedStyles.length === 0 ? (
         <div className="rounded-[5px] border border-dashed border-[#2d3340] bg-[#090d13] p-2 text-[11px] text-[#8f95a3]">
-          No material styles match that search.
+          No fill styles match that search.
         </div>
       ) : null}
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Material</Label>
+          <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Fill</Label>
           <ColorField value={selectedAppearance?.material?.baseColor || '#111720'} onChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, baseColor: value } }), false)} />
         </div>
         {!canUseDividerControls && element.type !== 'image' && (
@@ -242,7 +242,7 @@ export function AppearanceStudioPanel({
       <div className="grid grid-cols-2 gap-2">
         {canUseBackgroundTexture && (
           <div>
-            <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Texture</Label>
+            <Label className="text-[10px] uppercase tracking-wide text-[#8f95a3]">Fill Texture</Label>
             <Select value={selectedAppearance?.material?.texture?.kind || 'none'} onValueChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || {}), kind: value as AppearanceTextureKind, intensity: appearance.material?.texture?.intensity ?? 40, scale: appearance.material?.texture?.scale ?? 12 } } }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -261,7 +261,7 @@ export function AppearanceStudioPanel({
       {canUseBackgroundTexture && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Texture Library</Label>
+            <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Fill Texture Library</Label>
             <Button
               type="button"
               variant="outline"
@@ -274,7 +274,7 @@ export function AppearanceStudioPanel({
             </Button>
             <input ref={textureAssetUploadInputRef} type="file" accept="image/*" hidden onChange={(event) => onHandleAssetUpload(event, 'texture')} />
           </div>
-          <Input className={controlClassName} placeholder="Search reviewed and local textures..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
+          <Input className={controlClassName} placeholder="Search reviewed and local fill textures..." value={assetSearch} onChange={(event) => onAssetSearchChange(event.target.value)} />
           <div className="grid grid-cols-4 gap-1.5">
             {compatibleTextureAssets.map((asset) => (
               <Tooltip key={asset.id}>
@@ -368,7 +368,7 @@ export function AppearanceStudioPanel({
       <div className="grid grid-cols-2 gap-3">
         {canUseBackgroundTexture && (
           <div>
-            <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Texture</span><span>{selectedAppearance?.material?.texture?.intensity ?? 0}%</span></div>
+            <div className="mb-1 flex items-center justify-between text-[10px] text-[#8f95a3]"><span>Fill texture</span><span>{selectedAppearance?.material?.texture?.intensity ?? 0}%</span></div>
             <Slider value={[selectedAppearance?.material?.texture?.intensity ?? 0]} min={0} max={100} step={1} onValueChange={(value) => onUpdateAppearance((appearance) => ({ ...appearance, material: { ...appearance.material, texture: { ...(appearance.material?.texture || { kind: 'grain' }), intensity: value[0] } } }), false)} />
           </div>
         )}

@@ -17,6 +17,7 @@
     "smoke": "playwright test --workers=1",
     "audit:site": "node scripts/audit-site-health.mjs",
     "bulk:generate": "node scripts/generate-bulk-csv.mjs",
+    "qa:setup-accounts": "node scripts/setup-qa-accounts.mjs",
     "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs"
   },
   "dependencies": {
@@ -39,9 +40,11 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@supabase/supabase-js": "^2.106.1",
     "@tanstack/react-virtual": "^3.13.26",
+    "@tiptap/core": "^3.23.4",
     "@tiptap/extension-color": "^3.23.4",
     "@tiptap/extension-highlight": "^3.23.4",
     "@tiptap/extension-text-style": "^3.23.4",
+    "@tiptap/extension-underline": "^3.23.4",
     "@tiptap/react": "^3.23.4",
     "@tiptap/starter-kit": "^3.23.4",
     "class-variance-authority": "^0.7.1",
@@ -63,6 +66,7 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@clerk/backend": "^3.4.13",
     "@clerk/testing": "^2.0.33",
     "@eslint/eslintrc": "^3.3.5",
     "@playwright/test": "^1.59.1",

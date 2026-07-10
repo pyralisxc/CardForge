@@ -1094,6 +1094,15 @@ const getRegistryMetadataForSubmission = (submission: {
     };
   }
 
+  if (submission.asset_type === 'fonts') {
+    return {
+      ...base,
+      category: 'Utility',
+      fallback: 'serif',
+      fontDisplay: 'swap',
+    };
+  }
+
   return base;
 };
 

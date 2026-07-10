@@ -8,9 +8,16 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
-  AVAILABLE_FONTS,
   PADDING_OPTIONS,
 } from '@/lib/constants';
+import {
+  CARD_FONT_OPTIONS,
+  cardFontOptionsToSelectOptions,
+  createDeveloperFontFaceCss,
+  mergeCardFontOptions,
+  type CardFontOption,
+} from '@/lib/cardFonts';
+import { loadBootstrapFonts } from '@/lib/clientBootstrapData';
 import { extractPlaceholderKeysFromText, replacePlaceholdersLocal } from '@/lib/textBindings';
 import { cn, toTitleCase } from '@/lib/utils';
 import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
@@ -36,6 +43,11 @@ import {
   elementKits,
   CONSOLIDATED_ELEMENT_KITS,
 } from '@/features/template-editor/lib/elementKits';
+import {
+  clearTemplateEditorDraft,
+  readTemplateEditorDraft,
+  writeTemplateEditorDraft,
+} from '@/features/template-editor/lib/templateEditorDraftPersistence';
 import { ELEMENT_STYLE_PRESETS } from '@/features/template-editor/lib/elementStylePresets';
 import { PREDEFINED_FRAME_VISUAL_PROPERTIES } from '@/features/template-editor/lib/frameVisualPresets';
 import { ICON_OPTIONS } from '@/features/template-editor/lib/iconOptions';
@@ -173,7 +185,15 @@ export function CardTemplateMaker({
   const touchGestureRef = useRef<TouchGestureState | null>(null);
   const variableKeyInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const variableCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [localDraftTemplate, setLocalDraftTemplate] = useState<TCGCardTemplate | null>(null);
+  const [localDraftTemplate, setLocalDraftTemplate] = useState<TCGCardTemplate | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return readTemplateEditorDraft(window.localStorage);
+  });
+  const draftPersistenceInitializedRef = useRef(false);
+  const lastDraftTemplateJsonRef = useRef<string | null>(null);
+  const [cardFontOptions, setCardFontOptions] = useState<CardFontOption[]>(CARD_FONT_OPTIONS);
+  const availableFonts = useMemo(() => cardFontOptionsToSelectOptions(cardFontOptions), [cardFontOptions]);
+  const developerFontFaceCss = useMemo(() => createDeveloperFontFaceCss(cardFontOptions), [cardFontOptions]);
 
   const freeformTemplates = templates;
   const initialTemplate = useMemo(() => {
@@ -214,6 +234,33 @@ export function CardTemplateMaker({
     updateTemplate,
     arrangeSelected: arrangeSelectedInController,
   } = useTemplateEditorController(initialTemplate);
+  useEffect(() => {
+    let isMounted = true;
+    loadBootstrapFonts()
+      .then((payload) => {
+        if (isMounted) setCardFontOptions(mergeCardFontOptions(CARD_FONT_OPTIONS, payload.fonts ?? []));
+      })
+      .catch(() => {
+        if (isMounted) setCardFontOptions(CARD_FONT_OPTIONS);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!isActive || typeof window === 'undefined') return;
+
+    const draftJson = JSON.stringify(reconstructMinimalTemplate(currentTemplate));
+    if (!draftPersistenceInitializedRef.current) {
+      draftPersistenceInitializedRef.current = true;
+      lastDraftTemplateJsonRef.current = draftJson;
+      return;
+    }
+    if (lastDraftTemplateJsonRef.current === draftJson) return;
+
+    writeTemplateEditorDraft(window.localStorage, currentTemplate);
+    lastDraftTemplateJsonRef.current = draftJson;
+  }, [currentTemplate, isActive]);
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
   const [activeVariableKey, setActiveVariableKey] = useState<string | null>(null);
   const frameKitsForCurrentTemplate = useMemo(() => {
@@ -905,6 +952,10 @@ export function CardTemplateMaker({
       freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas),
       backCanvas: currentTemplate.backCanvas ? reconstructFreeformCanvas(currentTemplate.backCanvas) : undefined,
     });
+    if (typeof window !== 'undefined') {
+      clearTemplateEditorDraft(window.localStorage);
+      lastDraftTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(currentTemplate));
+    }
     setLocalDraftTemplate(null);
     onSelectTemplateForEditing(savedId);
   }, [currentTemplate, onSaveTemplate, onSelectTemplateForEditing, toast]);
@@ -981,6 +1032,10 @@ export function CardTemplateMaker({
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
+    if (typeof window !== 'undefined') {
+      clearTemplateEditorDraft(window.localStorage);
+      lastDraftTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(template));
+    }
     setLocalDraftTemplate(null);
     onSelectTemplateForEditing(template.id);
     resetTemplate(template);
@@ -1160,6 +1215,7 @@ export function CardTemplateMaker({
         </div>
 
         <div className="cardforge-maker-grid grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
+          {developerFontFaceCss && <style>{developerFontFaceCss}</style>}
           <aside className="cardforge-maker-side cardforge-maker-library min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
             <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
               <div className="space-y-3 p-2">
@@ -1316,6 +1372,7 @@ export function CardTemplateMaker({
                               selectedElementTemplateFields={selectedElementTemplateFields}
                               activeVariableKey={activeVariableKey}
                               richTextHighlightColor={richTextHighlightColor}
+                              availableFonts={availableFonts}
                               variableKeyInputRefs={variableKeyInputRefs}
                               variableCardRefs={variableCardRefs}
                               onSetActiveVariableKey={setActiveVariableKey}
@@ -1408,7 +1465,7 @@ export function CardTemplateMaker({
                             <TypographyInspectorPanel
                               element={selectedElement}
                               currentTemplate={currentTemplate}
-                              availableFonts={AVAILABLE_FONTS}
+                              availableFonts={availableFonts}
                               paddingOptions={PADDING_OPTIONS}
                               controlClassName={makerTheme.control}
                               onUpdateElement={(updates, trackHistory) => updateElement(selectedElement.id, updates, trackHistory)}
@@ -1419,10 +1476,10 @@ export function CardTemplateMaker({
 
                         {canUseAppearanceStudio && (
                           <InspectorFlowSection
-                            title="Material & Effects"
+                            title="Fill & Effects"
                             badge="Look"
                             defaultOpen={false}
-                            description="Change fill, texture, gradient, glow, and surface treatment without moving the element."
+                            description="Change fill, fill texture, gradient, and glow without touching Frame & Edge borders."
                           >
                             <AppearanceStudioPanel
                               element={selectedElement}
@@ -1506,4 +1563,3 @@ export function CardTemplateMaker({
     </TooltipProvider>
   );
 }
-

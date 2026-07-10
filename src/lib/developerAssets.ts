@@ -6,6 +6,7 @@ export const DEVELOPER_ASSET_TYPES = [
   'icons',
   'imageAssets',
   'parts',
+  'fonts',
 ] as const;
 
 export const DEVELOPER_ASSET_STATUSES = [
@@ -176,6 +177,7 @@ export const DEFAULT_DEVELOPER_TIER_CAPS_BY_TYPE: DeveloperTierCapsByType = {
   icons: { free: 20, paid: 10 },
   imageAssets: { free: 16, paid: 8 },
   parts: { free: 16, paid: 8 },
+  fonts: { free: 8, paid: 4 },
 };
 
 export const deriveDeveloperPublishCapsByType = (
@@ -216,6 +218,7 @@ export const DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES: Record<DeveloperAssetType, 
   icons: 80 * 1024,
   imageAssets: 1_500 * 1024,
   parts: 900 * 1024,
+  fonts: 220 * 1024,
 };
 
 const clampInteger = (value: number, min: number, max: number): number =>

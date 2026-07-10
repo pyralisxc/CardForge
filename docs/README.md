@@ -1,6 +1,6 @@
 # CardForge Docs
 
-Last updated: May 27, 2026
+Last updated: July 7, 2026
 
 Use this page as the docs entrypoint. Keep MVP source-of-truth docs current and move temporary plans out of the main path once they are implemented or superseded.
 

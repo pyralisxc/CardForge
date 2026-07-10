@@ -2,7 +2,7 @@
 
 Date: 2026-05-24
 
-Live sanity checkpoint: 2026-05-25
+Live sanity checkpoint: 2026-07-07
 
 ## Implementation Checkpoint
 
@@ -25,8 +25,8 @@ The second consolidation pass applies that pattern across the high-visibility pr
 - **Registry appearance styles now require exact element targets** in the active Appearance Studio lane, so broad `element` tags no longer make unrelated controls appear on icon/divider workflows.
 - **Seeded and registry-backed recipes dedupe by kind and label**, preferring registry-backed versions when both represent the same offering.
 - **File-backed image/overlay assets now flow into the normal Image & Overlay Source Assets picker**, keeping the left rail focused on primitives and the inspector focused on selected-element sources.
-- **Appearance Studio has been renamed Material & Effects**, and the selected-element inspector now flows from source/content to style, material, frame/border, and layout.
-- **Frame & Border has become Frame & Edge**, with element-specific language for text boxes, image frames, icon backplates, and shape strokes. Non-divider border controls no longer also live inside Material & Effects, so the edge workflow has one primary home.
+- **Appearance Studio has been renamed Fill & Effects**, and the selected-element inspector now flows from source/content to style, fill/effects, frame/edge, and layout.
+- **Frame & Border has become Frame & Edge**, with element-specific language for text boxes, image frames, icon backplates, and shape strokes. Non-divider border controls no longer also live inside Fill & Effects, so the edge workflow has one primary home.
 - **Named edge styles now render distinctly**: etched, relic, and foil borders add real inset/outer visual treatment instead of collapsing to a plain solid line. Shape edges map to shape stroke, while icon backplate edges preserve icon glyph stroke.
 - **The neighboring inspector cleanup pass reduced duplicate ownership**: image source controls now live together in Image Source, Text Style no longer owns text-box fill/edge colors, Shape Builder no longer owns fill/stroke controls, image frame color moved out of the image panel, and built-in icon glyph controls hide when an uploaded icon image is active.
 - **The follow-up inspector pass made remaining controls more honest**: local material presets now update structured appearance material fields instead of overwriting text/edge fields, divider `Asset Fit` only appears for asset-backed dividers, and the transform panel now says `Layer` instead of `Z`.
@@ -48,7 +48,7 @@ Overall grade: B-
 | Element applicability | C | Panels are gated by element capabilities, but preset records do not declare element type, role, surface, or conflict behavior. | Presets should be filtered by `elementType`, `role`, `surface`, and `assetKind/styleKind`. |
 | Visible user value | B- | Divider assets, symbol presets, and shape role presets visibly change cards. Generic style and shape presets are weaker. | Keep high-signal recipes; remove or demote presets that only resize/recolor without a clear element-specific purpose. |
 | Developer ownership | C | Registry supports `elementPreset`, pipeline starter content is imported as Cameron-owned submissions, and recipes expose status/tier/contributor metadata. Some recipe families still need richer registry hydration. | Developer-created, starter, and archived presets should all live in the same review/voting model. |
-| UX clarity | B- | The inspector now follows Source & Content, element builder/style, Material & Effects, Frame & Border, and Layout & Layer. Some panel internals still mix source and styling. | Keep splitting source assets, style recipes, material editing, and layout controls into clearer lanes. |
+| UX clarity | B- | The inspector now follows Source & Content, element builder/style, Fill & Effects, Frame & Edge, and Layout & Layer. Some panel internals still mix source and styling. | Keep splitting source assets, style recipes, fill/effect editing, and layout controls into clearer lanes. |
 | Render correctness | B | Recent border and structured-row work improved real output. The remaining issue is less "does it render" and more "does the control belong here." | Add applicability tests and visual QA for each preset family. |
 
 ## Preset Family Findings
@@ -56,7 +56,7 @@ Overall grade: B-
 | Preset family | Current source | Appears on | Actual effect | Quality grade | Recommendation |
 | --- | --- | --- | --- | --- | --- |
 | Element kits | `CONSOLIDATED_ELEMENT_KITS` in `elementKits.tsx` | New element library | Creates basic text, image, icon, shape, and divider elements. | B | Keep primitive element creation local; source assets belong in the relevant inspector picker. |
-| Appearance quick styles | `ELEMENT_STYLE_PRESETS` in `elementStylePresets.ts` | Text and shape Material & Effects | Applies broad color, fill, background image, border, and radius values. | C | Demote or replace with pipeline-backed material recipes. Broad "element" styling is too vague for the main workflow. |
+| Appearance quick styles | `ELEMENT_STYLE_PRESETS` in `elementStylePresets.ts` | Text and shape Fill & Effects | Applies broad color, fill, background image, border, and radius values. | C | Demote or replace with pipeline-backed fill/effect recipes. Broad "element" styling is too vague for the main workflow. |
 | Appearance style library | `/api/styles` pipeline registry | Text, shape, divider, icon where exact targets match | Applies structured `FreeformAppearance` objects. | B+ | Primary filtering now requires exact targets; next pass should improve labels/previews and contributor provenance. |
 | Border / edge presets | `BORDER_PRESET_RECIPES` in `src/lib/elementPresetRecipes.ts` plus registry styles | Text, image, icon, shape | Applies structured edge styles: text box edge, image frame, icon backplate, or shape stroke depending on element type. | B+ | Edge workflow now has one primary inspector home and distinct render treatments; next step is richer registry provenance and live recipe thumbnails. |
 | Shape presets | Retired from primary UI | Shape Studio no longer shows this lane | Previously changed primitive geometry, width, height, and a few colors. | C- | Replaced by local Blank Primitives plus typed Pipeline Recipes. |
@@ -68,17 +68,17 @@ Overall grade: B-
 | Image assets | `/api/assets` plus local uploads | Image Inspector | Applies shipped/pipeline image assets to image elements and updates the rendered preview source. | A- | Add upload controls and contributor/tier/status badges matching the icon picker. |
 | Frame kits | `createFrameKitPresetRecipes` over `CARD_FRAME_KITS` | Template-level frame updates | Applies full-template frame art and card-level colors. | B+ | Now uses the same recipe/badge pattern; next step is a dedicated registry-backed `frameKit` or template-canvas recipe payload. |
 | Global frame styles | `FRAME_STYLES` and template visual properties | Template style controls | Applies broad whole-card theme values. | C | Keep only as advanced controls until frame kits and template presets fully replace it. |
-| Texture asset picker | `/api/assets` plus local uploads | Text and shape Material & Effects | Applies registry texture assets to supported element appearance. | B | Text now has the `texture` capability; next pass should split decorative material recipes from raw texture asset selection more clearly. |
+| Texture asset picker | `/api/assets` plus local uploads | Text and shape Fill & Effects | Applies registry texture assets to supported element appearance. | B | Text now has the `texture` capability; next pass should split decorative fill recipes from raw texture asset selection more clearly. |
 
 ## Main Bugs And Friction
 
 1. Panel organization still overlaps too much
 
-   Text is improved, and the primary Typography Inspector stays focused on typography. The remaining overlap is between Material & Effects and Frame & Edge for what makers perceive as "the text box."
+   Text is improved, and the primary Typography Inspector stays focused on typography. The remaining overlap is between Fill & Effects and Frame & Edge for what makers perceive as "the text box."
 
 2. Broad recipe semantics still need product decisions
 
-   Exact target matching is now in place for Material & Effects, but some registry rows still carry broad targets such as `text`, `shape`, and `element`. Those assets should be reviewed as product offerings: either split them into role-specific recipes or keep them as material recipes with clearer names.
+   Exact target matching is now in place for Fill & Effects, but some registry rows still carry broad targets such as `text`, `shape`, and `element`. Those assets should be reviewed as product offerings: either split them into role-specific recipes or keep them as fill/effect recipes with clearer names.
 
 3. Registry provenance still needs richer review context
 
@@ -100,7 +100,7 @@ The Frame & Edge pass fixed the worst border mismatch, but nearby inspector tool
 
 - **Source tools** choose content or asset source.
 - **Style tools** change glyph/text appearance.
-- **Material tools** change fill, texture, glow, and surface treatment.
+- **Fill tools** change fill, fill texture, glow, and surface treatment.
 - **Frame & Edge tools** change container edges, image frames, icon backplates, and shape strokes.
 - **Layout tools** change position, size, stacking, opacity, and lock state.
 
@@ -108,12 +108,12 @@ Findings from the sweep:
 
 | Tool area | Finding | User expectation risk | Resolution / next |
 | --- | --- | --- | --- |
-| Text Style | Material and edge controls both touch the text-box look. | Users could change the same visible text box from multiple places and wonder which tool "won." | Done: Text Style stays focused on typography and no longer exposes panel fill or border color. |
+| Text Style | Fill/effect and edge controls both touch the text-box look. | Users could change the same visible text box from multiple places and wonder which tool "won." | Done: Text Style stays focused on typography and no longer exposes panel fill or border color. |
 | Image Source | Image URL/data key, file upload, and reviewed assets were split across panels. | Users may not understand whether the URL field, file upload, or asset picker is the canonical image source. | Done: image source controls now live together in Image Source. |
 | Image Inspector | `Frame Color` duplicated Frame & Edge. | Users expected frame color to affect the same thing as Frame & Edge. | Done: removed the local frame color control so Frame & Edge owns image frame color. |
 | Icon Source & Symbol | Stroke/fill/line-weight controls only affect built-in Lucide icons. Uploaded icon images render as `<img>`, so those controls do not recolor them. | Users expect symbol color controls to affect uploaded symbols too. | Done: glyph style controls only appear for built-in icons. Later SVG recolor support could make uploaded vector icons editable too. |
-| Icon Backplate | Backplate color overlapped Material & Effects base material and Frame & Edge backplate edge. | Users could change the same backplate through multiple panels. | Done: glyph controls stay in Icon Style, surface fill stays in Material, and edge stays in Frame & Edge. |
-| Shape Studio | Shape fill/stroke/stroke width overlapped Material & Effects and Frame & Edge. | Users did not know whether Shape Studio was for primitive geometry, visual styling, or final border treatment. | Done: Shape Builder now focuses on primitive type, blank primitives, and reviewed shape recipes. |
+| Icon Backplate | Backplate color overlapped Fill & Effects base fill and Frame & Edge backplate edge. | Users could change the same backplate through multiple panels. | Done: glyph controls stay in Icon Style, surface fill stays in Fill & Effects, and edge stays in Frame & Edge. |
+| Shape Studio | Shape fill/stroke/stroke width overlapped Fill & Effects and Frame & Edge. | Users did not know whether Shape Studio was for primitive geometry, visual styling, or final border treatment. | Done: Shape Builder now focuses on primitive type, blank primitives, and reviewed shape recipes. |
 | Shape Render | Diamond, hexagon, banner, notch, bracket, and corner shapes used CSS `clip-path`; border/stroke was not a true vector outline. | Non-rectangular shapes may not outline as a card maker expects. | Done: non-divider primitive shapes now use shared inline SVG definitions in editor and preview. |
 | Local Materials | Hardcoded material buttons used to apply broad colors, fills, text colors, and border values. | Presets felt magical and could overwrite fields owned by other panels. | Done: local materials now update structured appearance surface/background fields without taking over text or edge ownership. |
 | Divider Studio | Height, opacity, flip, and asset fit are useful. Asset fit only matters for asset-backed dividers, not gradient recipe dividers. | Users may change Stretch/Contain and see no effect on recipe dividers. | Done: `Asset Fit` only appears when the divider has a divider asset or appearance asset source. |
@@ -129,7 +129,7 @@ The latest browser-driven sanity check verified:
 
 - The left element rail is primitives-only; `Library Components`, `Card Part Catalog`, and `Asset Catalog` labels are gone.
 - Image-like overlay assets appear through the selected image element's Image & Overlay Source Assets picker instead of clogging the element rail.
-- A selected text element shows Source & Content, Text Style, Material & Effects, Frame & Border, and Layout & Layer; the old `Appearance Studio` label is gone.
+- A selected text element shows Source & Content, Text Style, Fill & Effects, Frame & Edge, and Align To Canvas & Layer; the old `Appearance Studio` label is gone.
 - Image elements expose `Image & Overlay Source Assets`; selecting `Arcane Landscape` renders `/card-assets/images/arcane-landscape.svg`.
 - Icon elements expose `Icon Source Assets`; selecting `Arcane Star` renders `/card-assets/icons/arcane-star.svg`.
 - Icon Appearance Studio still shows relevant icon-targeted styles such as `Fire Relic Icon` and `Purple Foil`, while broad non-icon styles no longer appear on icon selection.
