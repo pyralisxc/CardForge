@@ -23,6 +23,8 @@ When the business email is ready:
    - `CARDFORGE_EMAIL_REPLY_TO`, usually the support inbox
 6. Send a test email from Owner Console before switching user-facing forms away from `mailto:`.
 
+Interim setup may use the owner's current inbox as the reply-to address. The editable support inbox belongs in Owner Console business settings; the Resend API key and sender identity remain environment/provider configuration until a verified sending domain is ready.
+
 ## Owner Console
 
 Owner Console should remain the operational control surface for:
