@@ -11,8 +11,6 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResp
 
 export const dynamic = 'force-dynamic';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
-
 const getStripeObjectId = (value: string | { id: string } | null): string | null => {
   if (!value) return null;
   if (typeof value === 'string') return value;
@@ -103,6 +101,7 @@ export async function POST(request: Request) {
 
   let event: Stripe.Event;
   try {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     event = stripe.webhooks.constructEvent(
       await request.text(),
       signature,
