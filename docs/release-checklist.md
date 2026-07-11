@@ -599,6 +599,7 @@ Recommended handling:
 - run a Stripe test checkout and confirm Clerk private metadata grants Creator Pass
 - confirm Stripe live-mode business profile, payout/banking readiness, payment methods, tax/refund rules, and customer support details
 - keep public metadata display-only
+- use the Owner Console billing snapshot to confirm recent test checkout sessions and subscription state before opening paid access broadly
 
 Risk rating: `High / Known / Launch Blocking for paid self-serve`
 

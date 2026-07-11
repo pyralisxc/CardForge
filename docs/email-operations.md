@@ -1,12 +1,12 @@
 # Email Operations
 
-CardForge currently uses owner-configured `mailto:` links for support and developer requests. This keeps the product working before the business email domain and transactional sender are finalized.
+CardForge now has server-sent support and developer request forms backed by Resend, plus owner-configured support email fallbacks. Delivery still depends on the sender domain being verified in Resend.
 
 ## Current State
 
 - Clerk owns authentication emails such as sign-in, verification, account security, and passwordless flows.
 - CardForge owns product/contact email routing such as support, developer requests, asset-pipeline notices, and future owner alerts.
-- Contact and developer-request links route to the owner support email from Owner Console business settings.
+- Contact and developer-request forms route to the owner support email from Owner Console business settings and store audit rows in Supabase when the owner operations migration is applied.
 - The app does not manage newsletter lists, marketing subscriptions, or unsubscribe state yet.
 
 ## Recommended Setup
@@ -21,7 +21,7 @@ When the business email is ready:
    - `RESEND_API_KEY`
    - `CARDFORGE_EMAIL_FROM`, for example `CardForge <notifications@yourdomain.com>`
    - `CARDFORGE_EMAIL_REPLY_TO`, usually the support inbox
-6. Send a test email from Owner Console before switching user-facing forms away from `mailto:`.
+6. Send a test email from Owner Console before relying on server delivery. If Resend returns a domain verification error, verify a sending domain/subdomain in Resend or temporarily use Resend's approved testing sender for non-production tests.
 
 Interim setup may use the owner's current inbox as the reply-to address. The editable support inbox belongs in Owner Console business settings; the Resend API key and sender identity remain environment/provider configuration until a verified sending domain is ready.
 
@@ -33,8 +33,8 @@ Owner Console should remain the operational control surface for:
 - email routing mode
 - delivery provider readiness
 - missing environment variables
-- a future test-email button
-- a future contact/developer-request submission log
+- a test-email button
+- recent contact/developer-request submission logs
 
 Do not expose raw provider API keys in the browser. Secrets belong in Vercel environment variables and provider dashboards.
 
@@ -46,7 +46,7 @@ If newsletters become important, use a dedicated list provider rather than mixin
 
 ## Future App Flows
 
-The first server-sent email flows should be:
+The first server-sent email flows are:
 
 - contact/support form sends to the support inbox and stores a Supabase audit row
 - developer request form sends to the developer/support inbox and stores request status
