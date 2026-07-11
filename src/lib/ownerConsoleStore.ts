@@ -11,6 +11,7 @@ import {
   type LegalDocument,
   type LegalDocumentSlug,
   type OwnerConsolePayload,
+  type OwnerContactRequest,
   type OwnerDatabaseMetrics,
   type OwnerRoadmapItem,
   type OwnerSettings,
@@ -106,6 +107,19 @@ type DatabaseMetricsRow = {
   asset_registry_count: number | null;
   developer_submission_count: number | null;
   founder_beta_claim_count: number | null;
+};
+
+type OwnerContactRequestRow = {
+  id: string;
+  kind: OwnerContactRequest['kind'];
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  page_url: string | null;
+  status: OwnerContactRequest['status'];
+  resend_email_id: string | null;
+  created_at: string;
 };
 
 export class OwnerConsoleStoreError extends Error {
@@ -275,6 +289,19 @@ const mapDatabaseMetricsRow = (row: DatabaseMetricsRow): OwnerDatabaseMetrics =>
   founderBetaClaimCount: Number(row.founder_beta_claim_count ?? 0),
 });
 
+const mapOwnerContactRequestRow = (row: OwnerContactRequestRow): OwnerContactRequest => ({
+  id: row.id,
+  kind: row.kind,
+  name: row.name,
+  email: row.email,
+  subject: row.subject,
+  message: row.message,
+  pageUrl: row.page_url,
+  status: row.status,
+  resendEmailId: row.resend_email_id,
+  createdAt: row.created_at,
+});
+
 const getOwnerDatabaseMetrics = async (): Promise<OwnerDatabaseMetrics | null> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return null;
@@ -310,6 +337,93 @@ const getFounderBetaClaims = async (): Promise<FounderBetaClaim[]> => {
   }
 
   return (data ?? []).map((row) => mapFounderBetaClaimRow(row as FounderBetaClaimRow));
+};
+
+export const getOwnerContactRequests = async (): Promise<OwnerContactRequest[]> => {
+  const supabase = getSupabaseServerClient();
+  if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
+
+  const { data, error } = await supabase
+    .from('cardforge_contact_requests')
+    .select('id,kind,name,email,subject,message,page_url,status,resend_email_id,created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    if (!isMissingOwnerTableError(error)) {
+      console.error('Failed to load owner contact requests:', error);
+    }
+    return [];
+  }
+
+  return (data ?? []).map((row) => mapOwnerContactRequestRow(row as OwnerContactRequestRow));
+};
+
+export const recordContactRequest = async ({
+  kind,
+  name,
+  email,
+  subject,
+  message,
+  pageUrl,
+}: {
+  kind: OwnerContactRequest['kind'];
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  pageUrl: string;
+}): Promise<string | null> => {
+  const supabase = getSupabaseServerClient();
+  if (!getSupabaseServerConfigStatus().configured || !supabase) return null;
+
+  const { data, error } = await supabase
+    .from('cardforge_contact_requests')
+    .insert({
+      kind,
+      name,
+      email,
+      subject,
+      message,
+      page_url: pageUrl || null,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    if (!isMissingOwnerTableError(error)) {
+      console.error('Failed to record contact request:', error);
+    }
+    return null;
+  }
+
+  return typeof data?.id === 'string' ? data.id : null;
+};
+
+export const markContactRequestEmailResult = async ({
+  id,
+  ok,
+  resendEmailId,
+}: {
+  id: string | null;
+  ok: boolean;
+  resendEmailId?: string | null;
+}): Promise<void> => {
+  if (!id) return;
+  const supabase = getSupabaseServerClient();
+  if (!getSupabaseServerConfigStatus().configured || !supabase) return;
+
+  const { error } = await supabase
+    .from('cardforge_contact_requests')
+    .update({
+      status: ok ? 'emailed' : 'email_failed',
+      resend_email_id: resendEmailId ?? null,
+    })
+    .eq('id', id);
+
+  if (error && !isMissingOwnerTableError(error)) {
+    console.error('Failed to update contact request email status:', error);
+  }
 };
 
 const getOwnerRoadmapItems = async (): Promise<OwnerRoadmapItem[]> => {
@@ -368,6 +482,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
       founderBetaClaims: [],
       roadmapItems: [],
       databaseMetrics: null,
+      contactRequests: [],
     };
   }
 
@@ -391,6 +506,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
       founderBetaClaims: await getFounderBetaClaims(),
       roadmapItems: await getOwnerRoadmapItems(),
       databaseMetrics: await getOwnerDatabaseMetrics(),
+      contactRequests: await getOwnerContactRequests(),
     };
   }
 
@@ -413,15 +529,17 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
       founderBetaClaims: await getFounderBetaClaims(),
       roadmapItems: await getOwnerRoadmapItems(),
       databaseMetrics: await getOwnerDatabaseMetrics(),
+      contactRequests: await getOwnerContactRequests(),
     };
   }
 
-  const [founderBeta, founderBetaClaims, roadmapItems, databaseMetrics, siteContentBlocks] = await Promise.all([
+  const [founderBeta, founderBetaClaims, roadmapItems, databaseMetrics, siteContentBlocks, contactRequests] = await Promise.all([
     getFounderBetaCampaign(),
     getFounderBetaClaims(),
     getOwnerRoadmapItems(),
     getOwnerDatabaseMetrics(),
     getSiteContentBlocks(),
+    getOwnerContactRequests(),
   ]);
 
   const documents = DEFAULT_LEGAL_DOCUMENTS.map((defaultDocument) => {
@@ -439,6 +557,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     founderBetaClaims,
     roadmapItems,
     databaseMetrics,
+    contactRequests,
   };
 };
 

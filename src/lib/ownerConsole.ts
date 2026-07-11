@@ -61,6 +61,19 @@ export interface OwnerDatabaseMetrics {
   founderBetaClaimCount: number;
 }
 
+export interface OwnerContactRequest {
+  id: string;
+  kind: 'support' | 'developer';
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  pageUrl: string | null;
+  status: 'received' | 'emailed' | 'email_failed' | 'closed';
+  resendEmailId: string | null;
+  createdAt: string;
+}
+
 export type SiteContentBlockSlug =
   | 'landing.hero.headline'
   | 'landing.hero.body'
@@ -100,6 +113,7 @@ export interface OwnerConsolePayload {
   founderBetaClaims: FounderBetaClaim[];
   roadmapItems: OwnerRoadmapItem[];
   databaseMetrics: OwnerDatabaseMetrics | null;
+  contactRequests: OwnerContactRequest[];
 }
 
 export const DEFAULT_OWNER_SETTINGS: OwnerSettings = {

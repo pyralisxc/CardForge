@@ -441,10 +441,12 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       } else {
         await expect(page.getByText(/private asset hub/i)).toBeVisible();
         await expect(page.getByText('Developer Asset Hub', { exact: true })).toHaveCount(0);
-        const requestAccessLink = page.getByRole('link', { name: /Request developer access/i });
-        await expect(requestAccessLink).toHaveAttribute('href', /^mailto:/);
-        await expect(requestAccessLink).toHaveAttribute('href', /subject=CardForge%20developer%20program%20request/);
-        await expect(requestAccessLink).toHaveAttribute('href', new RegExp(encodeURIComponent(qaUser.email)));
+        const emailFallbackLink = page.getByRole('link', { name: /Email fallback/i });
+        await expect(page.getByRole('heading', { name: /Request developer access/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Send request/i })).toBeVisible();
+        await expect(emailFallbackLink).toHaveAttribute('href', /^mailto:/);
+        await expect(emailFallbackLink).toHaveAttribute('href', /subject=CardForge%20developer%20program%20request/);
+        await expect(emailFallbackLink).toHaveAttribute('href', new RegExp(encodeURIComponent(qaUser.email)));
       }
 
       await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: 120_000 });
@@ -456,6 +458,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
         await expect(page.getByRole('heading', { name: /Run the forge like a product/i })).toBeVisible({ timeout: 45_000 });
         await expect(page.getByText(/live-mode provider review/i)).toBeVisible();
         await expect(page.getByText(/Delivery readiness/i)).toBeVisible();
+        await expect(page.getByRole('tab', { name: /Operations/i })).toBeVisible();
         await expect(page.getByRole('tab', { name: /Site Copy/i })).toBeVisible();
       } else {
         await expect(page.getByRole('heading', { name: /Owner console unavailable/i })).toBeVisible({ timeout: 45_000 });

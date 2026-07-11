@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Settings2, ShieldCheck, Users } from 'lucide-react';
+import { CheckCircle2, CreditCard, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Search, Settings2, ShieldCheck, UserCog, Users } from 'lucide-react';
 
 import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import type {
   FounderBetaClaim,
   LegalDocument,
   OwnerConsolePayload,
+  OwnerContactRequest,
   OwnerDatabaseMetrics,
   OwnerRoadmapItem,
   OwnerSettings,
@@ -53,6 +54,48 @@ interface OwnerConsoleResponse {
     links: Array<{ label: string; href: string }>;
   };
   console: OwnerConsolePayload;
+}
+
+interface OwnerBillingSnapshot {
+  status: {
+    checkoutConfigured: boolean;
+    webhookConfigured: boolean;
+    missing: string[];
+  };
+  recentCheckoutSessions: Array<{
+    id: string;
+    customerEmail: string | null;
+    clerkUserId: string | null;
+    paymentStatus: string | null;
+    status: string | null;
+    amountTotalCents: number | null;
+    currency: string | null;
+    createdAt: string | null;
+    subscriptionId: string | null;
+  }>;
+  recentSubscriptions: Array<{
+    id: string;
+    clerkUserId: string | null;
+    status: string | null;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+    amountCents: number | null;
+    currency: string | null;
+    interval: string | null;
+  }>;
+}
+
+interface OwnerManagedAccount {
+  id: string;
+  email: string | null;
+  name: string;
+  access: 'free' | 'paid' | 'dev';
+  isOwner: boolean;
+  createdAt: string | null;
+  lastSignInAt: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  note: string;
 }
 
 const emptySettings: OwnerSettings = {
@@ -149,6 +192,21 @@ function MetricTile({ label, value }: { label: string; value: string }) {
   );
 }
 
+const formatMoney = (cents: number | null, currency: string | null): string => {
+  if (typeof cents !== 'number' || !currency) return 'n/a';
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(cents / 100);
+};
+
+const formatDateTime = (value: string | null): string => {
+  if (!value) return 'n/a';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'n/a';
+  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+};
+
 function FieldHelp({ text }: { text: string }) {
   return (
     <Tooltip>
@@ -205,6 +263,16 @@ export function OwnerConsolePage() {
   const [founderBetaClaims, setFounderBetaClaims] = useState<FounderBetaClaim[]>([]);
   const [roadmapItems, setRoadmapItems] = useState<OwnerRoadmapItem[]>([]);
   const [databaseMetrics, setDatabaseMetrics] = useState<OwnerDatabaseMetrics | null>(null);
+  const [contactRequests, setContactRequests] = useState<OwnerContactRequest[]>([]);
+  const [billingSnapshot, setBillingSnapshot] = useState<OwnerBillingSnapshot | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [isLoadingBilling, setIsLoadingBilling] = useState(false);
+  const [accountSearchEmail, setAccountSearchEmail] = useState('');
+  const [managedAccount, setManagedAccount] = useState<OwnerManagedAccount | null>(null);
+  const [managedAccountDraft, setManagedAccountDraft] = useState({ access: 'free' as OwnerManagedAccount['access'], owner: false, note: '' });
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [isManagingAccount, setIsManagingAccount] = useState(false);
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [activeLegalSlug, setActiveLegalSlug] = useState<LegalDocumentSlug>('privacy');
   const [legalDrafts, setLegalDrafts] = useState<Record<LegalDocumentSlug, LegalDocument>>(
     Object.fromEntries(DEFAULT_LEGAL_DOCUMENTS.map((document) => [document.slug, document])) as Record<LegalDocumentSlug, LegalDocument>,
@@ -249,7 +317,23 @@ export function OwnerConsolePage() {
     setFounderBetaClaims(consolePayload.founderBetaClaims);
     setRoadmapItems(consolePayload.roadmapItems);
     setDatabaseMetrics(consolePayload.databaseMetrics);
+    setContactRequests(consolePayload.contactRequests);
     setLegalDrafts(Object.fromEntries(consolePayload.legalDocuments.map((document) => [document.slug, document])) as Record<LegalDocumentSlug, LegalDocument>);
+  }, []);
+
+  const loadBillingSummary = useCallback(async () => {
+    setIsLoadingBilling(true);
+    setBillingError(null);
+    try {
+      const response = await fetch('/api/owner/billing/summary', { cache: 'no-store' });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to load billing summary.'));
+      setBillingSnapshot(await response.json() as OwnerBillingSnapshot);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load billing summary.';
+      setBillingError(message);
+    } finally {
+      setIsLoadingBilling(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -290,6 +374,74 @@ export function OwnerConsolePage() {
       window.clearTimeout(slowLoadTimer);
     };
   }, [reloadToken, syncConsoleState, toast]);
+
+  useEffect(() => {
+    if (payload?.ownerAccess.isOwner) void loadBillingSummary();
+  }, [loadBillingSummary, payload?.ownerAccess.isOwner]);
+
+  const sendTestEmail = async () => {
+    setIsSendingTestEmail(true);
+    try {
+      const response = await fetch('/api/owner/email/test', { method: 'POST' });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to send test email.'));
+      const body = await response.json() as { to?: string };
+      toast({ title: 'Test email sent', description: `Sent to ${body.to ?? settings.supportEmail}.` });
+    } catch (error) {
+      toast({
+        title: 'Test email failed',
+        description: error instanceof Error ? error.message : 'Unable to send test email.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
+  const lookupAccount = async () => {
+    setIsManagingAccount(true);
+    setAccountError(null);
+    try {
+      const response = await fetch('/api/owner/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: accountSearchEmail }),
+      });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to find account.'));
+      const body = await response.json() as { account: OwnerManagedAccount };
+      setManagedAccount(body.account);
+      setManagedAccountDraft({ access: body.account.access, owner: body.account.isOwner, note: body.account.note });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to find account.';
+      setAccountError(message);
+      setManagedAccount(null);
+    } finally {
+      setIsManagingAccount(false);
+    }
+  };
+
+  const saveManagedAccount = async () => {
+    if (!managedAccount) return;
+    setIsManagingAccount(true);
+    setAccountError(null);
+    try {
+      const response = await fetch('/api/owner/accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: managedAccount.id, role: managedAccountDraft }),
+      });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to update account.'));
+      const body = await response.json() as { account: OwnerManagedAccount };
+      setManagedAccount(body.account);
+      setManagedAccountDraft({ access: body.account.access, owner: body.account.isOwner, note: body.account.note });
+      toast({ title: 'Account updated', description: `${body.account.email ?? body.account.id} now has ${body.account.access} access.` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to update account.';
+      setAccountError(message);
+      toast({ title: 'Account not updated', description: message, variant: 'destructive' });
+    } finally {
+      setIsManagingAccount(false);
+    }
+  };
 
   const saveSettings = async () => {
     setIsSaving(true);
@@ -542,6 +694,7 @@ export function OwnerConsolePage() {
             <Tabs defaultValue="readiness" className="space-y-5">
               <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
                 <TabsTrigger value="readiness" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Launch Readiness</TabsTrigger>
+                <TabsTrigger value="operations" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Operations</TabsTrigger>
                 <TabsTrigger value="copy" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Site Copy</TabsTrigger>
                 <TabsTrigger value="site" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Site Mechanics</TabsTrigger>
                 <TabsTrigger value="access" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Access & Promos</TabsTrigger>
@@ -738,6 +891,163 @@ export function OwnerConsolePage() {
                 ))}
               </div>
             </section>
+              </TabsContent>
+
+              <TabsContent value="operations" className="mt-0">
+                <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                  <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="flex items-center gap-3 text-[#e2aa4a]">
+                          <Mail className="h-5 w-5" />
+                          <h2 className="font-serif text-2xl text-[#fff1c7]">Email operations</h2>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-[#c7b288]">
+                          Send a live Resend test to the owner support inbox and review recent support/developer requests.
+                        </p>
+                      </div>
+                      <Button onClick={sendTestEmail} disabled={isSendingTestEmail || !payload.integrationStatus.email.resendConfigured} className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                        <Mail className="mr-2 h-4 w-4" />
+                        {isSendingTestEmail ? 'Sending...' : 'Send test email'}
+                      </Button>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <MetricTile label="Requests" value={String(contactRequests.length)} />
+                      <MetricTile label="Developer" value={String(contactRequests.filter((request) => request.kind === 'developer').length)} />
+                      <MetricTile label="Email route" value={payload.integrationStatus.email.resendConfigured ? 'Resend ready' : 'Mailto only'} />
+                    </div>
+                    <div className="mt-5 space-y-3">
+                      {contactRequests.length === 0 ? (
+                        <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">
+                          No request history yet. If the migration has not been applied, requests can still email but will not appear here.
+                        </p>
+                      ) : contactRequests.slice(0, 6).map((request) => (
+                        <article key={request.id} className="border border-[#4a3823] bg-[#100c08] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-[#ffe7ad]">{request.subject}</p>
+                            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{request.kind} · {request.status}</span>
+                          </div>
+                          <p className="mt-2 text-sm text-[#d9c28f]">{request.name} · {request.email}</p>
+                          <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#c7b288]">{request.message}</p>
+                          <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(request.createdAt)}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="flex items-center gap-3 text-[#e2aa4a]">
+                          <CreditCard className="h-5 w-5" />
+                          <h2 className="font-serif text-2xl text-[#fff1c7]">Billing snapshot</h2>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-[#c7b288]">
+                          Safe Stripe summaries for recent checkout sessions and subscriptions. Raw payment controls stay in Stripe.
+                        </p>
+                      </div>
+                      <Button onClick={loadBillingSummary} disabled={isLoadingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                        <Rocket className="mr-2 h-4 w-4" />
+                        {isLoadingBilling ? 'Refreshing...' : 'Refresh'}
+                      </Button>
+                    </div>
+                    {billingError ? (
+                      <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">{billingError}</p>
+                    ) : null}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <MetricTile label="Checkout" value={billingSnapshot?.status.checkoutConfigured ? 'Ready' : 'Needs setup'} />
+                      <MetricTile label="Webhook" value={billingSnapshot?.status.webhookConfigured ? 'Ready' : 'Needs setup'} />
+                      <MetricTile label="Subscriptions" value={String(billingSnapshot?.recentSubscriptions.length ?? 0)} />
+                    </div>
+                    <div className="mt-5 space-y-3">
+                      {(billingSnapshot?.recentCheckoutSessions ?? []).slice(0, 5).map((session) => (
+                        <article key={session.id} className="border border-[#4a3823] bg-[#100c08] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-[#ffe7ad]">{formatMoney(session.amountTotalCents, session.currency)}</p>
+                            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{session.paymentStatus ?? session.status ?? 'unknown'}</span>
+                          </div>
+                          <p className="mt-2 text-sm text-[#d9c28f]">{session.customerEmail ?? session.clerkUserId ?? session.id}</p>
+                          <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(session.createdAt)} · {session.subscriptionId ?? 'No subscription yet'}</p>
+                        </article>
+                      ))}
+                      {billingSnapshot && billingSnapshot.recentCheckoutSessions.length === 0 ? (
+                        <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">No recent Stripe checkout sessions found.</p>
+                      ) : null}
+                    </div>
+                  </section>
+
+                  <section className="border border-[#6d4f2b] bg-[#15100a] p-6 xl:col-span-2">
+                    <div className="flex items-center gap-3 text-[#e2aa4a]">
+                      <UserCog className="h-5 w-5" />
+                      <h2 className="font-serif text-2xl text-[#fff1c7]">Account controls</h2>
+                    </div>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
+                      Look up a Clerk account by email, then adjust CardForge private metadata for free, paid, dev, or owner access. Stripe ids are preserved.
+                    </p>
+                    <div className="mt-5 flex flex-col gap-3 md:flex-row">
+                      <input
+                        className="min-w-0 flex-1 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                        placeholder="user@example.com"
+                        value={accountSearchEmail}
+                        onChange={(event) => setAccountSearchEmail(event.target.value)}
+                      />
+                      <Button onClick={lookupAccount} disabled={isManagingAccount} className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                        <Search className="mr-2 h-4 w-4" />
+                        Lookup
+                      </Button>
+                    </div>
+                    {accountError ? <p className="mt-3 text-sm text-[#f0bd75]">{accountError}</p> : null}
+                    {managedAccount ? (
+                      <div className="mt-5 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+                        <div className="border border-[#4a3823] bg-[#100c08] p-4 text-sm leading-6 text-[#c7b288]">
+                          <p className="text-lg font-semibold text-[#ffe7ad]">{managedAccount.email ?? managedAccount.id}</p>
+                          <p>Name: {managedAccount.name || 'Not set'}</p>
+                          <p>Current access: {managedAccount.access}</p>
+                          <p>Owner: {managedAccount.isOwner ? 'Yes' : 'No'}</p>
+                          <p>Stripe customer: {managedAccount.stripeCustomerId ?? 'None'}</p>
+                          <p>Stripe subscription: {managedAccount.stripeSubscriptionId ?? 'None'}</p>
+                        </div>
+                        <div className="border border-[#4a3823] bg-[#100c08] p-4">
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <label className="grid gap-2 text-sm text-[#c7b288]">
+                              Access
+                              <select
+                                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                                value={managedAccountDraft.access}
+                                onChange={(event) => setManagedAccountDraft((current) => ({ ...current, access: event.target.value as OwnerManagedAccount['access'] }))}
+                              >
+                                <option value="free">Free</option>
+                                <option value="paid">Creator Pass</option>
+                                <option value="dev">Developer</option>
+                              </select>
+                            </label>
+                            <label className="flex items-center gap-3 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#c7b288] md:mt-7">
+                              <input
+                                type="checkbox"
+                                checked={managedAccountDraft.owner}
+                                onChange={(event) => setManagedAccountDraft((current) => ({ ...current, owner: event.target.checked }))}
+                              />
+                              Owner access
+                            </label>
+                          </div>
+                          <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">
+                            Owner note
+                            <textarea
+                              rows={3}
+                              className="resize-y border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                              value={managedAccountDraft.note}
+                              onChange={(event) => setManagedAccountDraft((current) => ({ ...current, note: event.target.value }))}
+                            />
+                          </label>
+                          <Button onClick={saveManagedAccount} disabled={isManagingAccount} className="mt-4 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                            <Save className="mr-2 h-4 w-4" />
+                            Save account access
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                </div>
               </TabsContent>
 
               <TabsContent value="copy" className="mt-0">

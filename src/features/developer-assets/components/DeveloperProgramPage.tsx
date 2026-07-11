@@ -11,6 +11,7 @@ import { DeveloperAssetHubPanel } from '@/features/developer-assets/components/D
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import { createDeveloperRequestMailto } from '@/lib/contactLinks';
+import { ContactRequestForm } from '@/features/contact/components/ContactRequestForm';
 
 const programStandards = [
   'Share polished assets that make real card systems easier to build.',
@@ -305,13 +306,21 @@ function PublicDeveloperRecruitment({
                 </SignUpButton>
               </>
             ) : (
-              <Button asChild className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+              <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
                 <a href={developerRequestMailto}>
-                  Request developer access <ArrowRight className="ml-2 h-4 w-4" />
+                  Email fallback <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
               </Button>
             )}
           </div>
+          {authConfigured && isSignedIn ? (
+            <ContactRequestForm
+              kind="developer"
+              defaultEmail={accountEmail}
+              defaultName=""
+              defaultSubject="CardForge developer program request"
+            />
+          ) : null}
         </div>
 
         <aside className="border border-[#5f4526] bg-[#100c08] p-4">

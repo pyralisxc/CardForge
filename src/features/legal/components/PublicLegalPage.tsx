@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type React from 'react';
 import { Hammer } from 'lucide-react';
 
 import type { LegalDocument, OwnerSettings } from '@/lib/ownerConsole';
@@ -20,9 +21,11 @@ const formatPublishedDate = (value: string | null) => {
 };
 
 export function PublicLegalPage({
+  children,
   document,
   settings,
 }: {
+  children?: React.ReactNode;
   document: LegalDocument;
   settings: OwnerSettings;
 }) {
@@ -52,6 +55,7 @@ export function PublicLegalPage({
             <p key={`${document.slug}-${index}`}>{paragraph}</p>
           ))}
         </div>
+        {children}
         <div className="mt-8 border border-[#5f4526] bg-[#100c08] p-5 text-sm leading-6 text-[#c7b288]">
           <p className="mb-3 text-xs uppercase tracking-[0.16em] text-[#d8b365]">Business contact</p>
           <p>Business: {settings.businessName}</p>
