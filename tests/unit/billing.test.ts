@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCheckoutSessionParams,
+  buildStripePaidAccessMetadata,
+  buildStripeRevokedAccessMetadata,
   getBillingConfigStatus,
+  shouldGrantAccessForStripeSubscriptionStatus,
+  shouldRevokeAccessForStripeSubscriptionStatus,
 } from '@/lib/billing';
 
 describe('billing', () => {
@@ -63,5 +67,54 @@ describe('billing', () => {
         },
       },
     });
+  });
+
+  it('builds trusted Clerk metadata for Stripe-paid Creator Pass access', () => {
+    expect(buildStripePaidAccessMetadata({
+      existingMetadata: { cardforgeRole: 'owner', cardforgeAccessExpiresAt: '2026-08-01T00:00:00.000Z' },
+      stripeCustomerId: 'cus_123',
+      stripeSubscriptionId: 'sub_123',
+      stripeCheckoutSessionId: 'cs_123',
+    })).toMatchObject({
+      cardforgeRole: 'owner',
+      cardforgeAccess: 'paid',
+      cardforgeAccessExpiresAt: null,
+      cardforgeStripeCustomerId: 'cus_123',
+      cardforgeStripeSubscriptionId: 'sub_123',
+      cardforgeStripeCheckoutSessionId: 'cs_123',
+    });
+  });
+
+  it('revokes only Stripe-paid access while preserving unrelated private metadata', () => {
+    expect(buildStripeRevokedAccessMetadata({
+      cardforgeAccess: 'paid',
+      cardforgeRole: 'owner',
+      cardforgeStripeSubscriptionId: 'sub_123',
+    })).toMatchObject({
+      cardforgeAccess: 'free',
+      cardforgeRole: 'owner',
+      cardforgeAccessExpiresAt: null,
+      cardforgeStripeSubscriptionId: 'sub_123',
+    });
+
+    expect(buildStripeRevokedAccessMetadata({
+      cardforgeAccess: 'dev',
+      cardforgeRole: 'owner',
+    })).toMatchObject({
+      cardforgeAccess: 'dev',
+      cardforgeRole: 'owner',
+      cardforgeAccessExpiresAt: null,
+    });
+  });
+
+  it('maps Stripe subscription statuses to entitlement actions', () => {
+    expect(shouldGrantAccessForStripeSubscriptionStatus('active')).toBe(true);
+    expect(shouldGrantAccessForStripeSubscriptionStatus('trialing')).toBe(true);
+    expect(shouldGrantAccessForStripeSubscriptionStatus('past_due')).toBe(false);
+
+    expect(shouldRevokeAccessForStripeSubscriptionStatus('canceled')).toBe(true);
+    expect(shouldRevokeAccessForStripeSubscriptionStatus('incomplete_expired')).toBe(true);
+    expect(shouldRevokeAccessForStripeSubscriptionStatus('unpaid')).toBe(true);
+    expect(shouldRevokeAccessForStripeSubscriptionStatus('active')).toBe(false);
   });
 });

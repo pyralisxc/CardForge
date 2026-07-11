@@ -1,12 +1,12 @@
 # Release Checklist
 
-Last updated: May 27, 2026
+Last updated: July 11, 2026
 
 ## Release Status
 
 Current recommendation: `GO FOR INTERNAL QA AND PUBLIC DEMO/BETA`, `NO-GO FOR PAID PRODUCTION LAUNCH`
 
-The application is in a strong internal QA state for core authoring, generation, export, account, roadmap, and developer-pipeline workflows after the Phase 1-3 AAA stabilization work. The known Next/PostCSS production audit advisory is accepted for MVP demo/public-beta launch because it is a framework-bundled moderate advisory with no identified CardForge runtime path that parses user-submitted CSS through PostCSS and injects it into a page `<style>` tag. Paid production launch should still pause until billing-owned entitlement operations and release hygiene are complete.
+The application is in a strong internal QA state for core authoring, generation, export, account, roadmap, developer-pipeline, and Stripe entitlement-webhook workflows after the Phase 1-3 AAA stabilization work. The known Next/PostCSS production audit advisory is accepted for MVP demo/public-beta launch because it is a framework-bundled moderate advisory with no identified CardForge runtime path that parses user-submitted CSS through PostCSS and injects it into a page `<style>` tag. Paid production launch should still pause until the live Stripe product/price, webhook endpoint, payment-method settings, and end-to-end checkout grant are configured and verified.
 
 ## Go / No-Go Summary
 
@@ -23,7 +23,8 @@ The application is in a strong internal QA state for core authoring, generation,
 ### Remaining Launch Decisions
 
 Release can proceed only after the team resolves:
-- the Stripe webhook or billing-owned entitlement store for production paid-account activation
+- the live Stripe Creator Pass product/price, `STRIPE_PRICE_ID`, and `/api/billing/webhook` endpoint secret for production paid-account activation
+- a successful test checkout that writes trusted Creator Pass access to Clerk private metadata
 - production `NEXT_PUBLIC_APP_URL` points at the deployed app/custom domain, not Supabase
 
 Release should pause if:
@@ -41,7 +42,7 @@ These checks passed after the May 27, 2026 field-contract and active-doc hygiene
 - `npm audit --omit=dev` does not pass
 - whitespace check passed with `git diff --check`
 - Field Contract v1 now keeps active generator contract types to `text`, `structuredRows`, and `image`; old public text subtypes were removed from active app/docs/tests.
-- entitlement hardening now ignores public Clerk metadata and accepts paid/dev unlocks only from Clerk private metadata, server allowlists, local fallback mode, or a future billing-owned source
+- entitlement hardening now ignores public Clerk metadata and accepts paid/dev unlocks only from Clerk private metadata, server allowlists, local fallback mode, or Stripe webhook-owned paid access
 - API bootstrap/account/billing failures now use no-store JSON error envelopes with correlation ids
 - tracked local-only user template JSON and the empty `.modified` marker were removed from the release tree
 - `/` now renders the public CardForge landing page, `/studio` renders the maker/generator workspace, `/account` renders profile/export/dev-tool status, and `/profile` renders Clerk-backed profile management
@@ -584,16 +585,19 @@ Risk rating: `Moderate / Known / Accepted for MVP demo/public beta / Launch Bloc
 ### 2. Production Billing Entitlement Activation
 
 Current finding:
-- Stripe Checkout exists, but there is no production webhook or billing-owned entitlement store in this slice.
-- Paid/dev unlocks are intentionally server-trusted: Clerk private metadata, server-only allowlists, local fallback mode, or a future billing source.
+- Stripe Checkout and the `/api/billing/webhook` entitlement bridge exist, but the live Stripe Creator Pass product/price, webhook endpoint registration, and payment-method settings still need production configuration.
+- Paid/dev unlocks are intentionally server-trusted: Clerk private metadata, server-only allowlists, local fallback mode, or Stripe webhook-owned paid access.
 - Public Clerk metadata is ignored and must not be used as a paid/dev authority.
 
 What we verified:
 - focused unit tests prove public Clerk metadata no longer grants paid/dev export entitlement
 - API errors now have shared no-store JSON envelopes with correlation ids
+- focused unit tests cover Stripe paid-access metadata, revocation metadata, and subscription status mapping
 
 Recommended handling:
-- add a Stripe webhook before public paid launch, or record a named decision to operate manually through private Clerk metadata/server allowlists
+- create the Creator Pass Product and recurring Price in Stripe, then set `STRIPE_PRICE_ID`
+- register the production `/api/billing/webhook` endpoint for `checkout.session.completed` and `customer.subscription.*`, then set `STRIPE_WEBHOOK_SECRET`
+- run a Stripe test checkout and confirm Clerk private metadata grants Creator Pass
 - keep public metadata display-only
 
 Risk rating: `High / Known / Launch Blocking for paid self-serve`
@@ -608,7 +612,7 @@ Current finding:
 - Asset lifecycle status is separate from creator-facing visibility. Creator-facing published visibility is `free` or `paid`; internal `developer`/`hidden` tier values represent pipeline-only or not-live inventory and should not be presented as extra customer-facing library tiers.
 - The default access ladder is 5 votes before tier assignment, 60% positive for Starter Library, and 80% positive for Creator Pass, with owner overrides available from `/owner`.
 - Publish Total is derived from Starter plus Creator Pass caps so owners cannot create conflicting per-type library limits.
-- Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe should later own real coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks.
+- Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe owns paid coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks once billing is active.
 - `/api/assets` now exposes one asset registry payload from `cardforge_asset_registry`; it does not silently rebuild the catalog from repo starter files.
 - Starter textures, dividers, templates, and element presets are synced into the pipeline as published starter-library assets so they remain visible in the app and stay voteable.
 - `202605230003_asset_registry_all_creation_assets.sql` expands the registry to reusable visual/source creation asset classes: textures, dividers, parts, icons, images, templates, and element presets.

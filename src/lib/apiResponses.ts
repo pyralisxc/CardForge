@@ -6,6 +6,8 @@ export type ApiErrorCode =
   | 'billing_checkout_failed'
   | 'billing_not_configured'
   | 'billing_status_unavailable'
+  | 'billing_webhook_invalid'
+  | 'billing_webhook_unconfigured'
   | 'developer_access_required'
   | 'developer_asset_request_invalid'
   | 'developer_asset_unavailable'

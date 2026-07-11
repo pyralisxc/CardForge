@@ -25,6 +25,13 @@ export interface BuildCheckoutSessionParamsInput {
   userId: string;
 }
 
+export interface BuildStripePaidAccessMetadataInput {
+  existingMetadata?: Record<string, unknown>;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+}
+
 const readEnvironment = (env?: BillingEnvironment): BillingEnvironment => env ?? {
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
@@ -82,3 +89,37 @@ export const buildCheckoutSessionParams = ({
     },
   };
 };
+
+export const buildStripePaidAccessMetadata = ({
+  existingMetadata = {},
+  stripeCustomerId,
+  stripeSubscriptionId,
+  stripeCheckoutSessionId,
+}: BuildStripePaidAccessMetadataInput): Record<string, unknown> => ({
+  ...existingMetadata,
+  cardforgeAccess: 'paid',
+  cardforgeAccessExpiresAt: null,
+  cardforgeStripeCustomerId: stripeCustomerId ?? existingMetadata.cardforgeStripeCustomerId ?? null,
+  cardforgeStripeSubscriptionId: stripeSubscriptionId ?? existingMetadata.cardforgeStripeSubscriptionId ?? null,
+  cardforgeStripeCheckoutSessionId: stripeCheckoutSessionId ?? existingMetadata.cardforgeStripeCheckoutSessionId ?? null,
+  cardforgeStripeAccessUpdatedAt: new Date().toISOString(),
+});
+
+export const buildStripeRevokedAccessMetadata = (
+  existingMetadata: Record<string, unknown> = {}
+): Record<string, unknown> => {
+  const nextMetadata = {
+    ...existingMetadata,
+    cardforgeAccess: existingMetadata.cardforgeAccess === 'paid' ? 'free' : existingMetadata.cardforgeAccess,
+    cardforgeAccessExpiresAt: null,
+    cardforgeStripeAccessUpdatedAt: new Date().toISOString(),
+  };
+
+  return nextMetadata;
+};
+
+export const shouldGrantAccessForStripeSubscriptionStatus = (status: string | null | undefined): boolean =>
+  status === 'active' || status === 'trialing';
+
+export const shouldRevokeAccessForStripeSubscriptionStatus = (status: string | null | undefined): boolean =>
+  status === 'canceled' || status === 'incomplete_expired' || status === 'unpaid';

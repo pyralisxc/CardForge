@@ -307,7 +307,7 @@ Trusted export entitlement sources are:
 - optional paid-beta expiration metadata: `cardforgeAccessExpiresAt` as an ISO date on paid private metadata
 - server-only email allowlists: `CARDFORGE_PAID_ACCOUNT_EMAILS` and `CARDFORGE_DEV_ACCOUNT_EMAILS`
 - local fallback access mode when Clerk is not configured
-- a future Stripe webhook or billing-owned entitlement store
+- the Stripe webhook billing bridge that writes trusted paid access after checkout or subscription updates
 
 Public Clerk metadata is intentionally ignored for paid/dev unlocks because it is client-readable. API routes should return shared no-store JSON error envelopes from `src/lib/apiResponses.ts` so account, billing, template, style, and asset bootstrap failures have correlation ids instead of raw framework errors.
 
@@ -315,7 +315,7 @@ Clerk is wired through `src/app/layout.tsx` and `middleware.ts` only when Clerk 
 
 Early beta users can be granted export access before Stripe is live by setting Clerk private metadata to `cardforgeAccess: "paid"` and, when the grant should expire, `cardforgeAccessExpiresAt` to an ISO timestamp. Expired paid metadata resolves back to free access. The checkout CTA should explain that beta access is manual when Stripe checkout configuration is missing.
 
-Founder Beta is a CardForge-owned promo entitlement, not a Stripe coupon in the MVP. The owner console controls campaign status, public slot cap, current release cap, 90-day access duration, auto-grant behavior, waitlist mode, public copy, and optional Stripe coupon/promotion-code references for the later billing launch. The default public cap is 300 founder slots and the initial release wave is 100. A signed-in user can claim an available slot through `/api/founder-beta/claim`; the API records the claim in Supabase and writes trusted Clerk private metadata so existing entitlement resolution unlocks clean export.
+Founder Beta is a CardForge-owned promo entitlement, not a Stripe coupon in the MVP. The owner console controls campaign status, public slot cap, current release cap, 90-day access duration, auto-grant behavior, waitlist mode, public copy, and optional Stripe coupon/promotion-code references for billing promotions. The default public cap is 300 founder slots and the initial release wave is 100. A signed-in user can claim an available slot through `/api/founder-beta/claim`; the API records the claim in Supabase and writes trusted Clerk private metadata so existing entitlement resolution unlocks clean export.
 
 For MVP QA, account UI should distinguish incomplete setup from real account entitlement. A publishable Clerk key without `CLERK_SECRET_KEY` is treated as setup-incomplete, not as a signed-in, paid, or dev user. Local development may still use fallback export behavior, but the visible account path must tell testers to add the missing secret and restart the dev server.
 

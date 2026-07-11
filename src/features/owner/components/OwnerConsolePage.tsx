@@ -875,7 +875,7 @@ export function OwnerConsolePage() {
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Marketing and promos</h2>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-                    Founder Beta is the single CardForge-owned launch promo for access grants and wave control. Stripe later owns real coupons, promotion codes, invoices, and subscription discounts.
+                    Founder Beta is the single CardForge-owned launch promo for access grants and wave control. Stripe owns paid coupons, promotion codes, invoices, and subscription discounts once billing is active.
                   </p>
                 </div>
                 <div className="border border-[#7d5a2e] bg-[#100c08] px-4 py-3 text-sm text-[#ffe7ad]">
@@ -908,7 +908,7 @@ export function OwnerConsolePage() {
                   <div>
                     <h3 className="font-serif text-xl text-[#fff1c7]">How to unlock the next wave</h3>
                     <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-                      Increase Current release cap when you are ready to admit more users from the public cap. Keep it at or below Public slot cap. Later, Stripe promotion codes can mirror this campaign for paid billing, but this control remains the product-access gate.
+                      Increase Current release cap when you are ready to admit more users from the public cap. Keep it at or below Public slot cap. Stripe promotion codes can mirror this campaign for paid billing, but this control remains the product-access gate.
                     </p>
                   </div>
                 </div>
