@@ -94,7 +94,7 @@ Pipeline lifecycle terms are `draft`, `submitted`, `voting`, `publish_candidate`
 
 Developer contribution records are durable history. Deleting or disabling a Clerk account must not delete developer submissions, votes, published registry rows, or source-file references. The pipeline stores contributor ids/emails as snapshots instead of foreign keys to live account rows; if a developer leaves, mark the profile inactive/suspended or let the Clerk account disappear while preserving the contribution ledger.
 
-The future creator pool is planning copy only. The current default policy is 10% of eligible profit split evenly among eligible active developers after payout systems, tax/legal terms, refund handling, Stripe Connect, and billing webhooks are implemented.
+The future creator pool is planning copy only. The current default policy is 10% of eligible profit split evenly among eligible active developers after payout systems, tax/legal terms, refund handling, Stripe Connect, and payout operations are implemented.
 
 ## Local-First Boundaries
 

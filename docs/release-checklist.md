@@ -6,7 +6,7 @@ Last updated: July 11, 2026
 
 Current recommendation: `GO FOR INTERNAL QA AND PUBLIC DEMO/BETA`, `NO-GO FOR PAID PRODUCTION LAUNCH`
 
-The application is in a strong internal QA state for core authoring, generation, export, account, roadmap, developer-pipeline, and Stripe entitlement-webhook workflows after the Phase 1-3 AAA stabilization work. The known Next/PostCSS production audit advisory is accepted for MVP demo/public-beta launch because it is a framework-bundled moderate advisory with no identified CardForge runtime path that parses user-submitted CSS through PostCSS and injects it into a page `<style>` tag. Paid production launch should still pause until the live Stripe product/price, webhook endpoint, payment-method settings, and end-to-end checkout grant are configured and verified.
+The application is in a strong internal QA state for core authoring, generation, export, account, roadmap, developer-pipeline, and Stripe entitlement-webhook workflows after the Phase 1-3 AAA stabilization work. The known Next/PostCSS production audit advisory is accepted for MVP demo/public-beta launch because it is a framework-bundled moderate advisory with no identified CardForge runtime path that parses user-submitted CSS through PostCSS and injects it into a page `<style>` tag. Paid production launch should still pause until the full checkout-to-webhook-to-Clerk entitlement path is verified, live-mode Stripe business/payment-method settings are confirmed, and final legal review is complete.
 
 ## Go / No-Go Summary
 
@@ -23,8 +23,8 @@ The application is in a strong internal QA state for core authoring, generation,
 ### Remaining Launch Decisions
 
 Release can proceed only after the team resolves:
-- the live Stripe Creator Pass product/price, `STRIPE_PRICE_ID`, and `/api/billing/webhook` endpoint secret for production paid-account activation
 - a successful test checkout that writes trusted Creator Pass access to Clerk private metadata
+- live-mode Stripe business settings, payment-method settings, payout/banking readiness, and tax/refund operating rules
 - production `NEXT_PUBLIC_APP_URL` points at the deployed app/custom domain, not Supabase
 
 Release should pause if:
@@ -585,7 +585,8 @@ Risk rating: `Moderate / Known / Accepted for MVP demo/public beta / Launch Bloc
 ### 2. Production Billing Entitlement Activation
 
 Current finding:
-- Stripe Checkout and the `/api/billing/webhook` entitlement bridge exist, but the live Stripe Creator Pass product/price, webhook endpoint registration, and payment-method settings still need production configuration.
+- Stripe Checkout, the Creator Pass price, Vercel env, and the `/api/billing/webhook` entitlement bridge are configured for the current test-mode launch path.
+- Remaining paid-launch risk is proving the full checkout -> webhook -> Clerk entitlement grant and confirming live-mode Stripe business/payment-method settings before taking real money.
 - Paid/dev unlocks are intentionally server-trusted: Clerk private metadata, server-only allowlists, local fallback mode, or Stripe webhook-owned paid access.
 - Public Clerk metadata is ignored and must not be used as a paid/dev authority.
 
@@ -595,9 +596,8 @@ What we verified:
 - focused unit tests cover Stripe paid-access metadata, revocation metadata, and subscription status mapping
 
 Recommended handling:
-- create the Creator Pass Product and recurring Price in Stripe, then set `STRIPE_PRICE_ID`
-- register the production `/api/billing/webhook` endpoint for `checkout.session.completed` and `customer.subscription.*`, then set `STRIPE_WEBHOOK_SECRET`
 - run a Stripe test checkout and confirm Clerk private metadata grants Creator Pass
+- confirm Stripe live-mode business profile, payout/banking readiness, payment methods, tax/refund rules, and customer support details
 - keep public metadata display-only
 
 Risk rating: `High / Known / Launch Blocking for paid self-serve`
@@ -683,7 +683,7 @@ Recommended handling:
 - verify the owner can complete a CardForge-authored roadmap checkpoint from `/owner` and see the public roadmap reflect the shipped state
 - verify Founder Beta active users are visible in `/owner` after a signed-in account claims a slot
 - verify a developer can choose a Personal Library template/style/local art item, browse for an SVG/PNG/JPG/WEBP/JSON/font source file, or drag/drop that file, submit it to voting, see it in My Pipeline and the shared review queue, and have an owner-published visual/source submission appear through `/api/assets` or an owner-published font appear through `/api/fonts`
-- treat payout reports as planning data until Stripe Connect, tax/legal terms, refund handling, and billing webhooks are implemented
+- treat payout reports as planning data until Stripe Connect, tax/legal terms, refund handling, and payout operations are implemented
 
 Risk rating: `Medium / Known / Launch Blocking for developer-program rollout, not for core local authoring`
 

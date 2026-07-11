@@ -529,7 +529,7 @@ export function OwnerConsolePage() {
                 <div className="border border-[#4a3823] bg-[#100c08] p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Future systems</p>
                   <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    Creator-pool payouts, billing webhooks, tax handling, and final legal review are still launch-gated.
+                    Creator-pool payouts, refund operations, tax handling, live-mode provider review, and final legal review are still launch-gated.
                   </p>
                 </div>
                 <div className="border border-[#4a3823] bg-[#100c08] p-4">
@@ -615,7 +615,7 @@ export function OwnerConsolePage() {
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Email routing</h2>
                   </div>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Contact and developer-request links currently use the owner support email. When the business domain is ready, configure Resend and switch selected flows to server-sent transactional email without changing the public workflow.
+                    Contact and developer-request links currently use the owner support email. Resend environment config is the delivery-readiness layer; server-sent forms and a test-email action can be added without changing the public workflow.
                   </p>
                 </div>
                 <StatusPill ready={payload.integrationStatus.email.resendConfigured} />
@@ -631,15 +631,15 @@ export function OwnerConsolePage() {
                   <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Migration path</p>
                   <ol className="mt-3 space-y-2 text-sm leading-6 text-[#c7b288]">
                     <li>1. Set the business support inbox in Business profile.</li>
-                    <li>2. Verify the sending domain or subdomain in Resend.</li>
-                    <li>3. Add `RESEND_API_KEY`, `CARDFORGE_EMAIL_FROM`, and `CARDFORGE_EMAIL_REPLY_TO` in Vercel.</li>
-                    <li>4. Convert contact/developer requests from mailto links to server-sent forms.</li>
+                    <li>2. Keep Resend API key and sender env in Vercel; never expose raw keys in the console.</li>
+                    <li>3. Verify the sending domain or sender address in Resend before production sends.</li>
+                    <li>4. Add owner test-email, then convert contact/developer requests from mailto links to server-sent forms.</li>
                   </ol>
                 </div>
                 <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Missing delivery config</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Delivery readiness</p>
                   {payload.integrationStatus.email.missing.length === 0 ? (
-                    <p className="mt-3 text-sm leading-6 text-[#bde3a8]">Transactional delivery env vars are present. Domain verification and a test email should be checked before switching forms on.</p>
+                    <p className="mt-3 text-sm leading-6 text-[#bde3a8]">Transactional delivery env vars are present. Verify the Resend sender/domain and add a test-email action before switching forms on.</p>
                   ) : (
                     <ul className="mt-3 space-y-2 text-sm leading-6 text-[#c7b288]">
                       {payload.integrationStatus.email.missing.map((item) => (
