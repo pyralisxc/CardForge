@@ -574,6 +574,11 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await page.keyboard.press('Enter');
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
+  await page.locator('.tcg-card-preview').first().hover();
+  await page.getByRole('button', { name: /Remove generated output 1/i }).click();
+
+  await expect(page.getByRole('heading', { name: /Generated Outputs \(0\)/i })).toBeVisible();
+  await expect(page.getByText('No outputs generated yet.')).toBeVisible();
 
   await page.getByRole('tab', { name: /Bulk Import/i }).click();
   await page.locator('#bulkData').fill('rulesText,typeLine\n"",CREATURE - DRAGON');

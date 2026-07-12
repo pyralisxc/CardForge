@@ -61,6 +61,7 @@ interface AppState {
   
   addGeneratedCards: (newCards: DisplayCard[]) => void;
   clearGeneratedCards: () => void;
+  removeGeneratedCard: (cardUniqueId: string) => void;
   updateGeneratedCard: (updatedCard: DisplayCard) => void;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number, skippedCount: number };
@@ -296,6 +297,17 @@ export const useAppStore = create<AppState>()(
           }));
         },
         clearGeneratedCards: () => set({ storedCards: [] }),
+        removeGeneratedCard: (cardUniqueId) => set((state) => {
+          const nextStoredCards = state.storedCards.filter(card => card.uniqueId !== cardUniqueId);
+          if (nextStoredCards.length === state.storedCards.length) return state;
+          const isEditingRemovedCard = state.editingCardUniqueId === cardUniqueId;
+
+          return {
+            storedCards: nextStoredCards,
+            editingCardUniqueId: isEditingRemovedCard ? null : state.editingCardUniqueId,
+            isEditDialogOpen: isEditingRemovedCard ? false : state.isEditDialogOpen,
+          };
+        }),
         updateGeneratedCard: (updatedCard) => set((state) => ({
           storedCards: state.storedCards.map(sc =>
             sc.uniqueId === updatedCard.uniqueId

@@ -133,6 +133,7 @@ export function CardForgeStudioShell() {
       mergeStoredCardsFromFileAction,
       openEditDialogAction,
       replaceAppearanceStylesFromFilesAction,
+      removeGeneratedCardAction,
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
       setDefaultTemplatesFromFilesAction,
@@ -209,6 +210,7 @@ export function CardForgeStudioShell() {
     handleCloseEditDialog,
     handleDuplicateCard,
     handleEditCardRequest,
+    handleRemoveCard,
     handleSaveEditedCard,
     handleSingleCardAdded,
     isClearCardsDialogOpen,
@@ -218,6 +220,7 @@ export function CardForgeStudioShell() {
     clearGeneratedCards: clearGeneratedCardsAction,
     closeEditDialog: closeEditDialogAction,
     openEditDialog: openEditDialogAction,
+    removeGeneratedCard: removeGeneratedCardAction,
     toast,
     updateGeneratedCard: updateGeneratedCardAction,
   });
@@ -464,6 +467,7 @@ export function CardForgeStudioShell() {
               onGallerySearchChange={setGallerySearch}
               onGallerySortChange={setGallerySort}
               onEditCardRequest={handleEditCardRequest}
+              onRemoveCard={handleRemoveCard}
             />
           </TabsContent>
 
@@ -560,4 +564,3 @@ export function CardForgeStudioShell() {
 }
 
     
-

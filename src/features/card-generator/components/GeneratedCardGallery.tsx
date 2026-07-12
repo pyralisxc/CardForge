@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { PackageOpen, Search } from 'lucide-react';
+import { PackageOpen, Search, Trash2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
@@ -26,6 +26,7 @@ interface GeneratedCardGalleryProps {
   onGallerySearchChange: (value: string) => void;
   onGallerySortChange: (value: GeneratedGallerySort) => void;
   onEditCardRequest: (card: DisplayCard) => void;
+  onRemoveCard: (card: DisplayCard) => void;
 }
 
 const GALLERY_GRID_GAP_PX = 12;
@@ -48,6 +49,7 @@ export function GeneratedCardGallery({
   onGallerySearchChange,
   onGallerySortChange,
   onEditCardRequest,
+  onRemoveCard,
 }: GeneratedCardGalleryProps) {
   const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('compact');
   const scrollParentRef = useRef<HTMLDivElement | null>(null);
@@ -196,6 +198,15 @@ export function GeneratedCardGallery({
                           onEdit={onEditCardRequest}
                           targetWidthPx={densityConfig.previewWidthPx}
                         />
+                        <button
+                          type="button"
+                          className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-destructive/50 bg-background/90 text-destructive opacity-0 shadow-sm transition-opacity duration-150 hover:bg-destructive hover:text-destructive-foreground focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-destructive group-hover/card:opacity-100"
+                          onClick={() => onRemoveCard(cardItem)}
+                          aria-label={`Remove generated output ${rowStart + cardIndex + 1}`}
+                          title="Remove output"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                         <div className="absolute bottom-2 right-2 opacity-0 transition-opacity duration-150 group-hover/card:opacity-100">
                           <ExportCardImageButton
                             card={cardItem}

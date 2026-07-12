@@ -301,6 +301,25 @@ describe('app store helpers', () => {
     expect(useAppStore.getState().isEditDialogOpen).toBe(false);
   });
 
+  it('removes one generated output without clearing the rest', () => {
+    useAppStore.setState({
+      storedCards: [
+        { uniqueId: 'card-kept', templateId: 'template-kept', data: { cardName: 'Kept' } },
+        { uniqueId: 'card-removed', templateId: 'template-kept', data: { cardName: 'Removed' } },
+      ],
+      editingCardUniqueId: 'card-removed',
+      isEditDialogOpen: true,
+    });
+
+    useAppStore.getState().removeGeneratedCard('card-removed');
+
+    expect(useAppStore.getState().storedCards).toEqual([
+      { uniqueId: 'card-kept', templateId: 'template-kept', data: { cardName: 'Kept' } },
+    ]);
+    expect(useAppStore.getState().editingCardUniqueId).toBeNull();
+    expect(useAppStore.getState().isEditDialogOpen).toBe(false);
+  });
+
   it('updates default templates in place without creating a user copy', () => {
     const defaultTemplate = reconstructMinimalTemplateObject({
       id: 'default-template',

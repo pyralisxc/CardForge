@@ -61,6 +61,7 @@ interface GenerationWorkspaceProps {
   onGallerySearchChange: (value: string) => void;
   onGallerySortChange: (value: GeneratedGallerySort) => void;
   onEditCardRequest: (card: DisplayCard) => void;
+  onRemoveCard: (card: DisplayCard) => void;
 }
 
 const BASELINE_PRINT_ZIP_BYTES_PER_FACE_AT_300_DPI = 226_884;
@@ -118,6 +119,7 @@ export function GenerationWorkspace({
   onGallerySearchChange,
   onGallerySortChange,
   onEditCardRequest,
+  onRemoveCard,
 }: GenerationWorkspaceProps) {
   const galleryRegionRef = useRef<HTMLDivElement | null>(null);
   const exportFaceCount = generatedDisplayCards.reduce(
@@ -413,6 +415,7 @@ export function GenerationWorkspace({
           onGallerySearchChange={onGallerySearchChange}
           onGallerySortChange={onGallerySortChange}
           onEditCardRequest={onEditCardRequest}
+          onRemoveCard={onRemoveCard}
           exportGateMessage={exportGateMessage}
         />
       </div>

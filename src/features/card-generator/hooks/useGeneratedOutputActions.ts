@@ -13,6 +13,7 @@ interface UseGeneratedOutputActionsInput {
   clearGeneratedCards: () => void;
   closeEditDialog: () => void;
   openEditDialog: (cardUniqueId: string) => void;
+  removeGeneratedCard: (cardUniqueId: string) => void;
   toast: ToastFn;
   updateGeneratedCard: (card: DisplayCard) => void;
 }
@@ -22,6 +23,7 @@ export function useGeneratedOutputActions({
   clearGeneratedCards,
   closeEditDialog,
   openEditDialog,
+  removeGeneratedCard,
   toast,
   updateGeneratedCard,
 }: UseGeneratedOutputActionsInput) {
@@ -51,6 +53,11 @@ export function useGeneratedOutputActions({
     toast({ title: 'Output Updated', description: 'Changes saved.' });
   }, [toast, updateGeneratedCard]);
 
+  const handleRemoveCard = useCallback((cardToRemove: DisplayCard) => {
+    removeGeneratedCard(cardToRemove.uniqueId);
+    toast({ title: 'Output removed', description: 'The generated output was removed from this browser.' });
+  }, [removeGeneratedCard, toast]);
+
   const handleDuplicateCard = useCallback((cardToDuplicate: DisplayCard) => {
     const newCard: DisplayCard = {
       ...JSON.parse(JSON.stringify(cardToDuplicate)),
@@ -70,6 +77,7 @@ export function useGeneratedOutputActions({
     handleCloseEditDialog,
     handleDuplicateCard,
     handleEditCardRequest,
+    handleRemoveCard,
     handleSaveEditedCard,
     handleSingleCardAdded,
     isClearCardsDialogOpen,

@@ -41,6 +41,7 @@ export function useCardForgeWorkspaceState() {
   const deleteAppearanceStyleAction = useAppStore((state) => state.deleteAppearanceStyle);
   const addGeneratedCardsAction = useAppStore((state) => state.addGeneratedCards);
   const clearGeneratedCardsAction = useAppStore((state) => state.clearGeneratedCards);
+  const removeGeneratedCardAction = useAppStore((state) => state.removeGeneratedCard);
   const updateGeneratedCardAction = useAppStore((state) => state.updateGeneratedCard);
   const retargetGeneratedCardsTemplateAction = useAppStore((state) => state.retargetGeneratedCardsTemplate);
   const setStoredCardsFromFileAction = useAppStore((state) => state.setStoredCardsFromFile);
@@ -79,6 +80,7 @@ export function useCardForgeWorkspaceState() {
       deleteAppearanceStyleAction,
       deleteTemplateAction,
       openEditDialogAction,
+      removeGeneratedCardAction,
       retargetGeneratedCardsTemplateAction,
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
