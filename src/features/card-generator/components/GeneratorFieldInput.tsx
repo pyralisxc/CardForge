@@ -13,6 +13,7 @@ import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
 import { cn } from '@/lib/utils';
 import type { FieldStyleProperty } from '@/lib/fieldStyleOverrides';
+import type { ImageFieldOverrideProperty } from '@/lib/imageFieldOverrides';
 
 interface GeneratorFieldInputProps {
   field: TemplateFieldDefinition;
@@ -27,6 +28,8 @@ interface GeneratorFieldInputProps {
   showDefaultText?: boolean;
   styleValues?: Partial<Record<FieldStyleProperty, string>>;
   onStyleChange?: (property: FieldStyleProperty, value: string) => void;
+  imageStyleValues?: Partial<Record<ImageFieldOverrideProperty, string>>;
+  onImageStyleChange?: (property: ImageFieldOverrideProperty, value: string) => void;
 }
 
 export function GeneratorFieldInput({
@@ -42,11 +45,14 @@ export function GeneratorFieldInput({
   showDefaultText = true,
   styleValues,
   onStyleChange,
+  imageStyleValues,
+  onImageStyleChange,
 }: GeneratorFieldInputProps) {
   const reactId = useId().replace(/:/g, '');
   const fieldId = `generator-field-${field.key}-${reactId}`;
   const fileInputId = `${fieldId}-file`;
   const [richTextExpanded, setRichTextExpanded] = useState(false);
+  const [imageToolsExpanded, setImageToolsExpanded] = useState(false);
   const editorHeight = field.contentModel === 'text' && field.isMultiline
     ? compact ? 'min-h-[6.5rem]' : 'min-h-[9rem]'
     : compact ? 'min-h-[4.5rem]' : 'min-h-[6rem]';
@@ -222,6 +228,56 @@ export function GeneratorFieldInput({
         )}
       </div>
 
+      {field.isImage ? (
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            className="flex min-h-8 w-full items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/20 px-2.5 py-1.5 text-left text-xs transition-colors hover:border-primary/50 hover:bg-muted/35"
+            aria-expanded={imageToolsExpanded}
+            aria-controls={`${fieldId}-image-tools`}
+            onClick={() => setImageToolsExpanded((expanded) => !expanded)}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span className="font-medium">{imageToolsExpanded ? 'Hide image tools' : 'Image tools'}</span>
+              <span className="hidden text-muted-foreground sm:inline">Fit, crop, position, flip, and frame</span>
+            </span>
+            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', imageToolsExpanded && 'rotate-180')} />
+          </button>
+          {imageToolsExpanded ? (
+            <div id={`${fieldId}-image-tools`} className="grid gap-2 rounded-md border border-border/70 bg-background/80 p-2 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label htmlFor={`${fieldId}-image-fit`} className="text-[10px] text-muted-foreground">Fit</Label>
+                <select
+                  id={`${fieldId}-image-fit`}
+                  value={imageStyleValues?.fit || ''}
+                  onChange={(event) => onImageStyleChange?.('fit', event.target.value)}
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                >
+                  <option value="">Template</option>
+                  <option value="cover">Cover</option>
+                  <option value="contain">Contain</option>
+                  <option value="fill">Fill</option>
+                  <option value="none">None</option>
+                </select>
+              </div>
+              <ImageToolInput fieldId={fieldId} label="Position X" property="positionX" placeholder="center" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Position Y" property="positionY" placeholder="center" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Scale" property="scale" placeholder="1" type="number" step="0.05" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Offset X" property="offsetX" placeholder="0" type="number" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Offset Y" property="offsetY" placeholder="0" type="number" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Rotation" property="rotation" placeholder="0" type="number" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolCheckbox fieldId={fieldId} label="Flip X" property="flipX" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolCheckbox fieldId={fieldId} label="Flip Y" property="flipY" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Frame X" property="frameX" placeholder="Template" type="number" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Frame Y" property="frameY" placeholder="Template" type="number" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Frame W" property="frameWidth" placeholder="Template" type="number" values={imageStyleValues} onChange={onImageStyleChange} />
+              <ImageToolInput fieldId={fieldId} label="Frame H" property="frameHeight" placeholder="Template" type="number" values={imageStyleValues} onChange={onImageStyleChange} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {field.helperText && (
         <p className="text-xs text-muted-foreground">{field.helperText}</p>
       )}
@@ -236,3 +292,67 @@ export function GeneratorFieldInput({
 
 export const getFieldStringValue = (data: CardData, field: TemplateFieldDefinition): string =>
   String(data[field.key] ?? '');
+
+function ImageToolInput({
+  fieldId,
+  label,
+  property,
+  placeholder,
+  type = 'text',
+  step,
+  values,
+  onChange,
+}: {
+  fieldId: string;
+  label: string;
+  property: ImageFieldOverrideProperty;
+  placeholder: string;
+  type?: 'text' | 'number';
+  step?: string;
+  values?: Partial<Record<ImageFieldOverrideProperty, string>>;
+  onChange?: (property: ImageFieldOverrideProperty, value: string) => void;
+}) {
+  const id = `${fieldId}-image-${property}`;
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-[10px] text-muted-foreground">{label}</Label>
+      <Input
+        id={id}
+        type={type}
+        step={step}
+        value={values?.[property] || ''}
+        placeholder={placeholder}
+        onChange={(event) => onChange?.(property, event.target.value)}
+        className="h-8 text-xs"
+      />
+    </div>
+  );
+}
+
+function ImageToolCheckbox({
+  fieldId,
+  label,
+  property,
+  values,
+  onChange,
+}: {
+  fieldId: string;
+  label: string;
+  property: ImageFieldOverrideProperty;
+  values?: Partial<Record<ImageFieldOverrideProperty, string>>;
+  onChange?: (property: ImageFieldOverrideProperty, value: string) => void;
+}) {
+  const id = `${fieldId}-image-${property}`;
+  const checked = values?.[property] === 'true' || values?.[property] === '1';
+  return (
+    <label htmlFor={id} className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange?.(property, event.target.checked ? 'true' : '')}
+      />
+      {label}
+    </label>
+  );
+}

@@ -10,6 +10,12 @@ import {
   isRecognizedFieldStyleColumn,
   parseFieldStyleColumnHeader,
 } from '@/lib/fieldStyleOverrides';
+import {
+  IMAGE_FIELD_OVERRIDE_PROPERTIES,
+  buildImageFieldOverrideDataKey,
+  isRecognizedImageFieldOverrideColumn,
+  parseImageFieldOverrideColumnHeader,
+} from '@/lib/imageFieldOverrides';
 import { parseCSV, unparseCSV } from '@/lib/utils';
 
 export interface BulkPreviewRow {
@@ -126,6 +132,11 @@ const createFieldStyleOverrideColumns = (field: TemplateFieldDefinition): string
   return FIELD_STYLE_PROPERTIES.map((property) => `${field.key}.${property}`);
 };
 
+const createImageFieldOverrideColumns = (field: TemplateFieldDefinition): string[] => {
+  if (!field.isImage) return [];
+  return IMAGE_FIELD_OVERRIDE_PROPERTIES.map((property) => `${field.key}.image.${property}`);
+};
+
 export const createBulkContractSummary = (fieldDefinitions: TemplateFieldDefinition[]): BulkContractSummary => {
   const structuredRowGroups = new Map<string, { id: string; label: string; columns: Array<{ key: string; label: string }> }>();
 
@@ -185,6 +196,11 @@ export const createBulkImportContract = ({
     supportedProperties: FIELD_STYLE_PROPERTIES,
     examples: ['Name.textColor', 'Name.style.fontWeight'],
   },
+  imageOverrideSyntax: {
+    summary: 'Optional row-level image columns can override image fit, crop, frame, and transform for a single generated output.',
+    supportedProperties: IMAGE_FIELD_OVERRIDE_PROPERTIES,
+    examples: ['Portrait.image.fit', 'Portrait.image.scale'],
+  },
   fields: fieldDefinitions.map((field) => ({
     key: field.key,
     label: field.label,
@@ -199,6 +215,7 @@ export const createBulkImportContract = ({
     allowedFormatting: field.allowedFormatting ?? [],
     helperText: field.helperText ?? '',
     styleOverrideColumns: createFieldStyleOverrideColumns(field),
+    imageOverrideColumns: createImageFieldOverrideColumns(field),
   })),
 });
 
@@ -525,7 +542,9 @@ export const createBulkPreview = ({
   const headers = normalizeCsvHeaders(parsedRows[0]);
   const fieldKeySet = new Set(fieldDefinitions.map((field) => field.key));
   const unmappedHeaders = headers.filter((header) => (
-    !columnMapping[header] && !isRecognizedFieldStyleColumn(header, fieldKeySet)
+    !columnMapping[header]
+    && !isRecognizedFieldStyleColumn(header, fieldKeySet)
+    && !isRecognizedImageFieldOverrideColumn(header, fieldKeySet)
   ));
   const globalWarnings: string[] = [];
 
@@ -626,11 +645,16 @@ export const createBulkDisplayCards = ({
       }
 
       const styleColumn = parseFieldStyleColumnHeader(header, fieldKeySet);
-      if (!styleColumn) return;
+      const imageColumn = styleColumn ? null : parseImageFieldOverrideColumnHeader(header, fieldKeySet);
+      if (!styleColumn && !imageColumn) return;
 
       const value = values[index] ?? '';
-      if (String(value).trim()) {
+      if (String(value).trim() && styleColumn) {
         cardData[buildFieldStyleDataKey(styleColumn.fieldKey, styleColumn.property)] = value;
+        return;
+      }
+      if (String(value).trim() && imageColumn) {
+        cardData[buildImageFieldOverrideDataKey(imageColumn.fieldKey, imageColumn.property)] = value;
       }
     });
 

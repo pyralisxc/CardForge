@@ -745,6 +745,10 @@ Transitions[1].Position: 421
         supportedProperties: ['textColor', 'fontFamily', 'fontSizePx', 'fontWeight', 'fontStyle', 'textDecoration', 'lineHeight', 'letterSpacing'],
         examples: ['Name.textColor', 'Name.style.fontWeight'],
       },
+      imageOverrideSyntax: {
+        supportedProperties: ['fit', 'positionX', 'positionY', 'flipX', 'flipY', 'scale', 'offsetX', 'offsetY', 'rotation', 'frameX', 'frameY', 'frameWidth', 'frameHeight'],
+        examples: ['Portrait.image.fit', 'Portrait.image.scale'],
+      },
       fields: [
         {
           key: 'Name',
@@ -757,8 +761,45 @@ Transitions[1].Position: 421
         {
           key: 'Portrait',
           styleOverrideColumns: [],
+          imageOverrideColumns: ['Portrait.image.fit', 'Portrait.image.positionX', 'Portrait.image.positionY', 'Portrait.image.flipX', 'Portrait.image.flipY', 'Portrait.image.scale', 'Portrait.image.offsetX', 'Portrait.image.offsetY', 'Portrait.image.rotation', 'Portrait.image.frameX', 'Portrait.image.frameY', 'Portrait.image.frameWidth', 'Portrait.image.frameHeight'],
         },
       ],
+    });
+  });
+
+  it('imports image override columns into generated card data', () => {
+    const template = {
+      id: 'image-template',
+      name: 'Image Template',
+      aspectRatio: '63:88',
+    };
+    const cards = createBulkDisplayCards({
+      template,
+      fieldDefinitions: [
+        {
+          key: 'Portrait',
+          label: 'Portrait',
+          control: 'input',
+          editor: 'image-input',
+          contentModel: 'image',
+          required: false,
+          isImage: true,
+          isMultiline: false,
+          supportsRichText: false,
+        },
+      ],
+      rows: [
+        ['Portrait', 'Portrait.image.fit', 'Portrait.image.scale'],
+        ['https://example.test/portrait.png', 'contain', '1.25'],
+      ],
+      columnMapping: { Portrait: 'Portrait' },
+      createId: () => 'bulk-image-1',
+    });
+
+    expect(cards[0].data).toMatchObject({
+      Portrait: 'https://example.test/portrait.png',
+      '__cardforgeImageField.Portrait.fit': 'contain',
+      '__cardforgeImageField.Portrait.scale': '1.25',
     });
   });
 });

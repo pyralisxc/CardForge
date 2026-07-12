@@ -748,6 +748,16 @@ export function CardTemplateMaker({
     updateElement(selectedElement.id, { x: Math.round(nextX) });
   }, [canvas.width, selectedElement, updateElement]);
 
+  const flipSelected = useCallback((axis: 'x' | 'y') => {
+    if (!selectedElement) return;
+    updateElement(
+      selectedElement.id,
+      axis === 'x'
+        ? { flipX: !selectedElement.flipX }
+        : { flipY: !selectedElement.flipY }
+    );
+  }, [selectedElement, updateElement]);
+
   const snapValue = useCallback((value: number) => snapToGrid ? Math.round(value / gridSize) * gridSize : Math.round(value), [gridSize, snapToGrid]);
   const {
     cancelDrag,
@@ -1516,6 +1526,7 @@ export function CardTemplateMaker({
                             buttonClassName={makerTheme.button}
                             onAlign={alignSelected}
                             onArrange={arrangeSelected}
+                            onFlip={flipSelected}
                           />
                         </InspectorFlowSection>
                     </>

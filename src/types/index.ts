@@ -67,7 +67,6 @@ export interface FreeformAppearance {
   textureScale?: number;
   textureOpacity?: number;
   tileMode?: AppearanceTileMode;
-  assetFlipX?: boolean;
   dividerAsset?: string;
   shapeRole?: FreeformShapeRole;
   material?: {
@@ -115,6 +114,8 @@ export interface FreeformCardElement {
   width: number;
   height: number;
   rotation?: number;
+  flipX?: boolean;
+  flipY?: boolean;
   opacity?: number;
   zIndex: number;
   locked?: boolean;
@@ -153,6 +154,12 @@ export interface FreeformCardElement {
   borderRadius?: string;
   minHeight?: string;
   imageObjectFit?: 'cover' | 'contain' | 'fill' | 'none';
+  imageObjectPositionX?: string;
+  imageObjectPositionY?: string;
+  imageScale?: number;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageRotation?: number;
   fillColor?: string;
   strokeColor?: string;
   strokeWidth?: number;

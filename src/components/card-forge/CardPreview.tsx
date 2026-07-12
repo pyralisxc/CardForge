@@ -3,7 +3,7 @@
 
 import type { CardFace, DisplayCard, TCGCardTemplate } from '@/types';
 import { cn } from '@/lib/utils';
-import { replacePlaceholdersLocal } from '@/lib/textBindings';
+import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/lib/textBindings';
 import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { useMemo } from 'react';
@@ -16,6 +16,7 @@ import * as LucideIcons from 'lucide-react';
 import { CardTextContent } from '@/lib/cardTextRender';
 import { getCardPreviewLayout } from '@/lib/cardPreviewLayout';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/lib/freeformElementRender';
+import { resolveImageElementOverrides } from '@/lib/imageFieldOverrides';
 import { canRenderVectorShape } from '@/lib/vectorShapes';
 import { VectorShapeElement } from './VectorShapeElement';
 import { getCardFaceCanvas, getCardFaceData, getCardFaceTemplate } from '@/lib/cardBacking';
@@ -301,27 +302,36 @@ export function CardPreview({
         return true;
       })
       .map((element) => {
-        const borderWidth = borderWidthClassToPixels(element.borderWidth);
-        const resolvedBgUrl = element.backgroundImageUrl ? replacePlaceholdersLocal(element.backgroundImageUrl, dataToRender, isEditorPreview) : '';
-        const structuredAppearanceStyle = appearanceToStyle(normalizeAppearanceForElement(element));
+        const imageResolution = element.type === 'image'
+          ? resolveImageElementOverrides(element, dataToRender, getImageFieldKeyForElement(element))
+          : null;
+        const renderElement = imageResolution?.element ?? element;
+        const borderWidth = borderWidthClassToPixels(renderElement.borderWidth);
+        const resolvedBgUrl = renderElement.backgroundImageUrl ? replacePlaceholdersLocal(renderElement.backgroundImageUrl, dataToRender, isEditorPreview) : '';
+        const structuredAppearanceStyle = appearanceToStyle(normalizeAppearanceForElement(renderElement));
+        const layerTransform = [
+          `rotate(${renderElement.rotation || 0}deg)`,
+          renderElement.flipX ? 'scaleX(-1)' : null,
+          renderElement.flipY ? 'scaleY(-1)' : null,
+        ].filter(Boolean).join(' ');
         const baseStyle: React.CSSProperties = {
           position: 'absolute',
-          left: element.x * scaleX,
-          top: element.y * scaleY,
-          width: element.width * scaleX,
-          height: element.height * scaleY,
-          transform: `rotate(${element.rotation || 0}deg)${element.appearance?.assetFlipX ? ' scaleX(-1)' : ''}`,
+          left: renderElement.x * scaleX,
+          top: renderElement.y * scaleY,
+          width: renderElement.width * scaleX,
+          height: renderElement.height * scaleY,
+          transform: layerTransform,
           transformOrigin: 'center',
-          opacity: element.opacity ?? 1,
-          zIndex: element.zIndex,
+          opacity: renderElement.opacity ?? 1,
+          zIndex: renderElement.zIndex,
           overflow: 'hidden',
           boxSizing: 'border-box',
-          color: element.textColor || templateToRender.baseTextColor || undefined,
-          backgroundColor: element.backgroundColor || 'transparent',
+          color: renderElement.textColor || templateToRender.baseTextColor || undefined,
+          backgroundColor: renderElement.backgroundColor || 'transparent',
           borderStyle: borderWidth > 0 ? 'solid' : undefined,
-          borderColor: element.borderColor || templateToRender.defaultElementBorderColor || undefined,
-          borderRadius: radiusClassToCss(element.borderRadius) || element.borderRadius || undefined,
-          ...borderWidthClassToStyle(element.borderWidth),
+          borderColor: renderElement.borderColor || templateToRender.defaultElementBorderColor || undefined,
+          borderRadius: radiusClassToCss(renderElement.borderRadius) || renderElement.borderRadius || undefined,
+          ...borderWidthClassToStyle(renderElement.borderWidth),
           backgroundImage: resolvedBgUrl && (resolvedBgUrl.startsWith('linear-gradient') || resolvedBgUrl.startsWith('radial-gradient'))
             ? resolvedBgUrl
             : resolvedBgUrl && (resolvedBgUrl.startsWith('http') || resolvedBgUrl.startsWith('data:'))
@@ -333,13 +343,13 @@ export function CardPreview({
           ...structuredAppearanceStyle,
         };
 
-        if (element.type === 'image') {
-          const imageUrl = resolveFreeformImageUrl(element, dataToRender, descriptiveArtworkText);
+        if (renderElement.type === 'image') {
+          const imageUrl = resolveFreeformImageUrl(renderElement, dataToRender, descriptiveArtworkText);
           return (
-            <div key={element.id} style={baseStyle} data-freeform-element-id={element.id}>
+            <div key={renderElement.id} style={baseStyle} data-freeform-element-id={renderElement.id}>
               <img
                 src={imageUrl}
-                alt={`Image for ${element.name}`}
+                alt={`Image for ${renderElement.name}`}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -347,14 +357,16 @@ export function CardPreview({
                   maxHeight: '100%',
                   minWidth: 0,
                   minHeight: 0,
-                  objectFit: element.imageObjectFit || 'cover',
-                  objectPosition: 'center',
+                  objectFit: imageResolution?.imageStyle.objectFit || renderElement.imageObjectFit || 'cover',
+                  objectPosition: imageResolution?.imageStyle.objectPosition || `${renderElement.imageObjectPositionX || 'center'} ${renderElement.imageObjectPositionY || 'center'}`,
+                  transform: imageResolution?.imageStyle.transform,
+                  transformOrigin: 'center',
                   borderRadius: 'inherit',
                   display: 'block',
                 }}
                 data-ai-hint={dataAiHintKeywords}
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = `https://placehold.co/${Math.max(80, Math.round(element.width || 300))}x${Math.max(80, Math.round(element.height || 200))}.png?text=${encodeURIComponent(descriptiveArtworkText || 'Image')}`;
+                  (e.currentTarget as HTMLImageElement).src = `https://placehold.co/${Math.max(80, Math.round(renderElement.width || 300))}x${Math.max(80, Math.round(renderElement.height || 200))}.png?text=${encodeURIComponent(descriptiveArtworkText || 'Image')}`;
                 }}
               />
             </div>

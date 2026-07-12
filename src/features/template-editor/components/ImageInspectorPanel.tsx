@@ -109,6 +109,46 @@ export function ImageInspectorPanel({
           </SelectContent>
         </Select>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <ImageNumberField id="element-position-x" label="Position X" value={element.imageObjectPositionX || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionX: value }, false)} />
+        <ImageNumberField id="element-position-y" label="Position Y" value={element.imageObjectPositionY || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionY: value }, false)} />
+        <ImageNumberField id="element-image-scale" label="Image Scale" type="number" step="0.05" value={element.imageScale === undefined ? '' : String(element.imageScale)} placeholder="1" onChange={(value) => onUpdateElement({ imageScale: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-image-rotation" label="Image Rotation" type="number" value={element.imageRotation === undefined ? '' : String(element.imageRotation)} placeholder="0" onChange={(value) => onUpdateElement({ imageRotation: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-image-offset-x" label="Image Offset X" type="number" value={element.imageOffsetX === undefined ? '' : String(element.imageOffsetX)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetX: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-image-offset-y" label="Image Offset Y" type="number" value={element.imageOffsetY === undefined ? '' : String(element.imageOffsetY)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetY: value ? Number(value) : undefined }, false)} />
+      </div>
     </>
+  );
+}
+
+function ImageNumberField({
+  id,
+  label,
+  value,
+  placeholder,
+  onChange,
+  type = 'text',
+  step,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+  type?: 'text' | 'number';
+  step?: string;
+}) {
+  return (
+    <div>
+      <Label htmlFor={id} className="text-xs">{label}</Label>
+      <Input
+        id={id}
+        type={type}
+        step={step}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
   );
 }

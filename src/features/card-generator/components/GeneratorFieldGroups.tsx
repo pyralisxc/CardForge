@@ -19,6 +19,7 @@ import {
   structuredRowToCardData,
 } from '@/lib/structuredRows';
 import { buildFieldStyleDataKey, type FieldStyleProperty } from '@/lib/fieldStyleOverrides';
+import { buildImageFieldOverrideDataKey, type ImageFieldOverrideProperty, IMAGE_FIELD_OVERRIDE_PROPERTIES } from '@/lib/imageFieldOverrides';
 
 interface FieldGroup {
   id: string;
@@ -299,6 +300,15 @@ export function GeneratorFieldGroups({
                     }}
                     onStyleChange={(property: FieldStyleProperty, value) => {
                       onFieldChange(buildFieldStyleDataKey(field.key, property), value);
+                    }}
+                    imageStyleValues={Object.fromEntries(
+                      IMAGE_FIELD_OVERRIDE_PROPERTIES.map((property) => [
+                        property,
+                        String(data[buildImageFieldOverrideDataKey(field.key, property)] ?? ''),
+                      ])
+                    ) as Partial<Record<ImageFieldOverrideProperty, string>>}
+                    onImageStyleChange={(property: ImageFieldOverrideProperty, value) => {
+                      onFieldChange(buildImageFieldOverrideDataKey(field.key, property), value);
                     }}
                     highlightColor={highlightColor}
                     onHighlightColorChange={onHighlightColorChange}

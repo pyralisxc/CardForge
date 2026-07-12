@@ -6,6 +6,8 @@ import {
   AlignLeft,
   AlignRight,
   ArrowDownToLine,
+  FlipHorizontal2,
+  FlipVertical2,
   ArrowUpToLine,
 } from 'lucide-react';
 
@@ -16,12 +18,14 @@ interface ElementAlignmentPanelProps {
   buttonClassName: string;
   onAlign: (alignment: 'left' | 'center' | 'right') => void;
   onArrange: (direction: 'front' | 'up' | 'back') => void;
+  onFlip: (axis: 'x' | 'y') => void;
 }
 
 export function ElementAlignmentPanel({
   buttonClassName,
   onAlign,
   onArrange,
+  onFlip,
 }: ElementAlignmentPanelProps) {
   return (
     <div className="grid grid-cols-3 gap-2">
@@ -72,6 +76,22 @@ export function ElementAlignmentPanel({
           </Button>
         </TooltipTrigger>
         <TooltipContent>Send to back (bottom layer)</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button type="button" variant="outline" size="icon" onClick={() => onFlip('x')} aria-label="Flip layer horizontally" className={buttonClassName}>
+            <FlipHorizontal2 className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Flip layer horizontally</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button type="button" variant="outline" size="icon" onClick={() => onFlip('y')} aria-label="Flip layer vertically" className={buttonClassName}>
+            <FlipVertical2 className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Flip layer vertically</TooltipContent>
       </Tooltip>
     </div>
   );

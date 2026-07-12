@@ -77,7 +77,7 @@ export function DividerStudioPanel({
         )}
         <div className="flex items-end justify-between gap-2 rounded-[5px] border border-[#252b35] bg-[#111720] px-2 py-2">
           <Label htmlFor="divider-flip" className="text-xs">Flip</Label>
-          <Switch id="divider-flip" checked={Boolean(selectedAppearance?.assetFlipX)} onCheckedChange={(checked) => onUpdateAppearance((appearance) => ({ ...appearance, assetFlipX: checked }))} />
+          <Switch id="divider-flip" checked={Boolean(element.flipX)} onCheckedChange={(checked) => onUpdateElement({ flipX: checked })} />
         </div>
       </div>
     </div>

@@ -9,7 +9,8 @@ import { appearanceToStyle, normalizeAppearanceForElement } from '@/lib/appearan
 import { CardTextContent } from '@/lib/cardTextRender';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/lib/freeformElementRender';
-import { replacePlaceholdersLocal } from '@/lib/textBindings';
+import { resolveImageElementOverrides } from '@/lib/imageFieldOverrides';
+import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/lib/textBindings';
 import { buildTextElementStyle } from '@/lib/textTools';
 import { cn } from '@/lib/utils';
 import { canRenderVectorShape } from '@/lib/vectorShapes';
@@ -58,22 +59,31 @@ export function TemplateEditableElement({
 }: TemplateEditableElementProps) {
   if (element.visible === false) return null;
 
-  const borderWidth = borderWidthClassToPixels(element.borderWidth);
-  const resolvedBg = element.backgroundImageUrl ? replacePlaceholdersLocal(element.backgroundImageUrl, livePreviewData, false) : '';
-  const structuredAppearanceStyle = appearanceToStyle(normalizeAppearanceForElement(element));
-  const elementIsDivider = isDividerElement(element);
+  const imageResolution = element.type === 'image'
+    ? resolveImageElementOverrides(element, livePreviewData, getImageFieldKeyForElement(element))
+    : null;
+  const renderElement = imageResolution?.element ?? element;
+  const borderWidth = borderWidthClassToPixels(renderElement.borderWidth);
+  const resolvedBg = renderElement.backgroundImageUrl ? replacePlaceholdersLocal(renderElement.backgroundImageUrl, livePreviewData, false) : '';
+  const structuredAppearanceStyle = appearanceToStyle(normalizeAppearanceForElement(renderElement));
+  const elementIsDivider = isDividerElement(renderElement);
+  const layerTransform = [
+    `rotate(${renderElement.rotation || 0}deg)`,
+    renderElement.flipX ? 'scaleX(-1)' : null,
+    renderElement.flipY ? 'scaleY(-1)' : null,
+  ].filter(Boolean).join(' ');
   const baseStyle: CSSProperties = {
     position: 'absolute',
-    left: element.x,
-    top: element.y,
-    width: element.width,
-    height: element.height,
-    transform: `rotate(${element.rotation || 0}deg)${element.appearance?.assetFlipX ? ' scaleX(-1)' : ''}`,
+    left: renderElement.x,
+    top: renderElement.y,
+    width: renderElement.width,
+    height: renderElement.height,
+    transform: layerTransform,
     transformOrigin: 'center',
-    opacity: element.opacity ?? 1,
-    zIndex: element.zIndex,
-    color: element.textColor || currentTemplate.baseTextColor || undefined,
-    backgroundColor: element.backgroundColor || 'transparent',
+    opacity: renderElement.opacity ?? 1,
+    zIndex: renderElement.zIndex,
+    color: renderElement.textColor || currentTemplate.baseTextColor || undefined,
+    backgroundColor: renderElement.backgroundColor || 'transparent',
     backgroundImage: resolvedBg && (resolvedBg.startsWith('linear-gradient') || resolvedBg.startsWith('radial-gradient'))
       ? resolvedBg
       : resolvedBg && (resolvedBg.startsWith('http') || resolvedBg.startsWith('data:'))
@@ -82,19 +92,35 @@ export function TemplateEditableElement({
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     borderStyle: borderWidth > 0 ? 'solid' : undefined,
-    borderColor: element.borderColor || currentTemplate.defaultElementBorderColor || undefined,
-    borderRadius: radiusClassToCss(element.borderRadius) || element.borderRadius || undefined,
-    ...borderWidthClassToStyle(element.borderWidth),
+    borderColor: renderElement.borderColor || currentTemplate.defaultElementBorderColor || undefined,
+    borderRadius: radiusClassToCss(renderElement.borderRadius) || renderElement.borderRadius || undefined,
+    ...borderWidthClassToStyle(renderElement.borderWidth),
     boxSizing: 'border-box',
     overflow: 'hidden',
-    cursor: previewMode || element.locked ? 'default' : 'move',
+    cursor: previewMode || renderElement.locked ? 'default' : 'move',
     ...structuredAppearanceStyle,
   };
 
   let body;
-  if (element.type === 'image') {
-    const imageUrl = resolveFreeformImageUrl(element, livePreviewData, 'Artwork');
-    body = <img src={imageUrl} alt={element.name} className="block h-full w-full max-h-full max-w-full" style={{ minWidth: 0, minHeight: 0, objectFit: element.imageObjectFit || 'cover', objectPosition: 'center', borderRadius: 'inherit' }} draggable={false} />;
+  if (renderElement.type === 'image') {
+    const imageUrl = resolveFreeformImageUrl(renderElement, livePreviewData, 'Artwork');
+    body = (
+      <img
+        src={imageUrl}
+        alt={renderElement.name}
+        className="block h-full w-full max-h-full max-w-full"
+        style={{
+          minWidth: 0,
+          minHeight: 0,
+          objectFit: imageResolution?.imageStyle.objectFit || renderElement.imageObjectFit || 'cover',
+          objectPosition: imageResolution?.imageStyle.objectPosition || `${renderElement.imageObjectPositionX || 'center'} ${renderElement.imageObjectPositionY || 'center'}`,
+          transform: imageResolution?.imageStyle.transform,
+          transformOrigin: 'center',
+          borderRadius: 'inherit',
+        }}
+        draggable={false}
+      />
+    );
   } else if (element.type === 'icon') {
     const iconImageUrl = element.iconImageSource ? replacePlaceholdersLocal(element.iconImageSource, livePreviewData, false) : '';
     if (iconImageUrl && (iconImageUrl.startsWith('http') || iconImageUrl.startsWith('data:') || iconImageUrl.startsWith('/'))) {
