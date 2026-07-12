@@ -37,7 +37,7 @@ import {
   type ElementPresetRecipe,
 } from '@/lib/elementPresetRecipes';
 import { useAppStore } from '@/store/appStore';
-import { createDefaultFreeformCanvas, getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate, scaleCanvasToSize } from '@/lib/templateModel';
+import { createDefaultFreeformCanvas, getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
 import { useToast } from '@/hooks/use-toast';
 import {
   elementKits,
@@ -209,7 +209,6 @@ export function CardTemplateMaker({
     checkedLayerIds,
     clearCheckedLayers,
     commitTemplate,
-    createBackFace: createBackFaceInController,
     currentTemplate,
     deleteSelected: deleteSelectedInController,
     duplicateSelected: duplicateSelectedInController,
@@ -424,20 +423,37 @@ export function CardTemplateMaker({
 
   // Layer tree helpers
   const layerTree = useMemo(() => buildLayerTree(canvas.elements), [canvas.elements]);
+  const selectedBackingTemplate = useMemo(() => (
+    currentTemplate.backingTemplateId
+      ? backFaceTemplates.find((template) => template.id === currentTemplate.backingTemplateId) || null
+      : null
+  ), [backFaceTemplates, currentTemplate.backingTemplateId]);
+  const activeCanvas = activeFace === 'back' && selectedBackingTemplate?.freeformCanvas
+    ? selectedBackingTemplate.freeformCanvas
+    : canvas;
+  const isBackingPreview = activeFace === 'back' && Boolean(selectedBackingTemplate);
 
   const createBackFace = useCallback(() => {
-    const sourceCanvas = currentTemplate.freeformCanvas || createDefaultFreeformCanvas();
-    const presetTemplate = templates.find((template) => template.id === DEFAULT_BACK_TEMPLATE_ID);
-    const presetCanvas = presetTemplate?.freeformCanvas || createDefaultFreeformCanvas({
-      elements: [],
-    });
-    const nextBackCanvas = scaleCanvasToSize(presetCanvas, sourceCanvas.width, sourceCanvas.height);
-    createBackFaceInController(nextBackCanvas);
+    const presetTemplate = backFaceTemplates.find((template) => template.id === DEFAULT_BACK_TEMPLATE_ID) || backFaceTemplates[0];
+    if (!presetTemplate?.id) {
+      toast({
+        title: 'No backing templates available',
+        description: 'Add or publish a card backing template before assigning a back face.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    commitTemplate((template) => ({
+      ...template,
+      backingTemplateId: presetTemplate.id,
+      backCanvas: undefined,
+    }));
+    setActiveFace('back');
     toast({
-      title: 'Back face added',
-      description: 'The optional back face starts from the dark fantasy default back template and can now be edited.',
+      title: 'Backing assigned',
+      description: `${presetTemplate.name} is now linked as a separate card backing.`,
     });
-  }, [createBackFaceInController, currentTemplate.freeformCanvas, templates, toast]);
+  }, [backFaceTemplates, commitTemplate, setActiveFace, toast]);
 
   // Group / ungroup
   const livePreviewData = useMemo(() => ({
@@ -1108,16 +1124,16 @@ export function CardTemplateMaker({
   ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, previewMode, richTextHighlightColor, selectedElementId, zoom]);
 
   const canvasFrameStyle: React.CSSProperties = {
-    width: canvas.width,
-    height: canvas.height,
+    width: activeCanvas.width,
+    height: activeCanvas.height,
     transform: `scale(${zoom})`,
     transformOrigin: 'top left',
   };
 
   const canvasStyle: React.CSSProperties = {
     ...canvasFrameStyle,
-    width: canvas.width,
-    height: canvas.height,
+    width: activeCanvas.width,
+    height: activeCanvas.height,
     backgroundColor: currentTemplate.baseBackgroundColor || '#ffffff',
     color: currentTemplate.baseTextColor || '#000000',
     borderColor: currentTemplate.cardBorderColor || 'hsl(var(--border))',
@@ -1137,7 +1153,7 @@ export function CardTemplateMaker({
       >
         <TemplateEditorTopBar
           activeFace={activeFace}
-          hasBackFace={Boolean(currentTemplate.backCanvas)}
+          hasBackFace={Boolean(currentTemplate.backingTemplateId || currentTemplate.backCanvas)}
           canUndo={history.length > 0}
           canRedo={future.length > 0}
           showGrid={showGrid}
@@ -1296,14 +1312,15 @@ export function CardTemplateMaker({
 
           <TemplateCanvasStage
             activeFace={activeFace}
-            canvas={canvas}
+            canvas={activeCanvas}
             canvasFrameStyle={canvasFrameStyle}
             canvasRef={canvasRef}
             canvasStyle={canvasStyle}
+            backingTemplate={selectedBackingTemplate}
             currentTemplate={currentTemplate}
             gridSize={gridSize}
             livePreviewData={livePreviewData}
-            previewMode={previewMode}
+            previewMode={previewMode || isBackingPreview}
             selectedElement={selectedElement}
             showGrid={showGrid}
             stageRef={stageRef}
@@ -1334,6 +1351,7 @@ export function CardTemplateMaker({
                   templateContent={
                     <TemplateSettingsPanel
                       currentTemplate={currentTemplate}
+                      backFaceTemplates={backFaceTemplates}
                       customWidthValue={customWidthValue}
                       customHeightValue={customHeightValue}
                       customUnit={customUnit}

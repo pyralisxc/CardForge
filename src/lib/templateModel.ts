@@ -247,6 +247,7 @@ export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplat
     templateDescription: loaded.templateDescription,
     templateOrder: typeof loaded.templateOrder === 'number' ? loaded.templateOrder : undefined,
     templatePreviewData: loaded.templatePreviewData,
+    backingTemplateId: loaded.backingTemplateId || null,
     frameStyle: loaded.frameStyle || 'standard',
     cardBorderWidth: loaded.cardBorderWidth && loaded.cardBorderWidth.trim() !== '' ? loaded.cardBorderWidth : '4px',
     cardBorderStyle: loaded.cardBorderStyle && loaded.cardBorderStyle !== '_default_' ? loaded.cardBorderStyle : 'solid',

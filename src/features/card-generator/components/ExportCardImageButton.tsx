@@ -15,6 +15,7 @@ import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { renderCardToCanvas } from '@/lib/cardPreviewExport';
+import { hasCardBacking } from '@/lib/cardBacking';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;
@@ -30,7 +31,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const hasBackFace = Boolean(card.template.backCanvas);
+  const hasBackFace = hasCardBacking(card);
 
   const handleExport = async (format: 'png' | 'webp' | 'jpeg' | 'tiff', face: CardFace = 'front') => {
     if (gateMessage) {

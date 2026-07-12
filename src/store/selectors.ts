@@ -11,9 +11,13 @@ export const selectGeneratedDisplayCards = (state: AppState): DisplayCard[] => {
   return state.storedCards.reduce((acc: DisplayCard[], storedCard) => {
     const template = templates.find((candidate) => candidate.id === storedCard.templateId);
     if (template) {
+      const backingTemplate = template.backingTemplateId
+        ? templates.find((candidate) => candidate.id === template.backingTemplateId && candidate.templateUsage === 'back-preset')
+        : null;
       acc.push({
         uniqueId: storedCard.uniqueId,
         template,
+        backingTemplate,
         data: storedCard.data,
       });
     }

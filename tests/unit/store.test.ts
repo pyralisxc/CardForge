@@ -111,6 +111,35 @@ describe('app store helpers', () => {
     expect(cards[0].template.id).toBe('template-1');
   });
 
+  it('resolves a generated card backing from a separate back preset template', () => {
+    const backingTemplate: TCGCardTemplate = reconstructMinimalTemplateObject({
+      id: 'obsidian-back',
+      name: 'Obsidian Back',
+      templateUsage: 'back-preset',
+      freeformCanvas: {
+        width: 630,
+        height: 880,
+        elements: [{ id: 'back-mark', type: 'text', name: 'Back Mark', x: 0, y: 0, width: 200, height: 50, zIndex: 1, content: 'Static Back' }],
+      },
+    });
+    const frontTemplate: TCGCardTemplate = reconstructMinimalTemplateObject({
+      id: 'front-template',
+      name: 'Front Template',
+      backingTemplateId: 'obsidian-back',
+    });
+
+    const cards = selectGeneratedDisplayCards({
+      defaultTemplates: [backingTemplate],
+      userTemplates: [frontTemplate],
+      storedCards: [{ uniqueId: 'card-with-back', templateId: 'front-template', data: { cardName: 'Front Data' } }],
+    } as unknown as Parameters<typeof selectGeneratedDisplayCards>[0]);
+
+    expect(cards).toHaveLength(1);
+    expect(cards[0].template.id).toBe('front-template');
+    expect(cards[0].backingTemplate?.id).toBe('obsidian-back');
+    expect(cards[0].backingTemplate?.freeformCanvas?.elements[0].content).toBe('Static Back');
+  });
+
   it('selects generated cards that use a freeform template', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'freeform-template',

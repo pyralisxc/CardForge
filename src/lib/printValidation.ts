@@ -2,6 +2,7 @@ import type { DisplayCard } from '@/types';
 import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
 import { AVAILABLE_FONTS } from '@/lib/constants';
 import { validateCardDataAgainstFieldContracts } from '@/lib/fieldContracts';
+import { getCardFaceCanvas, hasCardBacking } from '@/lib/cardBacking';
 
 export type ExportMode = 'physical' | 'virtual';
 
@@ -107,8 +108,8 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
     warnings.push('Browser exports are RGB. If your print vendor requires CMYK, spot colors, bleed boxes, or PDF/X, convert the exported PNG/PDF in a prepress tool before final production.');
 
     [
-      { label: 'front', canvas: card.template.freeformCanvas },
-      { label: 'back', canvas: card.template.backCanvas },
+      { label: 'front', canvas: getCardFaceCanvas(card, 'front') },
+      { label: 'back', canvas: hasCardBacking(card) ? getCardFaceCanvas(card, 'back') : undefined },
     ].forEach(({ label, canvas }) => {
       if (!canvas) return;
       const safeX = canvas.width * PHYSICAL_SAFE_AREA_RATIO;
@@ -161,6 +162,7 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
     [
       ...(card.template.freeformCanvas?.elements || []),
       ...(card.template.backCanvas?.elements || []),
+      ...(card.backingTemplate?.freeformCanvas?.elements || []),
     ]
       .map((element) => element.fontFamily)
       .filter((fontFamily): fontFamily is string => !!fontFamily && fontFamily.trim().length > 0)

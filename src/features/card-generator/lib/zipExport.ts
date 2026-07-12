@@ -1,5 +1,6 @@
 import type { CardFace, DisplayCard } from '@/types';
 import type { ExportMode } from '@/lib/printValidation';
+import { hasCardBacking } from '@/lib/cardBacking';
 
 export interface CardZipExportItem {
   card: DisplayCard;
@@ -64,7 +65,7 @@ export const TABLETOP_SIMULATOR_GRID: TabletopSimulatorSheetGrid = {
 
 export const createCardZipExportItems = (cards: DisplayCard[]): CardZipExportItem[] =>
   cards.flatMap((card, index) => {
-    const faces: CardFace[] = card.template.backCanvas ? ['front', 'back'] : ['front'];
+    const faces: CardFace[] = hasCardBacking(card) ? ['front', 'back'] : ['front'];
     return faces.map((face) => ({ card, cardIndex: index, face }));
   });
 
@@ -104,7 +105,7 @@ export const createTabletopSimulatorSheets = (cards: DisplayCard[]): TabletopSim
         sourceIndex: start + index,
         sheetCardIndex: index,
       })),
-      hasBacks: slice.some((card) => Boolean(card.template.backCanvas)),
+      hasBacks: slice.some(hasCardBacking),
     });
   }
   return sheets;
@@ -139,7 +140,7 @@ export const createTabletopSimulatorManifest = (
       number: item.sheetCardIndex + 1,
       name: String(item.card.data?.cardName || item.card.data?.name || `Output ${item.sourceIndex + 1}`),
       uniqueId: item.card.uniqueId,
-      hasBack: Boolean(item.card.template.backCanvas),
+      hasBack: hasCardBacking(item.card),
     })),
   })),
 });

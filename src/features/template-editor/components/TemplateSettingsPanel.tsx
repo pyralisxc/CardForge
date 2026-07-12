@@ -17,6 +17,7 @@ import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-
 
 interface TemplateSettingsPanelProps {
   currentTemplate: TCGCardTemplate;
+  backFaceTemplates: TCGCardTemplate[];
   customWidthValue: string;
   customHeightValue: string;
   customUnit: string;
@@ -40,6 +41,7 @@ interface TemplateSettingsPanelProps {
 
 export function TemplateSettingsPanel({
   currentTemplate,
+  backFaceTemplates,
   customWidthValue,
   customHeightValue,
   customUnit,
@@ -70,6 +72,30 @@ export function TemplateSettingsPanel({
         <Label htmlFor="maker-ratio" className="text-xs text-[#b7bdc9]">Aspect Ratio</Label>
         <Input id="maker-ratio" className={controlClassName} value={currentTemplate.aspectRatio || TCG_ASPECT_RATIO} onChange={event => onUpdateTemplate({ aspectRatio: event.target.value }, false)} />
       </div>
+      {currentTemplate.templateUsage !== 'back-preset' && backFaceTemplates.length > 0 ? (
+        <div>
+          <Label htmlFor="maker-backing-template" className="text-xs text-[#b7bdc9]">Card Backing</Label>
+          <Select
+            value={currentTemplate.backingTemplateId || '_none_'}
+            onValueChange={(value) => onUpdateTemplate({
+              backingTemplateId: value === '_none_' ? null : value,
+              backCanvas: undefined,
+            })}
+          >
+            <SelectTrigger id="maker-backing-template" className={controlClassName}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none_">No backing</SelectItem>
+              {backFaceTemplates.map((template) => (
+                <SelectItem key={template.id || template.name} value={template.id || template.name}>
+                  {template.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
       <div className="grid grid-cols-3 gap-2">
         <div>
           <Label htmlFor="maker-width" className="text-xs text-[#b7bdc9]">Width</Label>

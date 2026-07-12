@@ -13,6 +13,7 @@ import {
   getTabletopSimulatorSheetFileName,
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
+import { hasCardBacking } from '@/lib/cardBacking';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -120,7 +121,7 @@ export function useCardZipExportActions({
       let cardHeightPx = 0;
 
       const renderSheet = async (sheet: typeof sheets[number], face: 'front' | 'back') => {
-        const firstCanvas = await renderer.renderToCanvas(sheet.cards[0].card, face === 'back' && sheet.cards[0].card.template.backCanvas ? 'back' : 'front');
+        const firstCanvas = await renderer.renderToCanvas(sheet.cards[0].card, face === 'back' && hasCardBacking(sheet.cards[0].card) ? 'back' : 'front');
         cardWidthPx = firstCanvas.width;
         cardHeightPx = firstCanvas.height;
         const sheetCanvas = document.createElement('canvas');
@@ -134,7 +135,7 @@ export function useCardZipExportActions({
 
         for (let i = 1; i < sheet.cards.length; i++) {
           const item = sheet.cards[i];
-          const cardFace = face === 'back' && item.card.template.backCanvas ? 'back' : 'front';
+          const cardFace = face === 'back' && hasCardBacking(item.card) ? 'back' : 'front';
           const canvas = await renderer.renderToCanvas(item.card, cardFace);
           const column = item.sheetCardIndex % sheet.grid.columns;
           const row = Math.floor(item.sheetCardIndex / sheet.grid.columns);

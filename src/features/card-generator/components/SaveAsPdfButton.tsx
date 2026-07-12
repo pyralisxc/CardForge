@@ -12,6 +12,7 @@ import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { getCardPhysicalSizeMm } from '@/lib/cardExportGeometry';
 import { renderCardToCanvasWithProfile } from '@/lib/cardPreviewExport';
+import { hasCardBacking } from '@/lib/cardBacking';
 
 const MAX_PDF_CARDS_PER_FILE = 500;
 const MAX_TOTAL_PDF_EXPORT_CARDS = 10000;
@@ -163,7 +164,7 @@ export function SaveAsPdfButton({
             await processPage(pdf, frontPages[pageIndex], exportProfile);
 
             const backPage = frontPages[pageIndex]
-              .filter((placement) => placement.card.template.backCanvas)
+              .filter((placement) => hasCardBacking(placement.card))
               .map((placement) => ({ ...placement, face: 'back' as const }));
             if (backPage.length > 0) {
               pdf.addPage();
@@ -172,7 +173,7 @@ export function SaveAsPdfButton({
           }
         } else {
           const faceItems = chunkCards.flatMap((cardItem) => (
-            cardItem.template.backCanvas
+            hasCardBacking(cardItem)
               ? [{ card: cardItem, face: 'front' as const }, { card: cardItem, face: 'back' as const }]
               : [{ card: cardItem, face: 'front' as const }]
           ));

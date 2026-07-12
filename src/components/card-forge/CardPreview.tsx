@@ -18,6 +18,7 @@ import { getCardPreviewLayout } from '@/lib/cardPreviewLayout';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/lib/freeformElementRender';
 import { canRenderVectorShape } from '@/lib/vectorShapes';
 import { VectorShapeElement } from './VectorShapeElement';
+import { getCardFaceCanvas, getCardFaceData, getCardFaceTemplate } from '@/lib/cardBacking';
 
 interface CardPreviewProps {
   card: DisplayCard;
@@ -56,11 +57,9 @@ export function CardPreview({
 }: CardPreviewProps) {
   const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
 
-  const templateToRender = card.template;
-  const dataToRender = card.data;
-  const canvasToRender = face === 'back'
-    ? (templateToRender.backCanvas || templateToRender.freeformCanvas)
-    : templateToRender.freeformCanvas;
+  const templateToRender = getCardFaceTemplate(card, face);
+  const dataToRender = getCardFaceData(card, face);
+  const canvasToRender = getCardFaceCanvas(card, face);
 
   const effectiveWidthPx = targetWidthPx || PREVIEW_WIDTH_PX;
   const previewLayout = getCardPreviewLayout({
@@ -517,4 +516,3 @@ export function CardPreview({
     </div>
   );
 }
-

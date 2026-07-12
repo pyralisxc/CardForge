@@ -74,6 +74,7 @@ interface TemplateCanvasStageProps {
   canvasFrameStyle: CSSProperties;
   canvasRef: { current: HTMLDivElement | null };
   canvasStyle: CSSProperties;
+  backingTemplate?: TCGCardTemplate | null;
   currentTemplate: TCGCardTemplate;
   gridSize: number;
   livePreviewData: CardData;
@@ -101,6 +102,7 @@ export function TemplateCanvasStage({
   canvasFrameStyle,
   canvasRef,
   canvasStyle,
+  backingTemplate,
   currentTemplate,
   gridSize,
   livePreviewData,
@@ -241,7 +243,7 @@ export function TemplateCanvasStage({
           >
             {previewMode ? (
               <CardPreview
-                card={{ template: currentTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-${activeFace}-editor-preview` }}
+                card={{ template: currentTemplate, backingTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-${activeFace}-editor-preview` }}
                 face={activeFace}
                 isEditorPreview
                 targetWidthPx={canvas.width}

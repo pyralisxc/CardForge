@@ -19,6 +19,7 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
     aspectRatio: '63:88',
     ...overrides.template,
   },
+  backingTemplate: overrides.backingTemplate,
 });
 
 describe('zip export helpers', () => {
@@ -39,6 +40,22 @@ describe('zip export helpers', () => {
           name: 'Double Sided',
           aspectRatio: '63:88',
           backCanvas: { width: 630, height: 880, elements: [] },
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.face)).toEqual(['front', 'back']);
+  });
+
+  it('creates front and back export items when a card has a separate backing template', () => {
+    const items = createCardZipExportItems([
+      makeCard({
+        backingTemplate: {
+          id: 'backing-template',
+          name: 'Reusable Backing',
+          aspectRatio: '63:88',
+          templateUsage: 'back-preset',
+          freeformCanvas: { width: 630, height: 880, elements: [] },
         },
       }),
     ]);

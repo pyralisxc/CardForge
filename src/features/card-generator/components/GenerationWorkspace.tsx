@@ -19,6 +19,7 @@ import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfB
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
 import type { DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
 import type { ExportMode } from '@/lib/printValidation';
+import { hasCardBacking } from '@/lib/cardBacking';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
@@ -123,7 +124,7 @@ export function GenerationWorkspace({
 }: GenerationWorkspaceProps) {
   const galleryRegionRef = useRef<HTMLDivElement | null>(null);
   const exportFaceCount = generatedDisplayCards.reduce(
-    (count, card) => count + (card.template.backCanvas ? 2 : 1),
+    (count, card) => count + (hasCardBacking(card) ? 2 : 1),
     0
   );
   const dpiScale = Math.max(0.1, (exportDpi / 300) ** 2);
