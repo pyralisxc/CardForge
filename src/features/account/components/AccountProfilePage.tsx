@@ -38,6 +38,7 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from '@/lib/projectDocument';
 import { readProjectAssetListFromStorage } from '@/features/project/lib/projectLocalAssets';
+import { getAccountAccessActions } from '@/features/account/lib/accountAccessActions';
 import { buildForgeTitle, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 
 interface PlatformStatusPayload {
@@ -262,6 +263,13 @@ export function AccountProfilePage({
     && founderBetaCampaign.autoGrant
     && founderBetaSlotsRemaining > 0
   );
+  const accountAccessActions = getAccountAccessActions({
+    canClaimFounderBeta,
+    canStartCheckout,
+    checkoutConfigured,
+    effectiveSignedIn,
+    isClerkSetupIncomplete,
+  });
   const accessExpiresOn = formatAccessExpiration(entitlement.accessExpiresAt);
   const isDeveloper = entitlement.authConfigured && effectiveSignedIn && entitlement.accessMode === 'dev';
   const isOwner = entitlement.authConfigured && effectiveSignedIn && entitlement.ownerAccess.isOwner;
@@ -476,33 +484,32 @@ export function AccountProfilePage({
                 </SignUpButton>
               </>
             ) : canStartCheckout ? (
-              canClaimFounderBeta ? (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
-                  onClick={handleClaimFounderBeta}
-                  disabled={isClaimingFounderBeta}
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  {isClaimingFounderBeta ? 'Claiming pass...' : 'Claim Founder Beta'}
-                </Button>
-              ) : (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
-                  onClick={handleStartCheckout}
-                  disabled={isCheckoutStarting}
-                >
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  {isCheckoutStarting
-                    ? 'Checking access...'
-                    : checkoutConfigured
-                      ? 'Unlock export'
-                      : 'Beta access by invite'}
-                </Button>
-              )
+              <>
+                {accountAccessActions.showFounderBeta ? (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
+                    onClick={handleClaimFounderBeta}
+                    disabled={isClaimingFounderBeta}
+                  >
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    {isClaimingFounderBeta ? 'Claiming pass...' : 'Claim Founder Beta'}
+                  </Button>
+                ) : null}
+                {accountAccessActions.showCheckout ? (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
+                    onClick={handleStartCheckout}
+                    disabled={isCheckoutStarting}
+                  >
+                    <CreditCard className="mr-2 h-5 w-5" />
+                    {isCheckoutStarting ? 'Checking access...' : accountAccessActions.checkoutLabel}
+                  </Button>
+                ) : null}
+              </>
             ) : (
               <Button disabled size="lg" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]">
                 <ShieldCheck className="mr-2 h-5 w-5" /> Export active
