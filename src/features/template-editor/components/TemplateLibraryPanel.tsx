@@ -118,7 +118,7 @@ export function TemplateLibraryPanel({
             <div className="space-y-2 rounded-[6px] border border-[#6d4f2b] bg-[#15100a] p-2">
               <p className="flex items-start gap-2 text-[11px] leading-4 text-[#cbb58b]">
                 <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e2aa4a]" />
-                <span>{projectFileGateMessage || 'Available now: edit templates and keep work in this browser. Unlock portable project files with Creator Pass or dev access.'}</span>
+                <span>{projectFileGateMessage || 'Buy Creator Pass to unlock portable project-file exports and imports.'}</span>
               </p>
               <Button
                 type="button"
@@ -127,7 +127,7 @@ export function TemplateLibraryPanel({
                 disabled={isCheckoutStarting}
                 className="h-8 w-full text-xs"
               >
-                {isCheckoutStarting ? 'Checking access...' : 'Upgrade account'}
+                {isCheckoutStarting ? 'Checking access...' : 'Buy Creator Pass'}
               </Button>
             </div>
           ) : null}

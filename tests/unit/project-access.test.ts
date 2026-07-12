@@ -88,7 +88,7 @@ describe('projectAccess', () => {
   });
 
   it('returns export gate copy only when clean export is unavailable', () => {
-    expect(getExportGateMessage('free')).toBe('Available now: design layouts, import data, and generate previews in this browser. Unlock clean exports and portable project files with Creator Pass or dev access.');
+    expect(getExportGateMessage('free')).toBe('Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports. You can keep designing and generating previews for free.');
     expect(getExportGateMessage('paid')).toBeNull();
     expect(getExportGateMessage('dev')).toBeNull();
   });
@@ -97,8 +97,8 @@ describe('projectAccess', () => {
     expect(getExportEntitlementCopy('free')).toEqual({
       modeLabel: 'Free preview mode',
       canExportClean: false,
-      gateMessage: 'Available now: design layouts, import data, and generate previews in this browser. Unlock clean exports and portable project files with Creator Pass or dev access.',
-      panelMessage: 'Free mode can design layouts, import data, and generate previews. Project files plus clean PDF, PNG, and ZIP export unlock with Creator Pass or dev access.',
+      gateMessage: 'Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports. You can keep designing and generating previews for free.',
+      panelMessage: 'Free mode can design layouts, import data, and generate previews. Buy Creator Pass when you are ready to export clean files and save portable project files.',
     });
   });
 

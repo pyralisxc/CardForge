@@ -69,7 +69,7 @@ export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
 export const getExportGateMessage = (mode: AccessMode): string | null =>
   getProjectCapabilities(mode).canExportClean
     ? null
-    : 'Available now: design layouts, import data, and generate previews in this browser. Unlock clean exports and portable project files with Creator Pass or dev access.';
+    : 'Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports. You can keep designing and generating previews for free.';
 
 export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCopy => {
   const gateMessage = getExportGateMessage(mode);
@@ -97,7 +97,7 @@ export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCop
     modeLabel: 'Free preview mode',
     canExportClean,
     gateMessage,
-    panelMessage: 'Free mode can design layouts, import data, and generate previews. Project files plus clean PDF, PNG, and ZIP export unlock with Creator Pass or dev access.',
+    panelMessage: 'Free mode can design layouts, import data, and generate previews. Buy Creator Pass when you are ready to export clean files and save portable project files.',
   };
 };
 

@@ -298,6 +298,9 @@ test('lets free users try clean export and see the export gate', async ({ page }
   await page.getByRole('menuitem', { name: 'Export front as PNG', exact: true }).click();
 
   await expect(page.getByText('Clean export locked', { exact: true })).toBeVisible();
+  const notifications = page.getByLabel('Notifications (F8)');
+  await expect(notifications.getByText(/Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports/i)).toBeVisible();
+  await expect(notifications.getByText(/dev access|developer/i)).toHaveCount(0);
 });
 
 test('creates a freeform template and renders it in the generator', async ({ page }) => {

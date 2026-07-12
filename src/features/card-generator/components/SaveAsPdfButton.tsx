@@ -59,7 +59,7 @@ export function SaveAsPdfButton({
     if (gateMessage) {
       toast({
         title: 'Clean export locked',
-        description: withNextStep(gateMessage, 'Use Creator Pass or dev access when auth is enabled, or use dev mode for local validation.'),
+        description: withNextStep(gateMessage, 'Open your account page and buy Creator Pass to export clean files.'),
         variant: 'default',
       });
       return;

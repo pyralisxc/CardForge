@@ -192,8 +192,8 @@ export function useProjectFileActions({
     toast({
       title: 'Upgrade to move projects',
       description: withNextStep(
-        projectFileGateMessage || 'Available now: edit templates and keep work in this browser. Unlock portable project files with Creator Pass or dev access.',
-        'Upgrade your account to download this local project file or bring one back into Layout Studio.',
+        projectFileGateMessage || 'Buy Creator Pass to unlock portable project-file exports and imports.',
+        'Open your account page and buy Creator Pass to download or import local project files.',
       ),
     });
   }, [projectFileGateMessage, toast]);
