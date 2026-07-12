@@ -7,6 +7,8 @@ describe('Clerk route gating', () => {
     expect(shouldRunClerkMiddlewareForRequest('/', 'GET')).toBe(false);
     expect(shouldRunClerkMiddlewareForRequest('/studio', 'GET')).toBe(false);
     expect(shouldRunClerkMiddlewareForRequest('/api/assets', 'GET')).toBe(false);
+    expect(shouldRunClerkMiddlewareForRequest('/api/templates', 'GET')).toBe(false);
+    expect(shouldRunClerkMiddlewareForRequest('/api/styles', 'GET')).toBe(false);
   });
 
   it('runs Clerk middleware only for account-aware routes and mutating shared state', () => {
@@ -20,7 +22,9 @@ describe('Clerk route gating', () => {
     expect(shouldRunClerkMiddlewareForRequest('/api/roadmap', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/api/roadmap', 'POST')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/api/roadmap/votes', 'POST')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/api/templates', 'GET')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/api/styles', 'GET')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/api/templates', 'POST')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/api/templates', 'DELETE')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/api/styles', 'POST')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/api/styles', 'DELETE')).toBe(true);
   });
 });

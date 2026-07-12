@@ -14,6 +14,12 @@ describe('app store helpers', () => {
       defaultTemplates: [],
       userTemplates: [],
       storedCards: [],
+      activeCardSet: {
+        id: 'active-card-set',
+        name: 'Untitled Deck',
+        frontTemplateId: null,
+        backingTemplateId: null,
+      },
       singleCardGeneratorSelectedTemplateId: null,
       editingCardUniqueId: null,
       isEditDialogOpen: false,
@@ -68,11 +74,12 @@ describe('app store helpers', () => {
     expect(freeformTemplate.freeformCanvas?.elements[0].content).toBe('{{title:"Name"}}');
   });
 
-  it('preserves a duplex back canvas when reconstructing templates', () => {
+  it('drops legacy template-owned backing fields when reconstructing templates', () => {
     const template = reconstructMinimalTemplateObject({
       id: 'duplex-template',
       name: 'Duplex',
       aspectRatio: '63:88',
+      backingTemplateId: 'legacy-back',
       freeformCanvas: {
         width: 630,
         height: 880,
@@ -83,11 +90,11 @@ describe('app store helpers', () => {
         height: 880,
         elements: [{ id: 'back-el', type: 'text', name: 'Back Title', x: 10, y: 10, width: 200, height: 50, zIndex: 1, content: 'Back' }],
       },
-    });
+    } as unknown as Partial<TCGCardTemplate>);
 
     expect(template.freeformCanvas?.elements[0].content).toBe('Front');
-    expect(template.backCanvas?.elements[0].content).toBe('Back');
-    expect(template.backCanvas?.width).toBe(630);
+    expect('backCanvas' in template).toBe(false);
+    expect('backingTemplateId' in template).toBe(false);
   });
 
   it('selects generated cards only when their template still exists', () => {
@@ -111,7 +118,7 @@ describe('app store helpers', () => {
     expect(cards[0].template.id).toBe('template-1');
   });
 
-  it('resolves a generated card backing from a separate back preset template', () => {
+  it('resolves a generated card backing from the stored card set snapshot', () => {
     const backingTemplate: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'obsidian-back',
       name: 'Obsidian Back',
@@ -125,17 +132,26 @@ describe('app store helpers', () => {
     const frontTemplate: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'front-template',
       name: 'Front Template',
-      backingTemplateId: 'obsidian-back',
     });
 
     const cards = selectGeneratedDisplayCards({
       defaultTemplates: [backingTemplate],
       userTemplates: [frontTemplate],
-      storedCards: [{ uniqueId: 'card-with-back', templateId: 'front-template', data: { cardName: 'Front Data' } }],
+      storedCards: [{
+        uniqueId: 'card-with-back',
+        templateId: 'front-template',
+        backingTemplateId: 'obsidian-back',
+        setId: 'set-1',
+        setName: 'Arcane Deck',
+        data: { cardName: 'Front Data' },
+      }],
     } as unknown as Parameters<typeof selectGeneratedDisplayCards>[0]);
 
     expect(cards).toHaveLength(1);
     expect(cards[0].template.id).toBe('front-template');
+    expect(cards[0].setId).toBe('set-1');
+    expect(cards[0].setName).toBe('Arcane Deck');
+    expect(cards[0].backingTemplateId).toBe('obsidian-back');
     expect(cards[0].backingTemplate?.id).toBe('obsidian-back');
     expect(cards[0].backingTemplate?.freeformCanvas?.elements[0].content).toBe('Static Back');
   });
@@ -210,6 +226,9 @@ describe('app store helpers', () => {
     expect(useAppStore.getState().storedCards).toEqual([{
       uniqueId: 'styled-card',
       templateId: 'styled-template',
+      backingTemplateId: null,
+      setId: 'active-card-set',
+      setName: 'Untitled Deck',
       data: {
         cardName: 'Avery',
         '__cardforgeFieldStyle.cardName.textColor': '#00ffaa',
@@ -278,8 +297,22 @@ describe('app store helpers', () => {
     expect(result).toEqual({ successCount: 2, skippedCount: 1 });
     expect(useAppStore.getState().storedCards).toEqual([
       { uniqueId: 'existing-card', templateId: 'existing-template', data: { cardName: 'Kept' } },
-      { uniqueId: 'updated-card', templateId: 'import-template', data: { cardName: 'Updated' } },
-      { uniqueId: 'new-card', templateId: 'import-template', data: { cardName: 'New' } },
+      {
+        uniqueId: 'updated-card',
+        templateId: 'import-template',
+        backingTemplateId: null,
+        setId: 'active-card-set',
+        setName: 'Untitled Deck',
+        data: { cardName: 'Updated' },
+      },
+      {
+        uniqueId: 'new-card',
+        templateId: 'import-template',
+        backingTemplateId: null,
+        setId: 'active-card-set',
+        setName: 'Untitled Deck',
+        data: { cardName: 'New' },
+      },
     ]);
   });
 

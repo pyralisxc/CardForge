@@ -19,6 +19,7 @@ export function useCardForgeWorkspaceState() {
 
   const selectedPaperSize = useAppStore((state) => state.selectedPaperSize);
   const activeTab = useAppStore((state) => state.activeTab);
+  const activeCardSet = useAppStore((state) => state.activeCardSet);
   const singleCardGeneratorSelectedTemplateId = useAppStore((state) => state.singleCardGeneratorSelectedTemplateId);
   const pdfMarginMm = useAppStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useAppStore((state) => state.pdfCardSpacingMm);
@@ -48,6 +49,9 @@ export function useCardForgeWorkspaceState() {
   const mergeStoredCardsFromFileAction = useAppStore((state) => state.mergeStoredCardsFromFile);
   const setSelectedPaperSizeAction = useAppStore((state) => state.setSelectedPaperSize);
   const setActiveTabAction = useAppStore((state) => state.setActiveTab);
+  const setActiveCardSetNameAction = useAppStore((state) => state.setActiveCardSetName);
+  const setActiveCardSetFrontTemplateIdAction = useAppStore((state) => state.setActiveCardSetFrontTemplateId);
+  const setActiveCardSetBackingTemplateIdAction = useAppStore((state) => state.setActiveCardSetBackingTemplateId);
   const setSingleCardGeneratorSelectedTemplateIdAction = useAppStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
   const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
   const setExportModeAction = useAppStore((state) => state.setExportMode);
@@ -83,6 +87,9 @@ export function useCardForgeWorkspaceState() {
       removeGeneratedCardAction,
       retargetGeneratedCardsTemplateAction,
       setActiveTabAction,
+      setActiveCardSetBackingTemplateIdAction,
+      setActiveCardSetFrontTemplateIdAction,
+      setActiveCardSetNameAction,
       setAppearanceStylesFromFilesAction,
       replaceAppearanceStylesFromFilesAction,
       setDefaultTemplatesFromFilesAction,
@@ -99,6 +106,7 @@ export function useCardForgeWorkspaceState() {
     },
     state: {
       activeTab,
+      activeCardSet,
       appearanceStyles,
       backFacePresetTemplates,
       editingCardFromStore,

@@ -222,10 +222,8 @@ export interface TCGCardTemplate {
   cardBorderRadius?: string;
   appearance?: FreeformAppearance;
   fieldContracts?: TemplateFieldContract[];
-  backingTemplateId?: string | null;
 
   freeformCanvas?: FreeformCanvas;
-  backCanvas?: FreeformCanvas;
 }
 
 export interface CardData {
@@ -240,13 +238,26 @@ export interface PaperSize {
 
 export interface StoredDisplayCard {
   templateId: string;
+  backingTemplateId?: string | null;
+  setId?: string;
+  setName?: string;
   data: CardData;
   uniqueId: string;
 }
 
 export interface DisplayCard {
   template: TCGCardTemplate;
+  backingTemplateId?: string | null;
   backingTemplate?: TCGCardTemplate | null;
+  setId?: string;
+  setName?: string;
   data: CardData;
   uniqueId: string;
+}
+
+export interface CardSet {
+  id: string;
+  name: string;
+  frontTemplateId: string | null;
+  backingTemplateId: string | null;
 }

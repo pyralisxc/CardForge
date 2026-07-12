@@ -135,6 +135,25 @@ const readTemplatesFromRegistry = async (): Promise<TCGCardTemplate[]> => {
     });
 };
 
+const mergeTemplatesById = (
+  baseTemplates: TCGCardTemplate[],
+  overrideTemplates: TCGCardTemplate[],
+): TCGCardTemplate[] => {
+  const merged = new Map<string, TCGCardTemplate>();
+
+  [...baseTemplates, ...overrideTemplates].forEach((template) => {
+    if (!template.id) return;
+    merged.set(template.id, template);
+  });
+
+  return Array.from(merged.values()).sort((a, b) => {
+    const orderA = typeof a.templateOrder === 'number' ? a.templateOrder : Number.MAX_SAFE_INTEGER;
+    const orderB = typeof b.templateOrder === 'number' ? b.templateOrder : Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.name.localeCompare(b.name);
+  });
+};
+
 const getTemplateDirectory = (source?: TCGCardTemplate['templateSource']) => (
   source === 'default' ? DEFAULT_TEMPLATE_LIBRARY_DIR : USER_TEMPLATE_LIBRARY_DIR
 );
@@ -234,12 +253,14 @@ const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
 export async function GET() {
   try {
     await ensureTemplateDirectory();
-    const [registryDefaults, userTemplates] = await Promise.all([
+    const [localDefaults, registryDefaults, userTemplates] = await Promise.all([
+      readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
       readTemplatesFromRegistry(),
       readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
     ]);
-    const visibleRegistryDefaults = registryDefaults.filter((template) => !isLegacyRelicDemoTemplate(template));
-    return createNoStoreJsonResponse({ defaults: visibleRegistryDefaults, userTemplates });
+    const visibleDefaults = mergeTemplatesById(localDefaults, registryDefaults)
+      .filter((template) => !isLegacyRelicDemoTemplate(template));
+    return createNoStoreJsonResponse({ defaults: visibleDefaults, userTemplates });
   } catch (error) {
     console.error('Failed to load template library:', error);
     return createApiErrorResponse(

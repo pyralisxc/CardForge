@@ -24,9 +24,7 @@ import {
   redoTemplateEditorState,
   resetTemplateEditorState,
   selectTemplateEditorElement,
-  setTemplateEditorFace,
   undoTemplateEditorState,
-  type TemplateEditorFace,
 } from '@/features/template-editor/lib/templateEditorState';
 import { remapDuplicatedTextElementContracts } from '@/features/template-editor/lib/templateVariableContracts';
 import type { FreeformCardElement, FreeformCanvas, TCGCardTemplate } from '@/types';
@@ -48,9 +46,9 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   }, [initialTemplate]);
 
   const canvas = useMemo(() => (
-    getTemplateEditorCanvas(editorState.currentTemplate, editorState.activeFace)
+    getTemplateEditorCanvas(editorState.currentTemplate)
     || createDefaultFreeformCanvas()
-  ), [editorState.activeFace, editorState.currentTemplate]);
+  ), [editorState.currentTemplate]);
 
   const selectedElement = useMemo(() => (
     canvas.elements.find((element) => element.id === editorState.selectedElementId) || null
@@ -100,10 +98,10 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     setEditorState((previous) => commitTemplateEditorState(
       previous,
       (template) => {
-        const activeCanvas = getTemplateEditorCanvas(template, previous.activeFace) || createDefaultFreeformCanvas();
+        const activeCanvas = getTemplateEditorCanvas(template) || createDefaultFreeformCanvas();
         return {
           ...template,
-          [previous.activeFace === 'back' ? 'backCanvas' : 'freeformCanvas']: reconstructFreeformCanvas({
+          freeformCanvas: reconstructFreeformCanvas({
             ...activeCanvas,
             ...updates,
           }),
@@ -136,11 +134,6 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
 
   const redo = useCallback(() => {
     setEditorState(redoTemplateEditorState);
-  }, []);
-
-  const setActiveFace = useCallback((activeFace: TemplateEditorFace) => {
-    setEditorState((previous) => setTemplateEditorFace(previous, activeFace));
-    setCheckedLayerIds([]);
   }, []);
 
   const setSelectedElementId: Dispatch<SetStateAction<string | null>> = useCallback((nextValue) => {
@@ -187,7 +180,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
       setEditorState((previous) => commitTemplateEditorState(
         previous,
         (template) => {
-          const activeCanvas = getTemplateEditorCanvas(template, previous.activeFace) || createDefaultFreeformCanvas();
+          const activeCanvas = getTemplateEditorCanvas(template) || createDefaultFreeformCanvas();
           const remapped = remapDuplicatedTextElementContracts({
             elements: result.elements,
             fieldContracts: template.fieldContracts,
@@ -197,7 +190,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
           return {
             ...template,
             fieldContracts: remapped.fieldContracts,
-            [previous.activeFace === 'back' ? 'backCanvas' : 'freeformCanvas']: reconstructFreeformCanvas({
+            freeformCanvas: reconstructFreeformCanvas({
               ...activeCanvas,
               elements: remapped.elements,
             }),
@@ -240,22 +233,6 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     position,
   })), [applyCanvasCommandResult, canvas.elements]);
 
-  const createBackFace = useCallback((backCanvas: FreeformCanvas) => {
-    setEditorState((previous) => {
-      const committed = commitTemplateEditorState(
-        previous,
-        (template) => ({ ...template, backCanvas }),
-        true,
-      );
-      return reconcileTemplateEditorSelection({
-        ...committed,
-        activeFace: 'back',
-        selectedElementId: backCanvas.elements[0]?.id ?? null,
-      });
-    });
-    setCheckedLayerIds([]);
-  }, []);
-
   const clearCheckedLayers = useCallback(() => setCheckedLayerIds([]), []);
 
   const toggleCheckedLayer = useCallback((elementId: string, checked: boolean) => {
@@ -265,12 +242,10 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   }, []);
 
   return {
-    activeFace: editorState.activeFace,
     canvas,
     checkedLayerIds,
     clearCheckedLayers,
     commitTemplate,
-    createBackFace,
     currentTemplate: editorState.currentTemplate,
     deleteSelected,
     duplicateSelected,
@@ -285,7 +260,6 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     selectedElement,
     selectedElementId: editorState.selectedElementId,
     selectElement,
-    setActiveFace,
     setCheckedLayerIds,
     setCurrentTemplate,
     setSelectedElementId,

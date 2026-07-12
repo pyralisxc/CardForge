@@ -1,7 +1,7 @@
 import type { CardData, CardFace, DisplayCard, FreeformCanvas, TCGCardTemplate } from '@/types';
 
 export const hasCardBacking = (card: DisplayCard): boolean => (
-  Boolean(card.backingTemplate?.freeformCanvas || card.template.backCanvas)
+  Boolean(card.backingTemplate?.freeformCanvas)
 );
 
 export const getCardFaceCanvas = (
@@ -9,7 +9,7 @@ export const getCardFaceCanvas = (
   face: CardFace,
 ): FreeformCanvas | undefined => {
   if (face === 'front') return card.template.freeformCanvas;
-  return card.backingTemplate?.freeformCanvas || card.template.backCanvas || card.template.freeformCanvas;
+  return card.backingTemplate?.freeformCanvas;
 };
 
 export const getCardFaceTemplate = (

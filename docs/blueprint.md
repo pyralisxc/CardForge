@@ -50,8 +50,7 @@ interface TCGCardTemplate {
   cardBackgroundImageUrl?: string;
   defaultElementBorderColor?: string;
   appearance?: FreeformAppearance;
-  freeformCanvas?: FreeformCanvas;  // Front face canvas
-  backCanvas?: FreeformCanvas;      // Optional back face canvas
+  freeformCanvas?: FreeformCanvas;  // Template canvas
 }
 ```
 
@@ -84,13 +83,12 @@ Text elements can now mix static copy with element-scoped inline variables.
 - On-screen thumbnails and generated-card gallery previews should render from the template/canvas coordinate space and scale the whole card down for display. Do not rebuild them as tiny independent layouts; fixed CSS padding, borders, radii, and text fitting must preserve the same proportions users will get from the template/export path.
 - The generator workspace is organized as task tabs: `Single`, `Bulk Import`, and `Export & Sets`. The generated reference gallery stays visible beside those tools so the output remains the constant review surface.
 - Large generated sets use TanStack Virtual-backed responsive browsing instead of unlimited grid expansion. The generated-card gallery adapts columns to available width and renders only the visible rows plus overscan while preserving the shared `CardPreview` source of truth.
-- Duplex card support now starts from the same source-of-truth model:
-  - `freeformCanvas` is the front face
-  - `backCanvas` is the optional back face
-  - maker editing keeps the front face primary and only creates `backCanvas` when the user explicitly adds a back face
-  - new back faces should seed from the pipeline-backed `default-obsidian-neon-card-back` template so teams start from an intentional reverse-side design instead of a blank canvas
-  - maker editing can then switch between front and back
-  - per-card export and ZIP export emit both faces when a back exists
+- Card set backing support starts from the generated output model:
+  - Layout Studio edits reusable template parts only: standard front templates and `back-preset` templates
+  - Generate owns Deck Setup: deck name, front template, and optional reusable card back
+  - Generated cards snapshot `setId`, `setName`, and `backingTemplateId` when they are created
+  - Preview/export resolve a back only from the generated card backing snapshot, never from the front template
+  - per-card export and ZIP export emit both faces when the generated card has a backing template
   - physical PDF export supports two front/back layouts:
     - separate front/back sheets for duplex printing
     - front + back on the same sheet for review, hand cutting, or manual assembly

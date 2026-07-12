@@ -4,19 +4,15 @@ import { Download, FileJson, FileText, Table2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
-import { getTemplateDisplayName, getTemplateSourceLabel } from '@/lib/templateDisplay';
+import { getTemplateSourceLabel } from '@/lib/templateDisplay';
 import type { TCGCardTemplate } from '@/types';
 import { createBulkContractSummary } from '@/lib/bulkGeneration';
 
 interface BulkTemplateSetupPanelProps {
-  templates: TCGCardTemplate[];
   selectedTemplateId: string | null;
   selectedTemplate?: TCGCardTemplate;
   bulkFieldDefinitions: TemplateFieldDefinition[];
-  onTemplateSelectionChange: (templateId: string | null) => void;
   onDownloadExampleCsv: () => void;
   onDownloadExampleJson: () => void;
   onDownloadStructuredText: () => void;
@@ -24,11 +20,9 @@ interface BulkTemplateSetupPanelProps {
 }
 
 export function BulkTemplateSetupPanel({
-  templates,
   selectedTemplateId,
   selectedTemplate,
   bulkFieldDefinitions,
-  onTemplateSelectionChange,
   onDownloadExampleCsv,
   onDownloadExampleJson,
   onDownloadStructuredText,
@@ -43,27 +37,13 @@ export function BulkTemplateSetupPanel({
     <Card>
       <CardHeader>
         <CardTitle className="text-base">1. Template Contract</CardTitle>
-        <CardDescription>Select the layout template your data source should populate.</CardDescription>
+        <CardDescription>Bulk imports use the front template selected in Deck Setup.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="bulk-template-select">Template</Label>
-          <Select
-            value={selectedTemplateId ?? '__none__'}
-            onValueChange={(value) => onTemplateSelectionChange(value === '__none__' ? null : value)}
-          >
-            <SelectTrigger id="bulk-template-select" aria-label="Choose template for bulk generation">
-              <SelectValue placeholder="Choose a template" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Choose a template</SelectItem>
-              {templates.map((template) => (
-                <SelectItem key={template.id ?? template.name ?? 'template'} value={template.id ?? ''}>
-                  {getTemplateDisplayName(template)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="rounded-md border bg-muted/30 p-3 text-sm">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Selected front template</p>
+          <p className="font-medium">{selectedTemplate?.name || selectedTemplateId || 'No front template selected'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Change this in Deck Setup above.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">

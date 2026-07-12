@@ -21,19 +21,29 @@ const CLERK_API_PREFIXES = [
   '/api/roadmap',
   '/api/roadmap/items',
   '/api/roadmap/votes',
+];
+
+const CLERK_MUTATION_API_PREFIXES = [
   '/api/styles',
   '/api/templates',
 ];
 
 export const shouldRunClerkMiddlewareForRequest = (
   pathname: string,
-  _method: string
+  method: string
 ): boolean => {
   if (CLERK_PAGE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return true;
   }
 
   if (CLERK_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return true;
+  }
+
+  if (
+    method.toUpperCase() !== 'GET'
+    && CLERK_MUTATION_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  ) {
     return true;
   }
 

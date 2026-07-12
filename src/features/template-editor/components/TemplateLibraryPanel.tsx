@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/lib/templateDisplay';
 import { cn } from '@/lib/utils';
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate, TemplateUsage } from '@/types';
 
 interface TemplateLibraryPanelProps {
   canUseProjectFiles: boolean;
@@ -21,7 +21,7 @@ interface TemplateLibraryPanelProps {
   isCheckoutStarting: boolean;
   projectFileGateMessage?: string | null;
   userTemplates: TCGCardTemplate[];
-  onCreateNew: () => void;
+  onCreateNew: (templateUsage?: TemplateUsage) => void;
   onClone: () => void;
   onDelete: () => void;
   onExportProject: () => void;
@@ -58,7 +58,8 @@ export function TemplateLibraryPanel({
   controlClassName,
   buttonClassName,
 }: TemplateLibraryPanelProps) {
-  const allListedTemplates = [...defaultTemplates, ...userTemplates, ...backFaceTemplates];
+  const frontUserTemplates = userTemplates.filter((template) => template.templateUsage !== 'back-preset');
+  const allListedTemplates = [...defaultTemplates, ...frontUserTemplates, ...backFaceTemplates];
   const shouldShowUnsavedCurrentTemplate = Boolean(
     currentTemplateId && !allListedTemplates.some((template) => template.id === currentTemplateId)
   );
@@ -74,7 +75,7 @@ export function TemplateLibraryPanel({
         <Select
           value={currentTemplateId || '__new__'}
           onValueChange={(value) => {
-            if (value === '__new__') onCreateNew();
+            if (value === '__new__') onCreateNew('standard');
             else onSelectTemplateId(value);
           }}
         >
@@ -87,13 +88,16 @@ export function TemplateLibraryPanel({
             {defaultTemplates.map((template) => (
               <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
             ))}
-            {userTemplates.map((template) => (
+            {frontUserTemplates.map((template) => (
               <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <div className="grid grid-cols-3 gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onCreateNew} aria-label="Create new template" className={buttonClassName}><Plus className="h-4 w-4" /></Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => onCreateNew('standard')} aria-label="Create new front template" className={cn(buttonClassName, 'gap-1 px-2 text-xs')}><Plus className="h-4 w-4" /> Front</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => onCreateNew('back-preset')} aria-label="Create new card back" className={cn(buttonClassName, 'gap-1 px-2 text-xs')}><Plus className="h-4 w-4" /> Back</Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onClone} disabled={!currentTemplateId} aria-label="Clone selected template" className={buttonClassName}><Copy className="h-4 w-4" /></Button>
           <Button type="button" variant="outline" size="sm" onClick={onDelete} disabled={!currentTemplateId} aria-label="Delete selected template" className={buttonClassName}><Trash2 className="h-4 w-4 text-[#ff554a]" /></Button>
         </div>
@@ -151,7 +155,7 @@ export function TemplateLibraryPanel({
         {backFaceTemplates.length > 0 ? (
           <div className="space-y-1.5 border-t border-[#1b2029] pt-2">
             <p className="text-[10px] uppercase tracking-[0.14em] text-[#757d8c]">
-              Card Back Example
+              Card Backs
             </p>
             {backFaceTemplates.map((template) => (
               <button
@@ -163,7 +167,7 @@ export function TemplateLibraryPanel({
                 <TemplateLibraryPreview template={template} />
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#b9f3ff]">{template.name}</span>
-                  <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Card back example'}</span>
+                  <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Card back'}</span>
                 </span>
               </button>
             ))}

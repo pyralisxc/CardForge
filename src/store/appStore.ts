@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, devtools } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type { TCGCardTemplate, TemplateSource, PaperSize, DisplayCard, CardData, StoredDisplayCard, AppearanceStylePreset, PdfDuplexLayout } from '@/types';
+import type { TCGCardTemplate, TemplateSource, PaperSize, DisplayCard, CardData, StoredDisplayCard, AppearanceStylePreset, PdfDuplexLayout, CardSet } from '@/types';
 import { PAPER_SIZES, TABS_CONFIG, TCG_ASPECT_RATIO } from '@/lib/constants';
 import type { ExportMode } from '@/lib/printValidation';
 import { createDefaultFreeformCanvas, reconstructFreeformCanvas, reconstructMinimalTemplateObject } from '@/lib/templateModel';
@@ -26,6 +26,13 @@ const isDraftTemplateSelection = (templateId: string | null): boolean => (
   typeof templateId === 'string' && templateId.startsWith('draft-')
 );
 
+const createDefaultActiveCardSet = (): CardSet => ({
+  id: 'active-card-set',
+  name: 'Untitled Deck',
+  frontTemplateId: null,
+  backingTemplateId: null,
+});
+
 interface AppState {
   defaultTemplates: TCGCardTemplate[];
   userTemplates: TCGCardTemplate[];
@@ -35,6 +42,7 @@ interface AppState {
   selectedPaperSize: PaperSize;
   activeTab: string;
   richTextHighlightColor: string;
+  activeCardSet: CardSet;
   singleCardGeneratorSelectedTemplateId: string | null;
 
   pdfMarginMm: number;
@@ -70,6 +78,9 @@ interface AppState {
   setSelectedPaperSize: (size: PaperSize) => void;
   setActiveTab: (tab: string) => void;
   setRichTextHighlightColor: (color: string) => void;
+  setActiveCardSetName: (name: string) => void;
+  setActiveCardSetFrontTemplateId: (id: string | null) => void;
+  setActiveCardSetBackingTemplateId: (id: string | null) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   setExportMode: (mode: ExportMode) => void;
@@ -93,6 +104,7 @@ export const useAppStore = create<AppState>()(
         selectedPaperSize: PAPER_SIZES[0],
         activeTab: TABS_CONFIG[0].value,
         richTextHighlightColor: '#ffd700',
+        activeCardSet: createDefaultActiveCardSet(),
         singleCardGeneratorSelectedTemplateId: null,
 
         pdfMarginMm: 5,
@@ -146,12 +158,20 @@ export const useAppStore = create<AppState>()(
               ? isDraftTemplateSelection(state.singleCardGeneratorSelectedTemplateId)
                 || allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
               : false;
+            const nextSelectedId = selectedStillExists
+              ? state.singleCardGeneratorSelectedTemplateId
+              : (allTemplates.find(template => template.templateUsage !== 'back-preset')?.id ?? null);
 
             return {
               defaultTemplates: reconstructedTemplates,
-              singleCardGeneratorSelectedTemplateId: selectedStillExists
-                ? state.singleCardGeneratorSelectedTemplateId
-                : (allTemplates[0]?.id ?? null),
+              singleCardGeneratorSelectedTemplateId: nextSelectedId,
+              activeCardSet: {
+                ...state.activeCardSet,
+                frontTemplateId: nextSelectedId,
+                backingTemplateId: state.activeCardSet.backingTemplateId && allTemplates.some(template => template.id === state.activeCardSet.backingTemplateId && template.templateUsage === 'back-preset')
+                  ? state.activeCardSet.backingTemplateId
+                  : null,
+              },
             };
           });
 
@@ -168,12 +188,20 @@ export const useAppStore = create<AppState>()(
               ? isDraftTemplateSelection(state.singleCardGeneratorSelectedTemplateId)
                 || allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
               : false;
+            const nextSelectedId = selectedStillExists
+              ? state.singleCardGeneratorSelectedTemplateId
+              : (allTemplates.find(template => template.templateUsage !== 'back-preset')?.id ?? null);
 
             return {
               userTemplates: reconstructedTemplates,
-              singleCardGeneratorSelectedTemplateId: selectedStillExists
-                ? state.singleCardGeneratorSelectedTemplateId
-                : (allTemplates[0]?.id ?? null),
+              singleCardGeneratorSelectedTemplateId: nextSelectedId,
+              activeCardSet: {
+                ...state.activeCardSet,
+                frontTemplateId: nextSelectedId,
+                backingTemplateId: state.activeCardSet.backingTemplateId && allTemplates.some(template => template.id === state.activeCardSet.backingTemplateId && template.templateUsage === 'back-preset')
+                  ? state.activeCardSet.backingTemplateId
+                  : null,
+              },
             };
           });
 
@@ -201,12 +229,20 @@ export const useAppStore = create<AppState>()(
               ? isDraftTemplateSelection(state.singleCardGeneratorSelectedTemplateId)
                 || allTemplates.some(template => template.id === state.singleCardGeneratorSelectedTemplateId)
               : false;
+            const nextSelectedId = selectedStillExists
+              ? state.singleCardGeneratorSelectedTemplateId
+              : (allTemplates.find(template => template.templateUsage !== 'back-preset')?.id ?? null);
 
             return {
               userTemplates: nextUserTemplates,
-              singleCardGeneratorSelectedTemplateId: selectedStillExists
-                ? state.singleCardGeneratorSelectedTemplateId
-                : (allTemplates[0]?.id ?? null),
+              singleCardGeneratorSelectedTemplateId: nextSelectedId,
+              activeCardSet: {
+                ...state.activeCardSet,
+                frontTemplateId: nextSelectedId,
+                backingTemplateId: state.activeCardSet.backingTemplateId && allTemplates.some(template => template.id === state.activeCardSet.backingTemplateId && template.templateUsage === 'back-preset')
+                  ? state.activeCardSet.backingTemplateId
+                  : null,
+              },
             };
           });
 
@@ -234,10 +270,17 @@ export const useAppStore = create<AppState>()(
             ? state.userTemplates.filter(t => t.id !== templateId)
             : state.userTemplates;
           const allTemplates = [...defaultTemplates, ...userTemplates];
-          const newStoredCards = state.storedCards.filter(card => card.templateId !== templateId);
+          const newStoredCards = state.storedCards
+            .filter(card => card.templateId !== templateId)
+            .map(card => card.backingTemplateId === templateId ? { ...card, backingTemplateId: null } : card);
           const newSingleSelectedId = state.singleCardGeneratorSelectedTemplateId === templateId ? 
             (allTemplates.length > 0 ? (allTemplates.find(t => t.id && t.id.trim() !== "")?.id || null) : null) 
             : state.singleCardGeneratorSelectedTemplateId;
+          const nextActiveCardSet: CardSet = {
+            ...state.activeCardSet,
+            frontTemplateId: state.activeCardSet.frontTemplateId === templateId ? newSingleSelectedId : state.activeCardSet.frontTemplateId,
+            backingTemplateId: state.activeCardSet.backingTemplateId === templateId ? null : state.activeCardSet.backingTemplateId,
+          };
           const newEditingCardUniqueId = state.editingCardUniqueId && state.storedCards.find(card => card.uniqueId === state.editingCardUniqueId)?.templateId === templateId
             ? null
             : state.editingCardUniqueId;
@@ -247,6 +290,7 @@ export const useAppStore = create<AppState>()(
             JSON.stringify(state.userTemplates) === JSON.stringify(userTemplates) &&
             JSON.stringify(state.storedCards) === JSON.stringify(newStoredCards) &&
             state.singleCardGeneratorSelectedTemplateId === newSingleSelectedId &&
+            JSON.stringify(state.activeCardSet) === JSON.stringify(nextActiveCardSet) &&
             state.editingCardUniqueId === newEditingCardUniqueId
           ) {
             return state;
@@ -256,6 +300,7 @@ export const useAppStore = create<AppState>()(
             userTemplates,
             storedCards: newStoredCards,
             singleCardGeneratorSelectedTemplateId: newSingleSelectedId,
+            activeCardSet: nextActiveCardSet,
             editingCardUniqueId: newEditingCardUniqueId,
             isEditDialogOpen: newEditingCardUniqueId ? state.isEditDialogOpen : false,
           };
@@ -287,9 +332,13 @@ export const useAppStore = create<AppState>()(
         })),
         
         addGeneratedCards: (newCards) => {
+          const activeCardSet = get().activeCardSet;
           const newStoredCards = newCards.map(card => ({
             uniqueId: card.uniqueId,
             templateId: card.template.id!,
+            backingTemplateId: card.backingTemplateId ?? card.backingTemplate?.id ?? activeCardSet.backingTemplateId,
+            setId: card.setId ?? activeCardSet.id,
+            setName: card.setName ?? activeCardSet.name,
             data: card.data,
           }));
           set((state) => ({
@@ -311,7 +360,14 @@ export const useAppStore = create<AppState>()(
         updateGeneratedCard: (updatedCard) => set((state) => ({
           storedCards: state.storedCards.map(sc =>
             sc.uniqueId === updatedCard.uniqueId
-              ? { uniqueId: updatedCard.uniqueId, templateId: updatedCard.template.id!, data: updatedCard.data }
+              ? {
+                uniqueId: updatedCard.uniqueId,
+                templateId: updatedCard.template.id!,
+                backingTemplateId: updatedCard.backingTemplateId ?? updatedCard.backingTemplate?.id ?? sc.backingTemplateId ?? null,
+                setId: updatedCard.setId ?? sc.setId,
+                setName: updatedCard.setName ?? sc.setName,
+                data: updatedCard.data,
+              }
               : sc
           ),
         })),
@@ -333,6 +389,7 @@ export const useAppStore = create<AppState>()(
             let successCount = 0;
             let skippedCount = 0;
             const currentTemplates = selectAllTemplates(get());
+            const activeCardSet = get().activeCardSet || createDefaultActiveCardSet();
 
             const runtimeCards: StoredDisplayCard[] = [];
             loadedCards.forEach(storedCardFromFile => {
@@ -340,7 +397,10 @@ export const useAppStore = create<AppState>()(
                 if(templateFound){
                     runtimeCards.push({
                         uniqueId: storedCardFromFile.uniqueId || nanoid(),
-                        templateId: templateFound.id!, 
+                        templateId: templateFound.id!,
+                        backingTemplateId: storedCardFromFile.backingTemplateId ?? null,
+                        setId: storedCardFromFile.setId ?? activeCardSet.id,
+                        setName: storedCardFromFile.setName ?? activeCardSet.name,
                         data: storedCardFromFile.data || {}
                     });
                     successCount++;
@@ -355,6 +415,7 @@ export const useAppStore = create<AppState>()(
             let successCount = 0;
             let skippedCount = 0;
             const currentTemplates = selectAllTemplates(get());
+            const activeCardSet = get().activeCardSet || createDefaultActiveCardSet();
             const mergedCards = new Map<string, StoredDisplayCard>();
 
             get().storedCards.forEach(card => {
@@ -368,6 +429,9 @@ export const useAppStore = create<AppState>()(
                     mergedCards.set(uniqueId, {
                         uniqueId,
                         templateId: templateFound.id!,
+                        backingTemplateId: storedCardFromFile.backingTemplateId ?? null,
+                        setId: storedCardFromFile.setId ?? activeCardSet.id,
+                        setName: storedCardFromFile.setName ?? activeCardSet.name,
                         data: storedCardFromFile.data || {}
                     });
                     successCount++;
@@ -383,7 +447,32 @@ export const useAppStore = create<AppState>()(
         setSelectedPaperSize: (size) => set({ selectedPaperSize: size }),
         setActiveTab: (tab) => set({ activeTab: normalizeActiveTab(tab) }),
         setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
-        setSingleCardGeneratorSelectedTemplateId: (id) => set({ singleCardGeneratorSelectedTemplateId: id }),
+        setActiveCardSetName: (name) => set((state) => ({
+          activeCardSet: {
+            ...state.activeCardSet,
+            name: name.trim() || 'Untitled Deck',
+          },
+        })),
+        setActiveCardSetFrontTemplateId: (id) => set((state) => ({
+          activeCardSet: {
+            ...state.activeCardSet,
+            frontTemplateId: id,
+          },
+          singleCardGeneratorSelectedTemplateId: id,
+        })),
+        setActiveCardSetBackingTemplateId: (id) => set((state) => ({
+          activeCardSet: {
+            ...state.activeCardSet,
+            backingTemplateId: id,
+          },
+        })),
+        setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => ({
+          singleCardGeneratorSelectedTemplateId: id,
+          activeCardSet: {
+            ...state.activeCardSet,
+            frontTemplateId: id,
+          },
+        })),
         setPdfOptions: (options) => set((state) => ({
           pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,
           pdfCardSpacingMm: options.spacing !== undefined ? Math.max(0, options.spacing) : state.pdfCardSpacingMm,
@@ -400,13 +489,34 @@ export const useAppStore = create<AppState>()(
           const state = get();
           // After rehydration from localStorage, if the previously selected template
           // no longer exists, fall back to the first available template.
-          const currentId = state.singleCardGeneratorSelectedTemplateId;
+          const activeCardSet = state.activeCardSet || createDefaultActiveCardSet();
+          const currentId = activeCardSet.frontTemplateId || state.singleCardGeneratorSelectedTemplateId;
           const allTemplates = selectAllTemplates(state);
           if ((!currentId || !allTemplates.find(t => t.id === currentId)) && allTemplates.length > 0) {
-            const firstValid = allTemplates.find(t => t.id && t.id.trim() !== "");
+            const firstValid = allTemplates.find(t => t.templateUsage !== 'back-preset' && t.id && t.id.trim() !== "");
             if (firstValid) {
-              set({ singleCardGeneratorSelectedTemplateId: firstValid.id });
+              set({
+                singleCardGeneratorSelectedTemplateId: firstValid.id,
+                activeCardSet: {
+                  ...activeCardSet,
+                  frontTemplateId: firstValid.id,
+                  backingTemplateId: activeCardSet.backingTemplateId && allTemplates.some(t => t.id === activeCardSet.backingTemplateId && t.templateUsage === 'back-preset')
+                    ? activeCardSet.backingTemplateId
+                    : null,
+                },
+              });
             }
+          } else if (state.activeCardSet !== activeCardSet || state.singleCardGeneratorSelectedTemplateId !== currentId) {
+            set({
+              singleCardGeneratorSelectedTemplateId: currentId,
+              activeCardSet: {
+                ...activeCardSet,
+                frontTemplateId: currentId,
+                backingTemplateId: activeCardSet.backingTemplateId && allTemplates.some(t => t.id === activeCardSet.backingTemplateId && t.templateUsage === 'back-preset')
+                  ? activeCardSet.backingTemplateId
+                  : null,
+              },
+            });
           }
           const normalizedActiveTab = normalizeActiveTab(state.activeTab);
           if (normalizedActiveTab !== state.activeTab) {
@@ -429,6 +539,7 @@ export const useAppStore = create<AppState>()(
           selectedPaperSize: state.selectedPaperSize,
           activeTab: normalizeActiveTab(state.activeTab),
           richTextHighlightColor: state.richTextHighlightColor,
+          activeCardSet: state.activeCardSet,
           singleCardGeneratorSelectedTemplateId: state.singleCardGeneratorSelectedTemplateId,
           pdfMarginMm: state.pdfMarginMm,
           pdfCardSpacingMm: state.pdfCardSpacingMm,

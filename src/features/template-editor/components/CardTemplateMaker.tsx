@@ -3,7 +3,7 @@
 import type { ChangeEvent, PointerEvent as ReactPointerEvent, RefObject, WheelEvent as ReactWheelEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
-import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, FreeformCanvas, TCGCardTemplate } from '@/types';
+import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, FreeformCanvas, TCGCardTemplate, TemplateUsage } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -132,8 +132,6 @@ interface CardTemplateMakerProps {
   projectFileGateMessage?: string | null;
 }
 
-const DEFAULT_BACK_TEMPLATE_ID = 'default-obsidian-neon-card-back';
-
 type MobileMakerPanel = 'canvas' | 'library' | 'inspector';
 
 const MOBILE_MAKER_PANELS: Array<{ value: MobileMakerPanel; label: string }> = [
@@ -204,7 +202,6 @@ export function CardTemplateMaker({
   }, [freeformTemplates, localDraftTemplate, selectedTemplateIdForEditing, templates]);
 
   const {
-    activeFace,
     canvas,
     checkedLayerIds,
     clearCheckedLayers,
@@ -223,7 +220,6 @@ export function CardTemplateMaker({
     selectedElement,
     selectedElementId,
     selectElement: selectElementInController,
-    setActiveFace,
     setSelectedElementId,
     toggleCheckedLayer,
     undo,
@@ -423,37 +419,6 @@ export function CardTemplateMaker({
 
   // Layer tree helpers
   const layerTree = useMemo(() => buildLayerTree(canvas.elements), [canvas.elements]);
-  const selectedBackingTemplate = useMemo(() => (
-    currentTemplate.backingTemplateId
-      ? backFaceTemplates.find((template) => template.id === currentTemplate.backingTemplateId) || null
-      : null
-  ), [backFaceTemplates, currentTemplate.backingTemplateId]);
-  const activeCanvas = activeFace === 'back' && selectedBackingTemplate?.freeformCanvas
-    ? selectedBackingTemplate.freeformCanvas
-    : canvas;
-  const isBackingPreview = activeFace === 'back' && Boolean(selectedBackingTemplate);
-
-  const createBackFace = useCallback(() => {
-    const presetTemplate = backFaceTemplates.find((template) => template.id === DEFAULT_BACK_TEMPLATE_ID) || backFaceTemplates[0];
-    if (!presetTemplate?.id) {
-      toast({
-        title: 'No backing templates available',
-        description: 'Add or publish a card backing template before assigning a back face.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    commitTemplate((template) => ({
-      ...template,
-      backingTemplateId: presetTemplate.id,
-      backCanvas: undefined,
-    }));
-    setActiveFace('back');
-    toast({
-      title: 'Backing assigned',
-      description: `${presetTemplate.name} is now linked as a separate card backing.`,
-    });
-  }, [backFaceTemplates, commitTemplate, setActiveFace, toast]);
 
   // Group / ungroup
   const livePreviewData = useMemo(() => ({
@@ -505,7 +470,6 @@ export function CardTemplateMaker({
 
     commitTemplate((template) => renameScopedTextElementVariable({
       template,
-      activeFace,
       fallbackCanvas: canvas,
       selectedElementId: selectedElement.id,
       oldKey,
@@ -513,7 +477,7 @@ export function CardTemplateMaker({
     }), false);
 
     focusVariableCard(nextKey);
-  }, [activeFace, canvas, commitTemplate, currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast]);
+  }, [canvas, commitTemplate, currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast]);
 
   const removeSelectedElementVariableContract = useCallback((key: string) => {
     if (!selectedElement) return;
@@ -966,7 +930,6 @@ export function CardTemplateMaker({
     const savedId = onSaveTemplate({
       ...currentTemplate,
       freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas),
-      backCanvas: currentTemplate.backCanvas ? reconstructFreeformCanvas(currentTemplate.backCanvas) : undefined,
     });
     if (typeof window !== 'undefined') {
       clearTemplateEditorDraft(window.localStorage);
@@ -1036,9 +999,12 @@ export function CardTemplateMaker({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [deleteSelected, duplicateSelected, handleSave, isActive, redo, selectedElementId, undo]);
 
-  const handleNewTemplate = useCallback(() => {
+  const handleNewTemplate = useCallback((templateUsage: TemplateUsage = 'standard') => {
     const fresh = {
-      ...makeNewFreeformTemplate(),
+      ...makeNewFreeformTemplate(
+        templateUsage === 'back-preset' ? 'New Card Back' : 'New Front Template',
+        templateUsage,
+      ),
       id: `draft-${nanoid()}`,
     };
     setLocalDraftTemplate(fresh);
@@ -1124,16 +1090,16 @@ export function CardTemplateMaker({
   ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, previewMode, richTextHighlightColor, selectedElementId, zoom]);
 
   const canvasFrameStyle: React.CSSProperties = {
-    width: activeCanvas.width,
-    height: activeCanvas.height,
+    width: canvas.width,
+    height: canvas.height,
     transform: `scale(${zoom})`,
     transformOrigin: 'top left',
   };
 
   const canvasStyle: React.CSSProperties = {
     ...canvasFrameStyle,
-    width: activeCanvas.width,
-    height: activeCanvas.height,
+    width: canvas.width,
+    height: canvas.height,
     backgroundColor: currentTemplate.baseBackgroundColor || '#ffffff',
     color: currentTemplate.baseTextColor || '#000000',
     borderColor: currentTemplate.cardBorderColor || 'hsl(var(--border))',
@@ -1152,8 +1118,6 @@ export function CardTemplateMaker({
         data-mobile-panel={mobilePanel}
       >
         <TemplateEditorTopBar
-          activeFace={activeFace}
-          hasBackFace={Boolean(currentTemplate.backingTemplateId || currentTemplate.backCanvas)}
           canUndo={history.length > 0}
           canRedo={future.length > 0}
           showGrid={showGrid}
@@ -1172,8 +1136,6 @@ export function CardTemplateMaker({
           onFitToScreen={fitCanvasToViewport}
           onActualSize={resetCanvasZoom}
           onCenterCanvas={centerCanvasViewport}
-          onCreateBackFace={createBackFace}
-          onSetActiveFace={setActiveFace}
           onToggleGrid={() => setShowGrid(value => !value)}
           onToggleSnapToGrid={() => setSnapToGrid(value => !value)}
           onTogglePreviewMode={() => setPreviewMode(value => !value)}
@@ -1311,16 +1273,14 @@ export function CardTemplateMaker({
           </aside>
 
           <TemplateCanvasStage
-            activeFace={activeFace}
-            canvas={activeCanvas}
+            canvas={canvas}
             canvasFrameStyle={canvasFrameStyle}
             canvasRef={canvasRef}
             canvasStyle={canvasStyle}
-            backingTemplate={selectedBackingTemplate}
             currentTemplate={currentTemplate}
             gridSize={gridSize}
             livePreviewData={livePreviewData}
-            previewMode={previewMode || isBackingPreview}
+            previewMode={previewMode}
             selectedElement={selectedElement}
             showGrid={showGrid}
             stageRef={stageRef}
@@ -1351,7 +1311,6 @@ export function CardTemplateMaker({
                   templateContent={
                     <TemplateSettingsPanel
                       currentTemplate={currentTemplate}
-                      backFaceTemplates={backFaceTemplates}
                       customWidthValue={customWidthValue}
                       customHeightValue={customHeightValue}
                       customUnit={customUnit}

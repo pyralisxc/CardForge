@@ -63,7 +63,6 @@ describe('templateVariableContracts', () => {
 
     const result = renameScopedTextElementVariable({
       template,
-      activeFace: 'front',
       fallbackCanvas: template.freeformCanvas!,
       selectedElementId: 'title-element',
       oldKey: 'title_var_1',

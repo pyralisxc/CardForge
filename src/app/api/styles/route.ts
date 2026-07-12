@@ -1,3 +1,6 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+
 import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/types';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
@@ -13,6 +16,7 @@ import {
   readRegistryContentAsset,
 } from '@/lib/registryContentAssets';
 
+const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
 const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL || 'cameron.r.locke96@gmail.com';
 
 const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
@@ -105,12 +109,56 @@ const syncStylePresetToRegistry = async (style: AppearanceStylePreset) => {
 };
 
 const readLibrary = async (): Promise<AppearanceStyleLibrary> => {
-  const registryStyles = await readStylesFromRegistry();
+  const [localStyles, registryStyles] = await Promise.all([
+    readStylesFromDirectory(DEFAULT_STYLE_LIBRARY_DIR),
+    readStylesFromRegistry(),
+  ]);
 
   return {
     version: 1,
-    styles: registryStyles.sort((a, b) => a.name.localeCompare(b.name)),
+    styles: mergeStylesById(localStyles, registryStyles),
   };
+};
+
+const readStylesFromDirectory = async (directory: string): Promise<AppearanceStylePreset[]> => {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const styles: AppearanceStylePreset[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    const filePath = path.join(directory, entry.name);
+    try {
+      const contents = await fs.readFile(filePath, 'utf8');
+      const parsed = JSON.parse(contents);
+      if (isStylePreset(parsed)) {
+        styles.push({
+          ...parsed,
+          librarySource: 'official',
+          accessTier: 'free',
+          registryStatus: 'published',
+          contributorName: PIPELINE_OWNER_EMAIL,
+        });
+      }
+    } catch (error) {
+      console.warn(`Skipping invalid style file ${entry.name}:`, error);
+    }
+  }
+
+  return styles;
+};
+
+const mergeStylesById = (
+  baseStyles: AppearanceStylePreset[],
+  overrideStyles: AppearanceStylePreset[],
+): AppearanceStylePreset[] => {
+  const merged = new Map<string, AppearanceStylePreset>();
+
+  [...baseStyles, ...overrideStyles].forEach((style) => {
+    if (!style.id) return;
+    merged.set(style.id, style);
+  });
+
+  return Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 const readStylesFromRegistry = async (): Promise<AppearanceStylePreset[]> => {

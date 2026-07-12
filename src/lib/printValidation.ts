@@ -161,7 +161,6 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
   const customFontClasses = new Set(
     [
       ...(card.template.freeformCanvas?.elements || []),
-      ...(card.template.backCanvas?.elements || []),
       ...(card.backingTemplate?.freeformCanvas?.elements || []),
     ]
       .map((element) => element.fontFamily)

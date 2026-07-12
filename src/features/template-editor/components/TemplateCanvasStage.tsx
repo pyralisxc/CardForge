@@ -4,7 +4,7 @@ import type { CSSProperties, DragEvent, KeyboardEvent, PointerEvent, ReactNode, 
 import { MousePointer2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
-import type { CardData, CardFace, FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { CardData, FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
 import {
   CANVAS_GUTTER,
   CANVAS_RULER_WIDTH,
@@ -69,12 +69,10 @@ const buildRulerLabels = ({
 };
 
 interface TemplateCanvasStageProps {
-  activeFace: CardFace;
   canvas: FreeformCanvas;
   canvasFrameStyle: CSSProperties;
   canvasRef: { current: HTMLDivElement | null };
   canvasStyle: CSSProperties;
-  backingTemplate?: TCGCardTemplate | null;
   currentTemplate: TCGCardTemplate;
   gridSize: number;
   livePreviewData: CardData;
@@ -97,12 +95,10 @@ interface TemplateCanvasStageProps {
 }
 
 export function TemplateCanvasStage({
-  activeFace,
   canvas,
   canvasFrameStyle,
   canvasRef,
   canvasStyle,
-  backingTemplate,
   currentTemplate,
   gridSize,
   livePreviewData,
@@ -243,8 +239,8 @@ export function TemplateCanvasStage({
           >
             {previewMode ? (
               <CardPreview
-                card={{ template: currentTemplate, backingTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-${activeFace}-editor-preview` }}
-                face={activeFace}
+                card={{ template: currentTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-editor-preview` }}
+                face="front"
                 isEditorPreview
                 targetWidthPx={canvas.width}
               />

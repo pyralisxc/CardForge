@@ -1,6 +1,6 @@
 "use client";
 
-import type { TCGCardTemplate, DisplayCard } from '@/types';
+import type { CardSet, TCGCardTemplate, DisplayCard } from '@/types';
 import type { ChangeEvent } from 'react';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,9 +34,10 @@ import { BulkGenerateActionBar } from '@/features/card-generator/components/Bulk
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];
+  backingTemplate?: TCGCardTemplate | null;
+  activeCardSet: CardSet;
   onCardsGenerated: (cards: DisplayCard[]) => void;
   selectedTemplateIdProp: string | null;
-  onTemplateSelectionChange: (templateId: string | null) => void;
 }
 
 type PreviewFilter = 'all' | 'warnings' | 'clean';
@@ -69,9 +70,10 @@ const getSafeTemplateFileName = (template: TCGCardTemplate, fallback: string): s
 
 export function BulkGenerator({
   templates,
+  backingTemplate,
+  activeCardSet,
   onCardsGenerated,
   selectedTemplateIdProp,
-  onTemplateSelectionChange,
 }: BulkGeneratorProps) {
   const [bulkDataInput, setBulkDataInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -348,6 +350,8 @@ export function BulkGenerator({
 
       const generatedCards = createBulkDisplayCards({
         template: selectedTemplate,
+        backingTemplate,
+        activeCardSet,
         fieldDefinitions,
         rows,
         columnMapping,
@@ -517,11 +521,6 @@ export function BulkGenerator({
     toast({ title: 'Contract JSON downloaded', description: 'Use this contract as the source of truth for bulk validation and external pipelines.' });
   }, [bulkFieldDefinitions, selectedTemplate, toast]);
 
-  const handleTemplateSelectChange = useCallback((id: string | null) => {
-    onTemplateSelectionChange(id);
-    setBulkDataInput('');
-  }, [onTemplateSelectionChange]);
-
   return (
     <Card>
       <CardHeader>
@@ -530,11 +529,9 @@ export function BulkGenerator({
       </CardHeader>
       <CardContent className="space-y-6">
         <BulkTemplateSetupPanel
-          templates={templates}
           selectedTemplateId={selectedTemplateIdProp}
           selectedTemplate={selectedTemplate}
           bulkFieldDefinitions={bulkFieldDefinitions}
-          onTemplateSelectionChange={handleTemplateSelectChange}
           onDownloadExampleCsv={handleDownloadTemplateCSV}
           onDownloadExampleJson={handleDownloadTemplateJSON}
           onDownloadStructuredText={handleDownloadStructuredText}

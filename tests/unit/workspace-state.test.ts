@@ -18,14 +18,15 @@ describe('workspace state helpers', () => {
     const defaultTemplate = makeTemplate('default-card', { templateSource: 'default' });
     const backPreset = makeTemplate('back-preset', { templateSource: 'default', templateUsage: 'back-preset' });
     const userTemplate = makeTemplate('user-card', { templateSource: 'user' });
+    const userBackPreset = makeTemplate('user-back-preset', { templateSource: 'user', templateUsage: 'back-preset' });
 
     const groups = splitTemplatesForWorkspace({
       defaultTemplates: [defaultTemplate, backPreset],
-      allTemplates: [defaultTemplate, backPreset, userTemplate],
+      allTemplates: [defaultTemplate, backPreset, userTemplate, userBackPreset],
     });
 
     expect(groups.standardDefaultTemplates).toEqual([defaultTemplate]);
-    expect(groups.backFacePresetTemplates).toEqual([backPreset]);
+    expect(groups.backFacePresetTemplates).toEqual([backPreset, userBackPreset]);
     expect(groups.freeformTemplatesForGenerator).toEqual([defaultTemplate, userTemplate]);
   });
 

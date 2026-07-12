@@ -75,7 +75,6 @@ const isLikelyTemplate = (value: unknown): value is Partial<TCGCardTemplate> => 
     typeof value.name === 'string'
     || typeof value.aspectRatio === 'string'
     || isRecord(value.freeformCanvas)
-    || isRecord(value.backCanvas)
     || Array.isArray(value.fieldContracts)
   );
 };

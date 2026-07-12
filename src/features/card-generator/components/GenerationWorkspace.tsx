@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef } from 'react';
-import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useRef } from 'react';
+import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, Layers3, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { CardPreview } from '@/components/card-forge/CardPreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,13 +18,15 @@ import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
-import type { DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
+import type { CardSet, DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
 import type { ExportMode } from '@/lib/printValidation';
 import { hasCardBacking } from '@/lib/cardBacking';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
   templates: TCGCardTemplate[];
+  backFaceTemplates: TCGCardTemplate[];
+  activeCardSet: CardSet;
   generatorSelectedTemplateId: string | null;
   selectedPaperSize: PaperSize;
   pdfMarginMm: number;
@@ -51,6 +54,8 @@ interface GenerationWorkspaceProps {
   onSingleCardAdded: (card: DisplayCard) => void;
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
+  onSetActiveCardSetName: (name: string) => void;
+  onSetActiveCardSetBackingTemplateId: (templateId: string | null) => void;
   onSelectPaperSize: (size: PaperSize) => void;
   onSetPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   onSetExportMode: (mode: ExportMode) => void;
@@ -82,6 +87,8 @@ const formatBytes = (bytes: number) => {
 export function GenerationWorkspace({
   isLoadingTemplates,
   templates,
+  backFaceTemplates,
+  activeCardSet,
   generatorSelectedTemplateId,
   selectedPaperSize,
   pdfMarginMm,
@@ -109,6 +116,8 @@ export function GenerationWorkspace({
   onSingleCardAdded,
   onBulkCardsGenerated,
   onTemplateSelectionChange,
+  onSetActiveCardSetName,
+  onSetActiveCardSetBackingTemplateId,
   onSelectPaperSize,
   onSetPdfOptions,
   onSetExportMode,
@@ -123,6 +132,29 @@ export function GenerationWorkspace({
   onRemoveCard,
 }: GenerationWorkspaceProps) {
   const galleryRegionRef = useRef<HTMLDivElement | null>(null);
+  const selectedTemplate = useMemo(
+    () => templates.find((template) => template.id === generatorSelectedTemplateId) || null,
+    [generatorSelectedTemplateId, templates]
+  );
+  const selectedBackingTemplate = useMemo(
+    () => activeCardSet.backingTemplateId
+      ? backFaceTemplates.find((template) => template.id === activeCardSet.backingTemplateId) || null
+      : null,
+    [activeCardSet.backingTemplateId, backFaceTemplates]
+  );
+  const deckPreviewCard = useMemo<DisplayCard | null>(() => (
+    selectedTemplate
+      ? {
+        template: selectedTemplate,
+        backingTemplate: selectedBackingTemplate,
+        backingTemplateId: selectedBackingTemplate?.id ?? null,
+        setId: activeCardSet.id,
+        setName: activeCardSet.name,
+        data: selectedTemplate.templatePreviewData || {},
+        uniqueId: `${activeCardSet.id}-setup-preview`,
+      }
+      : null
+  ), [activeCardSet.id, activeCardSet.name, selectedBackingTemplate, selectedTemplate]);
   const exportFaceCount = generatedDisplayCards.reduce(
     (count, card) => count + (hasCardBacking(card) ? 2 : 1),
     0
@@ -180,6 +212,82 @@ export function GenerationWorkspace({
     <>
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
       <div className="min-w-0">
+        <div className="mb-4 rounded-lg border bg-card p-4 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <Layers3 className="h-5 w-5 text-primary" />
+            <div>
+              <h2 className="text-base font-semibold">Deck Setup</h2>
+              <p className="text-xs text-muted-foreground">Choose the front layout and reusable card back for this generated set.</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="active-card-set-name">Deck Name</Label>
+              <Input
+                id="active-card-set-name"
+                value={activeCardSet.name}
+                onChange={(event) => onSetActiveCardSetName(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="deck-front-template">Front Template</Label>
+              <Select
+                value={generatorSelectedTemplateId ?? undefined}
+                onValueChange={(value) => onTemplateSelectionChange(value)}
+                disabled={templates.length === 0}
+              >
+                <SelectTrigger id="deck-front-template">
+                  <SelectValue placeholder="Choose front template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id || template.name} value={template.id || template.name}>
+                      {template.name || template.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="deck-backing-template">Card Back</Label>
+              <Select
+                value={activeCardSet.backingTemplateId || '_none_'}
+                onValueChange={(value) => onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value)}
+              >
+                <SelectTrigger id="deck-backing-template">
+                  <SelectValue placeholder="Choose card back" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none_">No card back</SelectItem>
+                  {backFaceTemplates.map((template) => (
+                    <SelectItem key={template.id || template.name} value={template.id || template.name}>
+                      {template.name || template.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {deckPreviewCard ? (
+              <div className="grid grid-cols-2 gap-3 rounded-md border bg-background/70 p-3">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Front</p>
+                  <CardPreview card={deckPreviewCard} face="front" targetWidthPx={150} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Back</p>
+                  {selectedBackingTemplate ? (
+                    <CardPreview card={deckPreviewCard} face="back" targetWidthPx={150} />
+                  ) : (
+                    <div className="flex aspect-[63/88] w-full max-w-[150px] items-center justify-center rounded border border-dashed bg-muted/40 px-3 text-center text-xs text-muted-foreground">
+                      No card back selected
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
         <Tabs defaultValue="single" className="space-y-4">
           <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl border bg-card/70 p-1">
             <TabsTrigger value="single" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
@@ -199,8 +307,9 @@ export function GenerationWorkspace({
           <TabsContent value="single" className="mt-0">
             <SingleCardGenerator
               templates={templates}
+              backingTemplate={selectedBackingTemplate}
+              activeCardSet={activeCardSet}
               onSingleCardAdded={handleSingleCardAdded}
-              onTemplateSelectionChange={onTemplateSelectionChange}
               selectedTemplateIdProp={generatorSelectedTemplateId}
             />
           </TabsContent>
@@ -208,9 +317,10 @@ export function GenerationWorkspace({
           <TabsContent value="bulk" className="mt-0">
             <BulkGenerator
               templates={templates}
+              backingTemplate={selectedBackingTemplate}
+              activeCardSet={activeCardSet}
               onCardsGenerated={handleBulkCardsGenerated}
               selectedTemplateIdProp={generatorSelectedTemplateId}
-              onTemplateSelectionChange={onTemplateSelectionChange}
             />
           </TabsContent>
 

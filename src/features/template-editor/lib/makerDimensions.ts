@@ -10,7 +10,7 @@ interface BuildCustomDimensionUpdateInput {
   widthValue: string;
   heightValue: string;
   unit: string;
-  template: Pick<TCGCardTemplate, 'freeformCanvas' | 'backCanvas'>;
+  template: Pick<TCGCardTemplate, 'freeformCanvas'>;
 }
 
 export const buildCustomDimensionTemplateUpdate = ({
@@ -41,13 +41,5 @@ export const buildCustomDimensionTemplateUpdate = ({
       height: nextCanvasHeight,
       gridSize: nextGridSize,
     }),
-    backCanvas: template.backCanvas
-      ? reconstructFreeformCanvas({
-          ...template.backCanvas,
-          width: nextCanvasWidth,
-          height: nextCanvasHeight,
-          gridSize: nextGridSize,
-        })
-      : undefined,
   };
 };

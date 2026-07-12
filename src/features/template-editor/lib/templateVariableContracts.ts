@@ -1,7 +1,7 @@
 import { renamePlaceholderKeyInText } from '@/lib/textBindings';
 import { reconstructFreeformCanvas } from '@/lib/templateModel';
 import { toTitleCase } from '@/lib/utils';
-import type { CardFace, FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
 
 export type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 
@@ -52,7 +52,6 @@ export const upsertTemplateFieldContract = (
 
 export interface RenameScopedTextElementVariableInput {
   template: TCGCardTemplate;
-  activeFace: CardFace;
   fallbackCanvas: FreeformCanvas;
   selectedElementId: string;
   oldKey: string;
@@ -61,7 +60,6 @@ export interface RenameScopedTextElementVariableInput {
 
 export const renameScopedTextElementVariable = ({
   template,
-  activeFace,
   fallbackCanvas,
   selectedElementId,
   oldKey,
@@ -72,7 +70,7 @@ export const renameScopedTextElementVariable = ({
       ? { ...contract, key: nextKey, label: toTitleCase(nextKey) }
       : contract
   );
-  const activeCanvas = (activeFace === 'back' ? template.backCanvas : template.freeformCanvas) || fallbackCanvas;
+  const activeCanvas = template.freeformCanvas || fallbackCanvas;
   const nextElements = (activeCanvas.elements || []).map((element) =>
     element.id === selectedElementId
       ? { ...element, content: renamePlaceholderKeyInText(element.content || '', oldKey, nextKey) }
@@ -82,7 +80,7 @@ export const renameScopedTextElementVariable = ({
   return {
     ...template,
     fieldContracts: nextContracts,
-    [activeFace === 'back' ? 'backCanvas' : 'freeformCanvas']: reconstructFreeformCanvas({
+    freeformCanvas: reconstructFreeformCanvas({
       ...activeCanvas,
       elements: nextElements,
     }),

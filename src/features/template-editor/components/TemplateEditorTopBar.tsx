@@ -7,8 +7,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 
 interface TemplateEditorTopBarProps {
-  activeFace: 'front' | 'back';
-  hasBackFace: boolean;
   canUndo: boolean;
   canRedo: boolean;
   showGrid: boolean;
@@ -21,8 +19,6 @@ interface TemplateEditorTopBarProps {
   onFitToScreen: () => void;
   onActualSize: () => void;
   onCenterCanvas: () => void;
-  onCreateBackFace: () => void;
-  onSetActiveFace: (face: 'front' | 'back') => void;
   onToggleGrid: () => void;
   onToggleSnapToGrid: () => void;
   onTogglePreviewMode: () => void;
@@ -33,8 +29,6 @@ interface TemplateEditorTopBarProps {
 }
 
 export function TemplateEditorTopBar({
-  activeFace,
-  hasBackFace,
   canUndo,
   canRedo,
   showGrid,
@@ -47,8 +41,6 @@ export function TemplateEditorTopBar({
   onFitToScreen,
   onActualSize,
   onCenterCanvas,
-  onCreateBackFace,
-  onSetActiveFace,
   onToggleGrid,
   onToggleSnapToGrid,
   onTogglePreviewMode,
@@ -113,53 +105,6 @@ export function TemplateEditorTopBar({
           </TooltipTrigger>
           <TooltipContent>Set canvas to 100%</TooltipContent>
         </Tooltip>
-        {hasBackFace ? (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSetActiveFace('front')}
-                  className={cn(toolButtonClassName, activeFace === 'front' && activeButtonClassName, 'gap-1 px-2 text-xs')}
-                >
-                  Front Face
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Edit the primary front face</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSetActiveFace('back')}
-                  className={cn(toolButtonClassName, activeFace === 'back' && activeButtonClassName, 'gap-1 px-2 text-xs')}
-                >
-                  Back Face
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Edit the optional back face</TooltipContent>
-            </Tooltip>
-          </>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onCreateBackFace}
-                className={cn(toolButtonClassName, 'gap-1 px-2 text-xs')}
-              >
-                Add Back Face
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Create an optional back face from the default back template</TooltipContent>
-          </Tooltip>
-        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

@@ -273,7 +273,7 @@ export const normalizeTemplateFieldContracts = (template: TCGCardTemplate): TCGC
     else nextContracts.push(contract);
   };
 
-  const canvases = [template.freeformCanvas, template.backCanvas].filter(Boolean);
+  const canvases = [template.freeformCanvas].filter(Boolean);
   canvases.forEach((canvas) => {
     canvas?.elements.forEach((element) => {
       if (element.type === 'text' && element.content) {

@@ -2,11 +2,8 @@ import type { TCGCardTemplate } from '@/types';
 import { reconstructMinimalTemplate } from '@/lib/templateModel';
 import { TEMPLATE_HISTORY_LIMIT } from '@/features/template-editor/lib/templateHistory';
 
-export type TemplateEditorFace = 'front' | 'back';
-
 export interface TemplateEditorSnapshot {
   currentTemplate: TCGCardTemplate;
-  activeFace: TemplateEditorFace;
   selectedElementId: string | null;
 }
 
@@ -19,17 +16,14 @@ type TemplateUpdater = (template: TCGCardTemplate) => TCGCardTemplate;
 
 export const getTemplateEditorCanvas = (
   template: TCGCardTemplate,
-  activeFace: TemplateEditorFace,
-) => activeFace === 'back' ? template.backCanvas : template.freeformCanvas;
+): TCGCardTemplate['freeformCanvas'] => template.freeformCanvas;
 
 export const getDefaultSelectedElementId = (
   template: TCGCardTemplate,
-  activeFace: TemplateEditorFace,
-) => getTemplateEditorCanvas(template, activeFace)?.elements?.[0]?.id ?? null;
+) => getTemplateEditorCanvas(template)?.elements?.[0]?.id ?? null;
 
 const toSnapshot = (state: TemplateEditorSnapshot): TemplateEditorSnapshot => ({
   currentTemplate: reconstructMinimalTemplate(state.currentTemplate),
-  activeFace: state.activeFace,
   selectedElementId: state.selectedElementId,
 });
 
@@ -44,10 +38,10 @@ const appendHistorySnapshot = (
 export const reconcileTemplateEditorSelection = (
   state: TemplateEditorState,
 ): TemplateEditorState => {
-  const canvas = getTemplateEditorCanvas(state.currentTemplate, state.activeFace);
+  const canvas = getTemplateEditorCanvas(state.currentTemplate);
   const selectedElementId = state.selectedElementId && canvas?.elements.some((element) => element.id === state.selectedElementId)
     ? state.selectedElementId
-    : getDefaultSelectedElementId(state.currentTemplate, state.activeFace);
+    : getDefaultSelectedElementId(state.currentTemplate);
 
   if (selectedElementId === state.selectedElementId) return state;
   return { ...state, selectedElementId };
@@ -59,8 +53,7 @@ export const createTemplateEditorState = (
   const currentTemplate = reconstructMinimalTemplate(initialTemplate);
   return {
     currentTemplate,
-    activeFace: 'front',
-    selectedElementId: getDefaultSelectedElementId(currentTemplate, 'front'),
+    selectedElementId: getDefaultSelectedElementId(currentTemplate),
     history: [],
     future: [],
   };
@@ -76,15 +69,6 @@ export const selectTemplateEditorElement = (
 ): TemplateEditorState => ({
   ...state,
   selectedElementId,
-});
-
-export const setTemplateEditorFace = (
-  state: TemplateEditorState,
-  activeFace: TemplateEditorFace,
-): TemplateEditorState => reconcileTemplateEditorSelection({
-  ...state,
-  activeFace,
-  selectedElementId: getDefaultSelectedElementId(state.currentTemplate, activeFace),
 });
 
 export const commitTemplateEditorState = (
@@ -115,7 +99,6 @@ export const recordTemplateEditorHistory = (
   ...state,
   history: appendHistorySnapshot(state.history, {
     currentTemplate: template,
-    activeFace: state.activeFace,
     selectedElementId: state.selectedElementId,
   }),
   future: [],
@@ -129,7 +112,6 @@ export const undoTemplateEditorState = (
 
   return reconcileTemplateEditorSelection({
     currentTemplate: reconstructMinimalTemplate(previous.currentTemplate),
-    activeFace: previous.activeFace,
     selectedElementId: previous.selectedElementId,
     history: state.history.slice(0, -1),
     future: [
@@ -147,7 +129,6 @@ export const redoTemplateEditorState = (
 
   return reconcileTemplateEditorSelection({
     currentTemplate: reconstructMinimalTemplate(next.currentTemplate),
-    activeFace: next.activeFace,
     selectedElementId: next.selectedElementId,
     history: appendHistorySnapshot(state.history, state),
     future: state.future.slice(1),

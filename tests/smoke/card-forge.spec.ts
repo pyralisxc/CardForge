@@ -563,7 +563,7 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await gotoStudio(page);
   await selectMainTab(page, /Generate/i);
 
-  const templateTrigger = page.locator('#singleTemplateSelect');
+  const templateTrigger = page.locator('#deck-front-template');
   await templateTrigger.focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('ArrowDown');

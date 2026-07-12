@@ -141,6 +141,9 @@ export function CardForgeStudioShell() {
       setExportModeAction,
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
+      setActiveCardSetBackingTemplateIdAction,
+      setActiveCardSetFrontTemplateIdAction,
+      setActiveCardSetNameAction,
       setSingleCardGeneratorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
@@ -148,6 +151,7 @@ export function CardForgeStudioShell() {
     },
     state: {
       activeTab,
+      activeCardSet,
       appearanceStyles,
       backFacePresetTemplates,
       editingCardFromStore,
@@ -429,6 +433,8 @@ export function CardForgeStudioShell() {
             <GenerationWorkspace
               isLoadingTemplates={isLoadingTemplates}
               templates={freeformTemplatesForGenerator}
+              backFaceTemplates={backFacePresetTemplates}
+              activeCardSet={activeCardSet}
               generatorSelectedTemplateId={generatorSelectedTemplateId}
               selectedPaperSize={selectedPaperSize}
               pdfMarginMm={pdfMarginMm}
@@ -455,7 +461,9 @@ export function CardForgeStudioShell() {
               onOpenTemplateMaker={() => setActiveTabAction('template-maker')}
               onSingleCardAdded={handleSingleCardAdded}
               onBulkCardsGenerated={handleBulkCardsGenerated}
-              onTemplateSelectionChange={setSingleCardGeneratorSelectedTemplateIdAction}
+              onTemplateSelectionChange={setActiveCardSetFrontTemplateIdAction}
+              onSetActiveCardSetName={setActiveCardSetNameAction}
+              onSetActiveCardSetBackingTemplateId={setActiveCardSetBackingTemplateIdAction}
               onSelectPaperSize={setSelectedPaperSizeAction}
               onSetPdfOptions={setPdfOptionsAction}
               onSetExportMode={setExportModeAction}

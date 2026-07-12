@@ -20,6 +20,9 @@ const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
     ...overrides.template,
   },
   backingTemplate: overrides.backingTemplate,
+  backingTemplateId: overrides.backingTemplateId || overrides.backingTemplate?.id || null,
+  setId: overrides.setId || 'set-1',
+  setName: overrides.setName || 'Arcane Deck',
 });
 
 describe('zip export helpers', () => {
@@ -32,7 +35,7 @@ describe('zip export helpers', () => {
     });
   });
 
-  it('creates front and back export items when a template has a back canvas', () => {
+  it('does not create a back export item from a legacy template back canvas', () => {
     const items = createCardZipExportItems([
       makeCard({
         template: {
@@ -40,11 +43,11 @@ describe('zip export helpers', () => {
           name: 'Double Sided',
           aspectRatio: '63:88',
           backCanvas: { width: 630, height: 880, elements: [] },
-        },
+        } as unknown as DisplayCard['template'],
       }),
     ]);
 
-    expect(items.map((item) => item.face)).toEqual(['front', 'back']);
+    expect(items.map((item) => item.face)).toEqual(['front']);
   });
 
   it('creates front and back export items when a card has a separate backing template', () => {

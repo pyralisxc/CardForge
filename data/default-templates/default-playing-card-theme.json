@@ -327,6 +327,5 @@
         "generatorFieldRequired": false
       }
     ]
-  },
-  "backingTemplateId": "default-obsidian-neon-card-back"
+  }
 }

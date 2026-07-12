@@ -405,11 +405,10 @@ Required completion criteria for this area:
     - `35:20` -> `1239 × 708`
     - `3:4` -> `2340 × 3117`
   - a single-card physical PDF exported on `Standard TCG Card` paper size produced a `63 × 88 mm` page, which matches the expected physical card size
-  - duplex baseline is now wired through the live product path:
-    - front remains the primary editing face
-    - the back face is optional and should be explicitly added by the user
-    - new back faces seed from the pipeline-backed `Obsidian Neon Card Back` default template
-    - Maker can then switch between `Front Face` and `Back Face`
+  - card backing baseline is now wired through the live product path:
+    - Layout Studio edits front templates and back-preset templates as separate reusable parts
+    - Generate owns Deck Setup with deck name, front template, and optional card back
+    - generated outputs snapshot the selected card back instead of reading it from the front template
     - a generated duplex card exported as ZIP produced both `001_card-1_front.png` and `001_card-1_back.png`
     - both exported faces rendered at `2232 x 3117`
     - local proof artifacts are generated during duplex smoke verification and are not release assets
@@ -421,7 +420,7 @@ Required completion criteria for this area:
     - separate front/back sheets using matching card placements for duplex printing
     - front + back on the same sheet for review, hand cutting, or manual assembly
   - PDF filenames now distinguish `print-duplex-sheets`, `print-same-sheet`, and `digital-sheet`
-  - export validation now checks font warnings across both front and back canvases
+  - export validation now checks font warnings across generated card fronts and selected backing templates
   - five-straggler artifact pass produced and inspected fresh local outputs:
     - physical ZIP exported `front` and `back` PNG files at `2232 x 3117`
     - digital ZIP exported `front` and `back` PNG files at `744 x 1040`

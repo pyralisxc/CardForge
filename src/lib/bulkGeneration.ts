@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 
-import type { CardData, DisplayCard, TCGCardTemplate } from '@/types';
+import type { CardData, CardSet, DisplayCard, TCGCardTemplate } from '@/types';
 import type { TemplateFieldDefinition } from '@/lib/templateFields';
 import { completeCardDataWithTemplateDefaults } from '@/lib/cardDataDefaults';
 import { FIELD_CONTRACT_VERSION, validateCardDataAgainstFieldContracts } from '@/lib/fieldContracts';
@@ -589,6 +589,8 @@ export const createBulkPreview = ({
 
 export interface CreateBulkDisplayCardsOptions {
   template: TCGCardTemplate;
+  backingTemplate?: TCGCardTemplate | null;
+  activeCardSet?: CardSet;
   fieldDefinitions: TemplateFieldDefinition[];
   rows: string[][];
   columnMapping: Record<string, string>;
@@ -598,6 +600,8 @@ export interface CreateBulkDisplayCardsOptions {
 
 export const createBulkDisplayCards = ({
   template,
+  backingTemplate = null,
+  activeCardSet,
   fieldDefinitions,
   rows,
   columnMapping,
@@ -640,6 +644,10 @@ export const createBulkDisplayCards = ({
 
     generatedCards.push({
       template,
+      backingTemplate,
+      backingTemplateId: backingTemplate?.id ?? null,
+      setId: activeCardSet?.id,
+      setName: activeCardSet?.name,
       data: completeCardDataWithTemplateDefaults(fieldDefinitions, cardData),
       uniqueId: createId(rowNumber),
     });

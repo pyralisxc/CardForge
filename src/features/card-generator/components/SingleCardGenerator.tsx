@@ -1,13 +1,11 @@
 
 "use client";
 
-import type { TCGCardTemplate, CardData, DisplayCard } from '@/types';
+import type { CardSet, TCGCardTemplate, CardData, DisplayCard } from '@/types';
 import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/lib/templateFields';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from '@/hooks/use-toast';
@@ -18,20 +16,22 @@ import { useAppStore } from '@/store/appStore';
 import { withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/lib/cardDataDefaults';
-import { getTemplateDisplayName, getTemplateSourceLabel } from '@/lib/templateDisplay';
+import { getTemplateSourceLabel } from '@/lib/templateDisplay';
 import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/lib/structuredRows';
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
+  backingTemplate?: TCGCardTemplate | null;
+  activeCardSet: CardSet;
   onSingleCardAdded: (card: DisplayCard) => void;
-  onTemplateSelectionChange: (templateId: string | null) => void;
   selectedTemplateIdProp: string | null;
 }
 
 export function SingleCardGenerator({
   templates,
+  backingTemplate,
+  activeCardSet,
   onSingleCardAdded,
-  onTemplateSelectionChange,
   selectedTemplateIdProp,
 }: SingleCardGeneratorProps) {
   const [cardData, setCardData] = useState<CardData>({});
@@ -93,7 +93,7 @@ export function SingleCardGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('A template is required before adding a card.', 'Choose a template in the Select Template field and try again.'),
+        description: withNextStep('A front template is required before adding a card.', 'Choose a front template in Deck Setup and try again.'),
         variant: "destructive",
       });
       return;
@@ -128,6 +128,10 @@ export function SingleCardGenerator({
 
     const displayCard: DisplayCard = {
       template: selectedTemplate,
+      backingTemplate,
+      backingTemplateId: backingTemplate?.id ?? null,
+      setId: activeCardSet.id,
+      setName: activeCardSet.name,
       data: finalCardData,
       uniqueId: nanoid(),
     };
@@ -147,12 +151,7 @@ export function SingleCardGenerator({
       addCardCooldownRef.current = null;
     }, 300);
 
-  }, [selectedTemplate, cardData, dynamicFields, isAddingCard, onSingleCardAdded, toast]);
-
-  const handleTemplateSelectChange = useCallback((id: string | null) => {
-    onTemplateSelectionChange(id);
-    setHasAddedCardInSession(false);
-  }, [onTemplateSelectionChange]);
+  }, [activeCardSet.id, activeCardSet.name, backingTemplate, selectedTemplate, cardData, dynamicFields, isAddingCard, onSingleCardAdded, toast]);
 
   const renderFields = (
     fields: TemplateFieldDefinition[],
@@ -163,7 +162,7 @@ export function SingleCardGenerator({
       return <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields.</p>;
     }
     if (!selectedTemplateIdProp) {
-        return <p className="text-sm text-muted-foreground">Select a template to see its fields.</p>;
+        return <p className="text-sm text-muted-foreground">Choose a front template in Deck Setup to see its fields.</p>;
     }
     return (
       <GeneratorFieldGroups
@@ -194,29 +193,6 @@ export function SingleCardGenerator({
         <CardDescription>Fill one output against the same field contract that drives bulk generation and export.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="singleTemplateSelect">Select Template*</Label>
-          <Select
-            value={selectedTemplateIdProp ?? undefined}
-            onValueChange={handleTemplateSelectChange}
-            disabled={templates.length === 0}
-          >
-            <SelectTrigger id="singleTemplateSelect" aria-describedby="single-template-help">
-              <SelectValue placeholder="Choose template (Required)" />
-            </SelectTrigger>
-            <SelectContent>
-              {templates.length > 0 ? (
-                templates.map(t => <SelectItem key={`single-${t.id || 'new-template-option'}`} value={t.id!}>{getTemplateDisplayName(t)}</SelectItem>)
-              ) : (
-                <SelectItem value="no-templates-single" disabled>No templates available.</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-          <p id="single-template-help" className="text-xs text-muted-foreground mt-1">
-            Choose a template before entering data.
-          </p>
-        </div>
-
         {selectedTemplateIdProp && !hasAddedCardInSession && (
           <div className="rounded-md border p-3 text-xs bg-muted/20" role="status" aria-live="polite">
             <p className="font-medium">Quick Start: Generate a reference output</p>

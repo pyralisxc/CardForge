@@ -10,7 +10,7 @@ export const splitTemplatesForWorkspace = ({
   defaultTemplates,
 }: SplitTemplatesForWorkspaceInput) => ({
   standardDefaultTemplates: defaultTemplates.filter((template) => template.templateUsage !== 'back-preset'),
-  backFacePresetTemplates: defaultTemplates.filter((template) => template.templateUsage === 'back-preset'),
+  backFacePresetTemplates: allTemplates.filter((template) => template.templateUsage === 'back-preset'),
   freeformTemplatesForGenerator: allTemplates.filter((template) => template.templateUsage !== 'back-preset'),
 });
 
