@@ -14,6 +14,7 @@ describe('Clerk route gating', () => {
     expect(shouldRunClerkMiddlewareForRequest('/profile', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/owner', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/api/account/entitlement', 'GET')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/api/billing/portal', 'POST')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/api/developer-assets', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/api/developer-assets/asset-1/vote', 'POST')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/api/roadmap', 'GET')).toBe(true);

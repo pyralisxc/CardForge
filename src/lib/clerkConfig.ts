@@ -14,6 +14,7 @@ const CLERK_PAGE_PREFIXES = [
 const CLERK_API_PREFIXES = [
   '/api/account',
   '/api/billing/checkout',
+  '/api/billing/portal',
   '/api/developer-assets',
   '/api/founder-beta',
   '/api/owner',
