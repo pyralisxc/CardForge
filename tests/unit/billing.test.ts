@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildBillingPortalSessionParams,
   buildCheckoutSessionParams,
   buildStripePaidAccessMetadata,
   buildStripeRevokedAccessMetadata,
   getBillingConfigStatus,
+  getStripeCustomerIdFromMetadata,
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
 } from '@/lib/billing';
@@ -67,6 +69,28 @@ describe('billing', () => {
         },
       },
     });
+  });
+
+  it('builds a customer billing portal session that returns to account settings', () => {
+    expect(buildBillingPortalSessionParams({
+      appUrl: 'https://cardforge.example/',
+      customerId: 'cus_123',
+    })).toEqual({
+      customer: 'cus_123',
+      return_url: 'https://cardforge.example/account',
+    });
+  });
+
+  it('reads a Stripe customer id only from trusted private metadata', () => {
+    expect(getStripeCustomerIdFromMetadata({
+      cardforgeStripeCustomerId: 'cus_123',
+    })).toBe('cus_123');
+    expect(getStripeCustomerIdFromMetadata({
+      cardforgeStripeCustomerId: '  ',
+    })).toBeNull();
+    expect(getStripeCustomerIdFromMetadata({
+      cardforgeStripeCustomerId: 123,
+    })).toBeNull();
   });
 
   it('builds trusted Clerk metadata for Stripe-paid Creator Pass access', () => {

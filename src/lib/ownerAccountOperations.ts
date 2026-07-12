@@ -77,6 +77,7 @@ export const mapOwnerAccountSummary = (user: {
   lastSignInAt?: number | null;
   emailAddresses?: Array<{ emailAddress?: string | null }>;
   privateMetadata?: Record<string, unknown> | null;
+  publicMetadata?: Record<string, unknown> | null;
 }): OwnerAccountSummary => {
   const metadata = user.privateMetadata ?? {};
   const access = normalizeAccess(metadata.cardforgeAccess) ?? 'free';

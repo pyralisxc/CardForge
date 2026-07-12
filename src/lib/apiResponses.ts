@@ -5,6 +5,7 @@ export type ApiErrorCode =
   | 'account_entitlement_unavailable'
   | 'billing_checkout_failed'
   | 'billing_not_configured'
+  | 'billing_portal_failed'
   | 'billing_status_unavailable'
   | 'billing_webhook_invalid'
   | 'billing_webhook_unconfigured'
@@ -37,6 +38,7 @@ export type ApiErrorCode =
   | 'service_unavailable'
   | 'sign_in_required'
   | 'stripe_checkout_url_missing'
+  | 'stripe_portal_url_missing'
   | 'asset_library_unavailable'
   | 'style_library_unavailable'
   | 'template_library_unavailable';

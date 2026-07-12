@@ -16,6 +16,7 @@ import {
   FolderOpen,
   Hammer,
   Lock,
+  ReceiptText,
   ShieldCheck,
   Sparkles,
   UserCircle2,
@@ -26,6 +27,7 @@ import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHead
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
+import { useBillingPortalActions } from '@/features/billing/hooks/useBillingPortalActions';
 import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
 import type { FounderBetaCampaign } from '@/lib/ownerConsole';
 import type { AccountEntitlement } from '@/lib/accountEntitlement';
@@ -164,6 +166,10 @@ export function AccountProfilePage({
     isSignedIn: effectiveSignedIn,
     toast,
   });
+  const { handleOpenBillingPortal, isBillingPortalOpening } = useBillingPortalActions({
+    isSignedIn: effectiveSignedIn,
+    toast,
+  });
 
   useEffect(() => {
     if (!entitlement.authConfigured || !clerkIdentity.isLoaded) return;
@@ -235,6 +241,7 @@ export function AccountProfilePage({
 
   const isClerkSetupIncomplete = !entitlement.authConfigured;
   const canStartCheckout = entitlement.authConfigured && effectiveSignedIn && !entitlement.canExportClean;
+  const canManageBilling = entitlement.authConfigured && effectiveSignedIn && entitlement.hasStripeCustomer;
   const checkoutConfigured = Boolean(platformStatus?.billing.checkoutConfigured);
   const founderBetaCampaign = platformStatus?.founderBetaCampaign;
   const founderBetaSlotsRemaining = founderBetaCampaign
@@ -437,6 +444,18 @@ export function AccountProfilePage({
                   <UserCircle2 className="mr-2 h-5 w-5" />
                   Manage Account
                 </Link>
+              </Button>
+            ) : null}
+            {canManageBilling ? (
+              <Button
+                size="lg"
+                variant="outline"
+                className="min-w-[11rem] border-[#d8b365]/70 bg-[#120e09] font-semibold text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
+                onClick={handleOpenBillingPortal}
+                disabled={isBillingPortalOpening}
+              >
+                <ReceiptText className="mr-2 h-5 w-5" />
+                {isBillingPortalOpening ? 'Opening billing...' : 'Manage billing'}
               </Button>
             ) : null}
             {!entitlement.authConfigured ? (

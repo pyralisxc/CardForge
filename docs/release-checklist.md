@@ -585,8 +585,8 @@ Risk rating: `Moderate / Known / Accepted for MVP demo/public beta / Launch Bloc
 ### 2. Production Billing Entitlement Activation
 
 Current finding:
-- Stripe Checkout, the Creator Pass price, Vercel env, and the `/api/billing/webhook` entitlement bridge are configured for the current test-mode launch path.
-- Remaining paid-launch risk is proving the full checkout -> webhook -> Clerk entitlement grant and confirming live-mode Stripe business/payment-method settings before taking real money.
+- Stripe Checkout, the Creator Pass price, Vercel env, the `/api/billing/webhook` entitlement bridge, and Stripe Customer Portal handoff are configured for the current launch path.
+- Remaining paid-launch risk is proving the full checkout -> webhook -> Clerk entitlement grant, confirming Stripe Customer Portal settings, and confirming live-mode Stripe business/payment-method settings before broad paid access.
 - Paid/dev unlocks are intentionally server-trusted: Clerk private metadata, server-only allowlists, local fallback mode, or Stripe webhook-owned paid access.
 - Public Clerk metadata is ignored and must not be used as a paid/dev authority.
 
@@ -599,7 +599,7 @@ Recommended handling:
 - run a Stripe test checkout and confirm Clerk private metadata grants Creator Pass
 - confirm Stripe live-mode business profile, payout/banking readiness, payment methods, tax/refund rules, and customer support details
 - keep public metadata display-only
-- use the Owner Console billing snapshot to confirm recent test checkout sessions and subscription state before opening paid access broadly
+- use the Owner Console billing snapshot and a Stripe Customer Portal login to confirm recent checkout sessions, subscription state, and customer self-service before opening paid access broadly
 
 Risk rating: `High / Known / Launch Blocking for paid self-serve`
 
@@ -613,7 +613,7 @@ Current finding:
 - Asset lifecycle status is separate from creator-facing visibility. Creator-facing published visibility is `free` or `paid`; internal `developer`/`hidden` tier values represent pipeline-only or not-live inventory and should not be presented as extra customer-facing library tiers.
 - The default access ladder is 5 votes before tier assignment, 60% positive for Starter Library, and 80% positive for Creator Pass, with owner overrides available from `/owner`.
 - Publish Total is derived from Starter plus Creator Pass caps so owners cannot create conflicting per-type library limits.
-- Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe owns paid coupons, promotion codes, subscription discounts, invoices, and billing lifecycle webhooks once billing is active.
+- Founder Beta should be treated as the single CardForge-owned launch access promo for this MVP. Stripe owns paid coupons, promotion codes, subscription discounts, invoices, customer billing self-service, and billing lifecycle webhooks once billing is active.
 - `/api/assets` now exposes one asset registry payload from `cardforge_asset_registry`; it does not silently rebuild the catalog from repo starter files.
 - Starter textures, dividers, templates, and element presets are synced into the pipeline as published starter-library assets so they remain visible in the app and stay voteable.
 - `202605230003_asset_registry_all_creation_assets.sql` expands the registry to reusable visual/source creation asset classes: textures, dividers, parts, icons, images, templates, and element presets.

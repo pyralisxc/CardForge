@@ -25,6 +25,11 @@ export interface BuildCheckoutSessionParamsInput {
   userId: string;
 }
 
+export interface BuildBillingPortalSessionParamsInput {
+  appUrl: string;
+  customerId: string;
+}
+
 export interface BuildStripePaidAccessMetadataInput {
   existingMetadata?: Record<string, unknown>;
   stripeCustomerId?: string | null;
@@ -88,6 +93,27 @@ export const buildCheckoutSessionParams = ({
       metadata,
     },
   };
+};
+
+export const buildBillingPortalSessionParams = ({
+  appUrl,
+  customerId,
+}: BuildBillingPortalSessionParamsInput): Stripe.BillingPortal.SessionCreateParams => {
+  const normalizedAppUrl = appUrl.replace(/\/+$/, '');
+
+  return {
+    customer: customerId,
+    return_url: `${normalizedAppUrl}/account`,
+  };
+};
+
+export const getStripeCustomerIdFromMetadata = (
+  metadata: Record<string, unknown> | undefined
+): string | null => {
+  const value = metadata?.cardforgeStripeCustomerId;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 };
 
 export const buildStripePaidAccessMetadata = ({

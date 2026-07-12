@@ -24,6 +24,7 @@ Server-only helpers:
 | `/api/account/entitlement` | `GET` | Reads Clerk user/private metadata, owner access, and active Founder Beta claims to return the current entitlement snapshot. |
 | `/api/assets` | `GET` | Reads published `cardforge_asset_registry` rows for textures, dividers, icons, images, image/overlay source assets, templates, and element presets. No runtime starter-file fallback is used. |
 | `/api/billing/checkout` | `POST` | Creates a Stripe Checkout subscription session for a signed-in user when Stripe and Clerk are configured. |
+| `/api/billing/portal` | `POST` | Creates a Stripe-hosted Customer Portal session for a signed-in account that already has trusted Stripe customer metadata. |
 | `/api/billing/webhook` | `POST` | Verifies Stripe webhook signatures, then grants or revokes Creator Pass through trusted Clerk private metadata for checkout completion and subscription lifecycle events. |
 | `/api/billing/status` | `GET` | Returns safe billing, auth, Supabase, shipped-library-write, and Founder Beta campaign setup status. |
 | `/api/developer-assets` | `GET`, `POST`, `PUT`, `PATCH` | Reads the developer program, creates submissions, updates owner program settings, and updates per-developer owner overrides. |

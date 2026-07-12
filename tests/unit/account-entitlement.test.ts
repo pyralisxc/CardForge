@@ -188,7 +188,10 @@ describe('accountEntitlement', () => {
       isSignedIn: true,
       emailAddresses: ['maker@example.com'],
       publicMetadata: {},
-      privateMetadata: { cardforgeAccess: 'paid' },
+      privateMetadata: {
+        cardforgeAccess: 'paid',
+        cardforgeStripeCustomerId: 'cus_123',
+      },
       env: {},
     });
 
@@ -197,11 +200,33 @@ describe('accountEntitlement', () => {
       accountEmail: 'maker@example.com',
       authConfigured: true,
       canExportClean: true,
+      hasStripeCustomer: true,
       isSignedIn: true,
       source: 'clerk',
     });
     expect(entitlement.capabilities.canExportClean).toBe(true);
     expect(entitlement.copy.panelMessage).toContain('Projects remain local');
+  });
+
+  it('does not expose billing management for non-Stripe paid grants', () => {
+    expect(resolveAccountEntitlement({
+      authConfigured: true,
+      isSignedIn: true,
+      emailAddresses: ['founder@example.com'],
+      privateMetadata: { cardforgeAccess: 'paid' },
+      env: {},
+    }).hasStripeCustomer).toBe(false);
+
+    expect(resolveAccountEntitlement({
+      authConfigured: true,
+      isSignedIn: true,
+      emailAddresses: ['dev@example.com'],
+      privateMetadata: {
+        cardforgeAccess: 'dev',
+        cardforgeStripeCustomerId: 'cus_123',
+      },
+      env: {},
+    }).hasStripeCustomer).toBe(false);
   });
 
   it('elevates trusted owner access to developer-grade export and tool capabilities', () => {

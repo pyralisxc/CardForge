@@ -1,5 +1,6 @@
 import type { AccessMode, ExportEntitlementCopy, ProjectCapabilities } from '@/lib/projectAccess';
 import type { OwnerAccess } from '@/lib/ownerAccess';
+import { getStripeCustomerIdFromMetadata } from '@/lib/billing';
 import { getExportEntitlementCopy, getProjectCapabilities, resolveAccessMode } from '@/lib/projectAccess';
 
 type EntitlementEnvironment = Partial<Record<
@@ -41,6 +42,7 @@ export interface AccountEntitlement {
   canExportClean: boolean;
   capabilities: ProjectCapabilities;
   copy: ExportEntitlementCopy;
+  hasStripeCustomer: boolean;
   isSignedIn: boolean;
   ownerAccess: OwnerAccess;
   source: 'clerk' | 'environment';
@@ -179,6 +181,10 @@ export const resolveAccountEntitlement = ({
     canExportClean: capabilities.canExportClean,
     capabilities,
     copy,
+    hasStripeCustomer: configured
+      && isSignedIn
+      && accessMode === 'paid'
+      && Boolean(getStripeCustomerIdFromMetadata(privateMetadata)),
     isSignedIn,
     ownerAccess,
     source: configured ? 'clerk' : 'environment',
