@@ -1,4 +1,4 @@
-import { currentUser } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 
 import { isClerkAuthConfigured } from '@/lib/accountEntitlement';
@@ -19,6 +19,11 @@ export async function POST() {
         'account_auth_unconfigured',
         'Account sign-in is not configured. Add Clerk environment variables before testing billing management.'
       );
+    }
+
+    const authState = await auth();
+    if (!authState.userId) {
+      return createApiErrorResponse(401, 'sign_in_required', 'Sign in before managing billing.');
     }
 
     const user = await currentUser();
