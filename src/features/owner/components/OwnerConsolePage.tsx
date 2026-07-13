@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, CreditCard, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Search, Settings2, ShieldCheck, UserCog, Users } from 'lucide-react';
+import { CheckCircle2, CreditCard, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Search, Settings2, UserCog, Users } from 'lucide-react';
 
 import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
@@ -178,23 +178,23 @@ const getApiErrorMessage = async (response: Response, fallback: string) => {
   }
 };
 
-function StatusPill({ ready }: { ready: boolean }) {
-  return (
-    <span className={`border px-2 py-1 text-xs uppercase tracking-[0.14em] ${
-      ready
-        ? 'border-[#5f7f54] text-[#bde3a8]'
-        : 'border-[#8c6436] text-[#f0bd75]'
-    }`}>
-      {ready ? 'Ready' : 'Needs setup'}
-    </span>
-  );
-}
-
 function MetricTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="border border-[#4a3823] bg-[#100c08] p-3">
       <span className="block text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">{label}</span>
       <span className="mt-2 block text-lg font-semibold text-[#ffe7ad]">{value}</span>
+    </div>
+  );
+}
+
+function CompactStatusTile({ label, value, ready = true }: { label: string; value: string; ready?: boolean }) {
+  return (
+    <div className="flex min-h-14 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] px-3 py-2">
+      <div className="min-w-0">
+        <span className="block text-[10px] uppercase tracking-[0.14em] text-[#8f7b57]">{label}</span>
+        <span className="block truncate text-sm font-semibold text-[#ffe7ad]">{value}</span>
+      </div>
+      <span className={`h-2.5 w-2.5 shrink-0 ${ready ? 'bg-[#8fca72]' : 'bg-[#e2aa4a]'}`} />
     </div>
   );
 }
@@ -608,28 +608,17 @@ export function OwnerConsolePage() {
     return (
       <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
         <PublicSiteHeader currentPath="/owner" showOwnerLink title="Owner Forge" />
-        <section className="mx-auto max-w-7xl px-5 py-10 md:px-8">
-          <div className="border border-[#6d4f2b] bg-[#15100a] p-6 md:p-8">
-            <div className="flex items-center gap-3 text-[#e2aa4a]">
-              <ShieldCheck className="h-6 w-6" />
-              <span className="text-sm font-semibold uppercase tracking-[0.2em]">Owner console</span>
-            </div>
-            <h1 className="mt-5 font-serif text-4xl text-[#fff1c7] md:text-5xl">
-              Preparing command center
-            </h1>
-            <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
-              Loading business settings, integration health, roadmap controls, developer rules, and legal drafts.
-            </p>
-            <div className="mt-6 grid gap-3 md:grid-cols-4">
-              {['Business profile', 'Site copy', 'Contributor rules', 'Legal drafts'].map((label) => (
-                <div key={label} className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <div className="h-2 w-16 animate-pulse bg-[#4a3823]" />
-                  <p className="mt-4 text-sm text-[#d8c49a]">{label}</p>
-                </div>
-              ))}
+        <section className="mx-auto max-w-7xl px-5 py-6 md:px-8">
+          <div className="border border-[#6d4f2b] bg-[#15100a] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-[#a98a55]">Owner console</p>
+                <h1 className="font-serif text-2xl text-[#fff1c7]">Loading workstation</h1>
+              </div>
+              <div className="h-2 w-32 animate-pulse bg-[#4a3823]" />
             </div>
             {isSlowLoad ? (
-              <p className="mt-5 border border-[#8c6436] bg-[#1b1209] p-3 text-sm leading-6 text-[#f0bd75]">
+              <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm leading-6 text-[#f0bd75]">
                 This is taking longer than expected. The console should recover automatically; if it does not, refresh after the current request finishes.
               </p>
             ) : null}
@@ -644,7 +633,7 @@ export function OwnerConsolePage() {
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
       <PublicSiteHeader currentPath="/owner" showOwnerLink title="Owner Forge" />
 
-      <section className="mx-auto max-w-7xl px-5 py-10 md:px-8">
+      <section className="mx-auto max-w-7xl px-5 py-6 md:px-8">
         {!payload ? (
           <div className="border border-[#7d3d32] bg-[#1b0d09] p-6 text-[#ffd0c6]">
             <h1 className="font-serif text-3xl text-[#fff1c7]">Owner console unavailable</h1>
@@ -660,45 +649,55 @@ export function OwnerConsolePage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-8">
-            <div className="border border-[#6d4f2b] bg-[#15100a] p-6 md:p-8">
-              <div className="flex items-center gap-3 text-[#e2aa4a]">
-                <ShieldCheck className="h-6 w-6" />
-                <span className="text-sm font-semibold uppercase tracking-[0.2em]">Owner console</span>
-              </div>
-              <h1 className="mt-5 font-serif text-4xl text-[#fff1c7] md:text-5xl">
-                Run the forge like a product.
-              </h1>
-              <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                Edit public business details, publish legal pages, check integration readiness, and steer the contributor-powered library without losing the production controls underneath.
-              </p>
-              <div className="mt-6 grid gap-3 md:grid-cols-4">
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Editable here</p>
-                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    Public copy, legal drafts, Founder Beta waves, roadmap states, and developer pipeline rules.
-                  </p>
+          <div className="space-y-4">
+            <section className="border border-[#6d4f2b] bg-[#15100a] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#a98a55]">Owner workstation</p>
+                  <h1 className="font-serif text-2xl text-[#fff1c7] md:text-3xl">CardForge Command</h1>
                 </div>
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Provider-owned</p>
-                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    Raw API keys, Stripe billing objects, Clerk identity records, and Supabase project secrets stay in provider dashboards.
-                  </p>
-                </div>
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Future systems</p>
-                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    Creator-pool payouts, refund operations, tax handling, payout provider setup, and final legal review are still launch-gated.
-                  </p>
-                </div>
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Save state</p>
-                  <p className="mt-2 text-sm leading-6 text-[#ffe7ad]">{lastOwnerSaveLabel}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[#c7b288]">
+                  <span className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2">{payload.ownerAccess.email ?? 'Owner session'}</span>
+                  <a className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2 text-[#ffe7ad] hover:border-[#d8b365]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">
+                    {payload.integrationStatus.site.publicAppUrl}
+                  </a>
+                  <span className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2">{lastOwnerSaveLabel}</span>
                 </div>
               </div>
-            </div>
 
-            <Tabs defaultValue="readiness" className="space-y-5">
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                <CompactStatusTile label="Auth" value={payload.integrationStatus.authConfigured ? 'Clerk' : 'Setup'} ready={payload.integrationStatus.authConfigured} />
+                <CompactStatusTile label="Database" value={payload.integrationStatus.supabase.configured && payload.console.configured ? 'Supabase' : 'Setup'} ready={payload.integrationStatus.supabase.configured && payload.console.configured} />
+                <CompactStatusTile label="Billing" value={payload.integrationStatus.billing.checkoutConfigured && payload.integrationStatus.billing.webhookConfigured ? 'Stripe' : 'Setup'} ready={payload.integrationStatus.billing.checkoutConfigured && payload.integrationStatus.billing.webhookConfigured} />
+                <CompactStatusTile label="Email" value={payload.integrationStatus.email.resendConfigured ? 'Resend' : 'Mailto'} ready={payload.integrationStatus.email.resendConfigured} />
+                <CompactStatusTile label="Domain" value={payload.integrationStatus.site.usingLocalFallback ? 'Local' : 'Live'} ready={!payload.integrationStatus.site.usingLocalFallback} />
+                <CompactStatusTile label="Owner" value={payload.integrationStatus.ownerAllowlistConfigured ? 'Allowed' : 'Setup'} ready={payload.integrationStatus.ownerAllowlistConfigured} />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button type="button" size="sm" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" onClick={sendTestEmail}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Test email
+                </Button>
+                <Button type="button" size="sm" variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d]" onClick={loadBillingSummary}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Refresh billing
+                </Button>
+                <Button asChild size="sm" variant="outline" className="border-[#3c2c1b] bg-[#100c08] text-[#d9c28f] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                  <a href={payload.integrationStatus.site.sitemapUrl} target="_blank" rel="noreferrer">Sitemap <ExternalLink className="h-4 w-4" /></a>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="border-[#3c2c1b] bg-[#100c08] text-[#d9c28f] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                  <a href={payload.integrationStatus.site.robotsUrl} target="_blank" rel="noreferrer">Robots <ExternalLink className="h-4 w-4" /></a>
+                </Button>
+                {payload.integrationStatus.links.map((link) => (
+                  <Button key={link.href} asChild size="sm" variant="outline" className="border-[#3c2c1b] bg-[#100c08] text-[#d9c28f] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <a href={link.href} target="_blank" rel="noreferrer">{link.label} <ExternalLink className="h-4 w-4" /></a>
+                  </Button>
+                ))}
+              </div>
+            </section>
+
+            <Tabs defaultValue="operations" className="space-y-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
                 <TabsTrigger value="readiness" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Launch Readiness</TabsTrigger>
                 <TabsTrigger value="operations" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Operations</TabsTrigger>
@@ -710,7 +709,7 @@ export function OwnerConsolePage() {
               </TabsList>
 
               <TabsContent value="readiness" className="mt-0">
-            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="grid gap-6">
               <section className="border border-[#5f4526] bg-[#15100a] p-6">
                 <h2 className="font-serif text-2xl text-[#fff1c7]">Business profile</h2>
                 <div className="mt-5 grid gap-3">
@@ -729,55 +728,6 @@ export function OwnerConsolePage() {
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? 'Saving business profile...' : 'Save business profile'}
                 </Button>
-              </section>
-
-              <section className="border border-[#5f4526] bg-[#15100a] p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="font-serif text-2xl text-[#fff1c7]">Launch systems</h2>
-                  <a className="inline-flex max-w-full items-center gap-2 break-all text-sm font-semibold text-[#ffe7ad] hover:text-[#fff1c7]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">
-                    {payload.integrationStatus.site.publicAppUrl}
-                    <ExternalLink className="h-4 w-4 shrink-0" />
-                  </a>
-                </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <MetricTile label="Auth" value={payload.integrationStatus.authConfigured ? 'Clerk ready' : 'Needs setup'} />
-                  <MetricTile label="Database" value={payload.integrationStatus.supabase.configured && payload.console.configured ? 'Supabase ready' : 'Needs setup'} />
-                  <MetricTile label="Billing" value={payload.integrationStatus.billing.checkoutConfigured && payload.integrationStatus.billing.webhookConfigured ? 'Stripe ready' : 'Needs setup'} />
-                  <MetricTile label="Email" value={payload.integrationStatus.email.resendConfigured ? 'Resend ready' : 'Mailto fallback'} />
-                  <MetricTile label="Domain" value={payload.integrationStatus.site.usingLocalFallback ? 'Local fallback' : 'Canonical'} />
-                  <MetricTile label="Owner access" value={payload.integrationStatus.ownerAllowlistConfigured ? 'Allowlist ready' : 'Needs setup'} />
-                </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                  <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                    <a href={payload.integrationStatus.site.sitemapUrl} target="_blank" rel="noreferrer">
-                      Sitemap <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                  <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                    <a href={payload.integrationStatus.site.robotsUrl} target="_blank" rel="noreferrer">
-                      Robots <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                  <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                    <a href="https://search.google.com/search-console" target="_blank" rel="noreferrer">
-                      Search Console <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {payload.integrationStatus.links.map((link) => (
-                    <Button key={link.href} asChild variant="outline" className="border-[#3c2c1b] bg-[#100c08] text-[#d9c28f] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                      <a href={link.href} target="_blank" rel="noreferrer">
-                        {link.label} <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  ))}
-                </div>
-                {payload.integrationStatus.email.missing.length > 0 || payload.integrationStatus.billing.missing.length > 0 || payload.integrationStatus.supabase.missing.length > 0 ? (
-                  <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">
-                    Missing setup: {[...payload.integrationStatus.email.missing, ...payload.integrationStatus.billing.missing, ...payload.integrationStatus.supabase.missing].join(', ')}
-                  </p>
-                ) : null}
               </section>
             </div>
 
