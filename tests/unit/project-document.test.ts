@@ -202,27 +202,21 @@ describe('project document serialization', () => {
     expect(parsed.error).toContain('Invalid project document JSON');
   });
 
-  it('imports standalone template JSON as a local template document', () => {
+  it('rejects standalone template JSON because project imports use project exports only', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify(template));
 
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) throw new Error(parsed.error);
-    expect(parsed.document.userTemplates).toHaveLength(1);
-    expect(parsed.document.userTemplates[0]).toMatchObject({
-      id: template.id,
-      name: template.name,
-      templateSource: 'user',
-    });
-    expect(parsed.document.storedCards).toEqual([]);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected standalone template JSON to fail');
+    expect(parsed.error).toContain('CardForge project export');
   });
 
-  it('imports template arrays as local template documents', () => {
+  it('rejects template arrays because project imports use project exports only', () => {
     const secondTemplate = { ...template, id: 'user-template-2', name: 'Second User Template' };
     const parsed = parseProjectDocumentFile(JSON.stringify([template, secondTemplate]));
 
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) throw new Error(parsed.error);
-    expect(parsed.document.userTemplates.map((item) => item.id)).toEqual(['user-template-1', 'user-template-2']);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected template array JSON to fail');
+    expect(parsed.error).toContain('CardForge project export');
   });
 
   it('rejects old stored-card arrays because outputs need matching templates', () => {
@@ -283,7 +277,7 @@ describe('project document serialization', () => {
     expect(parsed.error).toContain('Generator > Bulk Import');
   });
 
-  it('imports persisted local workspace snapshots with user templates', () => {
+  it('rejects persisted local workspace snapshots because project imports use project exports only', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       state: {
         userTemplates: [template],
@@ -295,11 +289,9 @@ describe('project document serialization', () => {
       version: 1,
     }));
 
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) throw new Error(parsed.error);
-    expect(parsed.document.userTemplates).toHaveLength(1);
-    expect(parsed.document.storedCards).toEqual([storedCard]);
-    expect(parsed.document.exportSettings.pdfMarginMm).toBe(7);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error('Expected workspace snapshot JSON to fail');
+    expect(parsed.error).toContain('CardForge project export');
   });
 
   it('ignores unsupported custom asset keys instead of remapping old names', () => {

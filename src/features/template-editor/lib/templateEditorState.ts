@@ -1,6 +1,7 @@
 import type { TCGCardTemplate } from '@/types';
 import { reconstructMinimalTemplate } from '@/lib/templateModel';
-import { TEMPLATE_HISTORY_LIMIT } from '@/features/template-editor/lib/templateHistory';
+
+const TEMPLATE_EDITOR_HISTORY_LIMIT = 40;
 
 export interface TemplateEditorSnapshot {
   currentTemplate: TCGCardTemplate;
@@ -31,7 +32,7 @@ const appendHistorySnapshot = (
   history: TemplateEditorSnapshot[],
   snapshot: TemplateEditorSnapshot,
 ) => [
-  ...history.slice(-(TEMPLATE_HISTORY_LIMIT - 1)),
+  ...history.slice(-(TEMPLATE_EDITOR_HISTORY_LIMIT - 1)),
   toSnapshot(snapshot),
 ];
 

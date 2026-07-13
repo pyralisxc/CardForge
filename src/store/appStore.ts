@@ -18,7 +18,6 @@ const dedupeAppearanceStyles = (styles: AppearanceStylePreset[]): AppearanceStyl
 };
 
 const normalizeActiveTab = (tab: string): string => {
-  if (tab === 'template-maker-2') return 'template-maker';
   return TABS_CONFIG.some(config => config.value === tab) ? tab : TABS_CONFIG[0].value;
 };
 

@@ -109,10 +109,10 @@ const isLikelyBulkDataRow = (value: unknown): boolean => (
 );
 
 const getUnsupportedProjectDocumentReason = (value: unknown): string => {
-  const storedCardOnlyMessage = 'Generated-output JSON needs its matching templates. Import a full CardForge project export, or import local template JSON before loading generated outputs.';
+  const storedCardOnlyMessage = 'Generated-output JSON needs its matching templates. Import a full CardForge project export.';
 
   if (isLikelyBulkContract(value)) {
-    return 'This is a bulk contract JSON file, not a project or template import. Use it as the source of truth beside Bulk Import data, or import a CardForge project export/local template JSON here.';
+    return 'This is a bulk contract JSON file, not a project import. Use it as the source of truth beside Bulk Import data, or import a CardForge project export here.';
   }
 
   if (Array.isArray(value)) {
@@ -133,7 +133,7 @@ const getUnsupportedProjectDocumentReason = (value: unknown): string => {
     }
   }
 
-  return 'Unsupported project document format. Import a CardForge project export or local template JSON.';
+  return 'Unsupported project document format. Import a CardForge project export.';
 };
 
 const normalizeTemplates = (value: unknown): TCGCardTemplate[] => (
@@ -141,15 +141,6 @@ const normalizeTemplates = (value: unknown): TCGCardTemplate[] => (
     .filter(isLikelyTemplate)
     .map((template) => reconstructMinimalTemplateObject({ ...template, templateSource: 'user' }))
 );
-
-const emptyProjectDocument = (): ProjectDocumentV1 => ({
-  version: PROJECT_DOCUMENT_VERSION,
-  userTemplates: [],
-  storedCards: [],
-  appearanceStyles: [],
-  exportSettings: {},
-  customAssets: normalizeCustomAssets(undefined),
-});
 
 const normalizeCustomAssets = (value: unknown): ProjectDocumentCustomAssets => {
   const customAssets = isRecord(value) ? value : {};
@@ -177,54 +168,6 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     appearanceStyles: asArray<AppearanceStylePreset>(value.appearanceStyles),
     exportSettings: isRecord(value.exportSettings) ? value.exportSettings : {},
     customAssets: normalizeCustomAssets(value.customAssets),
-  };
-};
-
-const normalizeLocalImportDocument = (value: unknown): ProjectDocumentV1 | null => {
-  if (isLikelyTemplate(value)) {
-    return {
-      ...emptyProjectDocument(),
-      userTemplates: [reconstructMinimalTemplateObject({ ...value, templateSource: 'user' })],
-    };
-  }
-
-  if (Array.isArray(value)) {
-    const userTemplates = normalizeTemplates(value);
-    if (userTemplates.length > 0) {
-      return {
-        ...emptyProjectDocument(),
-        userTemplates,
-      };
-    }
-    return null;
-  }
-
-  if (!isRecord(value)) return null;
-
-  const state = isRecord(value.state) ? value.state : value;
-  const userTemplates = normalizeTemplates(state.userTemplates);
-  const storedCards = asArray<StoredDisplayCard>(state.storedCards);
-  const appearanceStyles = asArray<AppearanceStylePreset>(state.appearanceStyles);
-  const exportSettingsSource = isRecord(state.exportSettings) ? state.exportSettings : state;
-
-  if (userTemplates.length === 0 && storedCards.length > 0) return null;
-  if (userTemplates.length === 0 && storedCards.length === 0 && appearanceStyles.length === 0) return null;
-
-  return {
-    version: PROJECT_DOCUMENT_VERSION,
-    userTemplates,
-    storedCards,
-    appearanceStyles,
-    exportSettings: isRecord(exportSettingsSource) ? {
-      selectedPaperSize: exportSettingsSource.selectedPaperSize as PaperSize | undefined,
-      pdfMarginMm: exportSettingsSource.pdfMarginMm as number | undefined,
-      pdfCardSpacingMm: exportSettingsSource.pdfCardSpacingMm as number | undefined,
-      pdfIncludeCutLines: exportSettingsSource.pdfIncludeCutLines as boolean | undefined,
-      pdfDuplexLayout: exportSettingsSource.pdfDuplexLayout as PdfDuplexLayout | undefined,
-      exportMode: exportSettingsSource.exportMode as ExportMode | undefined,
-      exportDpi: exportSettingsSource.exportDpi as number | undefined,
-    } : {},
-    customAssets: normalizeCustomAssets(state.customAssets),
   };
 };
 
@@ -290,14 +233,6 @@ export const parseProjectDocumentFile = (contents: string): ParseProjectDocument
     return {
       success: true,
       document,
-    };
-  }
-
-  const localImportDocument = normalizeLocalImportDocument(parsed);
-  if (localImportDocument) {
-    return {
-      success: true,
-      document: localImportDocument,
     };
   }
 
