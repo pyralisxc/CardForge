@@ -30,7 +30,8 @@
 **Interfaces:**
 - Vercel project id: `prj_395tFBFCrHJC2hP55haUKgas2cSC`
 - Vercel team id: `team_zVCGtHmdwYLDIJgA1mt8c7Nm`
-- Production domain: `https://card-forge-snowy.vercel.app`
+- Production domain at audit time: `https://card-forge-snowy.vercel.app`
+- Current canonical domain: `https://cardforges.com`
 
 - [x] Confirm the latest Vercel production deployment is `READY` and attached to the current `main` commit.
 - [x] Fetch `/`, `/studio`, `/account`, `/developer`, `/owner`, `/robots.txt`, `/sitemap.xml`, `/api/templates`, `/api/billing/status`, and `/api/assets` from production and record status/body signals.

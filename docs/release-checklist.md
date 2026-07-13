@@ -6,7 +6,7 @@ Last updated: July 13, 2026
 
 Current recommendation: `GO FOR PUBLIC BETA / CONTROLLED FIRST CUSTOMER`, `CONDITIONAL GO FOR PAID PRODUCTION LAUNCH`
 
-The application is in a strong public-beta state for core authoring, generation, export gating, account, roadmap, developer-pipeline, owner-console, and Stripe configuration workflows. The latest production Vercel deployment is `READY` on commit `99f686b`, production route/API health checks returned `200` for public pages, sitemap/robots, templates, billing status, and assets, and local browser audit verified Studio, Layout Studio flip controls, generator card backs, image tools, generated-output removal, and unpaid export gating. Paid production launch is conditional on a real live checkout/webhook entitlement proof and final owner legal/business sign-off.
+The application is in a strong public-beta state for core authoring, generation, export gating, account, roadmap, developer-pipeline, owner-console, Stripe configuration, and custom-domain workflows. Production is attached to `https://cardforges.com`, the latest audited Vercel deployment was `READY` on commit `bf25a1e`, production route/API health checks returned `200` for public pages, sitemap/robots, templates, billing status, and assets, and local browser audit verified Studio, Layout Studio flip controls, generator card backs, image tools, generated-output removal, and unpaid export gating. Stripe has processed the first live sale, so the remaining paid-launch work is final provider-domain cleanup, customer-support polish, and owner legal/business sign-off before broad paid marketing.
 
 ## Go / No-Go Summary
 
@@ -23,8 +23,8 @@ The application is in a strong public-beta state for core authoring, generation,
 ### Remaining Launch Decisions
 
 Release can proceed only after the team resolves:
-- a successful live checkout or verified Stripe test-mode replay that writes trusted Creator Pass access to Clerk private metadata
 - final live-mode Stripe business/payment-method settings, payout/banking readiness, tax/refund operating rules, and refund support policy
+- custom-domain ecosystem cleanup for Clerk redirects, Stripe return/customer portal settings, Google Search Console, and Resend sender verification
 - final owner review of privacy, terms, refund, contact, developer terms, and creator-pool notices before broad paid marketing
 
 Release should pause if:
@@ -35,7 +35,9 @@ Release should pause if:
 
 These checks passed or were verified during the July 13, 2026 launch-readiness audit:
 
-- production Vercel deployment for commit `99f686b` is `READY`
+- production Vercel deployment for commit `bf25a1e` is `READY`
+- custom production domain `https://cardforges.com` is attached in Vercel with valid configuration
+- Stripe processed the first live sale, proving the live checkout path is no longer hypothetical
 - production route/API health checks returned `200` for `/`, `/studio`, `/account`, `/developer`, `/owner`, `/robots.txt`, `/sitemap.xml`, `/api/templates`, `/api/billing/status`, and `/api/assets`
 - unauthenticated protected production APIs returned expected `401`/`403`/`400` responses without privileged leakage
 - local browser audit passed for Studio load, Layout Studio flip controls, Generator card-back selection, image tools, generated output creation/removal, and unpaid export gate copy
@@ -47,7 +49,7 @@ These checks passed or were verified during the July 13, 2026 launch-readiness a
 - API bootstrap/account/billing failures now use no-store JSON error envelopes with correlation ids
 - tracked local-only user template JSON and the empty `.modified` marker were removed from the release tree
 - `/` now renders the public CardForge landing page, `/studio` renders the maker/generator workspace, `/account` renders profile/export/dev-tool status, and `/profile` renders Clerk-backed profile management
-- canonical app URL resolution now rejects Supabase project hosts and falls back to Vercel deployment URLs for metadata, robots/sitemap, and Stripe return URLs
+- canonical app URL resolution now rejects Supabase project hosts and should use `https://cardforges.com` through `NEXT_PUBLIC_APP_URL` for metadata, robots/sitemap, and Stripe return URLs, with Vercel deployment URLs only as fallbacks
 
 Current production build snapshot:
 
@@ -586,7 +588,7 @@ Risk rating: `Moderate / Known / Accepted for MVP demo/public beta / Launch Bloc
 
 Current finding:
 - Stripe Checkout, the Creator Pass price, Vercel env, the `/api/billing/webhook` entitlement bridge, and Stripe Customer Portal handoff are configured for the current launch path.
-- Remaining paid-launch risk is proving the full checkout -> webhook -> Clerk entitlement grant, confirming Stripe Customer Portal settings, and confirming live-mode Stripe business/payment-method settings before broad paid access.
+- The first live sale has completed, so remaining paid-launch risk is confirming the post-domain Stripe return/customer portal settings, support/refund operations, and live-mode business/payment-method settings before broad paid access.
 - Paid/dev unlocks are intentionally server-trusted: Clerk private metadata, server-only allowlists, local fallback mode, or Stripe webhook-owned paid access.
 - Public Clerk metadata is ignored and must not be used as a paid/dev authority.
 
@@ -596,12 +598,12 @@ What we verified:
 - focused unit tests cover Stripe paid-access metadata, revocation metadata, and subscription status mapping
 
 Recommended handling:
-- run a Stripe test checkout and confirm Clerk private metadata grants Creator Pass
+- after `NEXT_PUBLIC_APP_URL` is set to `https://cardforges.com`, run one post-domain checkout or portal round trip and confirm Clerk private metadata grants Creator Pass
 - confirm Stripe live-mode business profile, payout/banking readiness, payment methods, tax/refund rules, and customer support details
 - keep public metadata display-only
 - use the Owner Console billing snapshot and a Stripe Customer Portal login to confirm recent checkout sessions, subscription state, and customer self-service before opening paid access broadly
 
-Risk rating: `High / Known / Launch Blocking for paid self-serve`
+Risk rating: `Moderate / Known / Launch Blocking for broad paid marketing`
 
 ### 3. Developer Asset Program Operational Readiness
 

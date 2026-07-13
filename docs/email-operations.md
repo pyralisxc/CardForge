@@ -13,13 +13,13 @@ CardForge now has server-sent support and developer request forms backed by Rese
 
 When the business email is ready:
 
-1. Create the human inbox, for example `support@yourdomain.com`.
+1. Create the human inbox, for example `support@cardforges.com`.
 2. Choose a transactional sender. The preferred path is Resend for delivery and React Email for templates.
-3. Verify a sending domain or subdomain in Resend, for example `send.yourdomain.com`.
+3. Verify a sending domain or subdomain in Resend, for example `send.cardforges.com`.
 4. Add the DNS records Resend requests for SPF, DKIM, and DMARC.
 5. Add Vercel environment variables:
    - `RESEND_API_KEY`
-   - `CARDFORGE_EMAIL_FROM`, for example `CardForge <notifications@yourdomain.com>`
+   - `CARDFORGE_EMAIL_FROM`, for example `CardForge <notifications@cardforges.com>`
    - `CARDFORGE_EMAIL_REPLY_TO`, usually the support inbox
 6. Send a test email from Owner Console before relying on server delivery. If Resend returns a domain verification error, verify a sending domain/subdomain in Resend or temporarily use Resend's approved testing sender for non-production tests.
 

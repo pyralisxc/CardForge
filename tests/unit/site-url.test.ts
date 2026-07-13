@@ -10,6 +10,13 @@ describe('site URL resolution', () => {
     })).toBe('https://cardforge.example');
   });
 
+  it('uses the custom production domain when it is configured', () => {
+    expect(getPublicAppUrl({
+      NEXT_PUBLIC_APP_URL: 'https://cardforges.com/',
+      VERCEL_PROJECT_PRODUCTION_URL: 'card-forge-snowy.vercel.app',
+    })).toBe('https://cardforges.com');
+  });
+
   it('falls back to the Vercel production URL when the explicit URL is not an app host', () => {
     expect(getPublicAppUrl({
       NEXT_PUBLIC_APP_URL: 'https://mpmmhjjhdxjedbmuctiv.supabase.co',
