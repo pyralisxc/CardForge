@@ -738,9 +738,6 @@ export function OwnerConsolePage() {
                     <Database className="h-5 w-5" />
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Data footprint</h2>
                   </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Track how much shared Supabase space CardForge is using before asset uploads and contributor publishing grow.
-                  </p>
                 </div>
                 <FieldHelp text="Database size comes from Postgres. Storage size comes from Supabase Storage object metadata when that schema is available. Local browser uploads do not count here." />
               </div>
@@ -767,9 +764,6 @@ export function OwnerConsolePage() {
                     <Rocket className="h-5 w-5" />
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Roadmap operations</h2>
                   </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Move CardForge-authored milestones through planning, testing, and completed states. Completing a checkpoint marks it shipped on the public roadmap.
-                  </p>
                 </div>
                 <div className="grid grid-cols-2 border border-[#5f4526] bg-[#100c08] text-center">
                   <div className="border-r border-[#5f4526] px-4 py-3">
@@ -829,9 +823,6 @@ export function OwnerConsolePage() {
                           <Mail className="h-5 w-5" />
                           <h2 className="font-serif text-2xl text-[#fff1c7]">Email operations</h2>
                         </div>
-                        <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-                          Send a live Resend test to the owner support inbox and review recent support/developer requests.
-                        </p>
                       </div>
                       <Button onClick={sendTestEmail} disabled={isSendingTestEmail || !payload.integrationStatus.email.resendConfigured} className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
                         <Mail className="mr-2 h-4 w-4" />
@@ -869,9 +860,6 @@ export function OwnerConsolePage() {
                           <CreditCard className="h-5 w-5" />
                           <h2 className="font-serif text-2xl text-[#fff1c7]">Billing snapshot</h2>
                         </div>
-                        <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-                          Safe Stripe summaries for recent checkout sessions and subscriptions. Raw payment controls stay in Stripe.
-                        </p>
                       </div>
                       <Button onClick={loadBillingSummary} disabled={isLoadingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
                         <Rocket className="mr-2 h-4 w-4" />
@@ -908,9 +896,6 @@ export function OwnerConsolePage() {
                       <UserCog className="h-5 w-5" />
                       <h2 className="font-serif text-2xl text-[#fff1c7]">Account controls</h2>
                     </div>
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                      Look up a Clerk account by email, then adjust CardForge private metadata for free, paid, dev, or owner access. Stripe ids are preserved.
-                    </p>
                     <div className="mt-5 flex flex-col gap-3 md:flex-row">
                       <input
                         className="min-w-0 flex-1 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]"
@@ -985,9 +970,6 @@ export function OwnerConsolePage() {
                     <FileText className="h-5 w-5" />
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Public site copy</h2>
                   </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Edit the live wording for public pages that already exist. This is intentionally not a page builder: new structure still belongs in code, while these fields let the owner tune launch messaging without a deploy.
-                  </p>
                 </div>
                 <div className="border border-[#7d5a2e] bg-[#100c08] px-4 py-3 text-xs uppercase tracking-[0.14em] text-[#ffe7ad]">
                   Known blocks only
@@ -1039,9 +1021,6 @@ export function OwnerConsolePage() {
                     <Settings2 className="h-5 w-5" />
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Site mechanics</h2>
                   </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Tune how public feature voting affects the live roadmap. Contributor asset voting rules are managed below in Library Command.
-                  </p>
                 </div>
                 <div className="border border-[#7d5a2e] bg-[#100c08] px-4 py-3 text-xs uppercase tracking-[0.14em] text-[#ffe7ad]">
                   Feature voting
@@ -1075,27 +1054,6 @@ export function OwnerConsolePage() {
                 />
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Public board</p>
-                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    Users can suggest and vote until the active suggestion cap is reached.
-                  </p>
-                </div>
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Negative signal</p>
-                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    User suggestions archive once they meet both the vote floor and downvote percentage.
-                  </p>
-                </div>
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Contributor assets</p>
-                  <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    Library tiers, publish caps, and asset review thresholds live in the developer program controls.
-                  </p>
-                </div>
-              </div>
-
               <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSiteMechanics}>
                 <Save className="mr-2 h-4 w-4" />
                 {isSaving ? 'Saving site mechanics...' : 'Save site mechanics'}
@@ -1111,9 +1069,6 @@ export function OwnerConsolePage() {
                     <Gift className="h-5 w-5" />
                     <h2 className="font-serif text-2xl text-[#fff1c7]">Marketing and promos</h2>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-                    Founder Beta is the single CardForge-owned launch promo for access grants and wave control. Stripe owns paid coupons, promotion codes, invoices, and subscription discounts once billing is active.
-                  </p>
                 </div>
                 <div className="border border-[#7d5a2e] bg-[#100c08] px-4 py-3 text-sm text-[#ffe7ad]">
                   {activeFounderBetaClaims.length}/{founderBetaCampaign.releaseSlotCap} wave slots claimed
@@ -1136,18 +1091,6 @@ export function OwnerConsolePage() {
                 <div className="border border-[#4a3823] bg-[#100c08] p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Active promo users</p>
                   <p className="mt-2 text-2xl font-semibold text-[#ffe7ad]">{activeFounderBetaClaims.length}</p>
-                </div>
-              </div>
-
-              <div className="mt-5 border border-[#5f4526] bg-[#100c08] p-4">
-                <div className="flex items-start gap-3">
-                  <Rocket className="mt-0.5 h-5 w-5 text-[#e2aa4a]" />
-                  <div>
-                    <h3 className="font-serif text-xl text-[#fff1c7]">How to unlock the next wave</h3>
-                    <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-                      Increase Current release cap when you are ready to admit more users from the public cap. Keep it at or below Public slot cap. Stripe promotion codes can mirror this campaign for paid billing, but this control remains the product-access gate.
-                    </p>
-                  </div>
                 </div>
               </div>
 
@@ -1338,9 +1281,7 @@ export function OwnerConsolePage() {
                 <KeyRound className="h-5 w-5" />
                 <h2 className="font-serif text-2xl text-[#fff1c7]">API keys and secrets</h2>
               </div>
-              <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-                Secrets stay in environment variables and provider dashboards. This console shows readiness and maintenance links, but it does not expose or edit raw secret keys in the browser.
-              </p>
+              <p className="mt-3 text-sm text-[#c7b288]">Provider-owned. No raw secrets are exposed here.</p>
             </section>
               </TabsContent>
             </Tabs>
