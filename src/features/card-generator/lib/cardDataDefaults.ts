@@ -1,7 +1,7 @@
 import type { CardData, TCGCardTemplate } from '@/types';
 import { toTitleCase } from '@/lib/utils';
-import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/lib/templateFields';
-import { buildStructuredRowsDataKey, stringifyStructuredRowsValue } from '@/lib/structuredRows';
+import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import { buildStructuredRowsDataKey, stringifyStructuredRowsValue } from '@/features/card-generator/lib/structuredRows';
 
 const imagePlaceholderForField = (fieldKey: string): string =>
   `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(fieldKey))}`;

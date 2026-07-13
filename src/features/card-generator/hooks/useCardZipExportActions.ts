@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 
-import { getExportProfile, type ExportMode } from '@/lib/printValidation';
+import { getExportProfile, type ExportMode } from '@/features/card-generator/lib/printValidation';
 import type { DisplayCard } from '@/types';
 import type { useToast } from '@/hooks/use-toast';
 import {

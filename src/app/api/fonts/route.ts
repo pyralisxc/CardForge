@@ -1,5 +1,5 @@
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getRegistryFontsPayload } from '@/lib/registryFonts';
+import { getRegistryFontsPayload } from '@/features/developer-assets/lib/registryFonts';
 
 export const dynamic = 'force-dynamic';
 

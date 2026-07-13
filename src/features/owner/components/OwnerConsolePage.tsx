@@ -23,8 +23,8 @@ import type {
   SiteContentBlock,
   SiteContentBlockSlug,
   SiteMechanicsSettings,
-} from '@/lib/ownerConsole';
-import { DEFAULT_LEGAL_DOCUMENTS, DEFAULT_SITE_CONTENT_BLOCKS } from '@/lib/ownerConsole';
+} from '@/features/owner/lib/ownerConsole';
+import { DEFAULT_LEGAL_DOCUMENTS, DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/owner/lib/ownerConsole';
 
 interface OwnerConsoleResponse {
   ownerAccess: {

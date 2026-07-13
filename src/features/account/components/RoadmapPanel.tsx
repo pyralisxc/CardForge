@@ -18,7 +18,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { createRoadmapDeveloperRequestMailto } from '@/lib/contactLinks';
+import { createRoadmapDeveloperRequestMailto } from '@/features/contact/lib/contactLinks';
 import {
   buildRoadmapTimelineCheckpoints,
   isChronicleTimelineItem,
@@ -30,7 +30,7 @@ import {
   type RoadmapStatus,
   type RoadmapTimelineCheckpoint,
   type RoadmapVoteValue,
-} from '@/lib/roadmap';
+} from '@/features/account/lib/roadmap';
 
 interface RoadmapPanelProps {
   isDeveloper: boolean;

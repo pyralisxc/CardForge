@@ -1,6 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 
-import { isClerkAuthConfigured } from '@/lib/accountEntitlement';
+import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
 import { resolveWithTimeout } from '@/lib/asyncTimeout';
 import { resolveOwnerAccess, type OwnerAccess } from '@/lib/ownerAccess';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';

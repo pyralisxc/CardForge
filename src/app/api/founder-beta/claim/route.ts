@@ -1,8 +1,8 @@
 import { clerkClient, currentUser } from '@clerk/nextjs/server';
 
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/lib/accountEntitlement';
-import { claimFounderBetaAccess, OwnerConsoleStoreError } from '@/lib/ownerConsoleStore';
+import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
+import { claimFounderBetaAccess, OwnerConsoleStoreError } from '@/features/owner/lib/ownerConsoleStore';
 import { resolveOwnerAccess } from '@/lib/ownerAccess';
 
 export const dynamic = 'force-dynamic';

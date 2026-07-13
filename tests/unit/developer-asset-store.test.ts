@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_DEVELOPER_PROGRAM_SETTINGS,
   type DeveloperProgramSettings,
-} from '@/lib/developerAssets';
+} from '@/features/developer-assets/lib/developerAssets';
 import {
   buildDeveloperAssetProgramView,
   calculateDeveloperAssetVoteTotals,
@@ -14,7 +14,7 @@ import {
   normalizeDeveloperProfileOverrideInput,
   normalizeDeveloperAssetSubmissionEditInput,
   normalizeDeveloperAssetSubmissionInput,
-} from '@/lib/developerAssetStore';
+} from '@/features/developer-assets/lib/developerAssetStore';
 
 const settings: DeveloperProgramSettings = {
   ...DEFAULT_DEVELOPER_PROGRAM_SETTINGS,

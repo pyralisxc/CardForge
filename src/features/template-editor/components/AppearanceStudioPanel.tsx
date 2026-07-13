@@ -12,8 +12,8 @@ import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { appearanceToStyle } from '@/lib/appearance';
-import type { CardAssetOption } from '@/lib/cardAssets';
-import { getAssetBadgeSummary } from '@/lib/pipelineAssetTaxonomy';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import { getAssetBadgeSummary } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/types';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 

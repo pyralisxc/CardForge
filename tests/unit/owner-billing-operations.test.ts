@@ -4,7 +4,7 @@ import {
   buildOwnerBillingSnapshot,
   mapStripeCheckoutSessionSummary,
   mapStripeSubscriptionSummary,
-} from '@/lib/ownerBillingOperations';
+} from '@/features/owner/lib/ownerBillingOperations';
 
 describe('owner billing operations', () => {
   it('maps checkout sessions into a safe owner billing summary', () => {

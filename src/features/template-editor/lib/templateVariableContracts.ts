@@ -1,4 +1,4 @@
-import { renamePlaceholderKeyInText } from '@/lib/textBindings';
+import { renamePlaceholderKeyInText } from '@/features/template-editor/lib/textBindings';
 import { reconstructFreeformCanvas } from '@/lib/templateModel';
 import { toTitleCase } from '@/lib/utils';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';

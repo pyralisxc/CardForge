@@ -1,12 +1,12 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 
-import { isClerkAuthConfigured } from '@/lib/accountEntitlement';
+import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import {
   buildBillingPortalSessionParams,
   getStripeCustomerIdFromMetadata,
-} from '@/lib/billing';
+} from '@/features/billing/lib/billing';
 import { getPublicAppUrl } from '@/lib/siteUrl';
 
 export const dynamic = 'force-dynamic';

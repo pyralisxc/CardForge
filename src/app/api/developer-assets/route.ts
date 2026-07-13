@@ -1,4 +1,4 @@
-import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
+import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import {
   createDeveloperAssetSubmission,
@@ -7,9 +7,9 @@ import {
   upsertDeveloperProfile,
   updateDeveloperProfileOverrides,
   updateDeveloperProgramSettings,
-} from '@/lib/developerAssetStore';
-import { getCurrentCardforgeUserAccess } from '@/lib/serverCardforgeUser';
-import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
+} from '@/features/developer-assets/lib/developerAssetStore';
+import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
+import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 import { createServerTimingTracker } from '@/lib/serverTiming';
 
 export const dynamic = 'force-dynamic';

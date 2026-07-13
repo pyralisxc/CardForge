@@ -1,9 +1,9 @@
-import { getBillingConfigStatus } from '@/lib/billing';
-import { isClerkAuthConfigured } from '@/lib/accountEntitlement';
+import { getBillingConfigStatus } from '@/features/billing/lib/billing';
+import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { isShippedLibraryWriteEnabled, resolveAccessMode } from '@/lib/projectAccess';
+import { isShippedLibraryWriteEnabled, resolveAccessMode } from '@/features/project/lib/projectAccess';
 import { getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
-import { getOwnerConsolePayload } from '@/lib/ownerConsoleStore';
+import { getOwnerConsolePayload } from '@/features/owner/lib/ownerConsoleStore';
 
 export const dynamic = 'force-dynamic';
 

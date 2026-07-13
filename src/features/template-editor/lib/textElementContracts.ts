@@ -1,5 +1,5 @@
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
-import { extractPlaceholderKeysFromText, parseTextBinding } from '@/lib/textBindings';
+import { extractPlaceholderKeysFromText, parseTextBinding } from '@/features/template-editor/lib/textBindings';
 
 export type TextElementContentModel = 'text' | 'structuredRows';
 export type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];

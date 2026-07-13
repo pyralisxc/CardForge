@@ -4,7 +4,7 @@ import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useState } from 'react';
 
 import type { AppearanceStylePreset, PaperSize, PdfDuplexLayout, StoredDisplayCard, TCGCardTemplate } from '@/types';
-import type { ExportMode } from '@/lib/printValidation';
+import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
@@ -13,15 +13,15 @@ import {
   applyProjectDocumentToState,
   createProjectDocumentFromState,
   parseProjectDocumentFile,
-} from '@/lib/projectDocument';
-import type { ProjectDocumentStatePatch } from '@/lib/projectDocument';
+} from '@/features/project/lib/projectDocument';
+import type { ProjectDocumentStatePatch } from '@/features/project/lib/projectDocument';
 import type { useToast } from '@/hooks/use-toast';
 import {
   mergeProjectAssetListToStorage,
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '@/features/project/lib/projectLocalAssets';
-import type { CardAssetOption } from '@/lib/cardAssets';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import { withNextStep } from '@/lib/userFacingErrors';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];

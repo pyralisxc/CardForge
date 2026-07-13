@@ -6,7 +6,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { PackagePlus } from 'lucide-react';
-import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
+import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
 import {
   buildInitialColumnMapping,
   autoMapRequiredFields,
@@ -22,7 +22,7 @@ import {
   parseBulkDataSource,
   resolveDuplicateFieldMapping,
   shouldBlockBulkGeneration,
-} from '@/lib/bulkGeneration';
+} from '@/features/card-generator/lib/bulkGeneration';
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { useAppStore } from '@/store/appStore';

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getBulkHeaderRowIdentity } from '@/features/card-generator/lib/bulkMappingReview';
-import type { TemplateFieldDefinition } from '@/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 
 interface BulkMappingReviewPanelProps {
   headers: string[];

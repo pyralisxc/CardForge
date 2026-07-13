@@ -1,5 +1,5 @@
-import { getBillingConfigStatus } from '@/lib/billing';
-import { isClerkAuthConfigured } from '@/lib/accountEntitlement';
+import { getBillingConfigStatus } from '@/features/billing/lib/billing';
+import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
 import {
   DEFAULT_FOUNDER_BETA_CAMPAIGN,
   DEFAULT_LEGAL_DOCUMENTS,
@@ -27,7 +27,7 @@ import {
   normalizeOwnerSettingsInput,
   normalizeSiteMechanicsSettingsInput,
   reconcileFounderBetaCampaignCopy,
-} from '@/lib/ownerConsole';
+} from '@/features/owner/lib/ownerConsole';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 
 type OwnerSettingsRow = {

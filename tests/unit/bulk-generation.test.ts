@@ -18,7 +18,7 @@ import {
   resolveDuplicateFieldMapping,
   shouldBlockBulkGeneration,
   updateColumnMapping,
-} from '@/lib/bulkGeneration';
+} from '@/features/card-generator/lib/bulkGeneration';
 import type { TCGCardTemplate } from '@/types';
 
 describe('bulk generation helpers', () => {

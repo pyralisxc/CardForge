@@ -6,14 +6,14 @@ import type {
   TemplateFieldContractType,
   TCGCardTemplate,
 } from '@/types';
-import type { TemplateFieldDefinition } from '@/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import {
   buildScopedFieldDataKey,
   extractPlaceholderKeysFromText,
   getImageFieldKeyForElement,
   parseTemplateTextSegments,
   parseTextBinding,
-} from '@/lib/textBindings';
+} from '@/features/template-editor/lib/textBindings';
 import { toTitleCase } from '@/lib/utils';
 
 export type FieldContractContentModel = 'image' | 'text' | 'structuredRows';

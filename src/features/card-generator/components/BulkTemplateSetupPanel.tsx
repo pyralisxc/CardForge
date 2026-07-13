@@ -4,10 +4,10 @@ import { Download, FileJson, FileText, Table2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { TemplateFieldDefinition } from '@/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import { getTemplateSourceLabel } from '@/lib/templateDisplay';
 import type { TCGCardTemplate } from '@/types';
-import { createBulkContractSummary } from '@/lib/bulkGeneration';
+import { createBulkContractSummary } from '@/features/card-generator/lib/bulkGeneration';
 
 interface BulkTemplateSetupPanelProps {
   selectedTemplateId: string | null;

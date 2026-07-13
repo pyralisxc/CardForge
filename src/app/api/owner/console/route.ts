@@ -8,9 +8,9 @@ import {
   updateOwnerRoadmapItemStatus,
   updateSiteContentBlock,
   updateSiteMechanicsSettings,
-} from '@/lib/ownerConsoleStore';
+} from '@/features/owner/lib/ownerConsoleStore';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
+import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 import { createServerTimingTracker } from '@/lib/serverTiming';
 
 export const dynamic = 'force-dynamic';

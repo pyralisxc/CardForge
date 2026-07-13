@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/react';
 
 import { parseRichText } from '@/lib/utils';
-import { buildTextBinding, parseTemplateTextSegments } from '@/lib/textBindings';
+import { buildTextBinding, parseTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
 
 type InlineNode = NonNullable<JSONContent['content']>[number];
 

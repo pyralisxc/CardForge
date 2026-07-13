@@ -10,7 +10,7 @@ import {
   evaluateDeveloperAssetAccessTier,
   getVisibleArchivedSubmissions,
   normalizeDeveloperProgramSettingsInput,
-} from '@/lib/developerAssets';
+} from '@/features/developer-assets/lib/developerAssets';
 import {
   developerAssetSubmissionGuidance,
   getCandidateBrowseLabel,

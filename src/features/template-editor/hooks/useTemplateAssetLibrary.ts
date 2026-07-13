@@ -4,15 +4,15 @@ import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import type { CardAssetOption } from '@/lib/cardAssets';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import { loadBootstrapAssets } from '@/lib/clientBootstrapData';
-import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/lib/pipelineAssetTaxonomy';
+import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/lib/projectDocument';
+} from '@/features/project/lib/projectDocument';
 import type { useToast } from '@/hooks/use-toast';
 import type { FreeformCardElement } from '@/types';
 type ToastFn = ReturnType<typeof useToast>['toast'];

@@ -10,7 +10,7 @@ import type {
 import type { CardFrameKit } from '@/lib/cardFrameKits';
 import { getFrameKitTemplateUpdates } from '@/lib/cardFrameKits';
 import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
-import { DEFAULT_OWNER_SETTINGS } from '@/lib/ownerConsole';
+import { DEFAULT_OWNER_SETTINGS } from '@/features/owner/lib/ownerConsole';
 
 const DEFAULT_OWNER_CONTRIBUTOR_NAME = DEFAULT_OWNER_SETTINGS.ownerName || DEFAULT_OWNER_SETTINGS.supportEmail;
 

@@ -1,4 +1,4 @@
-import { getBillingConfigStatus, type BillingConfigStatus } from '@/lib/billing';
+import { getBillingConfigStatus, type BillingConfigStatus } from '@/features/billing/lib/billing';
 
 type StripeObjectRef = string | { id?: string } | null | undefined;
 

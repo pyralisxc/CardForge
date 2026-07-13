@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
 import type { DisplayCard, CardData, TCGCardTemplate } from '@/types';
-import type { TemplateFieldDefinition } from '@/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,7 +21,7 @@ import { Copy, Save, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAppStore } from '@/store/appStore';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
-import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/lib/cardDataDefaults';
+import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
 
 interface EditCardDialogProps {
   isOpen: boolean;

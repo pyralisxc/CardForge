@@ -9,7 +9,7 @@ import { ExportCardImageButton } from '@/features/card-generator/components/Expo
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { DisplayCard, TCGCardTemplate } from '@/types';
-import type { ExportMode } from '@/lib/printValidation';
+import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 
 export type GeneratedGallerySort = 'default' | 'name-asc' | 'name-desc' | 'template';
 type GeneratedGalleryDensity = 'compact' | 'comfortable' | 'large';

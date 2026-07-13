@@ -1,5 +1,5 @@
-import { mapRegistryRowsToCardFontOptions, type CardFontOption } from '@/lib/cardFonts';
-import { getPublishedRegistryContentRows } from '@/lib/registryContentAssets';
+import { mapRegistryRowsToCardFontOptions, type CardFontOption } from '@/features/template-editor/lib/cardFonts';
+import { getPublishedRegistryContentRows } from '@/features/developer-assets/lib/registryContentAssets';
 import { getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 
 export interface RegistryFontsPayload {

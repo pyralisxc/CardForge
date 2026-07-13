@@ -5,7 +5,7 @@ import {
   IMAGE_FIELD_OVERRIDE_PROPERTIES,
   parseImageFieldOverrideColumnHeader,
   resolveImageElementOverrides,
-} from '@/lib/imageFieldOverrides';
+} from '@/features/card-generator/lib/imageFieldOverrides';
 import type { CardData, FreeformCardElement } from '@/types';
 
 const imageElement: FreeformCardElement = {

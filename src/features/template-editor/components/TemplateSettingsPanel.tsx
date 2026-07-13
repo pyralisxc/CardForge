@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { CARD_BORDER_STYLES, DIMENSION_UNITS, FRAME_STYLES, TCG_ASPECT_RATIO } from '@/lib/constants';
 import type { FreeformCanvas, TCGCardTemplate } from '@/types';
 import { cn } from '@/lib/utils';
-import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
+import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 

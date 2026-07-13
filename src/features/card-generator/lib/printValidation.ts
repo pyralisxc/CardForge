@@ -1,7 +1,7 @@
 import type { DisplayCard } from '@/types';
-import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
+import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
 import { AVAILABLE_FONTS } from '@/lib/constants';
-import { validateCardDataAgainstFieldContracts } from '@/lib/fieldContracts';
+import { validateCardDataAgainstFieldContracts } from '@/features/template-editor/lib/fieldContracts';
 import { getCardFaceCanvas, hasCardBacking } from '@/lib/cardBacking';
 
 export type ExportMode = 'physical' | 'virtual';

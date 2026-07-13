@@ -9,12 +9,12 @@ import {
   stylePresetPayloadSchema,
 } from '@/lib/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { canCurrentAccountWriteShippedLibrary } from '@/lib/serverProjectAccess';
+import { canCurrentAccountWriteShippedLibrary } from '@/features/project/lib/serverProjectAccess';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
 import {
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
-} from '@/lib/registryContentAssets';
+} from '@/features/developer-assets/lib/registryContentAssets';
 
 const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
 const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL || 'cameron.r.locke96@gmail.com';

@@ -3,16 +3,16 @@ import {
   type DeveloperAssetAccessTier,
   type DeveloperAssetStatus,
   type DeveloperAssetType,
-} from '@/lib/developerAssets';
-import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
-import type { CardAssetOption } from '@/lib/cardAssets';
+} from '@/features/developer-assets/lib/developerAssets';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import {
   getDeveloperAssetStatusDescription,
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTierDescription,
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
-} from '@/lib/pipelineAssetTaxonomy';
+} from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 
 export type DeveloperAssetSubmission = DeveloperAssetProgramView['submissions'][number];
 export type VoteFilter = 'all' | 'unvoted' | 'upvoted' | 'downvoted';

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getOwnerIntegrationStatus } from '@/lib/ownerConsoleStore';
+import { getOwnerIntegrationStatus } from '@/features/owner/lib/ownerConsoleStore';
 
 describe('owner integration status', () => {
   afterEach(() => {

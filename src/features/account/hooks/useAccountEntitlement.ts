@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   resolveAccountEntitlement,
   type AccountEntitlement,
-} from '@/lib/accountEntitlement';
+} from '@/features/account/lib/accountEntitlement';
 
 let sharedEntitlementRequest: Promise<AccountEntitlement> | null = null;
 let sharedEntitlementCache: { entitlement: AccountEntitlement; fetchedAt: number } | null = null;

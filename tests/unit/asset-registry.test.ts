@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getAssetRegistryPayload, mapAssetRegistryRowsToPayload } from '@/lib/assetRegistry';
+import { getAssetRegistryPayload, mapAssetRegistryRowsToPayload } from '@/features/developer-assets/lib/assetRegistry';
 
 describe('asset registry', () => {
   const originalSupabaseUrl = process.env.SUPABASE_URL;

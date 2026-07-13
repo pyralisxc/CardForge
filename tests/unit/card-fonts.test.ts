@@ -6,7 +6,7 @@ import {
   cardFontFamilyToCss,
   mapRegistryRowsToCardFontOptions,
   mergeCardFontOptions,
-} from '@/lib/cardFonts';
+} from '@/features/template-editor/lib/cardFonts';
 
 describe('card font registry', () => {
   it('keeps saved font ids available for existing templates', () => {

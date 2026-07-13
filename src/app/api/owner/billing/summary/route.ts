@@ -1,9 +1,9 @@
 import Stripe from 'stripe';
 
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getBillingConfigStatus } from '@/lib/billing';
-import { buildOwnerBillingSnapshot } from '@/lib/ownerBillingOperations';
-import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
+import { getBillingConfigStatus } from '@/features/billing/lib/billing';
+import { buildOwnerBillingSnapshot } from '@/features/owner/lib/ownerBillingOperations';
+import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 
 export const dynamic = 'force-dynamic';
 

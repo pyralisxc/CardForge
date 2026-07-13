@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { CardData } from '@/types';
-import type { TemplateFieldDefinition } from '@/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
 import { cn } from '@/lib/utils';
-import type { FieldStyleProperty } from '@/lib/fieldStyleOverrides';
-import type { ImageFieldOverrideProperty } from '@/lib/imageFieldOverrides';
+import type { FieldStyleProperty } from '@/features/card-generator/lib/fieldStyleOverrides';
+import type { ImageFieldOverrideProperty } from '@/features/card-generator/lib/imageFieldOverrides';
 
 interface GeneratorFieldInputProps {
   field: TemplateFieldDefinition;

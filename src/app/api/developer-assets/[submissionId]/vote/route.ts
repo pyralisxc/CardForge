@@ -1,12 +1,12 @@
-import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
+import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import {
   DeveloperAssetStoreError,
   getDeveloperAssetVotePolicy,
   upsertDeveloperProfile,
   voteOnDeveloperAssetSubmission,
-} from '@/lib/developerAssetStore';
-import { getCurrentCardforgeUserAccess } from '@/lib/serverCardforgeUser';
+} from '@/features/developer-assets/lib/developerAssetStore';
+import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
 
 export const dynamic = 'force-dynamic';
 

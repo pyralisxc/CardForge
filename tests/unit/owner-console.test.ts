@@ -12,7 +12,7 @@ import {
   normalizeLegalDocumentInput,
   normalizeSiteMechanicsSettingsInput,
   reconcileFounderBetaCampaignCopy,
-} from '@/lib/ownerConsole';
+} from '@/features/owner/lib/ownerConsole';
 
 describe('owner console data rules', () => {
   it('ships with required legal documents', () => {

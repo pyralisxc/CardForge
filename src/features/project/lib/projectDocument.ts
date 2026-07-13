@@ -5,8 +5,8 @@ import type {
   StoredDisplayCard,
   TCGCardTemplate,
 } from '@/types';
-import type { CardAssetOption } from '@/lib/cardAssets';
-import type { ExportMode } from '@/lib/printValidation';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { reconstructMinimalTemplateObject } from '@/lib/templateModel';
 
 const PROJECT_DOCUMENT_VERSION = 1;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
-import { buildScopedFieldDataKey, buildStaticSegmentFieldKey } from '@/lib/textBindings';
+import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
+import { buildScopedFieldDataKey, buildStaticSegmentFieldKey } from '@/features/template-editor/lib/textBindings';
 import type { TCGCardTemplate } from '@/types';
 
 describe('extractTemplateFieldDefinitions', () => {

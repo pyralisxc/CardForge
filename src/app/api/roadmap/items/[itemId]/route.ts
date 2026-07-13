@@ -1,9 +1,9 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
+import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { resolveOwnerAccess } from '@/lib/ownerAccess';
-import { deleteDeveloperRoadmapItem, RoadmapStoreError } from '@/lib/roadmapStore';
+import { deleteDeveloperRoadmapItem, RoadmapStoreError } from '@/features/account/lib/roadmapStore';
 
 export const dynamic = 'force-dynamic';
 

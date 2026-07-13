@@ -6,7 +6,7 @@ import {
   buildStripeRevokedAccessMetadata,
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
-} from '@/lib/billing';
+} from '@/features/billing/lib/billing';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 
 export const dynamic = 'force-dynamic';

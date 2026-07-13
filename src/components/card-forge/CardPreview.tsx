@@ -3,20 +3,20 @@
 
 import type { CardFace, DisplayCard, TCGCardTemplate } from '@/types';
 import { cn } from '@/lib/utils';
-import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/lib/textBindings';
+import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
 import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
 import { isDividerElement } from '@/lib/elementCapabilities';
 import { useMemo } from 'react';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 import {
   buildTextElementStyle,
-} from '@/lib/textTools';
+} from '@/features/template-editor/lib/textTools';
 import { useAppStore } from '@/store/appStore';
 import * as LucideIcons from 'lucide-react';
 import { CardTextContent } from '@/lib/cardTextRender';
 import { getCardPreviewLayout } from '@/lib/cardPreviewLayout';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/lib/freeformElementRender';
-import { resolveImageElementOverrides } from '@/lib/imageFieldOverrides';
+import { resolveImageElementOverrides } from '@/features/card-generator/lib/imageFieldOverrides';
 import { canRenderVectorShape } from '@/lib/vectorShapes';
 import { VectorShapeElement } from './VectorShapeElement';
 import { getCardFaceCanvas, getCardFaceData, getCardFaceTemplate } from '@/lib/cardBacking';

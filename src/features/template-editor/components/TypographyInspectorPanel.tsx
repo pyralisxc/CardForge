@@ -6,9 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
-import { parseTextBinding } from '@/lib/textBindings';
-import { shouldAutoFitTextElement } from '@/lib/textElementContracts';
-import { textFontSizePx } from '@/lib/textTools';
+import { parseTextBinding } from '@/features/template-editor/lib/textBindings';
+import { shouldAutoFitTextElement } from '@/features/template-editor/lib/textElementContracts';
+import { textFontSizePx } from '@/features/template-editor/lib/textTools';
 import type { FreeformCardElement, TCGCardTemplate } from '@/types';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];

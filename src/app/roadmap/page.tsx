@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 import { RoadmapPage } from '@/features/account/components/RoadmapPage';
 import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
-import { getPublishedLegalDocument } from '@/lib/ownerConsoleStore';
+import { getPublishedLegalDocument } from '@/features/owner/lib/ownerConsoleStore';
 
 export const dynamic = 'force-dynamic';
 

@@ -4,7 +4,7 @@ import {
   buildContactRequestEmail,
   normalizeContactRequestInput,
   sendResendEmail,
-} from '@/lib/emailOperations';
+} from '@/features/contact/lib/emailOperations';
 
 describe('email operations', () => {
   it('normalizes public contact and developer request payloads', () => {

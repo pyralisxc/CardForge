@@ -8,20 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/lib/developerAssets';
-import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
-import type { CardAssetOption } from '@/lib/cardAssets';
+import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/lib/projectDocument';
+} from '@/features/project/lib/projectDocument';
 import {
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
-} from '@/lib/pipelineAssetTaxonomy';
+} from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import { useAppStore } from '@/store/appStore';
 import type { TCGCardTemplate } from '@/types';
 import {

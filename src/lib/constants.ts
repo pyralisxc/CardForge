@@ -26,7 +26,7 @@ export const FONT_WEIGHTS = ['font-normal', 'font-medium', 'font-semibold', 'fon
 export const TEXT_ALIGNS = ['left', 'center', 'right', 'justify'] as const;
 export const FONT_STYLES = ['normal', 'italic'] as const;
 
-export { AVAILABLE_FONTS } from '@/lib/cardFonts';
+export { AVAILABLE_FONTS } from '@/features/template-editor/lib/cardFonts';
 
 export const PADDING_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'None (0px)', value: 'p-0' }, { label: 'XS (0.125rem)', value: 'p-0.5' },

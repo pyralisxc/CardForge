@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CardData } from '@/types';
-import type { TemplateFieldDefinition } from '@/lib/templateFields';
-import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/lib/textBindings';
-import { RichTextContent } from '@/lib/textTools';
+import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
+import { RichTextContent } from '@/features/template-editor/lib/textTools';
 import { GeneratorFieldInput, getFieldStringValue } from '@/features/card-generator/components/GeneratorFieldInput';
 import {
   buildStructuredRowsDataKey,
@@ -17,9 +17,9 @@ import {
   parseStructuredRowsValue,
   stringifyStructuredRowsValue,
   structuredRowToCardData,
-} from '@/lib/structuredRows';
-import { buildFieldStyleDataKey, type FieldStyleProperty } from '@/lib/fieldStyleOverrides';
-import { buildImageFieldOverrideDataKey, type ImageFieldOverrideProperty, IMAGE_FIELD_OVERRIDE_PROPERTIES } from '@/lib/imageFieldOverrides';
+} from '@/features/card-generator/lib/structuredRows';
+import { buildFieldStyleDataKey, type FieldStyleProperty } from '@/features/card-generator/lib/fieldStyleOverrides';
+import { buildImageFieldOverrideDataKey, type ImageFieldOverrideProperty, IMAGE_FIELD_OVERRIDE_PROPERTIES } from '@/features/card-generator/lib/imageFieldOverrides';
 
 interface FieldGroup {
   id: string;

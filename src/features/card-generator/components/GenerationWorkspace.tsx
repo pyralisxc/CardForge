@@ -19,7 +19,7 @@ import { PaperSizeSelector } from '@/features/card-generator/components/PaperSiz
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
 import type { CardSet, DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
-import type { ExportMode } from '@/lib/printValidation';
+import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { hasCardBacking } from '@/lib/cardBacking';
 
 interface GenerationWorkspaceProps {

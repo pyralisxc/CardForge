@@ -1,7 +1,7 @@
 import {
   DEFAULT_SITE_MECHANICS_SETTINGS,
   type SiteMechanicsSettings,
-} from '@/lib/ownerConsole';
+} from '@/features/owner/lib/ownerConsole';
 
 export const MAX_ROADMAP_SUGGESTION_LENGTH = 200;
 export const MAX_ACTIVE_USER_ROADMAP_ITEMS = 50;

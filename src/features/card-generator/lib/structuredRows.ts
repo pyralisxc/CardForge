@@ -1,5 +1,5 @@
 import type { CardData, FreeformCardElement } from '@/types';
-import { buildScopedFieldDataKey, resolveTemplateTextSegments } from '@/lib/textBindings';
+import { buildScopedFieldDataKey, resolveTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
 
 export type StructuredRowValue = Record<string, string>;
 

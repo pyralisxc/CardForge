@@ -3,8 +3,8 @@ import { Database, FileDown, Hammer, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
-import { createSiteContentMap } from '@/lib/ownerConsole';
-import { getSiteContentBlocks } from '@/lib/ownerConsoleStore';
+import { createSiteContentMap } from '@/features/owner/lib/ownerConsole';
+import { getSiteContentBlocks } from '@/features/owner/lib/ownerConsoleStore';
 
 export const dynamic = 'force-dynamic';
 

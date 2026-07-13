@@ -18,8 +18,8 @@ import {
   type DeveloperAssetType,
   type DeveloperProgramSettings,
   type DeveloperVoteValue,
-} from '@/lib/developerAssets';
-import { developerAssetTypeToRegistryAssetKind } from '@/lib/pipelineAssetTaxonomy';
+} from '@/features/developer-assets/lib/developerAssets';
+import { developerAssetTypeToRegistryAssetKind } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 
 export type DeveloperAssetSubmissionInputResult =

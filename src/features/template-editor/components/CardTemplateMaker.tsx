@@ -16,9 +16,9 @@ import {
   createDeveloperFontFaceCss,
   mergeCardFontOptions,
   type CardFontOption,
-} from '@/lib/cardFonts';
+} from '@/features/template-editor/lib/cardFonts';
 import { loadBootstrapFonts } from '@/lib/clientBootstrapData';
-import { extractPlaceholderKeysFromText, replacePlaceholdersLocal } from '@/lib/textBindings';
+import { extractPlaceholderKeysFromText, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
 import { cn, toTitleCase } from '@/lib/utils';
 import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
 import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/lib/cardFrameKits';
@@ -35,7 +35,7 @@ import {
   isElementPresetApplicable,
   mergeElementPresetRecipes,
   type ElementPresetRecipe,
-} from '@/lib/elementPresetRecipes';
+} from '@/features/template-editor/lib/elementPresetRecipes';
 import { useAppStore } from '@/store/appStore';
 import { createDefaultFreeformCanvas, getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
 import { useToast } from '@/hooks/use-toast';
@@ -63,10 +63,10 @@ import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/l
 import {
   escapeTemplateText,
   unescapeTemplateText,
-} from '@/lib/textBindings';
+} from '@/features/template-editor/lib/textBindings';
 import { withNextStep } from '@/lib/userFacingErrors';
-import { extractTemplateFieldDefinitions } from '@/lib/templateFields';
-import { inferTextElementContentModel } from '@/lib/textElementContracts';
+import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
+import { inferTextElementContentModel } from '@/features/template-editor/lib/textElementContracts';
 import { TemplateEditorTopBar } from '@/features/template-editor/components/TemplateEditorTopBar';
 import { TemplateLibraryPanel } from '@/features/template-editor/components/TemplateLibraryPanel';
 import { ElementLibraryPanel } from '@/features/template-editor/components/ElementLibraryPanel';

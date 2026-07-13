@@ -29,14 +29,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { useBillingPortalActions } from '@/features/billing/hooks/useBillingPortalActions';
 import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
-import type { FounderBetaCampaign } from '@/lib/ownerConsole';
-import type { AccountEntitlement } from '@/lib/accountEntitlement';
+import type { FounderBetaCampaign } from '@/features/owner/lib/ownerConsole';
+import type { AccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/lib/projectDocument';
+} from '@/features/project/lib/projectDocument';
 import { readProjectAssetListFromStorage } from '@/features/project/lib/projectLocalAssets';
 import { getAccountAccessActions } from '@/features/account/lib/accountAccessActions';
 import { buildForgeTitle, getAccountDisplayName } from '@/features/account/lib/accountDisplay';

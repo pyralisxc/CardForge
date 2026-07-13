@@ -1,6 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { voteRoadmapItem, RoadmapStoreError } from '@/lib/roadmapStore';
+import { voteRoadmapItem, RoadmapStoreError } from '@/features/account/lib/roadmapStore';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 
 export const dynamic = 'force-dynamic';

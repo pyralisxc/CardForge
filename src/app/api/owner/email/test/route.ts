@@ -1,7 +1,7 @@
-import { buildContactRequestEmail, sendResendEmail } from '@/lib/emailOperations';
+import { buildContactRequestEmail, sendResendEmail } from '@/features/contact/lib/emailOperations';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getOwnerConsolePayload } from '@/lib/ownerConsoleStore';
-import { getCurrentOwnerAccess } from '@/lib/serverOwnerAccess';
+import { getOwnerConsolePayload } from '@/features/owner/lib/ownerConsoleStore';
+import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 
 export const dynamic = 'force-dynamic';
 

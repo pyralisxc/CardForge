@@ -48,10 +48,15 @@ CardForge has three storage lanes:
 - `src/features/app-shell`: Studio shell, public header, workspace bootstrap.
 - `src/features/template-editor`: Layout Studio, canvas, layers, inspector panels, template state.
 - `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, export tools.
-- `src/features/account`: account status, access messaging, roadmap and profile surfaces.
-- `src/features/developer-assets`: developer submission/voting UI and owner developer-program controls.
-- `src/features/owner`: launch, operations, legal/site copy, access/promo, developer program, and account management.
-- `src/lib`: shared pure models, rendering/export helpers, billing, auth, Supabase adapters, owner/developer stores, validation, and API response helpers.
+- `src/features/project`: local project files, project asset persistence, and project access rules.
+- `src/features/billing`: Stripe checkout, subscription, portal, and billing config helpers.
+- `src/features/account`: account status, access entitlement, roadmap, profile surfaces, and user access helpers.
+- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
+- `src/features/owner`: launch, operations, legal/site copy, access/promo, developer program, account management, and owner Supabase store.
+- `src/features/contact`: support/contact mail routing and contact request forms.
+- `src/lib`: shared pure models, card rendering/export primitives, Supabase client setup, validation utilities, API response helpers, and constants.
+
+Feature-specific rules should live under the owning `src/features/<feature>/lib` folder. `src/lib` is reserved for cross-feature primitives that do not own a product workflow.
 
 ## Current Access Model
 

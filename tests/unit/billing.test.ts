@@ -9,7 +9,7 @@ import {
   getStripeCustomerIdFromMetadata,
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
-} from '@/lib/billing';
+} from '@/features/billing/lib/billing';
 
 describe('billing', () => {
   it('reports Stripe checkout as configured only when secret key, price, and app URL exist', () => {

@@ -1,7 +1,7 @@
-import type { AccessMode, ExportEntitlementCopy, ProjectCapabilities } from '@/lib/projectAccess';
+import type { AccessMode, ExportEntitlementCopy, ProjectCapabilities } from '@/features/project/lib/projectAccess';
 import type { OwnerAccess } from '@/lib/ownerAccess';
-import { getStripeCustomerIdFromMetadata } from '@/lib/billing';
-import { getExportEntitlementCopy, getProjectCapabilities, resolveAccessMode } from '@/lib/projectAccess';
+import { getStripeCustomerIdFromMetadata } from '@/features/billing/lib/billing';
+import { getExportEntitlementCopy, getProjectCapabilities, resolveAccessMode } from '@/features/project/lib/projectAccess';
 
 type EntitlementEnvironment = Partial<Record<
   | 'NODE_ENV'

@@ -1,7 +1,7 @@
 "use client";
 
-import type { ElementPresetRecipe } from '@/lib/elementPresetRecipes';
-import { getDeveloperAssetStatusLabel, getDeveloperAssetTierLabel } from '@/lib/pipelineAssetTaxonomy';
+import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
+import { getDeveloperAssetStatusLabel, getDeveloperAssetTierLabel } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import { cn } from '@/lib/utils';
 
 interface PipelineRecipeMetaProps {

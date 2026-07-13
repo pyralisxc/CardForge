@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { AppearanceStylePreset, PaperSize, StoredDisplayCard, TCGCardTemplate } from '@/types';
-import type { CardAssetOption } from '@/lib/cardAssets';
-import type { ExportMode } from '@/lib/printValidation';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import {
   createProjectDocumentFromState,
   applyProjectDocumentToState,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
-} from '@/lib/projectDocument';
+} from '@/features/project/lib/projectDocument';
 
 const template: TCGCardTemplate = {
   id: 'user-template-1',

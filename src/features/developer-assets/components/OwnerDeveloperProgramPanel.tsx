@@ -26,13 +26,13 @@ import {
   type DeveloperAssetStatus,
   type DeveloperProgramSettings,
   type DeveloperVotingPreset,
-} from '@/lib/developerAssets';
-import type { DeveloperAssetProgramView } from '@/lib/developerAssetStore';
+} from '@/features/developer-assets/lib/developerAssets';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
 import {
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
-} from '@/lib/pipelineAssetTaxonomy';
+} from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;

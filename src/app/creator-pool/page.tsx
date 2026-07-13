@@ -1,5 +1,5 @@
 import { PublicLegalPage } from '@/features/legal/components/PublicLegalPage';
-import { getPublishedLegalDocument } from '@/lib/ownerConsoleStore';
+import { getPublishedLegalDocument } from '@/features/owner/lib/ownerConsoleStore';
 
 export const dynamic = 'force-dynamic';
 

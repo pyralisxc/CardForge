@@ -2,13 +2,13 @@ import {
   buildContactRequestEmail,
   normalizeContactRequestInput,
   sendResendEmail,
-} from '@/lib/emailOperations';
+} from '@/features/contact/lib/emailOperations';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import {
   getOwnerConsolePayload,
   markContactRequestEmailResult,
   recordContactRequest,
-} from '@/lib/ownerConsoleStore';
+} from '@/features/owner/lib/ownerConsoleStore';
 
 export const dynamic = 'force-dynamic';
 

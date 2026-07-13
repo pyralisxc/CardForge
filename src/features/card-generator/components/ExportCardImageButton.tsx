@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/lib/printValidation';
+import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { renderCardToCanvas } from '@/lib/cardPreviewExport';

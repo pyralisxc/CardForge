@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type React from 'react';
 import { Hammer } from 'lucide-react';
 
-import type { LegalDocument, OwnerSettings } from '@/lib/ownerConsole';
+import type { LegalDocument, OwnerSettings } from '@/features/owner/lib/ownerConsole';
 
 const trustLinks = [
   { href: '/privacy', label: 'Privacy' },

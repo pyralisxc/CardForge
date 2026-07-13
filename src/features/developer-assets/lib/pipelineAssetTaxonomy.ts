@@ -1,9 +1,9 @@
-import type { CardAssetOption } from '@/lib/cardAssets';
+import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import type {
   DeveloperAssetAccessTier,
   DeveloperAssetStatus,
   DeveloperAssetType,
-} from '@/lib/developerAssets';
+} from '@/features/developer-assets/lib/developerAssets';
 
 export type RegistryCreationAssetKind = Extract<
   CardAssetOption['kind'],

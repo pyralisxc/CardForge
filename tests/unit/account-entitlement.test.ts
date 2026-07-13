@@ -4,7 +4,7 @@ import {
   isClerkAuthConfigured,
   resolveAccountAccessMode,
   resolveAccountEntitlement,
-} from '@/lib/accountEntitlement';
+} from '@/features/account/lib/accountEntitlement';
 
 describe('accountEntitlement', () => {
   it('detects Clerk only when both public and secret keys are configured', () => {

@@ -48,10 +48,13 @@ npm run smoke      # Playwright smoke suite
 - `src/features/app-shell/`: Studio shell, workspace state, and route-level composition.
 - `src/features/template-editor/`: Layout Studio panels, inspector tools, canvas commands, and editor controller hooks.
 - `src/features/card-generator/`: Single output entry, bulk data import, generated gallery, export controls, and paper/export settings.
-- `src/features/account/`: Account overview, roadmap panels, and profile surface.
-- `src/features/developer-assets/`: Developer Asset Hub, owner asset program controls, voting/review UI, and reviewed shared-library submissions including fonts.
-- `src/features/owner/`: Owner console for launch, account, legal, promo, and pipeline command surfaces.
-- `src/lib/`: Shared model, rendering, export, auth, Supabase, pipeline, and validation helpers.
+- `src/features/project/`: Local project files, project asset persistence, and project access rules.
+- `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
+- `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
+- `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
+- `src/features/owner/`: Owner console for launch, account, legal, promo, pipeline command surfaces, and owner Supabase state.
+- `src/features/contact/`: Contact forms and support email routing.
+- `src/lib/`: Shared model, card rendering/export primitives, Supabase setup, validation utilities, API responses, and constants.
 - `src/store/`: Zustand persisted local app state and derived selectors.
 - `data/default-templates/`, `data/styles/`, and `public/card-assets/`: starter/import material for the Forge Pipeline sync, not runtime fallback catalogs.
 - `supabase/migrations/`: Ordered database migrations for shared roadmap, owner, Founder Beta, asset registry, and developer pipeline state.

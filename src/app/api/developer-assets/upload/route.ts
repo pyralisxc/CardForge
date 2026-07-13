@@ -1,9 +1,9 @@
 import { nanoid } from 'nanoid';
 
-import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
+import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { isDeveloperAssetType, type DeveloperAssetType } from '@/lib/developerAssets';
-import { getCurrentCardforgeUserAccess } from '@/lib/serverCardforgeUser';
+import { isDeveloperAssetType, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
+import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';

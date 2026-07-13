@@ -9,12 +9,12 @@ import {
   templatePayloadSchema,
 } from '@/lib/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { canCurrentAccountWriteShippedLibrary } from '@/lib/serverProjectAccess';
+import { canCurrentAccountWriteShippedLibrary } from '@/features/project/lib/serverProjectAccess';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
 import {
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
-} from '@/lib/registryContentAssets';
+} from '@/features/developer-assets/lib/registryContentAssets';
 
 const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
 const USER_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'user-templates');

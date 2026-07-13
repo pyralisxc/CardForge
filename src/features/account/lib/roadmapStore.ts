@@ -1,6 +1,6 @@
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
-import { DEFAULT_OWNER_SETTINGS, DEFAULT_SITE_MECHANICS_SETTINGS, type SiteMechanicsSettings } from '@/lib/ownerConsole';
-import { getOwnerConsolePayload } from '@/lib/ownerConsoleStore';
+import { DEFAULT_OWNER_SETTINGS, DEFAULT_SITE_MECHANICS_SETTINGS, type SiteMechanicsSettings } from '@/features/owner/lib/ownerConsole';
+import { getOwnerConsolePayload } from '@/features/owner/lib/ownerConsoleStore';
 import {
   calculateMrrUnlockTargetCents,
   normalizeRoadmapSuggestion,
@@ -11,7 +11,7 @@ import {
   type RoadmapStatus,
   type RoadmapVoteValue,
   shouldArchiveUserRoadmapItem,
-} from '@/lib/roadmap';
+} from '@/features/account/lib/roadmap';
 
 export const DEVELOPER_REQUEST_EMAIL = DEFAULT_OWNER_SETTINGS.supportEmail;
 

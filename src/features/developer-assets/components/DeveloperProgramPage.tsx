@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeveloperAssetHubPanel } from '@/features/developer-assets/components/DeveloperAssetHubPanel';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
-import { createDeveloperRequestMailto } from '@/lib/contactLinks';
+import { createDeveloperRequestMailto } from '@/features/contact/lib/contactLinks';
 import { ContactRequestForm } from '@/features/contact/components/ContactRequestForm';
 
 const programStandards = [

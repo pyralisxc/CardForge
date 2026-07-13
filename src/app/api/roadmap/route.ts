@@ -1,9 +1,9 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { resolveAccountEntitlement } from '@/lib/accountEntitlement';
+import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { resolveWithTimeout } from '@/lib/asyncTimeout';
 import { resolveOwnerAccess } from '@/lib/ownerAccess';
-import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/lib/roadmapStore';
+import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/account/lib/roadmapStore';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 
 export const dynamic = 'force-dynamic';

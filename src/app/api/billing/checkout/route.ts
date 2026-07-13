@@ -4,8 +4,8 @@ import Stripe from 'stripe';
 import {
   buildCheckoutSessionParams,
   getBillingConfigStatus,
-} from '@/lib/billing';
-import { isClerkAuthConfigured } from '@/lib/accountEntitlement';
+} from '@/features/billing/lib/billing';
+import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { getPublicAppUrl } from '@/lib/siteUrl';
 
