@@ -42,7 +42,7 @@ export function useCardZipExportActions({
     if (!canExportClean) {
       toast({
         title: 'Clean export locked',
-        description: exportGateMessage || 'Clean export requires paid access.',
+        description: exportGateMessage || 'Clean export requires Creator Pass.',
         variant: 'default',
       });
       return;
@@ -98,7 +98,7 @@ export function useCardZipExportActions({
     if (!canExportClean) {
       toast({
         title: 'Clean export locked',
-        description: exportGateMessage || 'Clean export requires paid access.',
+        description: exportGateMessage || 'Clean export requires Creator Pass.',
         variant: 'default',
       });
       return;

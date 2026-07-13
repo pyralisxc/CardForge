@@ -7,7 +7,6 @@ export const isClerkServerConfigPresent = (): boolean =>
 const CLERK_PAGE_PREFIXES = [
   '/account',
   '/profile',
-  '/owner',
   '/__clerk',
 ];
 

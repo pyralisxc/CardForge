@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
+import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import {
@@ -69,6 +69,14 @@ interface TemplateLibraryResponse {
   userTemplates: TCGCardTemplate[];
 }
 
+const formatBytes = (value: number): string => {
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const exponent = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  const amount = value / 1024 ** exponent;
+  return `${amount >= 10 || exponent === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[exponent]}`;
+};
+
 export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
   const userTemplates = useAppStore((state) => state.userTemplates);
@@ -115,6 +123,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const reviewCandidateCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.candidateCount, 0) ?? 0;
   const archiveCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0) ?? 0;
   const submissionGuidance = developerAssetSubmissionGuidance[assetType];
+  const expectedSourceSize = DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES[assetType];
 
   useEffect(() => {
     const loadPersonalLibraryAssets = () => {
@@ -602,13 +611,13 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
             <h3 className="font-serif text-xl text-[#fff1c7]">Submit a Library Candidate</h3>
             <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Site submissions enter the shared CardForge review pipeline. Local browser uploads remain private in your own workspace.
+              Candidate submissions enter the shared CardForge review pipeline. Local browser uploads remain private in your own workspace.
             </p>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <GuidanceCard
                 eyebrow="Destination"
                 title={submissionGuidance.destination}
-                body={`${getDeveloperAssetTypeLabel(assetType)} publish into this Studio surface after voting, owner review, and cap checks.`}
+                body={`${getDeveloperAssetTypeLabel(assetType)} publish to this Studio surface after voting, owner review, and cap checks.`}
               />
               <GuidanceCard
                 eyebrow="Source"
@@ -734,7 +743,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                       </span>
                       <span className="text-sm font-medium text-[#ffe7ad]">{getCandidateBrowseLabel(assetType)}</span>
                       <span className="text-xs leading-5 text-[#a98a55]">
-                        {submissionGuidance.acceptedFileTypes} up to 10 MB.
+                        {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}.
                       </span>
                       <input
                         key={fileInputKey}

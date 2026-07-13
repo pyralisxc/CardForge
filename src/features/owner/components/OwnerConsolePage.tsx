@@ -33,6 +33,13 @@ interface OwnerConsoleResponse {
     email: string | null;
   };
   integrationStatus: {
+    site: {
+      publicAppUrl: string;
+      configuredPublicAppUrl: string | null;
+      usingLocalFallback: boolean;
+      sitemapUrl: string;
+      robotsUrl: string;
+    };
     authConfigured: boolean;
     billing: {
       checkoutConfigured: boolean;
@@ -681,7 +688,7 @@ export function OwnerConsolePage() {
                 <div className="border border-[#4a3823] bg-[#100c08] p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Future systems</p>
                   <p className="mt-2 text-sm leading-6 text-[#d9c28f]">
-                    Creator-pool payouts, refund operations, tax handling, live-mode provider review, and final legal review are still launch-gated.
+                    Creator-pool payouts, refund operations, tax handling, payout provider setup, and final legal review are still launch-gated.
                   </p>
                 </div>
                 <div className="border border-[#4a3823] bg-[#100c08] p-4">
@@ -725,84 +732,54 @@ export function OwnerConsolePage() {
               </section>
 
               <section className="border border-[#5f4526] bg-[#15100a] p-6">
-                <h2 className="font-serif text-2xl text-[#fff1c7]">Integration health</h2>
-                <div className="mt-5 space-y-3">
-                  <div className="flex items-center justify-between border-b border-[#5f4526] py-3">
-                    <span>Clerk accounts</span>
-                    <StatusPill ready={payload.integrationStatus.authConfigured} />
-                  </div>
-                  <div className="flex items-center justify-between border-b border-[#5f4526] py-3">
-                    <span>Supabase database</span>
-                    <StatusPill ready={payload.integrationStatus.supabase.configured && payload.console.configured} />
-                  </div>
-                  <div className="flex items-center justify-between border-b border-[#5f4526] py-3">
-                    <span>Stripe checkout</span>
-                    <StatusPill ready={payload.integrationStatus.billing.checkoutConfigured} />
-                  </div>
-                  <div className="flex items-center justify-between border-b border-[#5f4526] py-3">
-                    <span>Stripe webhook</span>
-                    <StatusPill ready={payload.integrationStatus.billing.webhookConfigured} />
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <span>Owner email allowlist</span>
-                    <StatusPill ready={payload.integrationStatus.ownerAllowlistConfigured} />
-                  </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="font-serif text-2xl text-[#fff1c7]">Launch systems</h2>
+                  <a className="inline-flex max-w-full items-center gap-2 break-all text-sm font-semibold text-[#ffe7ad] hover:text-[#fff1c7]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">
+                    {payload.integrationStatus.site.publicAppUrl}
+                    <ExternalLink className="h-4 w-4 shrink-0" />
+                  </a>
                 </div>
-                <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <MetricTile label="Auth" value={payload.integrationStatus.authConfigured ? 'Clerk ready' : 'Needs setup'} />
+                  <MetricTile label="Database" value={payload.integrationStatus.supabase.configured && payload.console.configured ? 'Supabase ready' : 'Needs setup'} />
+                  <MetricTile label="Billing" value={payload.integrationStatus.billing.checkoutConfigured && payload.integrationStatus.billing.webhookConfigured ? 'Stripe ready' : 'Needs setup'} />
+                  <MetricTile label="Email" value={payload.integrationStatus.email.resendConfigured ? 'Resend ready' : 'Mailto fallback'} />
+                  <MetricTile label="Domain" value={payload.integrationStatus.site.usingLocalFallback ? 'Local fallback' : 'Canonical'} />
+                  <MetricTile label="Owner access" value={payload.integrationStatus.ownerAllowlistConfigured ? 'Allowlist ready' : 'Needs setup'} />
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <a href={payload.integrationStatus.site.sitemapUrl} target="_blank" rel="noreferrer">
+                      Sitemap <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <a href={payload.integrationStatus.site.robotsUrl} target="_blank" rel="noreferrer">
+                      Robots <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <a href="https://search.google.com/search-console" target="_blank" rel="noreferrer">
+                      Search Console <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {payload.integrationStatus.links.map((link) => (
-                    <Button key={link.href} asChild variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <Button key={link.href} asChild variant="outline" className="border-[#3c2c1b] bg-[#100c08] text-[#d9c28f] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
                       <a href={link.href} target="_blank" rel="noreferrer">
                         {link.label} <ExternalLink className="h-4 w-4" />
                       </a>
                     </Button>
                   ))}
                 </div>
+                {payload.integrationStatus.email.missing.length > 0 || payload.integrationStatus.billing.missing.length > 0 || payload.integrationStatus.supabase.missing.length > 0 ? (
+                  <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">
+                    Missing setup: {[...payload.integrationStatus.email.missing, ...payload.integrationStatus.billing.missing, ...payload.integrationStatus.supabase.missing].join(', ')}
+                  </p>
+                ) : null}
               </section>
             </div>
-
-            <section className="mt-6 border border-[#6d4f2b] bg-[#15100a] p-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className="flex items-center gap-3 text-[#e2aa4a]">
-                    <Mail className="h-5 w-5" />
-                    <h2 className="font-serif text-2xl text-[#fff1c7]">Email routing</h2>
-                  </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                    Contact and developer-request links currently use the owner support email. Resend environment config is the delivery-readiness layer; server-sent forms and a test-email action can be added without changing the public workflow.
-                  </p>
-                </div>
-                <StatusPill ready={payload.integrationStatus.email.resendConfigured} />
-              </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-4">
-                <MetricTile label="Current mode" value={payload.integrationStatus.email.contactMode === 'mailto' ? 'Mailto links' : 'Server-ready'} />
-                <MetricTile label="Support inbox" value={settings.supportEmail || 'Not set'} />
-                <MetricTile label="From address" value={payload.integrationStatus.email.fromConfigured ? 'Configured' : 'Pending'} />
-                <MetricTile label="Reply-to" value={payload.integrationStatus.email.replyToConfigured ? 'Configured' : 'Pending'} />
-              </div>
-              <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Migration path</p>
-                  <ol className="mt-3 space-y-2 text-sm leading-6 text-[#c7b288]">
-                    <li>1. Set the business support inbox in Business profile.</li>
-                    <li>2. Keep Resend API key and sender env in Vercel; never expose raw keys in the console.</li>
-                    <li>3. Verify the sending domain or sender address in Resend before production sends.</li>
-                    <li>4. Add owner test-email, then convert contact/developer requests from mailto links to server-sent forms.</li>
-                  </ol>
-                </div>
-                <div className="border border-[#4a3823] bg-[#100c08] p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Delivery readiness</p>
-                  {payload.integrationStatus.email.missing.length === 0 ? (
-                    <p className="mt-3 text-sm leading-6 text-[#bde3a8]">Transactional delivery env vars are present. Verify the Resend sender/domain and add a test-email action before switching forms on.</p>
-                  ) : (
-                    <ul className="mt-3 space-y-2 text-sm leading-6 text-[#c7b288]">
-                      {payload.integrationStatus.email.missing.map((item) => (
-                        <li key={item} className="border border-[#3c2c1b] bg-[#15100a] px-3 py-2 text-[#ffe7ad]">{item}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            </section>
 
             <section className="mt-6 border border-[#6d4f2b] bg-[#15100a] p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -925,9 +902,9 @@ export function OwnerConsolePage() {
                         <article key={request.id} className="border border-[#4a3823] bg-[#100c08] p-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-[#ffe7ad]">{request.subject}</p>
-                            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{request.kind} · {request.status}</span>
+                            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{request.kind} / {request.status}</span>
                           </div>
-                          <p className="mt-2 text-sm text-[#d9c28f]">{request.name} · {request.email}</p>
+                          <p className="mt-2 text-sm text-[#d9c28f]">{request.name} / {request.email}</p>
                           <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#c7b288]">{request.message}</p>
                           <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(request.createdAt)}</p>
                         </article>
@@ -967,7 +944,7 @@ export function OwnerConsolePage() {
                             <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{session.paymentStatus ?? session.status ?? 'unknown'}</span>
                           </div>
                           <p className="mt-2 text-sm text-[#d9c28f]">{session.customerEmail ?? session.clerkUserId ?? session.id}</p>
-                          <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(session.createdAt)} · {session.subscriptionId ?? 'No subscription yet'}</p>
+                          <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription yet'}</p>
                         </article>
                       ))}
                       {billingSnapshot && billingSnapshot.recentCheckoutSessions.length === 0 ? (

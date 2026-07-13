@@ -119,9 +119,9 @@ export interface OwnerConsolePayload {
 export const DEFAULT_OWNER_SETTINGS: OwnerSettings = {
   businessName: 'CardForge Studio',
   ownerName: 'Cameron Locke',
-  supportEmail: 'Cameron.r.locke96@gmail.com',
+  supportEmail: 'pyraliscameron@gmail.com',
   supportPhone: '',
-  websiteUrl: 'http://localhost:9002',
+  websiteUrl: 'https://cardforges.com',
 };
 
 export const DEFAULT_SITE_MECHANICS_SETTINGS: SiteMechanicsSettings = {
