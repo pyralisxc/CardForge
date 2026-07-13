@@ -81,7 +81,7 @@ export function ProfileSetupFallback() {
       <div className="border border-[#7d5a2e] bg-[#181009] p-6">
         <div className="flex items-center gap-3 text-[#e2aa4a]">
           <ShieldCheck className="h-5 w-5" />
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Account system not connected</h2>
+          <h2 className="font-serif text-2xl text-[#fff1c7]">Account management unavailable</h2>
         </div>
         <p className="mt-4 text-sm leading-6 text-[#c7b288]">
           Add the Clerk publishable key and secret key, then restart the dev server to test profile management.

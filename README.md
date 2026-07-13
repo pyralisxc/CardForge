@@ -1,8 +1,8 @@
 # CardForge
 
-CardForge helps creators turn card ideas into full, export-ready sets. The Studio combines reusable templates, structured data, bulk generation, and clean PNG, ZIP, PDF, or Tabletop Simulator exports, while approved developers help shape the shared library that powers the product. The fantasy forge is the doorway; underneath is a serious production workflow for creators building real card systems. User project work stays in browser storage or downloaded project files for the MVP.
+CardForge helps creators turn card ideas into full, export-ready sets. The Studio combines reusable templates, structured data, bulk generation, and clean PNG, ZIP, PDF, or Tabletop Simulator exports, while approved developers help shape the shared library that powers the product. The fantasy forge is the doorway; underneath is a serious production workflow for creators building real card systems. User project work stays in browser storage or downloaded project files for the current launch.
 
-## MVP State
+## Live State
 
 - Public site: `/`
 - Studio: `/studio`
@@ -12,7 +12,7 @@ CardForge helps creators turn card ideas into full, export-ready sets. The Studi
 - Developer application and asset pipeline: `/developer`
 - Owner console: `/owner`
 
-The current MVP is suitable for internal/demo QA. Public launch status is tracked in [docs/release-checklist.md](docs/release-checklist.md), including the accepted Next/PostCSS audit exception and the remaining paid entitlement operations.
+The current product is in controlled public beta and first-customer operation on [cardforges.com](https://cardforges.com).
 
 ## Quick Start
 
@@ -53,7 +53,7 @@ npm run smoke      # Playwright smoke suite
 - `src/features/owner/`: Owner console for launch, account, legal, promo, and pipeline command surfaces.
 - `src/lib/`: Shared model, rendering, export, auth, Supabase, pipeline, and validation helpers.
 - `src/store/`: Zustand persisted local app state and derived selectors.
-- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: Historical starter/import material for the Forge Pipeline sync, not runtime fallback catalogs.
+- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: starter/import material for the Forge Pipeline sync, not runtime fallback catalogs.
 - `supabase/migrations/`: Ordered database migrations for shared roadmap, owner, Founder Beta, asset registry, and developer pipeline state.
 - `tests/unit/`: Vitest coverage for pure helpers and model behavior.
 - `tests/smoke/`: Playwright workflow and authenticated QA coverage.
@@ -100,11 +100,7 @@ That creates or reuses the Fresh QA free, paid, developer, and owner accounts, m
 
 ## Documentation
 
-- [docs/development-guide.md](docs/development-guide.md): front end and back end development map.
-- [docs/blueprint.md](docs/blueprint.md): product architecture and source-of-truth behavior.
-- [docs/release-checklist.md](docs/release-checklist.md): MVP readiness, verification, risk, and launch decisions.
-- [docs/preset-quality-audit.md](docs/preset-quality-audit.md): Layout Studio preset/tool quality audit.
-- [docs/site-tooling-walkthrough-audit.md](docs/site-tooling-walkthrough-audit.md): live site walkthrough findings.
-- [docs/print-export-handoff.md](docs/print-export-handoff.md): print, prepress, and Tabletop Simulator export expectations.
+- [docs/architecture.md](docs/architecture.md): current product architecture and source-of-truth behavior.
+- [docs/operations.md](docs/operations.md): live operations, env vars, provider checks, and launch-critical verification.
 
-Keep the README short. Durable architecture and launch decisions belong in `docs/`.
+Keep the README and docs short. If a document stops describing the current product, update it or remove it.

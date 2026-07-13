@@ -35,7 +35,7 @@ describe('zip export helpers', () => {
     });
   });
 
-  it('does not create a back export item from a legacy template back canvas', () => {
+  it('does not create a back export item from an old template back canvas', () => {
     const items = createCardZipExportItems([
       makeCard({
         template: {

@@ -336,9 +336,9 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await expect(textStyleSection).toBeVisible();
   await textStyleSection.click();
   await expect(page.getByText('Text Details', { exact: true })).toBeVisible();
-  const materialSection = page.locator('button[aria-controls]').filter({ hasText: 'Fill & Effects' }).first();
-  await expect(materialSection).toBeVisible();
-  await materialSection.click();
+  const fillEffectsSection = page.locator('button[aria-controls]').filter({ hasText: 'Fill & Effects' }).first();
+  await expect(fillEffectsSection).toBeVisible();
+  await fillEffectsSection.click();
   await page.getByPlaceholder('Search fill styles...').fill('parchment');
   await page.getByRole('button', { name: /Parchment/i }).first().click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();

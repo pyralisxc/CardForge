@@ -157,7 +157,7 @@ function getBorderSurfaceCopy(element: FreeformCardElement) {
   if (element.type === 'shape') {
     return {
       title: 'Shape Stroke',
-      description: 'Controls the selected shape outline. Fill, texture, and role styling stay in the shape and material sections.',
+      description: 'Controls the selected shape outline. Fill, texture, and role styling stay in the fill sections.',
       styleLabel: 'Stroke style',
       widthLabel: 'Stroke width',
       radiusLabel: 'Corner radius',

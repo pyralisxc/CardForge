@@ -225,11 +225,11 @@ describe('project document serialization', () => {
     expect(parsed.document.userTemplates.map((item) => item.id)).toEqual(['user-template-1', 'user-template-2']);
   });
 
-  it('rejects legacy stored-card arrays because outputs need matching templates', () => {
+  it('rejects old stored-card arrays because outputs need matching templates', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify([storedCard]));
 
     expect(parsed.success).toBe(false);
-    if (parsed.success) throw new Error('Expected legacy stored-card JSON to fail');
+    if (parsed.success) throw new Error('Expected old stored-card JSON to fail');
     expect(parsed.error).toContain('Generated-output JSON needs its matching templates');
     expect(parsed.error).toContain('full CardForge project export');
   });
@@ -302,7 +302,7 @@ describe('project document serialization', () => {
     expect(parsed.document.exportSettings.pdfMarginMm).toBe(7);
   });
 
-  it('ignores unsupported custom asset keys instead of remapping legacy names', () => {
+  it('ignores unsupported custom asset keys instead of remapping old names', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       version: 1,
       userTemplates: [],

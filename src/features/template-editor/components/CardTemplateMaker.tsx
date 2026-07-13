@@ -1416,7 +1416,7 @@ export function CardTemplateMaker({
                             badge="Shape"
                             defaultOpen
                             description={canUseDividerControls
-                              ? 'Build the divider rail itself; material and edge controls stay below.'
+                              ? 'Build the divider rail itself; fill and edge controls stay below.'
                               : 'Choose the primitive geometry or apply a reviewed shape role recipe.'}
                           >
                             {canUseShapeControls && (

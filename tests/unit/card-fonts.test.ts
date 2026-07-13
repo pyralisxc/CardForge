@@ -9,7 +9,7 @@ import {
 } from '@/lib/cardFonts';
 
 describe('card font registry', () => {
-  it('keeps legacy font ids available for saved templates', () => {
+  it('keeps saved font ids available for existing templates', () => {
     const ids = AVAILABLE_FONTS.map((font) => font.value);
 
     expect(ids).toEqual(expect.arrayContaining([

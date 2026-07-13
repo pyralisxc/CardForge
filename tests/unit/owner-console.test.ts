@@ -176,7 +176,7 @@ describe('owner console data rules', () => {
     expect(normalizeFounderBetaCampaignInput({}).releaseSlotCap).toBe(25);
   });
 
-  it('keeps legacy Founder Beta landing copy aligned with the configured wave cap', () => {
+  it('keeps Founder Beta landing copy aligned with the configured wave cap', () => {
     expect(reconcileFounderBetaCampaignCopy({
       ...DEFAULT_FOUNDER_BETA_CAMPAIGN,
       publicSlotCap: 25,
