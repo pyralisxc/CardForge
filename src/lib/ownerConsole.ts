@@ -134,14 +134,14 @@ export const DEFAULT_SITE_MECHANICS_SETTINGS: SiteMechanicsSettings = {
 export const DEFAULT_FOUNDER_BETA_CAMPAIGN: FounderBetaCampaign = {
   id: 'founder_beta',
   enabled: true,
-  publicSlotCap: 300,
-  releaseSlotCap: 100,
+  publicSlotCap: 25,
+  releaseSlotCap: 25,
   claimedSlots: 0,
   accessDays: 90,
   autoGrant: true,
   waitlistEnabled: true,
   campaignTitle: 'Founder Beta Pass',
-  landingMessage: 'Founder Beta is open first come, first served for the first 300 creators.',
+  landingMessage: 'Founder Beta is open first come, first served for the first 25 creators.',
   accountBadgeLabel: 'Founder Beta Pass',
   exportGateMessage: 'Founder Beta creators get 90 days of clean export access while helping shape CardForge.',
   stripeCouponId: '',
@@ -355,6 +355,19 @@ export const normalizeFounderBetaCampaignInput = (
     exportGateMessage: normalizeLongText(value.exportGateMessage).slice(0, 240) || DEFAULT_FOUNDER_BETA_CAMPAIGN.exportGateMessage,
     stripeCouponId: normalizeText(value.stripeCouponId).slice(0, 120),
     stripePromotionCode: normalizeText(value.stripePromotionCode).slice(0, 80).toUpperCase(),
+  };
+};
+
+export const reconcileFounderBetaCampaignCopy = (campaign: FounderBetaCampaign): FounderBetaCampaign => {
+  const visibleCap = campaign.releaseSlotCap > 0 ? campaign.releaseSlotCap : campaign.publicSlotCap;
+  const landingMessage = campaign.landingMessage.replace(
+    /\bfirst\s+\d+\s+creators\b/i,
+    `first ${visibleCap} creators`
+  );
+
+  return {
+    ...campaign,
+    landingMessage,
   };
 };
 

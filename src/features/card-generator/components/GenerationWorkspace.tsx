@@ -469,7 +469,7 @@ export function GenerationWorkspace({
                       >
                         {isCheckoutStarting ? 'Checking access...' : 'Unlock clean export'}
                       </Button>
-                      <p>Early beta export access can be granted by the CardForge team while Stripe checkout is being connected. Checkout will be handled by Stripe when billing is enabled.</p>
+                      <p>Sign in to claim an open Founder Beta seat, or buy Creator Pass through Stripe when you are ready for clean exports.</p>
                     </div>
                   ) : null}
                   <SaveAsPdfButton

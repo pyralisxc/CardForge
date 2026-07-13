@@ -109,8 +109,8 @@ const emptySettings: OwnerSettings = {
 const emptyFounderBetaCampaign: FounderBetaCampaign = {
   id: 'founder_beta',
   enabled: false,
-  publicSlotCap: 300,
-  releaseSlotCap: 100,
+  publicSlotCap: 25,
+  releaseSlotCap: 25,
   claimedSlots: 0,
   accessDays: 90,
   autoGrant: true,

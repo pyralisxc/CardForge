@@ -26,6 +26,7 @@ import {
   normalizeOwnerRoadmapStatusInput,
   normalizeOwnerSettingsInput,
   normalizeSiteMechanicsSettingsInput,
+  reconcileFounderBetaCampaignCopy,
 } from '@/lib/ownerConsole';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 
@@ -198,7 +199,7 @@ const mapSiteContentRow = (row: SiteContentBlockRow): SiteContentBlock => {
 const mapFounderBetaCampaignRow = (
   row: FounderBetaCampaignRow | null | undefined,
   claimedSlots: number
-): FounderBetaCampaign => row
+): FounderBetaCampaign => reconcileFounderBetaCampaignCopy(row
   ? {
       id: 'founder_beta',
       enabled: row.enabled,
@@ -219,7 +220,7 @@ const mapFounderBetaCampaignRow = (
   : {
       ...DEFAULT_FOUNDER_BETA_CAMPAIGN,
       claimedSlots,
-    };
+    });
 
 const getFounderBetaCampaign = async (): Promise<{ configured: boolean; campaign: FounderBetaCampaign }> => {
   const supabase = getSupabaseServerClient();

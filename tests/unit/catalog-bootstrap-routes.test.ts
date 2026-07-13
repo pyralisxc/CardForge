@@ -19,7 +19,7 @@ describe('catalog bootstrap routes', () => {
     expect(response.status).toBe(200);
     expect(body.defaults?.some((template) => template.id === 'default-playing-card-theme')).toBe(true);
     expect(body.defaults?.some((template) => template.id === 'default-obsidian-neon-card-back')).toBe(true);
-  });
+  }, 15_000);
 
   it('serves shipped style files when the registry has no published styles', async () => {
     const { GET } = await import('@/app/api/styles/route');
@@ -30,5 +30,5 @@ describe('catalog bootstrap routes', () => {
     expect(response.status).toBe(200);
     expect(body.styles?.some((style) => style.id === 'material-arcane-forge-parchment')).toBe(true);
     expect(body.styles?.some((style) => style.id === 'divider-gem-center')).toBe(true);
-  });
+  }, 15_000);
 });

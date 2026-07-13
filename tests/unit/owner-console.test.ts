@@ -11,6 +11,7 @@ import {
   normalizeOwnerSettingsInput,
   normalizeLegalDocumentInput,
   normalizeSiteMechanicsSettingsInput,
+  reconcileFounderBetaCampaignCopy,
 } from '@/lib/ownerConsole';
 
 describe('owner console data rules', () => {
@@ -168,8 +169,19 @@ describe('owner console data rules', () => {
     });
   });
 
-  it('defaults Founder Beta to 300 public slots', () => {
-    expect(DEFAULT_FOUNDER_BETA_CAMPAIGN.publicSlotCap).toBe(300);
-    expect(normalizeFounderBetaCampaignInput({}).publicSlotCap).toBe(300);
+  it('defaults Founder Beta to the current 25-seat launch wave', () => {
+    expect(DEFAULT_FOUNDER_BETA_CAMPAIGN.publicSlotCap).toBe(25);
+    expect(DEFAULT_FOUNDER_BETA_CAMPAIGN.releaseSlotCap).toBe(25);
+    expect(normalizeFounderBetaCampaignInput({}).publicSlotCap).toBe(25);
+    expect(normalizeFounderBetaCampaignInput({}).releaseSlotCap).toBe(25);
+  });
+
+  it('keeps legacy Founder Beta landing copy aligned with the configured wave cap', () => {
+    expect(reconcileFounderBetaCampaignCopy({
+      ...DEFAULT_FOUNDER_BETA_CAMPAIGN,
+      publicSlotCap: 25,
+      releaseSlotCap: 25,
+      landingMessage: 'Founder Beta is open first come, first served for the first 100 creators.',
+    }).landingMessage).toBe('Founder Beta is open first come, first served for the first 25 creators.');
   });
 });

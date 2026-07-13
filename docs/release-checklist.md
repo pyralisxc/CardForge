@@ -1,12 +1,12 @@
 # Release Checklist
 
-Last updated: July 11, 2026
+Last updated: July 13, 2026
 
 ## Release Status
 
-Current recommendation: `GO FOR INTERNAL QA AND PUBLIC DEMO/BETA`, `NO-GO FOR PAID PRODUCTION LAUNCH`
+Current recommendation: `GO FOR PUBLIC BETA / CONTROLLED FIRST CUSTOMER`, `CONDITIONAL GO FOR PAID PRODUCTION LAUNCH`
 
-The application is in a strong internal QA state for core authoring, generation, export, account, roadmap, developer-pipeline, and Stripe entitlement-webhook workflows after the Phase 1-3 AAA stabilization work. The known Next/PostCSS production audit advisory is accepted for MVP demo/public-beta launch because it is a framework-bundled moderate advisory with no identified CardForge runtime path that parses user-submitted CSS through PostCSS and injects it into a page `<style>` tag. Paid production launch should still pause until the full checkout-to-webhook-to-Clerk entitlement path is verified, live-mode Stripe business/payment-method settings are confirmed, and final legal review is complete.
+The application is in a strong public-beta state for core authoring, generation, export gating, account, roadmap, developer-pipeline, owner-console, and Stripe configuration workflows. The latest production Vercel deployment is `READY` on commit `99f686b`, production route/API health checks returned `200` for public pages, sitemap/robots, templates, billing status, and assets, and local browser audit verified Studio, Layout Studio flip controls, generator card backs, image tools, generated-output removal, and unpaid export gating. Paid production launch is conditional on a real live checkout/webhook entitlement proof and final owner legal/business sign-off.
 
 ## Go / No-Go Summary
 
@@ -23,9 +23,9 @@ The application is in a strong internal QA state for core authoring, generation,
 ### Remaining Launch Decisions
 
 Release can proceed only after the team resolves:
-- a successful test checkout that writes trusted Creator Pass access to Clerk private metadata
-- live-mode Stripe business settings, payment-method settings, payout/banking readiness, and tax/refund operating rules
-- production `NEXT_PUBLIC_APP_URL` points at the deployed app/custom domain, not Supabase
+- a successful live checkout or verified Stripe test-mode replay that writes trusted Creator Pass access to Clerk private metadata
+- final live-mode Stripe business/payment-method settings, payout/banking readiness, tax/refund operating rules, and refund support policy
+- final owner review of privacy, terms, refund, contact, developer terms, and creator-pool notices before broad paid marketing
 
 Release should pause if:
 - policy requires zero known audit findings
@@ -33,14 +33,15 @@ Release should pause if:
 
 ## Current Verification State
 
-These checks passed after the May 27, 2026 field-contract and active-doc hygiene pass:
+These checks passed or were verified during the July 13, 2026 launch-readiness audit:
 
-- `npm run lint`
-- `npm run typecheck`
-- `npm run test`
-- `npm run build`
-- `npm audit --omit=dev` does not pass
-- whitespace check passed with `git diff --check`
+- production Vercel deployment for commit `99f686b` is `READY`
+- production route/API health checks returned `200` for `/`, `/studio`, `/account`, `/developer`, `/owner`, `/robots.txt`, `/sitemap.xml`, `/api/templates`, `/api/billing/status`, and `/api/assets`
+- unauthenticated protected production APIs returned expected `401`/`403`/`400` responses without privileged leakage
+- local browser audit passed for Studio load, Layout Studio flip controls, Generator card-back selection, image tools, generated output creation/removal, and unpaid export gate copy
+- focused owner-console, billing, sitemap, and site-url tests passed
+- `npm audit --omit=dev` status still needs a fresh post-audit run before describing the build as dependency-audit clean
+- whitespace check should pass with `git diff --check` before the next release commit
 - Field Contract v1 now keeps active generator contract types to `text`, `structuredRows`, and `image`; old public text subtypes were removed from active app/docs/tests.
 - entitlement hardening now ignores public Clerk metadata and accepts paid/dev unlocks only from Clerk private metadata, server allowlists, local fallback mode, or Stripe webhook-owned paid access
 - API bootstrap/account/billing failures now use no-store JSON error envelopes with correlation ids
@@ -51,14 +52,14 @@ These checks passed after the May 27, 2026 field-contract and active-doc hygiene
 Current production build snapshot:
 
 - `/` route size: `5.6 kB`
-- `/studio` route size: `28.1 kB`
-- `/account` route size: `7.46 kB`
-- `/developer` route size: `193 kB`
-- `/owner` route size: `22.4 kB`
-- `/profile` route size: `7.41 kB`
-- first-load JS: `131 kB` on `/`, `209 kB` on `/studio`, `174 kB` on `/account`, `394 kB` on `/developer`, `169 kB` on `/owner`, `167 kB` on `/profile`
-- unit tests: `54` files, `306` tests passed
-- smoke tests: `18` browser tests passed with `npm run smoke` in the previous browser cleanup checkpoint; not rerun in the May 26 hygiene pass
+- `/studio` route size: `29.4 kB`
+- `/account` route size: `8.22 kB`
+- `/developer` route size: `197 kB`
+- `/owner` route size: `22.5 kB`
+- `/profile` route size: `7.61 kB`
+- first-load JS: `134 kB` on `/`, `218 kB` on `/studio`, `184 kB` on `/account`, `411 kB` on `/developer`, `178 kB` on `/owner`, `171 kB` on `/profile`
+- unit tests: `67` files, `376` tests passed
+- smoke tests: targeted launch browser audit passed on July 13; full reusable-account smoke still depends on configured QA accounts
 - authenticated smoke: `4` reusable-account browser tests passed with `npx playwright test tests/smoke/auth-account.spec.ts --project=chromium`
 
 Current production audit snapshot:

@@ -1,6 +1,6 @@
 # CardForge Demo Capacity
 
-Last updated: May 26, 2026
+Last updated: July 13, 2026
 
 This is the current demo-readiness estimate for the hosted MVP. It is intentionally conservative because CardForge is still using shared/free-tier style infrastructure and the heaviest creative work should stay local in the browser.
 
@@ -21,9 +21,10 @@ Live Supabase snapshot on May 26, 2026:
 
 For the current demo, keep public seat access capped and paced:
 
+- Current Founder Beta claim wave: 25 public seats.
 - Comfortable live demo: 25-50 simultaneous testers.
-- Light public preview: about 100 people browsing, claiming seats, and trying small exports over time.
-- Avoid inviting all 300 demo-seat prospects to hit the app at the same moment until paid infrastructure and load testing are in place.
+- Light public preview: about 100 people browsing and trying small exports over time, with Founder Beta claims still capped at 25 until the owner raises the wave.
+- Avoid opening a larger demo-seat wave at the same moment until paid infrastructure and load testing are in place.
 
 The app can support more total registered testers than simultaneous users because most card building, template editing, and generation work happens in the browser. The shared backend load is mostly sign-in, entitlement checks, demo-seat claims, roadmap votes, developer asset review, and asset metadata.
 
