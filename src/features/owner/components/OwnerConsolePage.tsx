@@ -752,7 +752,7 @@ export function OwnerConsolePage() {
                 </div>
               ) : (
                 <p className="mt-5 border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">
-                  Database footprint metrics will appear after the asset registry migration is applied.
+                  Database footprint metrics are not available yet. Check Supabase if this stays empty after new assets, votes, or promo claims land.
                 </p>
               )}
             </section>
@@ -780,7 +780,7 @@ export function OwnerConsolePage() {
               <div className="mt-5 space-y-3">
                 {roadmapItems.length === 0 ? (
                   <p className="border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">
-                    CardForge-authored roadmap rows will appear after the roadmap migrations are applied.
+                    No owner roadmap rows are active yet. Add public roadmap goals before using this lane for launch tracking.
                   </p>
                 ) : roadmapItems.map((item) => (
                   <div key={item.id} className="grid gap-3 border border-[#4a3823] bg-[#100c08] p-3 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -837,7 +837,7 @@ export function OwnerConsolePage() {
                     <div className="mt-5 space-y-3">
                       {contactRequests.length === 0 ? (
                         <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">
-                          No request history yet. If the migration has not been applied, requests can still email but will not appear here.
+                          No support or developer requests have been recorded yet. New routed requests will appear here after they are sent.
                         </p>
                       ) : contactRequests.slice(0, 6).map((request) => (
                         <article key={request.id} className="border border-[#4a3823] bg-[#100c08] p-4">
