@@ -29,8 +29,15 @@ export async function POST() {
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const clerk = await clerkClient();
-    const subscriptions = await stripe.subscriptions.list({ status: 'all', limit: 100 });
-    const subscriptionIds = subscriptions.data.map((subscription) => subscription.id);
+    const subscriptions: Stripe.Subscription[] = [];
+    let startingAfter: string | undefined;
+    for (;;) {
+      const page = await stripe.subscriptions.list({ status: 'all', limit: 100, starting_after: startingAfter });
+      subscriptions.push(...page.data);
+      if (!page.has_more || page.data.length === 0) break;
+      startingAfter = page.data.at(-1)?.id;
+    }
+    const subscriptionIds = subscriptions.map((subscription) => subscription.id);
     const supabase = getSupabaseServerClient();
     const ledgerSubscriptionIds = new Set<string>();
     if (supabase && subscriptionIds.length > 0) {
@@ -47,7 +54,7 @@ export async function POST() {
     let repaired = 0;
     let unchanged = 0;
     let missingClerkUser = 0;
-    for (const subscription of subscriptions.data) {
+    for (const subscription of subscriptions) {
       const userId = subscription.metadata?.clerkUserId;
       if (!userId) {
         missingClerkUser += 1;
@@ -81,12 +88,12 @@ export async function POST() {
     }
 
     return createNoStoreJsonResponse({
-      checked: subscriptions.data.length,
+      checked: subscriptions.length,
       repaired,
       unchanged,
       missingClerkUser,
       missingLedger: subscriptionIds.filter((id) => !ledgerSubscriptionIds.has(id)).length,
-      hasMore: subscriptions.has_more,
+      hasMore: false,
     });
   } catch (error) {
     console.error('Failed to reconcile billing state:', error);
