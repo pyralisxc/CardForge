@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">CardForge Studio primary logo</title>
+  <desc id="desc">The CardForge Studio card, CF, spark, and anvil mark beside the CardForge Studio wordmark.</desc>
+  <g transform="translate(24 18) scale(.75)">
+    <path d="M38 16h82c15 0 25 28 40 28s25-28 40-28h82c15 0 22 7 22 22v344c0 15-7 22-22 22H38c-15 0-22-7-22-22V38c0-15 7-22 22-22Z" fill="#1A1A1C" stroke="#B08D45" stroke-width="8"/>
+    <path d="M42 30h72c17 0 28 30 46 30s29-30 46-30h72c7 0 12 5 12 12v336c0 7-5 12-12 12H42c-7 0-12-5-12-12V42c0-7 5-12 12-12Z" fill="none" stroke="#D2B66C" stroke-width="2"/>
+    <text x="68" y="205" fill="#D2B66C" font-family="Georgia, 'Times New Roman', serif" font-size="150">C</text>
+    <text x="153" y="224" fill="#B08D45" font-family="Georgia, 'Times New Roman', serif" font-size="150">F</text>
+    <g fill="none" stroke="#D2B66C" stroke-width="5" stroke-linecap="round"><path d="M160 250v-25"/><path d="m128 257-15-20"/><path d="m192 257 15-20"/><path d="m105 278-23-10"/><path d="m215 278 23-10"/></g>
+    <path d="m160 248 8 14 14 8-14 8-8 14-8-14-14-8 14-8Z" fill="#D2B66C"/>
+    <path d="M82 305h156l-20 22h-35l-8 15h32v18h-94v-18h32l-8-15h-35Z" fill="#B08D45"/>
+  </g>
+  <path d="M286 62v236" stroke="#B08D45" stroke-width="2" opacity=".55"/>
+  <path d="m286 171 7 7-7 7-7-7Z" fill="#B08D45"/>
+  <text x="338" y="194" fill="#1A1A1C" font-family="Georgia, 'Times New Roman', serif" font-size="105" letter-spacing="10">CARDFORGE</text>
+  <path d="M344 250h192M996 250h164" stroke="#B08D45" stroke-width="3"/>
+  <path d="m344 244 6 6-6 6-6-6Zm816 0 6 6-6 6-6-6Z" fill="#B08D45"/>
+  <text x="568" y="274" fill="#B08D45" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="600" letter-spacing="25">STUDIO</text>
+</svg>
