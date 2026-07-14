@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">CardForge Studio favicon</title>
+  <rect width="128" height="128" rx="22" fill="#1A1A1C"/>
+  <path d="M25 15h25c6 0 9 11 14 11s8-11 14-11h25c7 0 10 3 10 10v78c0 7-3 10-10 10H25c-7 0-10-3-10-10V25c0-7 3-10 10-10Z" fill="none" stroke="#B08D45" stroke-width="5"/>
+  <text x="28" y="73" fill="#D2B66C" font-family="Georgia, 'Times New Roman', serif" font-size="54">C</text>
+  <text x="59" y="81" fill="#B08D45" font-family="Georgia, 'Times New Roman', serif" font-size="54">F</text>
+  <path d="m64 82 4 7 7 4-7 4-4 7-4-7-7-4 7-4Z" fill="#D2B66C"/>
+  <path d="M40 103h48l-7 8H47Z" fill="#B08D45"/>
+</svg>
