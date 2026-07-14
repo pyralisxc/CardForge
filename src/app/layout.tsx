@@ -5,6 +5,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
 import { getPublicAppUrl } from '@/lib/siteUrl';
+import { BrowserStorageAlerts } from '@/features/project/components/BrowserStorageAlerts';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
@@ -55,6 +56,7 @@ export default function RootLayout({
   const app = (
     <>
       {children}
+      <BrowserStorageAlerts />
       <Toaster />
     </>
   );

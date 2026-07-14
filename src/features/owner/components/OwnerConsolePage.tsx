@@ -274,6 +274,7 @@ export function OwnerConsolePage() {
   const [billingSnapshot, setBillingSnapshot] = useState<OwnerBillingSnapshot | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [isLoadingBilling, setIsLoadingBilling] = useState(false);
+  const [isReconcilingBilling, setIsReconcilingBilling] = useState(false);
   const [accountSearchEmail, setAccountSearchEmail] = useState('');
   const [managedAccount, setManagedAccount] = useState<OwnerManagedAccount | null>(null);
   const [managedAccountDraft, setManagedAccountDraft] = useState({ access: 'free' as OwnerManagedAccount['access'], owner: false, note: '' });
@@ -342,6 +343,27 @@ export function OwnerConsolePage() {
       setIsLoadingBilling(false);
     }
   }, []);
+
+  const reconcileBilling = useCallback(async () => {
+    setIsReconcilingBilling(true);
+    setBillingError(null);
+    try {
+      const response = await fetch('/api/owner/billing/reconcile', { method: 'POST' });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to reconcile billing.'));
+      const result = await response.json() as { checked: number; repaired: number; missingLedger: number; hasMore: boolean };
+      toast({
+        title: 'Billing reconciled',
+        description: `${result.checked} subscriptions checked; ${result.repaired} account entitlements repaired; ${result.missingLedger} pre-ledger subscriptions identified.${result.hasMore ? ' Run again after reviewing the first 100 subscriptions.' : ''}`,
+      });
+      await loadBillingSummary();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to reconcile billing.';
+      setBillingError(message);
+      toast({ title: 'Billing reconciliation failed', description: message, variant: 'destructive' });
+    } finally {
+      setIsReconcilingBilling(false);
+    }
+  }, [loadBillingSummary, toast]);
 
   useEffect(() => {
     let mounted = true;
@@ -861,10 +883,16 @@ export function OwnerConsolePage() {
                           <h2 className="font-serif text-2xl text-[#fff1c7]">Billing snapshot</h2>
                         </div>
                       </div>
-                      <Button onClick={loadBillingSummary} disabled={isLoadingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                        <Rocket className="mr-2 h-4 w-4" />
-                        {isLoadingBilling ? 'Refreshing...' : 'Refresh'}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button onClick={reconcileBilling} disabled={isReconcilingBilling || isLoadingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {isReconcilingBilling ? 'Reconciling...' : 'Reconcile'}
+                        </Button>
+                        <Button onClick={loadBillingSummary} disabled={isLoadingBilling || isReconcilingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                          <Rocket className="mr-2 h-4 w-4" />
+                          {isLoadingBilling ? 'Refreshing...' : 'Refresh'}
+                        </Button>
+                      </div>
                     </div>
                     {billingError ? (
                       <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">{billingError}</p>

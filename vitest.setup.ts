@@ -1,3 +1,5 @@
+import 'fake-indexeddb/auto';
+
 const createLocalStorageMock = () => {
   let store: Record<string, string> = {};
 

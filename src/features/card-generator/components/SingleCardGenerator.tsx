@@ -18,6 +18,7 @@ import { ERROR_COPY } from '@/lib/errorCopy';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
 import { getTemplateSourceLabel } from '@/lib/templateDisplay';
 import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/features/card-generator/lib/structuredRows';
+import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];
@@ -64,11 +65,29 @@ export function SingleCardGenerator({
     };
   }, []);
 
-  const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
+  const handleImageUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
     const file = event.target.files?.[0];
-    const refs = fileInputRefs; 
+    const refs = fileInputRefs;
+    if (refs.current[fieldKey]) refs.current[fieldKey]!.value = '';
 
     if (file) {
+      const validation = validateLocalAssetFile(file);
+      if (!validation.ok) {
+        toast({ title: 'Image Not Added', description: validation.message, variant: 'destructive' });
+        return;
+      }
+      let storedFile: File;
+      try {
+        storedFile = await optimizeLocalAssetFile(file);
+        const storageHealth = await getBrowserStorageHealth();
+        if (storageHealth.level === 'critical' || (storageHealth.remainingBytes !== null && storageHealth.remainingBytes < storedFile.size * 1.5)) {
+          toast({ title: 'Browser Storage Almost Full', description: 'Download a project backup and free storage before adding more card artwork.', variant: 'destructive' });
+          return;
+        }
+      } catch (error) {
+        toast({ title: 'Image Not Added', description: error instanceof Error ? error.message : 'Unable to validate the image.', variant: 'destructive' });
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (eRead) => {
         const dataUri = eRead.target?.result as string;
@@ -78,10 +97,7 @@ export function SingleCardGenerator({
       reader.onerror = () => {
         toast({ title: "Error", description: `Failed to read image file.`, variant: "destructive" });
       };
-      reader.readAsDataURL(file);
-    }
-    if (refs.current[fieldKey]) {
-      refs.current[fieldKey]!.value = "";
+      reader.readAsDataURL(storedFile);
     }
   }, [toast]);
 

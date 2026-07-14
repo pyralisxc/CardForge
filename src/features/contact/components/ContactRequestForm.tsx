@@ -11,6 +11,7 @@ const emptyForm = {
   email: '',
   subject: '',
   message: '',
+  companyWebsite: '',
 };
 
 export function ContactRequestForm({
@@ -62,6 +63,15 @@ export function ContactRequestForm({
 
   return (
     <form onSubmit={submit} className="mt-8 border border-[#6d4f2b] bg-[#15100a] p-5 md:p-6">
+      <label className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+        Company website
+        <input
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.companyWebsite}
+          onChange={(event) => setForm((current) => ({ ...current, companyWebsite: event.target.value }))}
+        />
+      </label>
       <div className="flex items-center gap-3 text-[#e2aa4a]">
         <Send className="h-5 w-5" />
         <h2 className="font-serif text-2xl text-[#fff1c7]">

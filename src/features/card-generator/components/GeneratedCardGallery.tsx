@@ -6,6 +6,7 @@ import { PackageOpen, Search, Trash2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
+import { ShareCardButton } from '@/features/card-generator/components/ShareCardButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { DisplayCard, TCGCardTemplate } from '@/types';
@@ -207,7 +208,13 @@ export function GeneratedCardGallery({
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
-                        <div className="absolute bottom-2 right-2 opacity-0 transition-opacity duration-150 group-hover/card:opacity-100">
+                        <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 transition-opacity duration-150 group-hover/card:opacity-100 focus-within:opacity-100">
+                          <ShareCardButton
+                            card={cardItem}
+                            exportMode={exportMode}
+                            exportDpi={exportDpi}
+                            ariaLabel={hasRepeatedExportButtons ? `Share output ${rowStart + cardIndex + 1}` : undefined}
+                          />
                           <ExportCardImageButton
                             card={cardItem}
                             exportMode={exportMode}

@@ -1,7 +1,22 @@
+import { createMigratingBrowserStorage } from '@/features/project/lib/browserStorage';
+
 export interface ProjectAssetStorage {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
+  getItem: (key: string) => string | null | Promise<string | null>;
+  setItem: (key: string, value: string) => void | Promise<void>;
 }
+
+export const getProjectAssetStorage = (): ProjectAssetStorage => {
+  const storage = createMigratingBrowserStorage(
+    'project-assets',
+    typeof window !== 'undefined' ? window.localStorage : undefined,
+  );
+  return {
+    getItem: async (key) => await storage.getItem(key),
+    setItem: async (key, value) => {
+      await storage.setItem(key, value);
+    },
+  };
+};
 
 export const canUploadCustomLocalAssets = ({
   authConfigured,
@@ -11,12 +26,12 @@ export const canUploadCustomLocalAssets = ({
   isSignedIn: boolean;
 }): boolean => authConfigured && isSignedIn;
 
-export const readProjectAssetListFromStorage = (
+export const readProjectAssetListFromStorage = async (
   storage: ProjectAssetStorage,
   key: string,
-): unknown[] => {
+): Promise<unknown[]> => {
   try {
-    const value = storage.getItem(key);
+    const value = await storage.getItem(key);
     if (!value) return [];
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed : [];
@@ -25,25 +40,25 @@ export const readProjectAssetListFromStorage = (
   }
 };
 
-export const readTypedProjectAssetListFromStorage = <T>(
+export const readTypedProjectAssetListFromStorage = async <T>(
   storage: ProjectAssetStorage,
   key: string,
-): T[] => readProjectAssetListFromStorage(storage, key) as T[];
+): Promise<T[]> => readProjectAssetListFromStorage(storage, key) as Promise<T[]>;
 
-export const writeProjectAssetListToStorage = (
+export const writeProjectAssetListToStorage = async (
   storage: ProjectAssetStorage,
   key: string,
   assets: unknown[],
-) => {
-  storage.setItem(key, JSON.stringify(assets));
+): Promise<void> => {
+  await storage.setItem(key, JSON.stringify(assets));
 };
 
-export const mergeProjectAssetListToStorage = (
+export const mergeProjectAssetListToStorage = async (
   storage: ProjectAssetStorage,
   key: string,
   assets: unknown[],
-) => {
-  const existingAssets = readProjectAssetListFromStorage(storage, key);
+): Promise<void> => {
+  const existingAssets = await readProjectAssetListFromStorage(storage, key);
   const merged = new Map<string, unknown>();
 
   [...existingAssets, ...assets].forEach((asset, index) => {
@@ -54,5 +69,5 @@ export const mergeProjectAssetListToStorage = (
     merged.set(`__asset_${index}`, asset);
   });
 
-  storage.setItem(key, JSON.stringify(Array.from(merged.values())));
+  await storage.setItem(key, JSON.stringify(Array.from(merged.values())));
 };

@@ -15,6 +15,12 @@ import {
 } from '@/features/project/lib/projectDocument';
 import type { useToast } from '@/hooks/use-toast';
 import type { FreeformCardElement } from '@/types';
+import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
+import {
+  getProjectAssetStorage,
+  readTypedProjectAssetListFromStorage,
+  writeProjectAssetListToStorage,
+} from '@/features/project/lib/projectLocalAssets';
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
 interface UseTemplateAssetLibraryInput {
@@ -24,15 +30,14 @@ interface UseTemplateAssetLibraryInput {
   toast: ToastFn;
 }
 
-const readStoredAssets = (primaryKey: string): CardAssetOption[] => {
+const readStoredAssets = async (primaryKey: string): Promise<CardAssetOption[]> => {
   try {
-    const payload = localStorage.getItem(primaryKey) ?? '[]';
-    const assets = JSON.parse(payload) as CardAssetOption[];
-    if (!Array.isArray(assets)) return [];
+    const storage = getProjectAssetStorage();
+    const assets = await readTypedProjectAssetListFromStorage<CardAssetOption>(storage, primaryKey);
     const normalizedAssets = assets.map((asset) => (
       asset.librarySource === 'local' ? normalizeLocalLibraryAsset(asset) : asset
     ));
-    localStorage.setItem(primaryKey, JSON.stringify(normalizedAssets));
+    await writeProjectAssetListToStorage(storage, primaryKey, normalizedAssets);
     return normalizedAssets;
   } catch {
     return [];
@@ -56,10 +61,24 @@ export function useTemplateAssetLibrary({
   const [customImageAssets, setCustomImageAssets] = useState<CardAssetOption[]>([]);
 
   useEffect(() => {
-    setCustomTextureAssets(readStoredAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY));
-    setCustomDividerAssets(readStoredAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY));
-    setCustomIconAssets(readStoredAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY));
-    setCustomImageAssets(readStoredAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY));
+    let cancelled = false;
+    const loadCustomAssets = async () => {
+      const [textures, dividers, icons, images] = await Promise.all([
+        readStoredAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+        readStoredAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+        readStoredAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY),
+        readStoredAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+      ]);
+      if (cancelled) return;
+      setCustomTextureAssets(textures);
+      setCustomDividerAssets(dividers);
+      setCustomIconAssets(icons);
+      setCustomImageAssets(images);
+    };
+    void loadCustomAssets();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -127,7 +146,7 @@ export function useTemplateAssetLibrary({
       .filter((asset) => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customImageAssets, discoveredImageAssets]);
 
-  const handleAssetUpload = useCallback((event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider' | 'icon' | 'image') => {
+  const handleAssetUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider' | 'icon' | 'image') => {
     if (!canUploadCustomAssets) {
       event.target.value = '';
       toast({
@@ -139,16 +158,35 @@ export function useTemplateAssetLibrary({
 
     const file = event.target.files?.[0];
     if (!file) return;
+    const validation = validateLocalAssetFile(file);
+    if (!validation.ok) {
+      event.target.value = '';
+      toast({ title: 'Artwork Not Added', description: validation.message, variant: 'destructive' });
+      return;
+    }
+
+    let storedFile = file;
+    try {
+      storedFile = await optimizeLocalAssetFile(file);
+    } catch (error) {
+      event.target.value = '';
+      toast({
+        title: 'Artwork Not Added',
+        description: error instanceof Error ? error.message : 'The artwork dimensions could not be validated.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const reader = new FileReader();
-    reader.onload = (loadEvent) => {
+    reader.onload = async (loadEvent) => {
       const dataUri = loadEvent.target?.result as string;
       const asset = normalizeLocalLibraryAsset({
         id: `custom-${kind}-${nanoid()}`,
         name: file.name.replace(/\.[^.]+$/, ''),
         url: dataUri,
         kind,
-        fileSizeBytes: file.size,
+        fileSizeBytes: storedFile.size,
         tileMode: kind === 'texture' ? 'repeat' : kind === 'divider' ? 'stretch' : 'contain',
         seamless: kind === 'texture',
         allowedTargets: kind === 'texture'
@@ -165,31 +203,49 @@ export function useTemplateAssetLibrary({
         defaultHeight: kind === 'icon' ? 64 : kind === 'image' ? 180 : undefined,
       });
 
-      if (kind === 'texture') {
-        setCustomTextureAssets((previous) => {
-          const next = [...previous, asset];
-          localStorage.setItem(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, JSON.stringify(next));
-          return next;
+      const storageHealth = await getBrowserStorageHealth();
+      if (storageHealth.level === 'critical' || (
+        storageHealth.remainingBytes !== null && storageHealth.remainingBytes < storedFile.size * 1.5
+      )) {
+        toast({
+          title: 'Browser Storage Almost Full',
+          description: 'Download a project backup and free browser storage before adding more artwork.',
+          variant: 'destructive',
         });
-      } else if (kind === 'divider') {
-        setCustomDividerAssets((previous) => {
-          const next = [...previous, asset];
-          localStorage.setItem(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, JSON.stringify(next));
-          return next;
-        });
-      } else if (kind === 'icon') {
-        setCustomIconAssets((previous) => {
-          const next = [...previous, asset];
-          localStorage.setItem(CUSTOM_ICON_ASSETS_STORAGE_KEY, JSON.stringify(next));
-          return next;
-        });
-      } else {
-        setCustomImageAssets((previous) => {
-          const next = [...previous, asset];
-          localStorage.setItem(CUSTOM_IMAGE_ASSETS_STORAGE_KEY, JSON.stringify(next));
-          return next;
-        });
+        return;
       }
+
+      const storageKey = kind === 'texture'
+        ? CUSTOM_TEXTURE_ASSETS_STORAGE_KEY
+        : kind === 'divider'
+          ? CUSTOM_DIVIDER_ASSETS_STORAGE_KEY
+          : kind === 'icon'
+            ? CUSTOM_ICON_ASSETS_STORAGE_KEY
+            : CUSTOM_IMAGE_ASSETS_STORAGE_KEY;
+      const currentAssets = kind === 'texture'
+        ? customTextureAssets
+        : kind === 'divider'
+          ? customDividerAssets
+          : kind === 'icon'
+            ? customIconAssets
+            : customImageAssets;
+      const nextAssets = [...currentAssets, asset];
+      try {
+        await writeProjectAssetListToStorage(getProjectAssetStorage(), storageKey, nextAssets);
+      } catch (error) {
+        console.error('Unable to persist local artwork:', error);
+        toast({
+          title: 'Artwork Not Saved',
+          description: 'Browser storage rejected the artwork. Download a project backup, free storage, and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (kind === 'texture') setCustomTextureAssets(nextAssets);
+      else if (kind === 'divider') setCustomDividerAssets(nextAssets);
+      else if (kind === 'icon') setCustomIconAssets(nextAssets);
+      else setCustomImageAssets(nextAssets);
 
       toast({
         title: 'Local asset added',
@@ -197,9 +253,9 @@ export function useTemplateAssetLibrary({
       });
     };
     reader.onerror = () => toast({ title: 'Upload Error', description: 'Failed to read the selected asset.', variant: 'destructive' });
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(storedFile);
     event.target.value = '';
-  }, [canUploadCustomAssets, toast]);
+  }, [canUploadCustomAssets, customDividerAssets, customIconAssets, customImageAssets, customTextureAssets, toast]);
 
   return {
     assetSearch,

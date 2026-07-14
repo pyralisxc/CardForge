@@ -4,6 +4,7 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResp
 import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { claimFounderBetaAccess, OwnerConsoleStoreError } from '@/features/owner/lib/ownerConsoleStore';
 import { resolveOwnerAccess } from '@/lib/ownerAccess';
+import { consumeRateLimit, getRequestClientAddress, RateLimitUnavailableError } from '@/lib/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,7 @@ const claimFailureCopy: Record<string, string> = {
   not_configured: 'Founder Beta is not configured yet.',
 };
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     if (!isClerkAuthConfigured()) {
       return createApiErrorResponse(
@@ -27,6 +28,14 @@ export async function POST() {
     const user = await currentUser();
     if (!user) {
       return createApiErrorResponse(401, 'sign_in_required', 'Sign in before claiming Founder Beta access.');
+    }
+
+    const decisions = await Promise.all([
+      consumeRateLimit({ action: 'founder-claim-user', identity: user.id, limit: 5, windowSeconds: 3600 }),
+      consumeRateLimit({ action: 'founder-claim-ip', identity: getRequestClientAddress(request), limit: 20, windowSeconds: 3600 }),
+    ]);
+    if (decisions.some((decision) => !decision.allowed)) {
+      return createApiErrorResponse(429, 'rate_limited', 'Too many claim attempts. Please try again later.');
     }
 
     const email = user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null;
@@ -76,6 +85,9 @@ export async function POST() {
       publicSlotCap: result.public_slot_cap,
     });
   } catch (error) {
+    if (error instanceof RateLimitUnavailableError) {
+      return createApiErrorResponse(503, 'service_unavailable', error.message);
+    }
     if (error instanceof OwnerConsoleStoreError) {
       return createApiErrorResponse(
         error.status,

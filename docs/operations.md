@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: July 13, 2026
+Last updated: July 14, 2026
 
 This is the current live-operations checklist for CardForge.
 
@@ -48,7 +48,7 @@ Email:
 ```text
 RESEND_API_KEY=
 CARDFORGE_EMAIL_FROM=CardForge <onboarding@resend.dev>
-CARDFORGE_EMAIL_REPLY_TO=pyraliscameron@gmail.com
+CARDFORGE_EMAIL_REPLY_TO=
 ```
 
 Owner/developer allowlists:
@@ -83,6 +83,22 @@ Use `/owner` for:
 - account lookup/access changes
 
 Secrets stay in Vercel/provider dashboards. The owner console should show readiness, not raw secret values.
+
+## Database Security
+
+- Browser-direct writes are not supported.
+- Privileged RPCs must revoke `EXECUTE` from `PUBLIC`, `anon`, and `authenticated`.
+- The Founder Beta claim RPC is callable only by the server-side `service_role`.
+- Run Supabase security and performance advisors after every migration.
+- Verify role grants directly; RLS does not protect an exposed `SECURITY DEFINER` function.
+
+## Delivery Gates
+
+- Pull requests must pass CI and public smoke checks before merge.
+- Authenticated provider smoke uses protected environment secrets and must never run for untrusted fork code.
+- `main` should require a pull request, one approval, required checks, and blocked force pushes.
+- Vercel build success alone is not a release-health verdict.
+- Production route health runs every six hours; GitHub owns failure notification and Vercel runtime error groups remain the primary server-error aggregation view.
 
 ## Verification Commands
 

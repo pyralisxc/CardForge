@@ -1,0 +1,38 @@
+name: Authenticated smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 15 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: authenticated-smoke-production
+  cancel-in-progress: false
+
+jobs:
+  account-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/smoke/auth-account.spec.ts tests/smoke/paid-project-import.spec.ts --workers=1
+        env:
+          CARDFORGE_E2E_BASE_URL: https://cardforges.com
+          CARDFORGE_E2E_ALLOW_DISPOSABLE_USERS: "false"
+          CARDFORGE_E2E_FREE_EMAIL: ${{ secrets.CARDFORGE_E2E_FREE_EMAIL }}
+          CARDFORGE_E2E_PAID_EMAIL: ${{ secrets.CARDFORGE_E2E_PAID_EMAIL }}
+          CARDFORGE_E2E_DEV_EMAIL: ${{ secrets.CARDFORGE_E2E_DEV_EMAIL }}
+          CARDFORGE_E2E_OWNER_EMAIL: ${{ secrets.CARDFORGE_E2E_OWNER_EMAIL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

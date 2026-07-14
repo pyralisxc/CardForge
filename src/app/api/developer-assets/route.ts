@@ -11,6 +11,7 @@ import {
 import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
 import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 import { createServerTimingTracker } from '@/lib/serverTiming';
+import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,6 +106,15 @@ export async function POST(request: Request) {
   try {
     const access = await getDeveloperAccess();
     if (!access.ok) return access.response;
+    const rateLimit = await consumeRateLimit({
+      action: 'developer-submission',
+      identity: access.user.id,
+      limit: 30,
+      windowSeconds: 3600,
+    });
+    if (!rateLimit.allowed) {
+      return createApiErrorResponse(429, 'rate_limited', 'Too many developer submissions. Please try again later.');
+    }
     await syncDeveloperProfile(access);
 
     const body = await request.json() as {
@@ -129,6 +139,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    }
+    if (error instanceof RateLimitUnavailableError) {
+      return createApiErrorResponse(503, 'developer_asset_unavailable', error.message);
     }
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(
