@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260" role="img" aria-labelledby="title">
+  <title id="title">CardForge Studio horizontal white watermark</title>
+  <g fill="#FFFFFF" stroke="#FFFFFF">
+    <g transform="translate(20 18)">
+      <path d="M18 0h55c10 0 16 18 27 18s17-18 27-18h55c11 0 16 5 16 16v192c0 11-5 16-16 16H18c-11 0-16-5-16-16V16C2 5 7 0 18 0Z" fill="none" stroke-width="5"/>
+      <text x="35" y="115" stroke="none" font-family="Georgia, 'Times New Roman', serif" font-size="88">C</text>
+      <text x="88" y="128" stroke="none" font-family="Georgia, 'Times New Roman', serif" font-size="88">F</text>
+      <path d="m100 137 6 10 10 6-10 6-6 10-6-10-10-6 10-6Z" stroke="none"/>
+      <path d="M55 178h90l-12 13h-20l-5 9h19v10H73v-10h19l-5-9H67Z" stroke="none"/>
+    </g>
+    <path d="M245 35v190" fill="none" stroke-width="2"/>
+    <text x="285" y="134" stroke="none" font-family="Georgia, 'Times New Roman', serif" font-size="83" letter-spacing="7">CARDFORGE</text>
+    <path d="M290 184h145M835 184h135" fill="none" stroke-width="2"/>
+    <text x="470" y="201" stroke="none" font-family="Arial, Helvetica, sans-serif" font-size="35" font-weight="600" letter-spacing="17">STUDIO</text>
+  </g>
+</svg>
