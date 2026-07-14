@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   BROWSER_STORAGE_DATABASE,
@@ -48,6 +48,19 @@ describe('browser IndexedDB storage', () => {
     expect(await storage.getItem('workspace')).toBe('{"legacy":true}');
     expect(legacyValues.has('workspace')).toBe(false);
     expect(await storage.getItem('workspace')).toBe('{"legacy":true}');
+  });
+
+  it('uses an inert adapter during server rendering when IndexedDB is unavailable', async () => {
+    vi.stubGlobal('indexedDB', undefined);
+    try {
+      const storage = createMigratingBrowserStorage('server-render');
+
+      expect(await storage.getItem('workspace')).toBeNull();
+      expect(await storage.setItem('workspace', '{"ignored":true}')).toBeUndefined();
+      expect(await storage.removeItem('workspace')).toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('keeps the previous workspace value as an automatic recovery snapshot', async () => {

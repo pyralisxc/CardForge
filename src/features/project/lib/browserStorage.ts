@@ -133,6 +133,14 @@ export const createMigratingBrowserStorage = (
   legacyStorage?: StateStorage,
   options: { keepRecoverySnapshot?: boolean; suppressWriteErrors?: boolean } = {},
 ): StateStorage => {
+  if (typeof indexedDB === 'undefined') {
+    return legacyStorage ?? {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    };
+  }
+
   const indexedDbStorage = createBrowserKeyValueStorage(namespace, options);
 
   const reportWriteFailure = (error: unknown) => {
