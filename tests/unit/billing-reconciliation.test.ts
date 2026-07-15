@@ -3,9 +3,21 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildMissingBillingSubscriptionBaselines,
   establishBillingSubscriptionBaselines,
+  isClerkUserNotFoundError,
 } from '@/features/billing/lib/billingReconciliation';
 
 describe('billing reconciliation', () => {
+  it('recognizes only Clerk user lookup 404 errors as missing users', () => {
+    expect(isClerkUserNotFoundError({
+      clerkError: true,
+      code: 'api_response_error',
+      status: 404,
+    })).toBe(true);
+    expect(isClerkUserNotFoundError({ status: 404 })).toBe(false);
+    expect(isClerkUserNotFoundError({ clerkError: true, status: 500 })).toBe(false);
+    expect(isClerkUserNotFoundError(null)).toBe(false);
+  });
+
   it('builds a current ordering baseline for a missing Stripe subscription', () => {
     const reconciledAt = new Date('2026-07-15T22:00:00.000Z');
 

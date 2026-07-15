@@ -25,6 +25,12 @@ interface BillingSubscriptionBaselineClient {
 const getObjectId = (value: string | { id: string } | null): string | null =>
   typeof value === 'string' ? value : value?.id ?? null;
 
+export const isClerkUserNotFoundError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { clerkError?: unknown; status?: unknown };
+  return candidate.clerkError === true && candidate.status === 404;
+};
+
 export const buildMissingBillingSubscriptionBaselines = ({
   subscriptions,
   existingSubscriptionIds,
