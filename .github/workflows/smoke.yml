@@ -23,6 +23,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run smoke
+      - name: Verify free export gate
+        run: npx playwright test tests/smoke/card-forge.spec.ts --workers=1 --grep "lets free users try clean export"
+        env:
+          CARDFORGE_ACCESS_MODE: free
+          NEXT_PUBLIC_CARDFORGE_ACCESS_MODE: free
+          CARDFORGE_E2E_ALLOW_DISPOSABLE_USERS: "false"
+      - name: Verify remaining public flows
+        run: npm run smoke -- --grep-invert "lets free users try clean export"
         env:
           CARDFORGE_E2E_ALLOW_DISPOSABLE_USERS: "false"

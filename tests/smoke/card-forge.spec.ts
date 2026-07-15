@@ -83,38 +83,6 @@ function visibleCardPreviews(page: Page) {
   return page.locator('.tcg-card-preview:visible');
 }
 
-async function mockFreeAccountEntitlement(page: Page) {
-  await page.route('**/api/account/entitlement', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        accessMode: 'free',
-        accessExpiresAt: null,
-        accountEmail: null,
-        authConfigured: false,
-        canExportClean: false,
-        capabilities: {
-          canPreview: true,
-          canGenerate: true,
-          canExportClean: false,
-          canWriteShippedLibrary: false,
-        },
-        copy: {
-          modeLabel: 'Free preview mode',
-          canExportClean: false,
-          gateMessage: 'Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports. You can keep designing and generating previews for free.',
-          panelMessage: 'Free mode can design layouts, import data, and generate previews. Buy Creator Pass when you are ready to export clean files and save portable project files.',
-        },
-        hasStripeCustomer: false,
-        isSignedIn: false,
-        ownerAccess: { isOwner: false, source: 'none' },
-        source: 'environment',
-      }),
-    });
-  });
-}
-
 async function visibleFreeformPreviewElementCount(page: Page) {
   return page.locator('.tcg-card-preview [data-freeform-element-id]').evaluateAll((elements) => (
     elements.filter((element) => {
@@ -255,7 +223,6 @@ test('loads default templates and adds a generated output', async ({ page }) => 
 
 test('lets free users try clean export and see the export gate', async ({ page }) => {
   test.setTimeout(STUDIO_TEST_TIMEOUT);
-  await mockFreeAccountEntitlement(page);
 
   await page.addInitScript(() => {
     const template = {
