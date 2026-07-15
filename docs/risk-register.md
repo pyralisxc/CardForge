@@ -21,7 +21,7 @@ Every launch risk must be closed, explicitly accepted with a review date, or rep
 
 ## Accepted dependency exception
 
-The July 14, 2026 audit is reduced from 22 findings (including one high severity) to three moderate production findings. All three are the same unresolved PostCSS advisory inherited by Next.js 15.5.20 and therefore also reported through `next` and `@clerk/nextjs`; npm reports no fix available. CardForge does not accept user-authored CSS for server-side serialization, which limits exposure to the advisory's unescaped CSS-stringification path. Review again by August 14, 2026 or when a patched Next.js 15 release is available, whichever comes first.
+The July 15, 2026 audit is reduced from 22 findings (including one high severity) to two moderate production findings. Both represent the same unresolved PostCSS advisory inherited by Next.js 15.5.20 and reported through `postcss` and `next`; npm reports no compatible fix available. CardForge does not accept user-authored CSS for server-side serialization, which limits exposure to the advisory's unescaped CSS-stringification path. Review again by August 14, 2026 or when a patched Next.js 15 release is available, whichever comes first.
 
 ## Accepted product boundary
 
