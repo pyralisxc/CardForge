@@ -10,6 +10,7 @@ import {
 import {
   buildMissingBillingSubscriptionBaselines,
   establishBillingSubscriptionBaselines,
+  isClerkUserNotFoundError,
 } from '@/features/billing/lib/billingReconciliation';
 import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
@@ -88,7 +89,16 @@ export async function POST() {
         missingClerkUser += 1;
         continue;
       }
-      const user = await clerk.users.getUser(userId);
+      let user;
+      try {
+        user = await clerk.users.getUser(userId);
+      } catch (error) {
+        if (isClerkUserNotFoundError(error)) {
+          missingClerkUser += 1;
+          continue;
+        }
+        throw error;
+      }
       const existingMetadata = user.privateMetadata ?? {};
       let nextMetadata: Record<string, unknown> | null = null;
       if (shouldGrantAccessForStripeSubscriptionStatus(subscription.status)) {

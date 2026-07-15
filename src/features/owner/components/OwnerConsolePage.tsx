@@ -905,21 +905,45 @@ export function OwnerConsolePage() {
                     <div className="mt-5 grid gap-3 sm:grid-cols-3">
                       <MetricTile label="Checkout" value={billingSnapshot?.status.checkoutConfigured ? 'Ready' : 'Needs setup'} />
                       <MetricTile label="Webhook" value={billingSnapshot?.status.webhookConfigured ? 'Ready' : 'Needs setup'} />
-                      <MetricTile label="Subscriptions" value={String(billingSnapshot?.recentSubscriptions.length ?? 0)} />
+                      <MetricTile label="Stripe subscriptions" value={String(billingSnapshot?.recentSubscriptions.length ?? 0)} />
                     </div>
-                    <div className="mt-5 space-y-3">
+                    <div className="mt-5 border border-[#4a3823] bg-[#100c08] p-4">
+                      <p className="text-sm font-semibold text-[#ffe7ad]">Recent checkout attempts</p>
+                      <p className="mt-1 text-xs leading-5 text-[#a98a55]">These rows are Stripe Checkout sessions, not separate customer accounts or active subscriptions. Repeated or abandoned attempts can appear more than once.</p>
+                    </div>
+                    <div className="mt-3 space-y-3">
                       {(billingSnapshot?.recentCheckoutSessions ?? []).slice(0, 5).map((session) => (
                         <article key={session.id} className="border border-[#4a3823] bg-[#100c08] p-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-[#ffe7ad]">{formatMoney(session.amountTotalCents, session.currency)}</p>
-                            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{session.paymentStatus ?? session.status ?? 'unknown'}</span>
+                            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Checkout {session.paymentStatus ?? session.status ?? 'unknown'}</span>
                           </div>
                           <p className="mt-2 text-sm text-[#d9c28f]">{session.customerEmail ?? session.clerkUserId ?? session.id}</p>
-                          <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription yet'}</p>
+                          <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription created'}</p>
                         </article>
                       ))}
                       {billingSnapshot && billingSnapshot.recentCheckoutSessions.length === 0 ? (
                         <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">No recent Stripe checkout sessions found.</p>
+                      ) : null}
+                    </div>
+                    <div className="mt-6 border border-[#6d4f2b] bg-[#1a1209] p-4">
+                      <p className="text-sm font-semibold text-[#ffe7ad]">Actual Stripe subscriptions</p>
+                      <p className="mt-1 text-xs leading-5 text-[#a98a55]">Only these rows represent subscription records. Clerk mapping shows the production user ID currently stored in Stripe metadata.</p>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {(billingSnapshot?.recentSubscriptions ?? []).map((subscription) => (
+                        <article key={subscription.id} className="border border-[#6d4f2b] bg-[#100c08] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-[#ffe7ad]">{formatMoney(subscription.amountCents, subscription.currency)}{subscription.interval ? ` / ${subscription.interval}` : ''}</p>
+                            <span className="text-xs uppercase tracking-[0.16em] text-[#d8b365]">Subscription {subscription.status ?? 'unknown'}</span>
+                          </div>
+                          <p className="mt-2 break-all text-xs text-[#d9c28f]">{subscription.id}</p>
+                          <p className="mt-2 break-all text-xs text-[#a98a55]">Clerk mapping: {subscription.clerkUserId ?? 'Missing'}</p>
+                          <p className="mt-2 text-xs text-[#8f7b57]">Period end: {formatDateTime(subscription.currentPeriodEnd)}{subscription.cancelAtPeriodEnd ? ' / Cancels at period end' : ''}</p>
+                        </article>
+                      ))}
+                      {billingSnapshot && billingSnapshot.recentSubscriptions.length === 0 ? (
+                        <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">No Stripe subscriptions found.</p>
                       ) : null}
                     </div>
                   </section>
