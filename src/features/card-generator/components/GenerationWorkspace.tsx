@@ -21,7 +21,7 @@ import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfB
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
 import type { CardSet, DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { shouldShowGeneratedPreviewWatermark } from '@/features/card-generator/lib/cardWatermarkPolicy';
+import { shouldShowVisibleCardWatermark } from '@/features/card-generator/lib/cardWatermarkPolicy';
 import { hasCardBacking } from '@/lib/cardBacking';
 
 interface GenerationWorkspaceProps {
@@ -157,7 +157,7 @@ export function GenerationWorkspace({
       }
       : null
   ), [activeCardSet.id, activeCardSet.name, selectedBackingTemplate, selectedTemplate]);
-  const showGeneratedPreviewWatermark = shouldShowGeneratedPreviewWatermark(canExportClean);
+  const showGeneratedPreviewWatermark = shouldShowVisibleCardWatermark(canExportClean);
   const exportFaceCount = generatedDisplayCards.reduce(
     (count, card) => count + (hasCardBacking(card) ? 2 : 1),
     0

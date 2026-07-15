@@ -8,13 +8,13 @@ import {
   GENERATED_PREVIEW_WATERMARK_OPACITY,
   GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT,
   SOCIAL_SHARE_WATERMARK_OPACITY,
-  shouldShowGeneratedPreviewWatermark,
+  shouldShowVisibleCardWatermark,
 } from '@/features/card-generator/lib/cardWatermarkPolicy';
 
 describe('card watermark policy', () => {
-  it('brands only generated previews without clean-export entitlement', () => {
-    expect(shouldShowGeneratedPreviewWatermark(false)).toBe(true);
-    expect(shouldShowGeneratedPreviewWatermark(true)).toBe(false);
+  it('brands every visible card surface without clean-export entitlement', () => {
+    expect(shouldShowVisibleCardWatermark(false)).toBe(true);
+    expect(shouldShowVisibleCardWatermark(true)).toBe(false);
   });
 
   it('uses the approved transparent mark and visual treatment', () => {
@@ -39,7 +39,11 @@ describe('card watermark policy', () => {
     expect(cleanExportSource).not.toContain('CardWatermarkOverlay');
   });
 
-  it('applies the entitlement policy only at generated preview surfaces', () => {
+  it('applies the entitlement policy at every free-visible Studio card surface', () => {
+    const shellSource = readFileSync(
+      resolve(process.cwd(), 'src/features/app-shell/components/CardForgeStudioShell.tsx'),
+      'utf8',
+    );
     const workspaceSource = readFileSync(
       resolve(process.cwd(), 'src/features/card-generator/components/GenerationWorkspace.tsx'),
       'utf8',
@@ -48,9 +52,26 @@ describe('card watermark policy', () => {
       resolve(process.cwd(), 'src/features/card-generator/components/GeneratedCardGallery.tsx'),
       'utf8',
     );
+    const makerSource = readFileSync(
+      resolve(process.cwd(), 'src/features/template-editor/components/CardTemplateMaker.tsx'),
+      'utf8',
+    );
+    const stageSource = readFileSync(
+      resolve(process.cwd(), 'src/features/template-editor/components/TemplateCanvasStage.tsx'),
+      'utf8',
+    );
+    const librarySource = readFileSync(
+      resolve(process.cwd(), 'src/features/template-editor/components/TemplateLibraryPanel.tsx'),
+      'utf8',
+    );
 
-    expect(workspaceSource).toContain('shouldShowGeneratedPreviewWatermark(canExportClean)');
+    expect(shellSource).toContain('shouldShowVisibleCardWatermark(projectCapabilities.canExportClean)');
+    expect(shellSource).toContain('showCardWatermark={showVisibleCardWatermark}');
+    expect(workspaceSource).toContain('shouldShowVisibleCardWatermark(canExportClean)');
     expect(workspaceSource).toContain('showPreviewWatermark={showGeneratedPreviewWatermark}');
     expect(gallerySource).toContain('showPreviewWatermark ? <CardWatermarkOverlay /> : null');
+    expect(makerSource).toContain('showCardWatermark={showCardWatermark}');
+    expect(stageSource).toContain('showCardWatermark ? <CardWatermarkOverlay testId="template-editor-watermark" /> : null');
+    expect(librarySource).toContain('showCardWatermark ? <CardWatermarkOverlay testId="template-library-watermark" /> : null');
   });
 });

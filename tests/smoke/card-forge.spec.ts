@@ -314,6 +314,18 @@ test('lets free users try clean export and see the export gate', async ({ page }
   const notifications = page.getByLabel('Notifications (F8)');
   await expect(notifications.getByText(/Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports/i)).toBeVisible();
   await expect(notifications.getByText(/dev access|developer/i)).toHaveCount(0);
+
+  await selectMainTab(page, /Layout Studio/i);
+
+  const editorWatermark = page.getByTestId('template-editor-watermark');
+  await expect(editorWatermark).toBeVisible();
+  await expect(editorWatermark).toHaveAttribute('src', '/brand/cardforge-studio/watermark.svg');
+  await expect(editorWatermark).toHaveCSS('opacity', '0.2');
+  await expect(page.getByTestId('template-library-watermark').first()).toBeVisible();
+
+  const canvas = page.locator('[data-cardforge-canvas="true"]');
+  await canvas.focus();
+  await expect(canvas).toBeFocused();
 });
 
 test('creates a freeform template and renders it in the generator', async ({ page }) => {

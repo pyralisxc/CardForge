@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CardPreview } from '@/components/card-forge/CardPreview';
+import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
 import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/lib/templateDisplay';
 import { cn } from '@/lib/utils';
 import type { TCGCardTemplate, TemplateUsage } from '@/types';
 
 interface TemplateLibraryPanelProps {
   canUseProjectFiles: boolean;
+  showCardWatermark: boolean;
   currentTemplate: TCGCardTemplate;
   currentTemplateId: string | null;
   defaultTemplates: TCGCardTemplate[];
@@ -37,6 +39,7 @@ interface TemplateLibraryPanelProps {
 
 export function TemplateLibraryPanel({
   canUseProjectFiles,
+  showCardWatermark,
   currentTemplate,
   currentTemplateId,
   defaultTemplates,
@@ -144,7 +147,7 @@ export function TemplateLibraryPanel({
               className="group flex w-full items-center gap-2 rounded-[5px] border border-[#2b2f39] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#d5ad54]/70 hover:bg-[#131720]"
               onClick={() => onOpenTemplate(template)}
             >
-              <TemplateLibraryPreview template={template} />
+              <TemplateLibraryPreview template={template} showCardWatermark={showCardWatermark} />
               <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{template.name}</span>
                 <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || getTemplateLibraryDescription(template)}</span>
@@ -164,7 +167,7 @@ export function TemplateLibraryPanel({
                 className="group flex w-full items-center gap-2 rounded-[5px] border border-[#2b2f39] bg-[#0b0f15] p-1.5 text-left transition hover:border-[#7dd3fc]/70 hover:bg-[#131720]"
                 onClick={() => onOpenTemplate(template)}
               >
-                <TemplateLibraryPreview template={template} />
+                <TemplateLibraryPreview template={template} showCardWatermark={showCardWatermark} />
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#b9f3ff]">{template.name}</span>
                   <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Card back'}</span>
@@ -178,9 +181,15 @@ export function TemplateLibraryPanel({
   );
 }
 
-function TemplateLibraryPreview({ template }: { template: TCGCardTemplate }) {
+function TemplateLibraryPreview({
+  template,
+  showCardWatermark,
+}: {
+  template: TCGCardTemplate;
+  showCardWatermark: boolean;
+}) {
   return (
-    <span className="grid h-[84px] w-[64px] shrink-0 place-items-center overflow-hidden rounded-[5px] border border-[#2b2f39] bg-[#05070b]">
+    <span className="relative grid h-[84px] w-[64px] shrink-0 place-items-center overflow-hidden rounded-[5px] border border-[#2b2f39] bg-[#05070b]">
       <CardPreview
         card={{
           template,
@@ -190,6 +199,7 @@ function TemplateLibraryPreview({ template }: { template: TCGCardTemplate }) {
         targetWidthPx={64}
         isEditorPreview
       />
+      {showCardWatermark ? <CardWatermarkOverlay testId="template-library-watermark" /> : null}
     </span>
   );
 }
