@@ -14,12 +14,14 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BulkGenerator } from '@/features/card-generator/components/BulkGenerator';
+import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
 import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
 import type { CardSet, DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
+import { shouldShowGeneratedPreviewWatermark } from '@/features/card-generator/lib/cardWatermarkPolicy';
 import { hasCardBacking } from '@/lib/cardBacking';
 
 interface GenerationWorkspaceProps {
@@ -155,6 +157,7 @@ export function GenerationWorkspace({
       }
       : null
   ), [activeCardSet.id, activeCardSet.name, selectedBackingTemplate, selectedTemplate]);
+  const showGeneratedPreviewWatermark = shouldShowGeneratedPreviewWatermark(canExportClean);
   const exportFaceCount = generatedDisplayCards.reduce(
     (count, card) => count + (hasCardBacking(card) ? 2 : 1),
     0
@@ -271,12 +274,18 @@ export function GenerationWorkspace({
               <div className="grid grid-cols-2 gap-3 rounded-md border bg-background/70 p-3">
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Front</p>
-                  <CardPreview card={deckPreviewCard} face="front" targetWidthPx={150} />
+                  <div className="relative w-fit">
+                    <CardPreview card={deckPreviewCard} face="front" targetWidthPx={150} />
+                    {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-front-watermark" /> : null}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Back</p>
                   {selectedBackingTemplate ? (
-                    <CardPreview card={deckPreviewCard} face="back" targetWidthPx={150} />
+                    <div className="relative w-fit">
+                      <CardPreview card={deckPreviewCard} face="back" targetWidthPx={150} />
+                      {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-back-watermark" /> : null}
+                    </div>
                   ) : (
                     <div className="flex aspect-[63/88] w-full max-w-[150px] items-center justify-center rounded border border-dashed bg-muted/40 px-3 text-center text-xs text-muted-foreground">
                       No card back selected
@@ -523,6 +532,7 @@ export function GenerationWorkspace({
           gallerySort={gallerySort}
           exportMode={exportMode}
           exportDpi={exportDpi}
+          showPreviewWatermark={showGeneratedPreviewWatermark}
           onGallerySearchChange={onGallerySearchChange}
           onGallerySortChange={onGallerySortChange}
           onEditCardRequest={onEditCardRequest}

@@ -55,10 +55,10 @@ export function ShareCardButton({
           text: 'Built with CardForge Studio',
           url: 'https://cardforges.com/studio',
         });
-        toast({ title: 'Share ready', description: 'Your branded CardForge image was sent to the share sheet.' });
+        toast({ title: 'Share ready', description: 'Your watermarked CardForge image was sent to the share sheet.' });
       } else {
         downloadSocialShareImage(blob, file.name);
-        toast({ title: 'Social image downloaded', description: 'This browser does not expose a share sheet, so the branded image was downloaded.' });
+        toast({ title: 'Social image downloaded', description: 'This browser does not expose a share sheet, so the watermarked image was downloaded.' });
       }
       setOpen(false);
     } catch (error) {
@@ -78,7 +78,7 @@ export function ShareCardButton({
     try {
       const blob = await createImage();
       downloadSocialShareImage(blob, safeFileName(card, preset));
-      toast({ title: 'Social image downloaded', description: `${SOCIAL_SHARE_PRESETS[preset].label} image saved with CardForge attribution.` });
+      toast({ title: 'Social image downloaded', description: `${SOCIAL_SHARE_PRESETS[preset].label} image saved with a centered CardForge watermark.` });
       setOpen(false);
     } catch (error) {
       toast({ title: 'Unable to create image', description: error instanceof Error ? error.message : 'The social image could not be created.', variant: 'destructive' });
@@ -96,7 +96,7 @@ export function ShareCardButton({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Share Card</DialogTitle>
-            <DialogDescription>Create a social-ready image with tasteful CardForge attribution. Normal paid exports remain clean.</DialogDescription>
+            <DialogDescription>Create a social-ready image with a translucent CardForge watermark centered over the card. Normal entitled exports remain clean.</DialogDescription>
           </DialogHeader>
           <Select value={preset} onValueChange={(value) => setPreset(value as SocialSharePreset)}>
             <SelectTrigger aria-label="Social image size"><SelectValue /></SelectTrigger>

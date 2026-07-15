@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { PackageOpen, Search, Trash2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
+import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
 import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
 import { ShareCardButton } from '@/features/card-generator/components/ShareCardButton';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ interface GeneratedCardGalleryProps {
   exportMode: ExportMode;
   exportDpi: number;
   exportGateMessage?: string | null;
+  showPreviewWatermark: boolean;
   onGallerySearchChange: (value: string) => void;
   onGallerySortChange: (value: GeneratedGallerySort) => void;
   onEditCardRequest: (card: DisplayCard) => void;
@@ -47,6 +49,7 @@ export function GeneratedCardGallery({
   exportMode,
   exportDpi,
   exportGateMessage,
+  showPreviewWatermark,
   onGallerySearchChange,
   onGallerySortChange,
   onEditCardRequest,
@@ -191,14 +194,17 @@ export function GeneratedCardGallery({
                   >
                     {rowCards.map((cardItem, cardIndex) => (
                       <div key={cardItem.uniqueId} className="relative group/card">
-                        <CardPreview
-                          card={cardItem}
-                          isPrintMode={false}
-                          className="mx-auto"
-                          showSizeInfo={rowStart + cardIndex === 0}
-                          onEdit={onEditCardRequest}
-                          targetWidthPx={densityConfig.previewWidthPx}
-                        />
+                        <div className="relative mx-auto w-fit">
+                          <CardPreview
+                            card={cardItem}
+                            isPrintMode={false}
+                            className="mx-auto"
+                            showSizeInfo={rowStart + cardIndex === 0}
+                            onEdit={onEditCardRequest}
+                            targetWidthPx={densityConfig.previewWidthPx}
+                          />
+                          {showPreviewWatermark ? <CardWatermarkOverlay /> : null}
+                        </div>
                         <button
                           type="button"
                           className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-destructive/50 bg-background/90 text-destructive opacity-0 shadow-sm transition-opacity duration-150 hover:bg-destructive hover:text-destructive-foreground focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-destructive group-hover/card:opacity-100"
