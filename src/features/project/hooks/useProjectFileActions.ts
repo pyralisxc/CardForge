@@ -18,6 +18,7 @@ import type { ProjectDocumentStatePatch } from '@/features/project/lib/projectDo
 import type { useToast } from '@/hooks/use-toast';
 import {
   mergeProjectAssetListToStorage,
+  getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '@/features/project/lib/projectLocalAssets';
@@ -198,12 +199,19 @@ export function useProjectFileActions({
     });
   }, [projectFileGateMessage, toast]);
 
-  const handleExportProject = useCallback(() => {
+  const handleExportProject = useCallback(async () => {
     if (!canUseProjectFiles) {
       showProjectFileGate();
       return;
     }
 
+    const assetStorage = getProjectAssetStorage();
+    const [customTextureAssets, customDividerAssets, customIconAssets, customImageAssets] = await Promise.all([
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+      readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+    ]);
     const projectDocument = createProjectDocumentFromState({
       userTemplates,
       storedCards,
@@ -215,10 +223,10 @@ export function useProjectFileActions({
       pdfDuplexLayout,
       exportMode,
       exportDpi,
-      customTextureAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-      customDividerAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-      customIconAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-      customImageAssets: readTypedProjectAssetListFromStorage<CardAssetOption>(localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+      customTextureAssets,
+      customDividerAssets,
+      customIconAssets,
+      customImageAssets,
     });
 
     downloadJsonFile('cardforge-studio-project.json', JSON.stringify(projectDocument, null, 2));
@@ -282,10 +290,28 @@ export function useProjectFileActions({
     setPendingProjectImport(null);
   }, []);
 
-  const applyPendingProjectImport = useCallback((mode: ProjectImportMode) => {
+  const applyPendingProjectImport = useCallback(async (mode: ProjectImportMode) => {
     if (!pendingProjectImport) return;
 
     const { patch } = pendingProjectImport;
+    const writeAssets = mode === 'merge' ? mergeProjectAssetListToStorage : writeProjectAssetListToStorage;
+    const assetStorage = getProjectAssetStorage();
+    try {
+      await Promise.all([
+        writeAssets(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
+        writeAssets(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
+        writeAssets(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
+        writeAssets(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+      ]);
+    } catch (error) {
+      console.error('Unable to persist imported project assets:', error);
+      toast({
+        title: 'Project Import Not Saved',
+        description: 'Browser storage could not save the imported artwork. Free browser storage or download a backup, then try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const importedTemplateCount = mode === 'merge'
       ? mergeUserTemplatesFromFiles(patch.userTemplates)
       : setUserTemplatesFromFiles(patch.userTemplates);
@@ -307,12 +333,6 @@ export function useProjectFileActions({
     });
     if (patch.exportMode) setExportMode(patch.exportMode);
     if (patch.exportDpi) setExportDpi(patch.exportDpi);
-
-    const writeAssets = mode === 'merge' ? mergeProjectAssetListToStorage : writeProjectAssetListToStorage;
-    writeAssets(localStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]);
-    writeAssets(localStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]);
-    writeAssets(localStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]);
-    writeAssets(localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]);
 
     const { successCount, skippedCount } = mode === 'merge'
       ? mergeStoredCardsFromFile(patch.storedCards)

@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL || 'cameron.r.locke96@gmail.com';
+let OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
 const ASSET_BUCKET = process.env.CARDFORGE_DEVELOPER_ASSET_BUCKET || 'cardforge-developer-assets';
 
 const projectRoot = process.cwd();
@@ -527,10 +527,14 @@ const collectSeededRecipeItems = async () => {
 
 const main = async () => {
   const envFile = await parseEnvFile();
+  OWNER_EMAIL = OWNER_EMAIL || envFile.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
   const supabaseUrl = process.env.SUPABASE_URL || envFile.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || envFile.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
+  }
+  if (!OWNER_EMAIL) {
+    throw new Error('CARDFORGE_PIPELINE_OWNER_EMAIL is required.');
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });

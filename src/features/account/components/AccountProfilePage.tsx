@@ -37,7 +37,7 @@ import {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from '@/features/project/lib/projectDocument';
-import { readProjectAssetListFromStorage } from '@/features/project/lib/projectLocalAssets';
+import { getProjectAssetStorage, readProjectAssetListFromStorage } from '@/features/project/lib/projectLocalAssets';
 import { getAccountAccessActions } from '@/features/account/lib/accountAccessActions';
 import { buildForgeTitle, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 
@@ -211,16 +211,23 @@ export function AccountProfilePage({
   }, []);
 
   useEffect(() => {
-    const readLocalAssets = () => {
+    const readLocalAssets = async () => {
+      const storage = getProjectAssetStorage();
+      const [textures, dividers, icons, images] = await Promise.all([
+        readProjectAssetListFromStorage(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+        readProjectAssetListFromStorage(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+        readProjectAssetListFromStorage(storage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+        readProjectAssetListFromStorage(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+      ]);
       setLocalAssetSummary({
-        textures: readProjectAssetListFromStorage(window.localStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY).length,
-        dividers: readProjectAssetListFromStorage(window.localStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY).length,
-        icons: readProjectAssetListFromStorage(window.localStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY).length,
-        images: readProjectAssetListFromStorage(window.localStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY).length,
+        textures: textures.length,
+        dividers: dividers.length,
+        icons: icons.length,
+        images: images.length,
       });
     };
 
-    readLocalAssets();
+    void readLocalAssets();
     window.addEventListener('storage', readLocalAssets);
     window.addEventListener('focus', readLocalAssets);
 

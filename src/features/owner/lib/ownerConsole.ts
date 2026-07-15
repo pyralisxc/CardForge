@@ -117,8 +117,8 @@ export interface OwnerConsolePayload {
 }
 
 export const DEFAULT_OWNER_SETTINGS: OwnerSettings = {
-  businessName: 'CardForge Studio',
-  ownerName: 'Cameron Locke',
+  businessName: 'Neon Black Interactive LLC',
+  ownerName: 'CardForge Support',
   supportEmail: 'pyraliscameron@gmail.com',
   supportPhone: '',
   websiteUrl: 'https://cardforges.com',
@@ -222,15 +222,15 @@ export const DEFAULT_SITE_CONTENT_BLOCKS: SiteContentBlock[] = [
   },
 ];
 
-const privacyBody = `CardForge Studio is a local-first card creation tool. Card projects, imported data, generated previews, personal uploads, and export settings are designed to stay in your browser storage or downloaded project files unless you choose to submit something to the platform or CardForge introduces an explicit cloud save feature.
+const privacyBody = `CardForge is operated by Neon Black Interactive LLC and is designed as a local-first card creation tool. Card projects, imported data, generated previews, personal uploads, and export settings stay in browser database storage or downloaded project files unless you choose to submit something to the platform or CardForge introduces an explicit cloud save feature.
 
-We use account and infrastructure providers to identify signed-in users, unlock access, run the site, protect owner/developer tools, process future payments, and store shared platform records. Those records may include account identifiers, email addresses, optional first and last names, entitlement status, Founder Beta claims, roadmap votes, feature suggestions, developer profiles, developer submissions, developer votes, asset registry records, legal documents, and owner settings.
+We use account and infrastructure providers to identify signed-in users, unlock access, run the site, protect owner/developer tools, process payments, prevent abuse, and store shared platform records. Those records may include account identifiers, email addresses, optional first and last names, entitlement status, billing-event records, Founder Beta claims, roadmap votes, feature suggestions, developer profiles, developer submissions, developer votes, asset registry records, contact requests, legal documents, and owner settings.
 
 Developer submissions, public source files, and published library assets are intentionally shared with the review pipeline and may become visible to other users. Do not upload confidential files, private client work, or content you do not have permission to share.
 
 CardForge does not sell user project files. We do not intentionally collect information from children under 13. If you need privacy support, contact the support email listed on this site.`;
 
-const termsBody = `CardForge Studio lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access. You are responsible for the content, artwork, data, trademarks, and intellectual property you bring into the tool.
+const termsBody = `CardForge is a service operated by Neon Black Interactive LLC. It lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access. You are responsible for the content, artwork, data, trademarks, and intellectual property you bring into the tool.
 
 You keep ownership of the content you create. By using CardForge, you grant CardForge the limited permission needed to operate the service, render previews, process exports, preserve local/project state, and, when you submit assets to the developer pipeline, review, display, publish, archive, and maintain those submitted assets as part of the shared library.
 
@@ -238,9 +238,9 @@ The product is in active beta. Features, pricing, access levels, export behavior
 
 CardForge is a creative production tool, not a print vendor or legal clearance service. Always proof exports, keep your own backups, and confirm printer/manufacturer requirements before production.`;
 
-const refundBody = `CardForge is currently operating as an early beta. Founder Beta access, free demo seats, paid access, subscriptions, checkout behavior, and refund rules may differ by launch phase and will be shown before public self-serve billing is enabled.
+const refundBody = `CardForge is operated by Neon Black Interactive LLC and is currently in public beta. Self-service subscription billing and the customer billing portal are active when offered on the access page.
 
-When paid billing is active, cancellation and refund requests should be sent to the support email listed on this site and may also depend on the payment provider's records. Downloaded digital files, export access that has already been used, and time-limited beta passes may have limited refund availability unless required by law or approved by CardForge support.
+Use the account billing portal to manage or cancel an active subscription. Refund requests should be sent to the support email listed on this site and are reviewed using the payment record, product-access history, the circumstances of the request, and applicable law. Nothing in this policy limits rights that cannot legally be limited.
 
 If you have a billing, cancellation, or export-access issue, contact support with the account email, transaction reference if available, and a short description of the issue.`;
 

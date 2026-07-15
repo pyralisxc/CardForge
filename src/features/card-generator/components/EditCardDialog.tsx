@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAppStore } from '@/store/appStore';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
+import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
 
 interface EditCardDialogProps {
   isOpen: boolean;
@@ -61,11 +62,29 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     // Dependency: `card` prop from global store, and `generateFieldsAndData` (memoized).
   }, [card, generateFieldsAndData]);
 
-  const handleImageUpload = useCallback((event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
+  const handleImageUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, fieldKey: string) => {
     const file = event.target.files?.[0];
     const fileRefsLocal = fileInputRefs;
+    if (fileRefsLocal.current[fieldKey]) fileRefsLocal.current[fieldKey]!.value = '';
 
     if (file) {
+      const validation = validateLocalAssetFile(file);
+      if (!validation.ok) {
+        toast({ title: 'Image Not Added', description: validation.message, variant: 'destructive' });
+        return;
+      }
+      let storedFile: File;
+      try {
+        storedFile = await optimizeLocalAssetFile(file);
+        const storageHealth = await getBrowserStorageHealth();
+        if (storageHealth.level === 'critical' || (storageHealth.remainingBytes !== null && storageHealth.remainingBytes < storedFile.size * 1.5)) {
+          toast({ title: 'Browser Storage Almost Full', description: 'Download a project backup and free storage before adding more card artwork.', variant: 'destructive' });
+          return;
+        }
+      } catch (error) {
+        toast({ title: 'Image Not Added', description: error instanceof Error ? error.message : 'Unable to validate the image.', variant: 'destructive' });
+        return;
+      }
       // File reading is an async side effect, correctly handled here.
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -76,10 +95,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
       reader.onerror = () => {
         toast({ title: "Error", description: "Failed to read image file.", variant: "destructive" });
       };
-      reader.readAsDataURL(file);
-    }
-    if (fileRefsLocal.current[fieldKey]) { 
-      fileRefsLocal.current[fieldKey]!.value = ""; 
+      reader.readAsDataURL(storedFile);
     }
   }, [toast]);
 

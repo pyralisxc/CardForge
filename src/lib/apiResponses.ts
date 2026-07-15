@@ -24,6 +24,7 @@ export type ApiErrorCode =
   | 'invalid_template_payload'
   | 'library_writes_disabled'
   | 'payload_too_large'
+  | 'rate_limited'
   | 'owner_access_required'
   | 'owner_console_unavailable'
   | 'owner_request_invalid'

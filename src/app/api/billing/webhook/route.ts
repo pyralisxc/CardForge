@@ -8,6 +8,7 @@ import {
   shouldRevokeAccessForStripeSubscriptionStatus,
 } from '@/features/billing/lib/billing';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+import { beginBillingEvent, finishBillingEvent } from '@/features/billing/lib/billingEventStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,30 @@ const getStripeObjectId = (value: string | { id: string } | null): string | null
 
 const getCheckoutSessionUserId = (session: Stripe.Checkout.Session): string | null =>
   session.client_reference_id ?? session.metadata?.clerkUserId ?? null;
+
+const getBillingEventContext = (event: Stripe.Event) => {
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    return {
+      customerId: getStripeObjectId(session.customer),
+      subscriptionId: getStripeObjectId(session.subscription),
+      clerkUserId: getCheckoutSessionUserId(session),
+    };
+  }
+  if (
+    event.type === 'customer.subscription.created'
+    || event.type === 'customer.subscription.updated'
+    || event.type === 'customer.subscription.deleted'
+  ) {
+    const subscription = event.data.object as Stripe.Subscription;
+    return {
+      customerId: getStripeObjectId(subscription.customer),
+      subscriptionId: subscription.id,
+      clerkUserId: subscription.metadata?.clerkUserId ?? null,
+    };
+  }
+  return { customerId: null, subscriptionId: null, clerkUserId: null };
+};
 
 const updateUserPrivateMetadata = async (
   userId: string,
@@ -35,11 +60,11 @@ const grantCheckoutSessionAccess = async (session: Stripe.Checkout.Session) => {
   const userId = getCheckoutSessionUserId(session);
   if (!userId) {
     console.warn('Stripe checkout session completed without Clerk user metadata:', session.id);
-    return;
+    return 'unchanged' as const;
   }
 
-  if (session.mode !== 'subscription') return;
-  if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') return;
+  if (session.mode !== 'subscription') return 'unchanged' as const;
+  if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') return 'unchanged' as const;
 
   await updateUserPrivateMetadata(userId, (existingMetadata) => buildStripePaidAccessMetadata({
     existingMetadata,
@@ -47,13 +72,14 @@ const grantCheckoutSessionAccess = async (session: Stripe.Checkout.Session) => {
     stripeSubscriptionId: getStripeObjectId(session.subscription),
     stripeCheckoutSessionId: session.id,
   }));
+  return 'paid' as const;
 };
 
 const syncSubscriptionAccess = async (subscription: Stripe.Subscription) => {
   const userId = subscription.metadata?.clerkUserId ?? null;
   if (!userId) {
     console.warn('Stripe subscription event without Clerk user metadata:', subscription.id);
-    return;
+    return 'unchanged' as const;
   }
 
   if (shouldGrantAccessForStripeSubscriptionStatus(subscription.status)) {
@@ -62,26 +88,26 @@ const syncSubscriptionAccess = async (subscription: Stripe.Subscription) => {
       stripeCustomerId: getStripeObjectId(subscription.customer),
       stripeSubscriptionId: subscription.id,
     }));
-    return;
+    return 'paid' as const;
   }
 
   if (shouldRevokeAccessForStripeSubscriptionStatus(subscription.status)) {
     await updateUserPrivateMetadata(userId, buildStripeRevokedAccessMetadata);
+    return 'free' as const;
   }
+  return 'unchanged' as const;
 };
 
-const handleStripeEvent = async (event: Stripe.Event) => {
+const handleStripeEvent = async (event: Stripe.Event): Promise<'paid' | 'free' | 'unchanged'> => {
   switch (event.type) {
     case 'checkout.session.completed':
-      await grantCheckoutSessionAccess(event.data.object as Stripe.Checkout.Session);
-      break;
+      return grantCheckoutSessionAccess(event.data.object as Stripe.Checkout.Session);
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
-      await syncSubscriptionAccess(event.data.object as Stripe.Subscription);
-      break;
+      return syncSubscriptionAccess(event.data.object as Stripe.Subscription);
     default:
-      break;
+      return 'unchanged';
   }
 };
 
@@ -113,8 +139,36 @@ export async function POST(request: Request) {
   }
 
   try {
-    await handleStripeEvent(event);
-    return createNoStoreJsonResponse({ received: true });
+    const context = getBillingEventContext(event);
+    const decision = await beginBillingEvent({
+      eventId: event.id,
+      eventCreated: event.created,
+      eventType: event.type,
+      ...context,
+    });
+    if (decision === 'pending') {
+      throw new Error('A prior delivery of this Stripe event is still processing.');
+    }
+    if (decision === 'duplicate' || decision === 'stale') {
+      return createNoStoreJsonResponse({ received: true, decision });
+    }
+
+    try {
+      const resultingEntitlement = await handleStripeEvent(event);
+      await finishBillingEvent({
+        eventId: event.id,
+        status: 'processed',
+        resultingEntitlement,
+      });
+      return createNoStoreJsonResponse({ received: true, decision, resultingEntitlement });
+    } catch (processingError) {
+      await finishBillingEvent({
+        eventId: event.id,
+        status: 'failed',
+        failureMessage: processingError instanceof Error ? processingError.message : 'Unknown processing failure',
+      });
+      throw processingError;
+    }
   } catch (error) {
     console.error('Failed to process Stripe webhook:', error);
     return createApiErrorResponse(500, 'billing_webhook_invalid', 'Unable to process Stripe webhook.');

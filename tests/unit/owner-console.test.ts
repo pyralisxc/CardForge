@@ -45,13 +45,13 @@ describe('owner console data rules', () => {
     expect(normalizeOwnerSettingsInput({
       businessName: '  Card Forge LLC  ',
       ownerName: '  Cameron Locke ',
-      supportEmail: '  Cameron.R.Locke96@gmail.com ',
+      supportEmail: '  pyraliscameron@gmail.com ',
       supportPhone: '  555-0100 ',
       websiteUrl: '  https://cardforge.example ',
     })).toEqual({
       businessName: 'Card Forge LLC',
       ownerName: 'Cameron Locke',
-      supportEmail: 'Cameron.R.Locke96@gmail.com',
+      supportEmail: 'pyraliscameron@gmail.com',
       supportPhone: '555-0100',
       websiteUrl: 'https://cardforge.example',
     });

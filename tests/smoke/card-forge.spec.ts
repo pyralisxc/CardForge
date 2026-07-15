@@ -75,6 +75,14 @@ async function expectGeneratorReady(page: Page) {
   await expect(createOutputButton).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 }
 
+function createFrontTemplateButton(page: Page) {
+  return page.getByRole('button', { name: 'Create new front template', exact: true });
+}
+
+function visibleCardPreviews(page: Page) {
+  return page.locator('.tcg-card-preview:visible');
+}
+
 async function visibleFreeformPreviewElementCount(page: Page) {
   return page.locator('.tcg-card-preview [data-freeform-element-id]').evaluateAll((elements) => (
     elements.filter((element) => {
@@ -160,7 +168,7 @@ test('renders developer recruitment page for visitors without exposing the opera
   await expect(page.getByText(/Approved developers get a private asset hub/i)).toBeVisible();
   await expect(page.getByRole('tab', { name: /Asset Hub/i })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /Developer Asset Hub/i })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Sign in first|Request developer access/i }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Clerk setup incomplete|Sign in first|Request developer access/i }).first()).toBeVisible();
 });
 
 test('renders account profile with studio access and export status', async ({ page }) => {
@@ -290,7 +298,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
   await expectGeneratorReady(page);
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible({ timeout: 45_000 });
 
-  await page.locator('.tcg-card-preview').first().hover();
+  await visibleCardPreviews(page).first().hover();
   const exportButton = page.getByRole('button', { name: 'Export Image', exact: true });
   await expect(exportButton).toBeEnabled();
 
@@ -310,7 +318,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await selectMainTab(page, /Layout Studio/i);
   await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole('button', { name: 'Create new template', exact: true }).click();
+  await createFrontTemplateButton(page).click();
   await page.getByRole('tab', { name: 'Template', exact: true }).click();
   await page.getByLabel('Template Name').fill('Smoke Freeform Template');
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
@@ -377,9 +385,9 @@ test('keeps an unsaved layout draft when visiting the generator before saving', 
   await gotoStudio(page);
 
   await selectMainTab(page, /Layout Studio/i);
-  await expect(page.getByRole('button', { name: 'Create new template', exact: true })).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
+  await expect(createFrontTemplateButton(page)).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 
-  await page.getByRole('button', { name: 'Create new template', exact: true }).click();
+  await createFrontTemplateButton(page).click();
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
@@ -399,9 +407,9 @@ test('adds structured row columns in the layout studio text inspector', async ({
   await gotoStudio(page);
 
   await selectMainTab(page, /Layout Studio/i);
-  await expect(page.getByRole('button', { name: 'Create new template', exact: true })).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
+  await expect(createFrontTemplateButton(page)).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 
-  await page.getByRole('button', { name: 'Create new template', exact: true }).click();
+  await createFrontTemplateButton(page).click();
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
 
@@ -547,7 +555,8 @@ test('supports a 1000-card generated gallery without rendering every preview at 
   });
   expect(firstViewportMaxCardsPerRow).toBeGreaterThanOrEqual(3);
 
-  const firstVisibleCardText = await page.locator('.tcg-card-preview').first().innerText();
+  const virtualRows = page.getByTestId('generated-gallery-scroll').locator('[data-index]');
+  const firstRenderedRowIndex = await virtualRows.first().getAttribute('data-index');
   await page.getByTestId('generated-gallery-scroll').evaluate((element) => {
     element.scrollTop = element.scrollHeight;
     element.dispatchEvent(new Event('scroll', { bubbles: true }));
@@ -555,7 +564,7 @@ test('supports a 1000-card generated gallery without rendering every preview at 
 
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeGreaterThan(0);
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeLessThanOrEqual(70);
-  await expect.poll(async () => page.locator('.tcg-card-preview').first().innerText()).not.toBe(firstVisibleCardText);
+  await expect.poll(async () => virtualRows.first().getAttribute('data-index')).not.toBe(firstRenderedRowIndex);
 });
 
 test('supports keyboard-first generation and strict mode toggle', async ({ page }) => {
@@ -574,7 +583,7 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await page.keyboard.press('Enter');
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
-  await page.locator('.tcg-card-preview').first().hover();
+  await visibleCardPreviews(page).first().hover();
   await page.getByRole('button', { name: /Remove generated output 1/i }).click();
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(0\)/i })).toBeVisible();
@@ -595,7 +604,7 @@ test('supports keyboard save shortcut in template creator', async ({ page }) => 
   await selectMainTab(page, /Layout Studio/i);
   await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole('button', { name: 'Create new template', exact: true }).click();
+  await createFrontTemplateButton(page).click();
   await page.getByRole('tab', { name: 'Template', exact: true }).click();
   await page.getByLabel('Template Name').fill('Keyboard Save Template');
 

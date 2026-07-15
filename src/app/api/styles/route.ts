@@ -17,7 +17,8 @@ import {
 } from '@/features/developer-assets/lib/registryContentAssets';
 
 const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
-const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL || 'cameron.r.locke96@gmail.com';
+const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
+const PIPELINE_CONTRIBUTOR_NAME = PIPELINE_OWNER_EMAIL || 'CardForge Studio';
 
 const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
   if (!value || typeof value !== 'object') return false;
@@ -32,6 +33,9 @@ const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
 const syncStylePresetToRegistry = async (style: AppearanceStylePreset) => {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error('The Forge Pipeline database is not configured.');
+  if (!PIPELINE_OWNER_EMAIL) {
+    throw new Error('CARDFORGE_PIPELINE_OWNER_EMAIL is required for shipped-library writes.');
+  }
 
   const { data: ownerProfiles } = await supabase
     .from('cardforge_developer_profiles')
@@ -136,7 +140,7 @@ const readStylesFromDirectory = async (directory: string): Promise<AppearanceSty
           librarySource: 'official',
           accessTier: 'free',
           registryStatus: 'published',
-          contributorName: PIPELINE_OWNER_EMAIL,
+          contributorName: PIPELINE_CONTRIBUTOR_NAME,
         });
       }
     } catch (error) {
@@ -180,7 +184,7 @@ const readStylesFromRegistry = async (): Promise<AppearanceStylePreset[]> => {
       librarySource: row.library_source === 'developer' ? 'developer' as const : 'official' as const,
       accessTier: row.access_tier,
       registryStatus: row.status,
-      contributorName: style.contributorName || PIPELINE_OWNER_EMAIL,
+      contributorName: style.contributorName || PIPELINE_CONTRIBUTOR_NAME,
     };
   }));
 
