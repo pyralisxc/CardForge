@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildBillingReconciliationDescription,
   DEFAULT_LEGAL_DOCUMENTS,
   DEFAULT_FOUNDER_BETA_CAMPAIGN,
   DEFAULT_OWNER_SETTINGS,
@@ -15,6 +16,18 @@ import {
 } from '@/features/owner/lib/ownerConsole';
 
 describe('owner console data rules', () => {
+  it('shows every live billing reconciliation proof in the owner notification', () => {
+    expect(buildBillingReconciliationDescription({
+      checked: 1,
+      repaired: 0,
+      unchanged: 1,
+      missingClerkUser: 0,
+      ledgerCreated: 1,
+      missingLedger: 0,
+      hasMore: false,
+    })).toBe('1 subscription checked; 1 ledger baseline created; 0 entitlements repaired; 1 unchanged; 0 missing Clerk users; 0 subscriptions missing ledger coverage.');
+  });
+
   it('ships with required legal documents', () => {
     expect(DEFAULT_LEGAL_DOCUMENTS.map((document) => document.slug)).toEqual([
       'privacy',
