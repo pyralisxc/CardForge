@@ -109,6 +109,7 @@ import {
 
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
+  showCardWatermark: boolean;
   onSaveTemplate: (template: TCGCardTemplate) => string;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
@@ -152,6 +153,7 @@ interface TouchGestureState {
 
 export function CardTemplateMaker({
   canUseProjectFiles,
+  showCardWatermark,
   onSaveTemplate,
   templates,
   defaultTemplates,
@@ -1209,6 +1211,7 @@ export function CardTemplateMaker({
               <div className="space-y-3 p-2">
                 <TemplateLibraryPanel
                   canUseProjectFiles={canUseProjectFiles}
+                  showCardWatermark={showCardWatermark}
                   currentTemplate={currentTemplate}
                   currentTemplateId={currentTemplate.id}
                   defaultTemplates={defaultTemplates}
@@ -1292,6 +1295,7 @@ export function CardTemplateMaker({
             livePreviewData={livePreviewData}
             previewMode={previewMode}
             selectedElement={selectedElement}
+            showCardWatermark={showCardWatermark}
             showGrid={showGrid}
             stageRef={stageRef}
             zoom={zoom}

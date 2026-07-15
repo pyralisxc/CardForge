@@ -4,6 +4,7 @@ import type { CSSProperties, DragEvent, KeyboardEvent, PointerEvent, ReactNode, 
 import { MousePointer2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
+import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
 import type { CardData, FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
 import {
   CANVAS_GUTTER,
@@ -78,6 +79,7 @@ interface TemplateCanvasStageProps {
   livePreviewData: CardData;
   previewMode: boolean;
   selectedElement: FreeformCardElement | null;
+  showCardWatermark: boolean;
   showGrid: boolean;
   stageRef: { current: HTMLDivElement | null };
   zoom: number;
@@ -104,6 +106,7 @@ export function TemplateCanvasStage({
   livePreviewData,
   previewMode,
   selectedElement,
+  showCardWatermark,
   showGrid,
   stageRef,
   zoom,
@@ -247,6 +250,7 @@ export function TemplateCanvasStage({
             ) : (
               [...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)
             )}
+            {showCardWatermark ? <CardWatermarkOverlay testId="template-editor-watermark" /> : null}
           </div>
         </div>
       </div>

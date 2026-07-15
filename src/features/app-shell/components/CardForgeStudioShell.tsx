@@ -29,6 +29,7 @@ import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLi
 import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
 import { useCardZipExportActions } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { useGeneratedOutputActions } from '@/features/card-generator/hooks/useGeneratedOutputActions';
+import { shouldShowVisibleCardWatermark } from '@/features/card-generator/lib/cardWatermarkPolicy';
 import { useTemplateLibraryActions } from '@/features/template-library/hooks/useTemplateLibraryActions';
 import { canUploadCustomLocalAssets } from '@/features/project/lib/projectLocalAssets';
 
@@ -103,6 +104,7 @@ export function CardForgeStudioShell() {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
   const projectCapabilities = accountEntitlement.capabilities;
+  const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
   const exportEntitlementCopy = accountEntitlement.copy;
   const exportGateMessage = accountEntitlement.copy.gateMessage;
   const exportEntitlementLabel = accountEntitlement.authConfigured
@@ -405,6 +407,7 @@ export function CardForgeStudioShell() {
           <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" className="data-[state=inactive]:hidden">
             <CardTemplateMaker
               canUseProjectFiles={projectCapabilities.canExportClean}
+              showCardWatermark={showVisibleCardWatermark}
               isActive={effectiveActiveTab === 'template-maker'}
               onSaveTemplate={handleSaveTemplate}
               templates={templatesFromStore}
