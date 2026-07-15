@@ -1,6 +1,62 @@
 import { getBillingConfigStatus, type BillingConfigStatus } from '@/features/billing/lib/billing';
 
-type StripeObjectRef = string | { id?: string } | null | undefined;
+type StripeObjectRef = string | {
+  id?: string;
+  email?: string | null;
+  deleted?: boolean | void;
+} | null | undefined;
+
+export const DEFAULT_BILLING_HISTORY_LIMIT = 500;
+export const MAX_BILLING_HISTORY_LIMIT = 500;
+export const BILLING_HISTORY_RETENTION_DAYS = 30;
+
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export const normalizeBillingHistoryLimit = (value: unknown): number => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_BILLING_HISTORY_LIMIT;
+  return Math.min(MAX_BILLING_HISTORY_LIMIT, Math.max(1, Math.trunc(parsed)));
+};
+
+export const getEffectiveBillingHistoryStart = ({
+  now,
+  clearedBefore,
+}: {
+  now: Date;
+  clearedBefore: string | null;
+}): string => {
+  const retentionStart = now.getTime() - (BILLING_HISTORY_RETENTION_DAYS * MILLISECONDS_PER_DAY);
+  const clearedBeforeTime = clearedBefore ? Date.parse(clearedBefore) : Number.NaN;
+  return new Date(Math.max(
+    retentionStart,
+    Number.isFinite(clearedBeforeTime) ? clearedBeforeTime : retentionStart,
+  )).toISOString();
+};
+
+export interface OwnerBillingHistorySettings {
+  limit: number;
+  retentionDays: typeof BILLING_HISTORY_RETENTION_DAYS;
+  clearedBefore: string | null;
+  effectiveStart: string;
+}
+
+export const buildOwnerBillingHistorySettings = ({
+  limit,
+  clearedBefore,
+  now = new Date(),
+}: {
+  limit?: unknown;
+  clearedBefore?: string | null;
+  now?: Date;
+} = {}): OwnerBillingHistorySettings => ({
+  limit: normalizeBillingHistoryLimit(limit),
+  retentionDays: BILLING_HISTORY_RETENTION_DAYS,
+  clearedBefore: clearedBefore ?? null,
+  effectiveStart: getEffectiveBillingHistoryStart({
+    now,
+    clearedBefore: clearedBefore ?? null,
+  }),
+});
 
 export interface OwnerCheckoutSessionSummary {
   id: string;
@@ -19,7 +75,9 @@ export interface OwnerCheckoutSessionSummary {
 export interface OwnerSubscriptionSummary {
   id: string;
   customerId: string | null;
+  customerEmail: string | null;
   clerkUserId: string | null;
+  mappingStatus: 'connected' | 'stale' | 'missing' | 'unverified';
   status: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
@@ -33,6 +91,7 @@ export interface OwnerBillingSnapshot {
   status: BillingConfigStatus;
   recentCheckoutSessions: OwnerCheckoutSessionSummary[];
   recentSubscriptions: OwnerSubscriptionSummary[];
+  historySettings: OwnerBillingHistorySettings;
 }
 
 const getObjectId = (value: StripeObjectRef): string | null => {
@@ -40,6 +99,12 @@ const getObjectId = (value: StripeObjectRef): string | null => {
   if (typeof value === 'string') return value;
   return typeof value.id === 'string' ? value.id : null;
 };
+
+const getCustomerEmail = (value: StripeObjectRef): string | null => (
+  value && typeof value !== 'string' && value.deleted !== true
+    ? value.email ?? null
+    : null
+);
 
 const toIsoFromSeconds = (value: unknown): string | null =>
   typeof value === 'number' && Number.isFinite(value)
@@ -81,6 +146,7 @@ export const mapStripeSubscriptionSummary = (subscription: {
   metadata?: Record<string, string | null> | null;
   items?: {
     data?: Array<{
+      current_period_end?: number;
       price?: {
         id?: string;
         unit_amount?: number | null;
@@ -89,14 +155,25 @@ export const mapStripeSubscriptionSummary = (subscription: {
       } | null;
     }>;
   };
-}): OwnerSubscriptionSummary => {
+}, existingClerkUserIds?: ReadonlySet<string>): OwnerSubscriptionSummary => {
   const price = subscription.items?.data?.[0]?.price ?? null;
+  const clerkUserId = subscription.metadata?.clerkUserId ?? null;
   return {
     id: subscription.id,
     customerId: getObjectId(subscription.customer),
-    clerkUserId: subscription.metadata?.clerkUserId ?? null,
+    customerEmail: getCustomerEmail(subscription.customer),
+    clerkUserId,
+    mappingStatus: !clerkUserId
+      ? 'missing'
+      : existingClerkUserIds === undefined
+        ? 'unverified'
+        : existingClerkUserIds.has(clerkUserId)
+          ? 'connected'
+          : 'stale',
     status: subscription.status ?? null,
-    currentPeriodEnd: toIsoFromSeconds(subscription.current_period_end),
+    currentPeriodEnd: toIsoFromSeconds(
+      subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end,
+    ),
     cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
     priceId: price?.id ?? null,
     amountCents: price?.unit_amount ?? null,
@@ -109,12 +186,105 @@ export const buildOwnerBillingSnapshot = ({
   config = getBillingConfigStatus(),
   checkoutSessions,
   subscriptions,
+  historySettings = buildOwnerBillingHistorySettings(),
+  existingClerkUserIds,
 }: {
   config?: BillingConfigStatus;
   checkoutSessions: Parameters<typeof mapStripeCheckoutSessionSummary>[0][];
   subscriptions: Parameters<typeof mapStripeSubscriptionSummary>[0][];
+  historySettings?: OwnerBillingHistorySettings;
+  existingClerkUserIds?: ReadonlySet<string>;
 }): OwnerBillingSnapshot => ({
   status: config,
   recentCheckoutSessions: checkoutSessions.map(mapStripeCheckoutSessionSummary),
-  recentSubscriptions: subscriptions.map(mapStripeSubscriptionSummary),
+  recentSubscriptions: subscriptions.map((subscription) => (
+    mapStripeSubscriptionSummary(subscription, existingClerkUserIds)
+  )),
+  historySettings,
 });
+
+type StripeCheckoutSessionInput = Parameters<typeof mapStripeCheckoutSessionSummary>[0];
+
+interface StripeCheckoutHistoryClient {
+  checkout: {
+    sessions: {
+      list: (params: {
+        created: { gte: number };
+        limit: number;
+        starting_after?: string;
+      }) => Promise<{
+        data: StripeCheckoutSessionInput[];
+        has_more: boolean;
+      }>;
+    };
+  };
+}
+
+export const listStripeCheckoutHistory = async ({
+  stripe,
+  createdGte,
+  limit,
+}: {
+  stripe: StripeCheckoutHistoryClient;
+  createdGte: number;
+  limit: number;
+}): Promise<StripeCheckoutSessionInput[]> => {
+  const cappedLimit = normalizeBillingHistoryLimit(limit);
+  const sessions: StripeCheckoutSessionInput[] = [];
+  let startingAfter: string | undefined;
+
+  while (sessions.length < cappedLimit) {
+    const pageLimit = Math.min(100, cappedLimit - sessions.length);
+    const page = await stripe.checkout.sessions.list({
+      created: { gte: createdGte },
+      limit: pageLimit,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+    sessions.push(...page.data.slice(0, pageLimit));
+    if (!page.has_more || page.data.length === 0) break;
+    startingAfter = page.data.at(-1)?.id;
+    if (!startingAfter) break;
+  }
+
+  return sessions;
+};
+
+type StripeSubscriptionInput = Parameters<typeof mapStripeSubscriptionSummary>[0];
+
+interface StripeSubscriptionListClient {
+  subscriptions: {
+    list: (params: {
+      status: 'all';
+      limit: 100;
+      expand: ['data.customer'];
+      starting_after?: string;
+    }) => Promise<{
+      data: StripeSubscriptionInput[];
+      has_more: boolean;
+    }>;
+  };
+}
+
+export const listStripeSubscriptions = async ({
+  stripe,
+}: {
+  stripe: StripeSubscriptionListClient;
+}): Promise<StripeSubscriptionInput[]> => {
+  const subscriptions: StripeSubscriptionInput[] = [];
+  let startingAfter: string | undefined;
+
+  for (;;) {
+    const page = await stripe.subscriptions.list({
+      status: 'all',
+      limit: 100,
+      expand: ['data.customer'],
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+    subscriptions.push(...page.data);
+    if (!page.has_more || page.data.length === 0) break;
+    startingAfter = page.data.at(-1)?.id;
+    if (!startingAfter) break;
+  }
+
+  return subscriptions;
+};

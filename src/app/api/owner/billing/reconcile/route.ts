@@ -10,7 +10,11 @@ import {
 import {
   buildMissingBillingSubscriptionBaselines,
   establishBillingSubscriptionBaselines,
+  findExactClerkUserByEmail,
+  getStripeCustomerEmail,
   isClerkUserNotFoundError,
+  persistBillingSubscriptionClerkMapping,
+  repairStripeSubscriptionClerkMapping,
 } from '@/features/billing/lib/billingReconciliation';
 import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
@@ -42,7 +46,12 @@ export async function POST() {
     const subscriptions: Stripe.Subscription[] = [];
     let startingAfter: string | undefined;
     for (;;) {
-      const page = await stripe.subscriptions.list({ status: 'all', limit: 100, starting_after: startingAfter });
+      const page = await stripe.subscriptions.list({
+        status: 'all',
+        limit: 100,
+        starting_after: startingAfter,
+        expand: ['data.customer'],
+      });
       subscriptions.push(...page.data);
       if (!page.has_more || page.data.length === 0) break;
       startingAfter = page.data.at(-1)?.id;
@@ -83,22 +92,54 @@ export async function POST() {
     let repaired = 0;
     let unchanged = 0;
     let missingClerkUser = 0;
+    let mappingRepaired = 0;
+    let needsCustomerSignIn = 0;
+    let ambiguousClerkUsers = 0;
     for (const subscription of subscriptions) {
-      const userId = subscription.metadata?.clerkUserId;
-      if (!userId) {
-        missingClerkUser += 1;
-        continue;
-      }
+      let userId = subscription.metadata?.clerkUserId;
       let user;
-      try {
-        user = await clerk.users.getUser(userId);
-      } catch (error) {
-        if (isClerkUserNotFoundError(error)) {
+      let shouldRepairMapping = false;
+      if (userId) {
+        try {
+          user = await clerk.users.getUser(userId);
+        } catch (error) {
+          if (!isClerkUserNotFoundError(error)) throw error;
+        }
+      }
+
+      if (!user) {
+        if (!shouldGrantAccessForStripeSubscriptionStatus(subscription.status)) {
           missingClerkUser += 1;
           continue;
         }
-        throw error;
+        const customerEmail = await getStripeCustomerEmail({
+          customer: subscription.customer,
+          retrieve: (customerId) => stripe.customers.retrieve(customerId),
+        });
+        if (!customerEmail) {
+          missingClerkUser += 1;
+          needsCustomerSignIn += 1;
+          continue;
+        }
+        const match = await findExactClerkUserByEmail({
+          clerk,
+          email: customerEmail,
+        });
+        if (match.kind === 'missing') {
+          missingClerkUser += 1;
+          needsCustomerSignIn += 1;
+          continue;
+        }
+        if (match.kind === 'ambiguous') {
+          missingClerkUser += 1;
+          ambiguousClerkUsers += 1;
+          continue;
+        }
+        userId = match.user.id;
+        user = await clerk.users.getUser(userId);
+        shouldRepairMapping = subscription.metadata?.clerkUserId !== userId;
       }
+
       const existingMetadata = user.privateMetadata ?? {};
       let nextMetadata: Record<string, unknown> | null = null;
       if (shouldGrantAccessForStripeSubscriptionStatus(subscription.status)) {
@@ -120,7 +161,22 @@ export async function POST() {
       if (nextMetadata) {
         await clerk.users.updateUserMetadata(userId, { privateMetadata: nextMetadata });
         repaired += 1;
-      } else {
+      }
+
+      if (shouldRepairMapping) {
+        await repairStripeSubscriptionClerkMapping({
+          stripe,
+          subscription,
+          clerkUserId: userId,
+        });
+        await persistBillingSubscriptionClerkMapping({
+          client: supabase as unknown as Parameters<typeof persistBillingSubscriptionClerkMapping>[0]['client'],
+          subscriptionId: subscription.id,
+          clerkUserId: userId,
+          updatedAt: new Date(),
+        });
+        mappingRepaired += 1;
+      } else if (!nextMetadata) {
         unchanged += 1;
       }
     }
@@ -130,6 +186,9 @@ export async function POST() {
       repaired,
       unchanged,
       missingClerkUser,
+      mappingRepaired,
+      needsCustomerSignIn,
+      ambiguousClerkUsers,
       ledgerCreated,
       missingLedger: subscriptionIds.filter((id) => !ledgerSubscriptionIds.has(id)).length,
       hasMore: false,

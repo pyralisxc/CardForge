@@ -10,8 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/components/OwnerDeveloperProgramPanel';
+import { OwnerBillingPanel } from '@/features/owner/components/OwnerBillingPanel';
 import type {
-  BillingReconciliationResult,
   LegalDocumentSlug,
   FounderBetaCampaign,
   FounderBetaClaim,
@@ -26,7 +26,6 @@ import type {
   SiteMechanicsSettings,
 } from '@/features/owner/lib/ownerConsole';
 import {
-  buildBillingReconciliationDescription,
   DEFAULT_LEGAL_DOCUMENTS,
   DEFAULT_SITE_CONTENT_BLOCKS,
 } from '@/features/owner/lib/ownerConsole';
@@ -66,35 +65,6 @@ interface OwnerConsoleResponse {
     links: Array<{ label: string; href: string }>;
   };
   console: OwnerConsolePayload;
-}
-
-interface OwnerBillingSnapshot {
-  status: {
-    checkoutConfigured: boolean;
-    webhookConfigured: boolean;
-    missing: string[];
-  };
-  recentCheckoutSessions: Array<{
-    id: string;
-    customerEmail: string | null;
-    clerkUserId: string | null;
-    paymentStatus: string | null;
-    status: string | null;
-    amountTotalCents: number | null;
-    currency: string | null;
-    createdAt: string | null;
-    subscriptionId: string | null;
-  }>;
-  recentSubscriptions: Array<{
-    id: string;
-    clerkUserId: string | null;
-    status: string | null;
-    currentPeriodEnd: string | null;
-    cancelAtPeriodEnd: boolean;
-    amountCents: number | null;
-    currency: string | null;
-    interval: string | null;
-  }>;
 }
 
 interface OwnerManagedAccount {
@@ -204,14 +174,6 @@ function CompactStatusTile({ label, value, ready = true }: { label: string; valu
   );
 }
 
-const formatMoney = (cents: number | null, currency: string | null): string => {
-  if (typeof cents !== 'number' || !currency) return 'n/a';
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(cents / 100);
-};
-
 const formatDateTime = (value: string | null): string => {
   if (!value) return 'n/a';
   const date = new Date(value);
@@ -276,10 +238,6 @@ export function OwnerConsolePage() {
   const [roadmapItems, setRoadmapItems] = useState<OwnerRoadmapItem[]>([]);
   const [databaseMetrics, setDatabaseMetrics] = useState<OwnerDatabaseMetrics | null>(null);
   const [contactRequests, setContactRequests] = useState<OwnerContactRequest[]>([]);
-  const [billingSnapshot, setBillingSnapshot] = useState<OwnerBillingSnapshot | null>(null);
-  const [billingError, setBillingError] = useState<string | null>(null);
-  const [isLoadingBilling, setIsLoadingBilling] = useState(false);
-  const [isReconcilingBilling, setIsReconcilingBilling] = useState(false);
   const [accountSearchEmail, setAccountSearchEmail] = useState('');
   const [managedAccount, setManagedAccount] = useState<OwnerManagedAccount | null>(null);
   const [managedAccountDraft, setManagedAccountDraft] = useState({ access: 'free' as OwnerManagedAccount['access'], owner: false, note: '' });
@@ -334,42 +292,6 @@ export function OwnerConsolePage() {
     setLegalDrafts(Object.fromEntries(consolePayload.legalDocuments.map((document) => [document.slug, document])) as Record<LegalDocumentSlug, LegalDocument>);
   }, []);
 
-  const loadBillingSummary = useCallback(async () => {
-    setIsLoadingBilling(true);
-    setBillingError(null);
-    try {
-      const response = await fetch('/api/owner/billing/summary', { cache: 'no-store' });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to load billing summary.'));
-      setBillingSnapshot(await response.json() as OwnerBillingSnapshot);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load billing summary.';
-      setBillingError(message);
-    } finally {
-      setIsLoadingBilling(false);
-    }
-  }, []);
-
-  const reconcileBilling = useCallback(async () => {
-    setIsReconcilingBilling(true);
-    setBillingError(null);
-    try {
-      const response = await fetch('/api/owner/billing/reconcile', { method: 'POST' });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to reconcile billing.'));
-      const result = await response.json() as BillingReconciliationResult;
-      toast({
-        title: 'Billing reconciled',
-        description: buildBillingReconciliationDescription(result),
-      });
-      await loadBillingSummary();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to reconcile billing.';
-      setBillingError(message);
-      toast({ title: 'Billing reconciliation failed', description: message, variant: 'destructive' });
-    } finally {
-      setIsReconcilingBilling(false);
-    }
-  }, [loadBillingSummary, toast]);
-
   useEffect(() => {
     let mounted = true;
     const slowLoadTimer = window.setTimeout(() => {
@@ -408,10 +330,6 @@ export function OwnerConsolePage() {
       window.clearTimeout(slowLoadTimer);
     };
   }, [reloadToken, syncConsoleState, toast]);
-
-  useEffect(() => {
-    if (payload?.ownerAccess.isOwner) void loadBillingSummary();
-  }, [loadBillingSummary, payload?.ownerAccess.isOwner]);
 
   const sendTestEmail = async () => {
     setIsSendingTestEmail(true);
@@ -706,10 +624,6 @@ export function OwnerConsolePage() {
                   <Mail className="mr-2 h-4 w-4" />
                   Test email
                 </Button>
-                <Button type="button" size="sm" variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d]" onClick={loadBillingSummary}>
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Refresh billing
-                </Button>
                 <Button asChild size="sm" variant="outline" className="border-[#3c2c1b] bg-[#100c08] text-[#d9c28f] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
                   <a href={payload.integrationStatus.site.sitemapUrl} target="_blank" rel="noreferrer">Sitemap <ExternalLink className="h-4 w-4" /></a>
                 </Button>
@@ -880,73 +794,7 @@ export function OwnerConsolePage() {
                     </div>
                   </section>
 
-                  <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <div className="flex items-center gap-3 text-[#e2aa4a]">
-                          <CreditCard className="h-5 w-5" />
-                          <h2 className="font-serif text-2xl text-[#fff1c7]">Billing snapshot</h2>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button onClick={reconcileBilling} disabled={isReconcilingBilling || isLoadingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          {isReconcilingBilling ? 'Reconciling...' : 'Reconcile'}
-                        </Button>
-                        <Button onClick={loadBillingSummary} disabled={isLoadingBilling || isReconcilingBilling} variant="outline" className="border-[#755632] bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                          <Rocket className="mr-2 h-4 w-4" />
-                          {isLoadingBilling ? 'Refreshing...' : 'Refresh'}
-                        </Button>
-                      </div>
-                    </div>
-                    {billingError ? (
-                      <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">{billingError}</p>
-                    ) : null}
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                      <MetricTile label="Checkout" value={billingSnapshot?.status.checkoutConfigured ? 'Ready' : 'Needs setup'} />
-                      <MetricTile label="Webhook" value={billingSnapshot?.status.webhookConfigured ? 'Ready' : 'Needs setup'} />
-                      <MetricTile label="Stripe subscriptions" value={String(billingSnapshot?.recentSubscriptions.length ?? 0)} />
-                    </div>
-                    <div className="mt-5 border border-[#4a3823] bg-[#100c08] p-4">
-                      <p className="text-sm font-semibold text-[#ffe7ad]">Recent checkout attempts</p>
-                      <p className="mt-1 text-xs leading-5 text-[#a98a55]">These rows are Stripe Checkout sessions, not separate customer accounts or active subscriptions. Repeated or abandoned attempts can appear more than once.</p>
-                    </div>
-                    <div className="mt-3 space-y-3">
-                      {(billingSnapshot?.recentCheckoutSessions ?? []).slice(0, 5).map((session) => (
-                        <article key={session.id} className="border border-[#4a3823] bg-[#100c08] p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-[#ffe7ad]">{formatMoney(session.amountTotalCents, session.currency)}</p>
-                            <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Checkout {session.paymentStatus ?? session.status ?? 'unknown'}</span>
-                          </div>
-                          <p className="mt-2 text-sm text-[#d9c28f]">{session.customerEmail ?? session.clerkUserId ?? session.id}</p>
-                          <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription created'}</p>
-                        </article>
-                      ))}
-                      {billingSnapshot && billingSnapshot.recentCheckoutSessions.length === 0 ? (
-                        <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">No recent Stripe checkout sessions found.</p>
-                      ) : null}
-                    </div>
-                    <div className="mt-6 border border-[#6d4f2b] bg-[#1a1209] p-4">
-                      <p className="text-sm font-semibold text-[#ffe7ad]">Actual Stripe subscriptions</p>
-                      <p className="mt-1 text-xs leading-5 text-[#a98a55]">Only these rows represent subscription records. Clerk mapping shows the production user ID currently stored in Stripe metadata.</p>
-                    </div>
-                    <div className="mt-3 space-y-3">
-                      {(billingSnapshot?.recentSubscriptions ?? []).map((subscription) => (
-                        <article key={subscription.id} className="border border-[#6d4f2b] bg-[#100c08] p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-[#ffe7ad]">{formatMoney(subscription.amountCents, subscription.currency)}{subscription.interval ? ` / ${subscription.interval}` : ''}</p>
-                            <span className="text-xs uppercase tracking-[0.16em] text-[#d8b365]">Subscription {subscription.status ?? 'unknown'}</span>
-                          </div>
-                          <p className="mt-2 break-all text-xs text-[#d9c28f]">{subscription.id}</p>
-                          <p className="mt-2 break-all text-xs text-[#a98a55]">Clerk mapping: {subscription.clerkUserId ?? 'Missing'}</p>
-                          <p className="mt-2 text-xs text-[#8f7b57]">Period end: {formatDateTime(subscription.currentPeriodEnd)}{subscription.cancelAtPeriodEnd ? ' / Cancels at period end' : ''}</p>
-                        </article>
-                      ))}
-                      {billingSnapshot && billingSnapshot.recentSubscriptions.length === 0 ? (
-                        <p className="border border-[#4a3823] bg-[#100c08] p-4 text-sm text-[#c7b288]">No Stripe subscriptions found.</p>
-                      ) : null}
-                    </div>
-                  </section>
+                  <OwnerBillingPanel />
 
                   <section className="border border-[#6d4f2b] bg-[#15100a] p-6 xl:col-span-2">
                     <div className="flex items-center gap-3 text-[#e2aa4a]">
