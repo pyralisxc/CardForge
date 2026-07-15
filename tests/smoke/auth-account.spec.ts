@@ -354,10 +354,56 @@ async function cleanupCreatedUsers() {
 
 test.beforeAll(async () => {
   await setupAuthTestEnvironment();
+  if (process.env.CARDFORGE_E2E_REQUIRE_AUTH === 'true' && authSetupError) {
+    throw new Error(`Authenticated smoke setup failed: ${authSetupError}`);
+  }
 });
 
 test.afterAll(async () => {
   await cleanupCreatedUsers();
+});
+
+test('signed-out production auth opens Clerk without client bootstrap failures', async ({ page }) => {
+  test.setTimeout(120_000);
+  test.skip(Boolean(authSetupError), authSetupError ?? 'Unable to prepare Clerk testing token.');
+  test.skip(!process.env.CLERK_SECRET_KEY, 'CLERK_SECRET_KEY is required for authenticated smoke tests.');
+  test.skip(!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required for authenticated smoke tests.');
+
+  const failedClerkBootstrapRequests: Array<{ url: string; status: number }> = [];
+  const clerkConsoleErrors: string[] = [];
+  page.on('response', (response) => {
+    const url = new URL(response.url());
+    const isBootstrapRequest = url.pathname.endsWith('/v1/client')
+      || url.pathname.endsWith('/v1/environment');
+    if (isBootstrapRequest && response.status() >= 400) {
+      failedClerkBootstrapRequests.push({ url: response.url(), status: response.status() });
+    }
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error' && /clerk/i.test(message.text())) {
+      clerkConsoleErrors.push(message.text());
+    }
+  });
+
+  await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+  await clerk.loaded({ page });
+  const signInButton = page.locator('header').getByRole('button', { name: 'Sign in', exact: true });
+  await expect(signInButton).toBeVisible({ timeout: 45_000 });
+  await signInButton.click();
+  await expect(page.locator('.cl-modalContent')).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator([
+    '.cl-socialButtonsBlockButton',
+    'input[name="identifier"]',
+    'input[type="email"]',
+  ].join(', ')).first()).toBeVisible({ timeout: 45_000 });
+  await page.waitForTimeout(1_000);
+
+  await test.info().attach('clerk-browser-diagnostics', {
+    body: JSON.stringify({ failedClerkBootstrapRequests, clerkConsoleErrors }, null, 2),
+    contentType: 'application/json',
+  });
+  expect(failedClerkBootstrapRequests).toEqual([]);
+  expect(clerkConsoleErrors).toEqual([]);
 });
 
 test('reusable QA account matrix exposes the correct account, developer, and owner surfaces', async ({ page }) => {

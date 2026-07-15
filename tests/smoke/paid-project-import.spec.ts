@@ -43,6 +43,9 @@ test.beforeAll(async () => {
   } catch (error) {
     authSetupError = error instanceof Error ? error.message : 'Unable to prepare Clerk testing token.';
   }
+  if (process.env.CARDFORGE_E2E_REQUIRE_AUTH === 'true' && authSetupError) {
+    throw new Error(`Authenticated smoke setup failed: ${authSetupError}`);
+  }
 });
 
 test.afterEach(async () => {

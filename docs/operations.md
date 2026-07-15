@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: July 14, 2026
+Last updated: July 15, 2026
 
 This is the current live-operations checklist for CardForge.
 
@@ -96,9 +96,46 @@ Secrets stay in Vercel/provider dashboards. The owner console should show readin
 
 - Pull requests must pass CI and public smoke checks before merge.
 - Authenticated provider smoke uses protected environment secrets and must never run for untrusted fork code.
-- `main` should require a pull request, one approval, required checks, and blocked force pushes.
+- `main` should require a pull request, required checks, resolved review threads, and blocked force pushes.
 - Vercel build success alone is not a release-health verdict.
 - Production route health runs every six hours; GitHub owns failure notification and Vercel runtime error groups remain the primary server-error aggregation view.
+
+### Solo-maintainer branch rule
+
+While `@pyralisxc` is the only code owner, required approval count remains zero because a pull-request author cannot approve their own change. Require the `verify` and `public-smoke` checks now. Raise required approvals to one when a second trusted reviewer is added, or review this exception by August 15, 2026.
+
+## Authenticated production smoke
+
+Run **Actions → Authenticated smoke → Run workflow** against `main` after auth, billing, provider-domain, or entitlement changes. The workflow fails before browser installation unless all protected values exist:
+
+- reusable free, paid, developer, and owner QA account emails;
+- production Clerk publishable and secret keys; and
+- production Supabase URL and service-role key.
+
+A valid run must pass the signed-out Clerk modal check, the reusable account/entitlement matrix, developer and owner lifecycle coverage, and paid project export/import restoration. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable.
+
+## Clerk production verification
+
+Use a signed-out Chrome window on `https://cardforges.com`:
+
+1. Open DevTools Network and filter for `client` or `environment`.
+2. Click **Sign in** in the public header and confirm the modal becomes interactive rather than remaining on **Connecting**.
+3. Complete sign-in and confirm the header and Account page refresh to the signed-in user.
+4. Sign out and confirm the public header returns to **Sign in**.
+5. Confirm no Clerk `/v1/client` or `/v1/environment` request returned HTTP 400 or greater.
+
+Production must expose a `pk_live_` publishable key and load Clerk through the verified `clerk.cardforges.com` domain. Never record the complete key in an issue, log, or screenshot.
+
+## Billing reconciliation and duplicate proof
+
+Use the configured owner QA account on `/owner`:
+
+1. Open **Operations**, refresh billing, and select **Reconcile billing**.
+2. Record `checked`, `repaired`, `unchanged`, `missingClerkUser`, `ledgerCreated`, and `missingLedger` from the response or owner notification.
+3. Require `missingLedger` to be zero for every Stripe subscription. Investigate any `missingClerkUser` before changing entitlement manually.
+4. Confirm the existing customer shows the same subscription ID and access state in Stripe, Clerk private metadata, Supabase, and the owner console.
+
+Then open **Stripe Workbench → Webhooks**, choose the CardForge destination for `https://cardforges.com/api/billing/webhook`, and select a recent `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, or `checkout.session.completed` event. Click **Resend** and confirm HTTP 200. Resend the same event once more and confirm the endpoint returns the durable `duplicate` decision, Supabase contains one event row, and Clerk entitlement is unchanged. Stripe permits Dashboard resend for events up to 15 days old; do not change a live subscription merely to manufacture an event.
 
 ## Verification Commands
 
