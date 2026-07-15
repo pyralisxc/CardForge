@@ -301,7 +301,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
   const previewWatermark = page.getByTestId('generated-card-watermark').first();
   await expect(previewWatermark).toBeVisible();
   await expect(previewWatermark).toHaveAttribute('src', '/brand/cardforge-studio/watermark.svg');
-  await expect(previewWatermark).toHaveCSS('opacity', '0.2');
+  await expect(previewWatermark).toHaveCSS('opacity', '0.24');
 
   await visibleCardPreviews(page).first().hover();
   const exportButton = page.getByRole('button', { name: 'Export Image', exact: true });
@@ -320,7 +320,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
   const editorWatermark = page.getByTestId('template-editor-watermark');
   await expect(editorWatermark).toBeVisible();
   await expect(editorWatermark).toHaveAttribute('src', '/brand/cardforge-studio/watermark.svg');
-  await expect(editorWatermark).toHaveCSS('opacity', '0.2');
+  await expect(editorWatermark).toHaveCSS('opacity', '0.24');
   await expect(page.getByTestId('template-library-watermark').first()).toBeVisible();
 
   const canvas = page.locator('[data-cardforge-canvas="true"]');
