@@ -354,6 +354,9 @@ async function cleanupCreatedUsers() {
 
 test.beforeAll(async () => {
   await setupAuthTestEnvironment();
+  if (process.env.CARDFORGE_E2E_REQUIRE_AUTH === 'true' && authSetupError) {
+    throw new Error(`Authenticated smoke setup failed: ${authSetupError}`);
+  }
 });
 
 test.afterAll(async () => {

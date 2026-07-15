@@ -35,6 +35,7 @@ describe('repository security defaults', () => {
     ];
 
     expect(workflow).toContain('Verify required protected secrets');
+    expect(workflow).toContain('CARDFORGE_E2E_REQUIRE_AUTH: "true"');
     expect(workflow).toContain('Missing required protected secrets');
     for (const secret of requiredSecrets) {
       expect(workflow).toContain(secret);
