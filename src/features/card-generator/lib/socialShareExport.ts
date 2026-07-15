@@ -1,4 +1,9 @@
 import type { DisplayCard } from '@/types';
+import {
+  CARD_WATERMARK_URL,
+  GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT,
+  SOCIAL_SHARE_WATERMARK_OPACITY,
+} from '@/features/card-generator/lib/cardWatermarkPolicy';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { renderCardToCanvas } from '@/lib/cardPreviewExport';
 
@@ -9,7 +14,7 @@ export const SOCIAL_SHARE_PRESETS = {
 } as const;
 
 export type SocialSharePreset = keyof typeof SOCIAL_SHARE_PRESETS;
-export const SOCIAL_SHARE_WATERMARK_URL = '/brand/cardforge-studio/watermark.svg';
+export const SOCIAL_SHARE_WATERMARK_URL = CARD_WATERMARK_URL;
 
 export const getSocialShareLayout = ({
   preset,
@@ -23,13 +28,13 @@ export const getSocialShareLayout = ({
   const output = SOCIAL_SHARE_PRESETS[preset];
   const horizontalMargin = 92;
   const topMargin = preset === 'story' ? 150 : 72;
-  const footerSpace = 150;
+  const bottomMargin = topMargin;
   const maxWidth = output.width - horizontalMargin * 2;
-  const maxHeight = output.height - topMargin - footerSpace;
+  const maxHeight = output.height - topMargin - bottomMargin;
   const scale = Math.min(maxWidth / cardWidth, maxHeight / cardHeight);
   const renderedCardWidth = Math.round(cardWidth * scale);
   const renderedCardHeight = Math.round(cardHeight * scale);
-  const contentHeight = output.height - topMargin - footerSpace;
+  const contentHeight = output.height - topMargin - bottomMargin;
 
   return {
     ...output,
@@ -37,8 +42,22 @@ export const getSocialShareLayout = ({
     cardY: Math.round(topMargin + (contentHeight - renderedCardHeight) / 2),
     cardWidth: renderedCardWidth,
     cardHeight: renderedCardHeight,
-    footerY: output.height - 86,
     watermarkUrl: SOCIAL_SHARE_WATERMARK_URL,
+  };
+};
+
+export type SocialShareLayout = ReturnType<typeof getSocialShareLayout>;
+
+export const getSocialShareWatermarkPlacement = (layout: SocialShareLayout) => {
+  const width = Math.round(layout.cardWidth * GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT / 100);
+  const height = Math.round(width * 260 / 1000);
+
+  return {
+    x: Math.round(layout.cardX + (layout.cardWidth - width) / 2),
+    y: Math.round(layout.cardY + (layout.cardHeight - height) / 2),
+    width,
+    height,
+    opacity: SOCIAL_SHARE_WATERMARK_OPACITY,
   };
 };
 
@@ -97,15 +116,16 @@ export const renderSocialShareImage = async ({
   context.lineWidth = 2;
   context.strokeRect(38, 38, layout.width - 76, layout.height - 76);
   const watermark = await loadImage(layout.watermarkUrl);
-  const watermarkWidth = 360;
-  const watermarkHeight = Math.round(watermarkWidth * 260 / 1000);
-  const watermarkX = Math.round((layout.width - watermarkWidth) / 2);
-  const watermarkY = Math.round(layout.footerY - watermarkHeight / 2);
-  context.fillStyle = 'rgba(246, 243, 234, 0.9)';
-  context.fillRect(watermarkX - 18, watermarkY - 8, watermarkWidth + 36, watermarkHeight + 16);
+  const watermarkPlacement = getSocialShareWatermarkPlacement(layout);
   context.save();
-  context.globalAlpha = 0.32;
-  context.drawImage(watermark, watermarkX, watermarkY, watermarkWidth, watermarkHeight);
+  context.globalAlpha = watermarkPlacement.opacity;
+  context.drawImage(
+    watermark,
+    watermarkPlacement.x,
+    watermarkPlacement.y,
+    watermarkPlacement.width,
+    watermarkPlacement.height,
+  );
   context.restore();
 
   return canvasToBlob(canvas);

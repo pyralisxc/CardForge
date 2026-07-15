@@ -298,6 +298,11 @@ test('lets free users try clean export and see the export gate', async ({ page }
   await expectGeneratorReady(page);
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible({ timeout: 45_000 });
 
+  const previewWatermark = page.getByTestId('generated-card-watermark').first();
+  await expect(previewWatermark).toBeVisible();
+  await expect(previewWatermark).toHaveAttribute('src', '/brand/cardforge-studio/watermark.svg');
+  await expect(previewWatermark).toHaveCSS('opacity', '0.2');
+
   await visibleCardPreviews(page).first().hover();
   const exportButton = page.getByRole('button', { name: 'Export Image', exact: true });
   await expect(exportButton).toBeEnabled();
