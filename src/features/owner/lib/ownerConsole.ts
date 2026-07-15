@@ -371,6 +371,24 @@ export const reconcileFounderBetaCampaignCopy = (campaign: FounderBetaCampaign):
   };
 };
 
+export interface BillingReconciliationResult {
+  checked: number;
+  repaired: number;
+  unchanged: number;
+  missingClerkUser: number;
+  ledgerCreated: number;
+  missingLedger: number;
+  hasMore: boolean;
+}
+
+export const buildBillingReconciliationDescription = (
+  result: BillingReconciliationResult,
+): string => {
+  const subscriptionLabel = result.checked === 1 ? 'subscription' : 'subscriptions';
+  const baselineLabel = result.ledgerCreated === 1 ? 'baseline' : 'baselines';
+  return `${result.checked} ${subscriptionLabel} checked; ${result.ledgerCreated} ledger ${baselineLabel} created; ${result.repaired} entitlements repaired; ${result.unchanged} unchanged; ${result.missingClerkUser} missing Clerk users; ${result.missingLedger} subscriptions missing ledger coverage.${result.hasMore ? ' Additional Stripe pages remain; run reconciliation again.' : ''}`;
+};
+
 export const normalizeOwnerRoadmapStatusInput = (value: unknown): OwnerRoadmapItem['status'] | null =>
   value === 'planned'
   || value === 'in_progress'

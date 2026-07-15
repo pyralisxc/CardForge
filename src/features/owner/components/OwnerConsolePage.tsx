@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/components/OwnerDeveloperProgramPanel';
 import type {
+  BillingReconciliationResult,
   LegalDocumentSlug,
   FounderBetaCampaign,
   FounderBetaClaim,
@@ -24,7 +25,11 @@ import type {
   SiteContentBlockSlug,
   SiteMechanicsSettings,
 } from '@/features/owner/lib/ownerConsole';
-import { DEFAULT_LEGAL_DOCUMENTS, DEFAULT_SITE_CONTENT_BLOCKS } from '@/features/owner/lib/ownerConsole';
+import {
+  buildBillingReconciliationDescription,
+  DEFAULT_LEGAL_DOCUMENTS,
+  DEFAULT_SITE_CONTENT_BLOCKS,
+} from '@/features/owner/lib/ownerConsole';
 
 interface OwnerConsoleResponse {
   ownerAccess: {
@@ -350,10 +355,10 @@ export function OwnerConsolePage() {
     try {
       const response = await fetch('/api/owner/billing/reconcile', { method: 'POST' });
       if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to reconcile billing.'));
-      const result = await response.json() as { checked: number; repaired: number; missingLedger: number; hasMore: boolean };
+      const result = await response.json() as BillingReconciliationResult;
       toast({
         title: 'Billing reconciled',
-        description: `${result.checked} subscriptions checked; ${result.repaired} account entitlements repaired; ${result.missingLedger} pre-ledger subscriptions identified.${result.hasMore ? ' Run again after reviewing the first 100 subscriptions.' : ''}`,
+        description: buildBillingReconciliationDescription(result),
       });
       await loadBillingSummary();
     } catch (error) {
