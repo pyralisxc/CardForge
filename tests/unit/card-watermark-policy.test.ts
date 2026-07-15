@@ -19,9 +19,9 @@ describe('card watermark policy', () => {
 
   it('uses the approved transparent mark and visual treatment', () => {
     expect(CARD_WATERMARK_URL).toBe('/brand/cardforge-studio/watermark.svg');
-    expect(GENERATED_PREVIEW_WATERMARK_OPACITY).toBe(0.2);
+    expect(GENERATED_PREVIEW_WATERMARK_OPACITY).toBe(0.24);
     expect(GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT).toBe(68);
-    expect(SOCIAL_SHARE_WATERMARK_OPACITY).toBe(0.24);
+    expect(SOCIAL_SHARE_WATERMARK_OPACITY).toBe(0.28);
   });
 
   it('keeps entitlement branding out of the shared clean card renderer', () => {
