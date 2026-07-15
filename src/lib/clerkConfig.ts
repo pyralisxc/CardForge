@@ -4,6 +4,22 @@ export const isClerkPublicConfigPresent = (): boolean =>
 export const isClerkServerConfigPresent = (): boolean =>
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
 
+export type PublicAuthControlState = 'unconfigured' | 'connecting' | 'signed-out' | 'signed-in';
+
+export const getPublicAuthControlState = ({
+  authConfigured,
+  isLoaded,
+  isSignedIn,
+}: {
+  authConfigured: boolean;
+  isLoaded: boolean;
+  isSignedIn: boolean;
+}): PublicAuthControlState => {
+  if (!authConfigured) return 'unconfigured';
+  if (!isLoaded) return 'connecting';
+  return isSignedIn ? 'signed-in' : 'signed-out';
+};
+
 const CLERK_PAGE_PREFIXES = [
   '/account',
   '/profile',

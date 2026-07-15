@@ -7,6 +7,7 @@ import { PAPER_SIZES, TABS_CONFIG, TCG_ASPECT_RATIO } from '@/lib/constants';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { createDefaultFreeformCanvas, reconstructFreeformCanvas, reconstructMinimalTemplateObject } from '@/lib/templateModel';
 import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/store/selectors';
+import { createMigratingBrowserStorage } from '@/features/project/lib/browserStorage';
 
 
 const dedupeAppearanceStyles = (styles: AppearanceStylePreset[]): AppearanceStylePreset[] => {
@@ -530,7 +531,11 @@ export const useAppStore = create<AppState>()(
       }),
       {
         name: 'card-forge-app-storage-v3',
-        storage: createJSONStorage(() => localStorage),
+        storage: createJSONStorage(() => createMigratingBrowserStorage(
+          'workspace-state',
+          typeof window !== 'undefined' ? localStorage : undefined,
+          { keepRecoverySnapshot: true, suppressWriteErrors: true },
+        )),
         partialize: (state) => ({
           userTemplates: state.userTemplates,
           appearanceStyles: dedupeAppearanceStyles(state.appearanceStyles),

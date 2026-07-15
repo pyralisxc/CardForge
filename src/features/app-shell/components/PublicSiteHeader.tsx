@@ -2,9 +2,10 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Hammer } from 'lucide-react';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
+import { PublicAuthControls } from '@/features/account/components/PublicAuthControls';
 
 type HeaderVariant = 'hero' | 'solid';
 
@@ -42,6 +43,7 @@ export function PublicSiteHeader({
     ...(showOwnerLink ? [{ href: '/owner', label: 'Owner' } as const] : []),
   ];
   const isHero = variant === 'hero';
+  const resolvedRightSlot = rightSlot ?? <PublicAuthControls />;
 
   return (
     <header className={isHero ? 'relative z-10' : 'border-b border-[#5f4526] bg-[#120e09]'}>
@@ -58,7 +60,14 @@ export function PublicSiteHeader({
               ? 'h-10 w-10 bg-[#140f0a]/80 shadow-[0_0_28px_rgba(242,149,48,0.18)]'
               : 'h-9 w-9'
           }`}>
-            <Hammer className={isHero ? 'h-5 w-5' : 'h-4 w-4'} />
+            <Image
+              src="/brand/cardforge-studio/brand-mark.svg"
+              alt=""
+              width={24}
+              height={32}
+              priority={isHero}
+              className={isHero ? 'h-8 w-auto' : 'h-7 w-auto'}
+            />
           </span>
           <span className="truncate font-serif text-xl font-semibold tracking-wide">{title}</span>
         </Link>
@@ -89,9 +98,9 @@ export function PublicSiteHeader({
           </Button>
         ) : null}
 
-        {rightSlot ? (
-          <div className={showStudioCta ? '' : 'ml-auto'}>
-            {rightSlot}
+        {resolvedRightSlot ? (
+          <div className={showStudioCta ? 'ml-auto md:ml-0' : 'ml-auto'}>
+            {resolvedRightSlot}
           </div>
         ) : null}
       </div>

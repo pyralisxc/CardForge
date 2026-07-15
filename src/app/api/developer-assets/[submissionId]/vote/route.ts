@@ -7,6 +7,7 @@ import {
   voteOnDeveloperAssetSubmission,
 } from '@/features/developer-assets/lib/developerAssetStore';
 import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
+import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,16 @@ export async function POST(
 
     if (entitlement.accessMode !== 'dev' && !ownerAccess.isOwner) {
       return createApiErrorResponse(403, 'developer_access_required', 'Developer access is required to vote on asset submissions.');
+    }
+
+    const rateLimit = await consumeRateLimit({
+      action: 'developer-vote',
+      identity: user.id,
+      limit: 120,
+      windowSeconds: 3600,
+    });
+    if (!rateLimit.allowed) {
+      return createApiErrorResponse(429, 'rate_limited', 'Too many developer votes. Please try again later.');
     }
 
     const { submissionId } = await params;
@@ -65,6 +76,9 @@ export async function POST(
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    }
+    if (error instanceof RateLimitUnavailableError) {
+      return createApiErrorResponse(503, 'developer_asset_unavailable', error.message);
     }
     if (error instanceof DeveloperAssetStoreError) {
       return createApiErrorResponse(

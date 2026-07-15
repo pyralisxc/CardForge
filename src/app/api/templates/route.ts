@@ -18,7 +18,8 @@ import {
 
 const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
 const USER_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'user-templates');
-const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL || 'cameron.r.locke96@gmail.com';
+const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
+const PIPELINE_CONTRIBUTOR_NAME = PIPELINE_OWNER_EMAIL || 'CardForge Studio';
 type TemplateWithRequiredIdentity = TCGCardTemplate & { id: string; name: string; aspectRatio: string };
 
 const ensureTemplateDirectory = async () => {
@@ -84,7 +85,7 @@ const readTemplatesFromDirectory = async (
           templateLibrarySource: templateSource === 'default' ? 'base' : 'personal',
           templateAccessTier: templateSource === 'default' ? 'free' : undefined,
           templateRegistryStatus: templateSource === 'default' ? 'published' : 'localOnly',
-          templateContributorName: templateSource === 'default' ? PIPELINE_OWNER_EMAIL : undefined,
+          templateContributorName: templateSource === 'default' ? PIPELINE_CONTRIBUTOR_NAME : undefined,
         });
       }
     } catch (error) {
@@ -122,7 +123,7 @@ const readTemplatesFromRegistry = async (): Promise<TCGCardTemplate[]> => {
       templateLibrarySource: 'pipeline' as const,
       templateAccessTier: row.access_tier,
       templateRegistryStatus: row.status,
-      templateContributorName: template.templateContributorName || PIPELINE_OWNER_EMAIL,
+      templateContributorName: template.templateContributorName || PIPELINE_CONTRIBUTOR_NAME,
     });
   }));
 
@@ -163,6 +164,9 @@ const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
 
   const supabase = getSupabaseServerClient();
   if (!supabase) return;
+  if (!PIPELINE_OWNER_EMAIL) {
+    throw new Error('CARDFORGE_PIPELINE_OWNER_EMAIL is required for shipped-library writes.');
+  }
   const { data: ownerProfiles } = await supabase
     .from('cardforge_developer_profiles')
     .select('clerk_user_id,email')

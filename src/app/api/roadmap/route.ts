@@ -5,6 +5,7 @@ import { resolveWithTimeout } from '@/lib/asyncTimeout';
 import { resolveOwnerAccess } from '@/lib/ownerAccess';
 import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/account/lib/roadmapStore';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 const CLERK_READ_TIMEOUT_MS = 3000;
@@ -35,6 +36,16 @@ export async function POST(request: Request) {
         'sign_in_required',
         'Sign in before suggesting a feature.'
       );
+    }
+
+    const rateLimit = await consumeRateLimit({
+      action: 'roadmap-create',
+      identity: user.id,
+      limit: 10,
+      windowSeconds: 3600,
+    });
+    if (!rateLimit.allowed) {
+      return createApiErrorResponse(429, 'rate_limited', 'Too many roadmap submissions. Please try again later.');
     }
 
     const body = await request.json() as {
@@ -100,6 +111,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    }
+    if (error instanceof RateLimitUnavailableError) {
+      return createApiErrorResponse(503, 'roadmap_database_unavailable', error.message);
     }
     if (error instanceof RoadmapStoreError) {
       return createApiErrorResponse(

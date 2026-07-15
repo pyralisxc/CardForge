@@ -14,7 +14,7 @@ CardForge is a live service app with local development, not a purely local app. 
 - Code health: use focused unit tests, `tsc --noEmit`, and `next build` as appropriate.
 - Public UI: localhost is acceptable for pages and components that do not depend on real signed-in provider state.
 - Auth/provider flows: verify on `https://cardforges.com` in the correct browser profile, because Clerk, Stripe, Resend, Supabase, Vercel, domains, and cookies are live service concerns.
-- Owner/admin flows must be verified in the Chrome profile signed into CardForge as `cameron.r.locke96@gmail.com`.
+- Owner/admin flows must be verified in the Chrome profile signed into CardForge as the configured owner QA account.
 - Do not use raw HTTP requests to judge signed-in behavior. They do not carry the browser session and can produce misleading failures.
 - Do not chase local Clerk, Stripe, Resend, Supabase, or browser-profile failures unless the task is specifically local-provider setup.
 - If a verification path fails because the method is invalid for the target, stop and report the mismatch instead of trying unrelated tools.

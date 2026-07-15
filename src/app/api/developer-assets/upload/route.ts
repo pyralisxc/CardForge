@@ -5,6 +5,7 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResp
 import { isDeveloperAssetType, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
 import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
+import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,15 @@ export async function POST(request: Request) {
   try {
     const access = await getDeveloperAccess();
     if (!access.ok) return access.response;
+    const rateLimit = await consumeRateLimit({
+      action: 'developer-upload',
+      identity: access.user.id,
+      limit: 30,
+      windowSeconds: 3600,
+    });
+    if (!rateLimit.allowed) {
+      return createApiErrorResponse(429, 'rate_limited', 'Too many developer uploads. Please try again later.');
+    }
 
     const supabase = getSupabaseServerClient();
     if (!supabase) {
@@ -139,6 +149,9 @@ export async function POST(request: Request) {
       fileName: file.name,
     }, { status: 201 });
   } catch (error) {
+    if (error instanceof RateLimitUnavailableError) {
+      return createApiErrorResponse(503, 'developer_asset_unavailable', error.message);
+    }
     console.error('Failed to handle developer asset upload:', error);
     return createApiErrorResponse(
       500,

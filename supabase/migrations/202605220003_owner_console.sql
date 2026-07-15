@@ -2,7 +2,7 @@ create table if not exists public.cardforge_owner_settings (
   id text primary key default 'cardforge',
   business_name text not null default 'CardForge Studio',
   owner_name text not null default 'Cameron Locke',
-  support_email text not null default 'Cameron.r.locke96@gmail.com',
+  support_email text not null default 'pyraliscameron@gmail.com',
   support_phone text not null default '',
   website_url text not null default 'http://localhost:9002',
   max_active_user_roadmap_items integer not null default 50 check (max_active_user_roadmap_items between 1 and 500),
@@ -54,7 +54,7 @@ values (
   'cardforge',
   'CardForge Studio',
   'Cameron Locke',
-  'Cameron.r.locke96@gmail.com',
+  'pyraliscameron@gmail.com',
   '',
   'http://localhost:9002'
 )

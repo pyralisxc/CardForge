@@ -9,14 +9,32 @@ import {
   markContactRequestEmailResult,
   recordContactRequest,
 } from '@/features/owner/lib/ownerConsoleStore';
+import {
+  consumeRateLimit,
+  getRequestClientAddress,
+  RateLimitUnavailableError,
+} from '@/lib/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const normalized = normalizeContactRequestInput(await request.json());
+    const body = await request.json() as Record<string, unknown>;
+    if (typeof body.companyWebsite === 'string' && body.companyWebsite.trim()) {
+      return createNoStoreJsonResponse({ ok: true });
+    }
+    const normalized = normalizeContactRequestInput(body);
     if (!normalized.ok) {
       return createApiErrorResponse(400, 'contact_request_invalid', normalized.message);
+    }
+
+    const clientAddress = getRequestClientAddress(request);
+    const decisions = await Promise.all([
+      consumeRateLimit({ action: 'contact-ip', identity: clientAddress, limit: 5, windowSeconds: 3600 }),
+      consumeRateLimit({ action: 'contact-email', identity: normalized.value.email.toLowerCase(), limit: 10, windowSeconds: 86400 }),
+    ]);
+    if (decisions.some((decision) => !decision.allowed)) {
+      return createApiErrorResponse(429, 'rate_limited', 'Too many contact requests. Please try again later.');
     }
 
     const payload = await getOwnerConsolePayload();
@@ -49,6 +67,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    }
+    if (error instanceof RateLimitUnavailableError) {
+      return createApiErrorResponse(503, 'service_unavailable', error.message);
     }
     console.error('Failed to submit contact request:', error);
     return createApiErrorResponse(500, 'contact_request_failed', 'Unable to submit request.');

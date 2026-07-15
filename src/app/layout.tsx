@@ -5,6 +5,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
 import { getPublicAppUrl } from '@/lib/siteUrl';
+import { BrowserStorageAlerts } from '@/features/project/components/BrowserStorageAlerts';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
@@ -24,6 +25,11 @@ export const metadata: Metadata = {
     'fantasy card template editor',
     'local-first card design studio',
   ],
+  icons: {
+    icon: '/brand/cardforge-studio/favicon.svg',
+    shortcut: '/brand/cardforge-studio/favicon.svg',
+    apple: '/brand/cardforge-studio/favicon.svg',
+  },
   openGraph: {
     title: 'CardForge Studio',
     description: 'Build cards faster, generate complete sets, and help shape the shared CardForge library.',
@@ -55,6 +61,7 @@ export default function RootLayout({
   const app = (
     <>
       {children}
+      <BrowserStorageAlerts />
       <Toaster />
     </>
   );
