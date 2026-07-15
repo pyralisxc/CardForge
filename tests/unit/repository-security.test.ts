@@ -17,4 +17,67 @@ describe('repository security defaults', () => {
       expect(readFileSync(join(process.cwd(), file), 'utf8').toLowerCase()).not.toContain('cameron.r.locke96');
     }
   });
+
+  it('fails authenticated production smoke when protected configuration is incomplete', () => {
+    const workflow = readFileSync(
+      join(process.cwd(), '.github/workflows/authenticated-smoke.yml'),
+      'utf8',
+    );
+    const requiredSecrets = [
+      'CARDFORGE_E2E_FREE_EMAIL',
+      'CARDFORGE_E2E_PAID_EMAIL',
+      'CARDFORGE_E2E_DEV_EMAIL',
+      'CARDFORGE_E2E_OWNER_EMAIL',
+      'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+      'CLERK_SECRET_KEY',
+      'SUPABASE_URL',
+      'SUPABASE_SERVICE_ROLE_KEY',
+    ];
+
+    expect(workflow).toContain('Verify required protected secrets');
+    expect(workflow).toContain('Missing required protected secrets');
+    for (const secret of requiredSecrets) {
+      expect(workflow).toContain(secret);
+    }
+  });
+
+  it('retains reviewable authenticated smoke evidence on success and failure', () => {
+    const workflow = readFileSync(
+      join(process.cwd(), '.github/workflows/authenticated-smoke.yml'),
+      'utf8',
+    );
+
+    expect(workflow).toContain('Upload authenticated smoke evidence');
+    expect(workflow).toContain('if: always()');
+    expect(workflow).toContain('actions/upload-artifact@v4');
+    expect(workflow).toContain('playwright-report');
+    expect(workflow).toContain('test-results');
+  });
+
+  it('keeps routine Dependabot updates below major versions', () => {
+    const dependabot = readFileSync(join(process.cwd(), '.github/dependabot.yml'), 'utf8');
+
+    expect(dependabot).toContain('development-minor-and-patch');
+    expect(dependabot).toContain('production-minors');
+    expect(dependabot).toContain('github-actions-minor-and-patch');
+    expect(dependabot.match(/version-update:semver-major/g)).toHaveLength(2);
+  });
+
+  it('records an explicit status and evidence for every launch risk', () => {
+    const riskRegister = readFileSync(join(process.cwd(), 'docs/risk-register.md'), 'utf8');
+
+    expect(riskRegister).toContain('| Area | Risk | Priority | Status | Evidence / next review |');
+    expect(riskRegister).toContain('Awaiting live verification');
+    expect(riskRegister).toContain('Accepted');
+    expect(riskRegister).toContain('Closed');
+  });
+
+  it('documents the provider-owned launch closure procedure', () => {
+    const operations = readFileSync(join(process.cwd(), 'docs/operations.md'), 'utf8');
+
+    expect(operations).toContain('Authenticated production smoke');
+    expect(operations).toContain('ledgerCreated');
+    expect(operations).toContain('Stripe Workbench');
+    expect(operations).toContain('Solo-maintainer branch rule');
+  });
 });

@@ -5,6 +5,9 @@ const chromiumExecutablePath = process.env.CARDFORGE_E2E_CHROMIUM_EXECUTABLE_PAT
 
 export default defineConfig({
   testDir: './tests/smoke',
+  reporter: process.env.CI
+    ? [['line'], ['html', { open: 'never' }]]
+    : 'list',
   timeout: 30_000,
   expect: {
     timeout: 10_000,

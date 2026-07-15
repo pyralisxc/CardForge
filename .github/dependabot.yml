@@ -6,12 +6,26 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      development-dependencies:
+      development-minor-and-patch:
         dependency-type: development
+        update-types: [minor, patch]
       production-patches:
         dependency-type: production
         update-types: [patch]
+      production-minors:
+        dependency-type: production
+        update-types: [minor]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

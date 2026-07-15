@@ -7,6 +7,10 @@ import {
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
 } from '@/features/billing/lib/billing';
+import {
+  buildMissingBillingSubscriptionBaselines,
+  establishBillingSubscriptionBaselines,
+} from '@/features/billing/lib/billingReconciliation';
 import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
@@ -25,8 +29,13 @@ export async function POST() {
   if (!process.env.STRIPE_SECRET_KEY) {
     return createApiErrorResponse(503, 'billing_not_configured', 'Stripe is not configured.');
   }
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return createApiErrorResponse(503, 'billing_not_configured', 'Billing storage is not configured.');
+  }
 
   try {
+    const reconciledAt = new Date();
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const clerk = await clerkClient();
     const subscriptions: Stripe.Subscription[] = [];
@@ -38,9 +47,9 @@ export async function POST() {
       startingAfter = page.data.at(-1)?.id;
     }
     const subscriptionIds = subscriptions.map((subscription) => subscription.id);
-    const supabase = getSupabaseServerClient();
     const ledgerSubscriptionIds = new Set<string>();
-    if (supabase && subscriptionIds.length > 0) {
+    let ledgerCreated = 0;
+    if (subscriptionIds.length > 0) {
       const { data, error } = await supabase
         .from('cardforge_billing_subscriptions')
         .select('stripe_subscription_id')
@@ -48,6 +57,25 @@ export async function POST() {
       if (error) throw error;
       for (const row of data ?? []) {
         if (typeof row.stripe_subscription_id === 'string') ledgerSubscriptionIds.add(row.stripe_subscription_id);
+      }
+
+      const baselines = buildMissingBillingSubscriptionBaselines({
+        subscriptions,
+        existingSubscriptionIds: ledgerSubscriptionIds,
+        reconciledAt,
+      });
+      if (baselines.length > 0) {
+        await establishBillingSubscriptionBaselines({ client: supabase, rows: baselines });
+
+        const { data: verifiedRows, error: verificationError } = await supabase
+          .from('cardforge_billing_subscriptions')
+          .select('stripe_subscription_id')
+          .in('stripe_subscription_id', subscriptionIds);
+        if (verificationError) throw verificationError;
+        for (const row of verifiedRows ?? []) {
+          if (typeof row.stripe_subscription_id === 'string') ledgerSubscriptionIds.add(row.stripe_subscription_id);
+        }
+        ledgerCreated = baselines.filter((row) => ledgerSubscriptionIds.has(row.stripe_subscription_id)).length;
       }
     }
 
@@ -92,6 +120,7 @@ export async function POST() {
       repaired,
       unchanged,
       missingClerkUser,
+      ledgerCreated,
       missingLedger: subscriptionIds.filter((id) => !ledgerSubscriptionIds.has(id)).length,
       hasMore: false,
     });
