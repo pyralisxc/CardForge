@@ -92,7 +92,7 @@ async function mockFreeAccountEntitlement(page: Page) {
         accessMode: 'free',
         accessExpiresAt: null,
         accountEmail: null,
-        authConfigured: true,
+        authConfigured: false,
         canExportClean: false,
         capabilities: {
           canPreview: true,
@@ -109,7 +109,7 @@ async function mockFreeAccountEntitlement(page: Page) {
         hasStripeCustomer: false,
         isSignedIn: false,
         ownerAccess: { isOwner: false, source: 'none' },
-        source: 'clerk',
+        source: 'environment',
       }),
     });
   });
