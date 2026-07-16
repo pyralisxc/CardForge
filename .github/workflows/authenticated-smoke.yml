@@ -58,6 +58,8 @@ jobs:
             printf '::error::Missing required protected secrets: %s\n' "${missing[*]}"
             exit 1
           fi
+      - name: Ensure reusable Clerk QA accounts
+        run: npm run qa:bootstrap-authenticated-smoke
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/smoke/auth-account.spec.ts tests/smoke/paid-project-import.spec.ts --workers=1
       - name: Upload authenticated smoke evidence

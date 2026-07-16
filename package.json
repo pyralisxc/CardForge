@@ -18,6 +18,7 @@
     "audit:site": "node scripts/audit-site-health.mjs",
     "health:production": "node scripts/check-production-health.mjs",
     "bulk:generate": "node scripts/generate-bulk-csv.mjs",
+    "qa:bootstrap-authenticated-smoke": "node scripts/bootstrap-authenticated-smoke-users.mjs",
     "qa:setup-accounts": "node scripts/setup-qa-accounts.mjs",
     "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs"
   },
