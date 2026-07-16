@@ -277,16 +277,6 @@ export const getExtensionForAssetUrl = (url: string) => {
   return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp', 'json', 'woff2', 'woff', 'ttf', 'otf'].includes(extension) ? extension : 'asset';
 };
 
-export const readStoredCardAssets = (storageKey: string): CardAssetOption[] => {
-  if (typeof window === 'undefined') return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? '[]') as unknown;
-    return Array.isArray(parsed) ? parsed as CardAssetOption[] : [];
-  } catch {
-    return [];
-  }
-};
-
 export const createJsonFile = (payload: unknown, fileName: string) => (
   new File([JSON.stringify(payload, null, 2)], fileName, { type: 'application/json' })
 );

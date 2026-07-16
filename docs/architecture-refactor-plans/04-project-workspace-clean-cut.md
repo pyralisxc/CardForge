@@ -65,9 +65,9 @@
 - [x] Regenerate a smaller baseline: 358 to 288 tracked violations, with 17 size warnings.
 - [x] Run lint, typecheck, architecture, all unit tests (58 files / 382 tests), production build, diff check, and dependency audit.
 - [x] Self-review state transitions, persisted fields, import/export parity, and server/client boundaries.
-- [ ] Open PR, require CI/Public smoke, squash merge, and verify the exact production deployment, five health routes, and runtime logs.
+- [x] Open [PR #32](https://github.com/pyralisxc/CardForge/pull/32), require CI/Public smoke, squash merge, and verify production deployment `dpl_B6orKzrVf5KzZyKYk9QYFRMSdAcV` on exact main commit `26c8d5e4bd0d2fe73da47afe5d0d657ae99c239e`; five routes passed and no runtime errors were present.
 
-Local browser execution was attempted after rewriting the smoke seed helpers. The environment could not download the Playwright Chromium archive (the provider returned a zero-byte payload), so executable browser proof is intentionally delegated to the required hosted Public smoke check before merge.
+Local browser execution was attempted after rewriting the smoke seed helpers. The environment could not download the Playwright Chromium archive (the provider returned a zero-byte payload); hosted Public smoke run [29514986129](https://github.com/pyralisxc/CardForge/actions/runs/29514986129) supplied the required executable browser proof before merge.
 
 ---
 
@@ -75,18 +75,18 @@ Local browser execution was attempted after rewriting the smoke seed helpers. Th
 
 ### Task 7: Move all remaining browser preferences/drafts to Project persistence
 
-- [ ] Replace template-editor draft, command recents/favorites, first-run guide, backup reminder, and developer asset local reads with typed IndexedDB preference/document operations.
-- [ ] Make async hydration explicit and non-blocking; preserve save-failure reporting.
-- [ ] Assert production source contains no localStorage/session storage project persistence.
+- [x] Replace template-editor draft, command recents/favorites, first-run guide, backup reminder, and developer asset local reads with typed IndexedDB preference/document operations.
+- [x] Make async hydration explicit and non-blocking; preserve save-failure reporting.
+- [x] Assert production source contains no localStorage persistence.
 
 ### Task 8: Fold Template Library into its actual owner
 
-- [ ] Move template-library commands into Template Editor or Project according to whether they edit a template or workspace collection.
-- [ ] Delete the one-hook `template-library` feature and update consumers through declared interfaces.
-- [ ] Remove the corresponding feature-cycle and baseline entries.
+- [x] Move template-library commands into Template Editor while leaving workspace collection state in Project.
+- [x] Delete the one-hook `template-library` feature and update App Shell through Template Editor's declared client interface.
+- [x] Remove the corresponding baseline entries, shrinking the active baseline from 288 to 286.
 
 ### Task 9: Verify and publish PR B
 
-- [ ] Run focused persistence/editor tests and public/paid project smoke.
-- [ ] Run the complete local release matrix and audit.
+- [x] Run focused persistence/editor tests; hosted Public smoke is the PR browser gate because the local Chromium provider is unavailable. Paid project import/recovery remains covered by the authenticated production suite last proven in run 29469266134.
+- [x] Run the complete local release matrix (60 Vitest files / 386 tests) and audit; only the accepted nested Next/PostCSS advisory remains.
 - [ ] Require hosted CI/Public smoke, merge, deploy, and verify production before beginning Template Editor decomposition.

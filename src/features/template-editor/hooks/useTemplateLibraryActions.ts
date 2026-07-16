@@ -7,9 +7,7 @@ import { useProjectStore } from '@/features/project/client';
 import { selectAllTemplates } from '@/features/project/client';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
-import type { useToast } from '@/hooks/use-toast';
-
-type ToastFn = ReturnType<typeof useToast>['toast'];
+type ToastFn = (message: { title: string; description: string }) => unknown;
 
 interface TemplateLibraryCapabilities {
   canWriteShippedLibrary: boolean;

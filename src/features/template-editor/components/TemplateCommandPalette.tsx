@@ -1,7 +1,7 @@
 "use client";
 
 import type { ElementType } from 'react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BoxSelect,
   Clock3,
@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { cn } from '@/shared/classNames';
 import type { FreeformCardElement } from '@/domain/templates';
+import { readProjectPreference, writeProjectPreference } from '@/features/project/client';
 
 type PaletteAction = {
   id: string;
@@ -75,20 +76,9 @@ const MAX_RECENT_COMMANDS = 5;
 const ACTION_GROUP_ORDER: PaletteAction['group'][] = ['Insert', 'Layer', 'Navigate', 'Template', 'View'];
 
 const normalize = (value: string) => value.trim().toLowerCase();
-const readStoredCommandIds = (storageKey: string) => {
-  if (typeof window === 'undefined') return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeStoredCommandIds = (storageKey: string, ids: string[]) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(storageKey, JSON.stringify(ids));
-};
+const normalizeStoredCommandIds = (value: unknown): string[] => (
+  Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []
+);
 
 export function TemplateCommandPalette({
   open,
@@ -109,8 +99,29 @@ export function TemplateCommandPalette({
   onTogglePreview,
 }: TemplateCommandPaletteProps) {
   const [query, setQuery] = useState('');
-  const [recentCommandIds, setRecentCommandIds] = useState<string[]>(() => readStoredCommandIds(RECENT_COMMANDS_STORAGE_KEY));
-  const [favoriteCommandIds, setFavoriteCommandIds] = useState<string[]>(() => readStoredCommandIds(FAVORITE_COMMANDS_STORAGE_KEY));
+  const [recentCommandIds, setRecentCommandIds] = useState<string[]>([]);
+  const [favoriteCommandIds, setFavoriteCommandIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      readProjectPreference<unknown>(RECENT_COMMANDS_STORAGE_KEY),
+      readProjectPreference<unknown>(FAVORITE_COMMANDS_STORAGE_KEY),
+    ]).then(([recent, favorites]) => {
+      if (cancelled) return;
+      setRecentCommandIds((current) => {
+        const persisted = normalizeStoredCommandIds(recent);
+        return [...current, ...persisted.filter((id) => !current.includes(id))].slice(0, MAX_RECENT_COMMANDS);
+      });
+      setFavoriteCommandIds((current) => {
+        const persisted = normalizeStoredCommandIds(favorites);
+        return [...current, ...persisted.filter((id) => !current.includes(id))];
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const closeAfter = useCallback((action: () => void) => () => {
     action();
@@ -283,7 +294,7 @@ export function TemplateCommandPalette({
   const recordRecentCommand = useCallback((actionId: string) => {
     setRecentCommandIds((current) => {
       const next = [actionId, ...current.filter((id) => id !== actionId)].slice(0, MAX_RECENT_COMMANDS);
-      writeStoredCommandIds(RECENT_COMMANDS_STORAGE_KEY, next);
+      void writeProjectPreference(RECENT_COMMANDS_STORAGE_KEY, next);
       return next;
     });
   }, []);
@@ -293,7 +304,7 @@ export function TemplateCommandPalette({
       const next = current.includes(actionId)
         ? current.filter((id) => id !== actionId)
         : [actionId, ...current];
-      writeStoredCommandIds(FAVORITE_COMMANDS_STORAGE_KEY, next);
+      void writeProjectPreference(FAVORITE_COMMANDS_STORAGE_KEY, next);
       return next;
     });
   }, []);

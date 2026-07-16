@@ -36,6 +36,11 @@ export {
 } from './persistence/indexedDbStorage';
 export type { BrowserStorageHealth } from './persistence/indexedDbStorage';
 export {
+  readProjectPreference,
+  removeProjectPreference,
+  writeProjectPreference,
+} from './persistence/preferences';
+export {
   canUploadCustomLocalAssets,
   getProjectAssetStorage,
   mergeProjectAssetListToStorage,
