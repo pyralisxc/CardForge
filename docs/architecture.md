@@ -47,8 +47,8 @@ CardForge has three storage lanes:
 ## Feature Ownership
 
 - `src/features/app-shell`: Studio shell, public header, workspace bootstrap.
-- `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency.
-- `src/features/template-editor`: Layout Studio, canvas, layers, inspector panels, editor state, and template-library commands.
+- `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency. Template field contracts, generator/editor field interpretation, template display labels, pointer selection, and parent-resize geometry live here because multiple features consume them.
+- `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
 - `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, export tools.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
 - `src/features/billing`: Stripe checkout, subscription, portal, and billing config helpers.
@@ -57,8 +57,8 @@ CardForge has three storage lanes:
 - `src/features/owner`: launch, operations, legal/site copy, access/promo, developer program, account management, and owner Supabase store.
 - `src/features/contact`: support/contact mail routing and contact request forms.
 - `src/infrastructure`: provider adapters as they are extracted from legacy roots.
-- `src/shared`: product-agnostic utilities.
-- `src/components/ui`: generic UI primitives.
+- `src/shared`: product-agnostic utilities such as text normalization and user-facing error construction.
+- `src/components/ui`: generic UI primitives and generic browser UI state such as toast delivery.
 - `src/lib` and other root catch-alls are migration-only and must shrink; new ownership is not added there.
 
 Feature-specific rules stay under their owning feature and cross-feature consumers use declared `client.ts` or `server.ts` interfaces. Pure policy belongs in Domain; generic helpers belong in Shared.

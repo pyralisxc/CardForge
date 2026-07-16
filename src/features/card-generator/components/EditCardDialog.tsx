@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
 import type { CardData } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy, Save, Layers } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { useProjectStore } from '@/features/project/client';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';

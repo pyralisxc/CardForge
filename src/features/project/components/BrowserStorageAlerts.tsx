@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { BROWSER_STORAGE_FAILURE_EVENT, createIndexedDbStorage } from '../persistence/indexedDbStorage';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';

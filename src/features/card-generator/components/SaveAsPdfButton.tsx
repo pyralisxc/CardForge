@@ -6,7 +6,7 @@ import type { CardFace } from '@/domain/cards';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';

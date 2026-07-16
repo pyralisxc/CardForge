@@ -16,7 +16,7 @@ import {
   parseProjectDocumentFile,
 } from '../model/projectDocument';
 import type { ProjectDocumentStatePatch } from '../model/projectDocument';
-import type { useToast } from '@/hooks/use-toast';
+import type { useToast } from '@/components/ui/use-toast';
 import {
   mergeProjectAssetListToStorage,
   getProjectAssetStorage,

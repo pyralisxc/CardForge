@@ -2,13 +2,13 @@
 
 import type { CardSet, CardData } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Layers } from 'lucide-react';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
@@ -16,7 +16,7 @@ import { useProjectStore } from '@/features/project/client';
 import { withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
-import { getTemplateSourceLabel } from '@/lib/templateDisplay';
+import { getTemplateSourceLabel } from '@/domain/templates';
 import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/domain/rendering';
 import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import type { DisplayCard } from '@/domain/rendering';

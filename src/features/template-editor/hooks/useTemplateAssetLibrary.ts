@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
-import { loadBootstrapAssets } from '@/lib/clientBootstrapData';
+import { loadEditorAssets } from '@/features/template-editor/services/editorBootstrap';
 import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
@@ -13,7 +13,7 @@ import {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from '@/features/project/client';
-import type { useToast } from '@/hooks/use-toast';
+import type { useToast } from '@/components/ui/use-toast';
 import type { FreeformCardElement } from '@/domain/templates';
 import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import {
@@ -86,7 +86,7 @@ export function useTemplateAssetLibrary({
 
     const loadDiscoveredAssets = async () => {
       try {
-        const payload = await loadBootstrapAssets();
+        const payload = await loadEditorAssets();
         if (cancelled) return;
         if (Array.isArray(payload.textures) && payload.textures.length > 0) {
           setDiscoveredTextureAssets(payload.textures);

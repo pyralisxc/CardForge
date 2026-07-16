@@ -4,8 +4,8 @@ import { Download, FileJson, FileText, Table2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
-import { getTemplateSourceLabel } from '@/lib/templateDisplay';
+import type { TemplateFieldDefinition } from '@/domain/templates';
+import { getTemplateSourceLabel } from '@/domain/templates';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { createBulkContractSummary } from '@/features/card-generator/lib/bulkGeneration';
 

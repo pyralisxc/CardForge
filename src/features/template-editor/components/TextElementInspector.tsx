@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates';
 import { isStaticSegmentFieldKey, parseTemplateTextSegments } from '@/domain/rendering';
 import { textFontSizePx } from '@/features/card-rendering/client';
 import { cn } from '@/shared/classNames';

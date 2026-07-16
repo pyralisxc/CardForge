@@ -1,7 +1,7 @@
 import type { CardData } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
-import { toTitleCase } from '@/lib/utils';
-import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import { toTitleCase } from '@/shared/text';
+import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/domain/templates';
 import { buildStructuredRowsDataKey, stringifyStructuredRowsValue } from '@/domain/rendering';
 
 const imagePlaceholderForField = (fieldKey: string): string =>

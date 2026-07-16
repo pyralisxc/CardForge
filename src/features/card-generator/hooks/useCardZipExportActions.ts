@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 
 import { getExportProfile, type ExportMode } from '@/features/card-generator/lib/printValidation';
 
-import type { useToast } from '@/hooks/use-toast';
+import type { useToast } from '@/components/ui/use-toast';
 import {
   createCardZipExportItems,
   createTabletopSimulatorManifest,

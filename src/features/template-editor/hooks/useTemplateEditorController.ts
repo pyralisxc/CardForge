@@ -272,3 +272,5 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
     arrangeSelected,
   };
 }
+
+export type TemplateEditorController = ReturnType<typeof useTemplateEditorController>;

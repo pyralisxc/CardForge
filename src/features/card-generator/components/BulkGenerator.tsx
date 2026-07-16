@@ -5,9 +5,9 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import type { ChangeEvent } from 'react';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { PackagePlus } from 'lucide-react';
-import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
+import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import {
   buildInitialColumnMapping,
   autoMapRequiredFields,

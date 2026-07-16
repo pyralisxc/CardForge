@@ -89,4 +89,4 @@ Local browser execution was attempted after rewriting the smoke seed helpers. Th
 
 - [x] Run focused persistence/editor tests; hosted Public smoke is the PR browser gate because the local Chromium provider is unavailable. Paid project import/recovery remains covered by the authenticated production suite last proven in run 29469266134.
 - [x] Run the complete local release matrix (60 Vitest files / 386 tests) and audit; only the accepted nested Next/PostCSS advisory remains.
-- [ ] Require hosted CI/Public smoke, merge, deploy, and verify production before beginning Template Editor decomposition.
+- [x] Require hosted CI run 29516377028 and Public smoke run 29516377023, squash merge [PR #33](https://github.com/pyralisxc/CardForge/pull/33), and verify production deployment `dpl_4KDXWeip7cvhDpaEgyXSeUtnMBfh` on exact main commit `e55394947b8a5f93d3567d928fb91be00cf42e7a`; all five health routes passed and no runtime error cluster was present.

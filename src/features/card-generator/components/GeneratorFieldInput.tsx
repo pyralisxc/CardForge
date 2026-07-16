@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { CardData } from '@/domain/cards';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates';
 import { CardForgeRichTextEditor } from '@/features/card-rendering/client';
 import { cn } from '@/shared/classNames';
 import type { FieldStyleProperty } from '@/domain/rendering';

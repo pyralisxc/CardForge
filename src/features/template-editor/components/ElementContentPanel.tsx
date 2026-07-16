@@ -4,7 +4,7 @@ import type { MutableRefObject } from 'react';
 
 import { TextElementFieldModeControl, TextExpressionEditor, TextFieldSettingsList } from '@/features/template-editor/components/TextElementInspector';
 import { inferTextElementContentModel } from '@/domain/rendering';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];

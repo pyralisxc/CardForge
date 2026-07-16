@@ -1,6 +1,6 @@
 import { normalizeAppearanceForElement, type AppearanceStylePreset, type FreeformAppearance, type FreeformCardElement, type FreeformElementType, type FreeformShapeKind, type FreeformShapeRole, type TCGCardTemplate } from '@/domain/templates';
-import type { CardFrameKit } from '@/lib/cardFrameKits';
-import { getFrameKitTemplateUpdates } from '@/lib/cardFrameKits';
+import type { CardFrameKit } from '@/features/template-editor/lib/cardFrameKits';
+import { getFrameKitTemplateUpdates } from '@/features/template-editor/lib/cardFrameKits';
 import { appearanceToElementRenderFields } from '@/features/card-rendering/client';
 import { DEFAULT_OWNER_SETTINGS } from '@/features/owner/lib/ownerConsole';
 
