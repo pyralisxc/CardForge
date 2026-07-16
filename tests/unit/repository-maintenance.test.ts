@@ -35,6 +35,7 @@ describe('repository maintenance policy', () => {
     };
 
     expect(packageJson.scripts).toMatchObject({
+      'architecture:check': 'node scripts/check-architecture.mjs',
       'health:production': 'node scripts/check-production-health.mjs',
       'qa:bootstrap-authenticated-smoke': 'node scripts/bootstrap-authenticated-smoke-users.mjs',
       'pipeline:sync-defaults': 'node scripts/sync-pipeline-defaults.mjs',
@@ -45,6 +46,13 @@ describe('repository maintenance policy', () => {
 
     const envExample = await readFile(rootPath('.env.example'), 'utf8');
     expect(envExample).not.toContain('CARDFORGE_QA_ACCOUNT_PASSWORD');
+  });
+
+  it('runs the shrinking architecture baseline in normal CI', async () => {
+    const ci = await readFile(rootPath('.github', 'workflows', 'ci.yml'), 'utf8');
+
+    expect(ci).toContain('npm run architecture:check');
+    await expect(pathExists('config', 'architecture-baseline.json')).resolves.toBe(true);
   });
 
   it('makes unused TypeScript declarations a build failure', async () => {
