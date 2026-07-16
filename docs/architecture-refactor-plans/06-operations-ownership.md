@@ -40,14 +40,15 @@
 - [x] Make Billing own customer checkout/portal actions, the owner billing panel, Stripe event storage, reconciliation, and billing settings.
 - [x] Remove Account/Billing/Owner internal cross-imports and route all App API consumers through declared server interfaces.
 - [x] Verify free, paid, developer, Founder Beta, owner, checkout, portal, webhook, and reconciliation behavior with focused ownership tests plus the full 70-file / 410-test suite, lint, typecheck, architecture check, and production build. The tracked cycle baseline fell from 13 edges to 3 without compatibility exports.
+- [x] Publish as PR #37, pass hosted CI run `29527711433` and Public smoke run `29527711321`, merge as `01a971fced94866129ab050bf5532ba68d736ec0`, and verify exact production deployment `dpl_GUaXoMKnki9Tqg6t9ynSXkrffdWs`. The deployment is READY on `cardforges.com`, all five health routes passed, and its deployment-scoped error/fatal window was empty.
 
 ## PR D — Owner console composition
 
-- [ ] Reduce `OwnerConsolePage` to loading, navigation, and owned panel composition.
-- [ ] Replace `ownerConsoleStore` with focused owner access, integration health, and database-operations modules.
-- [ ] Lazy-load operational panels that are not part of the initial owner overview.
-- [ ] Keep every focused coordinator near the 500-line review threshold or document why a cohesive leaf exceeds it.
-- [ ] Remove resolved baseline entries and verify owner smoke against production.
+- [x] Reduce `OwnerConsolePage` from 1,199 lines to a 108-line loading, navigation, and owned-panel coordinator.
+- [x] Replace the catch-all client state with a focused loading hook and split integration health and database metrics out of `ownerConsoleStore`.
+- [x] Lazy-load readiness, operations, public content, access, legal, Billing, and Contributor panels behind their tabs.
+- [x] Keep every new coordinator and panel below the 500-line review threshold.
+- [x] Remove all resolved cycle entries; the feature graph is now acyclic with a temporary zero-entry baseline pending final guardrail cleanup.
 
 ## Completion gate
 

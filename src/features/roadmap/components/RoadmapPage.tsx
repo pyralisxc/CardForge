@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { UserButton, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { History } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { RoadmapPanel } from '@/features/roadmap/components/RoadmapPanel';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 
@@ -34,14 +33,6 @@ export function RoadmapPage({
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
-      <PublicSiteHeader
-        currentPath="/roadmap"
-        showOwnerLink={entitlement.ownerAccess.isOwner}
-        rightSlot={entitlement.authConfigured && effectiveSignedIn ? (
-          <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
-        ) : null}
-      />
-
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6">
         <div className="border border-[#6d4f2b] bg-[#15100a] p-4 md:p-5">
           <div className="flex items-center gap-3 text-[#e2aa4a]">

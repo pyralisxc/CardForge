@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { OwnerConsolePage } from '@/features/owner/client';
 
 export const metadata: Metadata = {
@@ -8,5 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default function OwnerPage() {
-  return <OwnerConsolePage />;
+  return (
+    <>
+      <PublicSiteHeader currentPath="/owner" showOwnerLink title="Owner Forge" />
+      <OwnerConsolePage />
+    </>
+  );
 }

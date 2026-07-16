@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
+import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight, CheckCircle2, FileCheck2, ShieldCheck, Sparkles, UploadCloud, Vote } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeveloperAssetHubPanel } from '@/features/developer-assets/components/DeveloperAssetHubPanel';
@@ -101,14 +100,6 @@ export function DeveloperProgramPage({
         {entitlement.authConfigured ? (
           <ClerkIdentityBridge onChange={setClerkIdentity} />
         ) : null}
-        <PublicSiteHeader
-          currentPath="/developer"
-          showOwnerLink={entitlement.ownerAccess.isOwner}
-          rightSlot={entitlement.authConfigured && effectiveSignedIn ? (
-            <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
-          ) : null}
-        />
-
         <PublicDeveloperRecruitment
           accountEmail={accountEmail}
           authConfigured={entitlement.authConfigured}
@@ -124,14 +115,6 @@ export function DeveloperProgramPage({
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
-      <PublicSiteHeader
-        currentPath="/developer"
-        showOwnerLink={entitlement.ownerAccess.isOwner}
-        rightSlot={entitlement.authConfigured && effectiveSignedIn ? (
-          <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
-        ) : null}
-      />
-
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6">
         <div className="border border-[#6d4f2b] bg-[#15100a] p-4 md:p-5">
           <div className="flex items-center gap-3 text-[#e2aa4a]">
