@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 type BillingEventDecision = 'accepted' | 'duplicate' | 'pending' | 'stale';
 type BillingEventStatus = 'processed' | 'ignored' | 'failed';

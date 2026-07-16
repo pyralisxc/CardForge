@@ -8,8 +8,8 @@ import {
   parseJsonBodyWithLimit,
   stylePresetPayloadSchema,
   templatePayloadSchema,
-} from '@/lib/apiValidation';
-import { createApiErrorResponse } from '@/lib/apiResponses';
+} from '@/infrastructure/http/apiValidation';
+import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
 
 describe('apiValidation', () => {
   it('creates no-store JSON API error envelopes with correlation ids', async () => {

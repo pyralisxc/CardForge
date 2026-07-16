@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Search, Settings2, UserCog, Users } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
-import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/components/OwnerDeveloperProgramPanel';
+import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/client/owner';
 import { OwnerBillingPanel } from '@/features/owner/components/OwnerBillingPanel';
 import type {
   LegalDocumentSlug,

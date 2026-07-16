@@ -23,12 +23,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
-import { useBillingPortalActions } from '@/features/billing/hooks/useBillingPortalActions';
-import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
+import { useBillingPortalActions } from '@/features/billing/client';
+import { useCheckoutActions } from '@/features/billing/client';
 import type { FounderBetaCampaign } from '@/features/owner/lib/ownerConsole';
 import type { AccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import {

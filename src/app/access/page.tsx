@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { Gift, ShieldCheck, Sparkles, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
-import { createSiteContentMap } from '@/features/owner/lib/ownerConsole';
-import { getSiteContentBlocks } from '@/features/owner/lib/ownerConsoleStore';
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
+import { createSiteContentMap } from '@/features/owner/server';
+import { getSiteContentBlocks } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 

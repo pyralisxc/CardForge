@@ -1,12 +1,12 @@
 import { clerkClient } from '@clerk/nextjs/server';
 
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   buildOwnerAccountMetadataPatch,
   mapOwnerAccountSummary,
   normalizeOwnerAccountRoleInput,
-} from '@/features/owner/lib/ownerAccountOperations';
-import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
+} from '@/features/owner/server';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 

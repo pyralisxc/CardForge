@@ -53,14 +53,27 @@ afterEach(async () => {
 describe('architecture boundary CLI', () => {
   it('rejects cross-feature imports that bypass a public entry point', async () => {
     const fixture = await createFixture({
-      'src/features/alpha/client.ts': "import { readSecret } from '@/features/beta/server/internalRepository';\nexport const value = readSecret();\n",
-      'src/features/beta/server/internalRepository.ts': "export const readSecret = () => 'secret';\n",
+      'src/features/alpha/client.ts': "import { readSecret } from '@/features/beta/lib/internalRepository';\nexport const value = readSecret();\n",
+      'src/features/beta/lib/internalRepository.ts': "export const readSecret = () => 'secret';\n",
     });
 
     const result = await runArchitectureCheck(fixture.root, fixture.baselinePath);
 
     expect(result.exitCode).toBe(1);
     expect(`${result.stdout}\n${result.stderr}`).toContain('cross-feature-internal');
+  });
+
+  it('accepts narrow client and server interface subpaths', async () => {
+    const fixture = await createFixture({
+      'src/features/alpha/server/load.ts': "import { beta } from '@/features/beta/server/read';\nexport const alpha = () => beta;\n",
+      'src/features/beta/server/read.ts': "export const beta = 'beta';\n",
+      'src/app/page.tsx': "import { alpha } from '@/features/alpha/server/load';\nexport default function Page() { return alpha(); }\n",
+    });
+
+    const result = await runArchitectureCheck(fixture.root, fixture.baselinePath);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('Architecture baseline matches');
   });
 
   it('rejects client modules that import another feature server interface', async () => {

@@ -6,9 +6,9 @@ import {
   buildStripeRevokedAccessMetadata,
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
-} from '@/features/billing/lib/billing';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { beginBillingEvent, finishBillingEvent } from '@/features/billing/lib/billingEventStore';
+} from '@/features/billing/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { beginBillingEvent, finishBillingEvent } from '@/features/billing/server';
 
 export const dynamic = 'force-dynamic';
 

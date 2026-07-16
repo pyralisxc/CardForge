@@ -1,5 +1,5 @@
-import { resolveWithTimeout } from '@/lib/asyncTimeout';
-import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
+import { resolveWithTimeout } from '@/shared/asyncTimeout';
+import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import type { PostgrestError } from '@supabase/supabase-js';
 
 export type RegistryContentAssetType = 'template' | 'elementPreset' | 'font';

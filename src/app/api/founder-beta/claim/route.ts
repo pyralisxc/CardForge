@@ -1,10 +1,10 @@
 import { clerkClient, currentUser } from '@clerk/nextjs/server';
 
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
-import { claimFounderBetaAccess, OwnerConsoleStoreError } from '@/features/owner/lib/ownerConsoleStore';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/server';
+import { claimFounderBetaAccess, OwnerConsoleStoreError } from '@/features/owner/server';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { consumeRateLimit, getRequestClientAddress, RateLimitUnavailableError } from '@/lib/abuseProtection';
+import { consumeRateLimit, getRequestClientAddress, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 

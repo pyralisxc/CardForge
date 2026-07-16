@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Hammer } from 'lucide-react';
-import { AccountControls } from '@/features/account/components/AccountControls';
+import { AccountControls } from '@/features/account/client/auth';
 
 interface StudioHeaderProps {
   authConfigured: boolean;

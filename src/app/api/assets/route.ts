@@ -1,5 +1,5 @@
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getAssetRegistryPayload } from '@/features/developer-assets/lib/assetRegistry';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { getAssetRegistryPayload } from '@/features/developer-assets/server';
 
 export async function GET() {
   try {

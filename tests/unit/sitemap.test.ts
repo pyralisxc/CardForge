@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import sitemap from '@/app/sitemap';
 
-vi.mock('@/lib/siteUrl', () => ({
+vi.mock('@/infrastructure/http/publicUrl', () => ({
   getPublicAppUrl: () => 'https://cardforges.com',
 }));
 

@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
-import { getAssetBadgeSummary } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import type { CardAssetOption } from '@/features/developer-assets/client/assets';
+import { getAssetBadgeSummary } from '@/features/developer-assets/client/assets';
 import type { FreeformCardElement } from '@/domain/templates';
 
 interface ImageInspectorPanelProps {

@@ -1,11 +1,11 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
-import { resolveWithTimeout } from '@/lib/asyncTimeout';
+import { resolveAccountEntitlement } from '@/features/account/server';
+import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/account/lib/roadmapStore';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';
+import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/account/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 const CLERK_READ_TIMEOUT_MS = 3000;

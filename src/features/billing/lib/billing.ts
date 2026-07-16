@@ -1,6 +1,6 @@
 import type Stripe from 'stripe';
 
-import { getConfiguredPublicAppUrl } from '@/lib/siteUrl';
+import { getConfiguredPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 type BillingEnvironment = Partial<Record<
   | 'STRIPE_SECRET_KEY'

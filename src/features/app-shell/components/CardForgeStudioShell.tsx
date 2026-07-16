@@ -21,14 +21,13 @@ import { CheckCircle2, MenuIcon, X } from 'lucide-react';
 import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
 import { useToast } from '@/components/ui/use-toast';
 
-import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
+import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
 import { useProjectFileActions } from '@/features/project/client';
 import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLibraries';
-import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
-import { useCardZipExportActions } from '@/features/card-generator/hooks/useCardZipExportActions';
-import { useGeneratedOutputActions } from '@/features/card-generator/hooks/useGeneratedOutputActions';
+import { useCheckoutActions } from '@/features/billing/client';
+import { useCardZipExportActions, useGeneratedOutputActions } from '@/features/card-generator/client';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { useTemplateLibraryActions } from '@/features/template-editor/client';
 import {
@@ -77,12 +76,16 @@ const CardTemplateMaker = dynamic(
 );
 
 const GenerationWorkspace = dynamic(
-  () => import('@/features/card-generator/components/GenerationWorkspace').then((module) => module.GenerationWorkspace),
+  () => import('@/features/card-generator/client')
+    .then((module) => module.loadGenerationWorkspace())
+    .then((module) => module.GenerationWorkspace),
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
 const EditCardDialog = dynamic(
-  () => import('@/features/card-generator/components/EditCardDialog').then((module) => module.EditCardDialog),
+  () => import('@/features/card-generator/client')
+    .then((module) => module.loadEditCardDialog())
+    .then((module) => module.EditCardDialog),
   { ssr: false },
 );
 

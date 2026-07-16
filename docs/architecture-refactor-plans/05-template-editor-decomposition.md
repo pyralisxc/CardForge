@@ -124,4 +124,4 @@
 - [x] Export the supported lazy browser entry through `features/template-editor/client.ts`; App Shell no longer deep-imports editor internals and the Studio route remains code-split.
 - [x] Regenerate a strictly smaller architecture baseline: 286 to 221 tracked violations, with size warnings reduced from 17 to 16.
 - [x] Run focused editor tests, lint, typecheck, architecture check, the full unit suite (63 files / 396 tests), production build, diff check, and dependency audit. The Studio route stayed code-split and decreased to 16.5 kB / 556 kB first load; only the accepted nested Next/PostCSS advisory remains.
-- [ ] Require hosted CI and Public smoke, squash merge, verify exact production deployment health/logs, and update live architecture/risk evidence.
+- [x] Require hosted CI run 29519579390 and Public smoke run 29519579345, squash merge [PR #34](https://github.com/pyralisxc/CardForge/pull/34), and verify production deployment `dpl_6uXGAqoA347U612exGsuzmEu8oij` on exact main commit `d21af9d0a0e96e54d8b9ea64eaa70e3ac0ed58de`; all five health routes passed and no runtime error cluster was present.

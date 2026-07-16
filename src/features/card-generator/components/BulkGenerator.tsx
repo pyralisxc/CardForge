@@ -25,7 +25,7 @@ import {
   shouldBlockBulkGeneration,
 } from '@/features/card-generator/lib/bulkGeneration';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
-import { ERROR_COPY } from '@/lib/errorCopy';
+import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { useProjectStore } from '@/features/project/client';
 import { BulkTemplateSetupPanel } from '@/features/card-generator/components/BulkTemplateSetupPanel';
 import { BulkCsvInputPanel } from '@/features/card-generator/components/BulkCsvInputPanel';

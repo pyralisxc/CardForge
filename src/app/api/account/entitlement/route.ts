@@ -1,10 +1,10 @@
 import { auth, clerkClient, currentUser } from '@clerk/nextjs/server';
 
-import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { resolveWithTimeout } from '@/lib/asyncTimeout';
+import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 const CLERK_READ_TIMEOUT_MS = 3000;

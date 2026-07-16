@@ -3,8 +3,8 @@ import type {Metadata} from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
-import { getPublicAppUrl } from '@/lib/siteUrl';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import { BrowserStorageAlerts } from '@/features/project/client';
 
 export const metadata: Metadata = {

@@ -9,7 +9,7 @@ import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
-import { ERROR_COPY } from '@/lib/errorCopy';
+import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { getCardPhysicalSizeMm } from '@/domain/rendering';
 import { renderCardToCanvasWithProfile } from '@/features/card-generator/lib/cardPreviewExport';
 import { hasCardBacking } from '@/domain/rendering';

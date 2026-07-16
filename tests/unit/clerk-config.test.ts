@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldRunClerkMiddlewareForRequest } from '@/lib/clerkConfig';
+import { shouldRunClerkMiddlewareForRequest } from '@/infrastructure/auth/clerk';
 
 describe('Clerk middleware route selection', () => {
   it('leaves the owner console shell renderable while protecting owner APIs', () => {

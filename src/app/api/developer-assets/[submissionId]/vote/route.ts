@@ -1,13 +1,13 @@
-import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+import { resolveAccountEntitlement } from '@/features/account/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   DeveloperAssetStoreError,
   getDeveloperAssetVotePolicy,
   upsertDeveloperProfile,
   voteOnDeveloperAssetSubmission,
-} from '@/features/developer-assets/lib/developerAssetStore';
-import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
-import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';
+} from '@/features/developer-assets/server';
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,6 +1,6 @@
 import { mapRegistryRowsToCardFontOptions, type CardFontOption } from '@/domain/rendering';
 import { getPublishedRegistryContentRows } from '@/features/developer-assets/lib/registryContentAssets';
-import { getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
+import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 export interface RegistryFontsPayload {
   fonts: CardFontOption[];

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
-import { DeveloperProgramPage } from '@/features/developer-assets/components/DeveloperProgramPage';
-import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
-import { getPublishedLegalDocument } from '@/features/owner/lib/ownerConsoleStore';
+import { DeveloperProgramPage } from '@/features/developer-assets/client/program';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { getPublishedLegalDocument } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 

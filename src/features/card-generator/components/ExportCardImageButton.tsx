@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
-import { ERROR_COPY } from '@/lib/errorCopy';
+import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { renderCardToCanvas } from '@/features/card-generator/lib/cardPreviewExport';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';

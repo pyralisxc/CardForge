@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
 import { ArrowRight, CheckCircle2, FileCheck2, ShieldCheck, Sparkles, UploadCloud, Vote } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeveloperAssetHubPanel } from '@/features/developer-assets/components/DeveloperAssetHubPanel';
-import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
-import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
-import { createDeveloperRequestMailto } from '@/features/contact/lib/contactLinks';
-import { ContactRequestForm } from '@/features/contact/components/ContactRequestForm';
+import { useAccountEntitlement } from '@/features/account/client/entitlement';
+import { getAccountDisplayName } from '@/features/account/client/identity';
+import { createDeveloperRequestMailto } from '@/features/contact/client/links';
+import { ContactRequestForm } from '@/features/contact/client/form';
 
 const programStandards = [
   'Share polished assets that make real card systems easier to build.',

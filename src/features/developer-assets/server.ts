@@ -1,3 +1,9 @@
+export * from './lib/assetRegistry';
+export * from './lib/developerAssets';
+export * from './lib/developerAssetStore';
+export * from './lib/registryContentAssets';
+export * from './lib/registryFonts';
+
 import { currentUser } from '@clerk/nextjs/server';
 
 import { isShippedLibraryWriteEnabled, resolveOwnerAccess } from '@/domain/entitlements';

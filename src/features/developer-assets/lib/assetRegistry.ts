@@ -1,9 +1,9 @@
-import { cardAssetMetadataOverrideSchema } from '@/lib/apiValidation';
+import { cardAssetMetadataOverrideSchema } from '@/infrastructure/http/apiValidation';
 import {
   buildDiscoveredCardAsset,
   type CardAssetOption,
 } from '@/features/developer-assets/lib/cardAssets';
-import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
+import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 type RegistryAssetKind = CardAssetOption['kind'];
 

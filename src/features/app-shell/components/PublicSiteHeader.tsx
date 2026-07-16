@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
-import { PublicAuthControls } from '@/features/account/components/PublicAuthControls';
+import { PublicAuthControls } from '@/features/account/client/auth';
 
 type HeaderVariant = 'hero' | 'solid';
 

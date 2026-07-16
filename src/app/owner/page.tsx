@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { OwnerConsolePage } from '@/features/owner/components/OwnerConsolePage';
+import { OwnerConsolePage } from '@/features/owner/client';
 
 export const metadata: Metadata = {
   title: 'Owner Console | CardForge Library Command',

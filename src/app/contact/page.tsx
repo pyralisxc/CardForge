@@ -1,6 +1,6 @@
-import { PublicLegalPage } from '@/features/legal/components/PublicLegalPage';
-import { ContactRequestForm } from '@/features/contact/components/ContactRequestForm';
-import { getPublishedLegalDocument } from '@/features/owner/lib/ownerConsoleStore';
+import { PublicLegalPage } from '@/features/legal/client';
+import { ContactRequestForm } from '@/features/contact/client/form';
+import { getPublishedLegalDocument } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 

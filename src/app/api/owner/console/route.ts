@@ -8,10 +8,10 @@ import {
   updateOwnerRoadmapItemStatus,
   updateSiteContentBlock,
   updateSiteMechanicsSettings,
-} from '@/features/owner/lib/ownerConsoleStore';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
-import { createServerTimingTracker } from '@/lib/serverTiming';
+} from '@/features/owner/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
 
 export const dynamic = 'force-dynamic';
 

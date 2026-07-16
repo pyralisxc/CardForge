@@ -1,11 +1,11 @@
 import { nanoid } from 'nanoid';
 
-import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { isDeveloperAssetType, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
-import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
-import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';
+import { resolveAccountEntitlement } from '@/features/account/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { isDeveloperAssetType, type DeveloperAssetType } from '@/features/developer-assets/server';
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 

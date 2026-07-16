@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
-import { AccountProfilePage } from '@/features/account/components/AccountProfilePage';
-import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
+import { AccountProfilePage } from '@/features/account/client/profile';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
 export const metadata: Metadata = {
   title: 'My Forge | CardForge Account',

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-import { getPublicAppUrl } from '@/lib/siteUrl';
+import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 const publicRoutes = [
   '/',

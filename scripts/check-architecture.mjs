@@ -92,19 +92,21 @@ const classifySourcePath = (relativePath) => {
   const parts = modulePath.split('/');
   const [root, featureName] = parts;
 
+  if (modulePath === 'middleware') return { kind: 'app', modulePath, parts };
   if (root === 'app') return { kind: 'app', modulePath, parts };
   if (root === 'domain') return { kind: 'domain', modulePath, parts };
   if (root === 'infrastructure') return { kind: 'infrastructure', modulePath, parts };
   if (root === 'shared') return { kind: 'shared', modulePath, parts };
   if (root === 'features' && featureName) {
     const featurePath = parts.slice(2).join('/');
+    const [featureEntry] = featurePath.split('/');
     return {
       kind: 'feature',
       modulePath,
       parts,
       featureName,
       featurePath,
-      publicEntry: featurePath === 'client' || featurePath === 'server' ? featurePath : null,
+      publicEntry: featureEntry === 'client' || featureEntry === 'server' ? featureEntry : null,
     };
   }
   if (root === 'components' && featureName === 'ui') {

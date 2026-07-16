@@ -4,7 +4,7 @@ import {
   consumeRateLimit,
   getRequestClientAddress,
   hashRateLimitIdentity,
-} from '@/lib/abuseProtection';
+} from '@/infrastructure/security/abuseProtection';
 
 describe('abuse protection', () => {
   it('uses the first trusted proxy address and falls back safely', () => {
