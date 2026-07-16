@@ -8,7 +8,7 @@ import {
   mapStripeCheckoutSessionSummary,
   mapStripeSubscriptionSummary,
   normalizeBillingHistoryLimit,
-} from '@/features/owner/lib/ownerBillingOperations';
+} from '@/features/billing/model/ownerBilling';
 
 describe('owner billing operations', () => {
   it('normalizes checkout-history limits into the supported range', () => {

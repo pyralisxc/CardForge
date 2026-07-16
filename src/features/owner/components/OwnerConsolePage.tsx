@@ -10,13 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/client/owner';
-import { OwnerBillingPanel } from '@/features/owner/components/OwnerBillingPanel';
+import { OwnerBillingPanel } from '@/features/billing/client/owner';
 import type {
-  FounderBetaCampaign,
-  FounderBetaClaim,
   OwnerConsolePayload,
   OwnerDatabaseMetrics,
 } from '@/features/owner/lib/ownerConsole';
+import type { FounderBetaCampaign, FounderBetaClaim } from '@/features/account/client';
 import type { ContactRequest } from '@/features/contact/client/requests';
 import {
   DEFAULT_LEGAL_DOCUMENTS,

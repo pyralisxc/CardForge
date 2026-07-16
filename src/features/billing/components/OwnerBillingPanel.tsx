@@ -22,16 +22,16 @@ import {
   MAX_BILLING_HISTORY_LIMIT,
   type OwnerBillingHistorySettings,
   type OwnerBillingSnapshot,
-} from '@/features/owner/lib/ownerBillingOperations';
+} from '@/features/billing/model/ownerBilling';
 import {
   DEFAULT_OWNER_BILLING_TAB,
   getOwnerSubscriptionConnectionLabel,
   sortOwnerSubscriptions,
-} from '@/features/owner/lib/ownerBillingPresentation';
+} from '@/features/billing/model/ownerBillingPresentation';
 import {
   buildBillingReconciliationDescription,
   type BillingReconciliationResult,
-} from '@/features/owner/lib/ownerConsole';
+} from '@/features/billing/model/billingReconciliationResult';
 
 type OwnerBillingTab = typeof DEFAULT_OWNER_BILLING_TAB | 'history';
 

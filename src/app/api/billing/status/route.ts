@@ -1,9 +1,8 @@
 import { getBillingConfigStatus } from '@/features/billing/server';
-import { isClerkAuthConfigured } from '@/features/account/server';
+import { getFounderBetaCampaign, isClerkAuthConfigured } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { isShippedLibraryWriteEnabled, resolveAccessMode } from '@/domain/entitlements';
 import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
-import { getOwnerConsolePayload } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +17,7 @@ export async function GET() {
       accessMode,
       shippedLibraryWritesEnabled: isShippedLibraryWriteEnabled(),
       supabase: getSupabaseServerConfigStatus(),
-      founderBetaCampaign: (await getOwnerConsolePayload()).founderBetaCampaign,
+      founderBetaCampaign: (await getFounderBetaCampaign()).campaign,
     });
   } catch (error) {
     console.error('Failed to load billing status:', error);

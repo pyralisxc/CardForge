@@ -1,4 +1,4 @@
-import type { OwnerSubscriptionSummary } from '@/features/owner/lib/ownerBillingOperations';
+import type { OwnerSubscriptionSummary } from '@/features/billing/model/ownerBilling';
 
 export const DEFAULT_OWNER_BILLING_TAB = 'subscribers' as const;
 

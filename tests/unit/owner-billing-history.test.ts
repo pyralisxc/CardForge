@@ -5,11 +5,11 @@ import {
   getOwnerBillingHistorySettings,
   OwnerBillingSettingsStoreError,
   updateOwnerBillingHistoryLimit,
-} from '@/features/owner/lib/ownerBillingSettingsStore';
+} from '@/features/billing/server';
 import {
   listStripeCheckoutHistory,
   listStripeSubscriptions,
-} from '@/features/owner/lib/ownerBillingOperations';
+} from '@/features/billing/model/ownerBilling';
 
 const makeSessions = (start: number, count: number) => Array.from(
   { length: count },

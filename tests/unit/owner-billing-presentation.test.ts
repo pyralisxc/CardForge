@@ -4,7 +4,7 @@ import {
   DEFAULT_OWNER_BILLING_TAB,
   getOwnerSubscriptionConnectionLabel,
   sortOwnerSubscriptions,
-} from '@/features/owner/lib/ownerBillingPresentation';
+} from '@/features/billing/model/ownerBillingPresentation';
 
 describe('owner billing presentation', () => {
   it('opens on actual subscribers instead of checkout attempts', () => {

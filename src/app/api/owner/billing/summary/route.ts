@@ -8,13 +8,13 @@ import {
   buildOwnerBillingSnapshot,
   listStripeCheckoutHistory,
   listStripeSubscriptions,
-} from '@/features/owner/server';
+} from '@/features/billing/server';
 import {
   clearOwnerBillingHistory,
   getOwnerBillingHistorySettings,
   OwnerBillingSettingsStoreError,
   updateOwnerBillingHistoryLimit,
-} from '@/features/owner/server';
+} from '@/features/billing/server';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
