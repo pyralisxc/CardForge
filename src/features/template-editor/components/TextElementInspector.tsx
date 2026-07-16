@@ -10,11 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
-import { isStaticSegmentFieldKey, parseTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
-import { textFontSizePx } from '@/features/template-editor/lib/textTools';
-import { cn } from '@/lib/utils';
-import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
-import { buildContractSegmentStyle } from '@/lib/cardTextRender';
+import { isStaticSegmentFieldKey, parseTemplateTextSegments } from '@/domain/rendering';
+import { textFontSizePx } from '@/features/card-rendering/client';
+import { cn } from '@/shared/classNames';
+import { CardForgeRichTextEditor } from '@/features/card-rendering/client';
+import { buildContractSegmentStyle } from '@/features/card-rendering/client';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 

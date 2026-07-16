@@ -2,9 +2,9 @@ import {
   CARD_WATERMARK_URL,
   GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT,
   SOCIAL_SHARE_WATERMARK_OPACITY,
-} from '@/features/card-generator/lib/cardWatermarkPolicy';
+} from '@/features/card-rendering/client';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { renderCardToCanvas } from '@/lib/cardPreviewExport';
+import { renderCardToCanvas } from '@/features/card-generator/lib/cardPreviewExport';
 import type { DisplayCard } from '@/domain/rendering';
 
 export const SOCIAL_SHARE_PRESETS = {
@@ -80,13 +80,15 @@ export const renderSocialShareImage = async ({
   preset,
   exportMode,
   exportDpi,
+  richTextHighlightColor,
 }: {
   card: DisplayCard;
   preset: SocialSharePreset;
   exportMode: ExportMode;
   exportDpi: number;
+  richTextHighlightColor: string;
 }): Promise<Blob> => {
-  const cardCanvas = await renderCardToCanvas(card, exportMode, exportDpi);
+  const cardCanvas = await renderCardToCanvas(card, exportMode, exportDpi, 'front', richTextHighlightColor);
   const layout = getSocialShareLayout({
     preset,
     cardWidth: cardCanvas.width,

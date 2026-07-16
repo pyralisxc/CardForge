@@ -15,9 +15,9 @@ import { HexColorPicker } from 'react-colorful';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/lib/richTextDocument';
+import { cn } from '@/shared/classNames';
 import type { TemplateFieldAllowedFormatting } from '@/domain/templates';
+import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '../model/richTextDocument';
 
 const DEFAULT_HIGHLIGHT_HEX = '#ffd700';
 

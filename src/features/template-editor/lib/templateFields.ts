@@ -7,7 +7,7 @@ import {
   getImageFieldKeyForElement,
   parseTemplateTextSegments,
   parseTextBinding,
-} from '@/features/template-editor/lib/textBindings';
+} from '@/domain/rendering';
 import { getDefaultAllowedFormatting, resolveFieldContractV1 } from '@/features/template-editor/lib/fieldContracts';
 
 export type TemplateFieldControl = 'input' | 'textarea';

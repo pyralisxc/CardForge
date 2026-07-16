@@ -4,7 +4,7 @@ import { BoxSelect, Crosshair, Eye, EyeOff, Grid3X3, Maximize2, PenTool, Redo2, 
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/classNames';
 
 interface TemplateEditorTopBarProps {
   canUndo: boolean;

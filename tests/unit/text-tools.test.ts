@@ -2,8 +2,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { RichTextContent, buildTextElementStyle, parseSemanticRulesBlocks } from '@/features/template-editor/lib/textTools';
-import { CardTextContent } from '@/lib/cardTextRender';
+import { RichTextContent, buildTextElementStyle, parseSemanticRulesBlocks } from '@/features/card-rendering/client';
+import { CardTextContent } from '@/features/card-rendering/client';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 describe('text tools', () => {

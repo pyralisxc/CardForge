@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { PackageOpen, Search, Trash2 } from 'lucide-react';
 
-import { CardPreview } from '@/components/card-forge/CardPreview';
-import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
+import { CardPreview } from '@/features/card-rendering/client';
+import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
 import { ShareCardButton } from '@/features/card-generator/components/ShareCardButton';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ interface GeneratedCardGalleryProps {
   gallerySort: GeneratedGallerySort;
   exportMode: ExportMode;
   exportDpi: number;
+  richTextHighlightColor: string;
   exportGateMessage?: string | null;
   showPreviewWatermark: boolean;
   onGallerySearchChange: (value: string) => void;
@@ -50,6 +51,7 @@ export function GeneratedCardGallery({
   gallerySort,
   exportMode,
   exportDpi,
+  richTextHighlightColor,
   exportGateMessage,
   showPreviewWatermark,
   onGallerySearchChange,
@@ -200,6 +202,7 @@ export function GeneratedCardGallery({
                           <CardPreview
                             card={cardItem}
                             isPrintMode={false}
+                            highlightColor={richTextHighlightColor}
                             className="mx-auto"
                             showSizeInfo={rowStart + cardIndex === 0}
                             onEdit={onEditCardRequest}
@@ -221,12 +224,14 @@ export function GeneratedCardGallery({
                             card={cardItem}
                             exportMode={exportMode}
                             exportDpi={exportDpi}
+                            richTextHighlightColor={richTextHighlightColor}
                             ariaLabel={hasRepeatedExportButtons ? `Share output ${rowStart + cardIndex + 1}` : undefined}
                           />
                           <ExportCardImageButton
                             card={cardItem}
                             exportMode={exportMode}
                             exportDpi={exportDpi}
+                            richTextHighlightColor={richTextHighlightColor}
                             disabled={false}
                             gateMessage={exportGateMessage}
                             ariaLabel={

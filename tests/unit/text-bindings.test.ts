@@ -6,7 +6,7 @@ import {
   parseTextBinding,
   renamePlaceholderKeyInText,
   resolveTemplateTextSegments,
-} from '@/features/template-editor/lib/textBindings';
+} from '@/domain/rendering';
 
 describe('text bindings helpers', () => {
   it('parses mixed static text and inline variable placeholders into segments', () => {

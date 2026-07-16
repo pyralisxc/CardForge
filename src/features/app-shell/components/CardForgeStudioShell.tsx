@@ -29,7 +29,7 @@ import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLi
 import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
 import { useCardZipExportActions } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { useGeneratedOutputActions } from '@/features/card-generator/hooks/useGeneratedOutputActions';
-import { shouldShowVisibleCardWatermark } from '@/features/card-generator/lib/cardWatermarkPolicy';
+import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { useTemplateLibraryActions } from '@/features/template-library/hooks/useTemplateLibraryActions';
 import { canUploadCustomLocalAssets } from '@/features/project/lib/projectLocalAssets';
 
@@ -167,6 +167,7 @@ export function CardForgeStudioShell() {
       pdfDuplexLayout,
       pdfIncludeCutLines,
       pdfMarginMm,
+      richTextHighlightColor,
       selectedPaperSize,
       singleCardGeneratorSelectedTemplateId,
       standardDefaultTemplates,
@@ -276,6 +277,7 @@ export function CardForgeStudioShell() {
     exportGateMessage,
     exportMode,
     generatedDisplayCards,
+    richTextHighlightColor,
     toast,
   });
 
@@ -442,6 +444,7 @@ export function CardForgeStudioShell() {
               pdfCardSpacingMm={pdfCardSpacingMm}
               pdfIncludeCutLines={pdfIncludeCutLines}
               pdfDuplexLayout={pdfDuplexLayout}
+              richTextHighlightColor={richTextHighlightColor}
               exportMode={exportMode}
               exportDpi={exportDpi}
               generatedDisplayCards={generatedDisplayCards}

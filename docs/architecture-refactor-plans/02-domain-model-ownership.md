@@ -233,6 +233,8 @@ Expected: all code-quality commands pass; audit retains only the documented thre
 
 Inspect the source diff and confirm that every moved interface retains the exact property names, optional markers, and union values from deleted `src/types/index.ts`.
 
-- [ ] **Step 3: Publish and merge**
+- [x] **Step 3: Publish and merge**
 
 Use `superpowers:finishing-a-development-branch`, open the next incremental PR against the exact current `main`, require CI and Public smoke, merge only when green, and verify the exact production deployment, five health routes, and absence of new runtime errors.
+
+Completed in PR #30. Hosted CI and Public smoke passed; production deployment `dpl_2JnAXZsaCVjGZ5YGvMHEjKRgRDu6` reached READY on commit `bfcbea0a54fdd3a29add1cb38a0cd1e59f0e776e`; all five health routes returned successfully; the deployment recorded five `200` responses and no error or fatal runtime logs during verification.

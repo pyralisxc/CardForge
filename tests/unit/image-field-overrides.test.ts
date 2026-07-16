@@ -5,7 +5,7 @@ import {
   IMAGE_FIELD_OVERRIDE_PROPERTIES,
   parseImageFieldOverrideColumnHeader,
   resolveImageElementOverrides,
-} from '@/features/card-generator/lib/imageFieldOverrides';
+} from '@/domain/rendering';
 import type { CardData } from '@/domain/cards';
 import type { FreeformCardElement } from '@/domain/templates';
 

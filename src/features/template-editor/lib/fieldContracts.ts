@@ -7,7 +7,7 @@ import {
   getImageFieldKeyForElement,
   parseTemplateTextSegments,
   parseTextBinding,
-} from '@/features/template-editor/lib/textBindings';
+} from '@/domain/rendering';
 import { toTitleCase } from '@/lib/utils';
 
 export type FieldContractContentModel = 'image' | 'text' | 'structuredRows';

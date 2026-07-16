@@ -1,6 +1,6 @@
 import type { AppearanceStyleLibrary, TCGCardTemplate } from '@/domain/templates';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
-import type { CardFontOption } from '@/features/template-editor/lib/cardFonts';
+import type { CardFontOption } from '@/domain/rendering';
 
 type TemplatesPayload = { defaults?: Partial<TCGCardTemplate>[]; userTemplates?: Partial<TCGCardTemplate>[] };
 type StylesPayload = Partial<AppearanceStyleLibrary>;

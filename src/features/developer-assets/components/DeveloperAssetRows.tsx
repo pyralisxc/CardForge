@@ -5,8 +5,8 @@ import type { ReactNode } from 'react';
 import { Archive, Check, ChevronLeft, ChevronRight, Eye, Save, ThumbsDown, ThumbsUp, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { CardPreview } from '@/components/card-forge/CardPreview';
-import { TemplateThumbnail } from '@/components/card-forge/TemplateThumbnail';
+import { CardPreview } from '@/features/card-rendering/client';
+import { TemplateThumbnail } from '@/features/card-rendering/client';
 import {
   canRenderImagePreview,
   getContributorLabel,

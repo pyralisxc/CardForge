@@ -1,8 +1,7 @@
 
 "use client";
 
-import type { PaperSize } from '@/domain/rendering';
-import { PAPER_SIZES } from '@/lib/constants';
+import { PAPER_SIZES, type PaperSize } from '@/domain/rendering';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 

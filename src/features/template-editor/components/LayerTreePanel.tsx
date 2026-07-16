@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight, Circle, Copy, Eye, EyeOff, FolderPlus, GripV
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/classNames';
 import type { FreeformCardElement } from '@/domain/templates';
 import type { LayerDropTarget, LayerTreeNode } from '@/features/template-editor/lib/layerTree';
 

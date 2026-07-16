@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { normalizeAppearanceForElement } from '@/lib/appearance';
+import { normalizeAppearanceForElement } from '@/features/card-rendering/client';
 import { isElementPresetApplicable, type BlankShapePrimitive, type ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import type { FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';

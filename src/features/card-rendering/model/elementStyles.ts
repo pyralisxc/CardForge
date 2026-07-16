@@ -1,7 +1,7 @@
 import type { CardData } from '@/domain/cards';
 import type { FreeformCardElement } from '@/domain/templates';
 import type { CSSProperties } from 'react';
-import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
+import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/domain/rendering';
 
 export const borderWidthClassToPixels = (value?: unknown): number => {
   if (!value || value === '_none_') return 0;

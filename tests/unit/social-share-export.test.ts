@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CARD_WATERMARK_URL,
   SOCIAL_SHARE_WATERMARK_OPACITY,
-} from '@/features/card-generator/lib/cardWatermarkPolicy';
+} from '@/features/card-rendering/client';
 import {
   getSocialShareLayout,
   getSocialShareWatermarkPlacement,

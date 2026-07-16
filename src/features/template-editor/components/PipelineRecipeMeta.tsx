@@ -2,7 +2,7 @@
 
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { getDeveloperAssetStatusLabel, getDeveloperAssetTierLabel } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/classNames';
 
 interface PipelineRecipeMetaProps {
   recipe: ElementPresetRecipe;

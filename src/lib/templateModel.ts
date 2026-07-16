@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 
-import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
-import { TCG_ASPECT_RATIO } from '@/lib/constants';
+import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/features/card-rendering/client';
+import { TCG_ASPECT_RATIO } from '@/domain/rendering';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 const DEFAULT_FREEFORM_CANVAS_WIDTH = 630;

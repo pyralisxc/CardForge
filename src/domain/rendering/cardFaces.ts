@@ -1,6 +1,6 @@
 import type { CardData, CardFace } from '@/domain/cards';
 import type { FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
-import type { DisplayCard } from '@/domain/rendering';
+import type { DisplayCard } from './types';
 
 export const hasCardBacking = (card: DisplayCard): boolean => (
   Boolean(card.backingTemplate?.freeformCanvas)

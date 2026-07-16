@@ -1,24 +1,26 @@
 "use client";
 
 import type { CardFace } from '@/domain/cards';
-import { cn } from '@/lib/utils';
-import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
-import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
-import { isDividerElement } from '@/lib/elementCapabilities';
-import { useMemo } from 'react';
-import { TCG_ASPECT_RATIO } from '@/lib/constants';
+import { cn } from '@/shared/classNames';
 import {
-  buildTextElementStyle,
-} from '@/features/template-editor/lib/textTools';
-import { useAppStore } from '@/store/appStore';
+  canRenderVectorShape,
+  getCardFaceCanvas,
+  getCardFaceData,
+  getCardFaceTemplate,
+  getCardPreviewLayout,
+  getImageFieldKeyForElement,
+  replacePlaceholdersLocal,
+  resolveImageElementOverrides,
+  TCG_ASPECT_RATIO,
+} from '@/domain/rendering';
+import { isDividerElement } from '@/domain/templates';
+import { useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { CardTextContent } from '@/lib/cardTextRender';
-import { getCardPreviewLayout } from '@/lib/cardPreviewLayout';
-import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/lib/freeformElementRender';
-import { resolveImageElementOverrides } from '@/features/card-generator/lib/imageFieldOverrides';
-import { canRenderVectorShape } from '@/lib/vectorShapes';
+import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '../model/appearance';
+import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '../model/elementStyles';
+import { buildTextElementStyle, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from './RichTextContent';
+import { CardTextContent } from './CardTextContent';
 import { VectorShapeElement } from './VectorShapeElement';
-import { getCardFaceCanvas, getCardFaceData, getCardFaceTemplate } from '@/lib/cardBacking';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface CardPreviewProps {
@@ -28,6 +30,7 @@ interface CardPreviewProps {
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
   isEditorPreview?: boolean;
+  highlightColor?: string;
   onEdit?: (card: DisplayCard) => void;
   targetWidthPx?: number;
 }
@@ -53,11 +56,10 @@ export function CardPreview({
   isPrintMode = false,
   showSizeInfo = false,
   isEditorPreview = false,
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   onEdit,
   targetWidthPx,
 }: CardPreviewProps) {
-  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
-
   const templateToRender = getCardFaceTemplate(card, face);
   const dataToRender = getCardFaceData(card, face);
   const canvasToRender = getCardFaceCanvas(card, face);
@@ -476,12 +478,12 @@ export function CardPreview({
               scale={scaleX}
               className={cn(element.fontWeight || 'font-normal', element.fontFamily || 'font-sans')}
               style={contentStyle}
-              highlightColor={richTextHighlightColor}
+              highlightColor={highlightColor}
             />
           </div>
         );
       });
-  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, renderWidthPx, isEditorPreview, templateToRender]);
+  }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, templateToRender]);
 
   const handleCardClick = () => {
     if (onEdit && !isEditorPreview) {

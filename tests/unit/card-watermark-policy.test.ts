@@ -9,7 +9,7 @@ import {
   GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT,
   SOCIAL_SHARE_WATERMARK_OPACITY,
   shouldShowVisibleCardWatermark,
-} from '@/features/card-generator/lib/cardWatermarkPolicy';
+} from '@/features/card-rendering/client';
 
 describe('card watermark policy', () => {
   it('brands every visible card surface without clean-export entitlement', () => {
@@ -26,11 +26,11 @@ describe('card watermark policy', () => {
 
   it('keeps entitlement branding out of the shared clean card renderer', () => {
     const cardPreviewSource = readFileSync(
-      resolve(process.cwd(), 'src/components/card-forge/CardPreview.tsx'),
+      resolve(process.cwd(), 'src/features/card-rendering/components/CardPreview.tsx'),
       'utf8',
     );
     const cleanExportSource = readFileSync(
-      resolve(process.cwd(), 'src/lib/cardPreviewExport.tsx'),
+      resolve(process.cwd(), 'src/features/card-generator/lib/cardPreviewExport.tsx'),
       'utf8',
     );
 

@@ -4,9 +4,10 @@ import { Fragment, createElement, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
 import type { FreeformCardElement } from '@/domain/templates';
-import { cn, parseRichText } from '@/lib/utils';
+import { cn } from '@/shared/classNames';
+import { parseRichText } from '@/shared/richText';
 
-const DEFAULT_HIGHLIGHT_COLOR = 'rgba(255,215,0,0.35)';
+export const DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR = 'rgba(255,215,0,0.35)';
 
 const fontSizeClassToPx = (value?: FreeformCardElement['fontSize']): number => {
   if (value === 'text-xs') return 12;
@@ -33,7 +34,7 @@ export const scalePixelLength = (value: string | undefined, scale: number): stri
   return `${Math.round(scaled * 1000) / 1000}px`;
 };
 
-const renderInlineRichText = (text: string, highlightColor = DEFAULT_HIGHLIGHT_COLOR, keyPrefix = ''): ReactNode[] => {
+const renderInlineRichText = (text: string, highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR, keyPrefix = ''): ReactNode[] => {
   const spans = parseRichText(text);
 
   return spans.map((span, index) => {
@@ -71,7 +72,7 @@ const renderInlineTextWithBreaks = (
 
 const parseTextBlocks = (
   text: string,
-  highlightColor = DEFAULT_HIGHLIGHT_COLOR,
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   parseInlineFormatting = true
 ): ReactNode[] => {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -222,7 +223,7 @@ const rulesBlockStyle = (kind: SemanticRulesBlockKind): CSSProperties => {
   }
 };
 
-const renderRulesBlocks = (text: string, highlightColor = DEFAULT_HIGHLIGHT_COLOR): ReactNode[] => {
+const renderRulesBlocks = (text: string, highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR): ReactNode[] => {
   const blocks = parseSemanticRulesBlocks(text);
   if (blocks.length === 0) return parseTextBlocks(text, highlightColor, true);
 
@@ -239,7 +240,7 @@ export function RichTextContent({
   text,
   className,
   style,
-  highlightColor = DEFAULT_HIGHLIGHT_COLOR,
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   contentModel = 'richText',
 }: {
   text: string;
@@ -267,7 +268,7 @@ export function RichTextSegmentsContent({
   segments,
   className,
   style,
-  highlightColor = DEFAULT_HIGHLIGHT_COLOR,
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   contentModel = 'richText',
 }: {
   segments: RichTextSegment[];
@@ -297,7 +298,7 @@ export function AutoFitRichTextContent({
   text,
   className,
   style,
-  highlightColor = DEFAULT_HIGHLIGHT_COLOR,
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   contentModel = 'richText',
   enabled = false,
   baseFontSizePx,
@@ -369,7 +370,7 @@ export function AutoFitRichTextSegmentsContent({
   segments,
   className,
   style,
-  highlightColor = DEFAULT_HIGHLIGHT_COLOR,
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   contentModel = 'richText',
   enabled = false,
   baseFontSizePx,

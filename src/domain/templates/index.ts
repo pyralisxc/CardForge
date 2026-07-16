@@ -26,3 +26,4 @@ export type {
   TemplateSource,
   TemplateUsage,
 } from './types';
+export * from './elementCapabilities';

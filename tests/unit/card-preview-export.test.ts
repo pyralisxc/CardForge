@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCardExportDimensionsPx, getCardExportHeightPx, getCardPhysicalSizeMm } from '@/lib/cardExportGeometry';
+import { getCardExportDimensionsPx, getCardExportHeightPx, getCardPhysicalSizeMm } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 

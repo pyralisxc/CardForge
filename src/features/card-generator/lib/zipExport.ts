@@ -1,6 +1,6 @@
 import type { CardFace } from '@/domain/cards';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { hasCardBacking } from '@/lib/cardBacking';
+import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 export interface CardZipExportItem {

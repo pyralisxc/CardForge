@@ -10,13 +10,13 @@ import {
   buildFieldStyleDataKey,
   isRecognizedFieldStyleColumn,
   parseFieldStyleColumnHeader,
-} from '@/features/card-generator/lib/fieldStyleOverrides';
+} from '@/domain/rendering';
 import {
   IMAGE_FIELD_OVERRIDE_PROPERTIES,
   buildImageFieldOverrideDataKey,
   isRecognizedImageFieldOverrideColumn,
   parseImageFieldOverrideColumnHeader,
-} from '@/features/card-generator/lib/imageFieldOverrides';
+} from '@/domain/rendering';
 import { parseCSV, unparseCSV } from '@/lib/utils';
 import type { DisplayCard } from '@/domain/rendering';
 

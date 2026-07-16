@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/lib/richTextDocument';
+import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/features/card-rendering/client';
 
 describe('rich text document serialization', () => {
   it('round-trips inline variables with rich fallback text', () => {

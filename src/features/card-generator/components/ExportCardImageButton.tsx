@@ -14,21 +14,22 @@ import {
 import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
-import { renderCardToCanvas } from '@/lib/cardPreviewExport';
-import { hasCardBacking } from '@/lib/cardBacking';
+import { renderCardToCanvas } from '@/features/card-generator/lib/cardPreviewExport';
+import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;
   exportMode: ExportMode;
   exportDpi: number;
+  richTextHighlightColor: string;
   disabled?: boolean;
   gateMessage?: string | null;
   className?: string;
   ariaLabel?: string;
 }
 
-export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = false, gateMessage, className, ariaLabel }: ExportCardImageButtonProps) {
+export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHighlightColor, disabled = false, gateMessage, className, ariaLabel }: ExportCardImageButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -58,7 +59,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, disabled = 
         });
       }
 
-      const canvas = await renderCardToCanvas(card, exportMode, exportDpi, face);
+      const canvas = await renderCardToCanvas(card, exportMode, exportDpi, face, richTextHighlightColor);
       const mimeType = format === 'webp'
         ? 'image/webp'
         : format === 'jpeg'

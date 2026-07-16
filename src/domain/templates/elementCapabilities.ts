@@ -1,4 +1,4 @@
-import type { FreeformCardElement, FreeformShapeKind } from '@/domain/templates';
+import type { FreeformCardElement, FreeformShapeKind } from './types';
 
 export type InspectorSection =
   | 'content'

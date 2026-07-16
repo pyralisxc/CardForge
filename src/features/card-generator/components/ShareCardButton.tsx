@@ -30,11 +30,13 @@ export function ShareCardButton({
   card,
   exportMode,
   exportDpi,
+  richTextHighlightColor,
   ariaLabel,
 }: {
   card: DisplayCard;
   exportMode: ExportMode;
   exportDpi: number;
+  richTextHighlightColor: string;
   ariaLabel?: string;
 }) {
   const { toast } = useToast();
@@ -42,7 +44,7 @@ export function ShareCardButton({
   const [preset, setPreset] = useState<SocialSharePreset>('square');
   const [working, setWorking] = useState(false);
 
-  const createImage = async () => renderSocialShareImage({ card, preset, exportMode, exportDpi });
+  const createImage = async () => renderSocialShareImage({ card, preset, exportMode, exportDpi, richTextHighlightColor });
 
   const share = async () => {
     setWorking(true);
