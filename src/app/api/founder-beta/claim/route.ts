@@ -1,8 +1,12 @@
 import { clerkClient, currentUser } from '@clerk/nextjs/server';
 
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/server';
-import { claimFounderBetaAccess, OwnerConsoleStoreError } from '@/features/owner/server';
+import {
+  claimFounderBetaAccess,
+  FounderBetaStoreError,
+  isClerkAuthConfigured,
+  resolveAccountEntitlement,
+} from '@/features/account/server';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 import { consumeRateLimit, getRequestClientAddress, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
@@ -88,7 +92,7 @@ export async function POST(request: Request) {
     if (error instanceof RateLimitUnavailableError) {
       return createApiErrorResponse(503, 'service_unavailable', error.message);
     }
-    if (error instanceof OwnerConsoleStoreError) {
+    if (error instanceof FounderBetaStoreError) {
       return createApiErrorResponse(
         error.status,
         error.status === 503 ? 'founder_beta_unavailable' : 'founder_beta_claim_unavailable',

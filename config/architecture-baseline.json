@@ -1,18 +1,8 @@
 {
   "version": 1,
   "violations": [
-    "feature-cycle-edge|feature:account|feature:app-shell",
-    "feature-cycle-edge|feature:account|feature:owner",
-    "feature-cycle-edge|feature:app-shell|feature:account",
     "feature-cycle-edge|feature:app-shell|feature:template-editor",
-    "feature-cycle-edge|feature:developer-assets|feature:account",
     "feature-cycle-edge|feature:developer-assets|feature:app-shell",
-    "feature-cycle-edge|feature:owner|feature:account",
-    "feature-cycle-edge|feature:owner|feature:app-shell",
-    "feature-cycle-edge|feature:owner|feature:developer-assets",
-    "feature-cycle-edge|feature:owner|feature:roadmap",
-    "feature-cycle-edge|feature:roadmap|feature:account",
-    "feature-cycle-edge|feature:roadmap|feature:app-shell",
     "feature-cycle-edge|feature:template-editor|feature:developer-assets"
   ]
 }

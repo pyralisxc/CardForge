@@ -5,7 +5,7 @@ import {
   buildOwnerAccountMetadataPatch,
   mapOwnerAccountSummary,
   normalizeOwnerAccountRoleInput,
-} from '@/features/owner/server';
+} from '@/features/account/server';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';

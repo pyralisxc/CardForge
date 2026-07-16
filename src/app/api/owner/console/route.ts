@@ -1,9 +1,8 @@
 import {
   getOwnerConsolePayload,
   getOwnerIntegrationStatus,
-  OwnerConsoleStoreError,
-  updateFounderBetaCampaign,
 } from '@/features/owner/server';
+import { FounderBetaStoreError, updateFounderBetaCampaign } from '@/features/account/server';
 import {
   PublicSiteStoreError,
   updateSiteContentBlock,
@@ -103,8 +102,8 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'founderBeta') {
-      const payload = await updateFounderBetaCampaign(body.founderBetaCampaign ?? {});
-      return createNoStoreJsonResponse({ console: payload });
+      await updateFounderBetaCampaign(body.founderBetaCampaign ?? {});
+      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     if (body.kind === 'roadmapStatus') {
@@ -119,7 +118,7 @@ export async function PUT(request: Request) {
     }
 
     if (
-      error instanceof OwnerConsoleStoreError
+      error instanceof FounderBetaStoreError
       || error instanceof PublicSiteStoreError
       || error instanceof LegalDocumentStoreError
       || error instanceof RoadmapStoreError

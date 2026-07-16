@@ -2,7 +2,7 @@ import {
   MAX_BILLING_HISTORY_LIMIT,
   buildOwnerBillingHistorySettings,
   type OwnerBillingHistorySettings,
-} from '@/features/owner/lib/ownerBillingOperations';
+} from '@/features/billing/model/ownerBilling';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 type BillingHistorySettingsRow = {

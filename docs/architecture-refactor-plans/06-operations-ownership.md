@@ -31,15 +31,15 @@
 - [x] Move roadmap models, store, page, panel, and owner mechanics into Roadmap.
 - [x] Replace Owner-owned public-content imports with declared client/server interfaces.
 - [x] Split the aggregate server payload by owned records without changing live provider data. Owner now composes dedicated stores, and `ownerConsoleStore` is 326 lines instead of 813.
-- [ ] Verify public pages, roadmap mutation gates, contact delivery, and owner editing.
+- [x] Verify public pages, roadmap mutation gates, contact delivery, and owner editing with 405 unit tests, the production build, hosted CI/Public smoke, and exact production deployment `dpl_5Q3YHPjdRCiYP1qF1N3J6iSEA3jF` for merged PR #36. All five production health routes passed and the deployment-scoped error/fatal log query returned no entries.
 
 ## PR C — Account and Billing ownership
 
-- [ ] Decompose `AccountProfilePage` into account identity, access, billing, Founder Beta, and developer-status sections.
-- [ ] Make Account own current-user resolution while Domain owns pure entitlement policy.
-- [ ] Make Billing own customer and owner billing panels, Stripe event storage, reconciliation, and billing settings.
-- [ ] Remove Account/Billing/Owner internal cross-imports and route all App API consumers through server interfaces.
-- [ ] Verify free, paid, developer, Founder Beta, owner, checkout, portal, webhook, and reconciliation behavior.
+- [x] Decompose `AccountProfilePage` into focused account identity, access, Founder Beta, and developer-status sections; the page is now a 327-line coordinator and shared header composition lives in the App route.
+- [x] Make Account own current-user resolution, Founder Beta, and account administration while the pure entitlement policy remains isolated in Account's domain model.
+- [x] Make Billing own customer checkout/portal actions, the owner billing panel, Stripe event storage, reconciliation, and billing settings.
+- [x] Remove Account/Billing/Owner internal cross-imports and route all App API consumers through declared server interfaces.
+- [x] Verify free, paid, developer, Founder Beta, owner, checkout, portal, webhook, and reconciliation behavior with focused ownership tests plus the full 70-file / 410-test suite, lint, typecheck, architecture check, and production build. The tracked cycle baseline fell from 13 edges to 3 without compatibility exports.
 
 ## PR D — Owner console composition
 

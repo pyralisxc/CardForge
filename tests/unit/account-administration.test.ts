@@ -4,9 +4,9 @@ import {
   buildOwnerAccountMetadataPatch,
   mapOwnerAccountSummary,
   normalizeOwnerAccountRoleInput,
-} from '@/features/owner/lib/ownerAccountOperations';
+} from '@/features/account/server';
 
-describe('owner account operations', () => {
+describe('account administration', () => {
   it('normalizes owner account role changes to supported private metadata values', () => {
     expect(normalizeOwnerAccountRoleInput({
       access: 'dev',
