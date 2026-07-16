@@ -7,7 +7,4 @@
 /src/features/card-rendering/ @pyralisxc
 /src/shared/ @pyralisxc
 /.github/ @pyralisxc
-/config/architecture-baseline.json @pyralisxc
 /scripts/check-architecture.mjs @pyralisxc
-/docs/architecture-refactor-design.md @pyralisxc
-/docs/architecture-refactor-plans/ @pyralisxc

@@ -60,7 +60,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
-- `src/features/owner/`: Owner console for launch, account, legal, promo, pipeline command surfaces, and owner Supabase state.
+- `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.
 - `src/lib/`: Shared model, card rendering/export primitives, Supabase setup, validation utilities, API responses, and constants.
 - `src/store/`: Zustand persisted local app state and derived selectors.

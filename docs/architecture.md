@@ -51,20 +51,34 @@ CardForge has three storage lanes:
 - `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
 - `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, and export tools. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
-- `src/features/billing`: Stripe checkout, subscription, portal, event ledger, and reconciliation behind explicit client/server interfaces.
-- `src/features/account`: account status, access entitlement, profile surfaces, and current-user access behind explicit client/server interfaces.
+- `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
+- `src/features/account`: current-user resolution, access entitlement, profile surfaces, Founder Beta, and owner account administration behind explicit client/server interfaces.
 - `src/features/public-site`: operator identity and editable landing/about/access content, with browser-safe contracts and a server-owned Supabase store.
 - `src/features/legal`: legal-document contracts, defaults, public presentation, and server persistence.
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
 - `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
-- `src/features/owner`: owner authorization and composition, integration/database health, Founder Beta operations, account management, and operational panel assembly. Public content records remain owned by their product features.
+- `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Founder Beta and account administration remain Account-owned; billing remains Billing-owned; public content records remain owned by their product features.
 - `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
 - `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.
 - `src/components/ui`: generic UI primitives and generic browser UI state such as toast delivery.
 - `src/lib` is retired. The required `src/middleware.ts` Next entry is thin App composition over the Infrastructure implementation.
 
 Feature-specific rules stay under their owning feature and cross-feature consumers use declared `client.ts` or `server.ts` interfaces. Pure policy belongs in Domain; generic helpers belong in Shared.
+
+## Enforced Dependency Rules
+
+`npm run architecture:check` scans every TypeScript import in `src` and fails directly on any violation. There is no exception baseline or compatibility allowlist. The enforced rules are:
+
+- App Router composes features only through declared client/server interfaces.
+- Features never import App Router composition.
+- Cross-feature imports use the target feature's public interface.
+- Client modules never import server interfaces.
+- Shared, Domain, Infrastructure, and generic UI keep their one-way dependency direction.
+- The feature graph must remain acyclic.
+- Retired root `src/lib`, `src/store`, and `src/types` lanes must not return.
+
+Shared public headers are App-owned composition. The Owner Console loads a 108-line coordinator first and lazy-loads operational panels behind tabs.
 
 ## Current Access Model
 
@@ -98,7 +112,7 @@ The current developer pipeline is operational infrastructure, not an active payo
 When changing CardForge:
 
 - Prefer one owner for each responsibility.
-- Retain compatibility only when it protects stored user data or provider state; remove it after the migration boundary is explicitly closed.
+- Do not add compatibility exports or duplicate owners; preserve stored user/provider data through explicit migrations when required.
 - Keep docs current and short.
 - Keep tests focused on live money, access, export, data, and core authoring behavior.
 - Keep implementation history in Git and pull requests rather than the live documentation tree.

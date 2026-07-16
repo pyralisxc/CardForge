@@ -25,6 +25,9 @@ describe('repository maintenance policy', () => {
       ['src', 'components', 'card-forge', 'CardPreview.tsx'],
       ['src', 'lib', 'cardPreviewExport.tsx'],
       ['src', 'types', 'index.ts'],
+      ['config', 'architecture-baseline.json'],
+      ['docs', 'architecture-refactor-design.md'],
+      ['docs', 'architecture-refactor-plans'],
     ];
 
     for (const retiredPath of retiredPaths) {
@@ -59,11 +62,11 @@ describe('repository maintenance policy', () => {
     expect(envExample).not.toContain('CARDFORGE_QA_ACCOUNT_PASSWORD');
   });
 
-  it('runs the shrinking architecture baseline in normal CI', async () => {
+  it('runs zero-exception architecture enforcement in normal CI', async () => {
     const ci = await readFile(rootPath('.github', 'workflows', 'ci.yml'), 'utf8');
 
     expect(ci).toContain('npm run architecture:check');
-    await expect(pathExists('config', 'architecture-baseline.json')).resolves.toBe(true);
+    await expect(pathExists('config', 'architecture-baseline.json')).resolves.toBe(false);
   });
 
   it('makes unused TypeScript declarations a build failure', async () => {
