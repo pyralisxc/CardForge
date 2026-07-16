@@ -9,7 +9,10 @@ import {
   getBrowserRecoverySnapshot,
   getBrowserStorageHealth,
   getConstrainedImageSize,
+  readProjectPreference,
+  removeProjectPreference,
   validateLocalAssetFile,
+  writeProjectPreference,
 } from '@/features/project/client';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
@@ -62,6 +65,14 @@ describe('browser IndexedDB storage', () => {
     await storage.setItem('workspace', '{"version":2}');
     expect(await getBrowserRecoverySnapshot('recoverable', 'workspace')).toBe('{"version":1}');
     expect(await storage.getItem('workspace')).toBe('{"version":2}');
+  });
+
+  it('round-trips typed browser preferences through the Project namespace', async () => {
+    await writeProjectPreference('layout-palette', ['save-template', 'add-text']);
+    expect(await readProjectPreference<string[]>('layout-palette')).toEqual(['save-template', 'add-text']);
+
+    await removeProjectPreference('layout-palette');
+    expect(await readProjectPreference<string[]>('layout-palette')).toBeNull();
   });
 
   it('reports quota pressure before a write', async () => {

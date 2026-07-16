@@ -30,8 +30,12 @@ import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions'
 import { useCardZipExportActions } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { useGeneratedOutputActions } from '@/features/card-generator/hooks/useGeneratedOutputActions';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
-import { useTemplateLibraryActions } from '@/features/template-library/hooks/useTemplateLibraryActions';
-import { canUploadCustomLocalAssets } from '@/features/project/client';
+import { useTemplateLibraryActions } from '@/features/template-editor/client';
+import {
+  canUploadCustomLocalAssets,
+  readProjectPreference,
+  writeProjectPreference,
+} from '@/features/project/client';
 
 const WorkspaceLoadingState = () => (
   <div data-testid="studio-loading" className="min-h-[60vh] rounded border border-[#5f4526] bg-[#090807] text-[#f7ead0]" role="status" aria-live="polite">
@@ -178,8 +182,9 @@ export function CardForgeStudioShell() {
   } = useCardForgeWorkspaceState();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const firstRunGuideDismissedRef = useRef(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showFirstRunGuide, setShowFirstRunGuide] = useState(true);
+  const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
 
@@ -296,12 +301,21 @@ export function CardForgeStudioShell() {
   }, [setActiveTabAction]);
 
   const handleDismissFirstRunGuide = useCallback(() => {
+    firstRunGuideDismissedRef.current = true;
     setShowFirstRunGuide(false);
-    window.localStorage.setItem(STUDIO_GUIDE_STORAGE_KEY, 'dismissed');
+    void writeProjectPreference(STUDIO_GUIDE_STORAGE_KEY, true);
   }, []);
 
   useEffect(() => {
-    setShowFirstRunGuide(window.localStorage.getItem(STUDIO_GUIDE_STORAGE_KEY) !== 'dismissed');
+    let cancelled = false;
+    void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => {
+      if (!cancelled && !firstRunGuideDismissedRef.current) {
+        setShowFirstRunGuide(dismissed !== true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const effectiveActiveTab = TABS_CONFIG.some(tab => tab.value === activeTab) ? activeTab : TABS_CONFIG[0].value;

@@ -16,6 +16,8 @@ import {
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
+  getProjectAssetStorage,
+  readTypedProjectAssetListFromStorage,
 } from '@/features/project/client';
 import {
   getDeveloperAssetStatusLabel,
@@ -37,7 +39,6 @@ import {
   getTemplatePreviewId,
   isCurrentContributorSubmission,
   isEditableSubmission,
-  readStoredCardAssets,
   reviewQueueHelp,
   slugifyFileName,
   statusGlossary,
@@ -125,18 +126,28 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const expectedSourceSize = DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES[assetType];
 
   useEffect(() => {
-    const loadPersonalLibraryAssets = () => {
+    const storage = getProjectAssetStorage();
+    const loadPersonalLibraryAssets = async () => {
+      const [textures, dividers, icons, imageAssets] = await Promise.all([
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
+        readTypedProjectAssetListFromStorage<CardAssetOption>(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+      ]);
       setPersonalLibraryAssets({
-        textures: readStoredCardAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-        dividers: readStoredCardAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-        icons: readStoredCardAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY),
-        imageAssets: readStoredCardAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+        textures,
+        dividers,
+        icons,
+        imageAssets,
       });
     };
 
-    loadPersonalLibraryAssets();
-    window.addEventListener('focus', loadPersonalLibraryAssets);
-    return () => window.removeEventListener('focus', loadPersonalLibraryAssets);
+    const handleFocus = () => {
+      void loadPersonalLibraryAssets();
+    };
+    handleFocus();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const personalLibraryItems = useMemo<PersonalLibraryItem[]>(() => {

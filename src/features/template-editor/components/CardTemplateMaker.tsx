@@ -180,15 +180,25 @@ export function CardTemplateMaker({
   const touchGestureRef = useRef<TouchGestureState | null>(null);
   const variableKeyInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const variableCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [localDraftTemplate, setLocalDraftTemplate] = useState<TCGCardTemplate | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return readTemplateEditorDraft(window.localStorage);
-  });
+  const [localDraftTemplate, setLocalDraftTemplate] = useState<TCGCardTemplate | null>(null);
+  const [draftPersistenceHydrated, setDraftPersistenceHydrated] = useState(false);
   const draftPersistenceInitializedRef = useRef(false);
   const lastDraftTemplateJsonRef = useRef<string | null>(null);
   const [cardFontOptions, setCardFontOptions] = useState<CardFontOption[]>(CARD_FONT_OPTIONS);
   const availableFonts = useMemo(() => cardFontOptionsToSelectOptions(cardFontOptions), [cardFontOptions]);
   const developerFontFaceCss = useMemo(() => createDeveloperFontFaceCss(cardFontOptions), [cardFontOptions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void readTemplateEditorDraft().then((draft) => {
+      if (cancelled) return;
+      setLocalDraftTemplate(draft);
+      setDraftPersistenceHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const freeformTemplates = templates;
   const initialTemplate = useMemo(() => {
@@ -240,7 +250,7 @@ export function CardTemplateMaker({
     };
   }, []);
   useEffect(() => {
-    if (!isActive || typeof window === 'undefined') return;
+    if (!isActive || !draftPersistenceHydrated) return;
 
     const draftJson = JSON.stringify(reconstructMinimalTemplate(currentTemplate));
     if (!draftPersistenceInitializedRef.current) {
@@ -250,9 +260,9 @@ export function CardTemplateMaker({
     }
     if (lastDraftTemplateJsonRef.current === draftJson) return;
 
-    writeTemplateEditorDraft(window.localStorage, currentTemplate);
+    void writeTemplateEditorDraft(currentTemplate);
     lastDraftTemplateJsonRef.current = draftJson;
-  }, [currentTemplate, isActive]);
+  }, [currentTemplate, draftPersistenceHydrated, isActive]);
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
   const [activeVariableKey, setActiveVariableKey] = useState<string | null>(null);
   const frameKitsForCurrentTemplate = useMemo(() => {
@@ -936,10 +946,8 @@ export function CardTemplateMaker({
       ...currentTemplate,
       freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas),
     });
-    if (typeof window !== 'undefined') {
-      clearTemplateEditorDraft(window.localStorage);
-      lastDraftTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(currentTemplate));
-    }
+    void clearTemplateEditorDraft();
+    lastDraftTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(currentTemplate));
     setLocalDraftTemplate(null);
     onSelectTemplateForEditing(savedId);
   }, [currentTemplate, onSaveTemplate, onSelectTemplateForEditing, toast]);
@@ -1019,10 +1027,8 @@ export function CardTemplateMaker({
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
-    if (typeof window !== 'undefined') {
-      clearTemplateEditorDraft(window.localStorage);
-      lastDraftTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(template));
-    }
+    void clearTemplateEditorDraft();
+    lastDraftTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(template));
     setLocalDraftTemplate(null);
     onSelectTemplateForEditing(template.id);
     resetTemplate(template);
@@ -1115,6 +1121,18 @@ export function CardTemplateMaker({
     backgroundSize: 'cover',
     backgroundPosition: 'center center',
   };
+
+  if (!draftPersistenceHydrated) {
+    return (
+      <div
+        className="flex min-h-[60vh] items-center justify-center rounded border border-[#252b35] bg-[#080b10] px-6 text-center font-mono text-xs uppercase tracking-[0.12em] text-[#aeb6c4]"
+        role="status"
+        aria-live="polite"
+      >
+        Loading editor workspace…
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>

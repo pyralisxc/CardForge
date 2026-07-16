@@ -19,8 +19,8 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 CardForge has three storage lanes:
 
 1. **Browser-local workspace**
-   - Zustand coordinates templates, generated cards, styles, active workspace state, and export settings through IndexedDB-backed persistence.
-   - Binary artwork and custom local assets use IndexedDB rather than localStorage; the legacy localStorage migration remains for existing browsers.
+   - Project owns the Zustand workspace, selectors, project documents, recovery, and persistence behind `@/features/project/client`.
+   - Templates, generated cards, styles, export settings, binary artwork, editor drafts, and browser preferences use explicit IndexedDB namespaces. There is no localStorage compatibility path.
    - Project export/import is the portability path between browsers or machines.
 
 2. **Supabase platform state**
@@ -47,17 +47,21 @@ CardForge has three storage lanes:
 ## Feature Ownership
 
 - `src/features/app-shell`: Studio shell, public header, workspace bootstrap.
-- `src/features/template-editor`: Layout Studio, canvas, layers, inspector panels, template state.
+- `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency.
+- `src/features/template-editor`: Layout Studio, canvas, layers, inspector panels, editor state, and template-library commands.
 - `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, export tools.
-- `src/features/project`: local project files, project asset persistence, and project access rules.
+- `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
 - `src/features/billing`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account`: account status, access entitlement, roadmap, profile surfaces, and user access helpers.
 - `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
 - `src/features/owner`: launch, operations, legal/site copy, access/promo, developer program, account management, and owner Supabase store.
 - `src/features/contact`: support/contact mail routing and contact request forms.
-- `src/lib`: shared pure models, card rendering/export primitives, Supabase client setup, validation utilities, API response helpers, and constants.
+- `src/infrastructure`: provider adapters as they are extracted from legacy roots.
+- `src/shared`: product-agnostic utilities.
+- `src/components/ui`: generic UI primitives.
+- `src/lib` and other root catch-alls are migration-only and must shrink; new ownership is not added there.
 
-Feature-specific rules should live under the owning `src/features/<feature>/lib` folder. `src/lib` is reserved for cross-feature primitives that do not own a product workflow.
+Feature-specific rules stay under their owning feature and cross-feature consumers use declared `client.ts` or `server.ts` interfaces. Pure policy belongs in Domain; generic helpers belong in Shared.
 
 ## Current Access Model
 

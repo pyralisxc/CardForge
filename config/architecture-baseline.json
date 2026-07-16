@@ -100,7 +100,6 @@
     "cross-feature-internal|src/features/app-shell/components/CardForgeStudioShell|src/features/card-generator/hooks/useCardZipExportActions",
     "cross-feature-internal|src/features/app-shell/components/CardForgeStudioShell|src/features/card-generator/hooks/useGeneratedOutputActions",
     "cross-feature-internal|src/features/app-shell/components/CardForgeStudioShell|src/features/template-editor/components/CardTemplateMaker",
-    "cross-feature-internal|src/features/app-shell/components/CardForgeStudioShell|src/features/template-library/hooks/useTemplateLibraryActions",
     "cross-feature-internal|src/features/app-shell/components/PublicSiteHeader|src/features/account/components/PublicAuthControls",
     "cross-feature-internal|src/features/app-shell/components/StudioHeader|src/features/account/components/AccountControls",
     "cross-feature-internal|src/features/card-generator/components/BulkCsvInputPanel|src/features/template-editor/lib/templateFields",
@@ -286,7 +285,6 @@
     "unowned-import-target|src/features/project/hooks/useProjectFileActions|src/hooks/use-toast",
     "unowned-import-target|src/features/template-editor/components/CardTemplateMaker|src/hooks/use-toast",
     "unowned-import-target|src/features/template-editor/hooks/useTemplateAssetLibrary|src/hooks/use-toast",
-    "unowned-import-target|src/features/template-library/hooks/useTemplateLibraryActions|src/hooks/use-toast",
     "unowned-source-root|src/hooks/use-toast|root:hooks",
     "unowned-source-root|src/middleware|root:middleware"
   ]
