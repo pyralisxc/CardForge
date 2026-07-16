@@ -30,7 +30,7 @@ import {
   type RoadmapStatus,
   type RoadmapTimelineCheckpoint,
   type RoadmapVoteValue,
-} from '@/features/account/lib/roadmap';
+} from '@/features/roadmap/model/roadmap';
 
 interface RoadmapPanelProps {
   isDeveloper: boolean;

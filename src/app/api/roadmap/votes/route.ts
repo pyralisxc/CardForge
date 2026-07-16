@@ -1,6 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { voteRoadmapItem, RoadmapStoreError } from '@/features/account/server';
+import { voteRoadmapItem, RoadmapStoreError } from '@/features/roadmap/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 

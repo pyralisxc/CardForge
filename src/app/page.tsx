@@ -15,8 +15,7 @@ import {
 
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
-import { createSiteContentMap } from '@/features/owner/server';
-import { getSiteContentBlocks } from '@/features/owner/server';
+import { createSiteContentMap, getSiteContentBlocks } from '@/features/public-site/server';
 
 export const dynamic = 'force-dynamic';
 

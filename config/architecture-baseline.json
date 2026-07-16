@@ -1,26 +1,18 @@
 {
   "version": 1,
   "violations": [
-    "cross-feature-internal|src/features/account/components/AccountProfilePage|src/features/owner/lib/ownerConsole",
-    "cross-feature-internal|src/features/account/lib/roadmap|src/features/owner/lib/ownerConsole",
-    "cross-feature-internal|src/features/account/lib/roadmapStore|src/features/owner/lib/ownerConsole",
-    "cross-feature-internal|src/features/account/lib/roadmapStore|src/features/owner/lib/ownerConsoleStore",
-    "cross-feature-internal|src/features/contact/lib/contactLinks|src/features/owner/lib/ownerConsole",
-    "cross-feature-internal|src/features/legal/components/PublicLegalPage|src/features/owner/lib/ownerConsole",
-    "cross-feature-internal|src/features/template-editor/lib/elementPresetRecipes|src/features/owner/lib/ownerConsole",
     "feature-cycle-edge|feature:account|feature:app-shell",
-    "feature-cycle-edge|feature:account|feature:contact",
     "feature-cycle-edge|feature:account|feature:owner",
     "feature-cycle-edge|feature:app-shell|feature:account",
     "feature-cycle-edge|feature:app-shell|feature:template-editor",
-    "feature-cycle-edge|feature:contact|feature:owner",
     "feature-cycle-edge|feature:developer-assets|feature:account",
     "feature-cycle-edge|feature:developer-assets|feature:app-shell",
-    "feature-cycle-edge|feature:developer-assets|feature:contact",
     "feature-cycle-edge|feature:owner|feature:account",
     "feature-cycle-edge|feature:owner|feature:app-shell",
     "feature-cycle-edge|feature:owner|feature:developer-assets",
-    "feature-cycle-edge|feature:template-editor|feature:developer-assets",
-    "feature-cycle-edge|feature:template-editor|feature:owner"
+    "feature-cycle-edge|feature:owner|feature:roadmap",
+    "feature-cycle-edge|feature:roadmap|feature:account",
+    "feature-cycle-edge|feature:roadmap|feature:app-shell",
+    "feature-cycle-edge|feature:template-editor|feature:developer-assets"
   ]
 }

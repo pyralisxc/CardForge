@@ -12,23 +12,28 @@ import { useToast } from '@/components/ui/use-toast';
 import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/client/owner';
 import { OwnerBillingPanel } from '@/features/owner/components/OwnerBillingPanel';
 import type {
-  LegalDocumentSlug,
   FounderBetaCampaign,
   FounderBetaClaim,
-  LegalDocument,
   OwnerConsolePayload,
-  OwnerContactRequest,
   OwnerDatabaseMetrics,
-  OwnerRoadmapItem,
-  OwnerSettings,
-  SiteContentBlock,
-  SiteContentBlockSlug,
-  SiteMechanicsSettings,
 } from '@/features/owner/lib/ownerConsole';
+import type { ContactRequest } from '@/features/contact/client/requests';
 import {
   DEFAULT_LEGAL_DOCUMENTS,
+  type LegalDocument,
+  type LegalDocumentSlug,
+} from '@/features/legal/client/documents';
+import {
   DEFAULT_SITE_CONTENT_BLOCKS,
-} from '@/features/owner/lib/ownerConsole';
+  type SiteContentBlock,
+  type SiteContentBlockSlug,
+} from '@/features/public-site/client/content';
+import type { SiteOperatorSettings } from '@/features/public-site/client/operator';
+import {
+  DEFAULT_ROADMAP_SETTINGS,
+  type RoadmapAdminItem,
+  type RoadmapSettings,
+} from '@/features/roadmap/client/admin';
 
 interface OwnerConsoleResponse {
   ownerAccess: {
@@ -80,7 +85,7 @@ interface OwnerManagedAccount {
   note: string;
 }
 
-const emptySettings: OwnerSettings = {
+const emptySettings: SiteOperatorSettings = {
   businessName: '',
   ownerName: '',
   supportEmail: '',
@@ -106,14 +111,9 @@ const emptyFounderBetaCampaign: FounderBetaCampaign = {
   updatedAt: null,
 };
 
-const emptySiteMechanics: SiteMechanicsSettings = {
-  maxActiveUserRoadmapItems: 50,
-  maxRoadmapSuggestionLength: 200,
-  roadmapNegativeSignalMinTotalVotes: 20,
-  roadmapNegativeSignalMinDownvotePercent: 51,
-};
+const emptySiteMechanics: RoadmapSettings = DEFAULT_ROADMAP_SETTINGS;
 
-const roadmapStatusLabels: Record<OwnerRoadmapItem['status'], string> = {
+const roadmapStatusLabels: Record<RoadmapAdminItem['status'], string> = {
   planned: 'Planned',
   in_progress: 'In progress',
   testing: 'Testing',
@@ -230,14 +230,14 @@ function MechanicsNumberField({
 export function OwnerConsolePage() {
   const { toast } = useToast();
   const [payload, setPayload] = useState<OwnerConsoleResponse | null>(null);
-  const [settings, setSettings] = useState<OwnerSettings>(emptySettings);
-  const [siteMechanics, setSiteMechanics] = useState<SiteMechanicsSettings>(emptySiteMechanics);
+  const [settings, setSettings] = useState<SiteOperatorSettings>(emptySettings);
+  const [siteMechanics, setSiteMechanics] = useState<RoadmapSettings>(emptySiteMechanics);
   const [siteContentBlocks, setSiteContentBlocks] = useState<SiteContentBlock[]>(DEFAULT_SITE_CONTENT_BLOCKS);
   const [founderBetaCampaign, setFounderBetaCampaign] = useState<FounderBetaCampaign>(emptyFounderBetaCampaign);
   const [founderBetaClaims, setFounderBetaClaims] = useState<FounderBetaClaim[]>([]);
-  const [roadmapItems, setRoadmapItems] = useState<OwnerRoadmapItem[]>([]);
+  const [roadmapItems, setRoadmapItems] = useState<RoadmapAdminItem[]>([]);
   const [databaseMetrics, setDatabaseMetrics] = useState<OwnerDatabaseMetrics | null>(null);
-  const [contactRequests, setContactRequests] = useState<OwnerContactRequest[]>([]);
+  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
   const [accountSearchEmail, setAccountSearchEmail] = useState('');
   const [managedAccount, setManagedAccount] = useState<OwnerManagedAccount | null>(null);
   const [managedAccountDraft, setManagedAccountDraft] = useState({ access: 'free' as OwnerManagedAccount['access'], owner: false, note: '' });
@@ -522,7 +522,7 @@ export function OwnerConsolePage() {
     }
   };
 
-  const updateRoadmapStatus = async (itemId: string, status: OwnerRoadmapItem['status']) => {
+  const updateRoadmapStatus = async (itemId: string, status: RoadmapAdminItem['status']) => {
     setIsSaving(true);
     try {
       const response = await fetch('/api/owner/console', {
@@ -654,7 +654,7 @@ export function OwnerConsolePage() {
               <section className="border border-[#5f4526] bg-[#15100a] p-6">
                 <h2 className="font-serif text-2xl text-[#fff1c7]">Business profile</h2>
                 <div className="mt-5 grid gap-3">
-                  {(Object.keys(settings) as Array<keyof OwnerSettings>).map((key) => (
+                  {(Object.keys(settings) as Array<keyof SiteOperatorSettings>).map((key) => (
                     <label key={key} className="grid gap-2 text-sm text-[#c7b288]">
                       {key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}
                       <input

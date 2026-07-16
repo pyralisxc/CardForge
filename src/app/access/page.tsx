@@ -3,8 +3,7 @@ import { Gift, ShieldCheck, Sparkles, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
-import { createSiteContentMap } from '@/features/owner/server';
-import { getSiteContentBlocks } from '@/features/owner/server';
+import { createSiteContentMap, getSiteContentBlocks } from '@/features/public-site/server';
 
 export const dynamic = 'force-dynamic';
 

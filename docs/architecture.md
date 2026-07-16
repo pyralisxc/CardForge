@@ -52,10 +52,13 @@ CardForge has three storage lanes:
 - `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, and export tools. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
 - `src/features/billing`: Stripe checkout, subscription, portal, event ledger, and reconciliation behind explicit client/server interfaces.
-- `src/features/account`: account status, access entitlement, roadmap, profile surfaces, and current-user access behind explicit client/server interfaces. Roadmap moves to its own owner in the next operations slice.
+- `src/features/account`: account status, access entitlement, profile surfaces, and current-user access behind explicit client/server interfaces.
+- `src/features/public-site`: operator identity and editable landing/about/access content, with browser-safe contracts and a server-owned Supabase store.
+- `src/features/legal`: legal-document contracts, defaults, public presentation, and server persistence.
+- `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
+- `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
 - `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
-- `src/features/owner`: launch, operations, legal/site copy, access/promo, developer program, account management, and owner Supabase store.
-- `src/features/contact`: support/contact mail routing and contact request forms.
+- `src/features/owner`: owner authorization and composition, integration/database health, Founder Beta operations, account management, and operational panel assembly. Public content records remain owned by their product features.
 - `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
 - `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.
 - `src/components/ui`: generic UI primitives and generic browser UI state such as toast delivery.

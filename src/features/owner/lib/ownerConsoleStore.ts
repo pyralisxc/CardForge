@@ -1,60 +1,33 @@
-import { getBillingConfigStatus } from '@/features/billing/server';
 import { isClerkAuthConfigured } from '@/features/account/server';
+import { getBillingConfigStatus } from '@/features/billing/server';
+import { getContactRequests } from '@/features/contact/server';
+import { getLegalDocuments } from '@/features/legal/server';
 import {
   DEFAULT_FOUNDER_BETA_CAMPAIGN,
-  DEFAULT_LEGAL_DOCUMENTS,
-  DEFAULT_OWNER_SETTINGS,
-  DEFAULT_SITE_CONTENT_BLOCKS,
-  DEFAULT_SITE_MECHANICS_SETTINGS,
+  normalizeFounderBetaCampaignInput,
+  reconcileFounderBetaCampaignCopy,
   type FounderBetaCampaign,
   type FounderBetaClaim,
-  type LegalDocument,
-  type LegalDocumentSlug,
   type OwnerConsolePayload,
-  type OwnerContactRequest,
   type OwnerDatabaseMetrics,
-  type OwnerRoadmapItem,
-  type OwnerSettings,
-  type SiteContentBlock,
-  type SiteContentBlockSlug,
-  type SiteMechanicsSettings,
-  getDefaultLegalDocument,
-  getDefaultSiteContentBlock,
-  normalizeFounderBetaCampaignInput,
-  normalizeLegalDocumentInput,
-  normalizeSiteContentBlockInput,
-  normalizeOwnerRoadmapStatusInput,
-  normalizeOwnerSettingsInput,
-  normalizeSiteMechanicsSettingsInput,
-  reconcileFounderBetaCampaignCopy,
 } from '@/features/owner/lib/ownerConsole';
-import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
-import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/http/publicUrl';
-
-type OwnerSettingsRow = {
-  business_name: string;
-  owner_name: string;
-  support_email: string;
-  support_phone: string;
-  website_url: string;
-  max_active_user_roadmap_items: number | null;
-  max_roadmap_suggestion_length: number | null;
-  roadmap_negative_signal_min_total_votes: number | null;
-  roadmap_negative_signal_min_downvote_percent: number | null;
-};
-
-type LegalDocumentRow = {
-  slug: LegalDocumentSlug;
-  title: string;
-  body: string;
-  published_at: string | null;
-};
-
-type SiteContentBlockRow = {
-  slug: SiteContentBlockSlug;
-  body: string;
-  updated_at: string | null;
-};
+import {
+  getSiteContentBlocks,
+  getSiteOperatorSettings,
+} from '@/features/public-site/server';
+import {
+  getRoadmapAdminItems,
+  getRoadmapSettings,
+} from '@/features/roadmap/server';
+import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
+import {
+  getSupabaseServerClient,
+  getSupabaseServerConfigStatus,
+} from '@/infrastructure/database/supabaseServer';
+import {
+  getConfiguredPublicAppUrl,
+  getPublicAppUrl,
+} from '@/infrastructure/http/publicUrl';
 
 type FounderBetaCampaignRow = {
   enabled: boolean;
@@ -89,19 +62,6 @@ type FounderBetaClaimRow = {
   access_expires_at: string;
 };
 
-type OwnerRoadmapItemRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  item_type: OwnerRoadmapItem['itemType'] | null;
-  status: OwnerRoadmapItem['status'];
-  source: OwnerRoadmapItem['source'];
-  visible_month: string | null;
-  target_mrr_cents: number | null;
-  monthly_cost_cents: number | null;
-  shipped_at: string | null;
-};
-
 type DatabaseMetricsRow = {
   database_size_bytes: number | null;
   cardforge_table_size_bytes: number | null;
@@ -111,125 +71,43 @@ type DatabaseMetricsRow = {
   founder_beta_claim_count: number | null;
 };
 
-type OwnerContactRequestRow = {
-  id: string;
-  kind: OwnerContactRequest['kind'];
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  page_url: string | null;
-  status: OwnerContactRequest['status'];
-  resend_email_id: string | null;
-  created_at: string;
-};
-
 export class OwnerConsoleStoreError extends Error {
-  constructor(
-    message: string,
-    public readonly status = 500
-  ) {
+  constructor(message: string, public readonly status = 500) {
     super(message);
   }
 }
 
-const isMissingOwnerTableError = (error: unknown): boolean =>
-  typeof error === 'object'
-  && error !== null
-  && 'code' in error
-  && (error as { code?: string }).code === 'PGRST205';
-
-const mapSettingsRow = (row: OwnerSettingsRow | null | undefined): OwnerSettings =>
-  row
-    ? {
-        businessName: row.business_name,
-        ownerName: row.owner_name,
-        supportEmail: row.support_email,
-        supportPhone: row.support_phone,
-        websiteUrl: row.website_url,
-      }
-    : DEFAULT_OWNER_SETTINGS;
-
-const mapSiteMechanicsRow = (row: OwnerSettingsRow | null | undefined): SiteMechanicsSettings =>
-  row
-    ? normalizeSiteMechanicsSettingsInput({
-        maxActiveUserRoadmapItems: row.max_active_user_roadmap_items,
-        maxRoadmapSuggestionLength: row.max_roadmap_suggestion_length,
-        roadmapNegativeSignalMinTotalVotes: row.roadmap_negative_signal_min_total_votes,
-        roadmapNegativeSignalMinDownvotePercent: row.roadmap_negative_signal_min_downvote_percent,
-      })
-    : DEFAULT_SITE_MECHANICS_SETTINGS;
-
-const mapLegalRow = (row: LegalDocumentRow): LegalDocument => ({
-  slug: row.slug,
-  title: row.title,
-  body: row.body,
-  publishedAt: row.published_at,
-});
-
-const LEGACY_DEFAULT_SITE_CONTENT_BODIES: Partial<Record<SiteContentBlockSlug, string[]>> = {
-  'landing.hero.headline': [
-    'Build cards faster. Generate complete sets. Shape the forge together.',
-    'Build card systems, not one-off cards.',
-  ],
-  'landing.hero.body': [
-    'CardForge helps creators turn card ideas into full, export-ready sets while the community helps build the shared library that powers the studio.',
-  ],
-  'landing.hero.support': [
-    'The fantasy forge is the doorway; underneath is a serious production workflow for reusable templates, structured data, bulk generation, and clean exports.',
-  ],
-  'about.hero.headline': [
-    'A fantasy-forged studio for serious card production.',
-  ],
-  'about.hero.body': [
-    'CardForge helps creators design reusable card systems, generate complete sets from structured data, and export clean files. The forge theme gives the product a memorable doorway; the deeper promise is a practical workbench for creators who need repeatable layouts, shared assets, and faster iteration.',
-  ],
-};
-
-const mapSiteContentRow = (row: SiteContentBlockRow): SiteContentBlock => {
-  const defaultBlock = getDefaultSiteContentBlock(row.slug);
-  const isLegacyDefault = LEGACY_DEFAULT_SITE_CONTENT_BODIES[row.slug]?.includes(row.body) ?? false;
-
-  return {
-    ...defaultBlock,
-    body: isLegacyDefault ? defaultBlock.body : row.body,
-    updatedAt: isLegacyDefault ? null : row.updated_at,
-  };
-};
-
 const mapFounderBetaCampaignRow = (
   row: FounderBetaCampaignRow | null | undefined,
-  claimedSlots: number
-): FounderBetaCampaign => reconcileFounderBetaCampaignCopy(row
-  ? {
-      id: 'founder_beta',
-      enabled: row.enabled,
-      publicSlotCap: row.public_slot_cap,
-      releaseSlotCap: row.release_slot_cap,
-      claimedSlots,
-      accessDays: row.access_days,
-      autoGrant: row.auto_grant,
-      waitlistEnabled: row.waitlist_enabled,
-      campaignTitle: row.campaign_title,
-      landingMessage: row.landing_message,
-      accountBadgeLabel: row.account_badge_label,
-      exportGateMessage: row.export_gate_message,
-      stripeCouponId: row.stripe_coupon_id,
-      stripePromotionCode: row.stripe_promotion_code,
-      updatedAt: row.updated_at,
-    }
-  : {
-      ...DEFAULT_FOUNDER_BETA_CAMPAIGN,
-      claimedSlots,
-    });
+  claimedSlots: number,
+): FounderBetaCampaign => reconcileFounderBetaCampaignCopy(row ? {
+  id: 'founder_beta',
+  enabled: row.enabled,
+  publicSlotCap: row.public_slot_cap,
+  releaseSlotCap: row.release_slot_cap,
+  claimedSlots,
+  accessDays: row.access_days,
+  autoGrant: row.auto_grant,
+  waitlistEnabled: row.waitlist_enabled,
+  campaignTitle: row.campaign_title,
+  landingMessage: row.landing_message,
+  accountBadgeLabel: row.account_badge_label,
+  exportGateMessage: row.export_gate_message,
+  stripeCouponId: row.stripe_coupon_id,
+  stripePromotionCode: row.stripe_promotion_code,
+  updatedAt: row.updated_at,
+} : {
+  ...DEFAULT_FOUNDER_BETA_CAMPAIGN,
+  claimedSlots,
+});
 
-const getFounderBetaCampaign = async (): Promise<{ configured: boolean; campaign: FounderBetaCampaign }> => {
+const getFounderBetaCampaign = async (): Promise<{
+  configured: boolean;
+  campaign: FounderBetaCampaign;
+}> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) {
-    return {
-      configured: false,
-      campaign: DEFAULT_FOUNDER_BETA_CAMPAIGN,
-    };
+    return { configured: false, campaign: DEFAULT_FOUNDER_BETA_CAMPAIGN };
   }
 
   const [{ data: campaignRows, error: campaignError }, { count, error: countError }] = await Promise.all([
@@ -246,78 +124,19 @@ const getFounderBetaCampaign = async (): Promise<{ configured: boolean; campaign
   ]);
 
   if (campaignError || countError) {
-    if (!isMissingOwnerTableError(campaignError) && !isMissingOwnerTableError(countError)) {
+    if (!isMissingSupabaseTableError(campaignError) && !isMissingSupabaseTableError(countError)) {
       console.error('Failed to load Founder Beta campaign:', campaignError ?? countError);
     }
-    return {
-      configured: false,
-      campaign: DEFAULT_FOUNDER_BETA_CAMPAIGN,
-    };
+    return { configured: false, campaign: DEFAULT_FOUNDER_BETA_CAMPAIGN };
   }
 
   return {
     configured: true,
-    campaign: mapFounderBetaCampaignRow(campaignRows?.[0] as FounderBetaCampaignRow | undefined, count ?? 0),
+    campaign: mapFounderBetaCampaignRow(
+      campaignRows?.[0] as FounderBetaCampaignRow | undefined,
+      count ?? 0,
+    ),
   };
-};
-
-const mapFounderBetaClaimRow = (row: FounderBetaClaimRow): FounderBetaClaim => ({
-  id: row.id,
-  email: row.email,
-  status: row.status,
-  claimedAt: row.claimed_at,
-  accessExpiresAt: row.access_expires_at,
-});
-
-const mapOwnerRoadmapItemRow = (row: OwnerRoadmapItemRow): OwnerRoadmapItem => ({
-  id: row.id,
-  title: row.title,
-  description: row.description,
-  itemType: row.item_type ?? 'feature',
-  status: row.status,
-  source: row.source,
-  visibleMonth: row.visible_month ?? '',
-  targetMrrCents: row.target_mrr_cents,
-  monthlyCostCents: row.monthly_cost_cents,
-  shippedAt: row.shipped_at,
-});
-
-const mapDatabaseMetricsRow = (row: DatabaseMetricsRow): OwnerDatabaseMetrics => ({
-  databaseSizeBytes: Number(row.database_size_bytes ?? 0),
-  cardforgeTableSizeBytes: Number(row.cardforge_table_size_bytes ?? 0),
-  storageSizeBytes: Number(row.storage_size_bytes ?? 0),
-  assetRegistryCount: Number(row.asset_registry_count ?? 0),
-  developerSubmissionCount: Number(row.developer_submission_count ?? 0),
-  founderBetaClaimCount: Number(row.founder_beta_claim_count ?? 0),
-});
-
-const mapOwnerContactRequestRow = (row: OwnerContactRequestRow): OwnerContactRequest => ({
-  id: row.id,
-  kind: row.kind,
-  name: row.name,
-  email: row.email,
-  subject: row.subject,
-  message: row.message,
-  pageUrl: row.page_url,
-  status: row.status,
-  resendEmailId: row.resend_email_id,
-  createdAt: row.created_at,
-});
-
-const getOwnerDatabaseMetrics = async (): Promise<OwnerDatabaseMetrics | null> => {
-  const supabase = getSupabaseServerClient();
-  if (!getSupabaseServerConfigStatus().configured || !supabase) return null;
-
-  const { data, error } = await supabase.rpc('cardforge_database_metrics');
-  if (error) {
-    if ((error as { code?: string }).code !== 'PGRST202') {
-      console.error('Failed to load owner database metrics:', error);
-    }
-    return null;
-  }
-
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? mapDatabaseMetricsRow(row as DatabaseMetricsRow) : null;
 };
 
 const getFounderBetaClaims = async (): Promise<FounderBetaClaim[]> => {
@@ -332,229 +151,76 @@ const getFounderBetaClaims = async (): Promise<FounderBetaClaim[]> => {
     .limit(100);
 
   if (error) {
-    if (!isMissingOwnerTableError(error)) {
+    if (!isMissingSupabaseTableError(error)) {
       console.error('Failed to load Founder Beta claims:', error);
     }
     return [];
   }
 
-  return (data ?? []).map((row) => mapFounderBetaClaimRow(row as FounderBetaClaimRow));
+  return (data ?? []).map((row) => {
+    const claim = row as FounderBetaClaimRow;
+    return {
+      id: claim.id,
+      email: claim.email,
+      status: claim.status,
+      claimedAt: claim.claimed_at,
+      accessExpiresAt: claim.access_expires_at,
+    };
+  });
 };
 
-export const getOwnerContactRequests = async (): Promise<OwnerContactRequest[]> => {
-  const supabase = getSupabaseServerClient();
-  if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
-
-  const { data, error } = await supabase
-    .from('cardforge_contact_requests')
-    .select('id,kind,name,email,subject,message,page_url,status,resend_email_id,created_at')
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  if (error) {
-    if (!isMissingOwnerTableError(error)) {
-      console.error('Failed to load owner contact requests:', error);
-    }
-    return [];
-  }
-
-  return (data ?? []).map((row) => mapOwnerContactRequestRow(row as OwnerContactRequestRow));
-};
-
-export const recordContactRequest = async ({
-  kind,
-  name,
-  email,
-  subject,
-  message,
-  pageUrl,
-}: {
-  kind: OwnerContactRequest['kind'];
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  pageUrl: string;
-}): Promise<string | null> => {
+const getOwnerDatabaseMetrics = async (): Promise<OwnerDatabaseMetrics | null> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return null;
 
-  const { data, error } = await supabase
-    .from('cardforge_contact_requests')
-    .insert({
-      kind,
-      name,
-      email,
-      subject,
-      message,
-      page_url: pageUrl || null,
-    })
-    .select('id')
-    .single();
-
+  const { data, error } = await supabase.rpc('cardforge_database_metrics');
   if (error) {
-    if (!isMissingOwnerTableError(error)) {
-      console.error('Failed to record contact request:', error);
+    if ((error as { code?: string }).code !== 'PGRST202') {
+      console.error('Failed to load owner database metrics:', error);
     }
     return null;
   }
 
-  return typeof data?.id === 'string' ? data.id : null;
-};
-
-export const markContactRequestEmailResult = async ({
-  id,
-  ok,
-  resendEmailId,
-}: {
-  id: string | null;
-  ok: boolean;
-  resendEmailId?: string | null;
-}): Promise<void> => {
-  if (!id) return;
-  const supabase = getSupabaseServerClient();
-  if (!getSupabaseServerConfigStatus().configured || !supabase) return;
-
-  const { error } = await supabase
-    .from('cardforge_contact_requests')
-    .update({
-      status: ok ? 'emailed' : 'email_failed',
-      resend_email_id: resendEmailId ?? null,
-    })
-    .eq('id', id);
-
-  if (error && !isMissingOwnerTableError(error)) {
-    console.error('Failed to update contact request email status:', error);
-  }
-};
-
-const getOwnerRoadmapItems = async (): Promise<OwnerRoadmapItem[]> => {
-  const supabase = getSupabaseServerClient();
-  if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
-
-  const { data, error } = await supabase
-    .from('cardforge_roadmap_items')
-    .select('id,title,description,item_type,status,source,visible_month,target_mrr_cents,monthly_cost_cents,shipped_at')
-    .eq('source', 'official')
-    .order('visible_month', { ascending: true })
-    .order('sort_order', { ascending: true });
-
-  if (error) {
-    if (!isMissingOwnerTableError(error)) {
-      console.error('Failed to load owner roadmap items:', error);
-    }
-    return [];
-  }
-
-  return (data ?? []).map((row) => mapOwnerRoadmapItemRow(row as OwnerRoadmapItemRow));
-};
-
-export const getSiteContentBlocks = async (): Promise<SiteContentBlock[]> => {
-  const supabase = getSupabaseServerClient();
-  if (!getSupabaseServerConfigStatus().configured || !supabase) return DEFAULT_SITE_CONTENT_BLOCKS;
-
-  const { data, error } = await supabase
-    .from('cardforge_site_content_blocks')
-    .select('slug,body,updated_at')
-    .order('slug', { ascending: true });
-
-  if (error) {
-    if (!isMissingOwnerTableError(error)) {
-      console.error('Failed to load site content blocks:', error);
-    }
-    return DEFAULT_SITE_CONTENT_BLOCKS;
-  }
-
-  return DEFAULT_SITE_CONTENT_BLOCKS.map((defaultBlock) => {
-    const row = (data ?? []).find((block) => block.slug === defaultBlock.slug) as SiteContentBlockRow | undefined;
-    return row ? mapSiteContentRow(row) : defaultBlock;
-  });
+  const row = (Array.isArray(data) ? data[0] : data) as DatabaseMetricsRow | undefined;
+  return row ? {
+    databaseSizeBytes: Number(row.database_size_bytes ?? 0),
+    cardforgeTableSizeBytes: Number(row.cardforge_table_size_bytes ?? 0),
+    storageSizeBytes: Number(row.storage_size_bytes ?? 0),
+    assetRegistryCount: Number(row.asset_registry_count ?? 0),
+    developerSubmissionCount: Number(row.developer_submission_count ?? 0),
+    founderBetaClaimCount: Number(row.founder_beta_claim_count ?? 0),
+  } : null;
 };
 
 export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => {
-  const supabase = getSupabaseServerClient();
-  if (!getSupabaseServerConfigStatus().configured || !supabase) {
-    return {
-      configured: false,
-      settings: DEFAULT_OWNER_SETTINGS,
-      siteMechanics: DEFAULT_SITE_MECHANICS_SETTINGS,
-      siteContentBlocks: DEFAULT_SITE_CONTENT_BLOCKS,
-      legalDocuments: DEFAULT_LEGAL_DOCUMENTS,
-      founderBetaCampaign: DEFAULT_FOUNDER_BETA_CAMPAIGN,
-      founderBetaClaims: [],
-      roadmapItems: [],
-      databaseMetrics: null,
-      contactRequests: [],
-    };
-  }
-
-  const { data: settingsRows, error: settingsError } = await supabase
-    .from('cardforge_owner_settings')
-    .select('business_name,owner_name,support_email,support_phone,website_url,max_active_user_roadmap_items,max_roadmap_suggestion_length,roadmap_negative_signal_min_total_votes,roadmap_negative_signal_min_downvote_percent')
-    .eq('id', 'cardforge')
-    .limit(1);
-
-  if (settingsError) {
-    if (!isMissingOwnerTableError(settingsError)) {
-      console.error('Failed to load owner settings:', settingsError);
-    }
-    return {
-      configured: false,
-      settings: DEFAULT_OWNER_SETTINGS,
-      siteMechanics: DEFAULT_SITE_MECHANICS_SETTINGS,
-      siteContentBlocks: await getSiteContentBlocks(),
-      legalDocuments: DEFAULT_LEGAL_DOCUMENTS,
-      founderBetaCampaign: (await getFounderBetaCampaign()).campaign,
-      founderBetaClaims: await getFounderBetaClaims(),
-      roadmapItems: await getOwnerRoadmapItems(),
-      databaseMetrics: await getOwnerDatabaseMetrics(),
-      contactRequests: await getOwnerContactRequests(),
-    };
-  }
-
-  const { data: legalRows, error: legalError } = await supabase
-    .from('cardforge_legal_documents')
-    .select('slug,title,body,published_at')
-    .order('slug', { ascending: true });
-
-  if (legalError) {
-    if (!isMissingOwnerTableError(legalError)) {
-      console.error('Failed to load legal documents:', legalError);
-    }
-    return {
-      configured: false,
-      settings: mapSettingsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
-      siteMechanics: mapSiteMechanicsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
-      siteContentBlocks: await getSiteContentBlocks(),
-      legalDocuments: DEFAULT_LEGAL_DOCUMENTS,
-      founderBetaCampaign: (await getFounderBetaCampaign()).campaign,
-      founderBetaClaims: await getFounderBetaClaims(),
-      roadmapItems: await getOwnerRoadmapItems(),
-      databaseMetrics: await getOwnerDatabaseMetrics(),
-      contactRequests: await getOwnerContactRequests(),
-    };
-  }
-
-  const [founderBeta, founderBetaClaims, roadmapItems, databaseMetrics, siteContentBlocks, contactRequests] = await Promise.all([
+  const [
+    settings,
+    siteMechanics,
+    siteContentBlocks,
+    legalDocuments,
+    founderBeta,
+    founderBetaClaims,
+    roadmapItems,
+    databaseMetrics,
+    contactRequests,
+  ] = await Promise.all([
+    getSiteOperatorSettings(),
+    getRoadmapSettings(),
+    getSiteContentBlocks(),
+    getLegalDocuments(),
     getFounderBetaCampaign(),
     getFounderBetaClaims(),
-    getOwnerRoadmapItems(),
+    getRoadmapAdminItems(),
     getOwnerDatabaseMetrics(),
-    getSiteContentBlocks(),
-    getOwnerContactRequests(),
+    getContactRequests(),
   ]);
-
-  const documents = DEFAULT_LEGAL_DOCUMENTS.map((defaultDocument) => {
-    const row = (legalRows ?? []).find((document) => document.slug === defaultDocument.slug) as LegalDocumentRow | undefined;
-    return row ? mapLegalRow(row) : defaultDocument;
-  });
 
   return {
     configured: founderBeta.configured,
-    settings: mapSettingsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
-    siteMechanics: mapSiteMechanicsRow(settingsRows?.[0] as OwnerSettingsRow | undefined),
+    settings,
+    siteMechanics,
     siteContentBlocks,
-    legalDocuments: documents,
+    legalDocuments,
     founderBetaCampaign: founderBeta.campaign,
     founderBetaClaims,
     roadmapItems,
@@ -563,176 +229,32 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
   };
 };
 
-export const updateOwnerSettings = async (input: Partial<Record<keyof OwnerSettings, unknown>>): Promise<OwnerConsolePayload> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new OwnerConsoleStoreError('Owner database is not configured yet.', 503);
-
-  const normalized = normalizeOwnerSettingsInput(input);
-  const { error } = await supabase
-    .from('cardforge_owner_settings')
-    .upsert({
-      id: 'cardforge',
-      business_name: normalized.businessName,
-      owner_name: normalized.ownerName,
-      support_email: normalized.supportEmail,
-      support_phone: normalized.supportPhone,
-      website_url: normalized.websiteUrl,
-    }, {
-      onConflict: 'id',
-    });
-
-  if (error) {
-    console.error('Failed to update owner settings:', error);
-    throw new OwnerConsoleStoreError('Unable to update owner settings.', 500);
-  }
-
-  return getOwnerConsolePayload();
-};
-
-export const updateSiteMechanicsSettings = async (
-  input: Partial<Record<keyof SiteMechanicsSettings, unknown>>
-): Promise<OwnerConsolePayload> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new OwnerConsoleStoreError('Owner database is not configured yet.', 503);
-
-  const normalized = normalizeSiteMechanicsSettingsInput(input);
-  const { error } = await supabase
-    .from('cardforge_owner_settings')
-    .upsert({
-      id: 'cardforge',
-      max_active_user_roadmap_items: normalized.maxActiveUserRoadmapItems,
-      max_roadmap_suggestion_length: normalized.maxRoadmapSuggestionLength,
-      roadmap_negative_signal_min_total_votes: normalized.roadmapNegativeSignalMinTotalVotes,
-      roadmap_negative_signal_min_downvote_percent: normalized.roadmapNegativeSignalMinDownvotePercent,
-    }, {
-      onConflict: 'id',
-    });
-
-  if (error) {
-    console.error('Failed to update site mechanics:', error);
-    throw new OwnerConsoleStoreError('Unable to update site mechanics.', 500);
-  }
-
-  return getOwnerConsolePayload();
-};
-
-export const updateSiteContentBlock = async (input: { slug?: unknown; body?: unknown }): Promise<OwnerConsolePayload> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new OwnerConsoleStoreError('Owner database is not configured yet.', 503);
-
-  const normalized = normalizeSiteContentBlockInput(input);
-  if (!normalized.ok) throw new OwnerConsoleStoreError(normalized.message, 400);
-
-  const { error } = await supabase
-    .from('cardforge_site_content_blocks')
-    .upsert({
-      slug: normalized.value.slug,
-      body: normalized.value.body,
-      updated_at: new Date().toISOString(),
-    }, {
-      onConflict: 'slug',
-    });
-
-  if (error) {
-    console.error('Failed to update site copy:', error);
-    throw new OwnerConsoleStoreError('Unable to update site copy.', 500);
-  }
-
-  return getOwnerConsolePayload();
-};
-
-export const updateLegalDocument = async (input: { slug?: unknown; title?: unknown; body?: unknown }): Promise<OwnerConsolePayload> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new OwnerConsoleStoreError('Owner database is not configured yet.', 503);
-
-  const normalized = normalizeLegalDocumentInput(input);
-  if (!normalized.ok) throw new OwnerConsoleStoreError(normalized.message, 400);
-
-  const { error } = await supabase
-    .from('cardforge_legal_documents')
-    .upsert({
-      slug: normalized.value.slug,
-      title: normalized.value.title,
-      body: normalized.value.body,
-      published_at: new Date().toISOString(),
-    }, {
-      onConflict: 'slug',
-    });
-
-  if (error) {
-    console.error('Failed to update legal document:', error);
-    throw new OwnerConsoleStoreError('Unable to update legal document.', 500);
-  }
-
-  return getOwnerConsolePayload();
-};
-
 export const updateFounderBetaCampaign = async (
-  input: Partial<Record<keyof FounderBetaCampaign, unknown>>
+  input: Partial<Record<keyof FounderBetaCampaign, unknown>>,
 ): Promise<OwnerConsolePayload> => {
   const supabase = getSupabaseServerClient();
-  if (!supabase) throw new OwnerConsoleStoreError('Owner database is not configured yet.', 503);
+  if (!supabase) throw new OwnerConsoleStoreError('Founder Beta database is not configured yet.', 503);
 
   const normalized = normalizeFounderBetaCampaignInput(input);
-  const { error } = await supabase
-    .from('cardforge_founder_beta_campaigns')
-    .upsert({
-      id: 'founder_beta',
-      enabled: normalized.enabled,
-      public_slot_cap: normalized.publicSlotCap,
-      release_slot_cap: normalized.releaseSlotCap,
-      access_days: normalized.accessDays,
-      auto_grant: normalized.autoGrant,
-      waitlist_enabled: normalized.waitlistEnabled,
-      campaign_title: normalized.campaignTitle,
-      landing_message: normalized.landingMessage,
-      account_badge_label: normalized.accountBadgeLabel,
-      export_gate_message: normalized.exportGateMessage,
-      stripe_coupon_id: normalized.stripeCouponId,
-      stripe_promotion_code: normalized.stripePromotionCode,
-    }, {
-      onConflict: 'id',
-    });
+  const { error } = await supabase.from('cardforge_founder_beta_campaigns').upsert({
+    id: 'founder_beta',
+    enabled: normalized.enabled,
+    public_slot_cap: normalized.publicSlotCap,
+    release_slot_cap: normalized.releaseSlotCap,
+    access_days: normalized.accessDays,
+    auto_grant: normalized.autoGrant,
+    waitlist_enabled: normalized.waitlistEnabled,
+    campaign_title: normalized.campaignTitle,
+    landing_message: normalized.landingMessage,
+    account_badge_label: normalized.accountBadgeLabel,
+    export_gate_message: normalized.exportGateMessage,
+    stripe_coupon_id: normalized.stripeCouponId,
+    stripe_promotion_code: normalized.stripePromotionCode,
+  }, { onConflict: 'id' });
 
   if (error) {
     console.error('Failed to update Founder Beta campaign:', error);
-    throw new OwnerConsoleStoreError('Unable to update Founder Beta campaign.', 500);
-  }
-
-  return getOwnerConsolePayload();
-};
-
-export const updateOwnerRoadmapItemStatus = async ({
-  itemId,
-  status,
-}: {
-  itemId?: unknown;
-  status?: unknown;
-}): Promise<OwnerConsolePayload> => {
-  if (typeof itemId !== 'string' || itemId.trim().length === 0) {
-    throw new OwnerConsoleStoreError('Roadmap item is required.', 400);
-  }
-
-  const normalizedStatus = normalizeOwnerRoadmapStatusInput(status);
-  if (!normalizedStatus) {
-    throw new OwnerConsoleStoreError('Choose a supported roadmap status.', 400);
-  }
-
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new OwnerConsoleStoreError('Roadmap database is not configured yet.', 503);
-
-  const { error } = await supabase
-    .from('cardforge_roadmap_items')
-    .update({
-      status: normalizedStatus,
-      shipped_at: normalizedStatus === 'shipped' ? new Date().toISOString() : null,
-    })
-    .eq('id', itemId)
-    .eq('source', 'official');
-
-  if (error) {
-    console.error('Failed to update roadmap status:', error);
-    throw new OwnerConsoleStoreError('Unable to update roadmap status.', 500);
+    throw new OwnerConsoleStoreError('Unable to update Founder Beta campaign.');
   }
 
   return getOwnerConsolePayload();
@@ -755,22 +277,14 @@ export const claimFounderBetaAccess = async ({
 
   if (error) {
     console.error('Failed to claim Founder Beta:', error);
-    throw new OwnerConsoleStoreError('Unable to claim Founder Beta access.', 500);
+    throw new OwnerConsoleStoreError('Unable to claim Founder Beta access.');
   }
 
   const result = (Array.isArray(data) ? data[0] : data) as FounderBetaClaimResultRow | undefined;
-  if (!result) throw new OwnerConsoleStoreError('Founder Beta claim returned no result.', 500);
+  if (!result) throw new OwnerConsoleStoreError('Founder Beta claim returned no result.');
 
   const { campaign } = await getFounderBetaCampaign();
   return { ...result, campaign };
-};
-
-export const getPublishedLegalDocument = async (slug: LegalDocumentSlug): Promise<{ settings: OwnerSettings; document: LegalDocument }> => {
-  const payload = await getOwnerConsolePayload();
-  return {
-    settings: payload.settings,
-    document: payload.legalDocuments.find((document) => document.slug === slug) ?? getDefaultLegalDocument(slug),
-  };
 };
 
 export const getOwnerIntegrationStatus = () => {

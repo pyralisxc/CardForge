@@ -13,7 +13,7 @@ import {
   normalizeRoadmapSuggestion,
   sortRoadmapFeatures,
   shouldArchiveUserRoadmapItem,
-} from '@/features/account/lib/roadmap';
+} from '@/features/roadmap/model/roadmap';
 
 describe('roadmap rules', () => {
   it('normalizes compact roadmap suggestions for storage', () => {

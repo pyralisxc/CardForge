@@ -1,7 +1,7 @@
 import { buildContactRequestEmail, sendResendEmail } from '@/features/contact/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { getOwnerConsolePayload } from '@/features/owner/server';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { getSiteOperatorSettings } from '@/features/public-site/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,15 +11,15 @@ export async function POST() {
     return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required.');
   }
 
-  const payload = await getOwnerConsolePayload();
-  const to = payload.settings.supportEmail || owner.email || process.env.CARDFORGE_EMAIL_REPLY_TO || '';
+  const settings = await getSiteOperatorSettings();
+  const to = settings.supportEmail || owner.email || process.env.CARDFORGE_EMAIL_REPLY_TO || '';
   const built = buildContactRequestEmail({
     kind: 'support',
     name: 'CardForge Owner Console',
     email: process.env.CARDFORGE_EMAIL_REPLY_TO || to,
     subject: 'Transactional email test',
     message: 'This confirms CardForge can send transactional email through the configured Resend route.',
-    pageUrl: payload.settings.websiteUrl,
+    pageUrl: settings.websiteUrl,
   });
 
   const result = await sendResendEmail({

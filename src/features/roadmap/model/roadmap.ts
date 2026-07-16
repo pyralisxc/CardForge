@@ -1,11 +1,61 @@
-import {
-  DEFAULT_SITE_MECHANICS_SETTINGS,
-  type SiteMechanicsSettings,
-} from '@/features/owner/lib/ownerConsole';
-
 export const MAX_ROADMAP_SUGGESTION_LENGTH = 200;
 export const MAX_ACTIVE_USER_ROADMAP_ITEMS = 50;
 export const ROADMAP_NEGATIVE_SIGNAL_MIN_TOTAL_VOTES = 20;
+
+export interface RoadmapSettings {
+  maxActiveUserRoadmapItems: number;
+  maxRoadmapSuggestionLength: number;
+  roadmapNegativeSignalMinTotalVotes: number;
+  roadmapNegativeSignalMinDownvotePercent: number;
+}
+
+export const DEFAULT_ROADMAP_SETTINGS: RoadmapSettings = {
+  maxActiveUserRoadmapItems: MAX_ACTIVE_USER_ROADMAP_ITEMS,
+  maxRoadmapSuggestionLength: MAX_ROADMAP_SUGGESTION_LENGTH,
+  roadmapNegativeSignalMinTotalVotes: ROADMAP_NEGATIVE_SIGNAL_MIN_TOTAL_VOTES,
+  roadmapNegativeSignalMinDownvotePercent: 51,
+};
+
+const normalizeBoundedInteger = (
+  value: unknown,
+  fallback: number,
+  min: number,
+  max: number,
+): number => {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  if (!Number.isFinite(numeric)) return fallback;
+  const rounded = Math.round(numeric);
+  return rounded >= min && rounded <= max ? rounded : fallback;
+};
+
+export const normalizeRoadmapSettingsInput = (
+  value: Partial<Record<keyof RoadmapSettings, unknown>>,
+): RoadmapSettings => ({
+  maxActiveUserRoadmapItems: normalizeBoundedInteger(
+    value.maxActiveUserRoadmapItems,
+    DEFAULT_ROADMAP_SETTINGS.maxActiveUserRoadmapItems,
+    1,
+    500,
+  ),
+  maxRoadmapSuggestionLength: normalizeBoundedInteger(
+    value.maxRoadmapSuggestionLength,
+    DEFAULT_ROADMAP_SETTINGS.maxRoadmapSuggestionLength,
+    40,
+    500,
+  ),
+  roadmapNegativeSignalMinTotalVotes: normalizeBoundedInteger(
+    value.roadmapNegativeSignalMinTotalVotes,
+    DEFAULT_ROADMAP_SETTINGS.roadmapNegativeSignalMinTotalVotes,
+    1,
+    1000,
+  ),
+  roadmapNegativeSignalMinDownvotePercent: normalizeBoundedInteger(
+    value.roadmapNegativeSignalMinDownvotePercent,
+    DEFAULT_ROADMAP_SETTINGS.roadmapNegativeSignalMinDownvotePercent,
+    1,
+    100,
+  ),
+});
 
 export interface RoadmapVotingRules {
   negativeSignalMinTotalVotes: number;
@@ -13,8 +63,8 @@ export interface RoadmapVotingRules {
 }
 
 export const DEFAULT_ROADMAP_VOTING_RULES: RoadmapVotingRules = {
-  negativeSignalMinTotalVotes: DEFAULT_SITE_MECHANICS_SETTINGS.roadmapNegativeSignalMinTotalVotes,
-  negativeSignalMinDownvotePercent: DEFAULT_SITE_MECHANICS_SETTINGS.roadmapNegativeSignalMinDownvotePercent,
+  negativeSignalMinTotalVotes: DEFAULT_ROADMAP_SETTINGS.roadmapNegativeSignalMinTotalVotes,
+  negativeSignalMinDownvotePercent: DEFAULT_ROADMAP_SETTINGS.roadmapNegativeSignalMinDownvotePercent,
 };
 
 export type RoadmapStatus =
@@ -46,6 +96,20 @@ export interface RoadmapItem {
   userVote: RoadmapVoteValue | null;
 }
 
+export type RoadmapAdminItem = Pick<
+  RoadmapItem,
+  | 'id'
+  | 'title'
+  | 'description'
+  | 'itemType'
+  | 'status'
+  | 'source'
+  | 'visibleMonth'
+  | 'targetMrrCents'
+  | 'monthlyCostCents'
+  | 'shippedAt'
+>;
+
 export interface RoadmapPayload {
   configured: boolean;
   items: RoadmapItem[];
@@ -62,7 +126,7 @@ export type RoadmapSuggestionResult =
 
 export const normalizeRoadmapSuggestion = (
   value: unknown,
-  settings: Pick<SiteMechanicsSettings, 'maxRoadmapSuggestionLength'> = DEFAULT_SITE_MECHANICS_SETTINGS
+  settings: Pick<RoadmapSettings, 'maxRoadmapSuggestionLength'> = DEFAULT_ROADMAP_SETTINGS
 ): RoadmapSuggestionResult => {
   if (typeof value !== 'string') {
     return { ok: false, message: 'Feature suggestion is required.' };

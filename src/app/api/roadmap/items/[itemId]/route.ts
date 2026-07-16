@@ -3,7 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { resolveAccountEntitlement } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { deleteDeveloperRoadmapItem, RoadmapStoreError } from '@/features/account/server';
+import { deleteDeveloperRoadmapItem, RoadmapStoreError } from '@/features/roadmap/server';
 
 export const dynamic = 'force-dynamic';
 

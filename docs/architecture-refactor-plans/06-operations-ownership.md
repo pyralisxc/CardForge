@@ -21,16 +21,16 @@
 - [x] Add Account, Billing, App Shell, Card Generator, Contact, Legal, Developer Assets, and Owner public entry points and route App consumers through them.
 - [x] Regenerate a smaller architecture baseline: 221 to 21 tracked violations, with no new violation accepted.
 - [x] Run lint, typecheck, architecture check, the full unit suite (64 files / 402 tests), production build, diff check, and dependency audit. Narrow client subpaths avoid barrel-driven bundle growth; Studio remains 15.6 kB / 557 kB first load. Only the accepted nested Next/PostCSS advisory remains.
-- [ ] Publish, require hosted CI/Public smoke, merge, and verify the exact production deployment.
+- [x] Publish as PR #35, require hosted CI/Public smoke, merge, and verify exact production deployment `dpl_BymqfLthhiqW9j57Bqbz78T15hMx` for main commit `4e49e2906ac9f68391c08de3bb770665d1a4a059`. The deployment is READY on `cardforges.com`, all five production health routes passed, and the post-deploy runtime window contained no error groups.
 
 ## PR B — Public content, legal, contact, and roadmap ownership
 
-- [ ] Move public site content/contracts/store into Public Site.
-- [ ] Move legal contracts/defaults/store into Legal.
-- [ ] Move contact request persistence into Contact.
-- [ ] Move roadmap models, store, page, panel, and owner mechanics into Roadmap.
-- [ ] Replace Owner-owned public-content imports with declared client/server interfaces.
-- [ ] Split the aggregate server payload by owned records without changing live provider data.
+- [x] Move public site content/contracts/store into Public Site.
+- [x] Move legal contracts/defaults/store into Legal.
+- [x] Move contact request persistence into Contact.
+- [x] Move roadmap models, store, page, panel, and owner mechanics into Roadmap.
+- [x] Replace Owner-owned public-content imports with declared client/server interfaces.
+- [x] Split the aggregate server payload by owned records without changing live provider data. Owner now composes dedicated stores, and `ownerConsoleStore` is 326 lines instead of 813.
 - [ ] Verify public pages, roadmap mutation gates, contact delivery, and owner editing.
 
 ## PR C — Account and Billing ownership
