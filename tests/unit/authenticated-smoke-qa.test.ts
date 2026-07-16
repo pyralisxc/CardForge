@@ -63,6 +63,7 @@ describe('authenticated smoke QA role metadata', () => {
     cardforgeAccess: 'paid',
     cardforgeRole: 'owner',
     cardforgeAccessExpiresAt: '2026-08-01T00:00:00.000Z',
+    cardforgeFounderBetaClaimedAt: '2026-07-15T00:00:00.000Z',
   };
 
   it('removes all CardForge role keys for free QA', () => {
@@ -110,6 +111,7 @@ const createFakeClerk = (initialUsers: Array<{
   const calls = {
     create: [] as Array<Record<string, unknown>>,
     update: [] as Array<{ userId: string; privateMetadata: Record<string, unknown> }>,
+    replace: [] as Array<{ userId: string; privateMetadata: Record<string, unknown> }>,
   };
 
   return {
@@ -142,6 +144,13 @@ const createFakeClerk = (initialUsers: Array<{
         calls.update.push({ userId, privateMetadata });
         const user = users.get(userId);
         if (!user) throw new Error('User not found.');
+        user.privateMetadata = { ...user.privateMetadata, ...privateMetadata };
+        return user;
+      },
+      async replaceUserMetadata(userId: string, { privateMetadata }: { privateMetadata: Record<string, unknown> }) {
+        calls.replace.push({ userId, privateMetadata });
+        const user = users.get(userId);
+        if (!user) throw new Error('User not found.');
         user.privateMetadata = privateMetadata;
         return user;
       },
@@ -166,7 +175,8 @@ describe('authenticated smoke Clerk QA bootstrap', () => {
       skipPasswordChecks: true,
       skipLegalChecks: true,
     });
-    expect(clerk.calls.update.map((call) => call.privateMetadata)).toEqual([
+    expect(clerk.calls.update).toEqual([]);
+    expect(clerk.calls.replace.map((call) => call.privateMetadata)).toEqual([
       { cardforgeAccess: 'paid' },
       { cardforgeAccess: 'dev' },
       { cardforgeAccess: 'dev', cardforgeRole: 'owner' },
@@ -192,7 +202,7 @@ describe('authenticated smoke Clerk QA bootstrap', () => {
 
   it('reuses exact users, preserves unrelated metadata, and updates only drifted roles', async () => {
     const clerk = createFakeClerk([
-      { id: 'free_id', email: 'qa-free@example.test', privateMetadata: { unrelated: 'free' } },
+      { id: 'free_id', email: 'qa-free@example.test', privateMetadata: { unrelated: 'free', cardforgeAccess: 'paid' } },
       { id: 'paid_id', email: 'qa-paid@example.test', privateMetadata: { unrelated: 'paid', cardforgeAccess: 'free', cardforgeRole: 'owner' } },
       { id: 'dev_id', email: 'qa-dev@example.test', privateMetadata: { unrelated: 'dev', cardforgeAccess: 'dev' } },
       { id: 'owner_id', email: 'qa-owner@example.test', privateMetadata: { unrelated: 'owner', cardforgeAccess: 'dev', cardforgeRole: 'owner' } },
@@ -205,12 +215,13 @@ describe('authenticated smoke Clerk QA bootstrap', () => {
     });
 
     expect(clerk.calls.create).toEqual([]);
-    expect(clerk.calls.update).toEqual([{
-      userId: 'paid_id',
-      privateMetadata: { unrelated: 'paid', cardforgeAccess: 'paid' },
-    }]);
+    expect(clerk.calls.update).toEqual([]);
+    expect(clerk.calls.replace).toEqual([
+      { userId: 'free_id', privateMetadata: { unrelated: 'free' } },
+      { userId: 'paid_id', privateMetadata: { unrelated: 'paid', cardforgeAccess: 'paid' } },
+    ]);
     expect(results.map(({ created, metadataUpdated }) => ({ created, metadataUpdated }))).toEqual([
-      { created: false, metadataUpdated: false },
+      { created: false, metadataUpdated: true },
       { created: false, metadataUpdated: true },
       { created: false, metadataUpdated: false },
       { created: false, metadataUpdated: false },
@@ -230,6 +241,7 @@ describe('authenticated smoke Clerk QA bootstrap', () => {
     })).rejects.toThrow('Ambiguous Clerk QA account lookup: CARDFORGE_E2E_FREE_EMAIL.');
     expect(clerk.calls.create).toEqual([]);
     expect(clerk.calls.update).toEqual([]);
+    expect(clerk.calls.replace).toEqual([]);
   });
 });
 

@@ -146,6 +146,7 @@ const removeCardForgeAccess = (metadata) => {
   delete next.cardforgeAccess;
   delete next.cardforgeRole;
   delete next.cardforgeAccessExpiresAt;
+  delete next.cardforgeFounderBetaClaimedAt;
   return next;
 };
 
@@ -180,16 +181,14 @@ const ensureClerkUser = async (role, account) => {
   }
 
   const fullUser = await clerkRequest(`/users/${user.id}`);
-  const baseMetadata = role === 'free'
-    ? removeCardForgeAccess(fullUser.private_metadata)
-    : { ...(fullUser.private_metadata ?? {}) };
+  const baseMetadata = removeCardForgeAccess(fullUser.private_metadata);
   const privateMetadata = {
     ...baseMetadata,
     ...account.privateMetadata,
   };
 
   await clerkRequest(`/users/${user.id}/metadata`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: {
       private_metadata: privateMetadata,
     },
