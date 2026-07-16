@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/types';
+import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/domain/templates';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,

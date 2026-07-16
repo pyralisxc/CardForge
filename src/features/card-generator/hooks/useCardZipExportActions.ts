@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 
 import { getExportProfile, type ExportMode } from '@/features/card-generator/lib/printValidation';
-import type { DisplayCard } from '@/types';
+
 import type { useToast } from '@/hooks/use-toast';
 import {
   createCardZipExportItems,
@@ -14,6 +14,7 @@ import {
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
 import { hasCardBacking } from '@/lib/cardBacking';
+import type { DisplayCard } from '@/domain/rendering';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 

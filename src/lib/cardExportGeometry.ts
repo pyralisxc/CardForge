@@ -1,5 +1,6 @@
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import type { DisplayCard } from '@/types';
+import type { DisplayCard } from '@/domain/rendering';
+
 
 const STANDARD_CARD_HEIGHT_MM = 88;
 

@@ -22,11 +22,18 @@ describe('repository maintenance policy', () => {
       ['scripts', 'audit-site-health.mjs'],
       ['scripts', 'generate-bulk-csv.mjs'],
       ['scripts', 'setup-qa-accounts.mjs'],
+      ['src', 'types', 'index.ts'],
     ];
 
     for (const retiredPath of retiredPaths) {
       await expect(pathExists(...retiredPath), retiredPath.join('/')).resolves.toBe(false);
     }
+  });
+
+  it('records ownership for the domain foundation', async () => {
+    const codeowners = await readFile(rootPath('.github', 'CODEOWNERS'), 'utf8');
+
+    expect(codeowners).toContain('/src/domain/ @pyralisxc');
   });
 
   it('exposes only maintained QA and operations scripts', async () => {

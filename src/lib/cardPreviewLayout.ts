@@ -1,5 +1,5 @@
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
-import type { FreeformCanvas } from '@/types';
+import type { FreeformCanvas } from '@/domain/templates';
 
 export interface CardPreviewLayout {
   renderWidthPx: number;

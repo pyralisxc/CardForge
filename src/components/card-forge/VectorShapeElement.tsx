@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react';
 
 import { borderWidthClassToPixels } from '@/lib/freeformElementRender';
 import { canRenderVectorShape, getVectorShapeDefinition } from '@/lib/vectorShapes';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 interface VectorShapeElementProps {
   element: FreeformCardElement;

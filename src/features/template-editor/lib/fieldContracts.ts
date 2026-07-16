@@ -1,11 +1,5 @@
-import type {
-  CardData,
-  FreeformCardElement,
-  TemplateFieldAllowedFormatting,
-  TemplateFieldContract,
-  TemplateFieldContractType,
-  TCGCardTemplate,
-} from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement, TemplateFieldAllowedFormatting, TemplateFieldContract, TemplateFieldContractType, TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import {
   buildScopedFieldDataKey,

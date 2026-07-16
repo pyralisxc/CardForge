@@ -1,6 +1,6 @@
 
 import type { ElementType } from 'react';
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 import { PackageOpen, PenTool } from 'lucide-react';
 
 

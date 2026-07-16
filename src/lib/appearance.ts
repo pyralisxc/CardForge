@@ -1,13 +1,5 @@
 import type { CSSProperties } from 'react';
-import type {
-  AppearanceBorder,
-  AppearanceEffects,
-  AppearanceGradient,
-  AppearanceTexture,
-  FreeformAppearance,
-  FreeformCardElement,
-  TCGCardTemplate,
-} from '@/types';
+import type { AppearanceBorder, AppearanceEffects, AppearanceGradient, AppearanceTexture, FreeformAppearance, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 export const gradientToCss = (gradient?: AppearanceGradient): string | undefined => {
   if (!gradient || gradient.type === 'none' || gradient.stops.length === 0) return undefined;

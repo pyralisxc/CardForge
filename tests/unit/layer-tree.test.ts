@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildLayerTree, getDescendantIds } from '@/features/template-editor/lib/layerTree';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 const element = (
   id: string,

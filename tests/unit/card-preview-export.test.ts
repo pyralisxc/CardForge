@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { getCardExportDimensionsPx, getCardExportHeightPx, getCardPhysicalSizeMm } from '@/lib/cardExportGeometry';
-import type { DisplayCard } from '@/types';
+import type { DisplayCard } from '@/domain/rendering';
+
 
 const makeCard = (aspectRatio: string): DisplayCard => ({
   uniqueId: 'card-1',

@@ -3,7 +3,7 @@
 import type { ChangeEvent, PointerEvent as ReactPointerEvent, RefObject, WheelEvent as ReactWheelEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
-import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, TCGCardTemplate, TemplateUsage } from '@/types';
+import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';

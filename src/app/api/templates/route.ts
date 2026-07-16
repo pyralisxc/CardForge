@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,

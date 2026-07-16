@@ -1,3 +1,4 @@
+import type { CardData } from '@/domain/cards';
 
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
@@ -7,7 +8,6 @@ export type TemplateFieldContractType = GeneratorFieldKind | 'image';
 export type TemplateFieldAllowedFormatting = 'bold' | 'italic' | 'underline' | 'color' | 'highlight' | 'lists' | 'rulesMarkers';
 export type TemplateSource = 'default' | 'user';
 export type TemplateUsage = 'standard' | 'back-preset';
-export type PdfDuplexLayout = 'separate-pages' | 'same-page';
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
 export type AppearanceStyleKind = 'material' | 'border' | 'divider' | 'icon' | 'theme' | 'shapeRole' | 'frameKit';
@@ -120,16 +120,13 @@ export interface FreeformCardElement {
   zIndex: number;
   locked?: boolean;
   parentId?: string;
-
   visible?: boolean;
-
   content?: string;
   imageSource?: string;
   iconImageSource?: string;
   iconName?: string;
   shapeKind?: FreeformShapeKind;
   shapeRole?: FreeformShapeRole;
-
   textColor?: string;
   backgroundColor?: string;
   backgroundImageUrl?: string;
@@ -173,8 +170,6 @@ export interface FreeformCanvas {
   elements: FreeformCardElement[];
 }
 
-export type CardFace = 'front' | 'back';
-
 export interface TemplateFieldContract {
   key: string;
   elementId?: string;
@@ -202,8 +197,8 @@ export interface TemplateFieldContract {
 }
 
 export interface TCGCardTemplate {
-  id: string | null; 
-  name: string; 
+  id: string | null;
+  name: string;
   aspectRatio: string;
   templateSource?: TemplateSource;
   templateLibrarySource?: 'base' | 'pipeline' | 'personal';
@@ -217,54 +212,15 @@ export interface TCGCardTemplate {
   templatePreviewData?: CardData;
   frameStyle?: string;
   cardBackgroundImageUrl?: string;
-  cardBorderImageSource?: string; // New property for border image/gradient
-
+  cardBorderImageSource?: string;
   baseBackgroundColor?: string;
   baseTextColor?: string;
   defaultElementBorderColor?: string;
-
   cardBorderColor?: string;
   cardBorderWidth?: string;
   cardBorderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | '_default_';
   cardBorderRadius?: string;
   appearance?: FreeformAppearance;
   fieldContracts?: TemplateFieldContract[];
-
   freeformCanvas?: FreeformCanvas;
-}
-
-export interface CardData {
-  [key: string]: string | number | undefined;
-}
-
-export interface PaperSize {
-  name: string;
-  widthMm: number;
-  heightMm: number;
-}
-
-export interface StoredDisplayCard {
-  templateId: string;
-  backingTemplateId?: string | null;
-  setId?: string;
-  setName?: string;
-  data: CardData;
-  uniqueId: string;
-}
-
-export interface DisplayCard {
-  template: TCGCardTemplate;
-  backingTemplateId?: string | null;
-  backingTemplate?: TCGCardTemplate | null;
-  setId?: string;
-  setName?: string;
-  data: CardData;
-  uniqueId: string;
-}
-
-export interface CardSet {
-  id: string;
-  name: string;
-  frontTemplateId: string | null;
-  backingTemplateId: string | null;
 }

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
-import type { AppearanceBorderKind, FreeformAppearance, FreeformCardElement } from '@/types';
+import type { AppearanceBorderKind, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
 interface BorderInspectorPanelProps {

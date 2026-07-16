@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { appearanceToStyle } from '@/lib/appearance';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import { getAssetBadgeSummary } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/types';
+import type { AppearanceGradientType, AppearanceStylePreset, AppearanceTextureKind, FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 
 type LocalFillPreset = {

@@ -10,8 +10,10 @@ import { ExportCardImageButton } from '@/features/card-generator/components/Expo
 import { ShareCardButton } from '@/features/card-generator/components/ShareCardButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { DisplayCard, TCGCardTemplate } from '@/types';
+
+import type { TCGCardTemplate } from '@/domain/templates';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
+import type { DisplayCard } from '@/domain/rendering';
 
 export type GeneratedGallerySort = 'default' | 'name-asc' | 'name-desc' | 'template';
 type GeneratedGalleryDensity = 'compact' | 'comfortable' | 'large';

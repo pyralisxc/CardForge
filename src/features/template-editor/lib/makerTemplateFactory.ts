@@ -1,4 +1,4 @@
-import type { TCGCardTemplate, TemplateUsage } from '@/types';
+import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 import { TCG_ASPECT_RATIO } from '@/lib/constants';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
 

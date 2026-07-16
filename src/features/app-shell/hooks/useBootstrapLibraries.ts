@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { loadBootstrapStyles, loadBootstrapTemplates } from '@/lib/clientBootstrapData';
-import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate } from '@/types';
+import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 
 interface UseBootstrapLibrariesInput {
   setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;

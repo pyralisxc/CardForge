@@ -3,7 +3,7 @@
 import { Fragment, createElement, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 import { cn, parseRichText } from '@/lib/utils';
 
 const DEFAULT_HIGHLIGHT_COLOR = 'rgba(255,215,0,0.35)';

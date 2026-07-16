@@ -1,6 +1,6 @@
 "use client";
 
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 export function TemplateThumbnail({ template }: { template: TCGCardTemplate }) {
   const rawBackground = template.cardBackgroundImageUrl ?? template.appearance?.rawCss?.backgroundImage;

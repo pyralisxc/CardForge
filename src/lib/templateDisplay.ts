@@ -1,4 +1,4 @@
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 export const getTemplateSourceLabel = (template?: Pick<TCGCardTemplate, 'templateSource'> | null): string => (
   template?.templateSource === 'default' ? 'Forge Library' : 'Personal Library'

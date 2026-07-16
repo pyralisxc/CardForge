@@ -1,4 +1,4 @@
-import type { FreeformCardElement, GeneratorFieldKind, TCGCardTemplate } from '@/types';
+import type { FreeformCardElement, GeneratorFieldKind, TCGCardTemplate } from '@/domain/templates';
 import { toTitleCase } from '@/lib/utils';
 import {
   buildScopedFieldDataKey,

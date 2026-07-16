@@ -19,7 +19,9 @@ import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
-import type { CardSet, DisplayCard, PaperSize, PdfDuplexLayout, TCGCardTemplate } from '@/types';
+import type { CardSet } from '@/domain/cards';
+import type { TCGCardTemplate } from '@/domain/templates';
+import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { shouldShowVisibleCardWatermark } from '@/features/card-generator/lib/cardWatermarkPolicy';
 import { hasCardBacking } from '@/lib/cardBacking';

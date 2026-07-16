@@ -1,4 +1,4 @@
-import type { AppearanceStyleLibrary, TCGCardTemplate } from '@/types';
+import type { AppearanceStyleLibrary, TCGCardTemplate } from '@/domain/templates';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import type { CardFontOption } from '@/features/template-editor/lib/cardFonts';
 

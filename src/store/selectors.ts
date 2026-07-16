@@ -1,5 +1,5 @@
-import type { DisplayCard } from '@/types';
 import type { AppState } from '@/store/appStore';
+import type { DisplayCard } from '@/domain/rendering';
 
 export const selectAllTemplates = (state: Pick<AppState, 'defaultTemplates' | 'userTemplates'>) => [
   ...state.defaultTemplates,

@@ -10,7 +10,7 @@ import { CardPreview } from '@/components/card-forge/CardPreview';
 import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
 import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/lib/templateDisplay';
 import { cn } from '@/lib/utils';
-import type { TCGCardTemplate, TemplateUsage } from '@/types';
+import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 
 interface TemplateLibraryPanelProps {
   canUseProjectFiles: boolean;

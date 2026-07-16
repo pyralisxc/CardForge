@@ -5,7 +5,8 @@ import { MousePointer2 } from 'lucide-react';
 
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
-import type { CardData, FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import {
   CANVAS_GUTTER,
   CANVAS_RULER_WIDTH,

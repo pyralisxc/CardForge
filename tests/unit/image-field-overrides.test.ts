@@ -6,7 +6,8 @@ import {
   parseImageFieldOverrideColumnHeader,
   resolveImageElementOverrides,
 } from '@/features/card-generator/lib/imageFieldOverrides';
-import type { CardData, FreeformCardElement } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement } from '@/domain/templates';
 
 const imageElement: FreeformCardElement = {
   id: 'art-layer',

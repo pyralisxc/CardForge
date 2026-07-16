@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { DisplayCard } from '@/domain/rendering';
 
 import {
   createCardZipExportItems,
@@ -8,7 +9,6 @@ import {
   getTabletopSimulatorSheetFileName,
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
-import type { DisplayCard } from '@/types';
 
 const makeCard = (overrides: Partial<DisplayCard> = {}): DisplayCard => ({
   uniqueId: overrides.uniqueId || 'card-1',

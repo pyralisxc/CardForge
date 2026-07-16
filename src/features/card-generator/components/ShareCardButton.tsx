@@ -14,7 +14,8 @@ import {
 } from '@/features/card-generator/lib/socialShareExport';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { useToast } from '@/hooks/use-toast';
-import type { DisplayCard } from '@/types';
+import type { DisplayCard } from '@/domain/rendering';
+
 
 const safeFileName = (card: DisplayCard, preset: SocialSharePreset) => {
   const name = String(card.data.cardName || card.data.name || card.template.name || 'card')

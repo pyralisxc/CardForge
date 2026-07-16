@@ -5,7 +5,8 @@ import { nanoid } from 'nanoid';
 
 import { useAppStore } from '@/store/appStore';
 import { selectAllTemplates } from '@/store/selectors';
-import type { AppearanceStylePreset, StoredDisplayCard, TCGCardTemplate } from '@/types';
+import type { StoredDisplayCard } from '@/domain/cards';
+import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import type { useToast } from '@/hooks/use-toast';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];

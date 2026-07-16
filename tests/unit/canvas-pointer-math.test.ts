@@ -8,7 +8,7 @@ import {
   getTouchDistance,
   getTouchMidpoint,
 } from '@/features/template-editor/lib/canvasPointerMath';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 const element = (overrides: Partial<FreeformCardElement> = {}): FreeformCardElement => ({
   id: 'element',

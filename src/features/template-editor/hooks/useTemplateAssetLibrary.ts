@@ -14,7 +14,7 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from '@/features/project/lib/projectDocument';
 import type { useToast } from '@/hooks/use-toast';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
 import {
   getProjectAssetStorage,

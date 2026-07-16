@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import { getAssetBadgeSummary } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 interface ImageInspectorPanelProps {
   element: FreeformCardElement;

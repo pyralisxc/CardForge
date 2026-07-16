@@ -1,4 +1,4 @@
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 export interface CardFrameKit {
   id: string;

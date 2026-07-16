@@ -1,8 +1,9 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage, devtools } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type { TCGCardTemplate, TemplateSource, PaperSize, DisplayCard, StoredDisplayCard, AppearanceStylePreset, PdfDuplexLayout, CardSet } from '@/types';
+import type { StoredDisplayCard, CardSet } from '@/domain/cards';
+import type { TCGCardTemplate, TemplateSource, AppearanceStylePreset } from '@/domain/templates';
+import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { PAPER_SIZES, TABS_CONFIG } from '@/lib/constants';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { reconstructMinimalTemplateObject } from '@/lib/templateModel';

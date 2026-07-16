@@ -23,7 +23,7 @@ import {
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import { useAppStore } from '@/store/appStore';
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 import {
   createAssetFile,
   createJsonFile,

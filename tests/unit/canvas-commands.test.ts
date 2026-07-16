@@ -9,7 +9,7 @@ import {
   reorderCanvasLayer,
   ungroupCanvasSelection,
 } from '@/features/template-editor/lib/canvasCommands';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 const element = (
   id: string,

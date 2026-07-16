@@ -1,4 +1,5 @@
-import type { CardData, TCGCardTemplate } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 export const FIELD_STYLE_DATA_PREFIX = '__cardforgeFieldStyle.';
 

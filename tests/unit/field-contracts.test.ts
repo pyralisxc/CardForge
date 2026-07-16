@@ -6,7 +6,7 @@ import {
   validateCardDataAgainstFieldContracts,
 } from '@/features/template-editor/lib/fieldContracts';
 import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('field contract v1 helpers', () => {
   it('exposes the current contract version as a stable schema marker', () => {
