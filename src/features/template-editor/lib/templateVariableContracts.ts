@@ -1,7 +1,7 @@
 import { renamePlaceholderKeyInText } from '@/features/template-editor/lib/textBindings';
 import { reconstructFreeformCanvas } from '@/lib/templateModel';
 import { toTitleCase } from '@/lib/utils';
-import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 export type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 

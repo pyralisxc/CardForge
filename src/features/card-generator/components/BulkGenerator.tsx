@@ -1,6 +1,7 @@
 "use client";
 
-import type { CardSet, TCGCardTemplate, DisplayCard } from '@/types';
+import type { CardSet } from '@/domain/cards';
+import type { TCGCardTemplate } from '@/domain/templates';
 import type { ChangeEvent } from 'react';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import { BulkCsvInputPanel } from '@/features/card-generator/components/BulkCsvI
 import { BulkMappingReviewPanel } from '@/features/card-generator/components/BulkMappingReviewPanel';
 import { BulkPreviewValidationPanel } from '@/features/card-generator/components/BulkPreviewValidationPanel';
 import { BulkGenerateActionBar } from '@/features/card-generator/components/BulkGenerateActionBar';
+import type { DisplayCard } from '@/domain/rendering';
 
 interface BulkGeneratorProps {
   templates: TCGCardTemplate[];

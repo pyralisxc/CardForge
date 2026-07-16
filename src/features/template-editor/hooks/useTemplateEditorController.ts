@@ -27,7 +27,7 @@ import {
   undoTemplateEditorState,
 } from '@/features/template-editor/lib/templateEditorState';
 import { remapDuplicatedTextElementContracts } from '@/features/template-editor/lib/templateVariableContracts';
-import type { FreeformCardElement, FreeformCanvas, TCGCardTemplate } from '@/types';
+import type { FreeformCardElement, FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
 import {
   createDefaultFreeformCanvas,
   reconstructFreeformCanvas,

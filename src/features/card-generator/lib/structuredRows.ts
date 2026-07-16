@@ -1,4 +1,5 @@
-import type { CardData, FreeformCardElement } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement } from '@/domain/templates';
 import { buildScopedFieldDataKey, resolveTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
 
 export type StructuredRowValue = Record<string, string>;

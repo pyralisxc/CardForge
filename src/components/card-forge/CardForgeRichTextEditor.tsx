@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/lib/richTextDocument';
-import type { TemplateFieldAllowedFormatting } from '@/types';
+import type { TemplateFieldAllowedFormatting } from '@/domain/templates';
 
 const DEFAULT_HIGHLIGHT_HEX = '#ffd700';
 

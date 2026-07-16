@@ -1,4 +1,4 @@
-import type { FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { extractPlaceholderKeysFromText, parseTextBinding } from '@/features/template-editor/lib/textBindings';
 
 export type TextElementContentModel = 'text' | 'structuredRows';

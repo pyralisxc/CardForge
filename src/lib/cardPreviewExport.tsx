@@ -7,7 +7,8 @@ import { toBlob, toCanvas } from 'html-to-image';
 import { CardPreview } from '@/components/card-forge/CardPreview';
 import { getCardExportDimensionsPx } from '@/lib/cardExportGeometry';
 import { getExportProfile, type ExportMode, type ExportProfile } from '@/features/card-generator/lib/printValidation';
-import type { CardFace, DisplayCard } from '@/types';
+import type { CardFace } from '@/domain/cards';
+import type { DisplayCard } from '@/domain/rendering';
 
 const RENDER_WAIT_TIMEOUT_MS = 1800;
 

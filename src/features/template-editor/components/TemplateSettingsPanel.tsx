@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CARD_BORDER_STYLES, DIMENSION_UNITS, FRAME_STYLES, TCG_ASPECT_RATIO } from '@/lib/constants';
-import type { FreeformCanvas, TCGCardTemplate } from '@/types';
+import type { FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
 import { cn } from '@/lib/utils';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { ColorField } from '@/features/template-editor/components/ColorField';

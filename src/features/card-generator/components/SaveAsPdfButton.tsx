@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useState } from 'react';
 import jsPDF from 'jspdf';
-import type { CardFace, DisplayCard, PaperSize, PdfDuplexLayout } from '@/types';
+import type { CardFace } from '@/domain/cards';
+import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';

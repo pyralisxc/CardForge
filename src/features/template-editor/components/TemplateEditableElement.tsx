@@ -14,7 +14,8 @@ import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/features
 import { buildTextElementStyle } from '@/features/template-editor/lib/textTools';
 import { cn } from '@/lib/utils';
 import { canRenderVectorShape } from '@/lib/vectorShapes';
-import type { CardData, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import type { ResizeHandle } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
 import {
   CANVAS_ZOOM,

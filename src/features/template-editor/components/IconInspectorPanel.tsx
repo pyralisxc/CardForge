@@ -13,7 +13,7 @@ import { ColorField } from '@/features/template-editor/components/ColorField';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { getAssetBadgeSummary } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
 interface IconInspectorPanelProps {

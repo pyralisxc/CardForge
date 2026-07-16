@@ -19,7 +19,7 @@ import {
   shouldBlockBulkGeneration,
   updateColumnMapping,
 } from '@/features/card-generator/lib/bulkGeneration';
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('bulk generation helpers', () => {
   it('builds initial column mapping with case-insensitive matching', () => {

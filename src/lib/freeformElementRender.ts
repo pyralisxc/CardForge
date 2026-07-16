@@ -1,4 +1,5 @@
-import type { CardData, FreeformCardElement } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement } from '@/domain/templates';
 import type { CSSProperties } from 'react';
 import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
 

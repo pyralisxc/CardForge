@@ -1,4 +1,5 @@
-import type { CardData, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 export const escapeTemplateText = (value: string): string =>
   value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');

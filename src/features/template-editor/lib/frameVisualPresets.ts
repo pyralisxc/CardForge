@@ -1,4 +1,4 @@
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 export const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardTemplate>> = {
   'classic-gold': {

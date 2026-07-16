@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 interface BulkCsvInputPanelProps {
   selectedTemplateId: string | null;

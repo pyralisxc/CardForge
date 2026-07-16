@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
 import { buildScopedFieldDataKey, buildStaticSegmentFieldKey } from '@/features/template-editor/lib/textBindings';
-import type { TCGCardTemplate } from '@/types';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('extractTemplateFieldDefinitions', () => {
   it('derives shared generator field metadata from template usage', () => {

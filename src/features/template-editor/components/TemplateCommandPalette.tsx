@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 type PaletteAction = {
   id: string;

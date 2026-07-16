@@ -1,12 +1,4 @@
-import type {
-  AppearanceStylePreset,
-  FreeformAppearance,
-  FreeformCardElement,
-  FreeformElementType,
-  FreeformShapeKind,
-  FreeformShapeRole,
-  TCGCardTemplate,
-} from '@/types';
+import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, FreeformElementType, FreeformShapeKind, FreeformShapeRole, TCGCardTemplate } from '@/domain/templates';
 import type { CardFrameKit } from '@/lib/cardFrameKits';
 import { getFrameKitTemplateUpdates } from '@/lib/cardFrameKits';
 import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';

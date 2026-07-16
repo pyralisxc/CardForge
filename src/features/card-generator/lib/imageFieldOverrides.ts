@@ -1,4 +1,5 @@
-import type { CardData, FreeformCardElement } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement } from '@/domain/templates';
 
 export const IMAGE_FIELD_OVERRIDE_DATA_PREFIX = '__cardforgeImageField.';
 

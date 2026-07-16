@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import type { FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import { isStaticSegmentFieldKey, parseTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
 import { textFontSizePx } from '@/features/template-editor/lib/textTools';

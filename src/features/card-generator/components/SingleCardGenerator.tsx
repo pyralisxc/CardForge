@@ -1,7 +1,7 @@
-
 "use client";
 
-import type { CardSet, TCGCardTemplate, CardData, DisplayCard } from '@/types';
+import type { CardSet, CardData } from '@/domain/cards';
+import type { TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -19,6 +19,7 @@ import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } 
 import { getTemplateSourceLabel } from '@/lib/templateDisplay';
 import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/features/card-generator/lib/structuredRows';
 import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
+import type { DisplayCard } from '@/domain/rendering';
 
 interface SingleCardGeneratorProps {
   templates: TCGCardTemplate[];

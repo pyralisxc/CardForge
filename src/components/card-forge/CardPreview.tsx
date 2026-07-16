@@ -1,7 +1,6 @@
-
 "use client";
 
-import type { CardFace, DisplayCard } from '@/types';
+import type { CardFace } from '@/domain/cards';
 import { cn } from '@/lib/utils';
 import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
 import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
@@ -20,6 +19,7 @@ import { resolveImageElementOverrides } from '@/features/card-generator/lib/imag
 import { canRenderVectorShape } from '@/lib/vectorShapes';
 import { VectorShapeElement } from './VectorShapeElement';
 import { getCardFaceCanvas, getCardFaceData, getCardFaceTemplate } from '@/lib/cardBacking';
+import type { DisplayCard } from '@/domain/rendering';
 
 interface CardPreviewProps {
   card: DisplayCard;

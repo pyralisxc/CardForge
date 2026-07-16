@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
-import type { DisplayCard, CardData, TCGCardTemplate } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +23,7 @@ import { useAppStore } from '@/store/appStore';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
 import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
+import type { DisplayCard } from '@/domain/rendering';
 
 interface EditCardDialogProps {
   isOpen: boolean;

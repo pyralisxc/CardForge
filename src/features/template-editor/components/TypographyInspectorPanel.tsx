@@ -9,7 +9,7 @@ import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { parseTextBinding } from '@/features/template-editor/lib/textBindings';
 import { shouldAutoFitTextElement } from '@/features/template-editor/lib/textElementContracts';
 import { textFontSizePx } from '@/features/template-editor/lib/textTools';
-import type { FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];
 

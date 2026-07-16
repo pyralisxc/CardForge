@@ -1,4 +1,4 @@
-import type { FreeformCardElement, FreeformShapeKind } from '@/types';
+import type { FreeformCardElement, FreeformShapeKind } from '@/domain/templates';
 
 export type VectorShapeDefinition =
   | { kind: 'rect'; rx?: number }

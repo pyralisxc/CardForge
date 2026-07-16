@@ -1,4 +1,4 @@
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 export const ELEMENT_STYLE_PRESETS: Array<{ label: string; updates: Partial<FreeformCardElement> }> = [
   {

@@ -3,7 +3,8 @@
 import type React from 'react';
 import { createElement } from 'react';
 
-import type { CardData, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { CardData } from '@/domain/cards';
+import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import {
   AutoFitRichTextContent,
   AutoFitRichTextSegmentsContent,

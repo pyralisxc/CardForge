@@ -6,7 +6,7 @@ import { Layers, Plus, Table2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { CardData } from '@/types';
+import type { CardData } from '@/domain/cards';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
 import { RichTextContent } from '@/features/template-editor/lib/textTools';

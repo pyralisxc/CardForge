@@ -3,7 +3,7 @@
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { useCallback, useRef } from 'react';
 
-import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { getElementDepthStack, resolvePointerSelection, scaleElementWithParentResize, type DepthSelectionState } from '@/lib/freeformEditor';
 import { getDescendantIds } from '@/features/template-editor/lib/layerTree';
 import {

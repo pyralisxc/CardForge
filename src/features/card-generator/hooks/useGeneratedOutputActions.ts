@@ -3,8 +3,9 @@
 import { useCallback, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import type { DisplayCard } from '@/types';
+
 import type { useToast } from '@/hooks/use-toast';
+import type { DisplayCard } from '@/domain/rendering';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 

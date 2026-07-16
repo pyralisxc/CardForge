@@ -3,7 +3,9 @@
 import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useState } from 'react';
 
-import type { AppearanceStylePreset, PaperSize, PdfDuplexLayout, StoredDisplayCard, TCGCardTemplate } from '@/types';
+import type { StoredDisplayCard } from '@/domain/cards';
+import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
+import type { PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,

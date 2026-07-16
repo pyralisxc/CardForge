@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 
-import type { CardData, CardSet, DisplayCard, TCGCardTemplate } from '@/types';
+import type { CardData, CardSet } from '@/domain/cards';
+import type { TCGCardTemplate } from '@/domain/templates';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import { completeCardDataWithTemplateDefaults } from '@/features/card-generator/lib/cardDataDefaults';
 import { FIELD_CONTRACT_VERSION, validateCardDataAgainstFieldContracts } from '@/features/template-editor/lib/fieldContracts';
@@ -17,6 +18,7 @@ import {
   parseImageFieldOverrideColumnHeader,
 } from '@/features/card-generator/lib/imageFieldOverrides';
 import { parseCSV, unparseCSV } from '@/lib/utils';
+import type { DisplayCard } from '@/domain/rendering';
 
 export interface BulkPreviewRow {
   rowNumber: number;

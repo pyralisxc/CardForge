@@ -13,7 +13,7 @@ import {
   Square,
   Type,
 } from 'lucide-react';
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 export type ElementKit = {
   label: string;

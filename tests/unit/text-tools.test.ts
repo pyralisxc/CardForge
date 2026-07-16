@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { RichTextContent, buildTextElementStyle, parseSemanticRulesBlocks } from '@/features/template-editor/lib/textTools';
 import { CardTextContent } from '@/lib/cardTextRender';
-import type { FreeformCardElement, TCGCardTemplate } from '@/types';
+import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 describe('text tools', () => {
   it('renders multiline rich text with highlight spans', () => {

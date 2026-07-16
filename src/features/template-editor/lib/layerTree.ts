@@ -1,4 +1,4 @@
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 
 export interface LayerTreeNode {
   element: FreeformCardElement;

@@ -1,4 +1,4 @@
-import type { FreeformCardElement } from '@/types';
+import type { FreeformCardElement } from '@/domain/templates';
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
 
 export type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se';

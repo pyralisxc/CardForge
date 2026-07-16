@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
-import type { FreeformAppearance, FreeformCardElement } from '@/types';
+import type { FreeformAppearance, FreeformCardElement } from '@/domain/templates';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
 
 interface DividerStudioPanelProps {

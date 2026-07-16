@@ -3,6 +3,7 @@
 /supabase/migrations/ @pyralisxc
 /src/app/api/billing/ @pyralisxc
 /src/app/api/owner/ @pyralisxc
+/src/domain/ @pyralisxc
 /.github/ @pyralisxc
 /config/architecture-baseline.json @pyralisxc
 /scripts/check-architecture.mjs @pyralisxc

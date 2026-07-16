@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { getExportProfile, validateCardExportQuality } from '@/features/card-generator/lib/printValidation';
-import type { DisplayCard, TCGCardTemplate } from '@/types';
+
+import type { TCGCardTemplate } from '@/domain/templates';
+import type { DisplayCard } from '@/domain/rendering';
 
 const baseTemplate: TCGCardTemplate = {
   id: 'template-1',

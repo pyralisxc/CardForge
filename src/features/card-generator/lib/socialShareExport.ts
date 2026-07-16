@@ -1,4 +1,3 @@
-import type { DisplayCard } from '@/types';
 import {
   CARD_WATERMARK_URL,
   GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT,
@@ -6,6 +5,7 @@ import {
 } from '@/features/card-generator/lib/cardWatermarkPolicy';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { renderCardToCanvas } from '@/lib/cardPreviewExport';
+import type { DisplayCard } from '@/domain/rendering';
 
 export const SOCIAL_SHARE_PRESETS = {
   square: { label: 'Square post', width: 1080, height: 1080 },

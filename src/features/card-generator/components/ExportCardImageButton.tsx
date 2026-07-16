@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import type { CardFace, DisplayCard } from '@/types';
+import type { CardFace } from '@/domain/cards';
 import { Button } from '@/components/ui/button';
 import { Loader2, ImageDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { renderCardToCanvas } from '@/lib/cardPreviewExport';
 import { hasCardBacking } from '@/lib/cardBacking';
+import type { DisplayCard } from '@/domain/rendering';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;

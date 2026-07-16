@@ -6,7 +6,8 @@ import {
   selectGeneratedDisplayCards,
   useAppStore,
 } from '@/store/appStore';
-import type { StoredDisplayCard, TCGCardTemplate } from '@/types';
+import type { StoredDisplayCard } from '@/domain/cards';
+import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('app store helpers', () => {
   beforeEach(() => {

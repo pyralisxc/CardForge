@@ -7,7 +7,7 @@ import {
   reconcileTemplateEditorSelection,
   undoTemplateEditorState,
 } from '@/features/template-editor/lib/templateEditorState';
-import type { FreeformCanvas, TCGCardTemplate } from '@/types';
+import type { FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
 
 const canvas = (elementIds: string[]): FreeformCanvas => ({
   width: 300,
