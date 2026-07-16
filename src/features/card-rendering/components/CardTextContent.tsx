@@ -11,30 +11,30 @@ import {
   RichTextContent,
   RichTextSegmentsContent,
   textFontSizePx,
-} from '@/features/template-editor/lib/textTools';
+} from './RichTextContent';
 import {
   buildStaticSegmentFieldKey,
   buildScopedFieldDataKey,
   parseTemplateTextSegments,
   parseTextBinding,
   resolveTemplateTextSegments,
-} from '@/features/template-editor/lib/textBindings';
+} from '@/domain/rendering';
 import {
   buildStructuredRowsDataKey,
   buildStructuredRowsSeparatorDataKey,
   buildStructuredRowsText,
   parseStructuredRowsValue,
   structuredRowToCardData,
-} from '@/features/card-generator/lib/structuredRows';
+} from '@/domain/rendering';
 import {
   getElementFieldContract,
   getPrimaryElementContract,
   type TextElementContentModel,
   inferTextElementContentModel,
   shouldAutoFitTextElement,
-} from '@/features/template-editor/lib/textElementContracts';
-import { resolveFieldContractStyleOverrides } from '@/features/card-generator/lib/fieldStyleOverrides';
-import { cardFontFamilyToCss } from '@/features/template-editor/lib/cardFonts';
+} from '@/domain/rendering';
+import { resolveFieldContractStyleOverrides } from '@/domain/rendering';
+import { cardFontFamilyToCss } from '@/domain/rendering';
 
 const resolveRenderContentModel = (
   contentModel: TextElementContentModel,

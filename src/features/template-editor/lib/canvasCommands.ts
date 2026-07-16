@@ -1,4 +1,4 @@
-import { normalizeAppearanceForElement } from '@/lib/appearance';
+import { normalizeAppearanceForElement } from '@/features/card-rendering/client';
 import type { FreeformCardElement } from '@/domain/templates';
 
 export type LayerDropPosition = 'before' | 'after' | 'child';

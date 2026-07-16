@@ -10,9 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
-import { getCardPhysicalSizeMm } from '@/lib/cardExportGeometry';
-import { renderCardToCanvasWithProfile } from '@/lib/cardPreviewExport';
-import { hasCardBacking } from '@/lib/cardBacking';
+import { getCardPhysicalSizeMm } from '@/domain/rendering';
+import { renderCardToCanvasWithProfile } from '@/features/card-generator/lib/cardPreviewExport';
+import { hasCardBacking } from '@/domain/rendering';
 
 const MAX_PDF_CARDS_PER_FILE = 500;
 const MAX_TOTAL_PDF_EXPORT_CARDS = 10000;
@@ -35,6 +35,7 @@ interface SaveAsPdfButtonProps {
   pdfDuplexLayout: PdfDuplexLayout;
   exportMode: ExportMode;
   exportDpi: number;
+  richTextHighlightColor: string;
   disabled?: boolean;
   gateMessage?: string | null;
   templateName?: string;
@@ -49,6 +50,7 @@ export function SaveAsPdfButton({
   pdfDuplexLayout,
   exportMode,
   exportDpi,
+  richTextHighlightColor,
   disabled = false,
   gateMessage,
   templateName,
@@ -226,7 +228,7 @@ export function SaveAsPdfButton({
 
     for (const { card, face, x, y, w, h } of pageCards) {
       try {
-          const canvas = await renderCardToCanvasWithProfile(card, exportProfile, face);
+          const canvas = await renderCardToCanvasWithProfile(card, exportProfile, face, richTextHighlightColor);
           pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
           if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
       } catch (e) {

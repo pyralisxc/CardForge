@@ -3,7 +3,7 @@
 import type { MutableRefObject } from 'react';
 
 import { TextElementFieldModeControl, TextExpressionEditor, TextFieldSettingsList } from '@/features/template-editor/components/TextElementInspector';
-import { inferTextElementContentModel } from '@/features/template-editor/lib/textElementContracts';
+import { inferTextElementContentModel } from '@/domain/rendering';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 

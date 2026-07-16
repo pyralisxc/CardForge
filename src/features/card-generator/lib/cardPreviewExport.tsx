@@ -4,8 +4,8 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { toBlob, toCanvas } from 'html-to-image';
 
-import { CardPreview } from '@/components/card-forge/CardPreview';
-import { getCardExportDimensionsPx } from '@/lib/cardExportGeometry';
+import { CardPreview, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from '@/features/card-rendering/client';
+import { getCardExportDimensionsPx } from '@/domain/rendering';
 import { getExportProfile, type ExportMode, type ExportProfile } from '@/features/card-generator/lib/printValidation';
 import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
@@ -52,7 +52,8 @@ export async function mountCardPreviewForExport(
   card: DisplayCard,
   exportProfile: ExportProfile,
   face: CardFace = 'front',
-  className = 'export-render-card'
+  className = 'export-render-card',
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
 ): Promise<MountedCardPreview> {
   const { widthPx, heightPx } = getCardExportDimensionsPx(card, exportProfile.dpi);
   const container = document.createElement('div');
@@ -74,6 +75,7 @@ export async function mountCardPreviewForExport(
     isPrintMode: true,
     targetWidthPx: widthPx,
     className,
+    highlightColor,
   }));
 
   const started = performance.now();
@@ -102,7 +104,10 @@ export async function mountCardPreviewForExport(
   };
 }
 
-export function createCardFaceExportRenderer(exportProfile: ExportProfile): CardFaceExportRenderer {
+export function createCardFaceExportRenderer(
+  exportProfile: ExportProfile,
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
+): CardFaceExportRenderer {
   const container = document.createElement('div');
   container.style.cssText = [
     'position:fixed',
@@ -125,6 +130,7 @@ export function createCardFaceExportRenderer(exportProfile: ExportProfile): Card
       isPrintMode: true,
       targetWidthPx: widthPx,
       className: 'export-render-card',
+      highlightColor,
     }));
 
     await waitForFrame();
@@ -177,9 +183,10 @@ export function createCardFaceExportRenderer(exportProfile: ExportProfile): Card
 export async function renderCardToCanvasWithProfile(
   card: DisplayCard,
   exportProfile: ExportProfile,
-  face: CardFace = 'front'
+  face: CardFace = 'front',
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
 ): Promise<HTMLCanvasElement> {
-  const renderer = createCardFaceExportRenderer(exportProfile);
+  const renderer = createCardFaceExportRenderer(exportProfile, highlightColor);
   try {
     return await renderer.renderToCanvas(card, face);
   } finally {
@@ -191,7 +198,8 @@ export async function renderCardToCanvas(
   card: DisplayCard,
   exportMode: ExportMode,
   exportDpi: number,
-  face: CardFace = 'front'
+  face: CardFace = 'front',
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
 ): Promise<HTMLCanvasElement> {
-  return renderCardToCanvasWithProfile(card, getExportProfile(exportMode, exportDpi), face);
+  return renderCardToCanvasWithProfile(card, getExportProfile(exportMode, exportDpi), face, highlightColor);
 }

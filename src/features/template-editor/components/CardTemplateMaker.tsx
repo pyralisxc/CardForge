@@ -16,13 +16,14 @@ import {
   createDeveloperFontFaceCss,
   mergeCardFontOptions,
   type CardFontOption,
-} from '@/features/template-editor/lib/cardFonts';
+} from '@/domain/rendering';
 import { loadBootstrapFonts } from '@/lib/clientBootstrapData';
-import { extractPlaceholderKeysFromText, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
-import { cn, toTitleCase } from '@/lib/utils';
-import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/lib/appearance';
+import { extractPlaceholderKeysFromText, replacePlaceholdersLocal } from '@/domain/rendering';
+import { toTitleCase } from '@/lib/utils';
+import { cn } from '@/shared/classNames';
+import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/features/card-rendering/client';
 import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/lib/cardFrameKits';
-import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/lib/elementCapabilities';
+import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/domain/templates';
 import {
   BLANK_SHAPE_PRIMITIVES,
   BORDER_PRESET_RECIPES,
@@ -62,7 +63,7 @@ import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTem
 import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/lib/makerDimensions';
 import { withNextStep } from '@/lib/userFacingErrors';
 import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
-import { inferTextElementContentModel } from '@/features/template-editor/lib/textElementContracts';
+import { inferTextElementContentModel } from '@/domain/rendering';
 import { TemplateEditorTopBar } from '@/features/template-editor/components/TemplateEditorTopBar';
 import { TemplateLibraryPanel } from '@/features/template-editor/components/TemplateLibraryPanel';
 import { ElementLibraryPanel } from '@/features/template-editor/components/ElementLibraryPanel';
@@ -1211,6 +1212,7 @@ export function CardTemplateMaker({
                   fileInputRef={fileInputRef}
                   isCheckoutStarting={isCheckoutStarting}
                   projectFileGateMessage={projectFileGateMessage}
+                  richTextHighlightColor={richTextHighlightColor}
                   userTemplates={userTemplates}
                   onCreateNew={handleNewTemplate}
                   onClone={handleClone}
@@ -1286,6 +1288,7 @@ export function CardTemplateMaker({
             gridSize={gridSize}
             livePreviewData={livePreviewData}
             previewMode={previewMode}
+            richTextHighlightColor={richTextHighlightColor}
             selectedElement={selectedElement}
             showCardWatermark={showCardWatermark}
             showGrid={showGrid}

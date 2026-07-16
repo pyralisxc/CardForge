@@ -14,6 +14,7 @@ export function useCardForgeWorkspaceState() {
   const userTemplatesFromStore = useAppStore((state) => state.userTemplates);
   const templatesFromStore = useAppStore(selectAllTemplates);
   const appearanceStyles = useAppStore((state) => state.appearanceStyles);
+  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
   const storedCards = useAppStore((state) => state.storedCards);
   const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards);
 
@@ -120,6 +121,7 @@ export function useCardForgeWorkspaceState() {
       pdfDuplexLayout,
       pdfIncludeCutLines,
       pdfMarginMm,
+      richTextHighlightColor,
       selectedPaperSize,
       singleCardGeneratorSelectedTemplateId,
       standardDefaultTemplates,

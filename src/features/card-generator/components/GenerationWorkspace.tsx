@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, Layers3, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { CardPreview } from '@/components/card-forge/CardPreview';
+import { CardPreview } from '@/features/card-rendering/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BulkGenerator } from '@/features/card-generator/components/BulkGenerator';
-import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
+import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
 import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
 import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
@@ -23,8 +23,8 @@ import type { CardSet } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { shouldShowVisibleCardWatermark } from '@/features/card-generator/lib/cardWatermarkPolicy';
-import { hasCardBacking } from '@/lib/cardBacking';
+import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
+import { hasCardBacking } from '@/domain/rendering';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
@@ -37,6 +37,7 @@ interface GenerationWorkspaceProps {
   pdfCardSpacingMm: number;
   pdfIncludeCutLines: boolean;
   pdfDuplexLayout: PdfDuplexLayout;
+  richTextHighlightColor: string;
   exportMode: ExportMode;
   exportDpi: number;
   generatedDisplayCards: DisplayCard[];
@@ -99,6 +100,7 @@ export function GenerationWorkspace({
   pdfCardSpacingMm,
   pdfIncludeCutLines,
   pdfDuplexLayout,
+  richTextHighlightColor,
   exportMode,
   exportDpi,
   generatedDisplayCards,
@@ -277,7 +279,7 @@ export function GenerationWorkspace({
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Front</p>
                   <div className="relative w-fit">
-                    <CardPreview card={deckPreviewCard} face="front" targetWidthPx={150} />
+                    <CardPreview card={deckPreviewCard} face="front" highlightColor={richTextHighlightColor} targetWidthPx={150} />
                     {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-front-watermark" /> : null}
                   </div>
                 </div>
@@ -285,7 +287,7 @@ export function GenerationWorkspace({
                   <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Back</p>
                   {selectedBackingTemplate ? (
                     <div className="relative w-fit">
-                      <CardPreview card={deckPreviewCard} face="back" targetWidthPx={150} />
+                      <CardPreview card={deckPreviewCard} face="back" highlightColor={richTextHighlightColor} targetWidthPx={150} />
                       {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-back-watermark" /> : null}
                     </div>
                   ) : (
@@ -492,6 +494,7 @@ export function GenerationWorkspace({
                     pdfDuplexLayout={pdfDuplexLayout}
                     exportMode={exportMode}
                     exportDpi={exportDpi}
+                    richTextHighlightColor={richTextHighlightColor}
                     disabled={generatedDisplayCards.length === 0}
                     gateMessage={exportGateMessage}
                     templateName={generatedDisplayCards[0]?.template?.name}
@@ -534,6 +537,7 @@ export function GenerationWorkspace({
           gallerySort={gallerySort}
           exportMode={exportMode}
           exportDpi={exportDpi}
+          richTextHighlightColor={richTextHighlightColor}
           showPreviewWatermark={showGeneratedPreviewWatermark}
           onGallerySearchChange={onGallerySearchChange}
           onGallerySortChange={onGallerySortChange}

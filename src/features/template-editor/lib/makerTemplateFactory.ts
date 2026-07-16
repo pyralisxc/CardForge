@@ -1,5 +1,5 @@
 import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
-import { TCG_ASPECT_RATIO } from '@/lib/constants';
+import { TCG_ASPECT_RATIO } from '@/domain/rendering';
 import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
 
 export const makeNewFreeformTemplate = (

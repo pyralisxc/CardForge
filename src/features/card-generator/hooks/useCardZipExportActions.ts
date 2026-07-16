@@ -13,7 +13,7 @@ import {
   getTabletopSimulatorSheetFileName,
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
-import { hasCardBacking } from '@/lib/cardBacking';
+import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
@@ -24,6 +24,7 @@ interface UseCardZipExportActionsInput {
   exportGateMessage: string | null;
   exportMode: ExportMode;
   generatedDisplayCards: DisplayCard[];
+  richTextHighlightColor: string;
   toast: ToastFn;
 }
 
@@ -33,6 +34,7 @@ export function useCardZipExportActions({
   exportGateMessage,
   exportMode,
   generatedDisplayCards,
+  richTextHighlightColor,
   toast,
 }: UseCardZipExportActionsInput) {
   const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
@@ -57,10 +59,10 @@ export function useCardZipExportActions({
     try {
       const exportProfile = getExportProfile(exportMode, exportDpi);
       const JSZip = (await import('jszip')).default;
-      const { createCardFaceExportRenderer } = await import('@/lib/cardPreviewExport');
+      const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
       const folder = zip.folder(exportCopy.folderName)!;
-      const renderer = createCardFaceExportRenderer(exportProfile);
+      const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor);
 
       try {
         for (let i = 0; i < exportItems.length; i++) {
@@ -92,7 +94,7 @@ export function useCardZipExportActions({
       setIsZipExporting(false);
       setZipProgress(null);
     }
-  }, [canExportClean, exportDpi, exportGateMessage, exportMode, generatedDisplayCards, toast]);
+  }, [canExportClean, exportDpi, exportGateMessage, exportMode, generatedDisplayCards, richTextHighlightColor, toast]);
 
   const handleExportTabletopSimulatorSpritesheets = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
@@ -113,10 +115,10 @@ export function useCardZipExportActions({
     try {
       const exportProfile = getExportProfile('virtual', Math.max(150, Math.min(exportDpi, 300)));
       const JSZip = (await import('jszip')).default;
-      const { createCardFaceExportRenderer } = await import('@/lib/cardPreviewExport');
+      const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
       const folder = zip.folder('tabletop-simulator-spritesheets')!;
-      const renderer = createCardFaceExportRenderer(exportProfile);
+      const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor);
       let completed = 0;
       let cardWidthPx = 0;
       let cardHeightPx = 0;
@@ -196,7 +198,7 @@ export function useCardZipExportActions({
       setIsZipExporting(false);
       setZipProgress(null);
     }
-  }, [canExportClean, exportDpi, exportGateMessage, generatedDisplayCards, toast]);
+  }, [canExportClean, exportDpi, exportGateMessage, generatedDisplayCards, richTextHighlightColor, toast]);
 
   return {
     handleExportAllAsZip,

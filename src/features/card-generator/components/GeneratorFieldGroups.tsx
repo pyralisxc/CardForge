@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CardData } from '@/domain/cards';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
-import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/features/template-editor/lib/textBindings';
-import { RichTextContent } from '@/features/template-editor/lib/textTools';
+import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/domain/rendering';
+import { RichTextContent } from '@/features/card-rendering/client';
 import { GeneratorFieldInput, getFieldStringValue } from '@/features/card-generator/components/GeneratorFieldInput';
 import {
   buildStructuredRowsDataKey,
@@ -17,9 +17,9 @@ import {
   parseStructuredRowsValue,
   stringifyStructuredRowsValue,
   structuredRowToCardData,
-} from '@/features/card-generator/lib/structuredRows';
-import { buildFieldStyleDataKey, type FieldStyleProperty } from '@/features/card-generator/lib/fieldStyleOverrides';
-import { buildImageFieldOverrideDataKey, type ImageFieldOverrideProperty, IMAGE_FIELD_OVERRIDE_PROPERTIES } from '@/features/card-generator/lib/imageFieldOverrides';
+} from '@/domain/rendering';
+import { buildFieldStyleDataKey, type FieldStyleProperty } from '@/domain/rendering';
+import { buildImageFieldOverrideDataKey, type ImageFieldOverrideProperty, IMAGE_FIELD_OVERRIDE_PROPERTIES } from '@/domain/rendering';
 
 interface FieldGroup {
   id: string;

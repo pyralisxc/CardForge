@@ -3,8 +3,8 @@
 import type { CSSProperties, DragEvent, KeyboardEvent, PointerEvent, ReactNode, WheelEvent } from 'react';
 import { MousePointer2 } from 'lucide-react';
 
-import { CardPreview } from '@/components/card-forge/CardPreview';
-import { CardWatermarkOverlay } from '@/features/card-generator/components/CardWatermarkOverlay';
+import { CardPreview } from '@/features/card-rendering/client';
+import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import type { CardData } from '@/domain/cards';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import {
@@ -79,6 +79,7 @@ interface TemplateCanvasStageProps {
   gridSize: number;
   livePreviewData: CardData;
   previewMode: boolean;
+  richTextHighlightColor: string;
   selectedElement: FreeformCardElement | null;
   showCardWatermark: boolean;
   showGrid: boolean;
@@ -106,6 +107,7 @@ export function TemplateCanvasStage({
   gridSize,
   livePreviewData,
   previewMode,
+  richTextHighlightColor,
   selectedElement,
   showCardWatermark,
   showGrid,
@@ -245,6 +247,7 @@ export function TemplateCanvasStage({
               <CardPreview
                 card={{ template: currentTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-editor-preview` }}
                 face="front"
+                highlightColor={richTextHighlightColor}
                 isEditorPreview
                 targetWidthPx={canvas.width}
               />

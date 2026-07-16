@@ -22,6 +22,8 @@ describe('repository maintenance policy', () => {
       ['scripts', 'audit-site-health.mjs'],
       ['scripts', 'generate-bulk-csv.mjs'],
       ['scripts', 'setup-qa-accounts.mjs'],
+      ['src', 'components', 'card-forge', 'CardPreview.tsx'],
+      ['src', 'lib', 'cardPreviewExport.tsx'],
       ['src', 'types', 'index.ts'],
     ];
 
@@ -30,10 +32,12 @@ describe('repository maintenance policy', () => {
     }
   });
 
-  it('records ownership for the domain foundation', async () => {
+  it('records ownership for the architecture foundation', async () => {
     const codeowners = await readFile(rootPath('.github', 'CODEOWNERS'), 'utf8');
 
     expect(codeowners).toContain('/src/domain/ @pyralisxc');
+    expect(codeowners).toContain('/src/features/card-rendering/ @pyralisxc');
+    expect(codeowners).toContain('/src/shared/ @pyralisxc');
   });
 
   it('exposes only maintained QA and operations scripts', async () => {

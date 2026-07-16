@@ -10,10 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { CardData } from '@/domain/cards';
 import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
-import { CardForgeRichTextEditor } from '@/components/card-forge/CardForgeRichTextEditor';
-import { cn } from '@/lib/utils';
-import type { FieldStyleProperty } from '@/features/card-generator/lib/fieldStyleOverrides';
-import type { ImageFieldOverrideProperty } from '@/features/card-generator/lib/imageFieldOverrides';
+import { CardForgeRichTextEditor } from '@/features/card-rendering/client';
+import { cn } from '@/shared/classNames';
+import type { FieldStyleProperty } from '@/domain/rendering';
+import type { ImageFieldOverrideProperty } from '@/domain/rendering';
 
 interface GeneratorFieldInputProps {
   field: TemplateFieldDefinition;

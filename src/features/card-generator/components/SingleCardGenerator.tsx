@@ -17,7 +17,7 @@ import { withNextStep } from '@/lib/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
 import { getTemplateSourceLabel } from '@/lib/templateDisplay';
-import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/features/card-generator/lib/structuredRows';
+import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/domain/rendering';
 import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
 import type { DisplayCard } from '@/domain/rendering';
 

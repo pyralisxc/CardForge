@@ -4,7 +4,7 @@ import {
   CARD_WATERMARK_URL,
   GENERATED_PREVIEW_WATERMARK_OPACITY,
   GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT,
-} from '@/features/card-generator/lib/cardWatermarkPolicy';
+} from '../model/watermarkPolicy';
 
 export function CardWatermarkOverlay({
   testId = 'generated-card-watermark',
