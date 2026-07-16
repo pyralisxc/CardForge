@@ -54,6 +54,7 @@ export const buildQaPrivateMetadata = (role, existingMetadata = {}) => {
   delete nextMetadata.cardforgeAccess;
   delete nextMetadata.cardforgeRole;
   delete nextMetadata.cardforgeAccessExpiresAt;
+  delete nextMetadata.cardforgeFounderBetaClaimedAt;
 
   if (role === 'free') return nextMetadata;
   if (role === 'paid') return { ...nextMetadata, cardforgeAccess: 'paid' };
@@ -135,7 +136,7 @@ export const ensureQaClerkUsers = async ({
     const metadataUpdated = !isDeepStrictEqual(privateMetadata, fullUser.privateMetadata ?? {});
     if (metadataUpdated) {
       try {
-        await clerk.users.updateUserMetadata(user.id, { privateMetadata });
+        await clerk.users.replaceUserMetadata(user.id, { privateMetadata });
       } catch (error) {
         throw new Error(`Unable to align Clerk QA account: ${account.envKey}.`, { cause: error });
       }

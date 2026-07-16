@@ -138,13 +138,15 @@ async function getPrivateMetadata(userId: string) {
 }
 
 async function setPrivateMetadata(userId: string, privateMetadata: Record<string, unknown>) {
-  await getClerkAdminClient().users.updateUserMetadata(userId, { privateMetadata });
+  await getClerkAdminClient().users.replaceUserMetadata(userId, { privateMetadata });
 }
 
 function withoutCardForgeRole(privateMetadata: Record<string, unknown>) {
   const next = { ...privateMetadata };
   delete next.cardforgeAccess;
   delete next.cardforgeRole;
+  delete next.cardforgeAccessExpiresAt;
+  delete next.cardforgeFounderBetaClaimedAt;
   return next;
 }
 
