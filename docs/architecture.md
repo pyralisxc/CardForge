@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: July 13, 2026
+Last updated: July 16, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one developer asset pipeline, and one owner console.
 
@@ -10,8 +10,8 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Studio: `/studio` contains Layout Studio and Generator.
 - Accounts: Clerk identifies users; CardForge stores trusted access in Clerk private metadata or server-side allowlists.
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
-- Email: Resend sends transactional messages; Gmail is the current support recipient.
-- Shared data: Supabase stores owner settings, legal copy, roadmap/votes, Founder Beta claims, asset registry rows, developer profiles, submissions, votes, and contact request history.
+- Email: Resend sends transactional messages to the configured support inbox and users.
+- Shared data: Supabase stores owner settings, legal copy, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles, submissions, votes, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
 
 ## Source Lanes
@@ -19,7 +19,8 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 CardForge has three storage lanes:
 
 1. **Browser-local workspace**
-   - Zustand persists user templates, generated cards, custom local assets, styles, active workspace state, and export settings.
+   - Zustand coordinates templates, generated cards, styles, active workspace state, and export settings through IndexedDB-backed persistence.
+   - Binary artwork and custom local assets use IndexedDB rather than localStorage; the legacy localStorage migration remains for existing browsers.
    - Project export/import is the portability path between browsers or machines.
 
 2. **Supabase platform state**
@@ -90,7 +91,7 @@ The current developer pipeline is operational infrastructure, not an active payo
 When changing CardForge:
 
 - Prefer one owner for each responsibility.
-- Remove stale compatibility paths instead of carrying them.
+- Retain compatibility only when it protects stored user data or provider state; remove it after the migration boundary is explicitly closed.
 - Keep docs current and short.
 - Keep tests focused on live money, access, export, data, and core authoring behavior.
-- Do not add historical docs or speculative plans unless they replace existing truth.
+- Keep implementation history in Git and pull requests rather than the live documentation tree.

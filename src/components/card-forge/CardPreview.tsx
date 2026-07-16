@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { CardFace, DisplayCard, TCGCardTemplate } from '@/types';
+import type { CardFace, DisplayCard } from '@/types';
 import { cn } from '@/lib/utils';
 import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/features/template-editor/lib/textBindings';
 import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/lib/appearance';
@@ -483,7 +483,7 @@ export function CardPreview({
       });
   }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, renderWidthPx, isEditorPreview, templateToRender]);
 
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = () => {
     if (onEdit && !isEditorPreview) {
       onEdit(card);
     }

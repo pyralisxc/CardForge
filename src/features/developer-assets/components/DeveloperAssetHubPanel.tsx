@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
-import { Check, FileUp, Library, Pencil, Search, UploadCloud, X } from 'lucide-react';
+import { Check, FileUp, Library, Pencil, Search, UploadCloud } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -120,7 +120,6 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   ), [program]);
   const liveLibraryCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0) ?? 0;
   const openDefaultSlotCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0) ?? 0;
-  const reviewCandidateCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.candidateCount, 0) ?? 0;
   const archiveCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0) ?? 0;
   const submissionGuidance = developerAssetSubmissionGuidance[assetType];
   const expectedSourceSize = DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES[assetType];

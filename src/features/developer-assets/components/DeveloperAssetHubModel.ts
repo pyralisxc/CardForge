@@ -1,7 +1,6 @@
 import {
   DEVELOPER_ASSET_STATUSES,
   type DeveloperAssetAccessTier,
-  type DeveloperAssetStatus,
   type DeveloperAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, CreditCard, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Search, Settings2, UserCog, Users } from 'lucide-react';
+import { CheckCircle2, Database, ExternalLink, FileText, Gift, Info, KeyRound, Mail, Rocket, Save, Search, Settings2, UserCog, Users } from 'lucide-react';
 
 import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';

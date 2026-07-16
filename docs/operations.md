@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: July 15, 2026
+Last updated: July 16, 2026
 
 This is the current live-operations checklist for CardForge.
 
@@ -63,8 +63,10 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 
 - Custom domain is active.
 - Stripe has processed the first live sale.
+- Clerk production sign-in and the reusable authenticated account matrix are verified.
+- Stripe webhook ordering and duplicate delivery are live-proven; the first subscriber's Clerk mapping remains pending until they sign in or register with the exact Stripe email.
 - Founder Beta launch wave is capped at 25 seats.
-- Resend test email works with the current Gmail recipient.
+- Resend test email works with the configured support inbox.
 - Google Search Console verification may depend on DNS propagation.
 
 ## Owner Console Checks
@@ -126,7 +128,9 @@ Use a signed-out Chrome window on `https://cardforges.com`:
 
 Production must expose a `pk_live_` publishable key and load Clerk through the verified `clerk.cardforges.com` domain. Never record the complete key in an issue, log, or screenshot.
 
-## Billing reconciliation and duplicate proof
+## Billing reconciliation
+
+Stripe remains authoritative. The durable subscription ledger and duplicate-delivery path are live-proven. Do not ask the existing subscriber to purchase again: they must sign in or register with the exact email stored in Stripe, then the owner can reconcile the mapping.
 
 Use the configured owner QA account on `/owner`:
 
@@ -135,17 +139,27 @@ Use the configured owner QA account on `/owner`:
 3. Require `missingLedger` to be zero for every Stripe subscription. Investigate any `missingClerkUser` before changing entitlement manually.
 4. Confirm the existing customer shows the same subscription ID and access state in Stripe, Clerk private metadata, Supabase, and the owner console.
 
-Then open **Stripe Workbench → Webhooks**, choose the CardForge destination for `https://cardforges.com/api/billing/webhook`, and select a recent `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, or `checkout.session.completed` event. Click **Resend** and confirm HTTP 200. Resend the same event once more and confirm the endpoint returns the durable `duplicate` decision, Supabase contains one event row, and Clerk entitlement is unchanged. Stripe permits Dashboard resend for events up to 15 days old; do not change a live subscription merely to manufacture an event.
+When rechecking webhook behavior, open **Stripe Workbench → Webhooks**, choose the CardForge destination for `https://cardforges.com/api/billing/webhook`, and select a recent subscription or completed-checkout event. Resend it twice and require HTTP 200, one Supabase event row, the durable duplicate decision, and no unintended Clerk entitlement change. Do not change a live subscription merely to manufacture an event.
+
+## Maintained Operations Scripts
+
+- `npm run health:production`: checks five public/API routes on the canonical domain.
+- `npm run qa:bootstrap-authenticated-smoke`: aligns only the four configured reusable QA identities before protected smoke runs.
+- `npm run pipeline:sync-defaults`: intentionally seeds repo-owned starter material into the reviewed asset pipeline.
+
+Public and authenticated browser verification belongs in the Playwright smoke suites; do not create parallel one-off browser audit scripts.
 
 ## Verification Commands
 
 Use the smallest relevant check first:
 
 ```bash
+npm run lint
 npm run test
 npm run typecheck
 npm run build
 npm run smoke
+npm run health:production
 ```
 
 Before pushing launch-affecting changes:

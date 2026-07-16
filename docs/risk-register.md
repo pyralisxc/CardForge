@@ -1,6 +1,6 @@
 # CardForge Risk Register
 
-Last updated: July 15, 2026
+Last updated: July 16, 2026
 
 Every launch risk must be closed, explicitly accepted with a review date, or represented here until a tracked GitHub issue replaces it.
 
@@ -19,16 +19,17 @@ Every launch risk must be closed, explicitly accepted with a review date, or rep
 | Architecture | Owner and template coordinators are oversized | P2 | Open | Decompose behavior-preservingly before multi-contributor work on those surfaces. Review scope by August 31, 2026. |
 | Marketing | Card sharing and coherent entitlement-aware watermarking are absent | P2 | Closed | Square, portrait, and story Share Card exports plus free-visible centered watermarks are released; entitled Studio views and normal exports remain clean. |
 
-## July 15 launch verification evidence
+## July 15–16 launch verification evidence
 
 - Clerk QA metadata cleanup was corrected and merged through [PR #24](https://github.com/pyralisxc/CardForge/pull/24). Clerk replacement semantics now remove stale entitlement keys while preserving unrelated private metadata.
 - Production deployment `dpl_2dChCES3TdMLuX396zoHYRSF8up6` is READY on `cardforges.com` at exact `main` commit `03edd527ac3b236944c61ee5aba0e056ac76981a`; five route-health checks passed and the new deployment had no error or fatal runtime logs during verification.
 - Authenticated production smoke [run 29469266134](https://github.com/pyralisxc/CardForge/actions/runs/29469266134) passed 6 of 6 scenarios in 1.4 minutes. The run covered signed-out Clerk initialization, the reusable free/paid/developer/owner matrix, Founder Beta, developer and owner operations, and paid project export/import recovery.
 - Billing delivery proof: Vercel recorded two HTTP 200 deliveries to `/api/billing/webhook`. Supabase retained one `customer.subscription.created` row with status `ignored`, no failure, no resulting entitlement, and a single attempt. The event correctly predates the reconciliation baseline, and the repeat delivery created no second row. Only the existing customer-to-Clerk account reconciliation remains open.
+- July 16 repository sanity check: lint, TypeScript, 54 Vitest files with 357 tests, and the production build passed. Production route health passed all five checks. Deployment `dpl_HtRssheY5FbhcygbmtPKk8pw7Fpe` is READY on `cardforges.com` at exact `main` commit `e1f44cab43259d7564dcb225b86108116c9316ba` with no error or fatal logs on that deployment during verification.
 
 ## Accepted dependency exception
 
-The July 15, 2026 audit is reduced from 22 findings (including one high severity) to two moderate production findings. Both represent the same unresolved PostCSS advisory inherited by Next.js 15.5.20 and reported through `postcss` and `next`; npm reports no compatible fix available. CardForge does not accept user-authored CSS for server-side serialization, which limits exposure to the advisory's unescaped CSS-stringification path. Review again by August 14, 2026 or when a patched Next.js 15 release is available, whichever comes first.
+The July 16, 2026 audit remains at two moderate production findings. Both represent the same unresolved PostCSS advisory inherited by Next.js 15.5.20 and reported through `postcss` and `next`; npm reports no compatible fix available. CardForge does not accept user-authored CSS for server-side serialization, which limits exposure to the advisory's unescaped CSS-stringification path. Review again by August 14, 2026 or when a patched Next.js 15 release is available, whichever comes first.
 
 ## Accepted product boundary
 
