@@ -12,13 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 import { nanoid } from 'nanoid';
 import { PlusSquare, FilePlus2, Layers } from 'lucide-react';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
-import { useAppStore } from '@/store/appStore';
-import { withNextStep } from '@/lib/userFacingErrors';
+import { useProjectStore } from '@/features/project/client';
+import { withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
 import { getTemplateSourceLabel } from '@/lib/templateDisplay';
 import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/domain/rendering';
-import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
+import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface SingleCardGeneratorProps {
@@ -44,8 +44,8 @@ export function SingleCardGenerator({
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const addCardCooldownRef = useRef<number | null>(null);
-  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
+  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
 
   const selectedTemplate = useMemo(() => {
     return templates.find(t => t.id === selectedTemplateIdProp);

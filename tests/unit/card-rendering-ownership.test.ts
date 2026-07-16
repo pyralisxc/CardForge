@@ -99,7 +99,7 @@ describe('card rendering ownership', () => {
 
     const preview = await readFile(rootPath('src', 'features', 'card-rendering', 'components', 'CardPreview.tsx'), 'utf8');
     expect(offenders).toEqual([]);
-    expect(preview).not.toContain('useAppStore');
+    expect(preview).not.toContain('useProjectStore');
     expect(preview).toContain('highlightColor');
   });
 
@@ -109,7 +109,7 @@ describe('card rendering ownership', () => {
       'utf8',
     );
 
-    expect(exportSource).not.toContain('useAppStore');
+    expect(exportSource).not.toContain('useProjectStore');
     expect(exportSource).not.toContain('@/store/');
     expect(exportSource).toContain('highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR');
     expect(exportSource).toContain('highlightColor,');

@@ -1,5 +1,5 @@
 import type { TCGCardTemplate } from '@/domain/templates';
-import { reconstructMinimalTemplate } from '@/lib/templateModel';
+import { reconstructMinimalTemplate } from '@/domain/templates';
 
 const TEMPLATE_EDITOR_HISTORY_LIMIT = 40;
 

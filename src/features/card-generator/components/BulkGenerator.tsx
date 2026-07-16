@@ -24,9 +24,9 @@ import {
   resolveDuplicateFieldMapping,
   shouldBlockBulkGeneration,
 } from '@/features/card-generator/lib/bulkGeneration';
-import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
+import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
-import { useAppStore } from '@/store/appStore';
+import { useProjectStore } from '@/features/project/client';
 import { BulkTemplateSetupPanel } from '@/features/card-generator/components/BulkTemplateSetupPanel';
 import { BulkCsvInputPanel } from '@/features/card-generator/components/BulkCsvInputPanel';
 import { BulkMappingReviewPanel } from '@/features/card-generator/components/BulkMappingReviewPanel';
@@ -90,8 +90,8 @@ export function BulkGenerator({
   const [strictMode, setStrictMode] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
+  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateIdProp),

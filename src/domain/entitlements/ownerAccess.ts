@@ -19,11 +19,12 @@ const readEnvironment = (env?: OwnerEnvironment): OwnerEnvironment => env ?? {
   CARDFORGE_OWNER_ACCOUNT_EMAILS: process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS,
 };
 
-const parseEmailList = (value?: string): Set<string> =>
+const parseEmailList = (value?: string): Set<string> => (
   new Set((value || '')
     .split(',')
     .map((email) => email.trim().toLowerCase())
-    .filter(Boolean));
+    .filter(Boolean))
+);
 
 export const resolveOwnerAccess = ({
   authConfigured,
@@ -40,10 +41,7 @@ export const resolveOwnerAccess = ({
 
   const ownerEmails = parseEmailList(readEnvironment(env).CARDFORGE_OWNER_ACCOUNT_EMAILS);
   const normalizedEmails = emailAddresses.map((email) => email.trim().toLowerCase()).filter(Boolean);
-
-  if (normalizedEmails.some((email) => ownerEmails.has(email))) {
-    return { isOwner: true, source: 'environment' };
-  }
-
-  return { isOwner: false, source: 'none' };
+  return normalizedEmails.some((email) => ownerEmails.has(email))
+    ? { isOwner: true, source: 'environment' }
+    : { isOwner: false, source: 'none' };
 };

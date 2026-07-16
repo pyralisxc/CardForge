@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 
 import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
 import { resolveWithTimeout } from '@/lib/asyncTimeout';
-import { resolveOwnerAccess, type OwnerAccess } from '@/lib/ownerAccess';
+import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
 
 const CLERK_USER_READ_TIMEOUT_MS = 3000;

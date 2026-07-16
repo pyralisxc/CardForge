@@ -16,13 +16,13 @@ import {
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/features/project/lib/projectDocument';
+} from '@/features/project/client';
 import {
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import { useAppStore } from '@/store/appStore';
+import { useProjectStore } from '@/features/project/client';
 import type { TCGCardTemplate } from '@/domain/templates';
 import {
   createAssetFile,
@@ -79,8 +79,8 @@ const formatBytes = (value: number): string => {
 
 export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
-  const userTemplates = useAppStore((state) => state.userTemplates);
-  const appearanceStyles = useAppStore((state) => state.appearanceStyles);
+  const userTemplates = useProjectStore((state) => state.userTemplates);
+  const appearanceStyles = useProjectStore((state) => state.appearanceStyles);
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
   const [assetType, setAssetType] = useState<DeveloperAssetType>('icons');
   const [name, setName] = useState('');

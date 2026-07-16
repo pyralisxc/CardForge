@@ -9,7 +9,7 @@ import {
   applyProjectDocumentToState,
   parseProjectDocumentFile,
   type ProjectDocumentV1,
-} from '@/features/project/lib/projectDocument';
+} from '@/features/project/client';
 
 const template: TCGCardTemplate = {
   id: 'user-template-1',

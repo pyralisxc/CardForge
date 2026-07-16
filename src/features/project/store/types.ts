@@ -1,0 +1,71 @@
+import type { CardSet, StoredDisplayCard } from '@/domain/cards';
+import type { ExportMode, DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
+import type { AppearanceStylePreset, TCGCardTemplate, TemplateSource } from '@/domain/templates';
+
+export interface TemplateSlice {
+  defaultTemplates: TCGCardTemplate[];
+  userTemplates: TCGCardTemplate[];
+  addOrUpdateTemplate: (template: TCGCardTemplate, source?: TemplateSource) => string;
+  setDefaultTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
+  setUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
+  mergeUserTemplatesFromFiles: (templates: Partial<TCGCardTemplate>[]) => number;
+  deleteTemplate: (templateId: string, source?: TemplateSource) => void;
+  cloneTemplate: (templateId: string) => string | null;
+}
+
+export interface AppearanceSlice {
+  appearanceStyles: AppearanceStylePreset[];
+  setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
+  replaceAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
+  addOrUpdateAppearanceStyle: (style: AppearanceStylePreset) => string;
+  deleteAppearanceStyle: (styleId: string) => void;
+}
+
+export interface OutputSlice {
+  storedCards: StoredDisplayCard[];
+  editingCardUniqueId: string | null;
+  isEditDialogOpen: boolean;
+  addGeneratedCards: (newCards: DisplayCard[]) => void;
+  clearGeneratedCards: () => void;
+  removeGeneratedCard: (cardUniqueId: string) => void;
+  updateGeneratedCard: (updatedCard: DisplayCard) => void;
+  retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
+  setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
+  mergeStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
+  openEditDialog: (cardUniqueId: string) => void;
+  closeEditDialog: () => void;
+}
+
+export interface SettingsSlice {
+  selectedPaperSize: PaperSize;
+  activeTab: string;
+  richTextHighlightColor: string;
+  activeCardSet: CardSet;
+  singleCardGeneratorSelectedTemplateId: string | null;
+  pdfMarginMm: number;
+  pdfCardSpacingMm: number;
+  pdfIncludeCutLines: boolean;
+  pdfDuplexLayout: PdfDuplexLayout;
+  exportMode: ExportMode;
+  exportDpi: number;
+  setSelectedPaperSize: (size: PaperSize) => void;
+  setActiveTab: (tab: string) => void;
+  setRichTextHighlightColor: (color: string) => void;
+  setActiveCardSetName: (name: string) => void;
+  setActiveCardSetFrontTemplateId: (id: string | null) => void;
+  setActiveCardSetBackingTemplateId: (id: string | null) => void;
+  setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
+  setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
+  setExportMode: (mode: ExportMode) => void;
+  setExportDpi: (dpi: number) => void;
+}
+
+export interface WorkspaceLifecycleSlice {
+  _rehydrateCallback: () => void;
+}
+
+export type ProjectState = TemplateSlice
+  & AppearanceSlice
+  & OutputSlice
+  & SettingsSlice
+  & WorkspaceLifecycleSlice;

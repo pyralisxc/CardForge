@@ -16,7 +16,8 @@ import {
 import { isDividerElement } from '@/domain/templates';
 import { useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { appearanceToStyle, normalizeAppearanceForElement, normalizeTemplateAppearance } from '../model/appearance';
+import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
+import { appearanceToStyle } from '../model/appearance';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '../model/elementStyles';
 import { buildTextElementStyle, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from './RichTextContent';
 import { CardTextContent } from './CardTextContent';

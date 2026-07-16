@@ -1,4 +1,4 @@
-import { createMigratingBrowserStorage } from '@/features/project/lib/browserStorage';
+import { createIndexedDbStorage } from './indexedDbStorage';
 
 export interface ProjectAssetStorage {
   getItem: (key: string) => string | null | Promise<string | null>;
@@ -6,10 +6,7 @@ export interface ProjectAssetStorage {
 }
 
 export const getProjectAssetStorage = (): ProjectAssetStorage => {
-  const storage = createMigratingBrowserStorage(
-    'project-assets',
-    typeof window !== 'undefined' ? window.localStorage : undefined,
-  );
+  const storage = createIndexedDbStorage('project-assets');
   return {
     getItem: async (key) => await storage.getItem(key),
     setItem: async (key, value) => {

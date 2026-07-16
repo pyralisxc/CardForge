@@ -4,9 +4,8 @@ import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useState } from 'react';
 
 import type { StoredDisplayCard } from '@/domain/cards';
-import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
-import type { PaperSize, PdfDuplexLayout } from '@/domain/rendering';
-import type { ExportMode } from '@/features/card-generator/lib/printValidation';
+import type { AppearanceStylePreset, CardAssetOption, TCGCardTemplate } from '@/domain/templates';
+import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
@@ -15,17 +14,16 @@ import {
   applyProjectDocumentToState,
   createProjectDocumentFromState,
   parseProjectDocumentFile,
-} from '@/features/project/lib/projectDocument';
-import type { ProjectDocumentStatePatch } from '@/features/project/lib/projectDocument';
+} from '../model/projectDocument';
+import type { ProjectDocumentStatePatch } from '../model/projectDocument';
 import type { useToast } from '@/hooks/use-toast';
 import {
   mergeProjectAssetListToStorage,
   getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
-} from '@/features/project/lib/projectLocalAssets';
-import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
-import { withNextStep } from '@/lib/userFacingErrors';
+} from '../persistence/projectAssets';
+import { withNextStep } from '@/shared/userFacingErrors';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 

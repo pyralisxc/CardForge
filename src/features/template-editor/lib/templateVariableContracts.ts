@@ -1,5 +1,5 @@
 import { renamePlaceholderKeyInText } from '@/domain/rendering';
-import { reconstructFreeformCanvas } from '@/lib/templateModel';
+import { reconstructFreeformCanvas } from '@/domain/templates';
 import { toTitleCase } from '@/lib/utils';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 

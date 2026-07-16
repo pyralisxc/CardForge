@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import type { useToast } from '@/hooks/use-toast';
-import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
+import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 

@@ -9,6 +9,28 @@ export type TemplateFieldAllowedFormatting = 'bold' | 'italic' | 'underline' | '
 export type TemplateSource = 'default' | 'user';
 export type TemplateUsage = 'standard' | 'back-preset';
 
+export interface CardAssetOption {
+  id: string;
+  name: string;
+  url: string;
+  kind: 'texture' | 'divider' | 'border' | 'frame' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset';
+  librarySource?: 'official' | 'developer' | 'local';
+  accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
+  registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
+  fileSizeBytes?: number;
+  packId?: string;
+  packName?: string;
+  tileMode: 'repeat' | 'stretch' | 'contain';
+  seamless: boolean;
+  allowedTargets: Array<'text' | 'shape' | 'divider' | 'template' | 'imageFrame' | 'icon' | 'image'>;
+  defaultBlendMode?: string;
+  defaultOpacity?: number;
+  defaultScale?: number;
+  partRole?: 'outerFrame' | 'frameRail' | 'corner' | 'titlePlate' | 'artWindow' | 'rulesBox' | 'statGem' | 'costOrb' | 'panel' | 'overlay' | 'ornament';
+  defaultWidth?: number;
+  defaultHeight?: number;
+}
+
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
 export type AppearanceStyleKind = 'material' | 'border' | 'divider' | 'icon' | 'theme' | 'shapeRole' | 'frameKit';
 export type AppearanceGradientType = 'linear' | 'radial' | 'none';

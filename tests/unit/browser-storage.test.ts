@@ -5,12 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BROWSER_STORAGE_DATABASE,
   createBrowserKeyValueStorage,
-  createMigratingBrowserStorage,
+  createIndexedDbStorage,
   getBrowserRecoverySnapshot,
   getBrowserStorageHealth,
   getConstrainedImageSize,
   validateLocalAssetFile,
-} from '@/features/project/lib/browserStorage';
+} from '@/features/project/client';
 
 const deleteDatabase = () => new Promise<void>((resolve, reject) => {
   const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
@@ -33,27 +33,20 @@ describe('browser IndexedDB storage', () => {
     expect(await storage.getItem('workspace')).toBeNull();
   });
 
-  it('moves a legacy localStorage value only after IndexedDB accepts it', async () => {
-    const legacyValues = new Map([['workspace', '{"legacy":true}']]);
-    const storage = createMigratingBrowserStorage('migration-test', {
-      getItem: (key) => legacyValues.get(key) ?? null,
-      removeItem: (key) => {
-        legacyValues.delete(key);
-      },
-      setItem: (key, value) => {
-        legacyValues.set(key, value);
-      },
-    });
+  it('keeps independent project namespaces isolated', async () => {
+    const workspace = createIndexedDbStorage('workspace');
+    const assets = createIndexedDbStorage('assets');
+    await workspace.setItem('state', '{"kind":"workspace"}');
+    await assets.setItem('state', '{"kind":"assets"}');
 
-    expect(await storage.getItem('workspace')).toBe('{"legacy":true}');
-    expect(legacyValues.has('workspace')).toBe(false);
-    expect(await storage.getItem('workspace')).toBe('{"legacy":true}');
+    expect(await workspace.getItem('state')).toBe('{"kind":"workspace"}');
+    expect(await assets.getItem('state')).toBe('{"kind":"assets"}');
   });
 
   it('uses an inert adapter during server rendering when IndexedDB is unavailable', async () => {
     vi.stubGlobal('indexedDB', undefined);
     try {
-      const storage = createMigratingBrowserStorage('server-render');
+      const storage = createIndexedDbStorage('server-render');
 
       expect(await storage.getItem('workspace')).toBeNull();
       expect(await storage.setItem('workspace', '{"ignored":true}')).toBeUndefined();

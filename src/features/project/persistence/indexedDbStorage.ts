@@ -128,13 +128,12 @@ export const getBrowserRecoverySnapshot = async (namespace: string, key: string)
   return storage.getItem(`__recovery__:${key}`);
 };
 
-export const createMigratingBrowserStorage = (
+export const createIndexedDbStorage = (
   namespace: string,
-  legacyStorage?: StateStorage,
   options: { keepRecoverySnapshot?: boolean; suppressWriteErrors?: boolean } = {},
 ): StateStorage => {
   if (typeof indexedDB === 'undefined') {
-    return legacyStorage ?? {
+    return {
       getItem: () => null,
       setItem: () => undefined,
       removeItem: () => undefined,
@@ -153,14 +152,7 @@ export const createMigratingBrowserStorage = (
 
   return {
     getItem: async (key) => {
-      const storedValue = await indexedDbStorage.getItem(key);
-      if (storedValue !== null || !legacyStorage) return storedValue;
-
-      const legacyValue = await legacyStorage.getItem(key);
-      if (legacyValue === null) return null;
-      await indexedDbStorage.setItem(key, legacyValue);
-      await legacyStorage.removeItem(key);
-      return legacyValue;
+      return indexedDbStorage.getItem(key);
     },
     setItem: async (key, value) => {
       try {
@@ -172,7 +164,6 @@ export const createMigratingBrowserStorage = (
     },
     removeItem: async (key) => {
       await indexedDbStorage.removeItem(key);
-      await legacyStorage?.removeItem(key);
     },
   };
 };

@@ -1,17 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createDefaultFreeformCanvas, reconstructMinimalTemplateObject } from '@/domain/templates';
 import {
-  reconstructMinimalTemplateObject,
-  createDefaultFreeformCanvas,
   selectAllTemplates,
   selectGeneratedDisplayCards,
-  useAppStore,
-} from '@/store/appStore';
+  useProjectStore,
+} from '@/features/project/client';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('app store helpers', () => {
   beforeEach(() => {
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [],
       userTemplates: [],
       storedCards: [],
@@ -210,12 +209,12 @@ describe('app store helpers', () => {
       freeformCanvas: createDefaultFreeformCanvas(),
     });
 
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [template],
       userTemplates: [],
     });
 
-    useAppStore.getState().addGeneratedCards([{
+    useProjectStore.getState().addGeneratedCards([{
       template,
       uniqueId: 'styled-card',
       data: {
@@ -224,7 +223,7 @@ describe('app store helpers', () => {
       },
     }]);
 
-    expect(useAppStore.getState().storedCards).toEqual([{
+    expect(useProjectStore.getState().storedCards).toEqual([{
       uniqueId: 'styled-card',
       templateId: 'styled-template',
       backingTemplateId: null,
@@ -236,7 +235,7 @@ describe('app store helpers', () => {
       },
     }]);
 
-    const cards = selectGeneratedDisplayCards(useAppStore.getState());
+    const cards = selectGeneratedDisplayCards(useProjectStore.getState());
     expect(cards[0].data['__cardforgeFieldStyle.cardName.textColor']).toBe('#00ffaa');
   });
 
@@ -248,12 +247,12 @@ describe('app store helpers', () => {
       freeformCanvas: createDefaultFreeformCanvas(),
     });
 
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [template],
       userTemplates: [],
     });
 
-    const result = useAppStore.getState().setStoredCardsFromFile([{
+    const result = useProjectStore.getState().setStoredCardsFromFile([{
       uniqueId: 'imported-styled-card',
       templateId: 'import-template',
       data: {
@@ -263,7 +262,7 @@ describe('app store helpers', () => {
     }]);
 
     expect(result).toEqual({ successCount: 1, skippedCount: 0 });
-    expect(useAppStore.getState().storedCards[0].data['__cardforgeFieldStyle.cardName.fontWeight']).toBe('font-semibold');
+    expect(useProjectStore.getState().storedCards[0].data['__cardforgeFieldStyle.cardName.fontWeight']).toBe('font-semibold');
   });
 
   it('merges imported stored cards without clearing existing generated outputs', () => {
@@ -280,7 +279,7 @@ describe('app store helpers', () => {
       freeformCanvas: createDefaultFreeformCanvas(),
     });
 
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [existingTemplate, importedTemplate],
       userTemplates: [],
       storedCards: [
@@ -289,14 +288,14 @@ describe('app store helpers', () => {
       ],
     });
 
-    const result = useAppStore.getState().mergeStoredCardsFromFile([
+    const result = useProjectStore.getState().mergeStoredCardsFromFile([
       { uniqueId: 'updated-card', templateId: 'import-template', data: { cardName: 'Updated' } },
       { uniqueId: 'new-card', templateId: 'import-template', data: { cardName: 'New' } },
       { uniqueId: 'missing-template-card', templateId: 'missing-template', data: {} },
     ]);
 
     expect(result).toEqual({ successCount: 2, skippedCount: 1 });
-    expect(useAppStore.getState().storedCards).toEqual([
+    expect(useProjectStore.getState().storedCards).toEqual([
       { uniqueId: 'existing-card', templateId: 'existing-template', data: { cardName: 'Kept' } },
       {
         uniqueId: 'updated-card',
@@ -318,17 +317,17 @@ describe('app store helpers', () => {
   });
 
   it('can replace appearance styles for project import without using bootstrap merge semantics', () => {
-    useAppStore.setState({
+    useProjectStore.setState({
       appearanceStyles: [
         { id: 'old-style', name: 'Old Style', kind: 'theme', targets: [], appearance: {} },
       ],
     });
 
-    useAppStore.getState().replaceAppearanceStylesFromFiles([
+    useProjectStore.getState().replaceAppearanceStylesFromFiles([
       { id: 'new-style', name: 'New Style', kind: 'theme', targets: [], appearance: {} },
     ]);
 
-    expect(useAppStore.getState().appearanceStyles).toEqual([
+    expect(useProjectStore.getState().appearanceStyles).toEqual([
       { id: 'new-style', name: 'New Style', kind: 'theme', targets: [], appearance: {} },
     ]);
   });
@@ -343,7 +342,7 @@ describe('app store helpers', () => {
       name: 'Deleted',
     });
 
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [],
       userTemplates: [keptTemplate, deletedTemplate],
       storedCards: [
@@ -355,17 +354,17 @@ describe('app store helpers', () => {
       isEditDialogOpen: true,
     });
 
-    useAppStore.getState().deleteTemplate('template-deleted');
+    useProjectStore.getState().deleteTemplate('template-deleted');
 
-    expect(selectAllTemplates(useAppStore.getState()).map(t => t.id)).toEqual(['template-kept']);
-    expect(useAppStore.getState().storedCards.map(card => card.uniqueId)).toEqual(['card-kept']);
-    expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('template-kept');
-    expect(useAppStore.getState().editingCardUniqueId).toBeNull();
-    expect(useAppStore.getState().isEditDialogOpen).toBe(false);
+    expect(selectAllTemplates(useProjectStore.getState()).map(t => t.id)).toEqual(['template-kept']);
+    expect(useProjectStore.getState().storedCards.map(card => card.uniqueId)).toEqual(['card-kept']);
+    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('template-kept');
+    expect(useProjectStore.getState().editingCardUniqueId).toBeNull();
+    expect(useProjectStore.getState().isEditDialogOpen).toBe(false);
   });
 
   it('removes one generated output without clearing the rest', () => {
-    useAppStore.setState({
+    useProjectStore.setState({
       storedCards: [
         { uniqueId: 'card-kept', templateId: 'template-kept', data: { cardName: 'Kept' } },
         { uniqueId: 'card-removed', templateId: 'template-kept', data: { cardName: 'Removed' } },
@@ -374,13 +373,13 @@ describe('app store helpers', () => {
       isEditDialogOpen: true,
     });
 
-    useAppStore.getState().removeGeneratedCard('card-removed');
+    useProjectStore.getState().removeGeneratedCard('card-removed');
 
-    expect(useAppStore.getState().storedCards).toEqual([
+    expect(useProjectStore.getState().storedCards).toEqual([
       { uniqueId: 'card-kept', templateId: 'template-kept', data: { cardName: 'Kept' } },
     ]);
-    expect(useAppStore.getState().editingCardUniqueId).toBeNull();
-    expect(useAppStore.getState().isEditDialogOpen).toBe(false);
+    expect(useProjectStore.getState().editingCardUniqueId).toBeNull();
+    expect(useProjectStore.getState().isEditDialogOpen).toBe(false);
   });
 
   it('updates default templates in place without creating a user copy', () => {
@@ -390,7 +389,7 @@ describe('app store helpers', () => {
       templateSource: 'default',
     });
 
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [defaultTemplate],
       userTemplates: [],
       storedCards: [
@@ -398,16 +397,16 @@ describe('app store helpers', () => {
       ],
     });
 
-    const savedId = useAppStore.getState().addOrUpdateTemplate({
+    const savedId = useProjectStore.getState().addOrUpdateTemplate({
       ...defaultTemplate,
       name: 'Default Updated',
       templateSource: 'default',
     }, 'default');
 
     expect(savedId).toBe('default-template');
-    expect(useAppStore.getState().defaultTemplates).toMatchObject([{ id: 'default-template', name: 'Default Updated', templateSource: 'default' }]);
-    expect(useAppStore.getState().userTemplates).toEqual([]);
-    expect(useAppStore.getState().storedCards).toEqual([
+    expect(useProjectStore.getState().defaultTemplates).toMatchObject([{ id: 'default-template', name: 'Default Updated', templateSource: 'default' }]);
+    expect(useProjectStore.getState().userTemplates).toEqual([]);
+    expect(useProjectStore.getState().storedCards).toEqual([
       { uniqueId: 'card-retargeted', templateId: 'default-template', data: { cardName: 'Updated' } },
     ]);
   });
@@ -419,13 +418,13 @@ describe('app store helpers', () => {
       templateSource: 'user',
     });
 
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [],
       userTemplates: [localTemplate],
       singleCardGeneratorSelectedTemplateId: 'local-template',
     });
 
-    const importedCount = useAppStore.getState().mergeUserTemplatesFromFiles([
+    const importedCount = useProjectStore.getState().mergeUserTemplatesFromFiles([
       {
         id: 'server-template',
         name: 'Server Template',
@@ -434,11 +433,11 @@ describe('app store helpers', () => {
     ]);
 
     expect(importedCount).toBe(1);
-    expect(useAppStore.getState().userTemplates).toMatchObject([
+    expect(useProjectStore.getState().userTemplates).toMatchObject([
       { id: 'local-template', name: 'Local Template', templateSource: 'user' },
       { id: 'server-template', name: 'Server Template', templateSource: 'user' },
     ]);
-    expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('local-template');
+    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('local-template');
   });
 
   it('ignores empty bootstrap user template payloads to preserve browser-local templates', () => {
@@ -448,47 +447,47 @@ describe('app store helpers', () => {
       templateSource: 'user',
     });
 
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [],
       userTemplates: [localTemplate],
       singleCardGeneratorSelectedTemplateId: 'local-template',
     });
 
-    const importedCount = useAppStore.getState().mergeUserTemplatesFromFiles([]);
+    const importedCount = useProjectStore.getState().mergeUserTemplatesFromFiles([]);
 
     expect(importedCount).toBe(0);
-    expect(useAppStore.getState().userTemplates).toMatchObject([
+    expect(useProjectStore.getState().userTemplates).toMatchObject([
       { id: 'local-template', name: 'Local Template', templateSource: 'user' },
     ]);
   });
 
   it('_rehydrateCallback fixes selectedTemplateId if the template no longer exists', () => {
     const template = reconstructMinimalTemplateObject({ id: 'only-template', name: 'Only' });
-    useAppStore.setState({
+    useProjectStore.setState({
       defaultTemplates: [template],
       userTemplates: [],
       singleCardGeneratorSelectedTemplateId: 'stale-id-that-no-longer-exists',
     });
 
-    useAppStore.getState()._rehydrateCallback();
+    useProjectStore.getState()._rehydrateCallback();
 
-    expect(useAppStore.getState().singleCardGeneratorSelectedTemplateId).toBe('only-template');
+    expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('only-template');
   });
 
   it('normalizes the old template maker tab id for persisted browser state', () => {
-    useAppStore.getState().setActiveTab('template-maker-2');
+    useProjectStore.getState().setActiveTab('template-maker-2');
 
-    expect(useAppStore.getState().activeTab).toBe('template-maker');
+    expect(useProjectStore.getState().activeTab).toBe('template-maker');
   });
 
   it('persists the selected physical PDF front/back layout option', () => {
-    useAppStore.getState().setPdfOptions({ duplexLayout: 'same-page' });
+    useProjectStore.getState().setPdfOptions({ duplexLayout: 'same-page' });
 
-    expect(useAppStore.getState().pdfDuplexLayout).toBe('same-page');
+    expect(useProjectStore.getState().pdfDuplexLayout).toBe('same-page');
 
-    useAppStore.getState().setPdfOptions({ margin: 8 });
+    useProjectStore.getState().setPdfOptions({ margin: 8 });
 
-    expect(useAppStore.getState().pdfMarginMm).toBe(8);
-    expect(useAppStore.getState().pdfDuplexLayout).toBe('same-page');
+    expect(useProjectStore.getState().pdfMarginMm).toBe(8);
+    expect(useProjectStore.getState().pdfDuplexLayout).toBe('same-page');
   });
 });

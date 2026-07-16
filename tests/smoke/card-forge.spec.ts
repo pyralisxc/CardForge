@@ -40,9 +40,13 @@ async function cleanupSmokeUserTemplates() {
 test.beforeEach(async ({ page }) => {
   await cleanupSmokeUserTemplates();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    window.localStorage.clear();
-  });
+  await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase('cardforge-browser-storage');
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('CardForge browser storage is still open.'));
+  }));
 });
 
 test.afterEach(async () => {
@@ -51,6 +55,34 @@ test.afterEach(async () => {
 
 async function gotoStudio(page: Page) {
   await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+}
+
+async function seedWorkspaceStorage(page: Page, state: Record<string, unknown>) {
+  await page.evaluate((workspaceState) => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('cardforge-browser-storage', 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('key-value')) {
+        request.result.createObjectStore('key-value');
+      }
+    };
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction('key-value', 'readwrite');
+      transaction.objectStore('key-value').put(
+        JSON.stringify({ state: workspaceState, version: 1 }),
+        'project-workspace:workspace',
+      );
+      transaction.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        database.close();
+        reject(transaction.error);
+      };
+    };
+  }), state);
 }
 
 async function selectMainTab(page: Page, name: RegExp) {
@@ -94,8 +126,7 @@ async function visibleFreeformPreviewElementCount(page: Page) {
 }
 
 async function seedBulkMappingTemplate(page: Page) {
-  await page.addInitScript(() => {
-    const template = {
+  const template = {
       id: 'smoke-bulk-mapping-template',
       name: 'Smoke Bulk Mapping Template',
       aspectRatio: '2.5/3.5',
@@ -118,18 +149,14 @@ async function seedBulkMappingTemplate(page: Page) {
       },
     };
 
-    window.localStorage.setItem('card-forge-app-storage-v3', JSON.stringify({
-      state: {
-        userTemplates: [template],
-        appearanceStyles: [],
-        storedCards: [],
-        activeTab: 'generator',
-        singleCardGeneratorSelectedTemplateId: template.id,
-        bulkGeneratorSelectedTemplateId: template.id,
-        richTextHighlightColor: '#ffd700',
-      },
-      version: 1,
-    }));
+  await seedWorkspaceStorage(page, {
+    userTemplates: [template],
+    appearanceStyles: [],
+    storedCards: [],
+    activeTab: 'generator',
+    singleCardGeneratorSelectedTemplateId: template.id,
+    bulkGeneratorSelectedTemplateId: template.id,
+    richTextHighlightColor: '#ffd700',
   });
 }
 
@@ -224,8 +251,7 @@ test('loads default templates and adds a generated output', async ({ page }) => 
 test('lets free users try clean export and see the export gate', async ({ page }) => {
   test.setTimeout(STUDIO_TEST_TIMEOUT);
 
-  await page.addInitScript(() => {
-    const template = {
+  const template = {
       id: 'smoke-export-gate-template',
       name: 'Smoke Export Gate Template',
       aspectRatio: '63:88',
@@ -262,33 +288,29 @@ test('lets free users try clean export and see the export gate', async ({ page }
       },
     };
 
-    window.localStorage.setItem('card-forge-app-storage-v3', JSON.stringify({
-      state: {
-        userTemplates: [template],
-        appearanceStyles: [],
-        storedCards: [{
-          uniqueId: 'smoke-export-gate-1',
-          templateId: template.id,
-          data: {
-            Rank: 'A',
-            Suit: '♥',
-            CenterMark: '♥',
-            cardName: 'Smoke Export Gate',
-          },
-        }],
-        selectedPaperSize: { name: 'US Letter (8.5×11 in)', widthMm: 215.9, heightMm: 279.4 },
-        activeTab: 'generator',
-        richTextHighlightColor: '#ffd700',
-        singleCardGeneratorSelectedTemplateId: template.id,
-        pdfMarginMm: 5,
-        pdfCardSpacingMm: 0,
-        pdfIncludeCutLines: false,
-        pdfDuplexLayout: 'separate-pages',
-        exportMode: 'physical',
-        exportDpi: 300,
+  await seedWorkspaceStorage(page, {
+    userTemplates: [template],
+    appearanceStyles: [],
+    storedCards: [{
+      uniqueId: 'smoke-export-gate-1',
+      templateId: template.id,
+      data: {
+        Rank: 'A',
+        Suit: '♥',
+        CenterMark: '♥',
+        cardName: 'Smoke Export Gate',
       },
-      version: 1,
-    }));
+    }],
+    selectedPaperSize: { name: 'US Letter (8.5×11 in)', widthMm: 215.9, heightMm: 279.4 },
+    activeTab: 'generator',
+    richTextHighlightColor: '#ffd700',
+    singleCardGeneratorSelectedTemplateId: template.id,
+    pdfMarginMm: 5,
+    pdfCardSpacingMm: 0,
+    pdfIncludeCutLines: false,
+    pdfDuplexLayout: 'separate-pages',
+    exportMode: 'physical',
+    exportDpi: 300,
   });
 
   await gotoStudio(page);
@@ -533,26 +555,21 @@ test('supports a 1000-card generated gallery without rendering every preview at 
     },
   }));
 
-  await page.addInitScript(({ seedCards, seedTemplate }) => {
-    window.localStorage.setItem('card-forge-app-storage-v3', JSON.stringify({
-      state: {
-        userTemplates: [seedTemplate],
-        appearanceStyles: [],
-        storedCards: seedCards,
-        selectedPaperSize: { name: 'US Letter (8.5×11 in)', widthMm: 215.9, heightMm: 279.4 },
-        activeTab: 'generator',
-        richTextHighlightColor: '#ffd700',
-        singleCardGeneratorSelectedTemplateId: seedTemplate.id,
-        pdfMarginMm: 5,
-        pdfCardSpacingMm: 0,
-        pdfIncludeCutLines: false,
-        pdfDuplexLayout: 'separate-pages',
-        exportMode: 'physical',
-        exportDpi: 300,
-      },
-      version: 1,
-    }));
-  }, { seedCards: storedCards, seedTemplate: template });
+  await seedWorkspaceStorage(page, {
+    userTemplates: [template],
+    appearanceStyles: [],
+    storedCards,
+    selectedPaperSize: { name: 'US Letter (8.5×11 in)', widthMm: 215.9, heightMm: 279.4 },
+    activeTab: 'generator',
+    richTextHighlightColor: '#ffd700',
+    singleCardGeneratorSelectedTemplateId: template.id,
+    pdfMarginMm: 5,
+    pdfCardSpacingMm: 0,
+    pdfIncludeCutLines: false,
+    pdfDuplexLayout: 'separate-pages',
+    exportMode: 'physical',
+    exportDpi: 300,
+  });
 
   await gotoStudio(page);
 

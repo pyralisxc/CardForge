@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildProjectImportPreview,
   buildProjectImportSummary,
-} from '@/features/project/hooks/useProjectFileActions';
+} from '@/features/project/client';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/features/project/lib/projectDocument';
+} from '@/features/project/client';
 
 describe('project file actions', () => {
   it('summarizes template-only imports without implying nothing happened', () => {

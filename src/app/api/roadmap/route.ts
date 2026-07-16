@@ -2,7 +2,7 @@ import { currentUser } from '@clerk/nextjs/server';
 
 import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { resolveWithTimeout } from '@/lib/asyncTimeout';
-import { resolveOwnerAccess } from '@/lib/ownerAccess';
+import { resolveOwnerAccess } from '@/domain/entitlements';
 import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/account/lib/roadmapStore';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/lib/abuseProtection';

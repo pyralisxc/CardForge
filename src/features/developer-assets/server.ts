@@ -1,8 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
-import { resolveOwnerAccess } from '@/lib/ownerAccess';
-import { isShippedLibraryWriteEnabled } from '@/features/project/lib/projectAccess';
+import { isShippedLibraryWriteEnabled, resolveOwnerAccess } from '@/domain/entitlements';
+import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/server';
 
 export const canCurrentAccountWriteShippedLibrary = async (): Promise<boolean> => {
   if (process.env.CARDFORGE_ALLOW_LIBRARY_WRITES !== 'true') return false;

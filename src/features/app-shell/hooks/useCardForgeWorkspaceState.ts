@@ -2,63 +2,63 @@
 
 import { useMemo } from 'react';
 
-import { useAppStore } from '@/store/appStore';
-import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/store/selectors';
+import { useProjectStore } from '@/features/project/client';
+import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/features/project/client';
 import {
   getGeneratorSelectedTemplateId,
   splitTemplatesForWorkspace,
 } from '@/features/app-shell/lib/workspaceState';
 
 export function useCardForgeWorkspaceState() {
-  const defaultTemplatesFromStore = useAppStore((state) => state.defaultTemplates);
-  const userTemplatesFromStore = useAppStore((state) => state.userTemplates);
-  const templatesFromStore = useAppStore(selectAllTemplates);
-  const appearanceStyles = useAppStore((state) => state.appearanceStyles);
-  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
-  const storedCards = useAppStore((state) => state.storedCards);
-  const generatedDisplayCards = useAppStore(selectGeneratedDisplayCards);
+  const defaultTemplatesFromStore = useProjectStore((state) => state.defaultTemplates);
+  const userTemplatesFromStore = useProjectStore((state) => state.userTemplates);
+  const templatesFromStore = useProjectStore(selectAllTemplates);
+  const appearanceStyles = useProjectStore((state) => state.appearanceStyles);
+  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const storedCards = useProjectStore((state) => state.storedCards);
+  const generatedDisplayCards = useProjectStore(selectGeneratedDisplayCards);
 
-  const selectedPaperSize = useAppStore((state) => state.selectedPaperSize);
-  const activeTab = useAppStore((state) => state.activeTab);
-  const activeCardSet = useAppStore((state) => state.activeCardSet);
-  const singleCardGeneratorSelectedTemplateId = useAppStore((state) => state.singleCardGeneratorSelectedTemplateId);
-  const pdfMarginMm = useAppStore((state) => state.pdfMarginMm);
-  const pdfCardSpacingMm = useAppStore((state) => state.pdfCardSpacingMm);
-  const pdfIncludeCutLines = useAppStore((state) => state.pdfIncludeCutLines);
-  const pdfDuplexLayout = useAppStore((state) => state.pdfDuplexLayout);
-  const exportMode = useAppStore((state) => state.exportMode);
-  const exportDpi = useAppStore((state) => state.exportDpi);
-  const editingCardFromStore = useAppStore(selectEditingCard);
-  const isEditDialogOpen = useAppStore((state) => state.isEditDialogOpen);
+  const selectedPaperSize = useProjectStore((state) => state.selectedPaperSize);
+  const activeTab = useProjectStore((state) => state.activeTab);
+  const activeCardSet = useProjectStore((state) => state.activeCardSet);
+  const singleCardGeneratorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
+  const pdfMarginMm = useProjectStore((state) => state.pdfMarginMm);
+  const pdfCardSpacingMm = useProjectStore((state) => state.pdfCardSpacingMm);
+  const pdfIncludeCutLines = useProjectStore((state) => state.pdfIncludeCutLines);
+  const pdfDuplexLayout = useProjectStore((state) => state.pdfDuplexLayout);
+  const exportMode = useProjectStore((state) => state.exportMode);
+  const exportDpi = useProjectStore((state) => state.exportDpi);
+  const editingCardFromStore = useProjectStore(selectEditingCard);
+  const isEditDialogOpen = useProjectStore((state) => state.isEditDialogOpen);
 
-  const addOrUpdateTemplateAction = useAppStore((state) => state.addOrUpdateTemplate);
-  const setDefaultTemplatesFromFilesAction = useAppStore((state) => state.setDefaultTemplatesFromFiles);
-  const setUserTemplatesFromFilesAction = useAppStore((state) => state.setUserTemplatesFromFiles);
-  const mergeUserTemplatesFromFilesAction = useAppStore((state) => state.mergeUserTemplatesFromFiles);
-  const deleteTemplateAction = useAppStore((state) => state.deleteTemplate);
-  const cloneTemplateAction = useAppStore((state) => state.cloneTemplate);
-  const setAppearanceStylesFromFilesAction = useAppStore((state) => state.setAppearanceStylesFromFiles);
-  const replaceAppearanceStylesFromFilesAction = useAppStore((state) => state.replaceAppearanceStylesFromFiles);
-  const addOrUpdateAppearanceStyleAction = useAppStore((state) => state.addOrUpdateAppearanceStyle);
-  const deleteAppearanceStyleAction = useAppStore((state) => state.deleteAppearanceStyle);
-  const addGeneratedCardsAction = useAppStore((state) => state.addGeneratedCards);
-  const clearGeneratedCardsAction = useAppStore((state) => state.clearGeneratedCards);
-  const removeGeneratedCardAction = useAppStore((state) => state.removeGeneratedCard);
-  const updateGeneratedCardAction = useAppStore((state) => state.updateGeneratedCard);
-  const retargetGeneratedCardsTemplateAction = useAppStore((state) => state.retargetGeneratedCardsTemplate);
-  const setStoredCardsFromFileAction = useAppStore((state) => state.setStoredCardsFromFile);
-  const mergeStoredCardsFromFileAction = useAppStore((state) => state.mergeStoredCardsFromFile);
-  const setSelectedPaperSizeAction = useAppStore((state) => state.setSelectedPaperSize);
-  const setActiveTabAction = useAppStore((state) => state.setActiveTab);
-  const setActiveCardSetNameAction = useAppStore((state) => state.setActiveCardSetName);
-  const setActiveCardSetFrontTemplateIdAction = useAppStore((state) => state.setActiveCardSetFrontTemplateId);
-  const setActiveCardSetBackingTemplateIdAction = useAppStore((state) => state.setActiveCardSetBackingTemplateId);
-  const setSingleCardGeneratorSelectedTemplateIdAction = useAppStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
-  const setPdfOptionsAction = useAppStore((state) => state.setPdfOptions);
-  const setExportModeAction = useAppStore((state) => state.setExportMode);
-  const setExportDpiAction = useAppStore((state) => state.setExportDpi);
-  const openEditDialogAction = useAppStore((state) => state.openEditDialog);
-  const closeEditDialogAction = useAppStore((state) => state.closeEditDialog);
+  const addOrUpdateTemplateAction = useProjectStore((state) => state.addOrUpdateTemplate);
+  const setDefaultTemplatesFromFilesAction = useProjectStore((state) => state.setDefaultTemplatesFromFiles);
+  const setUserTemplatesFromFilesAction = useProjectStore((state) => state.setUserTemplatesFromFiles);
+  const mergeUserTemplatesFromFilesAction = useProjectStore((state) => state.mergeUserTemplatesFromFiles);
+  const deleteTemplateAction = useProjectStore((state) => state.deleteTemplate);
+  const cloneTemplateAction = useProjectStore((state) => state.cloneTemplate);
+  const setAppearanceStylesFromFilesAction = useProjectStore((state) => state.setAppearanceStylesFromFiles);
+  const replaceAppearanceStylesFromFilesAction = useProjectStore((state) => state.replaceAppearanceStylesFromFiles);
+  const addOrUpdateAppearanceStyleAction = useProjectStore((state) => state.addOrUpdateAppearanceStyle);
+  const deleteAppearanceStyleAction = useProjectStore((state) => state.deleteAppearanceStyle);
+  const addGeneratedCardsAction = useProjectStore((state) => state.addGeneratedCards);
+  const clearGeneratedCardsAction = useProjectStore((state) => state.clearGeneratedCards);
+  const removeGeneratedCardAction = useProjectStore((state) => state.removeGeneratedCard);
+  const updateGeneratedCardAction = useProjectStore((state) => state.updateGeneratedCard);
+  const retargetGeneratedCardsTemplateAction = useProjectStore((state) => state.retargetGeneratedCardsTemplate);
+  const setStoredCardsFromFileAction = useProjectStore((state) => state.setStoredCardsFromFile);
+  const mergeStoredCardsFromFileAction = useProjectStore((state) => state.mergeStoredCardsFromFile);
+  const setSelectedPaperSizeAction = useProjectStore((state) => state.setSelectedPaperSize);
+  const setActiveTabAction = useProjectStore((state) => state.setActiveTab);
+  const setActiveCardSetNameAction = useProjectStore((state) => state.setActiveCardSetName);
+  const setActiveCardSetFrontTemplateIdAction = useProjectStore((state) => state.setActiveCardSetFrontTemplateId);
+  const setActiveCardSetBackingTemplateIdAction = useProjectStore((state) => state.setActiveCardSetBackingTemplateId);
+  const setSingleCardGeneratorSelectedTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
+  const setPdfOptionsAction = useProjectStore((state) => state.setPdfOptions);
+  const setExportModeAction = useProjectStore((state) => state.setExportMode);
+  const setExportDpiAction = useProjectStore((state) => state.setExportDpi);
+  const openEditDialogAction = useProjectStore((state) => state.openEditDialog);
+  const closeEditDialogAction = useProjectStore((state) => state.closeEditDialog);
 
   const {
     backFacePresetTemplates,

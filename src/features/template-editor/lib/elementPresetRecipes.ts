@@ -1,7 +1,7 @@
-import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, FreeformElementType, FreeformShapeKind, FreeformShapeRole, TCGCardTemplate } from '@/domain/templates';
+import { normalizeAppearanceForElement, type AppearanceStylePreset, type FreeformAppearance, type FreeformCardElement, type FreeformElementType, type FreeformShapeKind, type FreeformShapeRole, type TCGCardTemplate } from '@/domain/templates';
 import type { CardFrameKit } from '@/lib/cardFrameKits';
 import { getFrameKitTemplateUpdates } from '@/lib/cardFrameKits';
-import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/features/card-rendering/client';
+import { appearanceToElementRenderFields } from '@/features/card-rendering/client';
 import { DEFAULT_OWNER_SETTINGS } from '@/features/owner/lib/ownerConsole';
 
 const DEFAULT_OWNER_CONTRIBUTOR_NAME = DEFAULT_OWNER_SETTINGS.ownerName || DEFAULT_OWNER_SETTINGS.supportEmail;

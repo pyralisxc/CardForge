@@ -1,7 +1,7 @@
 import { getBillingConfigStatus } from '@/features/billing/lib/billing';
 import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { isShippedLibraryWriteEnabled, resolveAccessMode } from '@/features/project/lib/projectAccess';
+import { isShippedLibraryWriteEnabled, resolveAccessMode } from '@/domain/entitlements';
 import { getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
 import { getOwnerConsolePayload } from '@/features/owner/lib/ownerConsoleStore';
 

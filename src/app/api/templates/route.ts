@@ -9,7 +9,7 @@ import {
   templatePayloadSchema,
 } from '@/lib/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { canCurrentAccountWriteShippedLibrary } from '@/features/project/lib/serverProjectAccess';
+import { canCurrentAccountWriteShippedLibrary } from '@/features/developer-assets/server';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
 import {
   getPublishedRegistryContentRows,
