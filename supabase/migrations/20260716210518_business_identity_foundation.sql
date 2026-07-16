@@ -126,16 +126,16 @@ update public.cardforge_legal_documents
 set
   body = regexp_replace(
     body,
-    '^CardForge is a service operated by ' || 'Neon ' || 'Black Interactive ' || 'LLC\. It lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access\.',
+    '^CardForge is a service operated by ' || 'Neon ' || 'Black Interactive ' || 'LLC\.',
     $terms$CardForge Studio is a software product created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
 
-Your agreement for the service is with Cameron Locke as the legal operator of CardForge Studio. CardForge lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access.$terms$,
+Your agreement for the service is with Cameron Locke as the legal operator of CardForge Studio.$terms$,
     'i'
   ),
   published_at = now(),
   updated_at = now()
 where slug = 'terms'
-  and body ~* ('^CardForge is a service operated by ' || 'Neon ' || 'Black Interactive ' || 'LLC\. It lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access\.');
+  and body ~* ('^CardForge is a service operated by ' || 'Neon ' || 'Black Interactive ' || 'LLC\.');
 
 update public.cardforge_legal_documents
 set

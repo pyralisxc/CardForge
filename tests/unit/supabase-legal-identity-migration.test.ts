@@ -39,10 +39,10 @@ describe('legal identity migration', () => {
       'cardforge is designed as a local-first card creation tool.',
     );
     expect(currentSql).toContain(
-      `where slug = 'terms' and body ~* ('^cardforge is a service operated by ' || ${splitRetiredOperator} || 'llc\\. it lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access\\.');`,
+      `where slug = 'terms' and body ~* ('^cardforge is a service operated by ' || ${splitRetiredOperator} || 'llc\\.');`,
     );
     expect(currentSql).toContain(
-      'your agreement for the service is with cameron locke as the legal operator of cardforge studio. cardforge lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access.',
+      'your agreement for the service is with cameron locke as the legal operator of cardforge studio.',
     );
     expect(currentSql).toContain(
       `where slug = 'refund' and body ~* ('^cardforge is operated by ' || ${splitRetiredOperator} || 'llc and is currently in public beta\\.');`,
