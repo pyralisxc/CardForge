@@ -1,6 +1,6 @@
 import type { CardData } from '@/domain/cards';
 import type { FreeformCardElement, TemplateFieldAllowedFormatting, TemplateFieldContract, TemplateFieldContractType, TCGCardTemplate } from '@/domain/templates';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates/templateFields';
 import {
   buildScopedFieldDataKey,
   extractPlaceholderKeysFromText,
@@ -8,7 +8,7 @@ import {
   parseTemplateTextSegments,
   parseTextBinding,
 } from '@/domain/rendering';
-import { toTitleCase } from '@/lib/utils';
+import { toTitleCase } from '@/shared/text';
 
 export type FieldContractContentModel = 'image' | 'text' | 'structuredRows';
 export const FIELD_CONTRACT_VERSION = 1;

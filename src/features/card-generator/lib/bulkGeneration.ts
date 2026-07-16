@@ -2,9 +2,9 @@ import { nanoid } from 'nanoid';
 
 import type { CardData, CardSet } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates';
 import { completeCardDataWithTemplateDefaults } from '@/features/card-generator/lib/cardDataDefaults';
-import { FIELD_CONTRACT_VERSION, validateCardDataAgainstFieldContracts } from '@/features/template-editor/lib/fieldContracts';
+import { FIELD_CONTRACT_VERSION, validateCardDataAgainstFieldContracts } from '@/domain/templates';
 import {
   FIELD_STYLE_PROPERTIES,
   buildFieldStyleDataKey,
@@ -17,7 +17,7 @@ import {
   isRecognizedImageFieldOverrideColumn,
   parseImageFieldOverrideColumnHeader,
 } from '@/domain/rendering';
-import { parseCSV, unparseCSV } from '@/lib/utils';
+import { parseCSV, unparseCSV } from '@/features/card-generator/lib/csv';
 import type { DisplayCard } from '@/domain/rendering';
 
 export interface BulkPreviewRow {

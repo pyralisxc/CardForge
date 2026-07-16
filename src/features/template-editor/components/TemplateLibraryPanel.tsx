@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CardPreview } from '@/features/card-rendering/client';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
-import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/lib/templateDisplay';
+import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/domain/templates';
 import { cn } from '@/shared/classNames';
 import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 

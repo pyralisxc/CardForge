@@ -5,7 +5,7 @@ import { Crown, Save, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { FieldHelp } from '@/features/developer-assets/components/DeveloperAssetHubUi';
 import {
   CompactNumberField,

@@ -8,7 +8,7 @@ import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHead
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { OwnerDeveloperProgramPanel } from '@/features/developer-assets/components/OwnerDeveloperProgramPanel';
 import { OwnerBillingPanel } from '@/features/owner/components/OwnerBillingPanel';
 import type {

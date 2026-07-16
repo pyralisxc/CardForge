@@ -4,7 +4,7 @@ import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { useCallback, useRef } from 'react';
 
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
-import { getElementDepthStack, resolvePointerSelection, scaleElementWithParentResize, type DepthSelectionState } from '@/lib/freeformEditor';
+import { getElementDepthStack, resolvePointerSelection, scaleElementWithParentResize, type DepthSelectionState } from '@/domain/templates/editorGeometry';
 import { getDescendantIds } from '@/features/template-editor/lib/layerTree';
 import {
   calculateMovedElementPosition,
@@ -21,7 +21,7 @@ const DRAG_START_SLOP = 3;
 
 interface UseCanvasPointerInteractionsInput {
   canvas: FreeformCanvas;
-  canvasRef: RefObject<HTMLDivElement>;
+  canvasRef: RefObject<HTMLDivElement | null>;
   currentTemplate: TCGCardTemplate;
   previewMode: boolean;
   recordTemplateHistory: (template?: TCGCardTemplate) => void;

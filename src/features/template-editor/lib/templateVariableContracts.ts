@@ -1,6 +1,6 @@
 import { renamePlaceholderKeyInText } from '@/domain/rendering';
 import { reconstructFreeformCanvas } from '@/domain/templates';
-import { toTitleCase } from '@/lib/utils';
+import { toTitleCase } from '@/shared/text';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 
 export type FieldContract = NonNullable<TCGCardTemplate['fieldContracts']>[number];

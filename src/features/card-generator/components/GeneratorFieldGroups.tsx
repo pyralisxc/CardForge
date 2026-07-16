@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CardData } from '@/domain/cards';
-import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/domain/templates';
 import { isStaticSegmentFieldKey, resolveTemplateTextSegments } from '@/domain/rendering';
 import { RichTextContent } from '@/features/card-rendering/client';
 import { GeneratorFieldInput, getFieldStringValue } from '@/features/card-generator/components/GeneratorFieldInput';

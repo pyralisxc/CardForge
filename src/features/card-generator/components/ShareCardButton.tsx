@@ -13,7 +13,7 @@ import {
   type SocialSharePreset,
 } from '@/features/card-generator/lib/socialShareExport';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
 
 

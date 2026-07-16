@@ -191,4 +191,5 @@ function useToast() {
   }
 }
 
+export type ToastFn = typeof toast
 export { useToast, toast }

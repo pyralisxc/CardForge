@@ -1,5 +1,5 @@
-import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
-import { validateCardDataAgainstFieldContracts } from '@/features/template-editor/lib/fieldContracts';
+import { extractTemplateFieldDefinitions } from '@/domain/templates';
+import { validateCardDataAgainstFieldContracts } from '@/domain/templates';
 import { AVAILABLE_FONTS, getCardFaceCanvas, hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard, ExportMode } from '@/domain/rendering';
 

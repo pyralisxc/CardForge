@@ -1,5 +1,5 @@
 import type { FreeformCardElement, GeneratorFieldKind, TCGCardTemplate } from '@/domain/templates';
-import { toTitleCase } from '@/lib/utils';
+import { toTitleCase } from '@/shared/text';
 import {
   buildScopedFieldDataKey,
   buildStaticSegmentFieldKey,
@@ -8,7 +8,7 @@ import {
   parseTemplateTextSegments,
   parseTextBinding,
 } from '@/domain/rendering';
-import { getDefaultAllowedFormatting, resolveFieldContractV1 } from '@/features/template-editor/lib/fieldContracts';
+import { getDefaultAllowedFormatting, resolveFieldContractV1 } from '@/domain/templates/fieldContracts';
 
 export type TemplateFieldControl = 'input' | 'textarea';
 export type TemplateFieldEditor = 'image-input' | 'text-editor' | 'structured-rows';

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { createRoadmapDeveloperRequestMailto } from '@/features/contact/lib/contactLinks';
 import {
   buildRoadmapTimelineCheckpoints,

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { CARD_BORDER_STYLES, DIMENSION_UNITS, FRAME_STYLES } from '@/lib/constants';
+import { CARD_BORDER_STYLES, DIMENSION_UNITS, FRAME_STYLES } from '@/features/template-editor/lib/editorOptions';
 import { TCG_ASPECT_RATIO } from '@/domain/rendering';
 import type { FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
 import { cn } from '@/shared/classNames';

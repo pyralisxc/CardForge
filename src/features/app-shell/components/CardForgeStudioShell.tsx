@@ -18,8 +18,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckCircle2, MenuIcon, X } from 'lucide-react';
 
-import { TABS_CONFIG } from '@/lib/constants';
-import { useToast } from '@/hooks/use-toast';
+import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
+import { useToast } from '@/components/ui/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
@@ -70,7 +70,9 @@ const WorkspaceLoadingState = () => (
 );
 
 const CardTemplateMaker = dynamic(
-  () => import('@/features/template-editor/components/CardTemplateMaker').then((module) => module.CardTemplateMaker),
+  () => import('@/features/template-editor/client')
+    .then((module) => module.loadCardTemplateMaker())
+    .then((module) => module.CardTemplateMaker),
   { ssr: false, loading: WorkspaceLoadingState },
 );
 
@@ -318,7 +320,7 @@ export function CardForgeStudioShell() {
     };
   }, []);
 
-  const effectiveActiveTab = TABS_CONFIG.some(tab => tab.value === activeTab) ? activeTab : TABS_CONFIG[0].value;
+  const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
   const isStudioReady = !isLoadingTemplates;
 
   // Comment: Initial selection of template for single card generator (and now bulk generator)
@@ -382,7 +384,7 @@ export function CardForgeStudioShell() {
               <SheetTrigger asChild>
                 <Button variant="outline" className="w-full flex items-center justify-center gap-2">
                   <MenuIcon className="h-5 w-5" />
-                  Menu ({TABS_CONFIG.find(t => t.value === effectiveActiveTab)?.label})
+                  Menu ({STUDIO_TABS.find(t => t.value === effectiveActiveTab)?.label})
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[280px] sm:w-[320px]">
@@ -390,7 +392,7 @@ export function CardForgeStudioShell() {
                   <SheetTitle className="text-lg font-semibold">Navigation</SheetTitle>
                 </SheetHeader>
                 <nav className="mt-6 flex flex-col space-y-2">
-                  {TABS_CONFIG.map(tab => (
+                  {STUDIO_TABS.map(tab => (
                     <Button
                       key={tab.value}
                       variant={effectiveActiveTab === tab.value ? "secondary" : "ghost"}
@@ -407,7 +409,7 @@ export function CardForgeStudioShell() {
           </div>
 
           <TabsList className="cardforge-studio-tabs mb-6 hidden w-full border border-[#5f4526] bg-[#15100a] md:grid md:grid-cols-2 no-print">
-            {TABS_CONFIG.map(tab => (
+            {STUDIO_TABS.map(tab => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}

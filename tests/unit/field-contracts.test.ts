@@ -4,8 +4,8 @@ import {
   FIELD_CONTRACT_VERSION,
   normalizeTemplateFieldContracts,
   validateCardDataAgainstFieldContracts,
-} from '@/features/template-editor/lib/fieldContracts';
-import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
+} from '@/domain/templates';
+import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import type { TCGCardTemplate } from '@/domain/templates';
 
 describe('field contract v1 helpers', () => {

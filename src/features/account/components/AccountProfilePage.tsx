@@ -25,7 +25,7 @@ import {
 
 import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { useBillingPortalActions } from '@/features/billing/hooks/useBillingPortalActions';
 import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
