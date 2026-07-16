@@ -162,6 +162,8 @@ Expected: all code-quality commands pass; audit retains only the documented Post
 
 Inspect the full move diff, compare every moved pure export, verify Card Rendering has no product-feature/store import, and verify clean export does not import watermark policy or overlay.
 
-- [ ] **Step 5: Publish, merge, and verify production**
+- [x] **Step 5: Publish, merge, and verify production**
 
 Open the incremental PR against exact `main`, require CI and Public smoke, merge only when green, then verify the exact production commit/deployment, five health routes, and absence of new error/fatal runtime logs.
+
+Completed in [PR #31](https://github.com/pyralisxc/CardForge/pull/31). CI run 57 and Public smoke run 41 passed. Squash commit `0aaa5917094e1c6b37e7a8a5ffe9bc0b06fd839c` deployed as `dpl_2xJwU4ko1NUP6s4d68RHswnjkuP5`; production was READY on `cardforges.com`, all five health routes passed, and the exact deployment had no error or fatal logs.

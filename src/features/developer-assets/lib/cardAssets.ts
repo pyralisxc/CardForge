@@ -1,24 +1,6 @@
-export interface CardAssetOption {
-  id: string;
-  name: string;
-  url: string;
-  kind: 'texture' | 'divider' | 'border' | 'frame' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset';
-  librarySource?: 'official' | 'developer' | 'local';
-  accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
-  registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
-  fileSizeBytes?: number;
-  packId?: string;
-  packName?: string;
-  tileMode: 'repeat' | 'stretch' | 'contain';
-  seamless: boolean;
-  allowedTargets: Array<'text' | 'shape' | 'divider' | 'template' | 'imageFrame' | 'icon' | 'image'>;
-  defaultBlendMode?: string;
-  defaultOpacity?: number;
-  defaultScale?: number;
-  partRole?: 'outerFrame' | 'frameRail' | 'corner' | 'titlePlate' | 'artWindow' | 'rulesBox' | 'statGem' | 'costOrb' | 'panel' | 'overlay' | 'ornament';
-  defaultWidth?: number;
-  defaultHeight?: number;
-}
+import type { CardAssetOption } from '@/domain/templates';
+
+export type { CardAssetOption } from '@/domain/templates';
 
 export type CardAssetMetadataOverride = Partial<Pick<
   CardAssetOption,

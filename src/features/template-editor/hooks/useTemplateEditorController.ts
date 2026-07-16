@@ -32,7 +32,7 @@ import {
   createDefaultFreeformCanvas,
   reconstructFreeformCanvas,
   reconstructMinimalTemplate,
-} from '@/lib/templateModel';
+} from '@/domain/templates';
 
 type TemplateUpdater = (template: TCGCardTemplate) => TCGCardTemplate;
 

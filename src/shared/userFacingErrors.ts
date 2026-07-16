@@ -4,6 +4,6 @@ export const extractErrorMessage = (error: unknown): string => {
   return 'An unexpected error occurred.';
 };
 
-export const withNextStep = (message: string, nextStep: string): string => {
-  return `${message} Next step: ${nextStep}`;
-};
+export const withNextStep = (message: string, nextStep: string): string => (
+  `${message} Next step: ${nextStep}`
+);

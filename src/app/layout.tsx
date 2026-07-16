@@ -5,7 +5,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { isClerkServerConfigPresent } from '@/lib/clerkConfig';
 import { getPublicAppUrl } from '@/lib/siteUrl';
-import { BrowserStorageAlerts } from '@/features/project/components/BrowserStorageAlerts';
+import { BrowserStorageAlerts } from '@/features/project/client';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),

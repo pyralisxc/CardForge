@@ -36,8 +36,8 @@ import {
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/features/project/lib/projectDocument';
-import { getProjectAssetStorage, readProjectAssetListFromStorage } from '@/features/project/lib/projectLocalAssets';
+} from '@/features/project/client';
+import { getProjectAssetStorage, readProjectAssetListFromStorage } from '@/features/project/client';
 import { getAccountAccessActions } from '@/features/account/lib/accountAccessActions';
 import { buildForgeTitle, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 

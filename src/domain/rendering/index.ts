@@ -1,4 +1,4 @@
-export type { DisplayCard, PaperSize, PdfDuplexLayout } from './types';
+export type { DisplayCard, ExportMode, PaperSize, PdfDuplexLayout } from './types';
 export * from './cardFaces';
 export * from './constants';
 export * from './exportGeometry';

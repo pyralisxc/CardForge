@@ -12,15 +12,15 @@ import {
   CUSTOM_ICON_ASSETS_STORAGE_KEY,
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-} from '@/features/project/lib/projectDocument';
+} from '@/features/project/client';
 import type { useToast } from '@/hooks/use-toast';
 import type { FreeformCardElement } from '@/domain/templates';
-import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
+import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import {
   getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
-} from '@/features/project/lib/projectLocalAssets';
+} from '@/features/project/client';
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
 interface UseTemplateAssetLibraryInput {

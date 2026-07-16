@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 
-import { BROWSER_STORAGE_FAILURE_EVENT } from '@/features/project/lib/browserStorage';
 import { useToast } from '@/hooks/use-toast';
+import { BROWSER_STORAGE_FAILURE_EVENT, createIndexedDbStorage } from '../persistence/indexedDbStorage';
 
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -30,17 +30,27 @@ export function BrowserStorageAlerts() {
 
   useEffect(() => {
     if (!window.location.pathname.startsWith('/studio')) return;
-    const lastReminderAt = Number(window.localStorage.getItem(BACKUP_REMINDER_KEY) ?? 0);
-    if (Number.isFinite(lastReminderAt) && Date.now() - lastReminderAt < BACKUP_REMINDER_INTERVAL_MS) return;
-    const timer = window.setTimeout(() => {
-      window.localStorage.setItem(BACKUP_REMINDER_KEY, String(Date.now()));
-      toast({
-        title: 'Keep a Portable Backup',
-        description: 'Your work is local to this browser. Use Export Project periodically so you can recover it on another device or after browser cleanup.',
-        duration: 10_000,
-      });
-    }, 20_000);
-    return () => window.clearTimeout(timer);
+    const preferences = createIndexedDbStorage('project-preferences');
+    let timer: number | undefined;
+    let cancelled = false;
+
+    void Promise.resolve(preferences.getItem(BACKUP_REMINDER_KEY)).then((storedValue) => {
+      const lastReminderAt = Number(storedValue ?? 0);
+      if (cancelled || (Number.isFinite(lastReminderAt) && Date.now() - lastReminderAt < BACKUP_REMINDER_INTERVAL_MS)) return;
+      timer = window.setTimeout(() => {
+        void preferences.setItem(BACKUP_REMINDER_KEY, String(Date.now()));
+        toast({
+          title: 'Keep a Portable Backup',
+          description: 'Your work is local to this browser. Use Export Project periodically so you can recover it on another device or after browser cleanup.',
+          duration: 10_000,
+        });
+      }, 20_000);
+    });
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [toast]);
 
   return null;

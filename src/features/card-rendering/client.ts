@@ -26,8 +26,6 @@ export {
   appearanceToElementRenderFields,
   appearanceToStyle,
   gradientToCss,
-  normalizeAppearanceForElement,
-  normalizeTemplateAppearance,
   textureToCss,
 } from './model/appearance';
 export {

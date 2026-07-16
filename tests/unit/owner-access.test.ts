@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveOwnerAccess } from '@/lib/ownerAccess';
+import { resolveOwnerAccess } from '@/domain/entitlements';
 
 describe('owner access', () => {
   it('trusts Clerk private metadata for owner access', () => {

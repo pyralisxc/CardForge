@@ -1,9 +1,6 @@
 import type { StoredDisplayCard } from '@/domain/cards';
-import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
-import type { PaperSize, PdfDuplexLayout } from '@/domain/rendering';
-import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
-import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { reconstructMinimalTemplateObject } from '@/lib/templateModel';
+import { reconstructMinimalTemplateObject, type AppearanceStylePreset, type CardAssetOption, type TCGCardTemplate } from '@/domain/templates';
+import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 
 const PROJECT_DOCUMENT_VERSION = 1;
 

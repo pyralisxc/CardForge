@@ -6,7 +6,7 @@ import {
   getProjectCapabilities,
   isShippedLibraryWriteEnabled,
   resolveAccessMode,
-} from '@/features/project/lib/projectAccess';
+} from '@/domain/entitlements';
 
 describe('projectAccess', () => {
   it('maps free access to preview and generation only', () => {

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
-import { extractErrorMessage, withNextStep } from '@/lib/userFacingErrors';
+import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/lib/errorCopy';
 import { getCardPhysicalSizeMm } from '@/domain/rendering';
 import { renderCardToCanvasWithProfile } from '@/features/card-generator/lib/cardPreviewExport';

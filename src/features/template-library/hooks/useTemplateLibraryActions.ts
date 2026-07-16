@@ -3,8 +3,8 @@
 import { useCallback, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import { useAppStore } from '@/store/appStore';
-import { selectAllTemplates } from '@/store/selectors';
+import { useProjectStore } from '@/features/project/client';
+import { selectAllTemplates } from '@/features/project/client';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import type { useToast } from '@/hooks/use-toast';
@@ -101,7 +101,7 @@ export function useTemplateLibraryActions({
         ? `"${templateToSave.name || savedTemplateId}" updated the Forge Pipeline template.`
         : `"${templateToSave.name || savedTemplateId}" has been saved to your Personal Library.`,
     });
-    const templateForFile = selectAllTemplates(useAppStore.getState()).find(t => t.id === savedTemplateId);
+    const templateForFile = selectAllTemplates(useProjectStore.getState()).find(t => t.id === savedTemplateId);
     if (templateForFile && projectCapabilities.canWriteShippedLibrary) {
       void fetch('/api/templates', {
         method: 'POST',

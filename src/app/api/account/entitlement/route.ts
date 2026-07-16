@@ -3,7 +3,7 @@ import { auth, clerkClient, currentUser } from '@clerk/nextjs/server';
 import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
 import { resolveWithTimeout } from '@/lib/asyncTimeout';
-import { resolveOwnerAccess } from '@/lib/ownerAccess';
+import { resolveOwnerAccess } from '@/domain/entitlements';
 import { getSupabaseServerClient } from '@/lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';

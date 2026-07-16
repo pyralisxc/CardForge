@@ -1,6 +1,6 @@
 import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 import { TCG_ASPECT_RATIO } from '@/domain/rendering';
-import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
+import { createDefaultFreeformCanvas, reconstructMinimalTemplate } from '@/domain/templates';
 
 export const makeNewFreeformTemplate = (
   name = 'New Card Template',

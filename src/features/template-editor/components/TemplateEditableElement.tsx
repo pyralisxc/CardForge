@@ -5,9 +5,9 @@ import * as LucideIcons from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 
 import { VectorShapeElement } from '@/features/card-rendering/client';
-import { appearanceToStyle, normalizeAppearanceForElement } from '@/features/card-rendering/client';
+import { appearanceToStyle } from '@/features/card-rendering/client';
 import { CardTextContent } from '@/features/card-rendering/client';
-import { isDividerElement } from '@/domain/templates';
+import { isDividerElement, normalizeAppearanceForElement } from '@/domain/templates';
 import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/features/card-rendering/client';
 import { resolveImageElementOverrides } from '@/domain/rendering';
 import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/domain/rendering';

@@ -12,6 +12,7 @@ export type {
   AppearanceTexture,
   AppearanceTextureKind,
   AppearanceTileMode,
+  CardAssetOption,
   FreeformAppearance,
   FreeformCanvas,
   FreeformCardElement,
@@ -27,3 +28,6 @@ export type {
   TemplateUsage,
 } from './types';
 export * from './elementCapabilities';
+export * from './appearanceNormalization';
+export * from './constants';
+export * from './templateFactory';

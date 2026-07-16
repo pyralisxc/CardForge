@@ -14,4 +14,4 @@ export const PAPER_SIZES: PaperSize[] = [
   { name: 'Mini Card (44×67 mm)', widthMm: 44, heightMm: 67 },
 ];
 
-export const TCG_ASPECT_RATIO = '63:88';
+export { TCG_ASPECT_RATIO } from '@/domain/templates';

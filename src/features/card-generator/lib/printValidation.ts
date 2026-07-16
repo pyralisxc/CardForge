@@ -1,9 +1,9 @@
 import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
 import { validateCardDataAgainstFieldContracts } from '@/features/template-editor/lib/fieldContracts';
 import { AVAILABLE_FONTS, getCardFaceCanvas, hasCardBacking } from '@/domain/rendering';
-import type { DisplayCard } from '@/domain/rendering';
+import type { DisplayCard, ExportMode } from '@/domain/rendering';
 
-export type ExportMode = 'physical' | 'virtual';
+export type { ExportMode } from '@/domain/rendering';
 
 export interface ExportProfile {
   mode: ExportMode;

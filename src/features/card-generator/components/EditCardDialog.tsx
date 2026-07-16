@@ -19,10 +19,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy, Save, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAppStore } from '@/store/appStore';
+import { useProjectStore } from '@/features/project/client';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
-import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/lib/browserStorage';
+import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface EditCardDialogProps {
@@ -40,8 +40,8 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
   
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const { toast } = useToast();
-  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
+  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
 
   const generateFieldsAndData = useCallback((template: TCGCardTemplate | undefined | null, existingData: CardData | null | undefined): [TemplateFieldDefinition[], CardData] => {
     return initializeCardDataFromTemplate(template, existingData);

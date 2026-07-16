@@ -20,7 +20,7 @@ async function readWorkspaceStorage(page: Page): Promise<string | null> {
         return;
       }
       const transaction = database.transaction('key-value', 'readonly');
-      const getRequest = transaction.objectStore('key-value').get('workspace-state:card-forge-app-storage-v3');
+      const getRequest = transaction.objectStore('key-value').get('project-workspace:workspace');
       getRequest.onsuccess = () => resolve(typeof getRequest.result === 'string' ? getRequest.result : null);
       getRequest.onerror = () => reject(getRequest.error);
       transaction.oncomplete = () => database.close();
@@ -56,10 +56,8 @@ async function signInWithClerkTestingToken(page: Page, email: string, targetPath
   await setupClerkTestingToken({ page });
   await page.context().clearCookies();
   await page.goto(targetPath, { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-  await page.evaluate(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
+  await page.evaluate(() => window.sessionStorage.clear());
+  await clearCardForgeBrowserStorage(page);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await clerk.loaded({ page });
 
@@ -82,7 +80,7 @@ async function signInWithClerkTestingToken(page: Page, email: string, targetPath
   await page.goto(targetPath, { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
 }
 
-test('paid account can export an edited shipped template and import it after local storage clears', async ({ page }) => {
+test('paid account can export an edited shipped template and import it after browser storage clears', async ({ page }) => {
   test.setTimeout(240_000);
   test.skip(Boolean(authSetupError), authSetupError ?? 'Unable to prepare Clerk testing token.');
   test.skip(!process.env.CLERK_SECRET_KEY, 'CLERK_SECRET_KEY is required for authenticated smoke tests.');
@@ -138,10 +136,7 @@ test('paid account can export an edited shipped template and import it after loc
     }),
   ]));
 
-  await page.evaluate(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
+  await page.evaluate(() => window.sessionStorage.clear());
   await clearCardForgeBrowserStorage(page);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });

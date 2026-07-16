@@ -1,12 +1,12 @@
-import type { AppState } from '@/store/appStore';
 import type { DisplayCard } from '@/domain/rendering';
+import type { ProjectState } from './types';
 
-export const selectAllTemplates = (state: Pick<AppState, 'defaultTemplates' | 'userTemplates'>) => [
+export const selectAllTemplates = (state: Pick<ProjectState, 'defaultTemplates' | 'userTemplates'>) => [
   ...state.defaultTemplates,
   ...state.userTemplates,
 ];
 
-export const selectGeneratedDisplayCards = (state: AppState): DisplayCard[] => {
+export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] => {
   const templates = selectAllTemplates(state);
   return state.storedCards.reduce((acc: DisplayCard[], storedCard) => {
     const template = templates.find((candidate) => candidate.id === storedCard.templateId);
@@ -28,7 +28,7 @@ export const selectGeneratedDisplayCards = (state: AppState): DisplayCard[] => {
   }, []);
 };
 
-export const selectEditingCard = (state: AppState): DisplayCard | null => {
+export const selectEditingCard = (state: ProjectState): DisplayCard | null => {
   if (!state.editingCardUniqueId || !state.isEditDialogOpen) return null;
 
   const allDisplayCards = selectGeneratedDisplayCards(state);

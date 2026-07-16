@@ -31,37 +31,16 @@ const readEnvironment = (env?: AccessEnvironment): AccessEnvironment => env ?? {
   CARDFORGE_ALLOW_LIBRARY_WRITES: process.env.CARDFORGE_ALLOW_LIBRARY_WRITES,
 };
 
-export const getProjectCapabilities = (mode: AccessMode): ProjectCapabilities => {
-  if (mode === 'dev') {
-    return {
-      canPreview: true,
-      canGenerate: true,
-      canExportClean: true,
-      canWriteShippedLibrary: true,
-    };
-  }
-
-  if (mode === 'paid') {
-    return {
-      canPreview: true,
-      canGenerate: true,
-      canExportClean: true,
-      canWriteShippedLibrary: false,
-    };
-  }
-
-  return {
-    canPreview: true,
-    canGenerate: true,
-    canExportClean: false,
-    canWriteShippedLibrary: false,
-  };
-};
+export const getProjectCapabilities = (mode: AccessMode): ProjectCapabilities => ({
+  canPreview: true,
+  canGenerate: true,
+  canExportClean: mode !== 'free',
+  canWriteShippedLibrary: mode === 'dev',
+});
 
 export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
   const source = readEnvironment(env);
   const explicitMode = source.CARDFORGE_ACCESS_MODE ?? source.NEXT_PUBLIC_CARDFORGE_ACCESS_MODE;
-
   if (isAccessMode(explicitMode)) return explicitMode;
   return source.NODE_ENV === 'development' ? 'dev' : 'free';
 };
@@ -103,6 +82,8 @@ export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCop
 
 export const isShippedLibraryWriteEnabled = (env?: AccessEnvironment): boolean => {
   const source = readEnvironment(env);
-  const capabilities = getProjectCapabilities(resolveAccessMode(source));
-  return capabilities.canWriteShippedLibrary && source.CARDFORGE_ALLOW_LIBRARY_WRITES === 'true';
+  return getProjectCapabilities(resolveAccessMode(source)).canWriteShippedLibrary
+    && source.CARDFORGE_ALLOW_LIBRARY_WRITES === 'true';
 };
+
+export * from './ownerAccess';

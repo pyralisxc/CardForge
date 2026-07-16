@@ -24,14 +24,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
-import { useProjectFileActions } from '@/features/project/hooks/useProjectFileActions';
+import { useProjectFileActions } from '@/features/project/client';
 import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLibraries';
 import { useCheckoutActions } from '@/features/billing/hooks/useCheckoutActions';
 import { useCardZipExportActions } from '@/features/card-generator/hooks/useCardZipExportActions';
 import { useGeneratedOutputActions } from '@/features/card-generator/hooks/useGeneratedOutputActions';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { useTemplateLibraryActions } from '@/features/template-library/hooks/useTemplateLibraryActions';
-import { canUploadCustomLocalAssets } from '@/features/project/lib/projectLocalAssets';
+import { canUploadCustomLocalAssets } from '@/features/project/client';
 
 const WorkspaceLoadingState = () => (
   <div data-testid="studio-loading" className="min-h-[60vh] rounded border border-[#5f4526] bg-[#090807] text-[#f7ead0]" role="status" aria-live="polite">

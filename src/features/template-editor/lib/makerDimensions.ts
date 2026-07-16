@@ -3,7 +3,7 @@ import {
   createDefaultFreeformCanvas,
   getDefaultGridSizeForCanvas,
   reconstructFreeformCanvas,
-} from '@/lib/templateModel';
+} from '@/domain/templates';
 import { mmConversion } from '@/features/template-editor/lib/makerGeometry';
 
 interface BuildCustomDimensionUpdateInput {

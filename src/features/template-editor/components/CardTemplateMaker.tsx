@@ -3,7 +3,7 @@
 import type { ChangeEvent, PointerEvent as ReactPointerEvent, RefObject, WheelEvent as ReactWheelEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
-import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, TCGCardTemplate, TemplateUsage } from '@/domain/templates';
+import { normalizeAppearanceForElement, type AppearanceStylePreset, type FreeformAppearance, type FreeformCardElement, type TCGCardTemplate, type TemplateUsage } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -21,7 +21,7 @@ import { loadBootstrapFonts } from '@/lib/clientBootstrapData';
 import { extractPlaceholderKeysFromText, replacePlaceholdersLocal } from '@/domain/rendering';
 import { toTitleCase } from '@/lib/utils';
 import { cn } from '@/shared/classNames';
-import { appearanceToElementRenderFields, normalizeAppearanceForElement } from '@/features/card-rendering/client';
+import { appearanceToElementRenderFields } from '@/features/card-rendering/client';
 import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/lib/cardFrameKits';
 import { hasElementCapability, isDividerElement, SHAPE_PRIMITIVE_OPTIONS } from '@/domain/templates';
 import {
@@ -37,8 +37,8 @@ import {
   mergeElementPresetRecipes,
   type ElementPresetRecipe,
 } from '@/features/template-editor/lib/elementPresetRecipes';
-import { useAppStore } from '@/store/appStore';
-import { getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
+import { useProjectStore } from '@/features/project/client';
+import { getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate } from '@/domain/templates';
 import { useToast } from '@/hooks/use-toast';
 import {
   elementKits,
@@ -61,7 +61,7 @@ import {
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/lib/makerDimensions';
-import { withNextStep } from '@/lib/userFacingErrors';
+import { withNextStep } from '@/shared/userFacingErrors';
 import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
 import { inferTextElementContentModel } from '@/domain/rendering';
 import { TemplateEditorTopBar } from '@/features/template-editor/components/TemplateEditorTopBar';
@@ -291,8 +291,8 @@ export function CardTemplateMaker({
   const [layerDragId, setLayerDragId] = useState<string | null>(null);
   const [layerDropTarget, setLayerDropTarget] = useState<{ id: string; pos: 'before' | 'after' | 'child' } | null>(null);
   const gridSize = canvas.gridSize || 20;
-  const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
+  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
+  const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
   const canUseBackgroundTexture = hasElementCapability(selectedElement, 'texture');
   const canUseTypography = hasElementCapability(selectedElement, 'typography');
   const canUseIconLibrary = hasElementCapability(selectedElement, 'icon');

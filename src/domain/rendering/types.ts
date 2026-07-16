@@ -12,6 +12,7 @@ export interface DisplayCard {
 }
 
 export type PdfDuplexLayout = 'separate-pages' | 'same-page';
+export type ExportMode = 'physical' | 'virtual';
 
 export interface PaperSize {
   name: string;

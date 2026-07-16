@@ -1,5 +1,5 @@
 import type { TCGCardTemplate } from '@/domain/templates';
-import { reconstructMinimalTemplate } from '@/lib/templateModel';
+import { reconstructMinimalTemplate } from '@/domain/templates';
 
 export const TEMPLATE_EDITOR_DRAFT_STORAGE_KEY = 'cardforge-template-editor-draft-v1';
 

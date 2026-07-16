@@ -4,7 +4,7 @@ import {
   canUploadCustomLocalAssets,
   readProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
-} from '@/features/project/lib/projectLocalAssets';
+} from '@/features/project/client';
 
 const createStorage = (initial: Record<string, string | null> = {}) => {
   const values = new Map(Object.entries(initial).filter((entry): entry is [string, string] => entry[1] !== null));
