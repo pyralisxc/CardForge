@@ -97,7 +97,8 @@ describe('repository security defaults', () => {
     const riskRegister = readFileSync(join(process.cwd(), 'docs/risk-register.md'), 'utf8');
 
     expect(riskRegister).toContain('| Area | Risk | Priority | Status | Evidence / next review |');
-    expect(riskRegister).toContain('Awaiting live verification');
+    expect(riskRegister).toContain('Provider event proof pending');
+    expect(riskRegister).toContain('29469266134');
     expect(riskRegister).toContain('Accepted');
     expect(riskRegister).toContain('Closed');
   });
