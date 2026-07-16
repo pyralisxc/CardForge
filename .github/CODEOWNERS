@@ -4,6 +4,7 @@
 /src/app/api/billing/ @pyralisxc
 /src/app/api/owner/ @pyralisxc
 /src/domain/ @pyralisxc
+/src/features/business-identity/ @pyralisxc
 /src/features/card-rendering/ @pyralisxc
 /src/shared/ @pyralisxc
 /.github/ @pyralisxc

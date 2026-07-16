@@ -2,7 +2,7 @@ const origin = (process.env.CARDFORGE_HEALTH_ORIGIN || 'https://cardforges.com')
 const checks = [
   { path: '/', content: 'CardForge' },
   { path: '/studio', content: 'CardForge' },
-  { path: '/privacy', content: 'Neon Black Interactive LLC' },
+  { path: '/privacy', content: 'CardForge Studio is a software product created and operated by Cameron Locke, an independent sole proprietor based in Oregon.' },
   { path: '/api/templates', contentType: 'application/json' },
   { path: '/api/billing/status', contentType: 'application/json' },
 ];

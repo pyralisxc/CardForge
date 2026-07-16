@@ -1,9 +1,12 @@
 import Link from 'next/link';
-import type React from 'react';
+import React from 'react';
 import { Hammer } from 'lucide-react';
 
+import {
+  formatBusinessIdentityDescription,
+  type BusinessIdentity,
+} from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
-import type { SiteOperatorSettings } from '@/features/public-site/client';
 
 const trustLinks = [
   { href: '/privacy', label: 'Privacy' },
@@ -23,12 +26,12 @@ const formatPublishedDate = (value: string | null) => {
 
 export function PublicLegalPage({
   children,
+  businessIdentity,
   document,
-  settings,
 }: {
   children?: React.ReactNode;
+  businessIdentity: BusinessIdentity;
   document: LegalDocument;
-  settings: SiteOperatorSettings;
 }) {
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
@@ -38,7 +41,7 @@ export function PublicLegalPage({
             <span className="grid h-10 w-10 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d]">
               <Hammer className="h-5 w-5" />
             </span>
-            <span className="font-serif text-xl font-semibold">{settings.businessName}</span>
+            <span className="font-serif text-xl font-semibold">{businessIdentity.brandName}</span>
           </Link>
           <nav className="flex flex-wrap justify-end gap-4 text-sm text-[#dbc79e]">
             <Link href="/developer" prefetch={false} className="hover:text-[#fff3ca]">Developers</Link>
@@ -59,10 +62,12 @@ export function PublicLegalPage({
         {children}
         <div className="mt-8 border border-[#5f4526] bg-[#100c08] p-5 text-sm leading-6 text-[#c7b288]">
           <p className="mb-3 text-xs uppercase tracking-[0.16em] text-[#d8b365]">Business contact</p>
-          <p>Business: {settings.businessName}</p>
-          <p>Owner/contact: {settings.ownerName}</p>
-          <p>Support email: <a className="text-[#ffe7ad] underline" href={`mailto:${settings.supportEmail}`}>{settings.supportEmail}</a></p>
-          {settings.supportPhone ? <p>Support phone: {settings.supportPhone}</p> : null}
+          <p>{formatBusinessIdentityDescription(businessIdentity)}</p>
+          <p>Legal operator: {businessIdentity.legalOperatorName}</p>
+          <p>Jurisdiction: {businessIdentity.jurisdictionState}, {businessIdentity.jurisdictionCountry}</p>
+          <p>Support email: <a className="text-[#ffe7ad] underline" href={`mailto:${businessIdentity.supportEmail}`}>{businessIdentity.supportEmail}</a></p>
+          <p>Legal and privacy email: <a className="text-[#ffe7ad] underline" href={`mailto:${businessIdentity.legalEmail}`}>{businessIdentity.legalEmail}</a></p>
+          {businessIdentity.supportPhone ? <p>Support phone: {businessIdentity.supportPhone}</p> : null}
         </div>
         <nav className="mt-8 flex flex-wrap gap-3 text-sm text-[#dbc79e]" aria-label="Trust center pages">
           {trustLinks.map((link) => (

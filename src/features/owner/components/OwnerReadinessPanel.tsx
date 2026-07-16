@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Database, Rocket, Save } from 'lucide-react';
+import { CheckCircle2, Database, Rocket } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import {
+  OwnerBusinessIdentityPanel,
+  type BusinessIdentityInput,
+} from '@/features/business-identity/client';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { updateOwnerConsole } from '@/features/owner/model/ownerConsoleClient';
 import { formatOwnerBytes, OwnerFieldHelp, OwnerMetricTile } from './OwnerPanelPrimitives';
@@ -22,25 +26,22 @@ export function OwnerReadinessPanel({ consolePayload, onConsoleChange }: {
   onConsoleChange: (payload: OwnerConsolePayload) => void;
 }) {
   const { toast } = useToast();
-  const [settings, setSettings] = useState(consolePayload.settings);
   const [roadmapItems, setRoadmapItems] = useState(consolePayload.roadmapItems);
   const [isSaving, setIsSaving] = useState(false);
   useEffect(() => {
-    setSettings(consolePayload.settings);
     setRoadmapItems(consolePayload.roadmapItems);
   }, [consolePayload]);
 
-  const saveSettings = async () => {
-    setIsSaving(true);
-    try {
-      const next = await updateOwnerConsole({ kind: 'settings', settings }, 'Unable to save owner settings.');
-      onConsoleChange(next);
-      toast({ title: 'Owner profile saved', description: 'Business and support details are updated.' });
-    } catch (error) {
-      toast({ title: 'Settings not saved', description: error instanceof Error ? error.message : 'Unable to save owner settings.', variant: 'destructive' });
-    } finally {
-      setIsSaving(false);
-    }
+  const saveBusinessIdentity = async (
+    businessIdentity: BusinessIdentityInput,
+    expectedIdentityVersion: number,
+  ) => {
+    const next = await updateOwnerConsole({
+      kind: 'businessIdentity',
+      businessIdentity,
+      expectedIdentityVersion,
+    }, 'Unable to save business identity.');
+    onConsoleChange(next);
   };
 
   const updateRoadmapStatus = async (itemId: string, status: OwnerConsolePayload['roadmapItems'][number]['status']) => {
@@ -61,20 +62,10 @@ export function OwnerReadinessPanel({ consolePayload, onConsoleChange }: {
   const officialCheckpointCount = roadmapItems.length - officialFeatureCount;
   return (
     <div className="grid gap-6">
-      <section className="border border-[#5f4526] bg-[#15100a] p-6">
-        <h2 className="font-serif text-2xl text-[#fff1c7]">Business profile</h2>
-        <div className="mt-5 grid gap-3">
-          {(Object.keys(settings) as Array<keyof typeof settings>).map((key) => (
-            <label key={key} className="grid gap-2 text-sm text-[#c7b288]">
-              {key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}
-              <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]" value={settings[key]} onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))} />
-            </label>
-          ))}
-        </div>
-        <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSettings}>
-          <Save className="mr-2 h-4 w-4" />{isSaving ? 'Saving business profile...' : 'Save business profile'}
-        </Button>
-      </section>
+      <OwnerBusinessIdentityPanel
+        businessIdentity={consolePayload.businessIdentity}
+        onSave={saveBusinessIdentity}
+      />
 
       <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
         <div className="flex items-center justify-between gap-4">

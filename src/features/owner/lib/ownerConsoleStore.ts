@@ -2,14 +2,12 @@ import {
   getFounderBetaCampaign,
   getFounderBetaClaims,
 } from '@/features/account/server';
+import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getContactRequests } from '@/features/contact/server';
 import { getLegalDocuments } from '@/features/legal/server';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMetrics';
-import {
-  getSiteContentBlocks,
-  getSiteOperatorSettings,
-} from '@/features/public-site/server';
+import { getSiteContentBlocks } from '@/features/public-site/server';
 import {
   getRoadmapAdminItems,
   getRoadmapSettings,
@@ -17,7 +15,7 @@ import {
 
 export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => {
   const [
-    settings,
+    businessIdentity,
     siteMechanics,
     siteContentBlocks,
     legalDocuments,
@@ -27,7 +25,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     databaseMetrics,
     contactRequests,
   ] = await Promise.all([
-    getSiteOperatorSettings(),
+    getBusinessIdentity(),
     getRoadmapSettings(),
     getSiteContentBlocks(),
     getLegalDocuments(),
@@ -40,7 +38,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
 
   return {
     configured: founderBeta.configured,
-    settings,
+    businessIdentity,
     siteMechanics,
     siteContentBlocks,
     legalDocuments,

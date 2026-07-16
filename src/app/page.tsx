@@ -15,6 +15,7 @@ import {
 
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
+import { getBusinessIdentity } from '@/features/business-identity/server';
 import { createSiteContentMap, getSiteContentBlocks } from '@/features/public-site/server';
 
 export const dynamic = 'force-dynamic';
@@ -71,7 +72,11 @@ const libraryLadder = [
 ] as const;
 
 export default async function LandingPage() {
-  const siteCopy = createSiteContentMap(await getSiteContentBlocks());
+  const [siteContentBlocks, businessIdentity] = await Promise.all([
+    getSiteContentBlocks(),
+    getBusinessIdentity(),
+  ]);
+  const siteCopy = createSiteContentMap(siteContentBlocks);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#0c0b09] text-[#f7ead0]">
@@ -276,7 +281,10 @@ export default async function LandingPage() {
 
       <footer className="border-t border-[#5c4324]/50 bg-[#0c0b09] px-5 py-8 text-sm text-[#a99368] md:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <span>CardForge Studio</span>
+          <span>
+            {businessIdentity.brandName} · operated by {businessIdentity.legalOperatorName} · &copy;{' '}
+            {new Date().getFullYear()} {businessIdentity.copyrightHolder}
+          </span>
           <nav className="flex flex-wrap gap-4">
             <Link href="/about" prefetch={false} className="hover:text-[#ffe7ad]">About</Link>
             <Link href="/access" prefetch={false} className="hover:text-[#ffe7ad]">Access</Link>

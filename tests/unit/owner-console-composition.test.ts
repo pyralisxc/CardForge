@@ -42,6 +42,27 @@ describe('Owner Console composition', () => {
     const store = await readFile(rootPath('src/features/owner/lib/ownerConsoleStore.ts'), 'utf8');
     expect(store).not.toContain('DatabaseMetricsRow');
     expect(store).not.toContain('getPublicAppUrl');
+    expect(store).toContain("getBusinessIdentity");
+    expect(store).not.toContain('getSiteOperatorSettings');
+  });
+
+  it('composes the business-identity-owned editor without reclaiming its domain', async () => {
+    const ownerModel = await readFile(rootPath('src/features/owner/lib/ownerConsole.ts'), 'utf8');
+    const readiness = await readFile(rootPath('src/features/owner/components/OwnerReadinessPanel.tsx'), 'utf8');
+    const businessClient = await readFile(rootPath('src/features/business-identity/client.ts'), 'utf8');
+    const businessPanel = await readFile(
+      rootPath('src/features/business-identity/components/OwnerBusinessIdentityPanel.tsx'),
+      'utf8',
+    );
+
+    expect(ownerModel).toContain('businessIdentity: BusinessIdentity');
+    expect(ownerModel).not.toContain('settings: SiteOperatorSettings');
+    expect(readiness).toContain("from '@/features/business-identity/client'");
+    expect(readiness).toContain('<OwnerBusinessIdentityPanel');
+    expect(businessClient).toContain("from './components/OwnerBusinessIdentityPanel'");
+    expect(businessPanel).not.toContain('@/features/owner');
+    expect(businessPanel).toContain('expectedIdentityVersion');
+    expect(businessPanel).not.toContain('identityVersion: draft');
   });
 
   it('keeps shared site headers in App composition', async () => {

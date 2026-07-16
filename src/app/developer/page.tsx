@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
+import { getBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperProgramPage } from '@/features/developer-assets/client/program';
-import { getPublishedLegalDocument } from '@/features/legal/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,14 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function DeveloperPage() {
-  const [{ settings }, { authConfigured, ownerAccess }] = await Promise.all([
-    getPublishedLegalDocument('contact'),
+  const [businessIdentity, { authConfigured, ownerAccess }] = await Promise.all([
+    getBusinessIdentity(),
     getCurrentCardforgeUserAccess(),
   ]);
   return (
     <>
       <PublicSiteHeader currentPath="/developer" showOwnerLink={ownerAccess.isOwner} />
-      <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={settings.supportEmail} />
+      <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
     </>
   );
 }
