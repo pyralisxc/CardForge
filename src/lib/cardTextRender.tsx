@@ -37,8 +37,6 @@ import { cardFontFamilyToCss } from '@/features/template-editor/lib/cardFonts';
 
 const resolveRenderContentModel = (
   contentModel: TextElementContentModel,
-  text: string,
-  segments: Array<{ text: string }>
 ): 'plainText' | 'richText' | 'rulesBlocks' => {
   if (contentModel === 'structuredRows') return 'richText';
   return 'rulesBlocks';
@@ -232,7 +230,7 @@ export function CardTextContent({
       })
     : buildResolvedTextSegments(template, element, data, scale);
   const contract = getPrimaryElementContract(template, element);
-  const renderContentModel = resolveRenderContentModel(contentModel, processedText, processedSegments);
+  const renderContentModel = resolveRenderContentModel(contentModel);
   const autoFit = shouldAutoFitTextElement(template, element);
   const baseFontSizePx = textFontSizePx(element) * scale;
   const minFontSizePx = (contract?.minFontSizePx ?? element.textMinFontSizePx ?? 8) * scale;

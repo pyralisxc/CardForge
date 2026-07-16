@@ -2,11 +2,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, devtools } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type { TCGCardTemplate, TemplateSource, PaperSize, DisplayCard, CardData, StoredDisplayCard, AppearanceStylePreset, PdfDuplexLayout, CardSet } from '@/types';
-import { PAPER_SIZES, TABS_CONFIG, TCG_ASPECT_RATIO } from '@/lib/constants';
+import type { TCGCardTemplate, TemplateSource, PaperSize, DisplayCard, StoredDisplayCard, AppearanceStylePreset, PdfDuplexLayout, CardSet } from '@/types';
+import { PAPER_SIZES, TABS_CONFIG } from '@/lib/constants';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import { createDefaultFreeformCanvas, reconstructFreeformCanvas, reconstructMinimalTemplateObject } from '@/lib/templateModel';
-import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/store/selectors';
+import { reconstructMinimalTemplateObject } from '@/lib/templateModel';
+import { selectAllTemplates } from '@/store/selectors';
 import { createMigratingBrowserStorage } from '@/features/project/lib/browserStorage';
 
 

@@ -2,7 +2,7 @@
 "use client";
 
 import type { CardSet, TCGCardTemplate, CardData, DisplayCard } from '@/types';
-import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
+import type { TemplateFieldDefinition } from '@/features/template-editor/lib/templateFields';
 import type { ChangeEvent } from 'react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';

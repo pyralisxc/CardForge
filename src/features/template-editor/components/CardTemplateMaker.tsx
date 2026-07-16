@@ -3,7 +3,7 @@
 import type { ChangeEvent, PointerEvent as ReactPointerEvent, RefObject, WheelEvent as ReactWheelEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
-import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, FreeformCanvas, TCGCardTemplate, TemplateUsage } from '@/types';
+import type { AppearanceStylePreset, FreeformAppearance, FreeformCardElement, TCGCardTemplate, TemplateUsage } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -37,7 +37,7 @@ import {
   type ElementPresetRecipe,
 } from '@/features/template-editor/lib/elementPresetRecipes';
 import { useAppStore } from '@/store/appStore';
-import { createDefaultFreeformCanvas, getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
+import { getDefaultGridSizeForCanvas, reconstructFreeformCanvas, reconstructMinimalTemplate } from '@/lib/templateModel';
 import { useToast } from '@/hooks/use-toast';
 import {
   elementKits,
@@ -60,10 +60,6 @@ import {
 import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/lib/makerDimensions';
-import {
-  escapeTemplateText,
-  unescapeTemplateText,
-} from '@/features/template-editor/lib/textBindings';
 import { withNextStep } from '@/lib/userFacingErrors';
 import { extractTemplateFieldDefinitions } from '@/features/template-editor/lib/templateFields';
 import { inferTextElementContentModel } from '@/features/template-editor/lib/textElementContracts';
@@ -123,7 +119,6 @@ interface CardTemplateMakerProps {
   onStartCheckout: () => void;
   appearanceStyles: AppearanceStylePreset[];
   onSaveAppearanceStyle: (style: AppearanceStylePreset) => string;
-  onDeleteAppearanceStyle: (styleId: string) => void;
   selectedTemplateIdForEditing: string | null;
   onSelectTemplateForEditing: (templateId: string | null) => void;
   canUploadCustomAssets: boolean;
@@ -167,7 +162,6 @@ export function CardTemplateMaker({
   onStartCheckout,
   appearanceStyles,
   onSaveAppearanceStyle,
-  onDeleteAppearanceStyle,
   selectedTemplateIdForEditing,
   onSelectTemplateForEditing,
   canUploadCustomAssets,
@@ -295,9 +289,7 @@ export function CardTemplateMaker({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [layerDragId, setLayerDragId] = useState<string | null>(null);
   const [layerDropTarget, setLayerDropTarget] = useState<{ id: string; pos: 'before' | 'after' | 'child' } | null>(null);
-  const sortedElements = useMemo(() => [...(canvas.elements || [])].sort((a, b) => b.zIndex - a.zIndex), [canvas.elements]);
   const gridSize = canvas.gridSize || 20;
-  const selectedElementIsDivider = isDividerElement(selectedElement);
   const richTextHighlightColor = useAppStore((state) => state.richTextHighlightColor);
   const setRichTextHighlightColorAction = useAppStore((state) => state.setRichTextHighlightColor);
   const canUseBackgroundTexture = hasElementCapability(selectedElement, 'texture');

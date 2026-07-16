@@ -42,6 +42,14 @@ npm run test:watch # Vitest watch mode
 npm run smoke      # Playwright smoke suite
 ```
 
+Maintained operational commands:
+
+```bash
+npm run health:production                # Five-route production health check
+npm run qa:bootstrap-authenticated-smoke # Align the four protected Clerk QA identities
+npm run pipeline:sync-defaults            # Seed repo-owned starter assets into the reviewed pipeline
+```
+
 ## Source Map
 
 - `src/app/`: Next.js routes and API routes.
@@ -93,17 +101,10 @@ Stripe Checkout owns the paid Creator Pass flow. Create the Creator Pass Product
 
 Reusable authenticated QA accounts are preferred over disposable user creation. Set the `CARDFORGE_E2E_*` values documented in `.env.example` when running the authenticated smoke suite.
 
-For a fresh local checkout, fill the Clerk and Supabase values in `.env.local`, then run:
-
-```bash
-npm run qa:setup-accounts
-```
-
-That creates or reuses the Fresh QA free, paid, developer, and owner accounts, marks the paid/dev/owner accounts with the right Clerk metadata, and updates both the reusable QA email variables and local paid/dev entitlement fallback lists in `.env.local`.
-
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md): current product architecture and source-of-truth behavior.
 - [docs/operations.md](docs/operations.md): live operations, env vars, provider checks, and launch-critical verification.
+- [docs/risk-register.md](docs/risk-register.md): open, accepted, and verified launch risks with review dates.
 
 Keep the README and docs short. If a document stops describing the current product, update it or remove it.

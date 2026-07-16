@@ -191,7 +191,6 @@ export function CardForgeStudioShell() {
   const {
     handleCloneTemplate,
     handleConfirmDeleteTemplate,
-    handleDeleteAppearanceStyle,
     handleDeleteTemplate,
     handleSaveAppearanceStyle,
     handleSaveTemplate,
@@ -418,7 +417,6 @@ export function CardForgeStudioShell() {
               isCheckoutStarting={isCheckoutStarting}
               appearanceStyles={appearanceStyles}
               onSaveAppearanceStyle={handleSaveAppearanceStyle}
-              onDeleteAppearanceStyle={handleDeleteAppearanceStyle}
               onDeleteTemplate={handleDeleteTemplate}
               onCloneTemplate={handleCloneTemplate}
               onExportProject={handleExportProject}

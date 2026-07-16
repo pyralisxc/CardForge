@@ -206,7 +206,6 @@ const resolveEffectiveDeveloperRules = (
 };
 
 const getDeveloperProfileDisplayName = (
-  developerId: string,
   developerEmail: string | null,
   profile?: DeveloperProfileRow | null,
 ): string | null => {
@@ -454,7 +453,7 @@ export const buildDeveloperAssetProgramView = ({
       return {
         developerId,
         developerEmail: profile?.email ?? developerEmail,
-        developerName: namedSubmission?.developerDisplayName ?? getDeveloperProfileDisplayName(developerId, developerEmail, profile),
+        developerName: namedSubmission?.developerDisplayName ?? getDeveloperProfileDisplayName(developerEmail, profile),
         profileStatus: profile?.status ?? 'active',
         submitted: stats.submitted,
         published: stats.published,
@@ -683,7 +682,7 @@ const rebalanceDeveloperAssetPipeline = async (settings: DeveloperProgramSetting
       .map((submission) => submission.id));
 
     byType.forEach((submission) => {
-      const { totalVotes, qualityScore } = getVoteQuality(submission);
+      const { totalVotes } = getVoteQuality(submission);
       const nextStatus: DeveloperAssetStatus = failingIds.has(submission.id)
         ? 'archived'
         : publishedIds.has(submission.id)

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Node, mergeAttributes, type JSONContent } from '@tiptap/core';
+import { Node, mergeAttributes } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -18,8 +18,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { templateTextToTiptapDoc, tiptapDocToTemplateText } from '@/lib/richTextDocument';
 import type { TemplateFieldAllowedFormatting } from '@/types';
-
-import { makerTheme } from '@/features/template-editor/lib/makerTheme';
 
 const DEFAULT_HIGHLIGHT_HEX = '#ffd700';
 

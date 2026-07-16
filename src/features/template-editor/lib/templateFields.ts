@@ -155,7 +155,6 @@ const buildHelperText = (
 };
 
 const inferFieldKind = (
-  key: string,
   explicitKind?: GeneratorFieldKind
 ): GeneratorFieldKind => {
   if (explicitKind) return explicitKind;
@@ -257,7 +256,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
           .map((element) => element.generatorFieldKind)
           .filter((kind): kind is GeneratorFieldKind => Boolean(kind))
       );
-    const fieldKind = isImage ? undefined : inferFieldKind(placeholder.key, explicitKind);
+    const fieldKind = isImage ? undefined : inferFieldKind(explicitKind);
     const explicitRequiredValues = textElements
       .map((element) => element.generatorFieldRequired)
       .filter((value): value is boolean => typeof value === 'boolean');
