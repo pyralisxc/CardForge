@@ -55,6 +55,35 @@ describe('repository security defaults', () => {
     expect(workflow).toContain('test-results');
   });
 
+  it('bootstraps protected reusable QA identities before authenticated browser tests', () => {
+    const workflow = readFileSync(
+      join(process.cwd(), '.github/workflows/authenticated-smoke.yml'),
+      'utf8',
+    );
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    const bootstrapScript = readFileSync(
+      join(process.cwd(), 'scripts/bootstrap-authenticated-smoke-users.mjs'),
+      'utf8',
+    );
+    const verifyIndex = workflow.indexOf('Verify required protected secrets');
+    const bootstrapIndex = workflow.indexOf('Ensure reusable Clerk QA accounts');
+    const playwrightIndex = workflow.indexOf('npx playwright install --with-deps chromium');
+
+    expect(packageJson.scripts?.['qa:bootstrap-authenticated-smoke']).toBe(
+      'node scripts/bootstrap-authenticated-smoke-users.mjs',
+    );
+    expect(workflow).toContain('npm run qa:bootstrap-authenticated-smoke');
+    expect(verifyIndex).toBeGreaterThanOrEqual(0);
+    expect(bootstrapIndex).toBeGreaterThan(verifyIndex);
+    expect(playwrightIndex).toBeGreaterThan(bootstrapIndex);
+    expect(bootstrapScript).toContain('summarizeQaBootstrap');
+    expect(bootstrapScript).not.toContain('console.error(error)');
+    expect(bootstrapScript).not.toContain('account.email');
+    expect(bootstrapScript).not.toContain('account.userId');
+  });
+
   it('keeps routine Dependabot updates below major versions', () => {
     const dependabot = readFileSync(join(process.cwd(), '.github/dependabot.yml'), 'utf8');
 
