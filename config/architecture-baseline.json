@@ -1,8 +1,4 @@
 {
   "version": 1,
-  "violations": [
-    "feature-cycle-edge|feature:app-shell|feature:template-editor",
-    "feature-cycle-edge|feature:developer-assets|feature:app-shell",
-    "feature-cycle-edge|feature:template-editor|feature:developer-assets"
-  ]
+  "violations": []
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { DeveloperProgramPage } from '@/features/developer-assets/client/program';
-import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getPublishedLegalDocument } from '@/features/legal/server';
 
 export const dynamic = 'force-dynamic';
@@ -12,11 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function DeveloperPage() {
-  const { settings } = await getPublishedLegalDocument('contact');
+  const [{ settings }, { authConfigured, ownerAccess }] = await Promise.all([
+    getPublishedLegalDocument('contact'),
+    getCurrentCardforgeUserAccess(),
+  ]);
   return (
-    <DeveloperProgramPage
-      initialAuthConfigured={isClerkServerConfigPresent()}
-      supportEmail={settings.supportEmail}
-    />
+    <>
+      <PublicSiteHeader currentPath="/developer" showOwnerLink={ownerAccess.isOwner} />
+      <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={settings.supportEmail} />
+    </>
   );
 }

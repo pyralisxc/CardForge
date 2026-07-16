@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { RoadmapPage } from '@/features/roadmap/client';
-import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getPublishedLegalDocument } from '@/features/legal/server';
 
 export const dynamic = 'force-dynamic';
@@ -12,11 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function ForgeChroniclePage() {
-  const { settings } = await getPublishedLegalDocument('contact');
+  const [{ settings }, { authConfigured, ownerAccess }] = await Promise.all([
+    getPublishedLegalDocument('contact'),
+    getCurrentCardforgeUserAccess(),
+  ]);
   return (
-    <RoadmapPage
-      initialAuthConfigured={isClerkServerConfigPresent()}
-      supportEmail={settings.supportEmail}
-    />
+    <>
+      <PublicSiteHeader currentPath="/roadmap" showOwnerLink={ownerAccess.isOwner} />
+      <RoadmapPage initialAuthConfigured={authConfigured} supportEmail={settings.supportEmail} />
+    </>
   );
 }
