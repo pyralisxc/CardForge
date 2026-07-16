@@ -2,13 +2,22 @@ import {
   getOwnerConsolePayload,
   getOwnerIntegrationStatus,
   OwnerConsoleStoreError,
-  updateLegalDocument,
   updateFounderBetaCampaign,
-  updateOwnerSettings,
-  updateOwnerRoadmapItemStatus,
-  updateSiteContentBlock,
-  updateSiteMechanicsSettings,
 } from '@/features/owner/server';
+import {
+  PublicSiteStoreError,
+  updateSiteContentBlock,
+  updateSiteOperatorSettings,
+} from '@/features/public-site/server';
+import {
+  LegalDocumentStoreError,
+  updateLegalDocument,
+} from '@/features/legal/server';
+import {
+  RoadmapStoreError,
+  updateRoadmapAdminItemStatus,
+  updateRoadmapSettings,
+} from '@/features/roadmap/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
@@ -74,23 +83,23 @@ export async function PUT(request: Request) {
     };
 
     if (body.kind === 'settings') {
-      const payload = await updateOwnerSettings(body.settings ?? {});
-      return createNoStoreJsonResponse({ console: payload });
+      await updateSiteOperatorSettings(body.settings ?? {});
+      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     if (body.kind === 'siteMechanics') {
-      const payload = await updateSiteMechanicsSettings(body.siteMechanics ?? {});
-      return createNoStoreJsonResponse({ console: payload });
+      await updateRoadmapSettings(body.siteMechanics ?? {});
+      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     if (body.kind === 'siteContent') {
-      const payload = await updateSiteContentBlock(body.siteContentBlock ?? {});
-      return createNoStoreJsonResponse({ console: payload });
+      await updateSiteContentBlock(body.siteContentBlock ?? {});
+      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     if (body.kind === 'legal') {
-      const payload = await updateLegalDocument(body.legalDocument ?? {});
-      return createNoStoreJsonResponse({ console: payload });
+      await updateLegalDocument(body.legalDocument ?? {});
+      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     if (body.kind === 'founderBeta') {
@@ -99,8 +108,8 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'roadmapStatus') {
-      const payload = await updateOwnerRoadmapItemStatus(body.roadmapItem ?? {});
-      return createNoStoreJsonResponse({ console: payload });
+      await updateRoadmapAdminItemStatus(body.roadmapItem ?? {});
+      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner console update.');
@@ -109,7 +118,12 @@ export async function PUT(request: Request) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
     }
 
-    if (error instanceof OwnerConsoleStoreError) {
+    if (
+      error instanceof OwnerConsoleStoreError
+      || error instanceof PublicSiteStoreError
+      || error instanceof LegalDocumentStoreError
+      || error instanceof RoadmapStoreError
+    ) {
       return createApiErrorResponse(
         error.status,
         error.status === 503 ? 'owner_console_unavailable' : 'owner_request_invalid',

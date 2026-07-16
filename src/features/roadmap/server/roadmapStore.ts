@@ -1,19 +1,22 @@
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
-import { DEFAULT_OWNER_SETTINGS, DEFAULT_SITE_MECHANICS_SETTINGS, type SiteMechanicsSettings } from '@/features/owner/lib/ownerConsole';
-import { getOwnerConsolePayload } from '@/features/owner/lib/ownerConsoleStore';
+import { DEFAULT_SITE_OPERATOR_SETTINGS } from '@/features/public-site/client';
 import {
   calculateMrrUnlockTargetCents,
+  DEFAULT_ROADMAP_SETTINGS,
   normalizeRoadmapSuggestion,
   type RoadmapItem,
   type RoadmapItemType,
   type RoadmapPayload,
+  type RoadmapSettings,
   type RoadmapSource,
   type RoadmapStatus,
   type RoadmapVoteValue,
   shouldArchiveUserRoadmapItem,
-} from '@/features/account/lib/roadmap';
+} from '@/features/roadmap/model/roadmap';
+import { getRoadmapSettings } from '@/features/roadmap/server/roadmapSettingsStore';
+import { RoadmapStoreError } from '@/features/roadmap/server/RoadmapStoreError';
 
-export const DEVELOPER_REQUEST_EMAIL = DEFAULT_OWNER_SETTINGS.supportEmail;
+export const DEVELOPER_REQUEST_EMAIL = DEFAULT_SITE_OPERATOR_SETTINGS.supportEmail;
 
 type RoadmapItemRow = {
   id: string;
@@ -35,15 +38,6 @@ type RoadmapVoteRow = {
   user_id: string;
   vote: RoadmapVoteValue;
 };
-
-export class RoadmapStoreError extends Error {
-  constructor(
-    message: string,
-    public readonly status = 500
-  ) {
-    super(message);
-  }
-}
 
 const validStatuses: ReadonlySet<RoadmapStatus> = new Set([
   'planned',
@@ -77,21 +71,21 @@ const normalizeCents = (value: unknown): number | null => {
   return Math.max(0, Math.round(value));
 };
 
-const toRoadmapVotingRules = (settings: SiteMechanicsSettings) => ({
+const toRoadmapVotingRules = (settings: RoadmapSettings) => ({
   negativeSignalMinTotalVotes: settings.roadmapNegativeSignalMinTotalVotes,
   negativeSignalMinDownvotePercent: settings.roadmapNegativeSignalMinDownvotePercent,
 });
 
-const getSiteMechanicsSettings = async (): Promise<SiteMechanicsSettings> => {
+const loadRoadmapSettings = async (): Promise<RoadmapSettings> => {
   try {
-    return (await getOwnerConsolePayload()).siteMechanics;
+    return await getRoadmapSettings();
   } catch (error) {
-    console.error('Failed to load owner site mechanics:', error);
-    return DEFAULT_SITE_MECHANICS_SETTINGS;
+    console.error('Failed to load roadmap settings:', error);
+    return DEFAULT_ROADMAP_SETTINGS;
   }
 };
 
-const createUnavailablePayload = (settings: SiteMechanicsSettings = DEFAULT_SITE_MECHANICS_SETTINGS): RoadmapPayload => ({
+const createUnavailablePayload = (settings: RoadmapSettings = DEFAULT_ROADMAP_SETTINGS): RoadmapPayload => ({
   configured: false,
   items: [],
   activeUserSuggestionCount: 0,
@@ -114,7 +108,7 @@ const mapRoadmapPayload = ({
   votes: RoadmapVoteRow[];
   activeUserSuggestionCount: number;
   userId: string | null;
-  settings: SiteMechanicsSettings;
+  settings: RoadmapSettings;
 }): RoadmapPayload => {
   const votesByItem = votes.reduce<Record<string, { upVotes: number; downVotes: number; userVote: RoadmapVoteValue | null }>>(
     (accumulator, vote) => {
@@ -165,7 +159,7 @@ const mapRoadmapPayload = ({
 export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapPayload> => {
   const config = getSupabaseServerConfigStatus();
   const supabase = getSupabaseServerClient();
-  const settings = await getSiteMechanicsSettings();
+  const settings = await loadRoadmapSettings();
   if (!config.configured || !supabase) return createUnavailablePayload(settings);
 
   const { data: rows, error: rowsError } = await supabase
@@ -235,7 +229,7 @@ export const createRoadmapSuggestion = async ({
   userEmail: string | null;
   title: unknown;
 }): Promise<RoadmapPayload> => {
-  const settings = await getSiteMechanicsSettings();
+  const settings = await loadRoadmapSettings();
   const normalized = normalizeRoadmapSuggestion(title, settings);
   if (!normalized.ok) {
     throw new RoadmapStoreError(normalized.message, 400);
@@ -304,7 +298,7 @@ export const createDeveloperRoadmapItem = async ({
   targetMrrCents?: unknown;
   monthlyCostCents?: unknown;
 }): Promise<RoadmapPayload> => {
-  const settings = await getSiteMechanicsSettings();
+  const settings = await loadRoadmapSettings();
   const normalizedTitle = normalizeRoadmapSuggestion(title, settings);
   if (!normalizedTitle.ok) {
     throw new RoadmapStoreError(normalizedTitle.message, 400);
@@ -451,7 +445,7 @@ export const voteRoadmapItem = async ({
     source: item.source as RoadmapSource,
     upVotes: totals.upVotes,
     downVotes: totals.downVotes,
-    rules: toRoadmapVotingRules(await getSiteMechanicsSettings()),
+    rules: toRoadmapVotingRules(await loadRoadmapSettings()),
   })) {
     const { error: archiveError } = await supabase
       .from('cardforge_roadmap_items')

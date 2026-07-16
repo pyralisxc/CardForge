@@ -1,14 +1,12 @@
 import {
   buildContactRequestEmail,
+  markContactRequestEmailResult,
   normalizeContactRequestInput,
+  recordContactRequest,
   sendResendEmail,
 } from '@/features/contact/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import {
-  getOwnerConsolePayload,
-  markContactRequestEmailResult,
-  recordContactRequest,
-} from '@/features/owner/server';
+import { getSiteOperatorSettings } from '@/features/public-site/server';
 import {
   consumeRateLimit,
   getRequestClientAddress,
@@ -37,8 +35,7 @@ export async function POST(request: Request) {
       return createApiErrorResponse(429, 'rate_limited', 'Too many contact requests. Please try again later.');
     }
 
-    const payload = await getOwnerConsolePayload();
-    const supportEmail = payload.settings.supportEmail;
+    const supportEmail = (await getSiteOperatorSettings()).supportEmail;
     const requestId = await recordContactRequest(normalized.value);
 
     const built = buildContactRequestEmail(normalized.value);

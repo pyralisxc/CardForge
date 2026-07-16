@@ -1,7 +1,7 @@
-import { DEFAULT_OWNER_SETTINGS } from '@/features/owner/lib/ownerConsole';
+import { DEFAULT_SITE_OPERATOR_SETTINGS } from '@/features/public-site/client';
 
 const normalizeRecipient = (recipient: string | null | undefined): string =>
-  recipient?.trim() || DEFAULT_OWNER_SETTINGS.supportEmail;
+  recipient?.trim() || DEFAULT_SITE_OPERATOR_SETTINGS.supportEmail;
 
 export const createSupportMailto = ({
   recipient,

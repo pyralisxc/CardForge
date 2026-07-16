@@ -2,7 +2,8 @@ import Link from 'next/link';
 import type React from 'react';
 import { Hammer } from 'lucide-react';
 
-import type { LegalDocument, OwnerSettings } from '@/features/owner/lib/ownerConsole';
+import type { LegalDocument } from '@/features/legal/client';
+import type { SiteOperatorSettings } from '@/features/public-site/client';
 
 const trustLinks = [
   { href: '/privacy', label: 'Privacy' },
@@ -27,7 +28,7 @@ export function PublicLegalPage({
 }: {
   children?: React.ReactNode;
   document: LegalDocument;
-  settings: OwnerSettings;
+  settings: SiteOperatorSettings;
 }) {
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">

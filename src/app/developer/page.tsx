@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 import { DeveloperProgramPage } from '@/features/developer-assets/client/program';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
-import { getPublishedLegalDocument } from '@/features/owner/server';
+import { getPublishedLegalDocument } from '@/features/legal/server';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
-import { RoadmapPage } from '@/features/account/client/roadmap';
+import { RoadmapPage } from '@/features/roadmap/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
-import { getPublishedLegalDocument } from '@/features/owner/server';
+import { getPublishedLegalDocument } from '@/features/legal/server';
 
 export const dynamic = 'force-dynamic';
 

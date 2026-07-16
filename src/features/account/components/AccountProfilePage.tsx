@@ -29,7 +29,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { useBillingPortalActions } from '@/features/billing/client';
 import { useCheckoutActions } from '@/features/billing/client';
-import type { FounderBetaCampaign } from '@/features/owner/lib/ownerConsole';
+import type { FounderBetaCampaign } from '@/features/owner/client';
 import type { AccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
