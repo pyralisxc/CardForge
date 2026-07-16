@@ -7,14 +7,14 @@ import {
   formatZodIssues,
   parseJsonBodyWithLimit,
   stylePresetPayloadSchema,
-} from '@/lib/apiValidation';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+} from '@/infrastructure/http/apiValidation';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { canCurrentAccountWriteShippedLibrary } from '@/features/developer-assets/server';
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
-} from '@/features/developer-assets/lib/registryContentAssets';
+} from '@/features/developer-assets/server';
 
 const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
 const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;

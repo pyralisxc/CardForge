@@ -2,18 +2,18 @@ import {
   buildContactRequestEmail,
   normalizeContactRequestInput,
   sendResendEmail,
-} from '@/features/contact/lib/emailOperations';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+} from '@/features/contact/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   getOwnerConsolePayload,
   markContactRequestEmailResult,
   recordContactRequest,
-} from '@/features/owner/lib/ownerConsoleStore';
+} from '@/features/owner/server';
 import {
   consumeRateLimit,
   getRequestClientAddress,
   RateLimitUnavailableError,
-} from '@/lib/abuseProtection';
+} from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 

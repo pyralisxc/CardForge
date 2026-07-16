@@ -49,17 +49,17 @@ CardForge has three storage lanes:
 - `src/features/app-shell`: Studio shell, public header, workspace bootstrap.
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency. Template field contracts, generator/editor field interpretation, template display labels, pointer selection, and parent-resize geometry live here because multiple features consume them.
 - `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
-- `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, export tools.
+- `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, and export tools. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
-- `src/features/billing`: Stripe checkout, subscription, portal, and billing config helpers.
-- `src/features/account`: account status, access entitlement, roadmap, profile surfaces, and user access helpers.
+- `src/features/billing`: Stripe checkout, subscription, portal, event ledger, and reconciliation behind explicit client/server interfaces.
+- `src/features/account`: account status, access entitlement, roadmap, profile surfaces, and current-user access behind explicit client/server interfaces. Roadmap moves to its own owner in the next operations slice.
 - `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
 - `src/features/owner`: launch, operations, legal/site copy, access/promo, developer program, account management, and owner Supabase store.
 - `src/features/contact`: support/contact mail routing and contact request forms.
-- `src/infrastructure`: provider adapters as they are extracted from legacy roots.
-- `src/shared`: product-agnostic utilities such as text normalization and user-facing error construction.
+- `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
+- `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.
 - `src/components/ui`: generic UI primitives and generic browser UI state such as toast delivery.
-- `src/lib` and other root catch-alls are migration-only and must shrink; new ownership is not added there.
+- `src/lib` is retired. The required `src/middleware.ts` Next entry is thin App composition over the Infrastructure implementation.
 
 Feature-specific rules stay under their owning feature and cross-feature consumers use declared `client.ts` or `server.ts` interfaces. Pure policy belongs in Domain; generic helpers belong in Shared.
 

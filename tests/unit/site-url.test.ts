@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getPublicAppUrl } from '@/lib/siteUrl';
+import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 describe('site URL resolution', () => {
   it('uses the explicit app URL when it is valid', () => {

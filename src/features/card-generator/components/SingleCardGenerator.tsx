@@ -14,7 +14,7 @@ import { PlusSquare, FilePlus2, Layers } from 'lucide-react';
 import { GeneratorFieldGroups } from '@/features/card-generator/components/GeneratorFieldGroups';
 import { useProjectStore } from '@/features/project/client';
 import { withNextStep } from '@/shared/userFacingErrors';
-import { ERROR_COPY } from '@/lib/errorCopy';
+import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { completeCardDataWithTemplateDefaults, initializeCardDataFromTemplate } from '@/features/card-generator/lib/cardDataDefaults';
 import { getTemplateSourceLabel } from '@/domain/templates';
 import { buildStructuredRowsDataKey, parseStructuredRowsValue } from '@/domain/rendering';

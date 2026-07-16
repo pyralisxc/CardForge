@@ -20,7 +20,7 @@ import {
   type DeveloperVoteValue,
 } from '@/features/developer-assets/lib/developerAssets';
 import { developerAssetTypeToRegistryAssetKind } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
+import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 export type DeveloperAssetSubmissionInputResult =
   | { ok: true; value: Pick<DeveloperAssetSubmission, 'assetType' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }

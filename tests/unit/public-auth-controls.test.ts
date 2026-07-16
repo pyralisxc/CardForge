@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import * as clerkConfig from '@/lib/clerkConfig';
+import * as clerkConfig from '@/infrastructure/auth/clerk';
 
 describe('public header authentication controls', () => {
   it('distinguishes connecting, signed-out, and signed-in Clerk states', () => {
@@ -21,7 +21,7 @@ describe('public header authentication controls', () => {
       'utf8',
     );
 
-    expect(headerSource).toContain("import { PublicAuthControls } from '@/features/account/components/PublicAuthControls'");
+    expect(headerSource).toContain("import { PublicAuthControls } from '@/features/account/client/auth'");
     expect(headerSource).toContain('rightSlot ?? <PublicAuthControls />');
     expect(headerSource).toContain('src="/brand/cardforge-studio/brand-mark.svg"');
     expect(headerSource).not.toContain('<Hammer');

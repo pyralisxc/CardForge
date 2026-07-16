@@ -6,7 +6,7 @@ import {
   buildStripeRevokedAccessMetadata,
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
-} from '@/features/billing/lib/billing';
+} from '@/features/billing/server';
 import {
   buildMissingBillingSubscriptionBaselines,
   establishBillingSubscriptionBaselines,
@@ -15,10 +15,10 @@ import {
   isClerkUserNotFoundError,
   persistBillingSubscriptionClerkMapping,
   repairStripeSubscriptionClerkMapping,
-} from '@/features/billing/lib/billingReconciliation';
-import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
+} from '@/features/billing/server';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 

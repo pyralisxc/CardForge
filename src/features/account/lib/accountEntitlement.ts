@@ -1,6 +1,6 @@
 import type { AccessMode, ExportEntitlementCopy, ProjectCapabilities } from '@/domain/entitlements';
 import type { OwnerAccess } from '@/domain/entitlements';
-import { getStripeCustomerIdFromMetadata } from '@/features/billing/lib/billing';
+import { getStripeCustomerIdFromMetadata } from '@/features/billing/client';
 import { getExportEntitlementCopy, getProjectCapabilities, resolveAccessMode } from '@/domain/entitlements';
 
 type EntitlementEnvironment = Partial<Record<

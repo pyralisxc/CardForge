@@ -1,12 +1,12 @@
-import { resolveAccountEntitlement } from '@/features/account/lib/accountEntitlement';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
+import { resolveAccountEntitlement } from '@/features/account/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   DeveloperAssetStoreError,
   updateDeveloperAssetSubmissionDetails,
   updateDeveloperAssetSubmissionStatus,
-} from '@/features/developer-assets/lib/developerAssetStore';
-import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
-import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
+} from '@/features/developer-assets/server';
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 

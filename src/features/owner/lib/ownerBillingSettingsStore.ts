@@ -3,7 +3,7 @@ import {
   buildOwnerBillingHistorySettings,
   type OwnerBillingHistorySettings,
 } from '@/features/owner/lib/ownerBillingOperations';
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 type BillingHistorySettingsRow = {
   billing_checkout_history_limit: number | null;

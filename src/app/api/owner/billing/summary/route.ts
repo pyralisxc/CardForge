@@ -1,21 +1,21 @@
 import { clerkClient } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getBillingConfigStatus } from '@/features/billing/lib/billing';
-import { findExistingClerkUserIds } from '@/features/billing/lib/billingReconciliation';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { getBillingConfigStatus } from '@/features/billing/server';
+import { findExistingClerkUserIds } from '@/features/billing/server';
 import {
   buildOwnerBillingSnapshot,
   listStripeCheckoutHistory,
   listStripeSubscriptions,
-} from '@/features/owner/lib/ownerBillingOperations';
+} from '@/features/owner/server';
 import {
   clearOwnerBillingHistory,
   getOwnerBillingHistorySettings,
   OwnerBillingSettingsStoreError,
   updateOwnerBillingHistoryLimit,
-} from '@/features/owner/lib/ownerBillingSettingsStore';
-import { getCurrentOwnerAccess } from '@/features/owner/lib/serverOwnerAccess';
+} from '@/features/owner/server';
+import { getCurrentOwnerAccess } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 

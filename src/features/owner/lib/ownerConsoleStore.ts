@@ -1,5 +1,5 @@
-import { getBillingConfigStatus } from '@/features/billing/lib/billing';
-import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
+import { getBillingConfigStatus } from '@/features/billing/server';
+import { isClerkAuthConfigured } from '@/features/account/server';
 import {
   DEFAULT_FOUNDER_BETA_CAMPAIGN,
   DEFAULT_LEGAL_DOCUMENTS,
@@ -28,8 +28,8 @@ import {
   normalizeSiteMechanicsSettingsInput,
   reconcileFounderBetaCampaignCopy,
 } from '@/features/owner/lib/ownerConsole';
-import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
-import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/lib/siteUrl';
+import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
+import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 type OwnerSettingsRow = {
   business_name: string;

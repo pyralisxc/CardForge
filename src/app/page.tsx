@@ -13,10 +13,10 @@ import {
   Users,
 } from 'lucide-react';
 
-import { PublicSiteHeader } from '@/features/app-shell/components/PublicSiteHeader';
+import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
-import { createSiteContentMap } from '@/features/owner/lib/ownerConsole';
-import { getSiteContentBlocks } from '@/features/owner/lib/ownerConsoleStore';
+import { createSiteContentMap } from '@/features/owner/server';
+import { getSiteContentBlocks } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 

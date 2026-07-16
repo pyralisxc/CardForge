@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   getPublicAuthControlState,
   isClerkPublicConfigPresent,
-} from '@/lib/clerkConfig';
+} from '@/infrastructure/auth/clerk';
 
 export function PublicAuthControls() {
   if (!isClerkPublicConfigPresent()) {

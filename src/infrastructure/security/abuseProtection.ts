@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
+import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 interface RateLimitClient {
   rpc: (

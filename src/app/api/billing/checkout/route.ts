@@ -4,10 +4,10 @@ import Stripe from 'stripe';
 import {
   buildCheckoutSessionParams,
   getBillingConfigStatus,
-} from '@/features/billing/lib/billing';
-import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
-import { createApiErrorResponse, createNoStoreJsonResponse } from '@/lib/apiResponses';
-import { getPublicAppUrl } from '@/lib/siteUrl';
+} from '@/features/billing/server';
+import { isClerkAuthConfigured } from '@/features/account/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 export const dynamic = 'force-dynamic';
 

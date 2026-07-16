@@ -1,4 +1,4 @@
-import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/lib/supabaseServer';
+import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import { DEFAULT_OWNER_SETTINGS, DEFAULT_SITE_MECHANICS_SETTINGS, type SiteMechanicsSettings } from '@/features/owner/lib/ownerConsole';
 import { getOwnerConsolePayload } from '@/features/owner/lib/ownerConsoleStore';
 import {

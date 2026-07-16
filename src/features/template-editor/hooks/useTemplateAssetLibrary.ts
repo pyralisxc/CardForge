@@ -4,9 +4,9 @@ import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import type { CardAssetOption } from '@/features/developer-assets/client/assets';
 import { loadEditorAssets } from '@/features/template-editor/services/editorBootstrap';
-import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/client/assets';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
   CUSTOM_ICON_ASSETS_STORAGE_KEY,

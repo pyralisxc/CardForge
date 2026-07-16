@@ -1,6 +1,6 @@
-import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
+import { isClerkAuthConfigured } from '@/features/account/server';
 import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
-import { getCurrentCardforgeUserAccess } from '@/features/account/lib/serverCardforgeUser';
+import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 
 interface CurrentUserLike {
   id: string;

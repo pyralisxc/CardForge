@@ -18,7 +18,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { createRoadmapDeveloperRequestMailto } from '@/features/contact/lib/contactLinks';
+import { createRoadmapDeveloperRequestMailto } from '@/features/contact/client/links';
 import {
   buildRoadmapTimelineCheckpoints,
   isChronicleTimelineItem,
