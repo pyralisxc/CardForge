@@ -2,6 +2,9 @@ name: Authenticated smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - fix/authenticated-smoke-bootstrap
   schedule:
     - cron: "17 15 * * 1-5"
 
