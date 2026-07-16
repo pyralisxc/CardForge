@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -12,33 +12,21 @@ const toPosixPath = (value) => value.split(path.sep).join('/');
 const parseArguments = (values) => {
   const args = {
     root: process.cwd(),
-    baseline: null,
-    writeBaseline: false,
   };
 
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
-    if (value === '--write-baseline') {
-      args.writeBaseline = true;
-      continue;
-    }
-    if (value === '--root' || value === '--baseline') {
+    if (value === '--root') {
       const nextValue = values[index + 1];
       if (!nextValue) throw new Error(`${value} requires a path.`);
-      if (value === '--root') args.root = nextValue;
-      else args.baseline = nextValue;
+      args.root = nextValue;
       index += 1;
       continue;
     }
     throw new Error(`Unknown architecture option: ${value}`);
   }
 
-  const root = path.resolve(args.root);
-  return {
-    root,
-    baseline: path.resolve(args.baseline ?? path.join(root, 'config', 'architecture-baseline.json')),
-    writeBaseline: args.writeBaseline,
-  };
+  return { root: path.resolve(args.root) };
 };
 
 const collectSourceFiles = async (directory) => {
@@ -347,57 +335,21 @@ const analyzeRepository = async (root) => {
   };
 };
 
-const readBaseline = async (baselinePath) => {
-  try {
-    const parsed = JSON.parse(await readFile(baselinePath, 'utf8'));
-    if (parsed.version !== 1 || !Array.isArray(parsed.violations)) {
-      throw new Error('Architecture baseline must have version 1 and a violations array.');
-    }
-    return [...new Set(parsed.violations)].sort();
-  } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return [];
-    throw error;
-  }
-};
-
 const run = async () => {
   const args = parseArguments(process.argv.slice(2));
   const analysis = await analyzeRepository(args.root);
-  const actualKeys = analysis.violations.map((violation) => violation.key);
-
   for (const warning of analysis.sizeWarnings) {
     console.log(`File-size review warning: ${warning.path} has ${warning.lineCount} lines (threshold ${FILE_SIZE_REVIEW_THRESHOLD}).`);
   }
 
-  if (args.writeBaseline) {
-    await writeFile(
-      args.baseline,
-      `${JSON.stringify({ version: 1, violations: actualKeys }, null, 2)}\n`,
-      'utf8',
-    );
-    console.log(`Architecture baseline written: ${toPosixPath(path.relative(args.root, args.baseline))} (${actualKeys.length} violations).`);
-    return;
+  for (const violation of analysis.violations) {
+    console.error(`Architecture violation: ${violation.key}\n  ${violation.message}`);
   }
-
-  const baselineKeys = await readBaseline(args.baseline);
-  const baselineSet = new Set(baselineKeys);
-  const actualSet = new Set(actualKeys);
-  const newViolations = analysis.violations.filter((violation) => !baselineSet.has(violation.key));
-  const staleViolations = baselineKeys.filter((violation) => !actualSet.has(violation));
-
-  for (const violation of newViolations) {
-    console.error(`New architecture violation: ${violation.key}\n  ${violation.message}`);
-  }
-  for (const violation of staleViolations) {
-    console.error(`Stale architecture baseline: ${violation}\n  Remove this resolved violation from the baseline.`);
-  }
-
-  if (newViolations.length > 0 || staleViolations.length > 0) {
+  if (analysis.violations.length > 0) {
     process.exitCode = 1;
     return;
   }
-
-  console.log(`Architecture baseline matches (${actualKeys.length} tracked violations; ${analysis.sizeWarnings.length} size warnings).`);
+  console.log(`Architecture check passed (0 violations; ${analysis.sizeWarnings.length} size warnings).`);
 };
 
 run().catch((error) => {

@@ -97,6 +97,7 @@ Secrets stay in Vercel/provider dashboards. The owner console should show readin
 ## Delivery Gates
 
 - Pull requests must pass CI and public smoke checks before merge.
+- `npm run architecture:check` must report zero violations; no baseline or exception file exists.
 - Authenticated provider smoke uses protected environment secrets and must never run for untrusted fork code.
 - `main` should require a pull request, required checks, resolved review threads, and blocked force pushes.
 - Vercel build success alone is not a release-health verdict.
@@ -157,6 +158,7 @@ Use the smallest relevant check first:
 npm run lint
 npm run test
 npm run typecheck
+npm run architecture:check
 npm run build
 npm run smoke
 npm run health:production
