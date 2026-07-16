@@ -2,10 +2,10 @@ import { normalizeAppearanceForElement, type AppearanceStylePreset, type Freefor
 import type { CardFrameKit } from '@/features/template-editor/lib/cardFrameKits';
 import { getFrameKitTemplateUpdates } from '@/features/template-editor/lib/cardFrameKits';
 import { appearanceToElementRenderFields } from '@/features/card-rendering/client';
-import { DEFAULT_SITE_OPERATOR_SETTINGS } from '@/features/public-site/client';
+import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
 
-const DEFAULT_OWNER_CONTRIBUTOR_NAME = DEFAULT_SITE_OPERATOR_SETTINGS.ownerName
-  || DEFAULT_SITE_OPERATOR_SETTINGS.supportEmail;
+const DEFAULT_OWNER_CONTRIBUTOR_NAME = DEFAULT_BUSINESS_IDENTITY.legalOperatorName
+  || DEFAULT_BUSINESS_IDENTITY.supportEmail;
 
 export type ElementPresetKind =
   | 'shapeRole'

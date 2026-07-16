@@ -1,7 +1,7 @@
-import { DEFAULT_SITE_OPERATOR_SETTINGS } from '@/features/public-site/client';
+import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
 
 const normalizeRecipient = (recipient: string | null | undefined): string =>
-  recipient?.trim() || DEFAULT_SITE_OPERATOR_SETTINGS.supportEmail;
+  recipient?.trim() || DEFAULT_BUSINESS_IDENTITY.supportEmail;
 
 export const createSupportMailto = ({
   recipient,

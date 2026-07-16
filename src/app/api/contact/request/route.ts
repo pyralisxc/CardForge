@@ -5,8 +5,8 @@ import {
   recordContactRequest,
   sendResendEmail,
 } from '@/features/contact/server';
+import { getBusinessIdentity } from '@/features/business-identity/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { getSiteOperatorSettings } from '@/features/public-site/server';
 import {
   consumeRateLimit,
   getRequestClientAddress,
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       return createApiErrorResponse(429, 'rate_limited', 'Too many contact requests. Please try again later.');
     }
 
-    const supportEmail = (await getSiteOperatorSettings()).supportEmail;
+    const supportEmail = (await getBusinessIdentity()).supportEmail;
     const requestId = await recordContactRequest(normalized.value);
 
     const built = buildContactRequestEmail(normalized.value);

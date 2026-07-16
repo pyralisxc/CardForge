@@ -17,7 +17,7 @@ export function OwnerConsoleSummary({ payload, lastOwnerSaveAt }: { payload: Own
       const response = await fetch('/api/owner/email/test', { method: 'POST' });
       if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to send test email.'));
       const body = await response.json() as { to?: string };
-      toast({ title: 'Test email sent', description: `Sent to ${body.to ?? payload.console.settings.supportEmail}.` });
+      toast({ title: 'Test email sent', description: `Sent to ${body.to ?? payload.console.businessIdentity.supportEmail}.` });
     } catch (error) {
       toast({ title: 'Test email failed', description: error instanceof Error ? error.message : 'Unable to send test email.', variant: 'destructive' });
     } finally {

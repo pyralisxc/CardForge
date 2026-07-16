@@ -1,1 +1,4 @@
-export { CardForgeStudioShell } from '../components/CardForgeStudioShell';
+export {
+  CardForgeStudioShell,
+  type StudioBusinessIdentity,
+} from '../components/CardForgeStudioShell';

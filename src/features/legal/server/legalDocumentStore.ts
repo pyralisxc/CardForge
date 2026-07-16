@@ -5,8 +5,8 @@ import {
   type LegalDocument,
   type LegalDocumentSlug,
 } from '@/features/legal/model/legalDocument';
-import { getSiteOperatorSettings } from '@/features/public-site/server';
-import type { SiteOperatorSettings } from '@/features/public-site/client';
+import { getBusinessIdentity } from '@/features/business-identity/server';
+import type { BusinessIdentity } from '@/features/business-identity/client';
 import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import {
   getSupabaseServerClient,
@@ -59,13 +59,13 @@ export const getLegalDocuments = async (): Promise<LegalDocument[]> => {
 
 export const getPublishedLegalDocument = async (
   slug: LegalDocumentSlug,
-): Promise<{ settings: SiteOperatorSettings; document: LegalDocument }> => {
-  const [settings, documents] = await Promise.all([
-    getSiteOperatorSettings(),
+): Promise<{ businessIdentity: BusinessIdentity; document: LegalDocument }> => {
+  const [businessIdentity, documents] = await Promise.all([
+    getBusinessIdentity(),
     getLegalDocuments(),
   ]);
   return {
-    settings,
+    businessIdentity,
     document: documents.find((document) => document.slug === slug) ?? getDefaultLegalDocument(slug),
   };
 };

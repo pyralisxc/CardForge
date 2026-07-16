@@ -2,6 +2,8 @@
 
 CardForge helps creators turn card ideas into full, export-ready sets. The Studio combines reusable templates, structured data, bulk generation, and clean PNG, ZIP, PDF, or Tabletop Simulator exports, while approved developers help shape the shared library that powers the product. The fantasy forge is the doorway; underneath is a serious production workflow for creators building real card systems. User project work stays in browser storage or downloaded project files for the current launch.
 
+CardForge Studio is a software product created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
+
 ## Live State
 
 - Public site: `/`
@@ -59,6 +61,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/project/`: Local project files, project asset persistence, and project access rules.
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
+- `src/features/business-identity/`: canonical operator identity, owner editing, and server-owned Supabase persistence.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.

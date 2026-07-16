@@ -1,3 +1,8 @@
+import {
+  DEFAULT_BUSINESS_IDENTITY,
+  formatBusinessIdentityDescription,
+} from '@/features/business-identity/client';
+
 export type LegalDocumentSlug =
   | 'privacy'
   | 'terms'
@@ -13,7 +18,11 @@ export interface LegalDocument {
   publishedAt: string | null;
 }
 
-const privacyBody = `CardForge is operated by Neon Black Interactive LLC and is designed as a local-first card creation tool. Card projects, imported data, generated previews, personal uploads, and export settings stay in browser database storage or downloaded project files unless you choose to submit something to the platform or CardForge introduces an explicit cloud save feature.
+const operatorDescription = formatBusinessIdentityDescription(DEFAULT_BUSINESS_IDENTITY);
+
+const privacyBody = `${operatorDescription}
+
+CardForge is designed as a local-first card creation tool. Card projects, imported data, generated previews, personal uploads, and export settings stay in browser database storage or downloaded project files unless you choose to submit something to the platform or CardForge introduces an explicit cloud save feature.
 
 We use account and infrastructure providers to identify signed-in users, unlock access, run the site, protect owner/developer tools, process payments, prevent abuse, and store shared platform records. Those records may include account identifiers, email addresses, optional first and last names, entitlement status, billing-event records, Founder Beta claims, roadmap votes, feature suggestions, developer profiles, developer submissions, developer votes, asset registry records, contact requests, legal documents, and owner settings.
 
@@ -21,7 +30,9 @@ Developer submissions, public source files, and published library assets are int
 
 CardForge does not sell user project files. We do not intentionally collect information from children under 13. If you need privacy support, contact the support email listed on this site.`;
 
-const termsBody = `CardForge is a service operated by Neon Black Interactive LLC. It lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access. You are responsible for the content, artwork, data, trademarks, and intellectual property you bring into the tool.
+const termsBody = `${operatorDescription}
+
+Your agreement for the service is with ${DEFAULT_BUSINESS_IDENTITY.legalOperatorName} as the legal operator of ${DEFAULT_BUSINESS_IDENTITY.brandName}. CardForge lets users create templates, generate previews, manage local projects, submit developer assets, and export content according to their account access. You are responsible for the content, artwork, data, trademarks, and intellectual property you bring into the tool.
 
 You keep ownership of the content you create. By using CardForge, you grant CardForge the limited permission needed to operate the service, render previews, process exports, preserve local/project state, and, when you submit assets to the developer pipeline, review, display, publish, archive, and maintain those submitted assets as part of the shared library.
 
@@ -29,19 +40,25 @@ The product is in active beta. Features, pricing, access levels, export behavior
 
 CardForge is a creative production tool, not a print vendor or legal clearance service. Always proof exports, keep your own backups, and confirm printer/manufacturer requirements before production.`;
 
-const refundBody = `CardForge is operated by Neon Black Interactive LLC and is currently in public beta. Self-service subscription billing and the customer billing portal are active when offered on the access page.
+const refundBody = `${operatorDescription}
+
+CardForge is currently in public beta. Self-service subscription billing and the customer billing portal are active when offered on the access page.
 
 Use the account billing portal to manage or cancel an active subscription. Refund requests should be sent to the support email listed on this site and are reviewed using the payment record, product-access history, the circumstances of the request, and applicable law. Nothing in this policy limits rights that cannot legally be limited.
 
 If you have a billing, cancellation, or export-access issue, contact support with the account email, transaction reference if available, and a short description of the issue.`;
 
-const contactBody = `For support, beta access, developer account requests, legal questions, billing questions, account problems, or asset pipeline concerns, contact the support email listed on this site.
+const contactBody = `${operatorDescription}
+
+${DEFAULT_BUSINESS_IDENTITY.legalOperatorName} handles support for ${DEFAULT_BUSINESS_IDENTITY.brandName} as its owner and legal operator. For support, beta access, developer account requests, legal questions, billing questions, account problems, or asset pipeline concerns, contact the support email listed on this site.
 
 For fastest help, include the account email, the page or workflow where the issue happened, what you expected, what actually happened, and whether the issue involves a local project, export, template, developer asset, or billing/access state.
 
 CardForge is in active development. Support responses are handled by the CardForge owner/operator until a larger support process is introduced.`;
 
-const developerTermsBody = `Forge Review is the developer contribution path for CardForge. Developers may submit templates, icons, dividers, textures, frames, source files, element recipes, and other approved creative assets into the shared review pipeline.
+const developerTermsBody = `${operatorDescription}
+
+Your developer contribution agreement is with ${DEFAULT_BUSINESS_IDENTITY.legalOperatorName} as the legal operator of ${DEFAULT_BUSINESS_IDENTITY.brandName}. Forge Review is the developer contribution path for CardForge. Developers may submit templates, icons, dividers, textures, frames, source files, element recipes, and other approved creative assets into the shared review pipeline.
 
 Only submit work you created, own, licensed, or have clear permission to contribute. Do not submit confidential work, client-restricted files, AI-generated material that violates its source license, infringing content, malware, deceptive files, or anything you would not want reviewed, archived, published, or used by other CardForge users.
 

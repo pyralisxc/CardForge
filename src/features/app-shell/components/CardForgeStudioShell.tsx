@@ -102,6 +102,11 @@ const formatAccessExpiration = (value: string | null) => {
 
 const STUDIO_GUIDE_STORAGE_KEY = 'cardforge-studio-guide-dismissed';
 
+export type StudioBusinessIdentity = {
+  brandName: string;
+  copyrightHolder: string;
+};
+
 const firstRunSteps = [
   'Pick or clone a template',
   'Edit the layout and variables',
@@ -109,7 +114,11 @@ const firstRunSteps = [
   'Upgrade for clean exports and project files',
 ] as const;
 
-export function CardForgeStudioShell() {
+export function CardForgeStudioShell({
+  businessIdentity,
+}: {
+  businessIdentity: StudioBusinessIdentity;
+}) {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
   const projectCapabilities = accountEntitlement.capabilities;
@@ -588,7 +597,7 @@ export function CardForgeStudioShell() {
         </AlertDialogContent>
       </AlertDialog>
       <footer className="border-t border-[#5f4526] p-4 text-center text-sm text-[#a8946d] no-print">
-        CardForge Studio &copy; {new Date().getFullYear()}
+        {businessIdentity.brandName} &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}
       </footer>
     </div>
   );

@@ -1,5 +1,5 @@
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
-import { DEFAULT_SITE_OPERATOR_SETTINGS } from '@/features/public-site/client';
+import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
 import {
   calculateMrrUnlockTargetCents,
   DEFAULT_ROADMAP_SETTINGS,
@@ -16,7 +16,7 @@ import {
 import { getRoadmapSettings } from '@/features/roadmap/server/roadmapSettingsStore';
 import { RoadmapStoreError } from '@/features/roadmap/server/RoadmapStoreError';
 
-export const DEVELOPER_REQUEST_EMAIL = DEFAULT_SITE_OPERATOR_SETTINGS.supportEmail;
+export const DEVELOPER_REQUEST_EMAIL = DEFAULT_BUSINESS_IDENTITY.supportEmail;
 
 type RoadmapItemRow = {
   id: string;

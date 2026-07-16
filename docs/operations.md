@@ -69,6 +69,12 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 - Resend test email works with the configured support inbox.
 - Google Search Console verification may depend on DNS propagation.
 
+## Business identity provider alignment
+
+The repository identity is CardForge Studio, created and operated by Cameron Locke as an independent sole proprietor based in Oregon. The forward Supabase migration and application cutover are prepared but have not been applied to production in this branch.
+
+Before claiming production alignment, obtain explicit approval and verify the current legal/business identity in Supabase, Stripe receipts and account records, Resend sender/reply-to settings, and every public legal page. Do not change provider configuration, apply migrations, merge, or deploy from a documentation-only review. Follow [the operator identity and transfer runbook](operator-identity-and-transfer-runbook.md) and record exact deployment and provider evidence here after rollout.
+
 ## Owner Console Checks
 
 Use `/owner` for:
@@ -78,6 +84,7 @@ Use `/owner` for:
 - email test
 - support/contact request history
 - site copy
+- business identity
 - site mechanics
 - Founder Beta access and copy
 - legal documents

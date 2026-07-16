@@ -12,4 +12,4 @@ Before proposing a code change:
 
 Do not include secrets, customer data, unlicensed artwork, generated assets without clear rights, or changes that bypass Clerk, Stripe, Supabase, or owner authorization.
 
-Code contributions are accepted only under terms explicitly agreed to by Neon Black Interactive LLC. Developer asset submissions continue to use the in-product Forge Review process and its contributor terms.
+Code contributions are accepted only under terms explicitly agreed to by Cameron Locke. Developer asset submissions continue to use the in-product Forge Review process and its contributor terms.

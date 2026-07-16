@@ -4,9 +4,12 @@ import {
 } from '@/features/owner/server';
 import { FounderBetaStoreError, updateFounderBetaCampaign } from '@/features/account/server';
 import {
+  BusinessIdentityStoreError,
+  updateBusinessIdentity,
+} from '@/features/business-identity/server';
+import {
   PublicSiteStoreError,
   updateSiteContentBlock,
-  updateSiteOperatorSettings,
 } from '@/features/public-site/server';
 import {
   LegalDocumentStoreError,
@@ -73,7 +76,8 @@ export async function PUT(request: Request) {
 
     const body = await request.json() as {
       kind?: unknown;
-      settings?: Record<string, unknown>;
+      businessIdentity?: Record<string, unknown>;
+      expectedIdentityVersion?: unknown;
       siteMechanics?: Record<string, unknown>;
       siteContentBlock?: { slug?: unknown; body?: unknown };
       legalDocument?: { slug?: unknown; title?: unknown; body?: unknown };
@@ -81,8 +85,11 @@ export async function PUT(request: Request) {
       roadmapItem?: { itemId?: unknown; status?: unknown };
     };
 
-    if (body.kind === 'settings') {
-      await updateSiteOperatorSettings(body.settings ?? {});
+    if (body.kind === 'businessIdentity') {
+      await updateBusinessIdentity(
+        body.businessIdentity ?? {},
+        body.expectedIdentityVersion,
+      );
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
@@ -119,6 +126,7 @@ export async function PUT(request: Request) {
 
     if (
       error instanceof FounderBetaStoreError
+      || error instanceof BusinessIdentityStoreError
       || error instanceof PublicSiteStoreError
       || error instanceof LegalDocumentStoreError
       || error instanceof RoadmapStoreError

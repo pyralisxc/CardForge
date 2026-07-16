@@ -10,6 +10,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Studio: `/studio` contains Layout Studio and Generator.
 - Accounts: Clerk identifies users; CardForge stores trusted access in Clerk private metadata or server-side allowlists.
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
+- Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
 - Email: Resend sends transactional messages to the configured support inbox and users.
 - Shared data: Supabase stores owner settings, legal copy, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles, submissions, votes, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
@@ -53,12 +54,13 @@ CardForge has three storage lanes:
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
 - `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
 - `src/features/account`: current-user resolution, access entitlement, profile surfaces, Founder Beta, and owner account administration behind explicit client/server interfaces.
-- `src/features/public-site`: operator identity and editable landing/about/access content, with browser-safe contracts and a server-owned Supabase store.
+- `src/features/business-identity`: browser-safe operator contracts, normalization, owner editing, and the server-owned `cardforge_business_identity` record.
+- `src/features/public-site`: editable landing/about/access content, with browser-safe contracts and a server-owned Supabase store.
 - `src/features/legal`: legal-document contracts, defaults, public presentation, and server persistence.
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
 - `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
-- `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Founder Beta and account administration remain Account-owned; billing remains Billing-owned; public content records remain owned by their product features.
+- `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Business identity, Founder Beta, account administration, billing, and public content remain owned by their product features.
 - `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
 - `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.
 - `src/components/ui`: generic UI primitives and generic browser UI state such as toast delivery.
