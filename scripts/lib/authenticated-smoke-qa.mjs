@@ -16,6 +16,24 @@ const qaFirstNames = {
   owner: 'Owner',
 };
 
+const safeBootstrapFailurePatterns = [
+  /^Missing protected QA bootstrap configuration: [A-Z0-9_]+\.$/,
+  /^Missing required QA email configuration: CARDFORGE_E2E_(?:FREE|PAID|DEV|OWNER)_EMAIL\.$/,
+  /^Invalid QA email configuration: CARDFORGE_E2E_(?:FREE|PAID|DEV|OWNER)_EMAIL\.$/,
+  /^QA email configuration must use four distinct addresses\.$/,
+  /^(?:Unable to look up|Ambiguous|Incomplete|Inexact|Unable to create|Unable to load|Unable to align) Clerk QA account: CARDFORGE_E2E_(?:FREE|PAID|DEV|OWNER)_EMAIL\.$/,
+  /^Unable to align QA developer profiles\.$/,
+  /^Unsupported QA role\.$/,
+];
+
+export const describeQaBootstrapFailure = (stage, error) => {
+  const safeMessage = error instanceof Error
+    && safeBootstrapFailurePatterns.some((pattern) => pattern.test(error.message))
+    ? ` ${error.message}`
+    : '';
+  return `Authenticated smoke QA bootstrap failed during ${stage}.${safeMessage}`;
+};
+
 export const readQaAccountConfiguration = (env) => {
   const accounts = QA_ROLE_CONFIGURATION.map(({ role, envKey }) => {
     const email = env[envKey]?.trim().toLowerCase() ?? '';

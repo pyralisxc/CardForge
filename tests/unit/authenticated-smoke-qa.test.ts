@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildQaPrivateMetadata,
+  describeQaBootstrapFailure,
   ensureQaClerkUsers,
   ensureQaDeveloperProfiles,
   readQaAccountConfiguration,
@@ -16,6 +17,20 @@ const completeEnv = {
 };
 
 describe('authenticated smoke QA configuration', () => {
+  it('reports the failed bootstrap boundary without exposing raw provider details', () => {
+    expect(describeQaBootstrapFailure(
+      'Supabase client initialization',
+      new Error('Invalid URL containing a protected value'),
+    )).toBe('Authenticated smoke QA bootstrap failed during Supabase client initialization.');
+
+    expect(describeQaBootstrapFailure(
+      'Clerk account alignment',
+      new Error('Unable to create Clerk QA account: CARDFORGE_E2E_FREE_EMAIL.'),
+    )).toBe(
+      'Authenticated smoke QA bootstrap failed during Clerk account alignment. Unable to create Clerk QA account: CARDFORGE_E2E_FREE_EMAIL.',
+    );
+  });
+
   it('normalizes the four unique protected QA email values', () => {
     expect(readQaAccountConfiguration(completeEnv)).toEqual([
       { role: 'free', envKey: 'CARDFORGE_E2E_FREE_EMAIL', email: 'qa-free@example.test' },

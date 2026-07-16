@@ -501,9 +501,9 @@ test('reusable QA account matrix exposes the correct account, developer, and own
 
       await page.goto('/owner', { waitUntil: 'domcontentloaded', timeout: 120_000 });
       if (account.entitlement.isOwner) {
-        await expect(page.getByRole('heading', { name: /Run the forge like a product/i })).toBeVisible({ timeout: 45_000 });
-        await expect(page.getByText(/live-mode provider review/i)).toBeVisible();
-        await expect(page.getByText(/Delivery readiness/i)).toBeVisible();
+        await expect(page.getByRole('heading', { name: /CardForge Command/i })).toBeVisible({ timeout: 45_000 });
+        await expect(page.getByText(/Owner workstation/i)).toBeVisible();
+        await expect(page.getByRole('tab', { name: /Launch Readiness/i })).toBeVisible();
         await expect(page.getByRole('tab', { name: /Operations/i })).toBeVisible();
         await expect(page.getByRole('tab', { name: /Site Copy/i })).toBeVisible();
       } else {
