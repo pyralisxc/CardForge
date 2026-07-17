@@ -10,10 +10,10 @@ import { BrowserStorageAlerts } from '@/features/project/client';
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
   title: {
-    default: 'CardForge Studio | Build Cards Faster',
+    default: 'CardForge Studio | Build Complete Card Sets',
     template: '%s | CardForge Studio',
   },
-  description: 'Design reusable card templates, generate full sets from structured data, and help grow a reviewed CardForge library for tabletop and card-system creators.',
+  description: 'Design reusable card templates, connect structured data, review complete sets, and export production-ready files.',
   keywords: [
     'card maker',
     'TCG card generator',
@@ -29,27 +29,6 @@ export const metadata: Metadata = {
     icon: '/brand/cardforge-studio/favicon.svg',
     shortcut: '/brand/cardforge-studio/favicon.svg',
     apple: '/brand/cardforge-studio/favicon.svg',
-  },
-  openGraph: {
-    title: 'CardForge Studio',
-    description: 'Build cards faster, generate complete sets, and help shape the shared CardForge library.',
-    url: '/',
-    siteName: 'CardForge Studio',
-    images: [
-      {
-        url: '/card-assets/landing/cardforge-hero-workbench.png',
-        width: 1600,
-        height: 900,
-        alt: 'CardForge fantasy workbench with cards, frames, tools, parchment, and forge light',
-      },
-    ],
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'CardForge Studio',
-    description: 'Design reusable templates, generate full card sets, and help shape the shared forge library.',
-    images: ['/card-assets/landing/cardforge-hero-workbench.png'],
   },
 };
 

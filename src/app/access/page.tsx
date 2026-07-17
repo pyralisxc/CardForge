@@ -1,9 +1,22 @@
 import Link from 'next/link';
-import { Gift, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { Gift, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
-import { createSiteContentMap, getCachedSiteContentBlocks } from '@/features/public-site/server';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
+import {
+  createBreadcrumbStructuredData,
+  createSiteContentMap,
+  getCachedSiteContentBlocks,
+  StructuredData,
+} from '@/features/public-site/server';
+import { createPageMetadata } from '@/shared/siteMetadata';
+
+export const metadata = createPageMetadata({
+  title: 'CardForge Access',
+  description: 'Compare free exploration, Founder Beta, Creator Pass product access, and the separate developer contributor path.',
+  path: '/access',
+});
 
 const accessLevels = [
   {
@@ -25,10 +38,18 @@ const accessLevels = [
 ] as const;
 
 export default async function AccessPage() {
-  const siteCopy = createSiteContentMap(await getCachedSiteContentBlocks('access'));
+  const [blocks, businessIdentity] = await Promise.all([
+    getCachedSiteContentBlocks('access'),
+    getCachedBusinessIdentity(),
+  ]);
+  const siteCopy = createSiteContentMap(blocks);
 
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+      <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
+        { name: 'Home', path: '/' },
+        { name: 'Access', path: '/access' },
+      ])} />
       <PublicSiteHeader currentPath="/access" />
 
       <section className="border-b border-[#5f4526] bg-[#120e09] px-5 py-14 md:px-8">
@@ -74,20 +95,6 @@ export default async function AccessPage() {
         </div>
       </section>
 
-      <section className="border-t border-[#5f4526] bg-[#100d09] px-5 py-10 md:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3 text-[#e2aa4a]">
-            <Sparkles className="h-5 w-5" />
-            <p className="text-sm text-[#d2bd91]">{siteCopy['access.creatorPool.note']}</p>
-          </div>
-          <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-            <Link href="/creator-pool" prefetch={false}>
-              <Users className="mr-2 h-4 w-4" />
-              Creator Pool Notice
-            </Link>
-          </Button>
-        </div>
-      </section>
     </main>
   );
 }

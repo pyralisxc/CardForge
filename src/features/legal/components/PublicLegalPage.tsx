@@ -12,9 +12,11 @@ import { LegalDocumentBody } from './LegalDocumentBody';
 const trustLinks = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },
+  { href: '/creator-pass-terms', label: 'Creator Pass' },
+  { href: '/supporter-terms', label: 'Supporters' },
   { href: '/refund', label: 'Refunds' },
   { href: '/developer-terms', label: 'Developers' },
-  { href: '/creator-pool', label: 'Creator Pool' },
+  { href: '/accessibility', label: 'Accessibility' },
   { href: '/contact', label: 'Contact' },
 ] as const;
 
