@@ -30,7 +30,7 @@ import {
 } from '@/features/project/client';
 
 interface PlatformStatusPayload {
-  billing: { checkoutConfigured: boolean };
+  billing: { productAccessConfigured: boolean };
   founderBetaCampaign?: FounderBetaCampaign;
 }
 
@@ -170,7 +170,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
   const accountAccessActions = getAccountAccessActions({
     canClaimFounderBeta,
     canStartCheckout,
-    checkoutConfigured: Boolean(platformStatus?.billing.checkoutConfigured),
+    checkoutConfigured: Boolean(platformStatus?.billing.productAccessConfigured),
     effectiveSignedIn,
     isClerkSetupIncomplete,
   });

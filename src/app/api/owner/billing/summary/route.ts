@@ -7,7 +7,9 @@ import { findExistingClerkUserIds } from '@/features/billing/server';
 import {
   buildOwnerBillingSnapshot,
   listStripeCheckoutHistory,
+  listStripeRefunds,
   listStripeSubscriptions,
+  getBillingLedgerMetrics,
 } from '@/features/billing/server';
 import {
   clearOwnerBillingHistory,
@@ -41,7 +43,7 @@ const createBillingSettingsErrorResponse = (error: unknown) => {
   return createApiErrorResponse(500, 'owner_billing_unavailable', 'Unable to update billing history settings.');
 };
 
-export async function GET(request: Request) {
+export async function GET() {
   const ownerError = await requireOwner();
   if (ownerError) return ownerError;
 
@@ -49,26 +51,27 @@ export async function GET(request: Request) {
 
   try {
     const historySettings = await getOwnerBillingHistorySettings();
+    const ledgerMetrics = await getBillingLedgerMetrics({ effectiveStart: historySettings.effectiveStart });
     if (!process.env.STRIPE_SECRET_KEY) {
       return createNoStoreJsonResponse(buildOwnerBillingSnapshot({
         config,
         checkoutSessions: [],
         subscriptions: [],
         historySettings,
+        ledgerMetrics,
       }));
     }
 
-    const includeHistory = new URL(request.url).searchParams.get('includeHistory') === '1';
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const [checkoutSessions, subscriptions] = await Promise.all([
-      includeHistory
-        ? listStripeCheckoutHistory({
-            stripe,
-            createdGte: Math.floor(Date.parse(historySettings.effectiveStart) / 1000),
-            limit: historySettings.limit,
-          })
-        : Promise.resolve([]),
+    const createdGte = Math.floor(Date.parse(historySettings.effectiveStart) / 1000);
+    const [checkoutSessions, subscriptions, refunds] = await Promise.all([
+      listStripeCheckoutHistory({
+        stripe,
+        createdGte,
+        limit: historySettings.limit,
+      }),
       listStripeSubscriptions({ stripe }),
+      listStripeRefunds({ stripe, createdGte }),
     ]);
     const mappedClerkUserIds = subscriptions
       .map((subscription) => subscription.metadata?.clerkUserId)
@@ -84,8 +87,10 @@ export async function GET(request: Request) {
       config,
       checkoutSessions,
       subscriptions,
+      refunds,
       historySettings,
       existingClerkUserIds,
+      ledgerMetrics,
     }));
   } catch (error) {
     console.error('Failed to load owner billing summary:', error);

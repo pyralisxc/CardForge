@@ -105,12 +105,13 @@ describe('legal document rules', () => {
     }
   });
 
-  it('distinguishes one-time and recurring support without activating either offer', () => {
+  it('distinguishes one-time and recurring support with an explicit cancellation path', () => {
     const supporterTerms = DEFAULT_LEGAL_DOCUMENTS.find(({ slug }) => slug === 'supporter-terms')?.body ?? '';
     expect(supporterTerms).toContain('One-time support is a single charge and does not renew.');
     expect(supporterTerms).toContain('Recurring support renews');
     expect(supporterTerms).toContain('until canceled');
-    expect(supporterTerms).toContain('Publishing these terms does not activate supporter billing');
+    expect(supporterTerms).toContain('Stripe-hosted supporter management link');
+    expect(supporterTerms).toContain('does not retroactively refund completed charges');
   });
 
   it('parses constrained legal Markdown into semantic blocks', () => {

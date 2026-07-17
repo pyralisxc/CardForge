@@ -32,8 +32,12 @@ describe('public route stories', () => {
     expect(access).not.toContain('planned home');
   });
 
-  it('publishes a friendly support page that leads with the CardForge business', () => {
+  it('publishes friendly support that activates checkout only with complete server configuration', () => {
     const support = readRoute('support');
+    const checkout = readFileSync(
+      join(process.cwd(), 'src/features/billing/components/SupportCheckoutActions.tsx'),
+      'utf8',
+    );
 
     for (const disclosure of [
       'voluntary',
@@ -47,8 +51,12 @@ describe('public route stories', () => {
     ]) {
       expect(support).toContain(disclosure);
     }
-    expect(support).not.toContain('checkout');
-    expect(support).not.toContain('<form');
+    expect(support).toContain('supportOffers ?');
+    expect(support).toContain('<SupportCheckoutActions');
+    expect(checkout).toContain('/api/billing/support/checkout');
+    expect(checkout).toContain('does not provide CardForge product access');
+    expect(checkout).toContain('Renews monthly until canceled');
+    expect(checkout).toContain('aria-live="polite"');
   });
 
   it('uses the shared public shell across public marketing routes', () => {

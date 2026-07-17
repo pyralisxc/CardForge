@@ -77,7 +77,7 @@ These supplemental terms apply only if CardForge Studio separately offers a supp
 
 Support is not a donation, investment, security, equity or ownership interest, profit rights, revenue share, wage, or voting or control rights. CardForge does not represent support as tax deductible. Support does not guarantee a feature, benefit, or roadmap influence.
 
-One-time support is a single charge and does not renew. Recurring support renews at the amount and frequency shown at checkout until canceled; cancellation stops future renewal charges. Publishing these terms does not activate supporter billing or mean that either support option is currently available.
+One-time support is a single charge and does not renew. Recurring support renews monthly at the exact amount shown before payment until canceled. Supporters can stop future renewal charges through the Stripe-hosted supporter management link on the Support Cameron page. Cancellation does not retroactively refund completed charges.
 
 Any refund or cancellation request is handled under the Refund and Cancellation Policy and applicable law.`;
 
@@ -85,7 +85,9 @@ const refundBody = `${operatorDescription}
 
 CardForge is currently in public beta. Self-service subscription billing and the customer billing portal are active when offered on the access page.
 
-Use the account billing portal to manage or cancel an active subscription. Refund requests should be sent to the support email listed on this site and are reviewed using the payment record, product-access history, the circumstances of the request, and applicable law. Nothing in this policy limits rights that cannot legally be limited.
+Use the account billing portal to manage or cancel Creator Pass. Use the Stripe-hosted supporter management link on the Support Cameron page to cancel recurring support. Cancellation stops future renewals; access from a canceled Creator Pass ordinarily continues through the already-paid period unless Stripe shows otherwise.
+
+Creator Pass refund requests are reviewed using the payment record, product-access history, the circumstances of the request, and applicable law. One-time and recurring support payments are voluntary and are ordinarily final once completed, but duplicate, erroneous, fraudulent, or legally required refunds will be reviewed. Canceling recurring support does not automatically refund an earlier support charge. Nothing in this policy limits rights that cannot legally be limited.
 
 If you have a billing, cancellation, or export-access issue, contact support with the account email, transaction reference if available, and a short description of the issue.`;
 

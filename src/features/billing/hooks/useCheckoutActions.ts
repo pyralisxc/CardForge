@@ -9,7 +9,7 @@ type ToastFn = ReturnType<typeof useToast>['toast'];
 
 interface BillingStatusPayload {
   billing?: {
-    checkoutConfigured: boolean;
+    productAccessConfigured: boolean;
   };
 }
 
@@ -60,7 +60,7 @@ export function useCheckoutActions({
         ? await statusResponse.json() as BillingStatusPayload
         : null;
 
-      if (!status?.billing?.checkoutConfigured) {
+      if (!status?.billing?.productAccessConfigured) {
         toast({
           title: 'Beta access is manual for now',
           description: withNextStep(

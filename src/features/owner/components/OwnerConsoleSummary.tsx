@@ -27,7 +27,7 @@ export function OwnerConsoleSummary({ payload, lastOwnerSaveAt }: { payload: Own
   const status = [
     ['Auth', payload.integrationStatus.authConfigured ? 'Clerk' : 'Setup', payload.integrationStatus.authConfigured],
     ['Database', payload.integrationStatus.supabase.configured && payload.console.configured ? 'Supabase' : 'Setup', payload.integrationStatus.supabase.configured && payload.console.configured],
-    ['Billing', payload.integrationStatus.billing.checkoutConfigured && payload.integrationStatus.billing.webhookConfigured ? 'Stripe' : 'Setup', payload.integrationStatus.billing.checkoutConfigured && payload.integrationStatus.billing.webhookConfigured],
+    ['Billing', payload.integrationStatus.billing.productAccessConfigured && payload.integrationStatus.billing.webhookConfigured ? 'Stripe' : 'Setup', payload.integrationStatus.billing.productAccessConfigured && payload.integrationStatus.billing.webhookConfigured],
     ['Email', payload.integrationStatus.email.resendConfigured ? 'Resend' : 'Mailto', payload.integrationStatus.email.resendConfigured],
     ['Domain', payload.integrationStatus.site.usingLocalFallback ? 'Local' : 'Live', !payload.integrationStatus.site.usingLocalFallback],
     ['Owner', payload.integrationStatus.ownerAllowlistConfigured ? 'Allowed' : 'Setup', payload.integrationStatus.ownerAllowlistConfigured],

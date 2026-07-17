@@ -2,7 +2,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 
 import {
-  buildCheckoutSessionParams,
+  buildProductAccessCheckoutSessionParams,
   getBillingConfigStatus,
 } from '@/features/billing/server';
 import { isClerkAuthConfigured } from '@/features/account/server';
@@ -27,20 +27,20 @@ export async function POST() {
     }
 
     const config = getBillingConfigStatus();
-    if (!config.checkoutConfigured) {
+    if (!config.productAccessConfigured) {
       return createApiErrorResponse(
         503,
         'billing_not_configured',
-        `Stripe checkout is not configured. Missing: ${config.missing.join(', ')}.`
+        `Stripe checkout is not configured. Missing: ${config.missingProductAccess.join(', ')}.`
       );
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     const primaryEmail = user.emailAddresses[0]?.emailAddress ?? null;
-    const session = await stripe.checkout.sessions.create(buildCheckoutSessionParams({
+    const session = await stripe.checkout.sessions.create(buildProductAccessCheckoutSessionParams({
       appUrl: getPublicAppUrl(),
       email: primaryEmail,
-      priceId: process.env.STRIPE_PRICE_ID!,
+      priceId: process.env.STRIPE_CREATOR_PASS_PRICE_ID!,
       userId: user.id,
     }));
 

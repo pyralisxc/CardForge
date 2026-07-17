@@ -16,7 +16,8 @@ export interface OwnerConsoleResponse {
     };
     authConfigured: boolean;
     billing: {
-      checkoutConfigured: boolean;
+      productAccessConfigured: boolean;
+      supportConfigured: boolean;
       webhookConfigured: boolean;
       missing: string[];
     };

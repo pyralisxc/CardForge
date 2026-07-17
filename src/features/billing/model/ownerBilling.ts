@@ -1,4 +1,6 @@
 import { getBillingConfigStatus, type BillingConfigStatus } from '@/features/billing/lib/billing';
+import type { BillingOffering, ClassifiedBillingPurpose } from '@/features/billing/lib/billingPurpose';
+import type { BillingLedgerMetrics } from '@/features/billing/lib/billingEventStore';
 
 type StripeObjectRef = string | {
   id?: string;
@@ -70,6 +72,8 @@ export interface OwnerCheckoutSessionSummary {
   currency: string | null;
   createdAt: string | null;
   subscriptionId: string | null;
+  billingPurpose: ClassifiedBillingPurpose;
+  billingOffering: BillingOffering | null;
 }
 
 export interface OwnerSubscriptionSummary {
@@ -85,12 +89,37 @@ export interface OwnerSubscriptionSummary {
   amountCents: number | null;
   currency: string | null;
   interval: string | null;
+  billingPurpose: ClassifiedBillingPurpose;
+  billingOffering: BillingOffering | null;
+}
+
+export interface OwnerRefundSummary {
+  id: string;
+  amountCents: number;
+  currency: string;
+  createdAt: string | null;
+  status: string | null;
+}
+
+export interface OwnerBillingMetrics {
+  activeCreatorPassSubscriptions: number;
+  activeSupportSubscriptions: number;
+  creatorPassMrrCents: number;
+  supporterRecurringRevenueCents: number;
+  oneTimeSupportCents: number;
+  refundCount: number;
+  refundTotalCents: number;
+  unmatchedRecords: number;
+  failedEvents: number;
+  pendingEvents: number;
 }
 
 export interface OwnerBillingSnapshot {
   status: BillingConfigStatus;
   recentCheckoutSessions: OwnerCheckoutSessionSummary[];
   recentSubscriptions: OwnerSubscriptionSummary[];
+  recentRefunds: OwnerRefundSummary[];
+  metrics: OwnerBillingMetrics;
   historySettings: OwnerBillingHistorySettings;
 }
 
@@ -110,6 +139,22 @@ const toIsoFromSeconds = (value: unknown): string | null =>
   typeof value === 'number' && Number.isFinite(value)
     ? new Date(value * 1000).toISOString()
     : null;
+
+const readBillingMetadata = (
+  metadata?: Record<string, string | null> | null,
+): { billingPurpose: ClassifiedBillingPurpose; billingOffering: BillingOffering | null } => {
+  const purpose = metadata?.billingPurpose;
+  const offering = metadata?.billingOffering;
+  const billingPurpose: ClassifiedBillingPurpose = purpose === 'product_access' || purpose === 'creator_support'
+    ? purpose
+    : 'unmatched';
+  const billingOffering: BillingOffering | null = offering === 'creator_pass'
+    || offering === 'support_one_time'
+    || offering === 'support_monthly'
+    ? offering
+    : null;
+  return { billingPurpose, billingOffering };
+};
 
 export const mapStripeCheckoutSessionSummary = (session: {
   id: string;
@@ -135,6 +180,7 @@ export const mapStripeCheckoutSessionSummary = (session: {
   currency: session.currency ?? null,
   createdAt: toIsoFromSeconds(session.created),
   subscriptionId: getObjectId(session.subscription),
+  ...readBillingMetadata(session.metadata),
 });
 
 export const mapStripeSubscriptionSummary = (subscription: {
@@ -179,29 +225,101 @@ export const mapStripeSubscriptionSummary = (subscription: {
     amountCents: price?.unit_amount ?? null,
     currency: price?.currency ?? null,
     interval: price?.recurring?.interval ?? null,
+    ...readBillingMetadata(subscription.metadata),
   };
 };
+
+export const mapStripeRefundSummary = (refund: {
+  id: string;
+  amount: number;
+  currency: string;
+  created?: number;
+  status?: string | null;
+}): OwnerRefundSummary => ({
+  id: refund.id,
+  amountCents: refund.amount,
+  currency: refund.currency,
+  createdAt: toIsoFromSeconds(refund.created),
+  status: refund.status ?? null,
+});
+
+const isActive = (status: string | null): boolean => status === 'active' || status === 'trialing';
+
+export const buildOwnerBillingMetrics = ({
+  checkoutSessions,
+  subscriptions,
+  refunds,
+  ledgerMetrics = { failedEvents: 0, pendingEvents: 0, unmatchedEvents: 0 },
+}: {
+  checkoutSessions: OwnerCheckoutSessionSummary[];
+  subscriptions: OwnerSubscriptionSummary[];
+  refunds: OwnerRefundSummary[];
+  ledgerMetrics?: BillingLedgerMetrics;
+}): OwnerBillingMetrics => ({
+  activeCreatorPassSubscriptions: subscriptions.filter((item) => (
+    item.billingPurpose === 'product_access' && isActive(item.status)
+  )).length,
+  activeSupportSubscriptions: subscriptions.filter((item) => (
+    item.billingPurpose === 'creator_support' && isActive(item.status)
+  )).length,
+  creatorPassMrrCents: subscriptions
+    .filter((item) => item.billingPurpose === 'product_access' && isActive(item.status) && item.interval === 'month')
+    .reduce((sum, item) => sum + (item.amountCents ?? 0), 0),
+  supporterRecurringRevenueCents: subscriptions
+    .filter((item) => item.billingPurpose === 'creator_support' && isActive(item.status) && item.interval === 'month')
+    .reduce((sum, item) => sum + (item.amountCents ?? 0), 0),
+  oneTimeSupportCents: checkoutSessions
+    .filter((item) => item.billingPurpose === 'creator_support'
+      && item.billingOffering === 'support_one_time'
+      && item.paymentStatus === 'paid')
+    .reduce((sum, item) => sum + (item.amountTotalCents ?? 0), 0),
+  refundCount: refunds.length,
+  refundTotalCents: refunds.reduce((sum, refund) => sum + refund.amountCents, 0),
+  unmatchedRecords: Math.max(
+    ledgerMetrics.unmatchedEvents,
+    checkoutSessions.filter((item) => item.billingPurpose === 'unmatched').length
+      + subscriptions.filter((item) => item.billingPurpose === 'unmatched').length,
+  ),
+  failedEvents: ledgerMetrics.failedEvents,
+  pendingEvents: ledgerMetrics.pendingEvents,
+});
 
 export const buildOwnerBillingSnapshot = ({
   config = getBillingConfigStatus(),
   checkoutSessions,
   subscriptions,
+  refunds = [],
   historySettings = buildOwnerBillingHistorySettings(),
   existingClerkUserIds,
+  ledgerMetrics,
 }: {
   config?: BillingConfigStatus;
   checkoutSessions: Parameters<typeof mapStripeCheckoutSessionSummary>[0][];
   subscriptions: Parameters<typeof mapStripeSubscriptionSummary>[0][];
+  refunds?: Parameters<typeof mapStripeRefundSummary>[0][];
   historySettings?: OwnerBillingHistorySettings;
   existingClerkUserIds?: ReadonlySet<string>;
-}): OwnerBillingSnapshot => ({
-  status: config,
-  recentCheckoutSessions: checkoutSessions.map(mapStripeCheckoutSessionSummary),
-  recentSubscriptions: subscriptions.map((subscription) => (
+  ledgerMetrics?: BillingLedgerMetrics;
+}): OwnerBillingSnapshot => {
+  const recentCheckoutSessions = checkoutSessions.map(mapStripeCheckoutSessionSummary);
+  const recentSubscriptions = subscriptions.map((subscription) => (
     mapStripeSubscriptionSummary(subscription, existingClerkUserIds)
-  )),
-  historySettings,
-});
+  ));
+  const recentRefunds = refunds.map(mapStripeRefundSummary);
+  return {
+    status: config,
+    recentCheckoutSessions,
+    recentSubscriptions,
+    recentRefunds,
+    metrics: buildOwnerBillingMetrics({
+      checkoutSessions: recentCheckoutSessions,
+      subscriptions: recentSubscriptions,
+      refunds: recentRefunds,
+      ledgerMetrics,
+    }),
+    historySettings,
+  };
+};
 
 type StripeCheckoutSessionInput = Parameters<typeof mapStripeCheckoutSessionSummary>[0];
 
@@ -287,4 +405,21 @@ export const listStripeSubscriptions = async ({
   }
 
   return subscriptions;
+};
+
+type StripeRefundInput = Parameters<typeof mapStripeRefundSummary>[0];
+
+export const listStripeRefunds = async ({
+  stripe,
+  createdGte,
+}: {
+  stripe: {
+    refunds: {
+      list: (params: { created: { gte: number }; limit: 100 }) => Promise<{ data: StripeRefundInput[] }>;
+    };
+  };
+  createdGte: number;
+}): Promise<StripeRefundInput[]> => {
+  const page = await stripe.refunds.list({ created: { gte: createdGte }, limit: 100 });
+  return page.data;
 };
