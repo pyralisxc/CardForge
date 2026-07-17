@@ -14,9 +14,16 @@ export { ExampleCardSet } from './components/ExampleCardSet';
 export { ExampleSetGallery } from './components/ExampleSetGallery';
 export { OutcomeHero } from './components/OutcomeHero';
 export { StudioProductProof } from './components/StudioProductProof';
+export { InteractiveStudioShowcase } from './components/InteractiveStudioShowcase';
 export { WorkflowProof } from './components/WorkflowProof';
 export { AccessComparison } from './components/AccessComparison';
 export { FounderStrip } from './components/FounderStrip';
+export {
+  AUTO_ADVANCE_MS,
+  getNextShowcaseStage,
+  getShowcaseAdvanceDelay,
+  INTERACTION_PAUSE_MS,
+} from './model/showcaseTiming';
 export {
   CARDFORGE_EXAMPLES,
   type CardForgeExample,
