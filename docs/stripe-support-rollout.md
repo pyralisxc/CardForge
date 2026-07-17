@@ -75,7 +75,13 @@ This login page lets a supporter authenticate with the email held by Stripe and 
 
 ## 6. Update the webhook
 
-Open **Developers → Webhooks**, select the CardForge endpoint, and confirm its destination is:
+In Stripe test mode, create a separate webhook destination for the stable PR Preview URL:
+
+`https://card-forge-git-feat-billing-purpose-support-pyralis-projects.vercel.app/api/billing/webhook`
+
+Copy that endpoint's test signing secret into Vercel **Preview** as `STRIPE_WEBHOOK_SECRET`. Do not replace the production signing secret with it.
+
+For production cutover, open **Developers → Webhooks**, select the live CardForge endpoint, and confirm its destination remains:
 
 `https://cardforges.com/api/billing/webhook`
 
