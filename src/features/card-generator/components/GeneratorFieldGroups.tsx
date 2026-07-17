@@ -85,20 +85,6 @@ const orderFieldsForEditing = (fields: TemplateFieldDefinition[]) =>
 const contentModelForPreview = (model: FieldGroup['contentModel']) =>
   model === 'structuredRows' ? 'richText' : 'rulesBlocks';
 
-type GeneratorFieldLayoutHint = Partial<Pick<
-  TemplateFieldDefinition,
-  'control' | 'editor' | 'isImage' | 'isMultiline' | 'supportsRichText'
->>;
-
-export const shouldUseFullWidthGeneratorField = (field: GeneratorFieldLayoutHint): boolean => (
-  Boolean(
-    field.isImage
-    || field.isMultiline
-    || field.control === 'textarea'
-    || (field.editor === 'text-editor' && field.supportsRichText)
-  )
-);
-
 const buildDefaultStructuredRows = (fields: TemplateFieldDefinition[], data: CardData) => [
   Object.fromEntries(fields.map((field) => [field.key, getFieldPreviewValue(field, data)])),
 ];
@@ -203,7 +189,7 @@ function StructuredRowsEditor({
             {rowPreview ? (
               <p className="rounded border border-border/50 bg-muted/20 px-2 py-1 text-xs text-muted-foreground">{rowPreview}</p>
             ) : null}
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               {fields.map((field) => {
                 const inputId = `structured-row-${group.id}-${rowIndex}-${field.key}`;
                 return (
@@ -293,9 +279,9 @@ export function GeneratorFieldGroups({
               </div>
             </div>
 
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               {isStructuredRows ? (
-                <div className="md:col-span-2">
+                <div className="col-span-2">
                   <StructuredRowsEditor
                     group={group}
                     fields={orderedFields}
@@ -304,12 +290,7 @@ export function GeneratorFieldGroups({
                   />
                 </div>
               ) : orderedFields.map((field) => (
-                <div
-                  key={field.key}
-                  className={`rounded-md border border-border/60 bg-background/60 p-3 ${
-                    shouldUseFullWidthGeneratorField(field) ? 'md:col-span-2' : ''
-                  }`}
-                >
+                <div key={field.key} className="min-w-0 rounded-md border border-border/60 bg-background/60 p-3">
                   <GeneratorFieldInput
                     field={field}
                     value={getFieldStringValue(data, field)}
