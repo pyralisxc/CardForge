@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_LEGAL_DOCUMENTS } from '@/features/legal/client';
+
 const migrationPath = resolve(
   process.cwd(),
   'supabase/migrations/20260717010903_version_legal_publications.sql',
@@ -32,6 +34,39 @@ describe('versioned legal publication migration', () => {
     expect(sql).toContain('published_at = coalesce');
     expect(sql).toContain('business_identity_version =');
     expect(sql).not.toContain("where slug = 'privacy'\nset body");
+  });
+
+  it('appends the reviewed Gate 2 documents as version two without erasing history', async () => {
+    const sql = (await readFile(migrationPath, 'utf8')).toLowerCase();
+
+    expect(sql).toContain('reviewed_gate_two_publications');
+    expect(sql).toContain("'privacy',\n      2,\n      'privacy policy'");
+    expect(sql).toContain('browser indexeddb');
+    expect(sql).toContain("'creator-pool',\n      2,\n      'archived creator pool notice'");
+    expect(sql).toContain('the creator pool concept is archived and inactive');
+    expect(sql).toContain('reviewed.version,');
+    expect(sql).toContain('on conflict (slug, version) do nothing');
+  });
+
+  it('publishes the exact reviewed repository bodies in the migration', async () => {
+    const sql = await readFile(migrationPath, 'utf8');
+    const tagBySlug = {
+      privacy: 'privacy_reviewed',
+      terms: 'terms_reviewed',
+      'creator-pass-terms': 'creator_pass_reviewed',
+      'supporter-terms': 'supporter_reviewed',
+      refund: 'refund_reviewed',
+      'developer-terms': 'developer_reviewed',
+      contact: 'contact_reviewed',
+      accessibility: 'accessibility_reviewed',
+      'creator-pool': 'creator_pool_reviewed',
+    } as const;
+
+    for (const document of DEFAULT_LEGAL_DOCUMENTS) {
+      const tag = tagBySlug[document.slug];
+      const match = new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql);
+      expect(match?.[1], document.slug).toBe(document.body);
+    }
   });
 
   it('publishes atomically with identity-version and concurrency protection', async () => {
