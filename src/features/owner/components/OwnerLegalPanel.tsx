@@ -11,8 +11,15 @@ import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { updateOwnerConsole } from '@/features/owner/model/ownerConsoleClient';
 
 const pathBySlug: Record<LegalDocumentSlug, string> = {
-  privacy: '/privacy', terms: '/terms', refund: '/refund', contact: '/contact',
-  'developer-terms': '/developer-terms', 'creator-pool': '/creator-pool',
+  privacy: '/privacy',
+  terms: '/terms',
+  'creator-pass-terms': '/creator-pass-terms',
+  'supporter-terms': '/supporter-terms',
+  refund: '/refund',
+  'developer-terms': '/developer-terms',
+  contact: '/contact',
+  accessibility: '/accessibility',
+  'creator-pool': '/creator-pool',
 };
 
 export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {
@@ -30,7 +37,16 @@ export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {
   const save = async () => {
     setIsSaving(true);
     try {
-      const next = await updateOwnerConsole({ kind: 'legal', legalDocument: active }, 'Unable to save legal document.');
+      const next = await updateOwnerConsole({
+        kind: 'legal',
+        legalDocument: {
+          slug: active.slug,
+          title: active.title,
+          body: active.body,
+          effectiveDate: active.effectiveDate,
+          expectedBusinessIdentityVersion: consolePayload.businessIdentity.identityVersion,
+        },
+      }, 'Unable to save legal document.');
       onConsoleChange(next);
       toast({ title: 'Legal page published', description: `${active.title} is updated.` });
     } catch (error) {
@@ -48,6 +64,21 @@ export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {
           <div className="grid content-start gap-2">{documents.map((document) => <button key={document.slug} type="button" className={`border px-3 py-3 text-left text-sm ${activeSlug === document.slug ? 'border-[#e6b85c] bg-[#2b1d0e] text-[#ffe7ad]' : 'border-[#5f4526] bg-[#100c08] text-[#c7b288]'}`} onClick={() => setActiveSlug(document.slug)}>{document.title}</button>)}</div>
           <div className="grid gap-3">
             <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={active.title} onChange={(event) => setDrafts((current) => ({ ...current, [activeSlug]: { ...active, title: event.target.value } }))} />
+            <label className="grid gap-2 text-sm text-[#c7b288]">
+              Effective date
+              <input
+                type="date"
+                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+                value={active.effectiveDate}
+                onChange={(event) => setDrafts((current) => ({
+                  ...current,
+                  [activeSlug]: { ...active, effectiveDate: event.target.value },
+                }))}
+              />
+            </label>
+            <p className="text-xs leading-5 text-[#a98a55]">
+              Current publication v{active.version} · effective {active.effectiveDate} · identity v{active.businessIdentityVersion}
+            </p>
             <textarea className="min-h-[22rem] border border-[#5f4526] bg-[#0c0b09] p-3 text-sm leading-6 text-[#ffe7ad]" value={active.body} onChange={(event) => setDrafts((current) => ({ ...current, [activeSlug]: { ...active, body: event.target.value } }))} />
             <div className="flex flex-wrap gap-3"><Button disabled={isSaving} onClick={save}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Publishing legal page...' : 'Publish legal page'}</Button><Button asChild variant="outline"><Link href={pathBySlug[active.slug]}>View public page</Link></Button></div>
           </div>

@@ -13,7 +13,7 @@ import {
 } from '@/features/public-site/server';
 import {
   LegalDocumentStoreError,
-  updateLegalDocument,
+  publishLegalDocument,
 } from '@/features/legal/server';
 import {
   RoadmapStoreError,
@@ -80,7 +80,13 @@ export async function PUT(request: Request) {
       expectedIdentityVersion?: unknown;
       siteMechanics?: Record<string, unknown>;
       siteContentBlock?: { slug?: unknown; body?: unknown };
-      legalDocument?: { slug?: unknown; title?: unknown; body?: unknown };
+      legalDocument?: {
+        slug?: unknown;
+        title?: unknown;
+        body?: unknown;
+        effectiveDate?: unknown;
+        expectedBusinessIdentityVersion?: unknown;
+      };
       founderBetaCampaign?: Record<string, unknown>;
       roadmapItem?: { itemId?: unknown; status?: unknown };
     };
@@ -104,7 +110,7 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'legal') {
-      await updateLegalDocument(body.legalDocument ?? {});
+      await publishLegalDocument(body.legalDocument ?? {});
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
@@ -133,7 +139,11 @@ export async function PUT(request: Request) {
     ) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'owner_console_unavailable' : 'owner_request_invalid',
+        error.status === 503
+          ? 'owner_console_unavailable'
+          : error.status === 409
+            ? 'owner_console_conflict'
+            : 'owner_request_invalid',
         error.message
       );
     }

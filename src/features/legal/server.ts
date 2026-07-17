@@ -2,5 +2,7 @@ export {
   getLegalDocuments,
   getPublishedLegalDocument,
   LegalDocumentStoreError,
-  updateLegalDocument,
+  publishLegalDocument,
+  type LegalDocumentStoreClient,
+  type LegalDocumentStoreDependencies,
 } from './server/legalDocumentStore';
