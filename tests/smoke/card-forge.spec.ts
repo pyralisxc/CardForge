@@ -163,18 +163,35 @@ async function seedBulkMappingTemplate(page: Page) {
 test('renders public landing page with studio and account entry points', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: /Build card systems/i })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('heading', { name: /Free demo seats are open/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Claim a demo seat/i }).first()).toHaveAttribute('href', '/account');
-  await expect(page.getByRole('link', { name: /Open Studio/i }).first()).toHaveAttribute('href', '/studio');
-  await expect(page.getByRole('link', { name: /Join the Forge/i }).first()).toHaveAttribute('href', '/developer');
-  await expect(page.getByText(/full production studio/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Build complete card sets from one reusable system/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /From template to reviewed set in four clear steps/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Check beta access/i })).toHaveAttribute('href', '/account');
+  await expect(page.getByRole('link', { name: /Try the Studio/i }).first()).toHaveAttribute('href', '/studio');
+  await expect(page.getByRole('link', { name: /See Complete Sets/i })).toHaveAttribute('href', '/examples');
+  await expect(page.getByRole('heading', { name: /Built independently by Cameron Locke/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
   await expect(page.getByRole('link', { name: /Access/i }).first()).toHaveAttribute('href', '/access');
-  await expect(page.getByRole('link', { name: /Cameron/i })).toHaveAttribute('href', '/cameron');
-  await expect(page.getByRole('link', { name: /Privacy/i })).toHaveAttribute('href', '/privacy');
-  await expect(page.getByRole('link', { name: /Developer Terms/i })).toHaveAttribute('href', '/developer-terms');
+  await expect(page.getByRole('link', { name: /Cameron/i }).first()).toHaveAttribute('href', '/cameron');
+  await expect(page.getByRole('link', { name: /Support/i }).first()).toHaveAttribute('href', '/support');
+  await expect(page.getByRole('link', { name: /Privacy/i }).first()).toHaveAttribute('href', '/privacy');
+  await expect(page.getByRole('link', { name: /Developer Terms/i }).first()).toHaveAttribute('href', '/developer-terms');
   await expect(page.getByRole('link', { name: /Creator Pool/i })).toHaveCount(0);
+});
+
+test('opens a contained keyboard-accessible public menu on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  const menuButton = page.getByRole('button', { name: 'Open menu' });
+  await menuButton.focus();
+  await page.keyboard.press('Enter');
+  const menu = page.getByRole('dialog', { name: 'Navigation' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+  await expect(menu.getByRole('link', { name: 'Try the Studio' })).toHaveAttribute('href', '/studio');
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(menuButton).toBeFocused();
 });
 
 test('renders public trust and access pages', async ({ page }) => {
@@ -182,6 +199,7 @@ test('renders public trust and access pages', async ({ page }) => {
     '/about',
     '/access',
     '/cameron',
+    '/support',
     '/privacy',
     '/terms',
     '/creator-pass-terms',
@@ -197,7 +215,7 @@ test('renders public trust and access pages', async ({ page }) => {
   }
 
   await page.goto('/cameron');
-  await expect(page.getByText(/independent sole proprietor based in Oregon/i)).toBeVisible();
+  await expect(page.getByText(/Oregon sole proprietor/i).first()).toBeVisible();
   await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(2);
   await page.goto('/privacy');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'http://localhost:9002/privacy');

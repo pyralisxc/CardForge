@@ -11,6 +11,11 @@ export {
 } from './server/publicContentCache';
 export type { SiteContentGroup } from './model/siteContent';
 export {
+  CARDFORGE_EXAMPLES,
+  type CardForgeExample,
+  type CardForgeExampleRow,
+} from './model/examples';
+export {
   createBreadcrumbStructuredData,
   createCardForgeStructuredData,
   createFounderProfileStructuredData,

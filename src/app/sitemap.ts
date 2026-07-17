@@ -4,11 +4,13 @@ import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 const publicRoutes = [
   '/',
+  '/examples',
   '/about',
   '/access',
   '/developer',
   '/roadmap',
   '/cameron',
+  '/support',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

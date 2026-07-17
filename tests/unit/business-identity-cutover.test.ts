@@ -78,14 +78,21 @@ describe('business identity runtime cutover', () => {
       rootPath('src/features/legal/server/legalDocumentStore.ts'),
       'utf8',
     );
+    const footer = await readFile(
+      rootPath('src/features/public-site/components/PublicSiteFooter.tsx'),
+      'utf8',
+    );
 
     expect(store).toContain('getBusinessIdentity');
     expect(store).toContain('businessIdentity: BusinessIdentity');
     expect(store).not.toContain('getSiteOperatorSettings');
-    expect(component).toContain('businessIdentity.brandName');
+    expect(component).toContain('businessIdentity={businessIdentity}');
     expect(component).toContain('formatBusinessIdentityDescription(businessIdentity)');
     expect(component).toContain('businessIdentity.legalOperatorName');
     expect(component).toContain('businessIdentity.jurisdictionState');
+    expect(footer).toContain('businessIdentity.brandName');
+    expect(footer).toContain('businessIdentity.legalOperatorName');
+    expect(footer).toContain('businessIdentity.jurisdictionState');
     expect(component).not.toContain('settings.businessName');
     expect(component).not.toContain('d/b/a');
   });
@@ -101,16 +108,20 @@ describe('business identity runtime cutover', () => {
     }
   });
 
-  it('loads runtime identity into the public homepage footer', async () => {
+  it('passes runtime identity from the homepage into the shared public shell and footer', async () => {
     const homepage = await readFile(rootPath('src/app/page.tsx'), 'utf8');
+    const shell = await readFile(rootPath('src/features/public-site/components/PublicSiteShell.tsx'), 'utf8');
+    const footer = await readFile(rootPath('src/features/public-site/components/PublicSiteFooter.tsx'), 'utf8');
 
     expect(homepage).toContain('getCachedBusinessIdentity');
     expect(homepage).toContain('Promise.all([');
     expect(homepage).toContain("getCachedSiteContentBlocks('landing')");
     expect(homepage).toContain('getCachedBusinessIdentity()');
-    expect(homepage).toContain('businessIdentity.brandName');
-    expect(homepage).toContain('businessIdentity.legalOperatorName');
-    expect(homepage).toContain('businessIdentity.copyrightHolder');
+    expect(homepage).toContain('businessIdentity={businessIdentity}');
+    expect(shell).toContain('<PublicSiteFooter businessIdentity={businessIdentity}');
+    expect(footer).toContain('businessIdentity.brandName');
+    expect(footer).toContain('businessIdentity.legalOperatorName');
+    expect(footer).toContain('businessIdentity.copyrightHolder');
     expect(homepage).not.toContain('d/b/a');
   });
 

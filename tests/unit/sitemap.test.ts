@@ -12,11 +12,13 @@ describe('sitemap', () => {
 
     expect(urls).toEqual([
       'https://cardforges.com/',
+      'https://cardforges.com/examples',
       'https://cardforges.com/about',
       'https://cardforges.com/access',
       'https://cardforges.com/developer',
       'https://cardforges.com/roadmap',
       'https://cardforges.com/cameron',
+      'https://cardforges.com/support',
     ]);
   });
 

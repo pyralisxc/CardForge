@@ -96,7 +96,7 @@ export function DeveloperProgramPage({
 
   if (!isDeveloper) {
     return (
-      <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+      <div className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
         {entitlement.authConfigured ? (
           <ClerkIdentityBridge onChange={setClerkIdentity} />
         ) : null}
@@ -106,12 +106,12 @@ export function DeveloperProgramPage({
           developerRequestMailto={developerRequestMailto}
           isSignedIn={effectiveSignedIn}
         />
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <div className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
@@ -213,7 +213,7 @@ export function DeveloperProgramPage({
 
         </Tabs>
       </section>
-    </main>
+    </div>
   );
 }
 
