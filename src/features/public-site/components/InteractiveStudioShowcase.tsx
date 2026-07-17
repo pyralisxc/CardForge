@@ -1,7 +1,8 @@
 "use client";
 
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, Database, LayoutTemplate, Layers3, SlidersHorizontal } from 'lucide-react';
+import { Database, LayoutTemplate, Layers3 } from 'lucide-react';
 
 import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
 import { createBulkDisplayCards } from '@/features/card-generator/client';
@@ -28,15 +29,56 @@ const buildRows = (example: CardForgeExample): string[][] => {
   return [headers, ...example.rows.map((row) => headers.map((header) => row[header] ?? ''))];
 };
 
-const rowLabel = (row: CardForgeExample['rows'][number], index: number): string => (
-  row.CardTitle || row.CardName || row.AttendeeName || `Card ${index + 1}`
-);
+const generatorScreenshots = {
+  single: {
+    src: '/card-assets/showcase/studio-generator-single.jpg',
+    alt: 'The real CardForge Generator showing the front and back setup followed by two-column Single Output fields.',
+    width: 869,
+    height: 1536,
+  },
+  bulk: {
+    src: '/card-assets/showcase/studio-generator-bulk.jpg',
+    alt: 'The real CardForge Generator showing the Bulk Import workflow followed by the generated-output review area.',
+    width: 904,
+    height: 1536,
+  },
+} as const;
+
+function StudioScreenshot({
+  src,
+  alt,
+  width,
+  height,
+}: {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}) {
+  return (
+    <div
+      className="max-h-[46rem] overflow-y-auto rounded-[var(--public-radius)] border border-[#3b2b19] bg-[#070707]"
+      tabIndex={0}
+      aria-label={`${alt} Scroll to see the entire screenshot.`}
+    >
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        sizes="(min-width: 1280px) 1180px, 94vw"
+        className="h-auto w-full"
+      />
+    </div>
+  );
+}
 
 export function InteractiveStudioShowcase() {
   const [templates, setTemplates] = useState<readonly TCGCardTemplate[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeStage, setActiveStage] = useState(0);
   const [activeExample, setActiveExample] = useState(0);
+  const [activeGeneratorView, setActiveGeneratorView] = useState<'single' | 'bulk'>('single');
   const [pauseUntil, setPauseUntil] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -154,26 +196,49 @@ export function InteractiveStudioShowcase() {
             </div>
           </div>
 
-          <div className="border-b border-[#302315] bg-[#100d09] px-3 py-3">
-            <p className="sr-only">Choose a demonstration set</p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {CARDFORGE_EXAMPLES.map((candidate, index) => (
-                <button
-                  key={candidate.slug}
-                  type="button"
-                  aria-pressed={activeExample === index}
-                  onClick={() => setActiveExample(index)}
-                  className={`min-h-11 shrink-0 rounded-[var(--public-radius)] border px-4 text-left text-base font-semibold ${
-                    activeExample === index
-                      ? 'border-[var(--public-brass)] bg-[#281b0e] text-[var(--public-ivory)]'
-                      : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'
-                  }`}
-                >
-                  {candidate.name}
-                </button>
-              ))}
+          {activeStage === 1 ? (
+            <div className="border-b border-[#302315] bg-[#100d09] px-3 py-3">
+              <p className="sr-only">Choose a Generator view</p>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Generator screenshot">
+                {(['single', 'bulk'] as const).map((view) => (
+                  <button
+                    key={view}
+                    type="button"
+                    aria-pressed={activeGeneratorView === view}
+                    onClick={() => setActiveGeneratorView(view)}
+                    className={`min-h-11 rounded-[var(--public-radius)] border px-4 text-base font-semibold ${
+                      activeGeneratorView === view
+                        ? 'border-[var(--public-brass)] bg-[#281b0e] text-[var(--public-ivory)]'
+                        : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'
+                    }`}
+                  >
+                    {view === 'single' ? 'Single Output' : 'Bulk Import'}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : activeStage === 2 ? (
+            <div className="border-b border-[#302315] bg-[#100d09] px-3 py-3">
+              <p className="sr-only">Choose a demonstration set</p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {CARDFORGE_EXAMPLES.map((candidate, index) => (
+                  <button
+                    key={candidate.slug}
+                    type="button"
+                    aria-pressed={activeExample === index}
+                    onClick={() => setActiveExample(index)}
+                    className={`min-h-11 shrink-0 rounded-[var(--public-radius)] border px-4 text-left text-base font-semibold ${
+                      activeExample === index
+                        ? 'border-[var(--public-brass)] bg-[#281b0e] text-[var(--public-ivory)]'
+                        : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'
+                    }`}
+                  >
+                    {candidate.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div
             id={panelId}
@@ -181,64 +246,22 @@ export function InteractiveStudioShowcase() {
             aria-labelledby={`showcase-tab-${activeStage}`}
             className="min-h-[30rem] bg-[radial-gradient(circle_at_top,#2a1a0c_0%,#11100d_45%,#090806_100%)] p-3 sm:p-5"
           >
-            {loadFailed ? (
+            {activeStage === 0 ? (
+              <StudioScreenshot
+                src="/card-assets/showcase/studio-layout.jpg"
+                alt="The real CardForge Layout Studio with its template library, editable canvas, layers, controls, and field inspector."
+                width={1119}
+                height={1536}
+              />
+            ) : activeStage === 1 ? (
+              <StudioScreenshot {...generatorScreenshots[activeGeneratorView]} />
+            ) : loadFailed ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
-                The live Studio preview is temporarily unavailable. The complete demonstration sets remain on the Examples page.
+                The finished-set preview is temporarily unavailable. The complete demonstration sets remain on the Examples page.
               </div>
             ) : !templates || !frontTemplate ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-base text-[var(--public-muted-text)]">
                 Loading the real CardForge templates…
-              </div>
-            ) : activeStage === 0 ? (
-              <div className="grid min-h-[27rem] gap-3 md:grid-cols-[10rem_minmax(0,1fr)_12rem]">
-                <aside className="hidden border border-[#3b2b19] bg-[#100d09] p-3 md:block" aria-label="Template library preview">
-                  <p className="font-bold text-[var(--public-ivory)]">Templates</p>
-                  {CARDFORGE_EXAMPLES.map((candidate, index) => (
-                    <div key={candidate.slug} className={`mt-3 border-l-2 p-2 text-base ${index === activeExample ? 'border-[var(--public-brass)] bg-[#24190e] text-[var(--public-ivory)]' : 'border-transparent text-[var(--public-muted-text)]'}`}>
-                      {candidate.systemType}
-                    </div>
-                  ))}
-                </aside>
-                <div className="grid place-items-center border border-[#3b2b19] bg-[#0d0b08] p-4">
-                  {cards[0] ? (
-                    <div role="img" aria-label={`${example.altText.rows[0]} Shown on the Layout Studio canvas.`} className="rounded-[var(--public-radius)] bg-[#21170d] p-2 shadow-[0_1rem_2.5rem_rgba(0,0,0,0.55)]">
-                      <CardPreview card={cards[0]} face="front" targetWidthPx={250} />
-                    </div>
-                  ) : null}
-                </div>
-                <aside className="border border-[#3b2b19] bg-[#100d09] p-3" aria-label="Field inspector preview">
-                  <p className="flex items-center gap-2 font-bold text-[var(--public-ivory)]"><SlidersHorizontal className="h-4 w-4 text-[var(--public-brass)]" aria-hidden="true" /> Fields</p>
-                  {Object.keys(example.rows[0] ?? {}).slice(0, 5).map((field) => (
-                    <div key={field} className="mt-3 border-b border-[#352716] pb-3">
-                      <p className="text-base text-[var(--public-muted-text)]">{field}</p>
-                      <div className="mt-2 h-2 rounded-full bg-[#2b2117]" aria-hidden="true" />
-                    </div>
-                  ))}
-                </aside>
-              </div>
-            ) : activeStage === 1 ? (
-              <div className="grid min-h-[27rem] gap-3 lg:grid-cols-[13rem_minmax(0,1fr)_12rem]">
-                <aside className="border border-[#3b2b19] bg-[#100d09] p-3" aria-label="Generator rows preview">
-                  <p className="font-bold text-[var(--public-ivory)]">Your card list</p>
-                  {example.rows.map((row, index) => (
-                    <div key={rowLabel(row, index)} className="mt-2 flex items-center gap-2 border border-[#352716] bg-[#17110b] p-2 text-base text-[var(--public-muted-text)]">
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2a1c0e] text-[var(--public-brass)]">{index + 1}</span>
-                      <span className="truncate">{rowLabel(row, index)}</span>
-                    </div>
-                  ))}
-                </aside>
-                <div className="grid grid-cols-2 gap-2 border border-[#3b2b19] bg-[#0d0b08] p-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-                  {cards.slice(0, 4).map((card, index) => (
-                    <div key={card.uniqueId} role="img" aria-label={`${example.altText.rows[index]} Generated card ${index + 1}.`} className="flex min-w-0 items-center justify-center rounded-[var(--public-radius)] bg-[#21170d] p-1.5">
-                      <CardPreview card={card} face="front" targetWidthPx={150} />
-                    </div>
-                  ))}
-                </div>
-                <aside className="border border-[#3b2b19] bg-[#100d09] p-4" aria-label="Generation summary">
-                  <Check className="h-7 w-7 text-[#88a96a]" aria-hidden="true" />
-                  <p className="mt-3 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{cards.length} cards ready</p>
-                  <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">One shared layout. Every row has its own content and artwork.</p>
-                </aside>
               </div>
             ) : (
               <figure className="min-h-[27rem] border border-[#3b2b19] bg-[#0d0b08] p-4">
@@ -261,7 +284,7 @@ export function InteractiveStudioShowcase() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--public-border)] bg-[var(--public-surface)] px-4 py-3 text-base text-[var(--public-muted-text)]">
-            <span>Real CardForge templates and rendering</span>
+            <span>{activeStage === 2 ? 'Real CardForge templates and rendering' : 'Actual CardForge Studio screenshot'}</span>
             <span>{reducedMotion ? 'Click to move between views' : 'Moves every 12 seconds · interaction pauses for one minute'}</span>
           </div>
         </div>

@@ -45,12 +45,18 @@ describe('proof-led homepage', () => {
     expect(showcase).toContain('Layout Studio');
     expect(showcase).toContain('Generator');
     expect(showcase).toContain('Finished Sets');
+    expect(showcase).toContain('/card-assets/showcase/studio-layout.jpg');
+    expect(showcase).toContain('/card-assets/showcase/studio-generator-single.jpg');
+    expect(showcase).toContain('/card-assets/showcase/studio-generator-bulk.jpg');
+    expect(showcase).toContain('activeGeneratorView');
     expect(showcase).toContain('<CardPreview');
     expect(showcase).toContain('createBulkDisplayCards');
     expect(showcase).toContain("fetch('/api/templates'");
     expect(showcase).toContain('onPointerDownCapture');
     expect(showcase).toContain('onKeyDownCapture');
     expect(showcase).toContain('prefers-reduced-motion: reduce');
+    expect(showcase).not.toContain('Generator rows preview');
+    expect(showcase).not.toContain('Field inspector preview');
   });
 
   it('keeps access, founder trust, support, and one final product conversion', () => {
