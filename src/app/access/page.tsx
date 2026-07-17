@@ -1,15 +1,9 @@
 import Link from 'next/link';
-import { Gift, ShieldCheck } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
+import { PublicAuthControls } from '@/features/account/client/auth';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import {
-  createBreadcrumbStructuredData,
-  createSiteContentMap,
-  getCachedSiteContentBlocks,
-  StructuredData,
-} from '@/features/public-site/server';
+import { PublicSiteShell } from '@/features/public-site/client';
+import { createBreadcrumbStructuredData, StructuredData } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
@@ -19,82 +13,44 @@ export const metadata = createPageMetadata({
 });
 
 const accessLevels = [
-  {
-    title: 'Free studio preview',
-    copy: 'Try the editor, build templates, preview generated cards, and keep local project data in your browser or downloaded files.',
-  },
-  {
-    title: 'Founder Beta seat',
-    copy: 'Claim demo access while a wave has seats open. Founder Beta is the current path for testing clean export during the preview window.',
-  },
-  {
-    title: 'Creator Pass',
-    copy: 'The paid creator tier is the planned home for clean exports, stronger shared libraries, and production workflow upgrades.',
-  },
-  {
-    title: 'Developer access',
-    copy: 'Approved contributors use the private asset hub to submit, vote on, and improve the shared library that powers the studio.',
-  },
+  ['Explore Free', 'Try the editor, build templates, import data, preview generated cards, and keep local project data in your browser or downloaded files.', 'Try the Studio', '/studio'],
+  ['Founder Beta', 'Founder Beta is the active early-access path while the current wave has seats. Eligible accounts can test clean export during the beta period.', 'Check beta access', '/account'],
+  ['Creator Pass', 'Creator Pass is the CardForge product subscription for ongoing production access, clean exports, and the expanding reviewed library.', 'Manage access', '/account'],
+  ['Developer', 'Developer participation is a separate contributor path. Approved contributors improve reviewed shared assets; it is not a customer subscription tier.', 'Developer program', '/developer'],
 ] as const;
 
 export default async function AccessPage() {
-  const [blocks, businessIdentity] = await Promise.all([
-    getCachedSiteContentBlocks('access'),
-    getCachedBusinessIdentity(),
-  ]);
-  const siteCopy = createSiteContentMap(blocks);
+  const businessIdentity = await getCachedBusinessIdentity();
 
   return (
-    <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/access">
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
         { name: 'Access', path: '/access' },
       ])} />
-      <PublicSiteHeader currentPath="/access" />
-
-      <section className="border-b border-[#5f4526] bg-[#120e09] px-5 py-14 md:px-8">
-        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_22rem] lg:items-start">
-          <div>
-            <div className="flex items-center gap-3 text-[#e2aa4a]">
-              <Gift className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Access and demo seats</span>
-            </div>
-            <h1 className="mt-4 max-w-3xl font-serif text-4xl font-semibold leading-tight text-[#fff1c7] md:text-5xl">
-              {siteCopy['access.hero.headline']}
-            </h1>
-            <p className="mt-5 max-w-3xl text-sm leading-7 text-[#d2bd91]">
-              {siteCopy['access.hero.body']}
-            </p>
-          </div>
-          <aside className="border border-[#7d5a2e] bg-[#15100a] p-5">
-            <div className="flex items-center gap-3 text-[#ffe7ad]">
-              <ShieldCheck className="h-5 w-5 text-[#e2aa4a]" />
-              <h2 className="font-serif text-xl">Demo path</h2>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-              Sign in, open your account page, and claim Founder Beta if the current wave still has room.
-            </p>
-            <Button asChild className="mt-5 w-full bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
-              <Link href="/account" prefetch={false}>Check Access</Link>
-            </Button>
-          </aside>
+      <section className="bg-[var(--public-ivory)] px-5 py-14 md:px-8 md:py-20">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-base font-semibold uppercase tracking-[0.14em] text-[#76551c]">Product access</p>
+          <h1 className="mt-3 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-text)] md:text-6xl">
+            Start free, then choose production access when you need it.
+          </h1>
+          <p className="mt-6 max-w-3xl text-lg leading-8 text-[#5f5548]">
+            Exploration, beta access, the Creator Pass product subscription, and developer participation each have a distinct purpose.
+          </p>
         </div>
       </section>
 
-      <section className="px-5 py-12 md:px-8">
+      <section className="bg-[#f0e5d2] px-5 py-12 md:px-8 md:py-16">
         <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
-          {accessLevels.map((level, index) => (
-            <article key={level.title} className="border border-[#5f4526] bg-[#15100a] p-5">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#e2aa4a]">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <h2 className="mt-3 font-serif text-xl text-[#ffe6a8]">{level.title}</h2>
-              <p className="mt-3 text-sm leading-6 text-[#c7b288]">{level.copy}</p>
+          {accessLevels.map(([title, copy, action, href]) => (
+            <article key={title} className="rounded-[var(--public-radius)] border border-[#ad9d84] bg-[var(--public-ivory)] p-6">
+              <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-text)]">{title}</h2>
+              <p className="mt-4 text-base leading-7 text-[#5f5548]">{copy}</p>
+              <Link href={href} prefetch={false} className="mt-5 inline-flex min-h-11 items-center text-base font-bold text-[#654817] hover:text-[var(--public-text)]">{action}</Link>
             </article>
           ))}
         </div>
       </section>
-
-    </main>
+    </PublicSiteShell>
   );
 }

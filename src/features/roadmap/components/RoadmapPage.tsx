@@ -29,7 +29,7 @@ export function RoadmapPage({
     && (entitlement.accessMode === 'dev' || entitlement.ownerAccess.isOwner);
 
   return (
-    <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <div className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
       {entitlement.authConfigured ? (
         <ClerkIdentityBridge onChange={setClerkIdentity} />
       ) : null}
@@ -54,7 +54,7 @@ export function RoadmapPage({
         accountEmail={accountEmail}
         supportEmail={supportEmail}
       />
-    </main>
+    </div>
   );
 }
 

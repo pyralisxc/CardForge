@@ -256,6 +256,90 @@ body {
   }
 }
 
+.cardforge-public,
+.cardforge-public-tokens {
+  --public-charcoal: #171512;
+  --public-ivory: #fff8e9;
+  --public-brass: #d1a651;
+  --public-text: #302b24;
+  --public-muted-text: #bdb3a2;
+  --public-border: #5e5548;
+  --public-focus: #171512;
+  --public-focus-contrast: #fff8e9;
+  --public-radius: 0.375rem;
+  --public-shadow: 0 1rem 2.5rem rgb(13 11 8 / 24%);
+  --public-space: clamp(3rem, 7vw, 6rem);
+  --public-font-body: var(--font-cardforge-ui), "Helvetica Neue", Arial, sans-serif;
+  --public-font-display: var(--font-cardforge-spectral), Georgia, serif;
+}
+
+.cardforge-public {
+  min-height: 100vh;
+  background: var(--public-ivory);
+  color: var(--public-text);
+  font-family: var(--public-font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+:is(.cardforge-public, .cardforge-public-tokens) :where(a, button, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid var(--public-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 7px var(--public-focus-contrast);
+}
+
+.cardforge-public-skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  transform: translateY(calc(-100% - 1rem));
+  border-radius: var(--public-radius);
+  background: var(--public-ivory);
+  color: var(--public-charcoal);
+  font-weight: 700;
+  box-shadow: var(--public-shadow);
+  transition: transform 150ms ease-out;
+}
+
+.cardforge-public-skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.cardforge-public #main-content {
+  scroll-margin-top: 1rem;
+}
+
+.cardforge-public-mobile-menu > button:last-child {
+  display: inline-flex;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardforge-public,
+  .cardforge-public *,
+  .cardforge-public *::before,
+  .cardforge-public *::after,
+  .cardforge-public-tokens,
+  .cardforge-public-tokens *,
+  .cardforge-public-tokens *::before,
+  .cardforge-public-tokens *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .cardforge-public-auth-status .animate-spin {
+    animation: none !important;
+  }
+}
+
 @layer components {
   .cardforge-maker-shell {
     min-height: auto !important;
