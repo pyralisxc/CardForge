@@ -7,13 +7,16 @@ import {
   type BusinessIdentity,
 } from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
+import { LegalDocumentBody } from './LegalDocumentBody';
 
 const trustLinks = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },
+  { href: '/creator-pass-terms', label: 'Creator Pass' },
+  { href: '/supporter-terms', label: 'Supporters' },
   { href: '/refund', label: 'Refunds' },
   { href: '/developer-terms', label: 'Developers' },
-  { href: '/creator-pool', label: 'Creator Pool' },
+  { href: '/accessibility', label: 'Accessibility' },
   { href: '/contact', label: 'Contact' },
 ] as const;
 
@@ -54,10 +57,8 @@ export function PublicLegalPage({
         <p className="text-sm uppercase tracking-[0.2em] text-[#e2aa4a]">CardForge trust center</p>
         <h1 className="mt-4 font-serif text-4xl text-[#fff1c7] md:text-5xl">{document.title}</h1>
         <p className="mt-3 text-sm text-[#baa67e]">{formatPublishedDate(document.publishedAt)}</p>
-        <div className="mt-8 space-y-5 border border-[#5f4526] bg-[#15100a] p-6 text-sm leading-7 text-[#d2bd91] md:p-8">
-          {document.body.split(/\n{2,}/).map((paragraph, index) => (
-            <p key={`${document.slug}-${index}`}>{paragraph}</p>
-          ))}
+        <div className="mt-8">
+          <LegalDocumentBody body={document.body} />
         </div>
         {children}
         <div className="mt-8 border border-[#5f4526] bg-[#100c08] p-5 text-sm leading-6 text-[#c7b288]">

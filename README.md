@@ -7,11 +7,14 @@ CardForge Studio is a software product created and operated by Cameron Locke, an
 ## Live State
 
 - Public site: `/`
+- Product story and access: `/about`, `/access`
+- Founder identity: `/cameron`
 - Studio: `/studio`
 - Account and Founder Beta status: `/account`
 - Profile management: `/profile`
 - Public roadmap and feature voting: `/roadmap`
 - Developer application and asset pipeline: `/developer`
+- Contact and versioned trust documents: `/contact`, `/privacy`, `/terms`, `/refund`, `/creator-pass-terms`, `/supporter-terms`, `/developer-terms`, `/accessibility`
 - Owner console: `/owner`
 
 The current product is in controlled public beta and first-customer operation on [cardforges.com](https://cardforges.com).
@@ -62,6 +65,8 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
 - `src/features/business-identity/`: canonical operator identity, owner editing, and server-owned Supabase persistence.
+- `src/features/public-site/`: owner-editable marketing content, tagged public caching, and structured search identity.
+- `src/features/legal/`: immutable versioned legal publication, constrained document rendering, and public legal caching.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.

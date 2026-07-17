@@ -71,9 +71,24 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 
 ## Business identity provider alignment
 
-The repository identity is CardForge Studio, created and operated by Cameron Locke as an independent sole proprietor based in Oregon. The forward Supabase migration and application cutover are prepared but have not been applied to production in this branch.
+The repository identity is CardForge Studio, created and operated by Cameron Locke as an independent sole proprietor based in Oregon. Gate 1's business-identity migration is applied in production, and `cardforges.com` is serving the exact merged Gate 1 commit. Stripe account/receipt identity and Resend sender/reply-to alignment still require direct provider verification before the overall provider-alignment risk is closed.
 
 Before claiming production alignment, obtain explicit approval and verify the current legal/business identity in Supabase, Stripe receipts and account records, Resend sender/reply-to settings, and every public legal page. Do not change provider configuration, apply migrations, merge, or deploy from a documentation-only review. Follow [the operator identity and transfer runbook](operator-identity-and-transfer-runbook.md) and record exact deployment and provider evidence here after rollout.
+
+## Legal publication and public cache operations
+
+Legal documents are immutable versioned publications. Publishing through `/owner` requires the identity version currently shown in the console; a concurrent identity update produces a conflict instead of attaching legal text to stale operator data. Publication does not create or infer retroactive terms acceptance.
+
+The Gate 2 migration must be applied before the new publication API is used in production. After approval and migration:
+
+1. Confirm all nine legal slugs have a current publication and the expected business-identity version.
+2. Publish the Creator Pool archived notice as a new version if the preserved historical version is still current.
+3. Verify public legal routes render the newest version while older versions remain queryable by service-owned operations.
+4. Confirm owner updates invalidate only the affected tag and the public route changes without a deploy.
+
+Marketing and legal routes use tagged one-hour caches. Business-identity changes invalidate identity and identity-dependent legal reads; content edits invalidate only their landing/about/access group; legal publication invalidates only its slug. A revalidation failure is logged and bounded by the one-hour fallback rather than changing a successful database write into a false mutation failure.
+
+Search policy is deliberate: marketing routes appear in the XML sitemap; legal pages remain public, canonical, and indexable but are excluded from that marketing sitemap. Studio, account, profile, owner, and the archived Creator Pool route are noindex. Do not add fake `lastmod`, priority, or change-frequency values.
 
 ## Owner Console Checks
 
@@ -181,6 +196,9 @@ git diff --check
 
 - Open `https://cardforges.com`.
 - Confirm `https://cardforges.com/robots.txt` points to `https://cardforges.com/sitemap.xml`.
+- Confirm `/studio`, `/account`, `/profile`, `/owner`, and `/creator-pool` emit noindex metadata.
+- Confirm marketing and legal pages emit a self-referencing canonical and matching Open Graph URL.
+- Validate the CardForge and Cameron JSON-LD in a structured-data inspection tool.
 - Submit sitemap in Google Search Console after DNS verification.
 - Complete one Stripe checkout or customer portal round trip after domain/env changes.
 - Send one Owner Console test email after Resend/env changes.

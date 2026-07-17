@@ -88,7 +88,7 @@ describe('current operator repository policy', () => {
     expect(read('README.md')).toContain(APPROVED_OPERATOR_DESCRIPTION);
     expect(read('docs/architecture.md')).toContain('src/features/business-identity');
     expect(read('docs/operations.md')).toContain('Business identity provider alignment');
-    expect(read('docs/risk-register.md')).toContain('P0 production alignment pending');
+    expect(read('docs/risk-register.md')).toContain('Provider alignment partially complete');
 
     const runbook = read('docs/operator-identity-and-transfer-runbook.md');
     expect(runbook).toContain(APPROVED_OPERATOR_DESCRIPTION);

@@ -26,6 +26,7 @@ export type ApiErrorCode =
   | 'payload_too_large'
   | 'rate_limited'
   | 'owner_access_required'
+  | 'owner_console_conflict'
   | 'owner_console_unavailable'
   | 'owner_request_invalid'
   | 'owner_account_invalid'

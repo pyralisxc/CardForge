@@ -3,9 +3,20 @@ import { Database, FileDown, Hammer, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
-import { createSiteContentMap, getSiteContentBlocks } from '@/features/public-site/server';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
+import {
+  createBreadcrumbStructuredData,
+  createSiteContentMap,
+  getCachedSiteContentBlocks,
+  StructuredData,
+} from '@/features/public-site/server';
+import { createPageMetadata } from '@/shared/siteMetadata';
 
-export const dynamic = 'force-dynamic';
+export const metadata = createPageMetadata({
+  title: 'About CardForge',
+  description: 'Learn why CardForge uses reusable templates, structured data, and a local-first workflow to produce complete card sets.',
+  path: '/about',
+});
 
 const pillars = [
   {
@@ -26,10 +37,18 @@ const pillars = [
 ] as const;
 
 export default async function AboutPage() {
-  const siteCopy = createSiteContentMap(await getSiteContentBlocks());
+  const [blocks, businessIdentity] = await Promise.all([
+    getCachedSiteContentBlocks('about'),
+    getCachedBusinessIdentity(),
+  ]);
+  const siteCopy = createSiteContentMap(blocks);
 
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+      <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
+        { name: 'Home', path: '/' },
+        { name: 'About CardForge', path: '/about' },
+      ])} />
       <PublicSiteHeader currentPath="/about" />
 
       <section className="border-b border-[#5f4526] bg-[#120e09] px-5 py-14 md:px-8">

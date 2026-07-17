@@ -5,15 +5,18 @@ import {
 import { FounderBetaStoreError, updateFounderBetaCampaign } from '@/features/account/server';
 import {
   BusinessIdentityStoreError,
+  revalidatePublicIdentityCache,
   updateBusinessIdentity,
 } from '@/features/business-identity/server';
 import {
   PublicSiteStoreError,
+  revalidateSiteContentCache,
   updateSiteContentBlock,
 } from '@/features/public-site/server';
 import {
   LegalDocumentStoreError,
-  updateLegalDocument,
+  publishLegalDocument,
+  revalidateLegalDocumentCache,
 } from '@/features/legal/server';
 import {
   RoadmapStoreError,
@@ -80,7 +83,13 @@ export async function PUT(request: Request) {
       expectedIdentityVersion?: unknown;
       siteMechanics?: Record<string, unknown>;
       siteContentBlock?: { slug?: unknown; body?: unknown };
-      legalDocument?: { slug?: unknown; title?: unknown; body?: unknown };
+      legalDocument?: {
+        slug?: unknown;
+        title?: unknown;
+        body?: unknown;
+        effectiveDate?: unknown;
+        expectedBusinessIdentityVersion?: unknown;
+      };
       founderBetaCampaign?: Record<string, unknown>;
       roadmapItem?: { itemId?: unknown; status?: unknown };
     };
@@ -90,6 +99,7 @@ export async function PUT(request: Request) {
         body.businessIdentity ?? {},
         body.expectedIdentityVersion,
       );
+      revalidatePublicIdentityCache();
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
@@ -99,12 +109,20 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'siteContent') {
-      await updateSiteContentBlock(body.siteContentBlock ?? {});
+      const updatedBlocks = await updateSiteContentBlock(body.siteContentBlock ?? {});
+      const updatedBlock = updatedBlocks.find(
+        ({ slug }) => slug === body.siteContentBlock?.slug,
+      );
+      if (updatedBlock) revalidateSiteContentCache(updatedBlock.group);
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     if (body.kind === 'legal') {
-      await updateLegalDocument(body.legalDocument ?? {});
+      const legalDocuments = await publishLegalDocument(body.legalDocument ?? {});
+      const publishedDocument = legalDocuments.find(
+        ({ slug }) => slug === body.legalDocument?.slug,
+      );
+      if (publishedDocument) revalidateLegalDocumentCache(publishedDocument.slug);
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
@@ -133,7 +151,11 @@ export async function PUT(request: Request) {
     ) {
       return createApiErrorResponse(
         error.status,
-        error.status === 503 ? 'owner_console_unavailable' : 'owner_request_invalid',
+        error.status === 503
+          ? 'owner_console_unavailable'
+          : error.status === 409
+            ? 'owner_console_conflict'
+            : 'owner_request_invalid',
         error.message
       );
     }

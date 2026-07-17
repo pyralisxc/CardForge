@@ -15,10 +15,20 @@ import {
 
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
-import { getBusinessIdentity } from '@/features/business-identity/server';
-import { createSiteContentMap, getSiteContentBlocks } from '@/features/public-site/server';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
+import {
+  createCardForgeStructuredData,
+  createSiteContentMap,
+  getCachedSiteContentBlocks,
+  StructuredData,
+} from '@/features/public-site/server';
+import { createPageMetadata } from '@/shared/siteMetadata';
 
-export const dynamic = 'force-dynamic';
+export const metadata = createPageMetadata({
+  title: 'Build Complete Card Sets',
+  description: 'Design one reusable template, connect structured data, review the complete set, and export production-ready card files.',
+  path: '/',
+});
 
 const featureBands = [
   {
@@ -73,13 +83,14 @@ const libraryLadder = [
 
 export default async function LandingPage() {
   const [siteContentBlocks, businessIdentity] = await Promise.all([
-    getSiteContentBlocks(),
-    getBusinessIdentity(),
+    getCachedSiteContentBlocks('landing'),
+    getCachedBusinessIdentity(),
   ]);
   const siteCopy = createSiteContentMap(siteContentBlocks);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#0c0b09] text-[#f7ead0]">
+      <StructuredData value={createCardForgeStructuredData(businessIdentity)} />
       <section className="relative min-h-[74vh] border-b border-[#8b6a34]/35">
         <Image
           src="/card-assets/landing/cardforge-hero-workbench.png"
@@ -287,12 +298,14 @@ export default async function LandingPage() {
           </span>
           <nav className="flex flex-wrap gap-4">
             <Link href="/about" prefetch={false} className="hover:text-[#ffe7ad]">About</Link>
+            <Link href="/cameron" prefetch={false} className="hover:text-[#ffe7ad]">Cameron</Link>
             <Link href="/access" prefetch={false} className="hover:text-[#ffe7ad]">Access</Link>
             <Link href="/privacy" prefetch={false} className="hover:text-[#ffe7ad]">Privacy</Link>
             <Link href="/terms" prefetch={false} className="hover:text-[#ffe7ad]">Terms</Link>
+            <Link href="/creator-pass-terms" prefetch={false} className="hover:text-[#ffe7ad]">Creator Pass Terms</Link>
             <Link href="/refund" prefetch={false} className="hover:text-[#ffe7ad]">Refunds</Link>
             <Link href="/developer-terms" prefetch={false} className="hover:text-[#ffe7ad]">Developer Terms</Link>
-            <Link href="/creator-pool" prefetch={false} className="hover:text-[#ffe7ad]">Creator Pool</Link>
+            <Link href="/accessibility" prefetch={false} className="hover:text-[#ffe7ad]">Accessibility</Link>
             <Link href="/contact" prefetch={false} className="hover:text-[#ffe7ad]">Contact</Link>
             <Link href="/roadmap" prefetch={false} className="hover:text-[#ffe7ad]">Roadmap</Link>
             <Link href="/developer" prefetch={false} className="hover:text-[#ffe7ad]">Developers</Link>

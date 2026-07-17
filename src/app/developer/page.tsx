@@ -1,26 +1,28 @@
 import type { Metadata } from 'next';
 
-import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
-import { getBusinessIdentity } from '@/features/business-identity/server';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperProgramPage } from '@/features/developer-assets/client/program';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { createPageMetadata } from '@/shared/siteMetadata';
+import { createBreadcrumbStructuredData, StructuredData } from '@/features/public-site/server';
 
-export const dynamic = 'force-dynamic';
-
-export const metadata: Metadata = {
-  title: 'Join the CardForge Community | Forge Review',
+export const metadata: Metadata = createPageMetadata({
+  title: 'CardForge Developer Program',
   description: 'Apply for the CardForge developer program, review contribution standards, and help shape the shared forge library.',
-};
+  path: '/developer',
+});
 
 export default async function DeveloperPage() {
-  const [businessIdentity, { authConfigured, ownerAccess }] = await Promise.all([
-    getBusinessIdentity(),
-    getCurrentCardforgeUserAccess(),
-  ]);
+  const businessIdentity = await getCachedBusinessIdentity();
   return (
     <>
-      <PublicSiteHeader currentPath="/developer" showOwnerLink={ownerAccess.isOwner} />
-      <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
+      <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
+        { name: 'Home', path: '/' },
+        { name: 'Developers', path: '/developer' },
+      ])} />
+      <PublicSiteHeader currentPath="/developer" />
+      <DeveloperProgramPage initialAuthConfigured={isClerkServerConfigPresent()} supportEmail={businessIdentity.supportEmail} />
     </>
   );
 }

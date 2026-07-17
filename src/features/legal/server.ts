@@ -2,5 +2,12 @@ export {
   getLegalDocuments,
   getPublishedLegalDocument,
   LegalDocumentStoreError,
-  updateLegalDocument,
+  publishLegalDocument,
+  type LegalDocumentStoreClient,
+  type LegalDocumentStoreDependencies,
 } from './server/legalDocumentStore';
+export {
+  getCachedPublishedLegalDocument,
+  legalDocumentTag,
+  revalidateLegalDocumentCache,
+} from './server/publicLegalCache';

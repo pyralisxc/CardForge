@@ -10,9 +10,11 @@ export type SiteContentBlockSlug =
   | 'access.hero.body'
   | 'access.creatorPool.note';
 
+export type SiteContentGroup = 'landing' | 'about' | 'access';
+
 export interface SiteContentBlock {
   slug: SiteContentBlockSlug;
-  group: 'landing' | 'about' | 'access';
+  group: SiteContentGroup;
   label: string;
   body: string;
   updatedAt: string | null;
