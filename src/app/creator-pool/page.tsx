@@ -1,9 +1,7 @@
 import { PublicLegalPage } from '@/features/legal/client';
-import { getPublishedLegalDocument } from '@/features/legal/server';
-
-export const dynamic = 'force-dynamic';
+import { getCachedPublishedLegalDocument } from '@/features/legal/server';
 
 export default async function CreatorPoolPage() {
-  const { businessIdentity, document } = await getPublishedLegalDocument('creator-pool');
+  const { businessIdentity, document } = await getCachedPublishedLegalDocument('creator-pool');
   return <PublicLegalPage businessIdentity={businessIdentity} document={document} />;
 }

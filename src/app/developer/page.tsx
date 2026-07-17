@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
 
-import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
-import { getBusinessIdentity } from '@/features/business-identity/server';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperProgramPage } from '@/features/developer-assets/client/program';
-
-export const dynamic = 'force-dynamic';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
 export const metadata: Metadata = {
   title: 'Join the CardForge Community | Forge Review',
@@ -13,14 +11,11 @@ export const metadata: Metadata = {
 };
 
 export default async function DeveloperPage() {
-  const [businessIdentity, { authConfigured, ownerAccess }] = await Promise.all([
-    getBusinessIdentity(),
-    getCurrentCardforgeUserAccess(),
-  ]);
+  const businessIdentity = await getCachedBusinessIdentity();
   return (
     <>
-      <PublicSiteHeader currentPath="/developer" showOwnerLink={ownerAccess.isOwner} />
-      <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
+      <PublicSiteHeader currentPath="/developer" />
+      <DeveloperProgramPage initialAuthConfigured={isClerkServerConfigPresent()} supportEmail={businessIdentity.supportEmail} />
     </>
   );
 }

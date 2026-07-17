@@ -5,15 +5,18 @@ import {
 import { FounderBetaStoreError, updateFounderBetaCampaign } from '@/features/account/server';
 import {
   BusinessIdentityStoreError,
+  revalidatePublicIdentityCache,
   updateBusinessIdentity,
 } from '@/features/business-identity/server';
 import {
   PublicSiteStoreError,
+  revalidateSiteContentCache,
   updateSiteContentBlock,
 } from '@/features/public-site/server';
 import {
   LegalDocumentStoreError,
   publishLegalDocument,
+  revalidateLegalDocumentCache,
 } from '@/features/legal/server';
 import {
   RoadmapStoreError,
@@ -96,6 +99,7 @@ export async function PUT(request: Request) {
         body.businessIdentity ?? {},
         body.expectedIdentityVersion,
       );
+      revalidatePublicIdentityCache();
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
@@ -105,12 +109,20 @@ export async function PUT(request: Request) {
     }
 
     if (body.kind === 'siteContent') {
-      await updateSiteContentBlock(body.siteContentBlock ?? {});
+      const updatedBlocks = await updateSiteContentBlock(body.siteContentBlock ?? {});
+      const updatedBlock = updatedBlocks.find(
+        ({ slug }) => slug === body.siteContentBlock?.slug,
+      );
+      if (updatedBlock) revalidateSiteContentCache(updatedBlock.group);
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
     if (body.kind === 'legal') {
-      await publishLegalDocument(body.legalDocument ?? {});
+      const legalDocuments = await publishLegalDocument(body.legalDocument ?? {});
+      const publishedDocument = legalDocuments.find(
+        ({ slug }) => slug === body.legalDocument?.slug,
+      );
+      if (publishedDocument) revalidateLegalDocumentCache(publishedDocument.slug);
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 

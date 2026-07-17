@@ -6,3 +6,8 @@ export {
   type LegalDocumentStoreClient,
   type LegalDocumentStoreDependencies,
 } from './server/legalDocumentStore';
+export {
+  getCachedPublishedLegalDocument,
+  legalDocumentTag,
+  revalidateLegalDocumentCache,
+} from './server/publicLegalCache';

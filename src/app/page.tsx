@@ -15,10 +15,8 @@ import {
 
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
 import { Button } from '@/components/ui/button';
-import { getBusinessIdentity } from '@/features/business-identity/server';
-import { createSiteContentMap, getSiteContentBlocks } from '@/features/public-site/server';
-
-export const dynamic = 'force-dynamic';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
+import { createSiteContentMap, getCachedSiteContentBlocks } from '@/features/public-site/server';
 
 const featureBands = [
   {
@@ -73,8 +71,8 @@ const libraryLadder = [
 
 export default async function LandingPage() {
   const [siteContentBlocks, businessIdentity] = await Promise.all([
-    getSiteContentBlocks(),
-    getBusinessIdentity(),
+    getCachedSiteContentBlocks('landing'),
+    getCachedBusinessIdentity(),
   ]);
   const siteCopy = createSiteContentMap(siteContentBlocks);
 

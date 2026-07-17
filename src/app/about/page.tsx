@@ -3,9 +3,7 @@ import { Database, FileDown, Hammer, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
-import { createSiteContentMap, getSiteContentBlocks } from '@/features/public-site/server';
-
-export const dynamic = 'force-dynamic';
+import { createSiteContentMap, getCachedSiteContentBlocks } from '@/features/public-site/server';
 
 const pillars = [
   {
@@ -26,7 +24,7 @@ const pillars = [
 ] as const;
 
 export default async function AboutPage() {
-  const siteCopy = createSiteContentMap(await getSiteContentBlocks());
+  const siteCopy = createSiteContentMap(await getCachedSiteContentBlocks('about'));
 
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
