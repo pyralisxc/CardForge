@@ -14,7 +14,8 @@ describe('proof-led homepage', () => {
     expect(hero).toContain('href="/studio"');
     expect(hero).toContain('See what it makes');
     expect(hero).toContain('href="/examples"');
-    expect(hero).toContain('StudioProductProof');
+    expect(hero).toContain('/card-assets/showcase/cardforge-workshop-cover.webp');
+    expect(hero).not.toContain('StudioProductProof');
   });
 
   it('shows the four-step workflow in ordinary language', () => {
@@ -29,17 +30,27 @@ describe('proof-led homepage', () => {
     }
   });
 
-  it('uses recognizable Studio and real renderer proof', () => {
+  it('places an interactive real-renderer walkthrough directly below the cover', () => {
     const page = readSource('src/app/page.tsx');
     const hero = readSource('src/features/public-site/components/OutcomeHero.tsx');
-    const studioProof = readSource('src/features/public-site/components/StudioProductProof.tsx');
+    const showcase = readSource('src/features/public-site/components/InteractiveStudioShowcase.tsx');
 
     expect(page).toContain('<PublicSiteShell');
     expect(page).toContain('<OutcomeHero');
+    expect(page).toContain('<InteractiveStudioShowcase');
+    expect(page.indexOf('<OutcomeHero')).toBeLessThan(page.indexOf('<InteractiveStudioShowcase'));
+    expect(page.indexOf('<InteractiveStudioShowcase')).toBeLessThan(page.indexOf('<WorkflowProof'));
     expect(page).not.toContain('cardforge-hero-workbench.png');
-    expect(hero).toContain('StudioProductProof');
-    expect(studioProof).toContain('Studio workspace preview');
-    expect(studioProof).toContain('LiveExampleGallery');
+    expect(hero).toContain('cardforge-workshop-cover.webp');
+    expect(showcase).toContain('Layout Studio');
+    expect(showcase).toContain('Generator');
+    expect(showcase).toContain('Finished Sets');
+    expect(showcase).toContain('<CardPreview');
+    expect(showcase).toContain('createBulkDisplayCards');
+    expect(showcase).toContain("fetch('/api/templates'");
+    expect(showcase).toContain('onPointerDownCapture');
+    expect(showcase).toContain('onKeyDownCapture');
+    expect(showcase).toContain('prefers-reduced-motion: reduce');
   });
 
   it('keeps access, founder trust, support, and one final product conversion', () => {

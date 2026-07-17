@@ -6,6 +6,7 @@ import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   AccessComparison,
   FounderStrip,
+  InteractiveStudioShowcase,
   OutcomeHero,
   PublicSiteShell,
   WorkflowProof,
@@ -39,6 +40,7 @@ export default async function LandingPage() {
     >
       <StructuredData value={createCardForgeStructuredData(businessIdentity)} />
       <OutcomeHero />
+      <InteractiveStudioShowcase />
       <WorkflowProof />
 
       <section aria-labelledby="founder-beta-heading" className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-7 md:px-8">

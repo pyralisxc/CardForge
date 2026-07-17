@@ -1,21 +1,28 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
-import { StudioProductProof } from './StudioProductProof';
-
 export function OutcomeHero() {
   return (
-    <section className="relative overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 md:px-8 md:py-14">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(173,102,30,0.19),transparent_38%),linear-gradient(115deg,rgba(217,164,65,0.06),transparent_36%)]" aria-hidden="true" />
-      <div className="relative mx-auto grid max-w-7xl gap-9 lg:grid-cols-[minmax(0,0.82fr)_minmax(34rem,1.18fr)] lg:items-center">
-        <div>
+    <section className="relative flex min-h-[34rem] overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:min-h-[40rem] md:px-8 md:py-16">
+      <Image
+        src="/card-assets/showcase/cardforge-workshop-cover.webp"
+        alt="A warm CardForge workshop with illustrated card proofs, drawing tools, and a card-layout screen spread across a dark wood desk."
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover object-[62%_center]"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,6,5,0.97)_0%,rgba(9,8,6,0.88)_30%,rgba(9,8,6,0.42)_58%,rgba(7,6,5,0.16)_100%),linear-gradient(0deg,rgba(7,6,5,0.82)_0%,transparent_45%)]" aria-hidden="true" />
+      <div className="relative mx-auto flex w-full max-w-7xl items-center">
+        <div className="max-w-3xl">
           <p className="text-base font-semibold text-[var(--public-brass)]">
             Build the card once. Let the set follow.
           </p>
-          <h1 className="mt-4 max-w-3xl font-[var(--public-font-display)] text-4xl font-semibold leading-[1.05] text-[var(--public-ivory)] md:text-6xl">
+          <h1 className="mt-4 font-[var(--public-font-display)] text-4xl font-semibold leading-[1.05] text-[var(--public-ivory)] drop-shadow-[0_3px_16px_rgba(0,0,0,0.75)] md:text-6xl">
             Design one card. Add your list. CardForge builds the set.
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--public-muted-text)]">
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-[#ddd2c2] drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
             Make the look once, add the words and pictures for each card, and watch the whole set come together. Try it in your browser and keep your work on your device.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -29,15 +36,11 @@ export function OutcomeHero() {
             <Link
               href="/examples"
               prefetch={false}
-              className="inline-flex min-h-11 items-center justify-center rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] px-6 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)]"
+              className="inline-flex min-h-11 items-center justify-center rounded-[var(--public-radius)] border border-[#8b6631] bg-[rgba(18,14,10,0.82)] px-6 text-base font-bold text-[var(--public-ivory)] backdrop-blur-sm hover:border-[var(--public-brass)]"
             >
               See what it makes
             </Link>
           </div>
-        </div>
-
-        <div aria-label="CardForge Studio product proof">
-          <StudioProductProof />
         </div>
       </div>
     </section>
