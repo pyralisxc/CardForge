@@ -9,6 +9,7 @@ const readSource = (path: string): string => readFileSync(join(process.cwd(), pa
 
 const SHIPPED_TEMPLATE_IDS = new Set([
   'default-playing-card-theme',
+  'default-mtg-theme',
   'default-event-badge-theme',
   'default-obsidian-neon-card-back',
 ]);
