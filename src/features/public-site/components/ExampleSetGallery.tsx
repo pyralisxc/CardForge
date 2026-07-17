@@ -23,9 +23,9 @@ export function ExampleSetGallery({ examples, templates }: ExampleSetGalleryProp
 
         if (missingTemplate) {
           return (
-            <section key={example.slug} aria-labelledby={`${example.slug}-unavailable`} className="rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-ivory)] p-6">
-              <h2 id={`${example.slug}-unavailable`} className="font-serif text-2xl text-[var(--public-text)]">{example.name}</h2>
-              <p role="status" className="mt-3 text-base text-[#5f5548]">
+            <section key={example.slug} aria-labelledby={`${example.slug}-unavailable`} className="rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] p-6">
+              <h2 id={`${example.slug}-unavailable`} className="font-serif text-2xl text-[var(--public-ivory)]">{example.name}</h2>
+              <p role="status" className="mt-3 text-base text-[var(--public-muted-text)]">
                 This example preview is unavailable because a referenced shipped template could not be loaded.
               </p>
             </section>

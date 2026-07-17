@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Compass, Layers3 } from 'lucide-react';
+import { ArrowRight, Compass, HeartHandshake, Sparkles } from 'lucide-react';
 
 import { PublicAuthControls } from '@/features/account/client/auth';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
@@ -18,16 +18,10 @@ export const metadata = createPageMetadata({
   path: '/cameron',
 });
 
-const principles = [
-  'Keep creator projects local-first unless sharing is intentional.',
-  'Build for complete-set consistency instead of isolated card mockups.',
-  'Show real shipped work and be direct about the product’s beta stage.',
-] as const;
-
 const priorities = [
-  'Make full-set proofing and production exports more dependable.',
-  'Improve accessibility across public pages and editor interactions.',
-  'Grow the reviewed template library without weakening creator ownership.',
+  'Make CardForge easier for someone opening it for the very first time.',
+  'Keep improving how complete sets are checked and downloaded.',
+  'Build a stable independent business around useful, creative products.',
 ] as const;
 
 export default async function CameronPage() {
@@ -40,50 +34,53 @@ export default async function CameronPage() {
         { name: 'Home', path: '/' },
         { name: 'About Cameron', path: '/cameron' },
       ])} />
-      <section className="bg-[var(--public-ivory)] px-5 py-14 md:px-8 md:py-20">
+      <section className="border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_18%_16%,#30200f_0%,#0c0b09_42%)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-[11rem_1fr] md:items-center">
-          <div className="grid aspect-[4/5] place-items-center rounded-[var(--public-radius)] border border-[#a48f6d] bg-[var(--public-charcoal)]" aria-hidden="true">
+          <div className="grid aspect-[4/5] place-items-center rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] shadow-[0_0_40px_rgba(217,164,65,0.1)]" aria-hidden="true">
             <Image src="/brand/cardforge-studio/brand-mark.svg" alt="" width={66} height={88} className="h-24 w-auto" />
           </div>
           <div>
-            <p className="text-base font-semibold uppercase tracking-[0.14em] text-[#76551c]">Independent founder</p>
-            <h1 className="mt-3 font-[var(--public-font-display)] text-4xl font-semibold text-[var(--public-text)] md:text-6xl">Cameron Locke</h1>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5f5548]">
-              I build and operate CardForge Studio as an Oregon sole proprietor. I am keeping that identity public because an independently built product should make the person and operating structure behind it easy to understand.
+            <p className="text-base font-semibold text-[var(--public-brass)]">Hey, welcome in.</p>
+            <h1 className="mt-2 font-[var(--public-font-display)] text-4xl font-semibold text-[var(--public-ivory)] md:text-5xl">I’m Cameron.</h1>
+            <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
+              I build and operate CardForge Studio as an Oregon sole proprietor. I use AI-assisted code generation alongside my own ideas, design choices, testing, and stubborn curiosity to turn useful product ideas into real software.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="bg-[#f0e5d2] px-5 py-12 md:px-8 md:py-16">
+      <section className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-2">
-          <article className="rounded-[var(--public-radius)] border border-[#ad9d84] bg-[var(--public-ivory)] p-6">
-            <Layers3 className="h-6 w-6 text-[#775817]" aria-hidden="true" />
-            <h2 className="mt-4 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-text)]">Why I built CardForge</h2>
-            <p className="mt-4 text-base leading-7 text-[#5f5548]">
-              Producing a deck or reference set means repeating the same visual decisions across many changing records. CardForge exists to make that work systematic: one template, structured source data, complete-set review, and clean exports.
+          <article className="border border-[var(--public-border)] bg-[var(--public-surface)] p-6">
+            <Compass className="h-6 w-6 text-[var(--public-brass)]" aria-hidden="true" />
+            <h2 className="mt-3 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">The road here</h2>
+            <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">
+              My path has not been a straight line. I’ve spent time in Hawaii, traveled, and spent time hitchhiking. Those experiences taught me a lot about resourcefulness, freedom, hospitality, and how far you can get by staying curious and making the most of what is in front of you.
             </p>
           </article>
-          <article className="rounded-[var(--public-radius)] border border-[#ad9d84] bg-[var(--public-ivory)] p-6">
-            <Compass className="h-6 w-6 text-[#775817]" aria-hidden="true" />
-            <h2 className="mt-4 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-text)]">Operating principles</h2>
-            <ul className="mt-4 space-y-3 text-base leading-7 text-[#5f5548]">
-              {principles.map((principle) => <li key={principle}>• {principle}</li>)}
-            </ul>
+          <article className="border border-[var(--public-border)] bg-[var(--public-surface)] p-6">
+            <Sparkles className="h-6 w-6 text-[var(--public-brass)]" aria-hidden="true" />
+            <h2 className="mt-3 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">What I’m building toward</h2>
+            <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">
+              CardForge is the first product in a larger independent journey. I’m building myself up through products that help people make things, solve real problems, and hopefully create a more stable and generous life along the way.
+            </p>
           </article>
         </div>
       </section>
 
-      <section className="bg-[var(--public-charcoal)] px-5 py-12 text-[var(--public-ivory)] md:px-8 md:py-16">
+      <section className="bg-[var(--public-surface)] px-5 py-10 text-[var(--public-ivory)] md:px-8 md:py-12">
         <div className="mx-auto grid max-w-5xl gap-7 md:grid-cols-[1fr_auto] md:items-end">
           <div>
-            <h2 className="font-[var(--public-font-display)] text-3xl font-semibold">Current priorities</h2>
-            <ul className="mt-4 space-y-2 text-base leading-7 text-[#d5ccbd]">
+            <HeartHandshake className="h-6 w-6 text-[var(--public-brass)]" aria-hidden="true" />
+            <h2 className="mt-3 font-[var(--public-font-display)] text-3xl font-semibold">Thanks for stopping by.</h2>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">Whether you try the Studio, share it with a friend, subscribe, or simply follow along, I’m glad you found the project.</p>
+            <h3 className="mt-6 text-lg font-bold">What I’m focused on now</h3>
+            <ul className="mt-3 space-y-2 text-base leading-7 text-[var(--public-muted-text)]">
               {priorities.map((priority) => <li key={priority}>• {priority}</li>)}
             </ul>
           </div>
           <div className="flex flex-wrap gap-5">
-            <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">Roadmap <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+            <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">See what I’m building <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
             <Link href="/contact" prefetch={false} className="inline-flex min-h-11 items-center font-semibold">Contact</Link>
             <Link href="/support" prefetch={false} className="inline-flex min-h-11 items-center font-semibold">Support the work</Link>
           </div>

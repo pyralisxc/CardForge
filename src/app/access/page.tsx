@@ -13,10 +13,10 @@ export const metadata = createPageMetadata({
 });
 
 const accessLevels = [
-  ['Explore Free', 'Try the editor, build templates, import data, preview generated cards, and keep local project data in your browser or downloaded files.', 'Try the Studio', '/studio'],
-  ['Founder Beta', 'Founder Beta is the active early-access path while the current wave has seats. Eligible accounts can test clean export during the beta period.', 'Check beta access', '/account'],
-  ['Creator Pass', 'Creator Pass is the CardForge product subscription for ongoing production access, clean exports, and the expanding reviewed library.', 'Manage access', '/account'],
-  ['Developer', 'Developer participation is a separate contributor path. Approved contributors improve reviewed shared assets; it is not a customer subscription tier.', 'Developer program', '/developer'],
+  ['Try it free', 'Open the Studio, make cards, and see your set come together. Your projects stay in your browser or downloaded files.', 'Try the Studio', '/studio'],
+  ['Founder Beta', 'Early access for people helping shape CardForge while the current beta wave still has room.', 'Check beta access', '/account'],
+  ['Creator Pass', 'The CardForge product subscription. It unlocks clean downloads and directly supports the business as the Studio grows.', 'Manage access', '/account'],
+  ['Build with us', 'A separate path for developers who want to help improve shared CardForge tools and artwork.', 'Developer program', '/developer'],
 ] as const;
 
 export default async function AccessPage() {
@@ -28,25 +28,25 @@ export default async function AccessPage() {
         { name: 'Home', path: '/' },
         { name: 'Access', path: '/access' },
       ])} />
-      <section className="bg-[var(--public-ivory)] px-5 py-14 md:px-8 md:py-20">
+      <section className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-5xl">
-          <p className="text-base font-semibold uppercase tracking-[0.14em] text-[#76551c]">Product access</p>
-          <h1 className="mt-3 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-text)] md:text-6xl">
-            Start free, then choose production access when you need it.
+          <p className="text-base font-semibold text-[var(--public-brass)]">Pick the path that fits</p>
+          <h1 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)] md:text-5xl">
+            Try CardForge first. Subscribe when it earns its place.
           </h1>
-          <p className="mt-6 max-w-3xl text-lg leading-8 text-[#5f5548]">
-            Exploration, beta access, the Creator Pass product subscription, and developer participation each have a distinct purpose.
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
+            You can explore before paying. Creator Pass is for people using the product, while personal support and developer participation stay separate.
           </p>
         </div>
       </section>
 
-      <section className="bg-[#f0e5d2] px-5 py-12 md:px-8 md:py-16">
-        <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
+      <section className="bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
+        <div className="mx-auto grid max-w-6xl gap-px overflow-hidden border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2">
           {accessLevels.map(([title, copy, action, href]) => (
-            <article key={title} className="rounded-[var(--public-radius)] border border-[#ad9d84] bg-[var(--public-ivory)] p-6">
-              <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-text)]">{title}</h2>
-              <p className="mt-4 text-base leading-7 text-[#5f5548]">{copy}</p>
-              <Link href={href} prefetch={false} className="mt-5 inline-flex min-h-11 items-center text-base font-bold text-[#654817] hover:text-[var(--public-text)]">{action}</Link>
+            <article key={title} className="bg-[var(--public-surface)] p-6">
+              <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">{title}</h2>
+              <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">{copy}</p>
+              <Link href={href} prefetch={false} className="mt-4 inline-flex min-h-11 items-center text-base font-bold text-[var(--public-brass)] hover:text-[var(--public-ivory)]">{action}</Link>
             </article>
           ))}
         </div>

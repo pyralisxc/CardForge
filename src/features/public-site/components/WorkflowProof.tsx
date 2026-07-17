@@ -1,45 +1,45 @@
-import { Database, FileCheck2, Layers3, PanelsTopLeft } from 'lucide-react';
+import { CheckCheck, Download, Layers3, Paintbrush } from 'lucide-react';
 
 const steps = [
   {
-    title: 'Design the template',
-    copy: 'Define the shared front, back, fields, art zones, and visual rules once.',
-    icon: PanelsTopLeft,
+    title: 'Make the look once',
+    copy: 'Set up the front, back, words, and pictures for the kind of card you want.',
+    icon: Paintbrush,
   },
   {
-    title: 'Connect your data',
-    copy: 'Bring in structured rows from CSV, JSON, or the editor instead of rebuilding layouts.',
-    icon: Database,
+    title: 'Add your card list',
+    copy: 'Type the details or bring in a list you already have. Each line becomes a card.',
+    icon: CheckCheck,
   },
   {
-    title: 'Generate the set',
-    copy: 'Apply every reviewed row to the same reusable system in one production pass.',
+    title: 'Build the whole set',
+    copy: 'CardForge places every title, picture, and detail into the same design.',
     icon: Layers3,
   },
   {
-    title: 'Review and export',
-    copy: 'Proof the complete set together, then prepare clean PNG, PDF, ZIP, or tabletop output.',
-    icon: FileCheck2,
+    title: 'Check and download',
+    copy: 'Look through every card, fix anything odd, and save the finished files.',
+    icon: Download,
   },
 ] as const;
 
 export function WorkflowProof() {
   return (
-    <section aria-labelledby="workflow-heading" className="bg-[#f0e5d2] px-5 py-12 md:px-8 md:py-16">
+    <section aria-labelledby="workflow-heading" className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
       <div className="mx-auto max-w-7xl">
-        <p className="text-base font-semibold uppercase tracking-[0.14em] text-[#76551c]">One system, complete output</p>
-        <h2 id="workflow-heading" className="mt-3 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-text)] md:text-5xl">
-          From template to reviewed set in four clear steps.
+        <p className="text-base font-semibold text-[var(--public-brass)]">How it works</p>
+        <h2 id="workflow-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
+          From one good-looking card to the whole set.
         </h2>
-        <ol className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ol className="mt-7 grid gap-px overflow-hidden border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2 xl:grid-cols-4">
           {steps.map((step, index) => (
-            <li key={step.title} className="rounded-[var(--public-radius)] border border-[#ad9d84] bg-[var(--public-ivory)] p-5">
+            <li key={step.title} className="bg-[var(--public-surface)] p-5">
               <div className="flex items-center justify-between gap-4">
-                <step.icon className="h-6 w-6 text-[#775817]" aria-hidden="true" />
-                <span className="text-base font-bold text-[#76551c]">{index + 1}</span>
+                <step.icon className="h-6 w-6 text-[var(--public-brass)]" aria-hidden="true" />
+                <span className="text-base font-bold text-[var(--public-brass)]">{index + 1}</span>
               </div>
-              <h3 className="mt-5 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-text)]">{step.title}</h3>
-              <p className="mt-3 text-base leading-7 text-[#5f5548]">{step.copy}</p>
+              <h3 className="mt-4 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{step.title}</h3>
+              <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">{step.copy}</p>
             </li>
           ))}
         </ol>

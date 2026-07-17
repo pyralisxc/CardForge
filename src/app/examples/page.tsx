@@ -10,7 +10,7 @@ import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Complete Card Set Examples',
-  description: 'Review complete first-party CardForge demonstration sets rendered from shipped templates and structured rows.',
+  description: 'See small card sets made inside CardForge and how one shared design keeps every card together.',
   path: '/examples',
 });
 
@@ -23,18 +23,18 @@ export default async function ExamplesPage() {
         { name: 'Home', path: '/' },
         { name: 'Complete Card Set Examples', path: '/examples' },
       ])} />
-      <section className="bg-[var(--public-ivory)] px-5 py-14 md:px-8 md:py-20">
+      <section className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-6xl">
-          <p className="text-base font-semibold uppercase tracking-[0.16em] text-[#76551c]">Complete sets</p>
-          <h1 className="mt-3 max-w-4xl font-serif text-4xl font-semibold leading-tight text-[var(--public-text)] md:text-6xl">
-            Complete Card Set Examples
+          <p className="text-base font-semibold text-[var(--public-brass)]">Made with CardForge</p>
+          <h1 className="mt-2 max-w-4xl font-serif text-4xl font-semibold leading-tight text-[var(--public-ivory)] md:text-5xl">
+            See what one design can become.
           </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5f5548]">
-            These are small, first-party CardForge demonstrations. Every shown card comes from a reviewed data row and a template loaded from the same shipped runtime catalog used by the Studio.
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
+            See a few small sets made inside CardForge. The words and pictures change, while the shared design keeps every card feeling like part of the same family.
           </p>
         </div>
       </section>
-      <section aria-label="Rendered CardForge example sets" className="bg-[#f0e5d2] px-5 py-12 md:px-8 md:py-16">
+      <section aria-label="Rendered CardForge example sets" className="bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-6xl">
           <LiveExampleGallery />
         </div>

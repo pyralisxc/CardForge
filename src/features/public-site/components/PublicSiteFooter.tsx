@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 
 import type { BusinessIdentity } from '@/features/business-identity/client';
-import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
+import { PUBLIC_FOOTER_LINKS } from '../model/publicNavigation';
 
 export interface PublicSiteFooterProps {
   businessIdentity: BusinessIdentity;
@@ -10,43 +10,33 @@ export interface PublicSiteFooterProps {
 
 export function PublicSiteFooter({ businessIdentity }: PublicSiteFooterProps) {
   return (
-    <footer className="border-t border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 text-[var(--public-muted-text)] md:px-8">
-      <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(15rem,1.2fr)_2fr]">
-        <div>
-          <p className="font-[var(--public-font-display)] text-xl font-semibold text-[var(--public-ivory)]">
+    <footer className="border-t border-[var(--public-border)] bg-[#090806] px-5 py-5 text-[var(--public-muted-text)] md:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="font-[var(--public-font-display)] text-lg font-semibold text-[var(--public-ivory)]">
             {businessIdentity.brandName}
-          </p>
-          <p className="mt-3 max-w-sm text-base leading-7">
-            Build reusable card systems, connect structured data, and review complete sets.
-          </p>
-          <p className="mt-5 text-base leading-7">
-            Operated by {businessIdentity.legalOperatorName}, an independent sole proprietor based in{' '}
-            {businessIdentity.jurisdictionState}. &copy; {new Date().getFullYear()}{' '}
-            {businessIdentity.copyrightHolder}.
-          </p>
+            </p>
+            <p className="text-base">
+              Operated by {businessIdentity.legalOperatorName} in {businessIdentity.jurisdictionState}.
+            </p>
+          </div>
+          <nav aria-label="Footer links" className="flex flex-wrap gap-x-4 gap-y-1">
+            {PUBLIC_FOOTER_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                prefetch={false}
+                className="inline-flex min-h-11 items-center rounded-[var(--public-radius)] text-base hover:text-[var(--public-ivory)]"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </div>
-
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {PUBLIC_NAVIGATION.footerGroups.map((group) => (
-            <div key={group.label}>
-              <h2 className="text-base font-bold uppercase tracking-[0.14em] text-[var(--public-brass)]">
-                {group.label}
-              </h2>
-              <nav aria-label={`${group.label} links`} className="mt-3 grid gap-1">
-                {group.links.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    prefetch={false}
-                    className="inline-flex min-h-11 items-center rounded-[var(--public-radius)] text-base hover:text-[var(--public-ivory)]"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          ))}
-        </div>
+        <p className="border-t border-[#352716] pt-4 text-base">
+          &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}. CardForge Studio is an independent product built with care.
+        </p>
       </div>
     </footer>
   );

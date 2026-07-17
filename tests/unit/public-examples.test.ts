@@ -78,9 +78,19 @@ describe('public examples', () => {
     expect(cardSet).toContain('<CardPreview');
     expect(cardSet).toContain('createBulkDisplayCards');
     expect(cardSet).toContain('<figure');
-    expect(cardSet).toContain('Front');
-    expect(cardSet).toContain('Back');
+    expect(cardSet).toContain('The finished cards');
+    expect(cardSet).toContain('The shared back');
     expect(model).not.toContain('data/default-templates');
     expect(model).not.toContain('freeformCanvas');
+  });
+
+  it('leads with what people can see before technical source details', () => {
+    const page = readSource('src/app/examples/page.tsx');
+    const cardSet = readSource('src/features/public-site/components/ExampleCardSet.tsx');
+
+    expect(page).toContain('See a few small sets made inside CardForge.');
+    expect(cardSet).toContain('What CardForge handled');
+    expect(cardSet).toContain('<details');
+    expect(cardSet.indexOf('What CardForge handled')).toBeLessThan(cardSet.indexOf('Technical details'));
   });
 });

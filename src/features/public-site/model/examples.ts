@@ -72,7 +72,7 @@ export const CARDFORGE_EXAMPLES: readonly CardForgeExample[] = Object.freeze([
   defineExample({
     slug: 'arcane-playing-card-mini-set',
     name: 'Arcane Playing Card Mini Set',
-    description: 'A first-party CardForge demonstration that turns four reviewed CSV rows into a coordinated mini set with one shared reverse.',
+    description: 'A small CardForge demonstration where the rank and suit change while one shared design and card back keep the set together.',
     systemType: 'Playing-card system',
     frontTemplateId: 'default-playing-card-theme',
     backTemplateId: 'default-obsidian-neon-card-back',
@@ -89,14 +89,14 @@ export const CARDFORGE_EXAMPLES: readonly CardForgeExample[] = Object.freeze([
       back: 'The shared Obsidian Neon reverse used by all four playing cards.',
     }),
     caseStudy: Object.freeze({
-      summary: 'One shipped front template and one shipped back template keep the set visually consistent while structured values change per row.',
-      workflow: Object.freeze(['Choose the shipped templates', 'Map the CSV fields', 'Review every generated face']),
+      summary: 'CardForge keeps the border, type, spacing, and reverse consistent while it places each rank and suit into the design.',
+      workflow: Object.freeze(['Choose the shared look', 'Add the card list', 'Check the finished mini set']),
     }),
   }),
   defineExample({
     slug: 'event-badge-workshop-batch',
     name: 'Event Badge Workshop Batch',
-    description: 'A first-party CardForge demonstration that maps three reviewed attendee rows into a practical badge batch.',
+    description: 'A practical CardForge demonstration where each person gets a different name, role, room, and code without rebuilding the badge.',
     systemType: 'Event badge system',
     frontTemplateId: 'default-event-badge-theme',
     rows: EVENT_BADGE_ROWS,
@@ -110,8 +110,8 @@ export const CARDFORGE_EXAMPLES: readonly CardForgeExample[] = Object.freeze([
       ]),
     }),
     caseStudy: Object.freeze({
-      summary: 'The shipped badge template holds the layout steady while names, roles, tracks, rooms, and access codes come from reviewed rows.',
-      workflow: Object.freeze(['Choose the shipped badge template', 'Map the attendee CSV', 'Review the complete badge batch']),
+      summary: 'CardForge holds the badge layout steady and fills in the changing details for each person.',
+      workflow: Object.freeze(['Choose the badge look', 'Add the attendee list', 'Check the full badge batch']),
     }),
   }),
 ]);

@@ -61,3 +61,9 @@ export const PUBLIC_NAVIGATION = {
   studio: PublicNavigationLink;
   footerGroups: ReadonlyArray<PublicNavigationGroup>;
 };
+
+export const PUBLIC_FOOTER_LINKS: ReadonlyArray<PublicNavigationLink> = PUBLIC_NAVIGATION.footerGroups
+  .flatMap<PublicNavigationLink>((group) => [...group.links])
+  .filter((link, index, links) => (
+    links.findIndex((candidate) => candidate.href === link.href) === index
+  ));

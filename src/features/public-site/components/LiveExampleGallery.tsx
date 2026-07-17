@@ -37,19 +37,19 @@ export function LiveExampleGallery({ variant = 'full' }: { variant?: 'full' | 'h
   if (loadFailed) {
     if (variant === 'hero') {
       return (
-        <div role="status" className="rounded-[var(--public-radius)] border border-[#a48f6d] bg-[#f2e5cf] p-5 text-base text-[#5f5548]">
+        <div role="status" className="rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] p-5 text-base text-[var(--public-muted-text)]">
           Live card rendering is temporarily unavailable. The complete examples remain documented on the examples page.
         </div>
       );
     }
 
     return (
-      <div role="status" className="rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-ivory)] p-5 text-base text-[#5f5548]">
+      <div role="status" className="rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] p-5 text-base text-[var(--public-muted-text)]">
         <p>The live previews are temporarily unavailable because the shipped template catalog could not be loaded.</p>
         <ul className="mt-4 space-y-3">
           {CARDFORGE_EXAMPLES.map((example) => (
             <li key={example.slug}>
-              <strong className="text-[var(--public-text)]">{example.name}</strong>{' '}
+              <strong className="text-[var(--public-ivory)]">{example.name}</strong>{' '}
               — {example.cardCount} reviewed {example.sourceFormat.toLowerCase()} generated with one reusable template.
             </li>
           ))}
@@ -59,7 +59,7 @@ export function LiveExampleGallery({ variant = 'full' }: { variant?: 'full' | 'h
   }
 
   if (!templates) {
-    return <p role="status" className="min-h-40 text-base text-[#5f5548]">Loading shipped templates for the live examples…</p>;
+    return <p role="status" className="min-h-40 text-base text-[var(--public-muted-text)]">Loading the live CardForge examples…</p>;
   }
 
   if (variant === 'hero') {
@@ -70,7 +70,7 @@ export function LiveExampleGallery({ variant = 'full' }: { variant?: 'full' | 'h
       : undefined;
 
     if (!frontTemplate || (example.backTemplateId && !backTemplate)) {
-      return <p role="status" className="text-base text-[#5f5548]">The live set proof is temporarily unavailable.</p>;
+      return <p role="status" className="text-base text-[var(--public-muted-text)]">The live set preview is temporarily unavailable.</p>;
     }
 
     return <ExampleHeroProof example={example} frontTemplate={frontTemplate} backTemplate={backTemplate} />;

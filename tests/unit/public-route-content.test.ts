@@ -13,11 +13,14 @@ describe('public route stories', () => {
     const about = readRoute('about');
     const cameron = readRoute('cameron');
 
-    expect(about).toContain('local-first');
-    expect(about).toContain('reusable');
-    expect(about).toContain('one-card mockup');
-    expect(cameron).toContain('Why I built CardForge');
-    expect(cameron).toContain('Operating principles');
+    expect(about).toContain('Make one card. Build the whole set.');
+    expect(about).toContain('Your work stays with you');
+    expect(cameron).toContain('I’m Cameron');
+    expect(cameron).toContain('Oregon sole proprietor');
+    expect(cameron).toContain('AI-assisted code generation');
+    expect(cameron).toContain('Hawaii');
+    expect(cameron).toContain('hitchhiking');
+    expect(cameron).toContain('first product');
     expect(cameron).toContain('href="/support"');
   });
 
@@ -29,7 +32,7 @@ describe('public route stories', () => {
     expect(access).not.toContain('planned home');
   });
 
-  it('publishes an honest informational support page without checkout', () => {
+  it('publishes a friendly support page that leads with the CardForge business', () => {
     const support = readRoute('support');
 
     for (const disclosure of [
@@ -39,6 +42,8 @@ describe('public route stories', () => {
       'not a charitable donation or tax-deductible',
       'does not provide equity',
       'Payments are not active yet',
+      'Creator Pass is the best way to support CardForge as a business',
+      'food, housing, transportation',
     ]) {
       expect(support).toContain(disclosure);
     }
