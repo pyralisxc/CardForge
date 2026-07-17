@@ -1,17 +1,21 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { shouldUseFullWidthGeneratorField } from '@/features/card-generator/components/GeneratorFieldGroups';
+const source = readFileSync(
+  resolve(process.cwd(), 'src/features/card-generator/components/GeneratorFieldGroups.tsx'),
+  'utf8',
+);
 
 describe('single-output field layout', () => {
-  it('pairs compact fields in the two-column form', () => {
-    expect(shouldUseFullWidthGeneratorField({})).toBe(false);
-    expect(shouldUseFullWidthGeneratorField({ control: 'input' })).toBe(false);
+  it('uses two columns for every generated field at every viewport width', () => {
+    expect(source.match(/className="grid grid-cols-2 gap-2"/g)).toHaveLength(2);
+    expect(source).not.toContain('md:grid-cols-2');
   });
 
-  it('keeps editing-heavy fields at full width', () => {
-    expect(shouldUseFullWidthGeneratorField({ isImage: true })).toBe(true);
-    expect(shouldUseFullWidthGeneratorField({ isMultiline: true })).toBe(true);
-    expect(shouldUseFullWidthGeneratorField({ control: 'textarea' })).toBe(true);
-    expect(shouldUseFullWidthGeneratorField({ editor: 'text-editor', supportsRichText: true })).toBe(true);
+  it('does not change field width based on its content or editor type', () => {
+    expect(source).not.toContain('shouldUseFullWidthGeneratorField');
+    expect(source).not.toContain("? 'md:col-span-2'");
   });
 });
