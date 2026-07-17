@@ -96,7 +96,7 @@ describe('business identity runtime cutover', () => {
       'src/app/roadmap/page.tsx',
     ]) {
       const source = await readFile(rootPath(pagePath), 'utf8');
-      expect(source, pagePath).toContain('getBusinessIdentity');
+      expect(source, pagePath).toContain('getCachedBusinessIdentity');
       expect(source, pagePath).not.toContain('getPublishedLegalDocument');
     }
   });
@@ -104,10 +104,10 @@ describe('business identity runtime cutover', () => {
   it('loads runtime identity into the public homepage footer', async () => {
     const homepage = await readFile(rootPath('src/app/page.tsx'), 'utf8');
 
-    expect(homepage).toContain("import { getBusinessIdentity } from '@/features/business-identity/server';");
+    expect(homepage).toContain('getCachedBusinessIdentity');
     expect(homepage).toContain('Promise.all([');
-    expect(homepage).toContain('getSiteContentBlocks()');
-    expect(homepage).toContain('getBusinessIdentity()');
+    expect(homepage).toContain("getCachedSiteContentBlocks('landing')");
+    expect(homepage).toContain('getCachedBusinessIdentity()');
     expect(homepage).toContain('businessIdentity.brandName');
     expect(homepage).toContain('businessIdentity.legalOperatorName');
     expect(homepage).toContain('businessIdentity.copyrightHolder');

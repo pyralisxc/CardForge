@@ -6,7 +6,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 
 ## Product Truth
 
-- Public site: `/`, `/about`, `/access`, `/roadmap`, `/contact`, and legal pages.
+- Public site: `/`, `/about`, `/access`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages.
 - Studio: `/studio` contains Layout Studio and Generator.
 - Accounts: Clerk identifies users; CardForge stores trusted access in Clerk private metadata or server-side allowlists.
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
@@ -55,8 +55,8 @@ CardForge has three storage lanes:
 - `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
 - `src/features/account`: current-user resolution, access entitlement, profile surfaces, Founder Beta, and owner account administration behind explicit client/server interfaces.
 - `src/features/business-identity`: browser-safe operator contracts, normalization, owner editing, and the server-owned `cardforge_business_identity` record.
-- `src/features/public-site`: editable landing/about/access content, with browser-safe contracts and a server-owned Supabase store.
-- `src/features/legal`: legal-document contracts, defaults, public presentation, and server persistence.
+- `src/features/public-site`: editable landing/about/access content, tagged public caches, metadata-adjacent structured data, browser-safe contracts, and a server-owned Supabase store.
+- `src/features/legal`: immutable versioned legal-publication contracts, constrained Markdown presentation, tagged public caching, and server-owned Supabase publication.
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
 - `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
@@ -107,7 +107,17 @@ Developer submissions and CardForge starter assets use one lifecycle:
 
 Assets can also be `archived` or `rejected`. Published creator-facing tiers are `free` and `paid`; internal `developer` and `hidden` values are pipeline states, not extra customer library tiers.
 
-The current developer pipeline is operational infrastructure, not an active payout system. Creator-pool language remains planning copy until payout, tax, refund, and legal operations exist.
+The current developer pipeline is operational infrastructure, not an active payout system. The former Creator Pool page is an archived, noindex notice and is not promoted as an access tier or active program.
+
+## Public delivery and search identity
+
+Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, content-group, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
+
+Each public route owns its title, description, self-referencing canonical, Open Graph URL, social image, and robots decision through `src/shared/siteMetadata.ts`. The XML sitemap contains only canonical marketing pages; public legal pages are canonical and indexable but intentionally excluded from the marketing sitemap. `/studio`, `/account`, `/profile`, `/owner`, and the Creator Pool archive are noindex.
+
+CardForge structured data represents CardForge Studio as a `Brand`, the product as `SoftwareApplication`, and Cameron Locke as a `Person` and the main entity of the `/cameron` `ProfilePage`. JSON-LD serialization escapes markup-significant characters before insertion.
+
+Legal publication creates a new `(slug, version)` record bound to the current business-identity version. Existing versions are retained. CardForge does not currently track acceptance of revised terms; adding acceptance tracking, notice rules, and enforcement remains a separate product/legal decision.
 
 ## Keep It Minimal
 

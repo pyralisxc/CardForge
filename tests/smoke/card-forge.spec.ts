@@ -171,19 +171,39 @@ test('renders public landing page with studio and account entry points', async (
   await expect(page.getByText(/full production studio/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
   await expect(page.getByRole('link', { name: /Access/i }).first()).toHaveAttribute('href', '/access');
+  await expect(page.getByRole('link', { name: /Cameron/i })).toHaveAttribute('href', '/cameron');
   await expect(page.getByRole('link', { name: /Privacy/i })).toHaveAttribute('href', '/privacy');
   await expect(page.getByRole('link', { name: /Developer Terms/i })).toHaveAttribute('href', '/developer-terms');
-  await expect(page.getByRole('link', { name: /Creator Pool/i })).toHaveAttribute('href', '/creator-pool');
+  await expect(page.getByRole('link', { name: /Creator Pool/i })).toHaveCount(0);
 });
 
 test('renders public trust and access pages', async ({ page }) => {
-  for (const route of ['/about', '/access', '/privacy', '/terms', '/refund', '/contact', '/developer-terms', '/creator-pool']) {
+  for (const route of [
+    '/about',
+    '/access',
+    '/cameron',
+    '/privacy',
+    '/terms',
+    '/creator-pass-terms',
+    '/supporter-terms',
+    '/refund',
+    '/contact',
+    '/developer-terms',
+    '/accessibility',
+    '/creator-pool',
+  ]) {
     await page.goto(route);
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 30_000 });
   }
 
+  await page.goto('/cameron');
+  await expect(page.getByText(/independent sole proprietor based in Oregon/i)).toBeVisible();
+  await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(2);
+  await page.goto('/privacy');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'http://localhost:9002/privacy');
   await page.goto('/creator-pool');
   await expect(page.getByText(/not active payout infrastructure/i)).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
   await page.goto('/developer-terms');
   await expect(page.getByText(/durable platform history/i)).toBeVisible();
 });
