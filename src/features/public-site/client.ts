@@ -13,6 +13,7 @@ export { LiveExampleGallery } from './components/LiveExampleGallery';
 export { ExampleCardSet } from './components/ExampleCardSet';
 export { ExampleSetGallery } from './components/ExampleSetGallery';
 export { OutcomeHero } from './components/OutcomeHero';
+export { StudioProductProof } from './components/StudioProductProof';
 export { WorkflowProof } from './components/WorkflowProof';
 export { AccessComparison } from './components/AccessComparison';
 export { FounderStrip } from './components/FounderStrip';

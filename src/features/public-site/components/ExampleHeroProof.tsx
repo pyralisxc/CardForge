@@ -32,22 +32,22 @@ export function ExampleHeroProof({ example, frontTemplate, backTemplate }: Examp
   }, [backTemplate, example, frontTemplate]);
 
   return (
-    <figure className="rounded-[var(--public-radius)] border border-[#a48f6d] bg-[#f2e5cf] p-4 shadow-[var(--public-shadow)] md:p-5">
+    <figure className="rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[#0d0b08] p-3 shadow-[var(--public-shadow)] md:p-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cards.slice(0, 4).map((card, index) => (
           <div
             key={card.uniqueId}
             role="img"
             aria-label={`${example.altText.rows[index]} Card ${index + 1} of ${cards.length}.`}
-            className="flex min-w-0 justify-center overflow-hidden rounded-[var(--public-radius)] bg-white/55 p-1.5"
+            className="flex min-w-0 justify-center overflow-hidden rounded-[var(--public-radius)] bg-[#21170d] p-1.5"
           >
             <CardPreview card={card} face="front" targetWidthPx={136} />
           </div>
         ))}
       </div>
-      <figcaption className="mt-4 flex flex-wrap items-baseline justify-between gap-2 text-base text-[#5f5548]">
-        <strong className="text-[var(--public-text)]">{example.name}</strong>
-        <span>{example.cardCount} cards from one {example.sourceFormat.toLowerCase()} source</span>
+      <figcaption className="mt-3 flex flex-wrap items-baseline justify-between gap-2 text-base text-[var(--public-muted-text)]">
+        <strong className="text-[var(--public-ivory)]">{example.name}</strong>
+        <span>{example.cardCount} cards, one shared look</span>
       </figcaption>
     </figure>
   );

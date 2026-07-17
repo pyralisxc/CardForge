@@ -37,17 +37,18 @@ const readHexToken = (source: string, token: string) => {
 };
 
 describe('public site shell source contract', () => {
-  it('owns one navigation catalog shared by the header and grouped footer', () => {
+  it('owns one navigation catalog shared by the header and compact footer', () => {
     const navigationSource = readSource('src/features/public-site/model/publicNavigation.ts');
     const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
     const footerSource = readSource('src/features/public-site/components/PublicSiteFooter.tsx');
 
     expect(navigationSource).toContain('export const PUBLIC_NAVIGATION');
     expect(navigationSource).toContain('footerGroups');
+    expect(navigationSource).toContain('footerGroups\n  .flatMap<PublicNavigationLink>');
     expect(headerSource).toContain("from '../model/publicNavigation'");
     expect(footerSource).toContain("from '../model/publicNavigation'");
     expect(headerSource).not.toContain('const baseNavItems');
-    expect(footerSource).toContain('PUBLIC_NAVIGATION.footerGroups.map');
+    expect(footerSource).toContain('PUBLIC_FOOTER_LINKS.map');
   });
 
   it('provides skip navigation and one stable semantic landmark sequence', () => {
@@ -61,7 +62,7 @@ describe('public site shell source contract', () => {
     expect(headerSource).toContain('<header');
     expect(headerSource).toContain('aria-label="Primary navigation"');
     expect(footerSource).toContain('<footer');
-    expect(footerSource).toContain('aria-label={`${group.label} links`}');
+    expect(footerSource).toContain('aria-label="Footer links"');
   });
 
   it('uses an accessible non-wrapping mobile dialog menu without owning account state', () => {
@@ -132,11 +133,24 @@ describe('public site shell source contract', () => {
     expect(globalStyles).toContain('@media (prefers-reduced-motion: reduce)');
     expect(globalStyles).toContain('.cardforge-public-auth-status');
     expect(footerSource).not.toMatch(/text-(?:xs|sm)/);
-    expect(footerSource).toContain('<h2 className="text-base');
+    expect(footerSource).not.toMatch(/text-(?:xs|sm)/);
     expect(legalPageSource).toContain('[&>div]:text-base');
     expect(legalPageSource).not.toMatch(/text-(?:xs|sm)/);
-    expect(legalPageSource).toContain('<p className="text-base font-bold uppercase');
-    expect(legalPageSource).toContain('<p className="mb-3 text-base font-bold uppercase');
+    expect(legalPageSource).toContain('<p className="text-base font-bold text-[var(--public-brass)]');
+    expect(legalPageSource).toContain('<p className="mb-3 text-base font-bold text-[var(--public-brass)]');
+  });
+
+  it('uses the compact obsidian forge shell instead of a tall light marketing frame', () => {
+    const globalStyles = readSource('src/app/globals.css');
+    const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
+    const footerSource = readSource('src/features/public-site/components/PublicSiteFooter.tsx');
+
+    expect(globalStyles).toContain('--public-obsidian: #0c0b09');
+    expect(globalStyles).toContain('--public-surface: #1b1510');
+    expect(globalStyles).toContain('--public-brass: #d9a441');
+    expect(headerSource).toContain('min-h-16');
+    expect(footerSource).toContain('PUBLIC_FOOTER_LINKS.map');
+    expect(footerSource).not.toContain('lg:grid-cols-[minmax(15rem,1.2fr)_2fr]');
   });
 
   it('exports the shell and composes legal presentation without replacing trust content', () => {

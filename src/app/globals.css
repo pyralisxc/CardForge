@@ -258,24 +258,27 @@ body {
 
 .cardforge-public,
 .cardforge-public-tokens {
-  --public-charcoal: #171512;
-  --public-ivory: #fff8e9;
-  --public-brass: #d1a651;
-  --public-text: #302b24;
-  --public-muted-text: #bdb3a2;
-  --public-border: #5e5548;
-  --public-focus: #171512;
-  --public-focus-contrast: #fff8e9;
-  --public-radius: 0.375rem;
-  --public-shadow: 0 1rem 2.5rem rgb(13 11 8 / 24%);
-  --public-space: clamp(3rem, 7vw, 6rem);
+  --public-obsidian: #0c0b09;
+  --public-charcoal: #15110d;
+  --public-surface: #1b1510;
+  --public-surface-raised: #211912;
+  --public-ivory: #f7ead0;
+  --public-brass: #d9a441;
+  --public-text: #f4e7cc;
+  --public-muted-text: #c4af87;
+  --public-border: #644923;
+  --public-focus: #0c0b09;
+  --public-focus-contrast: #f7ead0;
+  --public-radius: 0.25rem;
+  --public-shadow: 0 1rem 2.5rem rgb(0 0 0 / 38%);
+  --public-space: clamp(2.5rem, 5vw, 4.5rem);
   --public-font-body: var(--font-cardforge-ui), "Helvetica Neue", Arial, sans-serif;
   --public-font-display: var(--font-cardforge-spectral), Georgia, serif;
 }
 
 .cardforge-public {
   min-height: 100vh;
-  background: var(--public-ivory);
+  background: var(--public-obsidian);
   color: var(--public-text);
   font-family: var(--public-font-body);
   font-size: 1rem;

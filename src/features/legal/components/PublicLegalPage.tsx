@@ -40,20 +40,20 @@ export function PublicLegalPage({
     <PublicSiteShell
       businessIdentity={businessIdentity}
       currentPath={`/${document.slug}`}
-      mainClassName="bg-[var(--public-ivory)] text-[var(--public-text)]"
+      mainClassName="bg-[var(--public-obsidian)] text-[var(--public-text)]"
     >
       <article className="mx-auto max-w-5xl px-5 py-[var(--public-space)] md:px-8">
-        <p className="text-base font-bold uppercase tracking-[0.2em] text-[#775817]">CardForge trust center</p>
-        <h1 className="mt-4 font-[var(--public-font-display)] text-4xl font-semibold text-[var(--public-charcoal)] md:text-5xl">
+        <p className="text-base font-bold text-[var(--public-brass)]">CardForge trust center</p>
+        <h1 className="mt-3 font-[var(--public-font-display)] text-4xl font-semibold text-[var(--public-ivory)] md:text-5xl">
           {document.title}
         </h1>
-        <p className="mt-3 text-base text-[#625a4f]">{formatPublishedDate(document.publishedAt)}</p>
+        <p className="mt-3 text-base text-[var(--public-muted-text)]">{formatPublishedDate(document.publishedAt)}</p>
         <div className="mt-8 [&>div]:text-base">
           <LegalDocumentBody body={document.body} />
         </div>
         {children}
-        <div className="mt-10 rounded-[var(--public-radius)] border border-[#b8aa94] bg-[#f5ead5] p-5 text-base leading-7 text-[var(--public-text)]">
-          <p className="mb-3 text-base font-bold uppercase tracking-[0.16em] text-[#775817]">Business contact</p>
+        <div className="mt-10 rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] p-5 text-base leading-7 text-[var(--public-text)]">
+          <p className="mb-3 text-base font-bold text-[var(--public-brass)]">Business contact</p>
           <p>{formatBusinessIdentityDescription(businessIdentity)}</p>
           <p>Legal operator: {businessIdentity.legalOperatorName}</p>
           <p>Jurisdiction: {businessIdentity.jurisdictionState}, {businessIdentity.jurisdictionCountry}</p>
@@ -67,13 +67,13 @@ export function PublicLegalPage({
               key={link.href}
               href={link.href}
               prefetch={false}
-              className="inline-flex min-h-11 items-center rounded-[var(--public-radius)] border border-[#8d7e68] bg-white px-4 font-semibold text-[var(--public-text)] hover:border-[#775817]"
+              className="inline-flex min-h-11 items-center rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] px-4 font-semibold text-[var(--public-text)] hover:border-[var(--public-brass)]"
             >
               {link.label}
             </Link>
           ))}
         </nav>
-        <p className="mt-6 text-base leading-7 text-[#625a4f]">
+        <p className="mt-6 text-base leading-7 text-[var(--public-muted-text)]">
           These pages are product-facing policy text for CardForge's beta launch and should be reviewed by a qualified attorney before paid production use.
         </p>
       </article>

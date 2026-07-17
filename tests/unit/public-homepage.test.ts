@@ -9,18 +9,18 @@ describe('proof-led homepage', () => {
   it('leads with the product outcome and two intentional hero actions', () => {
     const hero = readSource('src/features/public-site/components/OutcomeHero.tsx');
 
-    expect(hero).toContain('Build complete card sets from one reusable system.');
+    expect(hero).toContain('Design one card. Add your list. CardForge builds the set.');
     expect(hero).toContain('Try the Studio');
     expect(hero).toContain('href="/studio"');
-    expect(hero).toContain('See Complete Sets');
+    expect(hero).toContain('See what it makes');
     expect(hero).toContain('href="/examples"');
-    expect(hero).toContain('variant="hero"');
+    expect(hero).toContain('StudioProductProof');
   });
 
-  it('shows the four-step production workflow in order', () => {
+  it('shows the four-step workflow in ordinary language', () => {
     const workflow = readSource('src/features/public-site/components/WorkflowProof.tsx');
 
-    const steps = ['Design the template', 'Connect your data', 'Generate the set', 'Review and export'];
+    const steps = ['Make the look once', 'Add your card list', 'Build the whole set', 'Check and download'];
     let previousIndex = -1;
     for (const step of steps) {
       const index = workflow.indexOf(step);
@@ -29,14 +29,17 @@ describe('proof-led homepage', () => {
     }
   });
 
-  it('uses real renderer proof and removes the fantasy workbench hero', () => {
+  it('uses recognizable Studio and real renderer proof', () => {
     const page = readSource('src/app/page.tsx');
     const hero = readSource('src/features/public-site/components/OutcomeHero.tsx');
+    const studioProof = readSource('src/features/public-site/components/StudioProductProof.tsx');
 
     expect(page).toContain('<PublicSiteShell');
     expect(page).toContain('<OutcomeHero');
     expect(page).not.toContain('cardforge-hero-workbench.png');
-    expect(hero).toContain('LiveExampleGallery');
+    expect(hero).toContain('StudioProductProof');
+    expect(studioProof).toContain('Studio workspace preview');
+    expect(studioProof).toContain('LiveExampleGallery');
   });
 
   it('keeps access, founder trust, support, and one final product conversion', () => {
@@ -45,7 +48,7 @@ describe('proof-led homepage', () => {
 
     expect(page).toContain('<AccessComparison');
     expect(page).toContain('<FounderStrip');
-    expect(page).toContain('Ready to build the complete set?');
+    expect(page).toContain('Build your first set.');
     expect(founder).toContain('Built independently by Cameron Locke');
     expect(founder).toContain('href="/cameron"');
     expect(founder).toContain('href="/support"');

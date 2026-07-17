@@ -20,7 +20,7 @@ import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
   title: 'Build Complete Card Sets',
-  description: 'Design one reusable template, connect structured data, review the complete set, and export production-ready card files.',
+  description: 'Design one card, add your list, and let CardForge build the complete set in your browser.',
   path: '/',
 });
 
@@ -41,23 +41,23 @@ export default async function LandingPage() {
       <OutcomeHero />
       <WorkflowProof />
 
-      <section aria-labelledby="founder-beta-heading" className="bg-[var(--public-ivory)] px-5 py-10 md:px-8">
-        <div className="mx-auto grid max-w-7xl gap-6 rounded-[var(--public-radius)] border border-[#a48f6d] bg-white p-6 md:grid-cols-[1fr_auto] md:items-center md:p-8">
+      <section aria-labelledby="founder-beta-heading" className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-7 md:px-8">
+        <div className="mx-auto grid max-w-7xl gap-5 border-l-2 border-[var(--public-brass)] bg-[var(--public-surface)] p-5 md:grid-cols-[1fr_auto] md:items-center">
           <div>
-            <p className="flex items-center gap-2 text-base font-semibold uppercase tracking-[0.14em] text-[#76551c]">
+            <p className="flex items-center gap-2 text-base font-semibold text-[var(--public-brass)]">
               <Gift className="h-5 w-5" aria-hidden="true" /> Founder Beta
             </p>
-            <h2 id="founder-beta-heading" className="mt-3 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-text)]">
+            <h2 id="founder-beta-heading" className="mt-2 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">
               {siteCopy['landing.demo.heading']}
             </h2>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-[#5f5548]">
+            <p className="mt-2 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">
               {siteCopy['landing.demo.body']}
             </p>
           </div>
           <Link
             href="/account"
             prefetch={false}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[#8d7e68] px-5 text-base font-bold text-[var(--public-text)] hover:border-[#775817]"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)]"
           >
             Check beta access <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
@@ -67,18 +67,18 @@ export default async function LandingPage() {
       <AccessComparison />
       <FounderStrip />
 
-      <section className="bg-[var(--public-ivory)] px-5 py-14 text-center md:px-8 md:py-20">
+      <section className="bg-[radial-gradient(circle_at_center,#2a1a0c_0%,#0c0b09_62%)] px-5 py-11 text-center md:px-8 md:py-14">
         <div className="mx-auto max-w-3xl">
-          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-text)] md:text-5xl">
-            Ready to build the complete set?
+          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
+            Build your first set.
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-[#5f5548]">
-            Start with one reusable template and see the full production workflow in the Studio.
+          <p className="mx-auto mt-3 max-w-2xl text-lg leading-8 text-[var(--public-muted-text)]">
+            Open the Studio, choose a starting point, and make something that feels like yours.
           </p>
           <Link
             href="/studio"
             prefetch={false}
-            className="mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-charcoal)] px-6 text-base font-bold text-[var(--public-ivory)] shadow-[var(--public-shadow)] hover:bg-[#2b2721]"
+            className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-6 text-base font-bold text-[var(--public-obsidian)] shadow-[var(--public-shadow)] hover:bg-[#f0bd58]"
           >
             Try the Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>

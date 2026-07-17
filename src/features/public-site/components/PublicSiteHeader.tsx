@@ -36,23 +36,23 @@ export function PublicSiteHeader({
 
   return (
     <header className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] text-[var(--public-ivory)]">
-      <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-5 md:px-8">
+      <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-3 px-5 md:px-8">
         <Link
           href="/"
           prefetch={false}
           className="inline-flex min-h-11 min-w-0 items-center gap-3 rounded-[var(--public-radius)] text-[var(--public-ivory)]"
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[#211d18]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface-raised)] shadow-[0_0_22px_rgba(217,164,65,0.1)]">
             <Image
               src="/brand/cardforge-studio/brand-mark.svg"
               alt=""
               width={24}
               height={32}
               priority
-              className="h-8 w-auto"
+              className="h-7 w-auto"
             />
           </span>
-          <span className="truncate font-[var(--public-font-display)] text-xl font-semibold tracking-wide">
+          <span className="truncate font-[var(--public-font-display)] text-lg font-semibold tracking-wide md:text-xl">
             {businessIdentity.brandName}
           </span>
         </Link>
@@ -118,7 +118,7 @@ export function PublicSiteHeader({
                     href={item.href}
                     prefetch={false}
                     aria-current={currentPath === item.href ? 'page' : undefined}
-                    className="inline-flex min-h-11 items-center rounded-[var(--public-radius)] px-3 text-base font-semibold text-[var(--public-ivory)] hover:bg-[#211d18] hover:text-[var(--public-brass)]"
+                    className="inline-flex min-h-11 items-center rounded-[var(--public-radius)] px-3 text-base font-semibold text-[var(--public-ivory)] hover:bg-[var(--public-surface-raised)] hover:text-[var(--public-brass)]"
                   >
                     {item.label}
                   </Link>

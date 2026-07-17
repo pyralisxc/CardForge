@@ -38,31 +38,27 @@ export function ExampleCardSet({ example, frontTemplate, backTemplate }: Example
   const captionId = `${example.slug}-caption`;
 
   return (
-    <figure aria-labelledby={captionId} className="rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-ivory)] p-5 shadow-[var(--public-shadow)] md:p-7">
+    <figure aria-labelledby={captionId} className="overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] shadow-[var(--public-shadow)]">
+      <div className="p-5 md:p-6">
       <figcaption id={captionId} className="max-w-3xl">
-        <p className="text-base font-semibold uppercase tracking-[0.14em] text-[#76551c]">
+        <p className="text-base font-semibold text-[var(--public-brass)]">
           {example.systemType}
         </p>
-        <h2 className="mt-2 font-serif text-3xl font-semibold text-[var(--public-text)]">
+        <h2 className="mt-2 font-serif text-3xl font-semibold text-[var(--public-ivory)]">
           {example.name}
         </h2>
-        <p className="mt-3 text-base leading-7 text-[#5f5548]">{example.description}</p>
-        <dl className="mt-5 flex flex-wrap gap-x-7 gap-y-2 text-base text-[#5f5548]">
-          <div><dt className="inline font-semibold text-[var(--public-text)]">Source: </dt><dd className="inline">{example.sourceFormat}</dd></div>
-          <div><dt className="inline font-semibold text-[var(--public-text)]">Exact count: </dt><dd className="inline">{example.cardCount} cards</dd></div>
-          <div><dt className="inline font-semibold text-[var(--public-text)]">Outputs: </dt><dd className="inline">{example.outputFormats.join(', ')}</dd></div>
-        </dl>
+        <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">{example.description}</p>
       </figcaption>
 
       <div className="mt-7">
-        <h3 className="text-base font-semibold text-[var(--public-text)]">Fronts</h3>
+        <h3 className="text-base font-semibold text-[var(--public-ivory)]">The finished cards</h3>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {cards.map((card, index) => (
             <div
               key={card.uniqueId}
               role="img"
               aria-label={`${example.altText.rows[index]} Card ${index + 1} of ${cards.length}.`}
-              className="flex justify-center overflow-hidden rounded-[var(--public-radius)] bg-[#f0e5d2] p-2"
+              className="flex justify-center overflow-hidden rounded-[var(--public-radius)] border border-[#3e2d1a] bg-[#100d09] p-2"
             >
               <CardPreview card={card} face="front" targetWidthPx={180} />
             </div>
@@ -72,25 +68,35 @@ export function ExampleCardSet({ example, frontTemplate, backTemplate }: Example
 
       {backTemplate && cards[0] && example.altText.back ? (
         <div className="mt-7">
-          <h3 className="text-base font-semibold text-[var(--public-text)]">Back</h3>
+          <h3 className="text-base font-semibold text-[var(--public-ivory)]">The shared back</h3>
           <div
             role="img"
             aria-label={example.altText.back}
-            className="mt-3 flex w-fit justify-center overflow-hidden rounded-[var(--public-radius)] bg-[#f0e5d2] p-2"
+            className="mt-3 flex w-fit justify-center overflow-hidden rounded-[var(--public-radius)] border border-[#3e2d1a] bg-[#100d09] p-2"
           >
             <CardPreview card={cards[0]} face="back" targetWidthPx={180} />
           </div>
-          <p className="mt-2 text-base text-[#5f5548]">One shared back for all {example.cardCount} cards.</p>
+          <p className="mt-2 text-base text-[var(--public-muted-text)]">One shared back for all {example.cardCount} cards.</p>
         </div>
       ) : null}
 
       <div className="mt-7 border-t border-[var(--public-border)] pt-5">
-        <h3 className="text-lg font-semibold text-[var(--public-text)]">How this demonstration is built</h3>
-        <p className="mt-2 text-base leading-7 text-[#5f5548]">{example.caseStudy.summary}</p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5 text-base text-[#5f5548]">
+        <h3 className="text-lg font-semibold text-[var(--public-ivory)]">What CardForge handled</h3>
+        <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">{example.caseStudy.summary}</p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-base text-[var(--public-muted-text)]">
           {example.caseStudy.workflow.map((step) => <li key={step}>{step}</li>)}
         </ol>
       </div>
+      </div>
+
+      <details className="border-t border-[var(--public-border)] bg-[#100d09] px-5 py-4 md:px-6">
+        <summary className="min-h-11 cursor-pointer font-bold text-[var(--public-brass)]">Technical details</summary>
+        <dl className="mt-3 flex flex-wrap gap-x-7 gap-y-2 text-base text-[var(--public-muted-text)]">
+          <div><dt className="inline font-semibold text-[var(--public-ivory)]">Source: </dt><dd className="inline">{example.sourceFormat}</dd></div>
+          <div><dt className="inline font-semibold text-[var(--public-ivory)]">Count: </dt><dd className="inline">{example.cardCount} cards</dd></div>
+          <div><dt className="inline font-semibold text-[var(--public-ivory)]">Downloads: </dt><dd className="inline">{example.outputFormats.join(', ')}</dd></div>
+        </dl>
+      </details>
     </figure>
   );
 }
