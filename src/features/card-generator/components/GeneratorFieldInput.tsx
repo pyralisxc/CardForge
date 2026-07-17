@@ -81,7 +81,7 @@ export function GeneratorFieldInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={`Enter ${field.label}...`}
       maxLength={field.maxLength}
-      className={field.isImage ? 'flex-grow' : ''}
+      className={field.isImage ? 'min-w-0 flex-grow' : ''}
     />
   );
 
@@ -108,7 +108,7 @@ export function GeneratorFieldInput({
         <p className="text-xs text-muted-foreground">{field.description}</p>
       )}
 
-      <div className={field.isImage ? 'flex items-center gap-2' : ''}>
+      <div className={field.isImage ? 'flex flex-col items-stretch gap-2 sm:flex-row sm:items-center' : ''}>
         {canUseRichText ? (
           <div className="space-y-1.5">
             {richTextExpanded ? (
@@ -199,7 +199,7 @@ export function GeneratorFieldInput({
             onChange={(event) => onChange(event.target.value)}
             placeholder={field.isImage ? `URL or Data URI for ${field.label}` : `Enter ${field.label}...`}
             maxLength={field.maxLength}
-            className={field.isImage ? 'flex-grow' : ''}
+            className={field.isImage ? 'min-w-0 flex-grow' : ''}
           />
         )}
 
@@ -210,7 +210,7 @@ export function GeneratorFieldInput({
               variant="outline"
               size="sm"
               onClick={() => document.getElementById(fileInputId)?.click()}
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
               aria-label={`Upload image for ${field.label}`}
             >
               <Upload className="mr-2 h-4 w-4" /> Upload
