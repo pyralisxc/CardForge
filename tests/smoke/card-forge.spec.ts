@@ -163,11 +163,11 @@ async function seedBulkMappingTemplate(page: Page) {
 test('renders public landing page with studio and account entry points', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: /Build complete card sets from one reusable system/i })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('heading', { name: /From template to reviewed set in four clear steps/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Design one card\. Add your list\. CardForge builds the set\./i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /From one good-looking card to the whole set\./i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Check beta access/i })).toHaveAttribute('href', '/account');
   await expect(page.getByRole('link', { name: /Try the Studio/i }).first()).toHaveAttribute('href', '/studio');
-  await expect(page.getByRole('link', { name: /See Complete Sets/i })).toHaveAttribute('href', '/examples');
+  await expect(page.getByRole('link', { name: /See what it makes/i })).toHaveAttribute('href', '/examples');
   await expect(page.getByRole('heading', { name: /Built independently by Cameron Locke/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
   await expect(page.getByRole('link', { name: /Access/i }).first()).toHaveAttribute('href', '/access');
