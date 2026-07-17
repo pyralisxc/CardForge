@@ -85,6 +85,20 @@ const orderFieldsForEditing = (fields: TemplateFieldDefinition[]) =>
 const contentModelForPreview = (model: FieldGroup['contentModel']) =>
   model === 'structuredRows' ? 'richText' : 'rulesBlocks';
 
+type GeneratorFieldLayoutHint = Partial<Pick<
+  TemplateFieldDefinition,
+  'control' | 'editor' | 'isImage' | 'isMultiline' | 'supportsRichText'
+>>;
+
+export const shouldUseFullWidthGeneratorField = (field: GeneratorFieldLayoutHint): boolean => (
+  Boolean(
+    field.isImage
+    || field.isMultiline
+    || field.control === 'textarea'
+    || (field.editor === 'text-editor' && field.supportsRichText)
+  )
+);
+
 const buildDefaultStructuredRows = (fields: TemplateFieldDefinition[], data: CardData) => [
   Object.fromEntries(fields.map((field) => [field.key, getFieldPreviewValue(field, data)])),
 ];
@@ -279,16 +293,23 @@ export function GeneratorFieldGroups({
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="grid gap-2 md:grid-cols-2">
               {isStructuredRows ? (
-                <StructuredRowsEditor
-                  group={group}
-                  fields={orderedFields}
-                  data={data}
-                  onFieldChange={onFieldChange}
-                />
+                <div className="md:col-span-2">
+                  <StructuredRowsEditor
+                    group={group}
+                    fields={orderedFields}
+                    data={data}
+                    onFieldChange={onFieldChange}
+                  />
+                </div>
               ) : orderedFields.map((field) => (
-                <div key={field.key} className="rounded-md border border-border/60 bg-background/60 p-3">
+                <div
+                  key={field.key}
+                  className={`rounded-md border border-border/60 bg-background/60 p-3 ${
+                    shouldUseFullWidthGeneratorField(field) ? 'md:col-span-2' : ''
+                  }`}
+                >
                   <GeneratorFieldInput
                     field={field}
                     value={getFieldStringValue(data, field)}
