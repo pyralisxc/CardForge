@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from 'react';
-import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, Layers3, PackagePlus, PenTool, Scissors, Settings2, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, Layers3, PackagePlus, PenTool, Scissors, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { CardPreview } from '@/features/card-rendering/client';
@@ -217,17 +217,16 @@ export function GenerationWorkspace({
 
   return (
     <>
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
-      <div className="min-w-0">
-        <div className="mb-4 rounded-lg border bg-card p-4 shadow-sm">
+    <div className="space-y-8">
+      <section data-workflow-step="setup" aria-labelledby="generator-setup-heading" className="rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Layers3 className="h-5 w-5 text-primary" />
             <div>
-              <h2 className="text-base font-semibold">Deck Setup</h2>
+              <h2 id="generator-setup-heading" className="text-base font-semibold">Deck Setup</h2>
               <p className="text-xs text-muted-foreground">Choose the front layout and reusable card back for this generated set.</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
             <div>
               <Label htmlFor="active-card-set-name">Deck Name</Label>
               <Input
@@ -279,7 +278,7 @@ export function GenerationWorkspace({
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Front</p>
                   <div className="relative w-fit">
-                    <CardPreview card={deckPreviewCard} face="front" highlightColor={richTextHighlightColor} targetWidthPx={150} />
+                    <CardPreview card={deckPreviewCard} face="front" highlightColor={richTextHighlightColor} targetWidthPx={110} />
                     {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-front-watermark" /> : null}
                   </div>
                 </div>
@@ -287,11 +286,11 @@ export function GenerationWorkspace({
                   <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Back</p>
                   {selectedBackingTemplate ? (
                     <div className="relative w-fit">
-                      <CardPreview card={deckPreviewCard} face="back" highlightColor={richTextHighlightColor} targetWidthPx={150} />
+                      <CardPreview card={deckPreviewCard} face="back" highlightColor={richTextHighlightColor} targetWidthPx={110} />
                       {showGeneratedPreviewWatermark ? <CardWatermarkOverlay testId="deck-back-watermark" /> : null}
                     </div>
                   ) : (
-                    <div className="flex aspect-[63/88] w-full max-w-[150px] items-center justify-center rounded border border-dashed bg-muted/40 px-3 text-center text-xs text-muted-foreground">
+                    <div className="flex aspect-[63/88] w-[78px] items-center justify-center rounded border border-dashed bg-muted/40 px-2 text-center text-xs text-muted-foreground">
                       No card back selected
                     </div>
                   )}
@@ -299,10 +298,15 @@ export function GenerationWorkspace({
               </div>
             ) : null}
           </div>
-        </div>
+      </section>
 
+      <section data-workflow-step="generate" aria-labelledby="generator-entry-heading" className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Create cards</p>
+          <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Fill one card or bring in a whole list</h2>
+        </div>
         <Tabs defaultValue="single" className="space-y-4">
-          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl border bg-card/70 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border bg-card/70 p-1">
             <TabsTrigger value="single" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <FilePlus2 className="h-4 w-4" />
               Single
@@ -310,10 +314,6 @@ export function GenerationWorkspace({
             <TabsTrigger value="bulk" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <PackagePlus className="h-4 w-4" />
               Bulk Import
-            </TabsTrigger>
-            <TabsTrigger value="export" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
-              <Settings2 className="h-4 w-4" />
-              Export & Sets
             </TabsTrigger>
           </TabsList>
 
@@ -336,11 +336,38 @@ export function GenerationWorkspace({
               selectedTemplateIdProp={generatorSelectedTemplateId}
             />
           </TabsContent>
+        </Tabs>
+      </section>
 
-          <TabsContent value="export" className="mt-0">
+      <section data-workflow-step="review" aria-labelledby="generator-review-heading" className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Review the set</p>
+          <h2 id="generator-review-heading" className="mt-1 text-xl font-semibold">Check every generated card</h2>
+        </div>
+        <div ref={galleryRegionRef} className="min-w-0 scroll-mt-4">
+          <GeneratedCardGallery
+            templates={templates}
+            generatorSelectedTemplateId={generatorSelectedTemplateId}
+            generatedDisplayCards={generatedDisplayCards}
+            gallerySearch={gallerySearch}
+            gallerySort={gallerySort}
+            exportMode={exportMode}
+            exportDpi={exportDpi}
+            richTextHighlightColor={richTextHighlightColor}
+            showPreviewWatermark={showGeneratedPreviewWatermark}
+            onGallerySearchChange={onGallerySearchChange}
+            onGallerySortChange={onGallerySortChange}
+            onEditCardRequest={onEditCardRequest}
+            onRemoveCard={onRemoveCard}
+            exportGateMessage={exportGateMessage}
+          />
+        </div>
+      </section>
+
+      <section data-workflow-step="export" aria-labelledby="generator-export-heading">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl flex items-center gap-2">Export & Sets</CardTitle>
+                <CardTitle id="generator-export-heading" className="text-xl flex items-center gap-2">Export the finished set</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-md border bg-muted/40 p-3 text-xs">
@@ -524,28 +551,7 @@ export function GenerationWorkspace({
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      <div ref={galleryRegionRef} className="min-w-0 scroll-mt-4">
-        <GeneratedCardGallery
-          templates={templates}
-          generatorSelectedTemplateId={generatorSelectedTemplateId}
-          generatedDisplayCards={generatedDisplayCards}
-          gallerySearch={gallerySearch}
-          gallerySort={gallerySort}
-          exportMode={exportMode}
-          exportDpi={exportDpi}
-          richTextHighlightColor={richTextHighlightColor}
-          showPreviewWatermark={showGeneratedPreviewWatermark}
-          onGallerySearchChange={onGallerySearchChange}
-          onGallerySortChange={onGallerySortChange}
-          onEditCardRequest={onEditCardRequest}
-          onRemoveCard={onRemoveCard}
-          exportGateMessage={exportGateMessage}
-        />
-      </div>
+      </section>
     </div>
     {isZipExporting && zipProgress && (
       <div
