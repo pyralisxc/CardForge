@@ -10,10 +10,8 @@ export interface PublicNavigationGroup {
 
 export const PUBLIC_NAVIGATION = {
   primary: [
-    { href: '/about', label: 'About' },
-    { href: '/cameron', label: 'Cameron' },
+    { href: '/about', label: 'How it works' },
     { href: '/roadmap', label: 'Roadmap' },
-    { href: '/developer', label: 'Developers' },
     { href: '/account', label: 'Account' },
   ],
   studio: { href: '/studio', label: 'Try the Studio' },
