@@ -68,7 +68,7 @@ export function TemplateEditorTopBar({
         </div>
         <div>
           <h2 className="text-sm font-semibold tracking-wide text-[#f3ead7]">Layout Studio</h2>
-          <p className="cardforge-editor-subtitle text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">${isDirty ? 'Unsaved changes' : 'Card design workspace'}</p>
+          <p className="cardforge-editor-subtitle text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">{isDirty ? 'Unsaved changes' : 'Card design workspace'}</p>
         </div>
       </div>
       <div className="cardforge-editor-actions mt-3 flex flex-wrap items-center gap-1 lg:mt-0">
