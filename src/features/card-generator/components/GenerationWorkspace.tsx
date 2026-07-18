@@ -309,7 +309,7 @@ export function GenerationWorkspace({
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border bg-card/70 p-1">
             <TabsTrigger value="single" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <FilePlus2 className="h-4 w-4" />
-              Single
+              One card
             </TabsTrigger>
             <TabsTrigger value="bulk" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <PackagePlus className="h-4 w-4" />
