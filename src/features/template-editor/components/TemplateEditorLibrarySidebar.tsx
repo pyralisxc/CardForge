@@ -7,6 +7,8 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import { ElementLibraryPanel } from '@/features/template-editor/components/ElementLibraryPanel';
 import { LayerTreePanel } from '@/features/template-editor/components/LayerTreePanel';
 import { TemplateLibraryPanel } from '@/features/template-editor/components/TemplateLibraryPanel';
+import { TemplateSettingsPanel } from '@/features/template-editor/components/TemplateSettingsPanel';
+import { WorkspaceSection } from '@/features/template-editor/components/WorkspaceSection';
 import type { TemplateEditorCommands } from '@/features/template-editor/hooks/useTemplateEditorCommands';
 import type { TemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import type { TemplateEditorElements } from '@/features/template-editor/hooks/useTemplateEditorElements';
@@ -59,7 +61,7 @@ export function TemplateEditorLibrarySidebar({
   templates,
   userTemplates,
 }: TemplateEditorLibrarySidebarProps) {
-  const { canvas, checkedLayerIds, clearCheckedLayers, currentTemplate } = controller;
+  const { canvas, checkedLayerIds, clearCheckedLayers, currentTemplate, updateCanvas, updateTemplate } = controller;
 
   return (
     <aside className="cardforge-maker-side cardforge-maker-library min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
@@ -94,6 +96,31 @@ export function TemplateEditorLibrarySidebar({
             controlClassName={makerTheme.control}
             buttonClassName={makerTheme.button}
           />
+
+          <WorkspaceSection title="Card setup" defaultOpen={false} panelClassName={makerTheme.panel}>
+            <TemplateSettingsPanel
+              currentTemplate={currentTemplate}
+              customWidthValue={commands.customWidthValue}
+              customHeightValue={commands.customHeightValue}
+              customUnit={commands.customUnit}
+              gridSize={canvas.gridSize || 20}
+              frameKitRecipes={commands.frameKitRecipes}
+              backgroundImageInputRef={commands.backgroundImageInputRef}
+              borderImageInputRef={commands.borderImageInputRef}
+              controlClassName={makerTheme.control}
+              buttonClassName={makerTheme.button}
+              onCustomWidthValueChange={commands.setCustomWidthValue}
+              onCustomHeightValueChange={commands.setCustomHeightValue}
+              onCustomUnitChange={commands.setCustomUnit}
+              onApplyCustomDimensions={commands.applyCustomDimensions}
+              onResetGridToTemplateDefault={commands.resetGridToTemplateDefault}
+              onApplyFrameStyle={commands.applyFrameStyle}
+              onApplyElementPresetRecipe={elements.applyElementPresetRecipe}
+              onFileUpload={commands.handleFileUpload}
+              onUpdateCanvas={updateCanvas}
+              onUpdateTemplate={updateTemplate}
+            />
+          </WorkspaceSection>
 
           <ElementLibraryPanel
             sections={elements.elementLibrarySections}
