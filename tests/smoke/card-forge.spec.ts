@@ -101,7 +101,7 @@ async function expectGeneratorReady(page: Page) {
     if (await createOutputButton.isVisible().catch(() => false)) return;
     if (!(await page.getByRole('heading', { name: /No Templates Yet/i }).isVisible().catch(() => false))) break;
     await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-    await selectMainTab(page, /Generate/i);
+    await selectMainTab(page, /Make cards/i);
     await expect(page.getByText('Loading templates...', { exact: true })).toBeHidden({ timeout: STUDIO_READY_TIMEOUT });
   }
   await expect(createOutputButton).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
@@ -278,7 +278,7 @@ test('loads default templates and adds a generated output', async ({ page }) => 
     .not.toBe('rgb(255, 255, 255)');
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toBeVisible({ timeout: 90_000 });
 
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await page.getByRole('button', { name: /Create Generated Output/i }).click();
 
@@ -356,7 +356,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
   await gotoStudio(page);
 
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toBeVisible({ timeout: 90_000 });
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible({ timeout: 45_000 });
 
@@ -431,7 +431,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Template Saved', { exact: true })).toBeVisible();
 
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await page.getByRole('button', { name: /Create Generated Output/i }).click();
 
@@ -471,14 +471,14 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
 
-  await page.getByRole('tab', { name: /Generate/i }).click();
+  await page.getByRole('tab', { name: /Make cards/i }).click();
   await expect(page.getByRole('heading', { name: /Save changes to/i })).toBeVisible();
   await page.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
 
-  await page.getByRole('tab', { name: /Generate/i }).click();
+  await page.getByRole('tab', { name: /Make cards/i }).click();
   await page.getByLabel('Template name').fill('Saved Browser QA Template');
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByTestId('generator-panel')).toBeVisible();
@@ -506,7 +506,7 @@ test('adds structured row columns in the layout studio text inspector', async ({
 test('bulk generator uses advanced mapping toggle and strict mode gating', async ({ page }) => {
   await seedBulkMappingTemplate(page);
   await gotoStudio(page);
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await page.getByRole('tab', { name: /Bulk Import/i }).click();
 
@@ -646,7 +646,7 @@ test('supports a 1000-card generated gallery without rendering every preview at 
 test('supports keyboard-first generation and strict mode toggle', async ({ page }) => {
   await seedBulkMappingTemplate(page);
   await gotoStudio(page);
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
 
   const templateTrigger = page.locator('#deck-front-template');
   await templateTrigger.focus();
