@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, RefObject } from 'react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import {
