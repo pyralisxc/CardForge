@@ -73,7 +73,7 @@ export function TemplateLibraryPanel({
     <Card className={cn(panelClassName, 'rounded-[8px]')}>
       <CardHeader className="p-2.5">
         <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
-          <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-[#d5ad54]" /> Templates</span>
+          <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-[#d5ad54]" /> Card designs</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 p-2.5 pt-0">
@@ -84,11 +84,11 @@ export function TemplateLibraryPanel({
             else onSelectTemplateId(value);
           }}
         >
-          <SelectTrigger className={controlClassName} aria-label="Choose template"><SelectValue /></SelectTrigger>
+          <SelectTrigger className={controlClassName} aria-label="Choose card design"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__new__">New Blank Template</SelectItem>
+            <SelectItem value="__new__">New card design</SelectItem>
             {shouldShowUnsavedCurrentTemplate ? (
-              <SelectItem value={currentTemplateId!}>Unsaved / {currentTemplate.name || 'New Card Template'}</SelectItem>
+              <SelectItem value={currentTemplateId!}>Unsaved design / {currentTemplate.name || 'New card design'}</SelectItem>
             ) : null}
             {defaultTemplates.map((template) => (
               <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>
@@ -99,8 +99,8 @@ export function TemplateLibraryPanel({
           </SelectContent>
         </Select>
         <div className="grid grid-cols-2 gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => onCreateNew('standard')} aria-label="Create new front template" className={cn(buttonClassName, 'gap-1 px-2 text-xs')}><Plus className="h-4 w-4" /> Front</Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => onCreateNew('back-preset')} aria-label="Create new card back" className={cn(buttonClassName, 'gap-1 px-2 text-xs')}><Plus className="h-4 w-4" /> Back</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => onCreateNew('standard')} aria-label="Create new front design" className={cn(buttonClassName, 'gap-1 px-2 text-xs')}><Plus className="h-4 w-4" /> New front</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => onCreateNew('back-preset')} aria-label="Create new card back design" className={cn(buttonClassName, 'gap-1 px-2 text-xs')}><Plus className="h-4 w-4" /> New back</Button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onClone} disabled={!currentTemplateId} aria-label="Clone selected template" className={buttonClassName}><Copy className="h-4 w-4" /></Button>
@@ -109,10 +109,10 @@ export function TemplateLibraryPanel({
         <div className="space-y-2 border-t border-[#1b2029] pt-2">
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             <Button type="button" variant="outline" size="sm" onClick={onExportProject} className={cn(buttonClassName, 'min-w-0 gap-1 text-xs')}>
-              <FolderDown className="h-4 w-4" /> Export Project
+              <FolderDown className="h-4 w-4" /> Download project
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={onImportProject} className={cn(buttonClassName, 'min-w-0 gap-1 text-xs')}>
-              <FolderUp className="h-4 w-4" /> Import Project
+              <FolderUp className="h-4 w-4" /> Open project
             </Button>
             <input
               ref={fileInputRef}
@@ -127,7 +127,7 @@ export function TemplateLibraryPanel({
             <div className="space-y-2 rounded-[6px] border border-[#6d4f2b] bg-[#15100a] p-2">
               <p className="flex items-start gap-2 text-[11px] leading-4 text-[#cbb58b]">
                 <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e2aa4a]" />
-                <span>{projectFileGateMessage || 'Buy Creator Pass to unlock portable project-file exports and imports.'}</span>
+                <span>{projectFileGateMessage || 'Creator Pass lets you download and open portable project copies.'}</span>
               </p>
               <Button
                 type="button"
