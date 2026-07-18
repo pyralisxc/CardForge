@@ -62,6 +62,8 @@ describe('public route stories', () => {
     expect(checkout).toContain('does not provide CardForge product access');
     expect(checkout).toContain('Renews monthly until canceled');
     expect(checkout).toContain('aria-live="polite"');
+    expect(checkout).toContain('text-[#2f2418]');
+    expect(checkout).not.toContain('text-[var(--public-text)]');
   });
 
   it('uses the shared public shell across public marketing routes', () => {
