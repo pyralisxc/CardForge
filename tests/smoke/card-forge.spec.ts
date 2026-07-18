@@ -479,7 +479,8 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
 
   await page.getByRole('tab', { name: /Generate/i }).click();
-  await page.getByRole('button', { name: 'Don’t save' }).click();
+  await page.getByLabel('Template name').fill('Saved Browser QA Template');
+  await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByTestId('generator-panel')).toBeVisible();
 });
 test('adds structured row columns in the layout studio text inspector', async ({ page }) => {
