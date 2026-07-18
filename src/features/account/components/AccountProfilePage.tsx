@@ -12,7 +12,7 @@ import { AccountFounderBetaSection } from '@/features/account/components/Account
 import { AccountIdentitySection } from '@/features/account/components/AccountIdentitySection';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountAccessActions } from '@/features/account/lib/accountAccessActions';
-import { buildForgeTitle, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
+import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import type { AccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import type { FounderBetaCampaign } from '@/features/account/model/founderBeta';
 import { AccountBillingActions } from '@/features/billing/client/account';
@@ -103,7 +103,6 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
       .catch(() => { if (isMounted) setPlatformStatus(null); });
     return () => { isMounted = false; };
   }, []);
-
 
 
   const accountEmail = useMemo(() => (
@@ -212,10 +211,10 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
         showCheckout={accountAccessActions.showCheckout}
       />
       {isClerkSetupIncomplete ? (
-        <Button disabled size="lg" variant="outline" className="border-[#755632] bg-transparent text-[#bea97f]">Clerk setup incomplete</Button>
+        <Button disabled size="lg" variant="outline" className="border-[#755632] bg-transparent text-[#bea97f]">Account setup needed</Button>
       ) : !effectiveSignedIn ? (
         <>
-          <SignInButton mode="modal"><Button size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">Sign in for export</Button></SignInButton>
+          <SignInButton mode="modal"><Button size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">Sign in</Button></SignInButton>
           <SignUpButton mode="modal"><Button size="lg" variant="ghost" className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">Create account</Button></SignUpButton>
         </>
       ) : accountAccessActions.showFounderBeta ? (
