@@ -33,16 +33,16 @@ export function TemplateEditorInspectorPanel({
 
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange}>
-      <TabsList className="grid h-9 w-full grid-cols-2 rounded-[5px] border border-[#2b2f39] bg-[#12161d] p-1">
-        <TabsTrigger value="template" className="h-7 rounded-[3px] text-xs data-[state=active]:bg-[#0b0f15] data-[state=active]:text-[#f5d27b]">
-          Template
+      <TabsList className="grid h-9 w-full grid-cols-2 rounded-[5px] border border-[#2b2f39] bg-[#12161d] p-1 lg:grid-cols-1">
+        <TabsTrigger value="template" className="h-7 rounded-[3px] text-xs data-[state=active]:bg-[#0b0f15] data-[state=active]:text-[#f5d27b] lg:hidden">
+          Card setup
         </TabsTrigger>
         <TabsTrigger value="element" className="h-7 rounded-[3px] text-xs data-[state=active]:bg-[#0b0f15] data-[state=active]:text-[#f5d27b]">
           Element
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="template" className="space-y-4 pt-3">
+      <TabsContent value="template" className="space-y-4 pt-3 lg:hidden">
         <Card className={cn(panelClassName, 'rounded-[8px]')}>
           <CardHeader className="p-2.5">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">

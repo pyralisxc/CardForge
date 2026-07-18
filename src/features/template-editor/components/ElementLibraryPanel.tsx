@@ -4,9 +4,8 @@ import type { DragEvent as ReactDragEvent, ElementType } from 'react';
 import { Shapes } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/shared/classNames';
+import { WorkspaceSection } from '@/features/template-editor/components/WorkspaceSection';
 import type { FreeformCardElement } from '@/domain/templates';
 
 interface ElementLibraryItem {
@@ -45,14 +44,8 @@ export function ElementLibraryPanel({
   };
 
   return (
-    <Card className={cn(panelClassName, 'rounded-[8px]')}>
-      <CardHeader className="p-2.5">
-        <CardTitle className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
-          <Shapes className="h-3.5 w-3.5 text-[#d5ad54]" /> Elements
-        </CardTitle>
-        <p className="pt-1 text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">Add building blocks; tune the selected element in the inspector</p>
-      </CardHeader>
-      <CardContent className="space-y-2 p-2.5 pt-0">
+    <WorkspaceSection title="Add to card" icon={Shapes} defaultOpen panelClassName={panelClassName}>
+      <div className="space-y-2">
         {visibleSections.map((section) => (
           <div key={section.category} className="space-y-1.5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#757d8c]">{section.category}</div>
@@ -83,7 +76,7 @@ export function ElementLibraryPanel({
             </div>
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </WorkspaceSection>
   );
 }
