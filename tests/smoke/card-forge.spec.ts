@@ -101,14 +101,14 @@ async function expectGeneratorReady(page: Page) {
     if (await createOutputButton.isVisible().catch(() => false)) return;
     if (!(await page.getByRole('heading', { name: /No Templates Yet/i }).isVisible().catch(() => false))) break;
     await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-    await selectMainTab(page, /Generate/i);
+    await selectMainTab(page, /Make cards/i);
     await expect(page.getByText('Loading templates...', { exact: true })).toBeHidden({ timeout: STUDIO_READY_TIMEOUT });
   }
   await expect(createOutputButton).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 }
 
 function createFrontTemplateButton(page: Page) {
-  return page.getByRole('button', { name: 'Create new front template', exact: true });
+  return page.getByRole('button', { name: 'Create new front design', exact: true });
 }
 
 function visibleCardPreviews(page: Page) {
@@ -165,13 +165,13 @@ test('renders public landing page with studio and account entry points', async (
 
   await expect(page.getByRole('heading', { name: /Design one card\. Add your list\. CardForge builds the set\./i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: /From one good-looking card to the whole set\./i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Check beta access/i })).toHaveAttribute('href', '/account');
+  await expect(page.getByRole('link', { name: /Check your access/i })).toHaveAttribute('href', '/account');
   await expect(page.getByRole('link', { name: /Try the Studio/i }).first()).toHaveAttribute('href', '/studio');
   await expect(page.getByRole('link', { name: /See what it makes/i })).toHaveAttribute('href', '#interactive-showcase');
   await expect(page.getByRole('heading', { name: /Built independently by Cameron Locke/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
+  await expect(page.getByRole('link', { name: /How it works/i }).first()).toHaveAttribute('href', '/about');
   await expect(page.getByRole('link', { name: /Account/i }).first()).toHaveAttribute('href', '/account');
-  await expect(page.getByRole('link', { name: /Cameron/i }).first()).toHaveAttribute('href', '/cameron');
+  await expect(page.getByRole('link', { name: /Cameron Locke/i }).first()).toHaveAttribute('href', '/cameron');
   await expect(page.getByRole('link', { name: /Support Cameron/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Privacy/i }).first()).toHaveAttribute('href', '/privacy');
   await expect(page.getByRole('link', { name: /Developer Terms/i }).first()).toHaveAttribute('href', '/developer-terms');
@@ -278,7 +278,7 @@ test('loads default templates and adds a generated output', async ({ page }) => 
     .not.toBe('rgb(255, 255, 255)');
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toBeVisible({ timeout: 90_000 });
 
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await page.getByRole('button', { name: /Create Generated Output/i }).click();
 
@@ -356,7 +356,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
   await gotoStudio(page);
 
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toBeVisible({ timeout: 90_000 });
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible({ timeout: 45_000 });
 
@@ -431,7 +431,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Template Saved', { exact: true })).toBeVisible();
 
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await page.getByRole('button', { name: /Create Generated Output/i }).click();
 
@@ -441,7 +441,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
     .toBeGreaterThanOrEqual(1);
   await expect.poll(() => visibleFreeformPreviewElementCount(page)).toBeGreaterThanOrEqual(1);
 
-  await page.getByRole('tab', { name: /Bulk Import/i }).click();
+  await page.getByRole('tab', { name: /Use a list/i }).click();
   await page.locator('#bulk-file-upload-csv').setInputFiles({
     name: 'freeform-bulk.csv',
     mimeType: 'text/csv',
@@ -471,14 +471,14 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
 
-  await page.getByRole('tab', { name: /Generate/i }).click();
+  await page.getByRole('tab', { name: /Make cards/i }).click();
   await expect(page.getByRole('heading', { name: /Save changes to/i })).toBeVisible();
   await page.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
 
-  await page.getByRole('tab', { name: /Generate/i }).click();
+  await page.getByRole('tab', { name: /Make cards/i }).click();
   await page.getByLabel('Template name').fill('Saved Browser QA Template');
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByTestId('generator-panel')).toBeVisible();
@@ -506,9 +506,9 @@ test('adds structured row columns in the layout studio text inspector', async ({
 test('bulk generator uses advanced mapping toggle and strict mode gating', async ({ page }) => {
   await seedBulkMappingTemplate(page);
   await gotoStudio(page);
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
-  await page.getByRole('tab', { name: /Bulk Import/i }).click();
+  await page.getByRole('tab', { name: /Use a list/i }).click();
 
   await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,,♥,Ember-Claw');
 
@@ -646,7 +646,7 @@ test('supports a 1000-card generated gallery without rendering every preview at 
 test('supports keyboard-first generation and strict mode toggle', async ({ page }) => {
   await seedBulkMappingTemplate(page);
   await gotoStudio(page);
-  await selectMainTab(page, /Generate/i);
+  await selectMainTab(page, /Make cards/i);
 
   const templateTrigger = page.locator('#deck-front-template');
   await templateTrigger.focus();
@@ -665,7 +665,7 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(0\)/i })).toBeVisible();
   await expect(page.getByText('No outputs generated yet.')).toBeVisible();
 
-  await page.getByRole('tab', { name: /Bulk Import/i }).click();
+  await page.getByRole('tab', { name: /Use a list/i }).click();
   await page.locator('#bulkData').fill('rulesText,typeLine\n"",CREATURE - DRAGON');
 
   const strictModeToggle = page.getByLabel('Toggle strict mode for bulk generation');

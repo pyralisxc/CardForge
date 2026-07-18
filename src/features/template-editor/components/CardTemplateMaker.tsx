@@ -312,6 +312,7 @@ export function CardTemplateMaker({
           showGrid={showGrid}
           snapToGrid={snapToGrid}
           previewMode={previewMode}
+          isDirty={isDirty}
           onUndo={undo}
           onRedo={redo}
           onZoomOut={() => {

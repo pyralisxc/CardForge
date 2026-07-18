@@ -32,7 +32,8 @@ describe('public route stories', () => {
 
     expect(landing).toContain('<AccessComparison');
     expect(access).toContain('Creator Pass');
-    expect(access).toContain('Subscribe');
+    expect(access).toContain('Start free');
+    expect(access).toContain('See Creator Pass');
     expect(access).not.toContain('planned home');
   });
 

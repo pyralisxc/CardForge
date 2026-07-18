@@ -205,8 +205,8 @@ export function GenerationWorkspace({
       <div className="flex flex-col items-center justify-center min-h-[60vh] border rounded-xl bg-card/30 text-center p-12 space-y-5 shadow-inner">
         <PenTool className="h-16 w-16 text-primary/60" />
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold">No Templates Yet</h2>
-          <p className="text-muted-foreground max-w-sm">Create a template in Layout Studio first, then come back here to fill in data and generate outputs.</p>
+          <h2 className="text-2xl font-bold">No Card Designs Yet</h2>
+          <p className="text-muted-foreground max-w-sm">Create a card design in Layout Studio first, then come back here to fill in details and make cards.</p>
         </div>
         <Button size="lg" onClick={onOpenTemplateMaker} className="gap-2">
           <PenTool className="h-5 w-5" /> Open Layout Studio
@@ -222,13 +222,13 @@ export function GenerationWorkspace({
           <div className="mb-4 flex items-center gap-2">
             <Layers3 className="h-5 w-5 text-primary" />
             <div>
-              <h2 id="generator-setup-heading" className="text-base font-semibold">Deck Setup</h2>
-              <p className="text-xs text-muted-foreground">Choose the front layout and reusable card back for this generated set.</p>
+              <h2 id="generator-setup-heading" className="text-base font-semibold">Set up your set</h2>
+              <p className="text-xs text-muted-foreground">Choose the front design and card back for this set.</p>
             </div>
           </div>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
             <div>
-              <Label htmlFor="active-card-set-name">Deck Name</Label>
+              <Label htmlFor="active-card-set-name">Set name</Label>
               <Input
                 id="active-card-set-name"
                 value={activeCardSet.name}
@@ -236,14 +236,14 @@ export function GenerationWorkspace({
               />
             </div>
             <div>
-              <Label htmlFor="deck-front-template">Front Template</Label>
+              <Label htmlFor="deck-front-template">Front design</Label>
               <Select
                 value={generatorSelectedTemplateId ?? undefined}
                 onValueChange={(value) => onTemplateSelectionChange(value)}
                 disabled={templates.length === 0}
               >
                 <SelectTrigger id="deck-front-template">
-                  <SelectValue placeholder="Choose front template" />
+                  <SelectValue placeholder="Choose front design" />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map((template) => (
@@ -309,11 +309,11 @@ export function GenerationWorkspace({
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border bg-card/70 p-1">
             <TabsTrigger value="single" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <FilePlus2 className="h-4 w-4" />
-              Single
+              One card
             </TabsTrigger>
             <TabsTrigger value="bulk" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <PackagePlus className="h-4 w-4" />
-              Bulk Import
+              Use a list
             </TabsTrigger>
           </TabsList>
 

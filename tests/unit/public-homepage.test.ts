@@ -61,6 +61,7 @@ describe('proof-led homepage', () => {
     expect(showcase).toContain('prefers-reduced-motion: reduce');
     expect(showcase).not.toContain('Generator rows preview');
     expect(showcase).not.toContain('Field inspector preview');
+    expect(showcase).not.toContain('Examples page');
   });
 
   it('keeps access, founder trust, and one final product conversion without a duplicate support link', () => {
