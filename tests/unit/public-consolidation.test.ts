@@ -42,6 +42,9 @@ describe('consolidated public routes and account navigation', () => {
     expect(header).toContain('{accountSlot ? (');
     expect(header).toContain('cardforge-public-auth-status border-t');
 
+    const authControls = readSource('src/features/account/components/PublicAuthControls.tsx');
+    expect(authControls).toContain('if (!isClerkPublicConfigPresent()) return null;');
+
 
     const account = readSource('src/features/account/components/AccountProfilePage.tsx');
     expect(account).toContain('Profile &amp; security');
