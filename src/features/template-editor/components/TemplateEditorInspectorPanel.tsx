@@ -46,7 +46,7 @@ export function TemplateEditorInspectorPanel({
         <Card className={cn(panelClassName, 'rounded-[8px]')}>
           <CardHeader className="p-2.5">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
-              Template Settings
+              Card design
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 p-2.5 pt-0">{templateContent}</CardContent>
