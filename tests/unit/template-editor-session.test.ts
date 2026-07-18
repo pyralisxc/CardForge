@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { createDefaultFreeformCanvas, type TCGCardTemplate } from '@/domain/templates';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { resolveTemplateEditorInitialTemplate } from '@/features/template-editor/hooks/useTemplateEditorSession';
 
 const template = (id: string): TCGCardTemplate => ({
