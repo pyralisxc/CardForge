@@ -10,21 +10,19 @@ export interface PublicNavigationGroup {
 
 export const PUBLIC_NAVIGATION = {
   primary: [
-    { href: '/examples', label: 'Examples' },
-    { href: '/access', label: 'Access' },
     { href: '/about', label: 'About' },
     { href: '/cameron', label: 'Cameron' },
     { href: '/roadmap', label: 'Roadmap' },
     { href: '/developer', label: 'Developers' },
+    { href: '/account', label: 'Account' },
   ],
   studio: { href: '/studio', label: 'Try the Studio' },
   footerGroups: [
     {
       label: 'Product',
       links: [
-        { href: '/examples', label: 'Complete Sets' },
         { href: '/studio', label: 'Studio' },
-        { href: '/access', label: 'Access' },
+        { href: '/account', label: 'Account' },
         { href: '/roadmap', label: 'Roadmap' },
       ],
     },
@@ -33,7 +31,6 @@ export const PUBLIC_NAVIGATION = {
       links: [
         { href: '/about', label: 'About CardForge' },
         { href: '/cameron', label: 'Cameron Locke' },
-        { href: '/cameron#support', label: 'Support Cameron' },
         { href: '/developer', label: 'Developer Program' },
       ],
     },

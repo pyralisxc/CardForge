@@ -10,8 +10,6 @@ export { PublicSiteHeader } from './components/PublicSiteHeader';
 export { PublicSiteFooter } from './components/PublicSiteFooter';
 export { PublicSiteShell } from './components/PublicSiteShell';
 export { LiveExampleGallery } from './components/LiveExampleGallery';
-export { ExampleCardSet } from './components/ExampleCardSet';
-export { ExampleSetGallery } from './components/ExampleSetGallery';
 export { OutcomeHero } from './components/OutcomeHero';
 export { StudioProductProof } from './components/StudioProductProof';
 export { InteractiveStudioShowcase } from './components/InteractiveStudioShowcase';

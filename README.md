@@ -7,7 +7,7 @@ CardForge Studio is a software product created and operated by Cameron Locke, an
 ## Live State
 
 - Public site: `/`
-- Product story and access: `/about`, `/access`
+- Product story and access explanation: `/` and `/about`
 - Founder identity and voluntary support: `/cameron` and its `#support` section
 - Studio: `/studio`
 - Account and Founder Beta status: `/account`
@@ -65,7 +65,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
 - `src/features/business-identity/`: canonical operator identity, owner editing, and server-owned Supabase persistence.
-- `src/features/public-site/`: owner-editable marketing/founder content, public social links, tagged public caching, portrait processing, and structured search identity.
+- `src/features/public-site/`: owner-editable marketing/sharing/founder content, shared public navigation, public social/share controls, tagged public caching, portrait processing, and structured search identity.
 - `src/features/legal/`: immutable versioned legal publication, constrained document rendering, and public legal caching.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.

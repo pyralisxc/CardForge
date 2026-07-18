@@ -68,30 +68,24 @@ describe('public examples', () => {
     }
   });
 
-  it('resolves runtime templates and renders every set with the production card renderer', () => {
+  it('resolves runtime templates and renders the homepage proof with the production card renderer', () => {
     const liveGallery = readSource('src/features/public-site/components/LiveExampleGallery.tsx');
-    const cardSet = readSource('src/features/public-site/components/ExampleCardSet.tsx');
+    const heroProof = readSource('src/features/public-site/components/ExampleHeroProof.tsx');
     const model = readSource('src/features/public-site/model/examples.ts');
 
     expect(liveGallery).toContain("fetch('/api/templates'");
-    expect(liveGallery).toMatch(/live previews are temporarily unavailable/i);
-    expect(cardSet).toContain("from '@/features/card-rendering/client'");
-    expect(cardSet).toContain('<CardPreview');
-    expect(cardSet).toContain('createBulkDisplayCards');
-    expect(cardSet).toContain('<figure');
-    expect(cardSet).toContain('The finished cards');
-    expect(cardSet).toContain('The shared back');
+    expect(liveGallery).toMatch(/live card rendering is temporarily unavailable/i);
+    expect(liveGallery).not.toContain('ExampleSetGallery');
+    expect(heroProof).toContain("from '@/features/card-rendering/client'");
+    expect(heroProof).toContain('<CardPreview');
+    expect(heroProof).toContain('createBulkDisplayCards');
+    expect(heroProof).toContain('<figure');
     expect(model).not.toContain('data/default-templates');
     expect(model).not.toContain('freeformCanvas');
   });
 
-  it('leads with what people can see before technical source details', () => {
-    const page = readSource('src/app/examples/page.tsx');
-    const cardSet = readSource('src/features/public-site/components/ExampleCardSet.tsx');
-
-    expect(page).toContain('See a few small sets made inside CardForge.');
-    expect(cardSet).toContain('What CardForge handled');
-    expect(cardSet).toContain('<details');
-    expect(cardSet.indexOf('What CardForge handled')).toBeLessThan(cardSet.indexOf('Technical details'));
+  it('does not retain page-only gallery components after the route is removed', () => {
+    expect(() => readSource('src/features/public-site/components/ExampleCardSet.tsx')).toThrow();
+    expect(() => readSource('src/features/public-site/components/ExampleSetGallery.tsx')).toThrow();
   });
 });

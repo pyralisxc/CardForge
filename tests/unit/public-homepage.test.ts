@@ -13,7 +13,7 @@ describe('proof-led homepage', () => {
     expect(hero).toContain('Try the Studio');
     expect(hero).toContain('href="/studio"');
     expect(hero).toContain('See what it makes');
-    expect(hero).toContain('href="/examples"');
+    expect(hero).toContain('href="#interactive-showcase"');
     expect(hero).toContain('/card-assets/showcase/cardforge-workshop-cover.webp');
     expect(hero).not.toContain('StudioProductProof');
   });
@@ -63,7 +63,7 @@ describe('proof-led homepage', () => {
     expect(showcase).not.toContain('Field inspector preview');
   });
 
-  it('keeps access, founder trust, support, and one final product conversion', () => {
+  it('keeps access, founder trust, and one final product conversion without a duplicate support link', () => {
     const page = readSource('src/app/page.tsx');
     const founder = readSource('src/features/public-site/components/FounderStrip.tsx');
 
@@ -72,6 +72,6 @@ describe('proof-led homepage', () => {
     expect(page).toContain('Build your first set.');
     expect(founder).toContain('Built independently by Cameron Locke');
     expect(founder).toContain('href="/cameron"');
-    expect(founder).toContain('href="/cameron#support"');
+    expect(founder).not.toContain('href="/cameron#support"');
   });
 });

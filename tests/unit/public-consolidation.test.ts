@@ -1,0 +1,43 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { PUBLIC_NAVIGATION } from '@/features/public-site/client';
+
+const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
+
+describe('consolidated public routes and account navigation', () => {
+  it('keeps one direct account destination and removes redundant marketing destinations', () => {
+    const primaryLinks = PUBLIC_NAVIGATION.primary.map((link) => link.href);
+    const footerLinks = PUBLIC_NAVIGATION.footerGroups.flatMap((group) => group.links.map((link) => link.href));
+
+    expect(primaryLinks).toContain('/account');
+    expect(footerLinks).toContain('/account');
+    expect([...primaryLinks, ...footerLinks]).not.toContain('/examples');
+    expect([...primaryLinks, ...footerLinks]).not.toContain('/access');
+    expect(footerLinks).not.toContain('/cameron#support');
+  });
+
+  it('deletes the redundant route implementations instead of keeping redirects or dead pages', () => {
+    expect(existsSync(resolve(process.cwd(), 'src/app/examples/page.tsx'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'src/app/access/page.tsx'))).toBe(false);
+  });
+
+  it('uses the shared public header on account and owner pages', () => {
+    for (const path of ['src/app/account/page.tsx', 'src/app/owner/page.tsx']) {
+      const source = readSource(path);
+      expect(source).toContain("from '@/features/public-site/client'");
+      expect(source).toContain('getCachedBusinessIdentity');
+      expect(source).toContain('<PublicSiteHeader');
+      expect(source).toContain('accountSlot={<PublicAuthControls />}');
+      expect(source).not.toContain('@/features/app-shell');
+    }
+  });
+
+  it('names Clerk identity management separately inside the CardForge account', () => {
+    const account = readSource('src/features/account/components/AccountProfilePage.tsx');
+    expect(account).toContain('Profile &amp; security');
+    expect(account).not.toContain('>Manage Account</Link>');
+  });
+});

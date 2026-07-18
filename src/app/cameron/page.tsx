@@ -99,7 +99,7 @@ export default async function CameronPage() {
           <div className="mt-7 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
             <h3 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">Want CardForge too?</h3>
             <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">Creator Pass is the best way to support CardForge as a business. It is a product subscription that includes CardForge access and gives the business dependable support to keep growing.</p>
-            <Link href="/access" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See Creator Pass</Link>
+            <Link href="/account" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See Creator Pass</Link>
           </div>
 
           {supportOffers ? (
@@ -144,7 +144,7 @@ export default async function CameronPage() {
           <div className="mt-7 flex flex-wrap gap-5">
             <Link href="/supporter-terms" prefetch={false} className="inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">Read supporter terms</Link>
             <Link href="/refund" prefetch={false} className="inline-flex min-h-11 items-center font-semibold">Refund and cancellation policy</Link>
-            <Link href="/access" prefetch={false} className="inline-flex min-h-11 items-center font-semibold">Compare product access</Link>
+            <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center font-semibold">Manage CardForge access</Link>
           </div>
         </div>
       </section>

@@ -6,8 +6,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import { BrowserStorageAlerts } from '@/features/project/client';
-import { FounderProfileProvider } from '@/features/public-site/client';
-import { getCachedFounderProfile } from '@/features/public-site/server';
+import {
+  createPublicShareSettings,
+  PublicShareSettingsProvider,
+} from '@/features/card-generator/client';
+import {
+  createSiteContentMap,
+  FounderProfileProvider,
+} from '@/features/public-site/client';
+import { getCachedFounderProfile, getCachedSiteContentBlocks } from '@/features/public-site/server';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
@@ -39,12 +46,22 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const founderProfile = await getCachedFounderProfile();
+  const [founderProfile, sharingBlocks] = await Promise.all([
+    getCachedFounderProfile(),
+    getCachedSiteContentBlocks('sharing'),
+  ]);
+  const sharingCopy = createSiteContentMap(sharingBlocks);
+  const shareSettings = createPublicShareSettings(
+    sharingCopy['sharing.message'],
+    getPublicAppUrl(),
+  );
   const app = (
     <FounderProfileProvider profile={founderProfile}>
-      {children}
-      <BrowserStorageAlerts />
-      <Toaster />
+      <PublicShareSettingsProvider settings={shareSettings}>
+        {children}
+        <BrowserStorageAlerts />
+        <Toaster />
+      </PublicShareSettingsProvider>
     </FounderProfileProvider>
   );
 

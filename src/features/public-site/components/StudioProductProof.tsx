@@ -52,7 +52,7 @@ export function StudioProductProof() {
             <span className="font-bold text-[var(--public-ivory)]">Your card set</span>
             <span className="text-[var(--public-muted-text)]">Front · Back</span>
           </div>
-          <LiveExampleGallery variant="hero" />
+          <LiveExampleGallery />
         </div>
 
         <aside className="hidden border-l border-[#3c2c19] bg-[#100d09] p-3 lg:block" aria-label="Studio settings shown in preview">

@@ -66,7 +66,7 @@ export default async function AboutPage() {
             <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">CardForge is independently built and actively improving. The roadmap shows what already works and what I’m building next.</p>
           </div>
           <div className="flex flex-wrap gap-5">
-            <Link href="/examples" prefetch={false} className="inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See complete sets</Link>
+            <Link href="/#interactive-showcase" prefetch={false} className="inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See CardForge in action</Link>
             <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">View roadmap</Link>
           </div>
         </div>

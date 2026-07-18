@@ -148,8 +148,9 @@ export function InteractiveStudioShowcase() {
 
   return (
     <section
+      id="interactive-showcase"
       aria-labelledby="interactive-showcase-heading"
-      className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-14"
+      className="scroll-mt-6 border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-14"
     >
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">

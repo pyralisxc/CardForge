@@ -167,15 +167,12 @@ test('renders public landing page with studio and account entry points', async (
   await expect(page.getByRole('heading', { name: /From one good-looking card to the whole set\./i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Check beta access/i })).toHaveAttribute('href', '/account');
   await expect(page.getByRole('link', { name: /Try the Studio/i }).first()).toHaveAttribute('href', '/studio');
-  await expect(page.getByRole('link', { name: /See what it makes/i })).toHaveAttribute('href', '/examples');
+  await expect(page.getByRole('link', { name: /See what it makes/i })).toHaveAttribute('href', '#interactive-showcase');
   await expect(page.getByRole('heading', { name: /Built independently by Cameron Locke/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
-  await expect(page.getByRole('link', { name: /Access/i }).first()).toHaveAttribute('href', '/access');
+  await expect(page.getByRole('link', { name: /Account/i }).first()).toHaveAttribute('href', '/account');
   await expect(page.getByRole('link', { name: /Cameron/i }).first()).toHaveAttribute('href', '/cameron');
-  await expect(page.getByRole('link', { name: /Support/i }).first()).toHaveAttribute(
-    'href',
-    '/cameron#support',
-  );
+  await expect(page.getByRole('link', { name: /Support Cameron/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Privacy/i }).first()).toHaveAttribute('href', '/privacy');
   await expect(page.getByRole('link', { name: /Developer Terms/i }).first()).toHaveAttribute('href', '/developer-terms');
   await expect(page.getByRole('link', { name: /Creator Pool/i })).toHaveCount(0);
@@ -190,17 +187,16 @@ test('opens a contained keyboard-accessible public menu on mobile', async ({ pag
   await page.keyboard.press('Enter');
   const menu = page.getByRole('dialog', { name: 'Navigation' });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+  await expect(menu.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
   await expect(menu.getByRole('link', { name: 'Try the Studio' })).toHaveAttribute('href', '/studio');
   await page.keyboard.press('Escape');
   await expect(menu).toBeHidden();
   await expect(menuButton).toBeFocused();
 });
 
-test('renders public trust and access pages', async ({ page }) => {
+test('renders consolidated public trust pages', async ({ page }) => {
   for (const route of [
     '/about',
-    '/access',
     '/cameron',
     '/privacy',
     '/terms',
@@ -219,6 +215,10 @@ test('renders public trust and access pages', async ({ page }) => {
   await page.goto('/cameron');
   await expect(page.getByText(/Oregon sole proprietor/i).first()).toBeVisible();
   await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(2);
+  for (const removedRoute of ['/access', '/examples']) {
+    const response = await page.goto(removedRoute);
+    expect(response?.status()).toBe(404);
+  }
   await page.goto('/privacy');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'http://localhost:9002/privacy');
   await page.goto('/creator-pool');

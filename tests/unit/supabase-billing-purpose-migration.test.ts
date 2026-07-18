@@ -8,6 +8,10 @@ const migrationPath = resolve(
   process.cwd(),
   'supabase/migrations/20260717074826_billing_purpose_support.sql',
 );
+const consolidationMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260718053529_consolidate_public_routes_and_sharing.sql',
+);
 
 describe('billing purpose support migration', () => {
   it('adds constrained purpose reporting and a service-role-only v2 claim RPC', async () => {
@@ -42,14 +46,23 @@ describe('billing purpose support migration', () => {
     expect(sql).not.toContain('excluded.last_event_id >= public.cardforge_billing_subscriptions.last_event_id');
   });
 
-  it('publishes the current supporter and refund bodies as new versions', async () => {
+  it('published the original payment-lane terms as immutable versions', async () => {
     const sql = await readFile(migrationPath, 'utf8');
+    for (const slug of ['supporter-terms', 'refund'] as const) {
+      expect(sql).toContain(`'${slug}'`);
+    }
+    expect(sql.toLowerCase()).toContain('max(version)');
+    expect(sql.toLowerCase()).toContain("date '2026-07-17'");
+  });
+
+  it('publishes the current consolidated-route terms as later immutable versions', async () => {
+    const sql = await readFile(consolidationMigrationPath, 'utf8');
     for (const slug of ['supporter-terms', 'refund'] as const) {
       const document = DEFAULT_LEGAL_DOCUMENTS.find((candidate) => candidate.slug === slug);
       expect(document).toBeDefined();
       expect(sql).toContain(document!.body);
     }
-    expect(sql.toLowerCase()).toContain('max(version)');
+    expect(sql.toLowerCase()).toContain('max(existing.version)');
     expect(sql.toLowerCase()).toContain("date '2026-07-17'");
   });
 });

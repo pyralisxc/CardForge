@@ -244,7 +244,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
       </Button>
       {entitlement.authConfigured && effectiveSignedIn ? (
         <Button asChild size="lg" variant="outline" className="min-w-[11rem] border-[#d8b365]/70 bg-[#120e09] font-semibold text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-          <Link href="/profile" prefetch={false}><UserCircle2 className="mr-2 h-5 w-5" />Manage Account</Link>
+          <Link href="/profile" prefetch={false}><UserCircle2 className="mr-2 h-5 w-5" />Profile &amp; security</Link>
         </Button>
       ) : null}
       <AccountBillingActions

@@ -45,7 +45,7 @@ function ClerkPublicAuthControls() {
   }
 
   if (state === 'signed-in') {
-    return <UserButton userProfileMode="navigation" userProfileUrl="/profile" />;
+    return <UserButton userProfileMode="navigation" userProfileUrl="/account" />;
   }
 
   return (

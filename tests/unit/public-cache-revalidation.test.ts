@@ -62,8 +62,8 @@ describe('public cache tags and publication invalidation', () => {
     revalidatePublicIdentityCache();
     expect(revalidateTag).toHaveBeenLastCalledWith(PUBLIC_IDENTITY_TAG);
 
-    revalidateSiteContentCache('access');
-    expect(revalidateTag).toHaveBeenLastCalledWith(siteContentTag('access'));
+    revalidateSiteContentCache('sharing');
+    expect(revalidateTag).toHaveBeenLastCalledWith(siteContentTag('sharing'));
 
     revalidateFounderProfile();
     expect(revalidateTag).toHaveBeenLastCalledWith(FOUNDER_PROFILE_TAG);

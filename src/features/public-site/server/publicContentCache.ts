@@ -17,7 +17,7 @@ const createGroupReader = (group: SiteContentGroup) => unstable_cache(
 const groupReaders: Record<SiteContentGroup, () => Promise<SiteContentBlock[]>> = {
   landing: createGroupReader('landing'),
   about: createGroupReader('about'),
-  access: createGroupReader('access'),
+  sharing: createGroupReader('sharing'),
 };
 
 export const getCachedSiteContentBlocks = (

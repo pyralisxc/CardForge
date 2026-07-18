@@ -6,7 +6,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 
 ## Product Truth
 
-- Public site: `/`, `/about`, `/access`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages. `/cameron` combines the founder story and voluntary support in one route.
+- Public site: `/`, `/about`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages. The homepage owns product proof and access explanation; `/cameron` combines the founder story and voluntary support in one route.
 - Studio: `/studio` contains Layout Studio and Generator.
 - Accounts: Clerk identifies users; CardForge stores trusted access in Clerk private metadata or server-side allowlists.
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
@@ -47,7 +47,7 @@ CardForge has three storage lanes:
 
 ## Feature Ownership
 
-- `src/features/app-shell`: Studio shell, public header, workspace bootstrap.
+- `src/features/app-shell`: Studio shell and workspace bootstrap.
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency. Template field contracts, generator/editor field interpretation, template display labels, pointer selection, and parent-resize geometry live here because multiple features consume them.
 - `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
 - `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, and export tools. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
@@ -55,7 +55,7 @@ CardForge has three storage lanes:
 - `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
 - `src/features/account`: current-user resolution, access entitlement, profile surfaces, Founder Beta, and owner account administration behind explicit client/server interfaces.
 - `src/features/business-identity`: browser-safe operator contracts, normalization, owner editing, and the server-owned `cardforge_business_identity` record.
-- `src/features/public-site`: editable landing/about/access/founder content, shared public social controls, tagged public caches, server-side portrait processing, metadata-adjacent structured data, browser-safe contracts, and server-owned Supabase stores.
+- `src/features/public-site`: editable landing/about/sharing/founder content, the shared public header/footer, social and share controls, tagged public caches, server-side portrait processing, metadata-adjacent structured data, browser-safe contracts, and server-owned Supabase stores.
 - `src/features/legal`: immutable versioned legal-publication contracts, constrained Markdown presentation, tagged public caching, and server-owned Supabase publication.
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
@@ -80,7 +80,7 @@ Feature-specific rules stay under their owning feature and cross-feature consume
 - The feature graph must remain acyclic.
 - Retired root `src/lib`, `src/store`, and `src/types` lanes must not return.
 
-Shared public headers are App-owned composition. The Owner Console loads a 108-line coordinator first and lazy-loads operational panels behind tabs.
+App routes compose the public-site-owned shared header. The Owner Console keeps its coordinator small and lazy-loads operational panels behind tabs.
 
 ## Current Access Model
 
@@ -115,7 +115,9 @@ Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations i
 
 `cardforge_founder_profile` is a private single-row service-role record. The public shell reads its cached copy for Facebook, Instagram, and Discord controls; blank links announce a coming-soon state. Owner portrait uploads are decoded and normalized by Sharp, stored as metadata-free WebP at `cardforge-public-media/founder/cameron-locke/portrait.webp`, and only become the active portrait after Storage succeeds.
 
-Each public route owns its title, description, self-referencing canonical, Open Graph URL, social image, and robots decision through `src/shared/siteMetadata.ts`. The XML sitemap contains only canonical marketing pages; public legal pages are canonical and indexable but intentionally excluded from the marketing sitemap. `/studio`, `/account`, `/profile`, `/owner`, and the Creator Pool archive are noindex.
+Each public route owns its title, description, self-referencing canonical, Open Graph URL, social image, and robots decision through `src/shared/siteMetadata.ts`. The XML sitemap contains only canonical marketing pages; public legal pages are canonical and indexable but intentionally excluded from the marketing sitemap. `/studio`, `/account`, `/profile`, `/owner`, and the Creator Pool archive are noindex. The removed `/access` and `/examples` routes intentionally return 404 instead of retaining redirects or duplicate page code.
+
+The root public share settings combine the owner-edited `sharing.message` block with canonical homepage and Cameron URLs. Generated-card sharing consumes that message and the homepage URL. The Owner Console renders separate high-resolution QR PNGs for the homepage and Cameron page in the browser, so no duplicate QR files or storage registry can become stale.
 
 CardForge structured data represents CardForge Studio as a `Brand`, the product as `SoftwareApplication`, and Cameron Locke as a `Person` and the main entity of the `/cameron` `ProfilePage`. JSON-LD serialization escapes markup-significant characters before insertion.
 

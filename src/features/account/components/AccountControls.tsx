@@ -79,7 +79,7 @@ function ClerkAccountControls({
         </SignUpButton>
         </>
       ) : (
-        <UserButton userProfileMode="navigation" userProfileUrl="/profile" />
+        <UserButton userProfileMode="navigation" userProfileUrl="/account" />
       )}
     </div>
   );

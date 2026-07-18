@@ -37,7 +37,7 @@ Keep its existing `clerkUserId`. Remove the obsolete `product=cardforge-studio-e
 
 ## 3. Confirm one-time support behavior
 
-Do not create a fixed one-time Product or Payment Link. CardForge collects the supporter’s amount on the Support Cameron page, accepts only $1.00–$1,000.00, and creates the one-time Stripe Checkout Session server-side with that exact amount. Stripe displays the exact amount again before payment.
+Do not create a fixed one-time Product or Payment Link. CardForge collects the supporter’s amount in the support section of Cameron's page, accepts only $1.00–$1,000.00, and creates the one-time Stripe Checkout Session server-side with that exact amount. Stripe displays the exact amount again before payment.
 
 ## 4. Create the monthly support price
 
