@@ -398,7 +398,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Template', exact: true }).click();
+  await page.getByRole('button', { name: 'Card setup', exact: true }).click();
   await page.getByLabel('Template Name').fill('Smoke Freeform Template');
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
@@ -681,7 +681,7 @@ test('supports keyboard save shortcut in template creator', async ({ page }) => 
   await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Template', exact: true }).click();
+  await page.getByRole('button', { name: 'Card setup', exact: true }).click();
   await page.getByLabel('Template Name').fill('Keyboard Save Template');
 
   await page.keyboard.press('Control+s');
