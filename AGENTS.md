@@ -2,6 +2,12 @@
 
 CardForge is a live service app with local development, not a purely local app. Interpret Cameron's shorthand through that reality before choosing tools or verification paths.
 
+## Workflow Authority
+
+For CardForge implementation, refactor, testing, review, public-site, branding, accessibility, SEO, or UI-polish work, load and follow `.agents/skills/lean-repository-execution/SKILL.md` before applying generic process guidance.
+
+The lean skill is CardForge's sole execution workflow. Do not create `docs/superpowers/**` or any planning, ledger, status, workflow, or progress artifact unless Cameron explicitly requests that artifact. Use a compact inline plan only when the task is high risk, materially ambiguous, or Cameron asks for one.
+
 ## Cameron Shorthand
 
 - Treat short replies like "yes", "do that", "verify it", "push it", "full clean cut", or similar as continuing the most recent concrete objective.
@@ -27,10 +33,6 @@ CardForge is a live service app with local development, not a purely local app. 
 - Prefer live checks for production service behavior after code is pushed and deployed.
 
 ## Lean Repository Execution
-
-For implementation, refactor, public-site, branding, accessibility, SEO, testing, review, or UI-polish work, agents MUST load and follow:
-
-`.agents/skills/lean-repository-execution/SKILL.md`
 
 Use one coherent objective branch and one final PR unless an independent ownership or high-risk billing, security, legal, migration, permission, or provider boundary requires separation.
 
