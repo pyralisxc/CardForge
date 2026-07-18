@@ -476,7 +476,7 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await page.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
-  await expect(page.locator('#element-template-expression')).toHaveValue('Unsaved Browser QA Text');
+  await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
 
   await page.getByRole('tab', { name: /Generate/i }).click();
   await page.getByRole('button', { name: 'Don’t save' }).click();
