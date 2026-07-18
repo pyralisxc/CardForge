@@ -67,7 +67,7 @@ export function useTemplateEditorSession({
 
   useEffect(() => {
     setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(initialTemplate)));
-  }, [initialTemplate]);
+  }, [initialTemplate.id]);
 
   const beginDraft = useCallback((template: TCGCardTemplate) => {
     setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(template)));
