@@ -39,7 +39,7 @@ export function AccountIdentitySection({
         <div className="flex items-start gap-3">
           <FolderOpen className="mt-0.5 h-5 w-5 shrink-0 text-[#e2aa4a]" aria-hidden="true" />
           <div>
-            <p className="font-serif text-lg text-[#fff1c7]">Your work stays with you</p>
+            <h2 className="font-serif text-lg text-[#fff1c7]">Your work stays with you</h2>
             <p
               className="mt-1 text-sm leading-5 text-[#c7b288]"
               title="CardForge keeps projects and personal uploads in this browser until you choose to export or share them."
