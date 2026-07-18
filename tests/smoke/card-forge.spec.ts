@@ -108,7 +108,7 @@ async function expectGeneratorReady(page: Page) {
 }
 
 function createFrontTemplateButton(page: Page) {
-  return page.getByRole('button', { name: 'Create new front template', exact: true });
+  return page.getByRole('button', { name: 'Create new front design', exact: true });
 }
 
 function visibleCardPreviews(page: Page) {
