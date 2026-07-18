@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from 'react';
+import { useId, useState } from 'react';
 import { ChevronDown, ChevronRight, Circle, Copy, Eye, EyeOff, FolderPlus, GripVertical, Image as ImageIcon, Layers, Lock, Sparkles, Square, Trash2, Type, Ungroup, Unlock } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,9 @@ export function LayerTreePanel({
   onDuplicateSelected,
   onDeleteSelected,
 }: LayerTreePanelProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const contentId = useId();
+
   const renderNode = (node: LayerTreeNode, depth: number): ReactNode => {
     const el = node.element;
     const Icon = el.type === 'text' ? Type : el.type === 'image' ? ImageIcon : el.type === 'icon' ? Sparkles : el.shapeKind === 'ellipse' ? Circle : Square;
@@ -176,11 +180,22 @@ export function LayerTreePanel({
   return (
     <Card className={cn(panelClassName, 'rounded-[8px]')}>
       <CardHeader className="p-2.5 pb-1.5">
-        <CardTitle className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
-          <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-[#d5ad54]" /> Layers</span>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
+            aria-expanded={isOpen}
+            aria-controls={contentId}
+            onClick={() => setIsOpen((open) => !open)}
+          >
+            <CardTitle className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
+              <Layers className="h-3.5 w-3.5 text-[#d5ad54]" /> Layers
+            </CardTitle>
+            <ChevronDown className={cn('h-4 w-4 shrink-0 text-[#8f95a3] transition-transform', isOpen && 'rotate-180 text-[#d5ad54]')} />
+          </button>
           <span className="text-[10px] font-normal text-[#757d8c]">{elementsCount}</span>
-        </CardTitle>
-        <div className="mt-1.5 flex items-center gap-1">
+        </div>
+        {isOpen ? <div className="mt-1.5 flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -218,9 +233,9 @@ export function LayerTreePanel({
               Clear ({checkedLayerIds.length})
             </button>
           )}
-        </div>
+        </div> : null}
       </CardHeader>
-      <CardContent className="space-y-2 p-2.5 pt-0">
+      {isOpen ? <CardContent id={contentId} className="space-y-2 p-2.5 pt-0">
         <div className="space-y-0.5">
           {layerTree.map((node) => renderNode(node, 0))}
           {elementsCount === 0 && (
@@ -235,7 +250,7 @@ export function LayerTreePanel({
             <Trash2 className="h-4 w-4" /> Delete
           </Button>
         </div>
-      </CardContent>
+      </CardContent> : null}
     </Card>
   );
 }
