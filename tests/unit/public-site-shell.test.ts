@@ -49,7 +49,7 @@ describe('public site shell source contract', () => {
     expect(headerSource).toContain("from '../model/publicNavigation'");
     expect(footerSource).toContain("from '../model/publicNavigation'");
     expect(headerSource).not.toContain('const baseNavItems');
-    expect(footerSource).toContain('PUBLIC_FOOTER_LINKS.map');
+    expect(footerSource).toContain('PUBLIC_NAVIGATION.footerGroups.map');
     expect(layoutSource).toContain('getCachedFounderProfile');
     expect(layoutSource).toContain('<FounderProfileProvider profile={founderProfile}>');
   });
@@ -135,8 +135,9 @@ describe('public site shell source contract', () => {
     expect(globalStyles).toContain('.cardforge-public-skip-link:focus-visible');
     expect(globalStyles).toContain('@media (prefers-reduced-motion: reduce)');
     expect(globalStyles).toContain('.cardforge-public-auth-status');
-    expect(footerSource).not.toMatch(/text-(?:xs|sm)/);
-    expect(footerSource).not.toMatch(/text-(?:xs|sm)/);
+    expect(footerSource).toContain('grid grid-cols-2');
+    expect(footerSource).toContain('text-xs font-semibold uppercase');
+    expect(footerSource).toContain('min-h-9 items-center text-sm');
     expect(legalPageSource).toContain('[&>div]:text-base');
     expect(legalPageSource).not.toMatch(/text-(?:xs|sm)/);
     expect(legalPageSource).toContain('<p className="text-base font-bold text-[var(--public-brass)]');
@@ -152,7 +153,7 @@ describe('public site shell source contract', () => {
     expect(globalStyles).toContain('--public-surface: #1b1510');
     expect(globalStyles).toContain('--public-brass: #d9a441');
     expect(headerSource).toContain('min-h-16');
-    expect(footerSource).toContain('PUBLIC_FOOTER_LINKS.map');
+    expect(footerSource).toContain('PUBLIC_NAVIGATION.footerGroups.map');
     expect(footerSource).not.toContain('lg:grid-cols-[minmax(15rem,1.2fr)_2fr]');
   });
 
