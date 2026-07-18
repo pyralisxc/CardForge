@@ -4,6 +4,16 @@ import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { replacePlaceholdersLocal } from '@/domain/rendering';
 import { cn } from '@/shared/classNames';
@@ -42,10 +52,12 @@ interface CardTemplateMakerProps {
   onSaveAppearanceStyle: (style: AppearanceStylePreset) => string;
   selectedTemplateIdForEditing: string | null;
   onSelectTemplateForEditing: (templateId: string | null) => void;
+  canSavePipelineTemplate: boolean;
   canUploadCustomAssets: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
   isCheckoutStarting: boolean;
   isActive: boolean;
+  onReturnToTemplateMaker: () => void;
   projectFileGateMessage?: string | null;
 }
 
@@ -73,10 +85,12 @@ export function CardTemplateMaker({
   onSaveAppearanceStyle,
   selectedTemplateIdForEditing,
   onSelectTemplateForEditing,
+  canSavePipelineTemplate,
   canUploadCustomAssets,
   fileInputRef,
   isCheckoutStarting,
   isActive,
+  onReturnToTemplateMaker,
   projectFileGateMessage,
 }: CardTemplateMakerProps) {
   const { toast } = useToast();
@@ -87,6 +101,7 @@ export function CardTemplateMaker({
     beginDraft,
     controller,
     developerFontFaceCss,
+    isDirty,
     isHydrated: draftPersistenceHydrated,
   } = useTemplateEditorSession({
     isActive,
@@ -107,6 +122,8 @@ export function CardTemplateMaker({
   } = controller;
   const variables = useTemplateEditorVariables({ controller, toast });
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
+  const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
+  const wasActiveRef = useRef(isActive);
 
   const selectElement = useCallback((id: string | null) => {
     selectElementInController(id);
@@ -168,6 +185,14 @@ export function CardTemplateMaker({
     deleteSelected,
     selectElement,
   });
+  const requestTemplateChange = useCallback((action: () => void) => {
+    if (!isDirty) {
+      action();
+      return;
+    }
+    setPendingTemplateChange(() => action);
+  }, [isDirty]);
+
   const commands = useTemplateEditorCommands({
     acceptTemplate,
     beginDraft,
@@ -175,6 +200,7 @@ export function CardTemplateMaker({
     deleteSelected,
     duplicateSelected,
     isActive,
+    isDirty,
     onCloneTemplate,
     onSaveTemplate,
     onSelectTemplate: onSelectTemplateForEditing,
@@ -182,8 +208,29 @@ export function CardTemplateMaker({
     setPreviewMode,
     setShowGrid,
     setZoom,
+    requestTemplateChange,
     toast,
   });
+  const saveAndContinue = useCallback(() => {
+    if (!commands.saveTemplate()) return;
+    const action = pendingTemplateChange;
+    setPendingTemplateChange(null);
+    action?.();
+  }, [commands, pendingTemplateChange]);
+
+  const discardAndContinue = useCallback(() => {
+    const action = pendingTemplateChange;
+    setPendingTemplateChange(null);
+    action?.();
+  }, [pendingTemplateChange]);
+
+  useEffect(() => {
+    if (wasActiveRef.current && !isActive && isDirty) {
+      setPendingTemplateChange(() => () => undefined);
+    }
+    wasActiveRef.current = isActive;
+  }, [isActive, isDirty]);
+
   const {
     commandPaletteOpen,
     saveTemplate: handleSave,
@@ -406,6 +453,25 @@ export function CardTemplateMaker({
           <span>+/- Zoom</span>
           <span>Esc Deselect</span>
         </div>
+        <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled template'}”?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate
+                  ? 'This is a CardForge pipeline template. Saving creates a new personal copy and keeps the original unchanged.'
+                  : 'Your changes are not saved yet.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel>
+              <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
+              <AlertDialogAction onClick={saveAndContinue}>
+                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate ? 'Save as new template' : 'Save changes'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </TooltipProvider>
   );
