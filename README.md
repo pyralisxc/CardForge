@@ -8,7 +8,7 @@ CardForge Studio is a software product created and operated by Cameron Locke, an
 
 - Public site: `/`
 - Product story and access: `/about`, `/access`
-- Founder identity: `/cameron`
+- Founder identity and voluntary support: `/cameron` (`/support` redirects to `/cameron#support`)
 - Studio: `/studio`
 - Account and Founder Beta status: `/account`
 - Profile management: `/profile`
@@ -65,7 +65,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
 - `src/features/business-identity/`: canonical operator identity, owner editing, and server-owned Supabase persistence.
-- `src/features/public-site/`: owner-editable marketing content, tagged public caching, and structured search identity.
+- `src/features/public-site/`: owner-editable marketing/founder content, public social links, tagged public caching, portrait processing, and structured search identity.
 - `src/features/legal/`: immutable versioned legal publication, constrained document rendering, and public legal caching.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
@@ -82,7 +82,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 CardForge has three storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
-- Supabase-backed Forge Pipeline state for roadmap voting, Founder Beta claims, owner settings, asset registry metadata, developer submissions, votes, and published shared-library assets including reviewed fonts.
+- Supabase-backed shared state for the Forge Pipeline, roadmap voting, Founder Beta claims, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions, votes, and published shared-library assets including reviewed fonts.
 - Repo starter/import files that can seed the pipeline with `npm run pipeline:sync-defaults`, but should not silently replace a missing database catalog at runtime.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.

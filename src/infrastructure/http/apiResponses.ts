@@ -38,6 +38,8 @@ export type ApiErrorCode =
   | 'owner_account_unavailable'
   | 'owner_billing_unavailable'
   | 'owner_email_unavailable'
+  | 'portrait_invalid'
+  | 'portrait_unavailable'
   | 'roadmap_database_unavailable'
   | 'roadmap_item_unavailable'
   | 'roadmap_request_invalid'

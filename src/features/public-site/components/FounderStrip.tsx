@@ -23,7 +23,7 @@ export function FounderStrip() {
             <Link href="/cameron" prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-base font-bold text-[var(--public-brass)] hover:text-[var(--public-ivory)]">
               Come say hello <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link href="/support" prefetch={false} className="inline-flex min-h-11 items-center text-base font-semibold text-[var(--public-muted-text)] hover:text-[var(--public-ivory)]">
+            <Link href="/cameron#support" prefetch={false} className="inline-flex min-h-11 items-center text-base font-semibold text-[var(--public-muted-text)] hover:text-[var(--public-ivory)]">
               Support the work
             </Link>
           </div>

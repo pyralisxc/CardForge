@@ -23,6 +23,8 @@ import {
   revalidatePublicIdentityCache,
 } from '@/features/business-identity/server';
 import {
+  FOUNDER_PROFILE_TAG,
+  revalidateFounderProfile,
   revalidateSiteContentCache,
   siteContentTag,
 } from '@/features/public-site/server';
@@ -37,8 +39,12 @@ describe('public cache tags and publication invalidation', () => {
   it('registers bounded public caches with exact feature-owned tags', () => {
     expect(PUBLIC_IDENTITY_TAG).toBe('public:business-identity');
     expect(siteContentTag('landing')).toBe('public:site-content:landing');
+    expect(FOUNDER_PROFILE_TAG).toBe('public:founder-profile');
     expect(legalDocumentTag('privacy')).toBe('public:legal:privacy');
 
+    expect(cacheRegistrations.some(({ options }) => (
+      options?.tags?.includes(FOUNDER_PROFILE_TAG) && options.revalidate === 3600
+    ))).toBe(true);
     expect(cacheRegistrations.some(({ options }) => (
       options?.tags?.includes(PUBLIC_IDENTITY_TAG) && options.revalidate === 3600
     ))).toBe(true);
@@ -59,6 +65,9 @@ describe('public cache tags and publication invalidation', () => {
     revalidateSiteContentCache('access');
     expect(revalidateTag).toHaveBeenLastCalledWith(siteContentTag('access'));
 
+    revalidateFounderProfile();
+    expect(revalidateTag).toHaveBeenLastCalledWith(FOUNDER_PROFILE_TAG);
+
     revalidateLegalDocumentCache('refund');
     expect(revalidateTag).toHaveBeenLastCalledWith(legalDocumentTag('refund'));
   });
@@ -77,6 +86,9 @@ describe('public cache tags and publication invalidation', () => {
     );
     expect(route.indexOf('await publishLegalDocument(')).toBeLessThan(
       route.indexOf('revalidateLegalDocumentCache('),
+    );
+    expect(route.indexOf('await updateFounderProfile(')).toBeLessThan(
+      route.indexOf('revalidateFounderProfile();'),
     );
   });
 });

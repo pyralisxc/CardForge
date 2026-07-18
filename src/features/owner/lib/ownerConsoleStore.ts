@@ -7,7 +7,11 @@ import { getContactRequests } from '@/features/contact/server';
 import { getLegalDocuments } from '@/features/legal/server';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMetrics';
-import { getSiteContentBlocks } from '@/features/public-site/server';
+import {
+  getFounderPortraitPublicUrl,
+  getFounderProfile,
+  getSiteContentBlocks,
+} from '@/features/public-site/server';
 import {
   getRoadmapAdminItems,
   getRoadmapSettings,
@@ -18,6 +22,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     businessIdentity,
     siteMechanics,
     siteContentBlocks,
+    founderProfile,
     legalDocuments,
     founderBeta,
     founderBetaClaims,
@@ -28,6 +33,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     getBusinessIdentity(),
     getRoadmapSettings(),
     getSiteContentBlocks(),
+    getFounderProfile(),
     getLegalDocuments(),
     getFounderBetaCampaign(),
     getFounderBetaClaims(),
@@ -41,6 +47,8 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     businessIdentity,
     siteMechanics,
     siteContentBlocks,
+    founderProfile,
+    founderPortraitUrl: getFounderPortraitPublicUrl(founderProfile.portraitStoragePath),
     legalDocuments,
     founderBetaCampaign: founderBeta.campaign,
     founderBetaClaims,

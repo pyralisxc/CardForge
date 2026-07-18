@@ -15,13 +15,12 @@ describe('public route stories', () => {
 
     expect(about).toContain('Make one card. Build the whole set.');
     expect(about).toContain('Your work stays with you');
-    expect(cameron).toContain('I’m Cameron');
-    expect(cameron).toContain('Oregon sole proprietor');
-    expect(cameron).toContain('AI-assisted code generation');
-    expect(cameron).toContain('Hawaii');
-    expect(cameron).toContain('hitchhiking');
-    expect(cameron).toContain('first product');
-    expect(cameron).toContain('href="/support"');
+    expect(cameron).toContain('getCachedFounderProfile');
+    expect(cameron).toContain('profile.heroHeadline');
+    expect(cameron).toContain('profile.roadBody');
+    expect(cameron).toContain('profile.currentBody');
+    expect(cameron).toContain('profile.priorities.map');
+    expect(cameron).toContain('id="support"');
   });
 
   it('describes current access without calling Creator Pass planned', () => {
@@ -33,6 +32,7 @@ describe('public route stories', () => {
   });
 
   it('publishes friendly support that activates checkout only with complete server configuration', () => {
+    const cameron = readRoute('cameron');
     const support = readRoute('support');
     const checkout = readFileSync(
       join(process.cwd(), 'src/features/billing/components/SupportCheckoutActions.tsx'),
@@ -49,10 +49,11 @@ describe('public route stories', () => {
       'Creator Pass is the best way to support CardForge as a business',
       'food, housing, transportation',
     ]) {
-      expect(support).toContain(disclosure);
+      expect(cameron).toContain(disclosure);
     }
-    expect(support).toContain('supportOffers ?');
-    expect(support).toContain('<SupportCheckoutActions');
+    expect(cameron).toContain('supportOffers ?');
+    expect(cameron).toContain('<SupportCheckoutActions');
+    expect(support).toContain("permanentRedirect('/cameron#support')");
     expect(checkout).toContain('/api/billing/support/checkout');
     expect(checkout).toContain('does not provide CardForge product access');
     expect(checkout).toContain('Renews monthly until canceled');
@@ -60,8 +61,9 @@ describe('public route stories', () => {
   });
 
   it('uses the shared public shell across public marketing routes', () => {
-    for (const route of ['about', 'access', 'cameron', 'support', 'developer', 'roadmap']) {
+    for (const route of ['about', 'access', 'cameron', 'developer', 'roadmap']) {
       expect(readRoute(route), route).toContain('<PublicSiteShell');
     }
+    expect(readRoute('support')).not.toContain('<PublicSiteShell');
   });
 });

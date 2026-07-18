@@ -33,7 +33,7 @@ export const PUBLIC_NAVIGATION = {
       links: [
         { href: '/about', label: 'About CardForge' },
         { href: '/cameron', label: 'Cameron Locke' },
-        { href: '/support', label: 'Support Cameron' },
+        { href: '/cameron#support', label: 'Support Cameron' },
         { href: '/developer', label: 'Developer Program' },
       ],
     },

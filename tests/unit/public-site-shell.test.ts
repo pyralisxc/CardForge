@@ -41,6 +41,7 @@ describe('public site shell source contract', () => {
     const navigationSource = readSource('src/features/public-site/model/publicNavigation.ts');
     const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
     const footerSource = readSource('src/features/public-site/components/PublicSiteFooter.tsx');
+    const layoutSource = readSource('src/app/layout.tsx');
 
     expect(navigationSource).toContain('export const PUBLIC_NAVIGATION');
     expect(navigationSource).toContain('footerGroups');
@@ -49,6 +50,8 @@ describe('public site shell source contract', () => {
     expect(footerSource).toContain("from '../model/publicNavigation'");
     expect(headerSource).not.toContain('const baseNavItems');
     expect(footerSource).toContain('PUBLIC_FOOTER_LINKS.map');
+    expect(layoutSource).toContain('getCachedFounderProfile');
+    expect(layoutSource).toContain('<FounderProfileProvider profile={founderProfile}>');
   });
 
   it('provides skip navigation and one stable semantic landmark sequence', () => {

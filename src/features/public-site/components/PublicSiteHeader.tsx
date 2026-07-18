@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
+import { FounderSocialLinks } from './FounderSocialLinks';
+import { useFounderProfile } from './FounderProfileContext';
 
 export interface PublicSiteHeaderProps {
   accountSlot?: ReactNode;
@@ -32,6 +34,7 @@ export function PublicSiteHeader({
   businessIdentity,
   currentPath,
 }: PublicSiteHeaderProps) {
+  const founderProfile = useFounderProfile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -70,6 +73,10 @@ export function PublicSiteHeader({
             </Link>
           ))}
         </nav>
+
+        <div className="hidden xl:block">
+          <FounderSocialLinks profile={founderProfile} compact />
+        </div>
 
         <Link
           href={PUBLIC_NAVIGATION.studio.href}
@@ -135,6 +142,10 @@ export function PublicSiteHeader({
                 </Link>
               </DialogClose>
             </nav>
+            <div className="border-t border-[var(--public-border)] pt-5">
+              <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Follow Cameron</p>
+              <FounderSocialLinks profile={founderProfile} />
+            </div>
             {accountSlot ? (
               <div className="cardforge-public-auth-status border-t border-[var(--public-border)] pt-5">
                 {accountSlot}

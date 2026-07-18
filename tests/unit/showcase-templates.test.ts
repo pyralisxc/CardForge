@@ -40,6 +40,8 @@ describe('showcase templates', () => {
     expect(elements.get('pc-center-artwork')).toMatchObject({ type: 'image', imageSource: 'Artwork' });
     expect(elements.get('pc-card-title')?.content).toContain('{{CardTitle:');
     expect(elements.has('pc-center')).toBe(false);
+    expect(JSON.stringify(template)).not.toContain('CenterMark');
+    expect(JSON.stringify(template)).not.toContain('\\"?\\"');
     expect(['pc-top-rank', 'pc-top-suit', 'pc-bottom-rank', 'pc-bottom-suit'].every((id) => elements.has(id))).toBe(true);
 
     const example = findExample(template.id);
