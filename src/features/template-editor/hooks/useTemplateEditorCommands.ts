@@ -80,8 +80,8 @@ export function useTemplateEditorCommands({
     return createFrameKitPresetRecipes(kits);
   }, [currentTemplate.id]);
 
-  const saveTemplate = useCallback(() => {
-    if (!currentTemplate.name?.trim() || currentTemplate.name === 'New Card Template') {
+  const saveTemplate = useCallback((templateToSave: TCGCardTemplate = currentTemplate) => {
+    if (!templateToSave.name?.trim() || templateToSave.name === 'New Card Template') {
       toast({
         title: 'Template name is required',
         description: withNextStep(
@@ -92,7 +92,7 @@ export function useTemplateEditorCommands({
       });
       return false;
     }
-    const parts = currentTemplate.aspectRatio.split(':').map(Number);
+    const parts = templateToSave.aspectRatio.split(':').map(Number);
     if (parts.length !== 2 || parts.some((part) => !part || part <= 0 || Number.isNaN(part))) {
       toast({
         title: 'Aspect ratio format is invalid',
@@ -105,10 +105,10 @@ export function useTemplateEditorCommands({
       return false;
     }
     const savedId = onSaveTemplate({
-      ...currentTemplate,
-      freeformCanvas: reconstructFreeformCanvas(currentTemplate.freeformCanvas),
+      ...templateToSave,
+      freeformCanvas: reconstructFreeformCanvas(templateToSave.freeformCanvas),
     });
-    acceptTemplate(currentTemplate);
+    acceptTemplate(templateToSave);
     onSelectTemplate(savedId);
     return true;
   }, [acceptTemplate, currentTemplate, onSaveTemplate, onSelectTemplate, toast]);
