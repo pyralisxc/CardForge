@@ -64,21 +64,21 @@ export function SupportCheckoutActions({
       <div className="flex items-start gap-3">
         <HeartHandshake className="mt-1 h-6 w-6 shrink-0 text-[#775817]" aria-hidden="true" />
         <div>
-          <h2 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-text)]">Choose voluntary support</h2>
+          <h2 className="font-[var(--public-font-display)] text-2xl font-semibold text-[#2f2418]">Choose voluntary support</h2>
           <p className="mt-2 text-base leading-7 text-[#5f5548]">Stripe shows the same amount and recurrence again before you authorize payment.</p>
         </div>
       </div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-[var(--public-radius)] border border-[#ad9d84] bg-[var(--public-ivory)] p-5">
-          <p className="text-lg font-bold text-[var(--public-text)]">Choose a one-time amount</p>
+          <p className="text-lg font-bold text-[#2f2418]">Choose a one-time amount</p>
           <p className="mt-2 text-sm leading-6 text-[#5f5548]">A single voluntary support payment. It does not renew.</p>
-          <label className="mt-4 grid gap-2 text-sm font-semibold text-[var(--public-text)]">
+          <label className="mt-4 grid gap-2 text-sm font-semibold text-[#2f2418]">
             Amount in USD
             <span className="flex min-h-11 items-center rounded-[var(--public-radius)] border border-[#8f7b57] bg-white px-3 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#76551c]">
-              <span aria-hidden="true">$</span>
+              <span aria-hidden="true" className="text-[#2f2418]">$</span>
               <input
                 aria-describedby="one-time-support-range"
-                className="min-w-0 flex-1 bg-transparent px-2 py-2 outline-none"
+                className="min-w-0 flex-1 bg-transparent px-2 py-2 text-[#2f2418] outline-none placeholder:text-[#6b5b47]"
                 inputMode="decimal"
                 min={oneTimeMinimumCents / 100}
                 max={oneTimeMaximumCents / 100}
@@ -102,7 +102,7 @@ export function SupportCheckoutActions({
           </Button>
         </div>
         <div className="rounded-[var(--public-radius)] border border-[#ad9d84] bg-[var(--public-ivory)] p-5">
-          <p className="text-lg font-bold text-[var(--public-text)]">Choose monthly support</p>
+          <p className="text-lg font-bold text-[#2f2418]">Choose monthly support</p>
           <p className="mt-2 text-sm leading-6 text-[#5f5548]">Renews monthly until canceled. Cancel future renewals through Stripe at any time.</p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             {monthlyAmountsCents.map((amountCents) => (
