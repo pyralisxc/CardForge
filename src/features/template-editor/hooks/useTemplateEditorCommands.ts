@@ -27,6 +27,7 @@ interface UseTemplateEditorCommandsInput {
   deleteSelected: () => void;
   duplicateSelected: () => void;
   isActive: boolean;
+  isDirty: boolean;
   onCloneTemplate: (templateId: string) => string | null;
   onSaveTemplate: (template: TCGCardTemplate) => string;
   onSelectTemplate: (templateId: string | null) => void;
@@ -34,6 +35,7 @@ interface UseTemplateEditorCommandsInput {
   setPreviewMode: Dispatch<SetStateAction<boolean>>;
   setShowGrid: Dispatch<SetStateAction<boolean>>;
   setZoom: Dispatch<SetStateAction<number>>;
+  requestTemplateChange: (action: () => void) => void;
   toast: ToastFn;
 }
 
@@ -44,6 +46,7 @@ export function useTemplateEditorCommands({
   deleteSelected,
   duplicateSelected,
   isActive,
+  isDirty: _isDirty,
   onCloneTemplate,
   onSaveTemplate,
   onSelectTemplate,
@@ -51,6 +54,7 @@ export function useTemplateEditorCommands({
   setPreviewMode,
   setShowGrid,
   setZoom,
+  requestTemplateChange,
   toast,
 }: UseTemplateEditorCommandsInput) {
   const {
@@ -88,7 +92,7 @@ export function useTemplateEditorCommands({
         ),
         variant: 'destructive',
       });
-      return;
+      return false;
     }
     const parts = currentTemplate.aspectRatio.split(':').map(Number);
     if (parts.length !== 2 || parts.some((part) => !part || part <= 0 || Number.isNaN(part))) {
@@ -100,7 +104,7 @@ export function useTemplateEditorCommands({
         ),
         variant: 'destructive',
       });
-      return;
+      return false;
     }
     const savedId = onSaveTemplate({
       ...currentTemplate,
@@ -108,6 +112,7 @@ export function useTemplateEditorCommands({
     });
     acceptTemplate(currentTemplate);
     onSelectTemplate(savedId);
+    return true;
   }, [acceptTemplate, currentTemplate, onSaveTemplate, onSelectTemplate, toast]);
 
   useEffect(() => {
@@ -185,21 +190,27 @@ export function useTemplateEditorCommands({
       ),
       id: `draft-${nanoid()}`,
     };
-    beginDraft(template);
-    onSelectTemplate(template.id);
-  }, [beginDraft, onSelectTemplate]);
+    requestTemplateChange(() => {
+      beginDraft(template);
+      onSelectTemplate(template.id);
+    });
+  }, [beginDraft, onSelectTemplate, requestTemplateChange]);
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
-    acceptTemplate(template);
-    onSelectTemplate(template.id);
-  }, [acceptTemplate, onSelectTemplate]);
+    requestTemplateChange(() => {
+      acceptTemplate(template);
+      onSelectTemplate(template.id);
+    });
+  }, [acceptTemplate, onSelectTemplate, requestTemplateChange]);
 
   const cloneTemplate = useCallback(() => {
     if (!currentTemplate.id) return;
-    const newId = onCloneTemplate(currentTemplate.id);
-    if (newId) onSelectTemplate(newId);
-  }, [currentTemplate.id, onCloneTemplate, onSelectTemplate]);
+    requestTemplateChange(() => {
+      const newId = onCloneTemplate(currentTemplate.id);
+      if (newId) onSelectTemplate(newId);
+    });
+  }, [currentTemplate.id, onCloneTemplate, onSelectTemplate, requestTemplateChange]);
 
   const applyFrameStyle = useCallback((frameStyle: string) => {
     updateTemplate({ ...(PREDEFINED_FRAME_VISUAL_PROPERTIES[frameStyle] ?? {}), frameStyle });
