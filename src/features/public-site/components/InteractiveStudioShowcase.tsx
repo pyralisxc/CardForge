@@ -260,7 +260,7 @@ export function InteractiveStudioShowcase() {
               <StudioScreenshot {...generatorScreenshots[activeGeneratorView]} />
             ) : loadFailed ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
-                The finished-set preview is temporarily unavailable. The complete demonstration sets remain on the Examples page.
+                The finished-set preview is temporarily unavailable. You can still explore the Studio walkthrough above.
               </div>
             ) : !templates || !frontTemplate ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-base text-[var(--public-muted-text)]">
