@@ -172,7 +172,10 @@ test('renders public landing page with studio and account entry points', async (
   await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
   await expect(page.getByRole('link', { name: /Access/i }).first()).toHaveAttribute('href', '/access');
   await expect(page.getByRole('link', { name: /Cameron/i }).first()).toHaveAttribute('href', '/cameron');
-  await expect(page.getByRole('link', { name: /Support/i }).first()).toHaveAttribute('href', '/support');
+  await expect(page.getByRole('link', { name: /Support/i }).first()).toHaveAttribute(
+    'href',
+    '/cameron#support',
+  );
   await expect(page.getByRole('link', { name: /Privacy/i }).first()).toHaveAttribute('href', '/privacy');
   await expect(page.getByRole('link', { name: /Developer Terms/i }).first()).toHaveAttribute('href', '/developer-terms');
   await expect(page.getByRole('link', { name: /Creator Pool/i })).toHaveCount(0);
