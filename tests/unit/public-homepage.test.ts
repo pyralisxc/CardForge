@@ -48,6 +48,10 @@ describe('proof-led homepage', () => {
     expect(showcase).toContain('/card-assets/showcase/studio-layout.jpg');
     expect(showcase).toContain('/card-assets/showcase/studio-generator-single.jpg');
     expect(showcase).toContain('/card-assets/showcase/studio-generator-bulk.jpg');
+    expect(showcase).toContain('unoptimized');
+    expect(showcase).toContain("maxWidth: `${width}px`");
+    expect(showcase).toContain('w-auto max-w-full');
+    expect(showcase).not.toContain('sizes="(min-width: 1280px) 1180px, 94vw"');
     expect(showcase).toContain('activeGeneratorView');
     expect(showcase).toContain('<CardPreview');
     expect(showcase).toContain('createBulkDisplayCards');
@@ -68,6 +72,6 @@ describe('proof-led homepage', () => {
     expect(page).toContain('Build your first set.');
     expect(founder).toContain('Built independently by Cameron Locke');
     expect(founder).toContain('href="/cameron"');
-    expect(founder).toContain('href="/support"');
+    expect(founder).toContain('href="/cameron#support"');
   });
 });

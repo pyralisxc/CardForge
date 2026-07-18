@@ -10,7 +10,6 @@ const publicRoutes = [
   '/developer',
   '/roadmap',
   '/cameron',
-  '/support',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

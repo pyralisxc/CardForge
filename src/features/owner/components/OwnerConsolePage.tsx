@@ -22,6 +22,10 @@ const OwnerPublicContentPanel = dynamic(
   () => import('./OwnerPublicContentPanel').then((module) => module.OwnerPublicContentPanel),
   { loading: panelFallback },
 );
+const OwnerFounderProfilePanel = dynamic(
+  () => import('./OwnerFounderProfilePanel').then((module) => module.OwnerFounderProfilePanel),
+  { loading: panelFallback },
+);
 const OwnerAccessPanel = dynamic(
   () => import('./OwnerAccessPanel').then((module) => module.OwnerAccessPanel),
   { loading: panelFallback },
@@ -88,6 +92,7 @@ export function OwnerConsolePage() {
               <TabsTrigger value="readiness" className={tabClassName}>Launch Readiness</TabsTrigger>
               <TabsTrigger value="operations" className={tabClassName}>Operations</TabsTrigger>
               <TabsTrigger value="copy" className={tabClassName}>Site Copy</TabsTrigger>
+              <TabsTrigger value="founder" className={tabClassName}>Cameron Profile</TabsTrigger>
               <TabsTrigger value="site" className={tabClassName}>Site Mechanics</TabsTrigger>
               <TabsTrigger value="access" className={tabClassName}>Access & Promos</TabsTrigger>
               <TabsTrigger value="developer" className={tabClassName}>Contributor Program</TabsTrigger>
@@ -96,6 +101,7 @@ export function OwnerConsolePage() {
             <TabsContent value="readiness" className="mt-0"><OwnerReadinessPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="operations" className="mt-0"><OwnerOperationsPanel payload={payload} /></TabsContent>
             <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={payload.console} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
+            <TabsContent value="founder" className="mt-0"><OwnerFounderProfilePanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="site" className="mt-0"><OwnerPublicContentPanel consolePayload={payload.console} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="access" className="mt-0"><OwnerAccessPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="developer" className="mt-0"><OwnerDeveloperProgramPanel /></TabsContent>

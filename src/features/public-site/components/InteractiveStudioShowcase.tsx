@@ -61,14 +61,16 @@ function StudioScreenshot({
       tabIndex={0}
       aria-label={`${alt} Scroll to see the entire screenshot.`}
     >
-      <Image
-        src={src}
-        alt={alt}
-        width={width}
-        height={height}
-        sizes="(min-width: 1280px) 1180px, 94vw"
-        className="h-auto w-full"
-      />
+      <div className="mx-auto" style={{ maxWidth: `${width}px` }}>
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          unoptimized
+          className="h-auto w-auto max-w-full"
+        />
+      </div>
     </div>
   );
 }

@@ -9,10 +9,14 @@ import {
   updateBusinessIdentity,
 } from '@/features/business-identity/server';
 import {
+  FounderProfileStoreError,
   PublicSiteStoreError,
+  revalidateFounderProfile,
   revalidateSiteContentCache,
+  updateFounderProfile,
   updateSiteContentBlock,
 } from '@/features/public-site/server';
+import { revalidatePath } from 'next/cache';
 import {
   LegalDocumentStoreError,
   publishLegalDocument,
@@ -83,6 +87,7 @@ export async function PUT(request: Request) {
       expectedIdentityVersion?: unknown;
       siteMechanics?: Record<string, unknown>;
       siteContentBlock?: { slug?: unknown; body?: unknown };
+      founderProfile?: Record<string, unknown>;
       legalDocument?: {
         slug?: unknown;
         title?: unknown;
@@ -117,6 +122,14 @@ export async function PUT(request: Request) {
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
+    if (body.kind === 'founderProfile') {
+      await updateFounderProfile(body.founderProfile ?? {});
+      revalidateFounderProfile();
+      revalidatePath('/cameron');
+      revalidatePath('/', 'layout');
+      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
+    }
+
     if (body.kind === 'legal') {
       const legalDocuments = await publishLegalDocument(body.legalDocument ?? {});
       const publishedDocument = legalDocuments.find(
@@ -146,6 +159,7 @@ export async function PUT(request: Request) {
       error instanceof FounderBetaStoreError
       || error instanceof BusinessIdentityStoreError
       || error instanceof PublicSiteStoreError
+      || error instanceof FounderProfileStoreError
       || error instanceof LegalDocumentStoreError
       || error instanceof RoadmapStoreError
     ) {

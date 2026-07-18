@@ -1,14 +1,19 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
 
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import { PUBLIC_FOOTER_LINKS } from '../model/publicNavigation';
+import { FounderSocialLinks } from './FounderSocialLinks';
+import { useFounderProfile } from './FounderProfileContext';
 
 export interface PublicSiteFooterProps {
   businessIdentity: BusinessIdentity;
 }
 
 export function PublicSiteFooter({ businessIdentity }: PublicSiteFooterProps) {
+  const founderProfile = useFounderProfile();
   return (
     <footer className="border-t border-[var(--public-border)] bg-[#090806] px-5 py-5 text-[var(--public-muted-text)] md:px-8">
       <div className="mx-auto max-w-7xl">
@@ -33,6 +38,7 @@ export function PublicSiteFooter({ businessIdentity }: PublicSiteFooterProps) {
               </Link>
             ))}
           </nav>
+          <FounderSocialLinks profile={founderProfile} compact />
         </div>
         <p className="border-t border-[#352716] pt-4 text-base">
           &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}. CardForge Studio is an independent product built with care.

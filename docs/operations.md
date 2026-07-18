@@ -92,7 +92,9 @@ The Gate 2 migration must be applied before the new publication API is used in p
 3. Verify public legal routes render the newest version while older versions remain queryable by service-owned operations.
 4. Confirm owner updates invalidate only the affected tag and the public route changes without a deploy.
 
-Marketing and legal routes use tagged one-hour caches. Business-identity changes invalidate identity and identity-dependent legal reads; content edits invalidate only their landing/about/access group; legal publication invalidates only its slug. A revalidation failure is logged and bounded by the one-hour fallback rather than changing a successful database write into a false mutation failure.
+Marketing and legal routes use tagged one-hour caches. Business-identity changes invalidate identity and identity-dependent legal reads; founder edits invalidate the founder tag plus the public shell; content edits invalidate only their landing/about/access group; legal publication invalidates only its slug. A revalidation failure is logged and bounded by the one-hour fallback rather than changing a successful database write into a false mutation failure.
+
+The Cameron profile panel owns founder copy, the priorities list, portrait alt text, and Facebook/Instagram/Discord URLs. Blank social URLs intentionally render a **coming soon** control. Portrait replacement accepts JPEG, PNG, or WebP up to 8 MB, produces a WebP no larger than 1600×2000, and overwrites only `cardforge-public-media/founder/cameron-locke/portrait.webp`. If processing or Storage fails, the current portrait remains active. `/support` is a permanent redirect to `/cameron#support`; do not restore a second support page.
 
 Search policy is deliberate: marketing routes appear in the XML sitemap; legal pages remain public, canonical, and indexable but are excluded from that marketing sitemap. Studio, account, profile, owner, and the archived Creator Pool route are noindex. Do not add fake `lastmod`, priority, or change-frequency values.
 
@@ -105,6 +107,7 @@ Use `/owner` for:
 - email test
 - support/contact request history
 - site copy
+- Cameron profile, portrait, and social links
 - business identity
 - site mechanics
 - Founder Beta access and copy
@@ -121,6 +124,7 @@ Secrets stay in Vercel/provider dashboards. The owner console should show readin
 - The Founder Beta claim RPC is callable only by the server-side `service_role`.
 - Run Supabase security and performance advisors after every migration.
 - Verify role grants directly; RLS does not protect an exposed `SECURITY DEFINER` function.
+- Keep `cardforge_founder_profile` inaccessible to `anon` and `authenticated`; public access applies only to the intentional portrait object in the public-media bucket.
 
 ## Delivery Gates
 

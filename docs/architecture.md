@@ -1,18 +1,18 @@
 # CardForge Architecture
 
-Last updated: July 16, 2026
+Last updated: July 17, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one developer asset pipeline, and one owner console.
 
 ## Product Truth
 
-- Public site: `/`, `/about`, `/access`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages.
+- Public site: `/`, `/about`, `/access`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages. `/cameron` combines the founder story and voluntary support; `/support` redirects to its support section.
 - Studio: `/studio` contains Layout Studio and Generator.
 - Accounts: Clerk identifies users; CardForge stores trusted access in Clerk private metadata or server-side allowlists.
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
 - Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
 - Email: Resend sends transactional messages to the configured support inbox and users.
-- Shared data: Supabase stores owner settings, legal copy, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles, submissions, votes, and contact request history.
+- Shared data: Supabase stores owner settings, legal copy, the founder profile and public portrait object, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles, submissions, votes, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
 
 ## Source Lanes
@@ -55,7 +55,7 @@ CardForge has three storage lanes:
 - `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
 - `src/features/account`: current-user resolution, access entitlement, profile surfaces, Founder Beta, and owner account administration behind explicit client/server interfaces.
 - `src/features/business-identity`: browser-safe operator contracts, normalization, owner editing, and the server-owned `cardforge_business_identity` record.
-- `src/features/public-site`: editable landing/about/access content, tagged public caches, metadata-adjacent structured data, browser-safe contracts, and a server-owned Supabase store.
+- `src/features/public-site`: editable landing/about/access/founder content, shared public social controls, tagged public caches, server-side portrait processing, metadata-adjacent structured data, browser-safe contracts, and server-owned Supabase stores.
 - `src/features/legal`: immutable versioned legal-publication contracts, constrained Markdown presentation, tagged public caching, and server-owned Supabase publication.
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
@@ -111,7 +111,9 @@ The current developer pipeline is operational infrastructure, not an active payo
 
 ## Public delivery and search identity
 
-Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, content-group, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
+Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, founder-profile, content-group, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
+
+`cardforge_founder_profile` is a private single-row service-role record. The public shell reads its cached copy for Facebook, Instagram, and Discord controls; blank links announce a coming-soon state. Owner portrait uploads are decoded and normalized by Sharp, stored as metadata-free WebP at `cardforge-public-media/founder/cameron-locke/portrait.webp`, and only become the active portrait after Storage succeeds.
 
 Each public route owns its title, description, self-referencing canonical, Open Graph URL, social image, and robots decision through `src/shared/siteMetadata.ts`. The XML sitemap contains only canonical marketing pages; public legal pages are canonical and indexable but intentionally excluded from the marketing sitemap. `/studio`, `/account`, `/profile`, `/owner`, and the Creator Pool archive are noindex.
 
