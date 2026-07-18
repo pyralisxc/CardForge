@@ -4,6 +4,7 @@ import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -123,6 +124,7 @@ export function CardTemplateMaker({
   const variables = useTemplateEditorVariables({ controller, toast });
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
   const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
+  const [saveName, setSaveName] = useState('');
   const wasActiveRef = useRef(isActive);
 
   const selectElement = useCallback((id: string | null) => {
@@ -211,17 +213,22 @@ export function CardTemplateMaker({
     toast,
   });
   const saveAndContinue = useCallback(() => {
-    if (!commands.saveTemplate()) return;
+    const templateToSave = { ...currentTemplate, name: saveName.trim() };
+    if (!commands.saveTemplate(templateToSave)) return;
     const action = pendingTemplateChange;
     setPendingTemplateChange(null);
     action?.();
-  }, [commands, pendingTemplateChange]);
+  }, [commands, currentTemplate, pendingTemplateChange, saveName]);
 
   const discardAndContinue = useCallback(() => {
     const action = pendingTemplateChange;
     setPendingTemplateChange(null);
     action?.();
   }, [pendingTemplateChange]);
+
+  useEffect(() => {
+    if (pendingTemplateChange !== null) setSaveName(currentTemplate.name ?? '');
+  }, [currentTemplate.name, pendingTemplateChange]);
 
   useEffect(() => {
     if (wasActiveRef.current && !isActive && isDirty) {
@@ -462,6 +469,15 @@ export function CardTemplateMaker({
                   : 'Your changes are not saved yet.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="space-y-2">
+              <label htmlFor="template-save-name" className="text-sm font-medium text-foreground">Template name</label>
+              <Input
+                id="template-save-name"
+                value={saveName}
+                onChange={(event) => setSaveName(event.target.value)}
+                placeholder="Name this template"
+              />
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel>
               <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
