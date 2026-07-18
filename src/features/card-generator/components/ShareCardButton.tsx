@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Download, Share2 } from 'lucide-react';
+import { Copy, Download, Share2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,6 +15,7 @@ import {
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
+import { usePublicShareSettings } from './PublicShareSettingsContext';
 
 
 const safeFileName = (card: DisplayCard, preset: SocialSharePreset) => {
@@ -40,6 +41,7 @@ export function ShareCardButton({
   ariaLabel?: string;
 }) {
   const { toast } = useToast();
+  const shareSettings = usePublicShareSettings();
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<SocialSharePreset>('square');
   const [working, setWorking] = useState(false);
@@ -54,9 +56,9 @@ export function ShareCardButton({
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({
           files: [file],
-          title: 'Made with CardForge',
-          text: 'Built with CardForge Studio',
-          url: 'https://cardforges.com/studio',
+          title: 'CardForge Studio',
+          text: shareSettings.message,
+          url: shareSettings.homepageUrl,
         });
         toast({ title: 'Share ready', description: 'Your watermarked CardForge image was sent to the share sheet.' });
       } else {
@@ -90,6 +92,15 @@ export function ShareCardButton({
     }
   };
 
+  const copyCaption = async () => {
+    try {
+      await navigator.clipboard.writeText(`${shareSettings.message}\n\n${shareSettings.homepageUrl}`);
+      toast({ title: 'Caption copied', description: 'The owner-approved message and CardForge link are ready to paste.' });
+    } catch {
+      toast({ title: 'Caption not copied', description: 'Your browser blocked clipboard access. The message remains visible in this window.', variant: 'destructive' });
+    }
+  };
+
   return (
     <>
       <Button type="button" size="icon" variant="secondary" onClick={() => setOpen(true)} aria-label={ariaLabel ?? 'Share card'} title="Share card">
@@ -109,6 +120,13 @@ export function ShareCardButton({
               ))}
             </SelectContent>
           </Select>
+          <div className="rounded-md border border-border bg-muted/40 p-3">
+            <p className="text-sm leading-6">{shareSettings.message}</p>
+            <p className="mt-1 break-all text-sm text-muted-foreground">{shareSettings.homepageUrl}</p>
+            <Button type="button" size="sm" variant="ghost" className="mt-2" onClick={copyCaption}>
+              <Copy className="mr-2 h-4 w-4" />Copy caption &amp; link
+            </Button>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={download} disabled={working}>
               <Download className="mr-2 h-4 w-4" />Download

@@ -34,7 +34,7 @@ export function OutcomeHero() {
               Try the Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link
-              href="/examples"
+              href="#interactive-showcase"
               prefetch={false}
               className="inline-flex min-h-11 items-center justify-center rounded-[var(--public-radius)] border border-[#8b6631] bg-[rgba(18,14,10,0.82)] px-6 text-base font-bold text-[var(--public-ivory)] backdrop-blur-sm hover:border-[var(--public-brass)]"
             >

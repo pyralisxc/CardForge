@@ -18,8 +18,8 @@ export function AccessComparison() {
               Try CardForge first. Subscribe when it earns a place in your work.
             </h2>
           </div>
-          <Link href="/access" prefetch={false} className="inline-flex min-h-11 items-center text-base font-bold text-[var(--public-brass)] hover:text-[#f2d697]">
-            Compare access details
+          <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center text-base font-bold text-[var(--public-brass)] hover:text-[#f2d697]">
+            Check your access
           </Link>
         </div>
         <div className="mt-7 grid gap-px overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-border)] sm:grid-cols-2 xl:grid-cols-4">

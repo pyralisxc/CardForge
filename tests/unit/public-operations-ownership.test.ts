@@ -61,7 +61,6 @@ describe('public operations ownership', () => {
     for (const pagePath of [
       ['src', 'app', 'page.tsx'],
       ['src', 'app', 'about', 'page.tsx'],
-      ['src', 'app', 'access', 'page.tsx'],
       ['src', 'app', 'privacy', 'page.tsx'],
       ['src', 'app', 'terms', 'page.tsx'],
       ['src', 'app', 'contact', 'page.tsx'],

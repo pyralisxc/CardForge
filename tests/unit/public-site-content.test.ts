@@ -15,9 +15,7 @@ describe('public site content rules', () => {
       'landing.demo.body',
       'about.hero.headline',
       'about.hero.body',
-      'access.hero.headline',
-      'access.hero.body',
-      'access.creatorPool.note',
+      'sharing.message',
     ]);
   });
 
@@ -39,6 +37,10 @@ describe('public site content rules', () => {
     expect(normalizeSiteContentBlockInput({
       slug: 'landing.hero.body',
       body: 'x'.repeat(801),
+    }).ok).toBe(false);
+    expect(normalizeSiteContentBlockInput({
+      slug: 'access.hero.headline',
+      body: 'This removed route must not remain editable.',
     }).ok).toBe(false);
   });
 });

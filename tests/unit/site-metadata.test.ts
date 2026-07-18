@@ -46,7 +46,7 @@ describe('site metadata', () => {
   });
 
   it('keeps archived Creator Pool language out of primary marketing pages', () => {
-    for (const route of ['page.tsx', 'access/page.tsx']) {
+    for (const route of ['page.tsx']) {
       const source = readFileSync(join(process.cwd(), 'src/app', route), 'utf8');
       expect(source).not.toContain('href="/creator-pool"');
       expect(source).not.toContain('Creator Pool Notice');

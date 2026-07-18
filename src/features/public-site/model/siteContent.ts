@@ -6,11 +6,9 @@ export type SiteContentBlockSlug =
   | 'landing.demo.body'
   | 'about.hero.headline'
   | 'about.hero.body'
-  | 'access.hero.headline'
-  | 'access.hero.body'
-  | 'access.creatorPool.note';
+  | 'sharing.message';
 
-export type SiteContentGroup = 'landing' | 'about' | 'access';
+export type SiteContentGroup = 'landing' | 'about' | 'sharing';
 
 export interface SiteContentBlock {
   slug: SiteContentBlockSlug;
@@ -71,24 +69,10 @@ export const DEFAULT_SITE_CONTENT_BLOCKS: SiteContentBlock[] = [
     updatedAt: null,
   },
   {
-    slug: 'access.hero.headline',
-    group: 'access',
-    label: 'Access page headline',
-    body: 'Try CardForge first. Subscribe when it earns a place in your work.',
-    updatedAt: null,
-  },
-  {
-    slug: 'access.hero.body',
-    group: 'access',
-    label: 'Access page body',
-    body: 'Open the Studio for free, claim a beta seat when one is open, or choose Creator Pass when you want clean downloads and want to support the business.',
-    updatedAt: null,
-  },
-  {
-    slug: 'access.creatorPool.note',
-    group: 'access',
-    label: 'Access creator-pool note',
-    body: 'The older Creator Pool idea is not an active payment or profit-sharing program.',
+    slug: 'sharing.message',
+    group: 'sharing',
+    label: 'Share message',
+    body: 'Check out CardForge Studio—a friendly way to design one card and build the whole set.',
     updatedAt: null,
   },
 ];

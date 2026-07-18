@@ -43,8 +43,9 @@ describe('provider infrastructure ownership', () => {
   it('exposes operational features through declared interfaces', async () => {
     for (const feature of ['account', 'app-shell', 'billing', 'owner']) {
       const hasClient = await pathExists('src', 'features', feature, 'client.ts');
+      const hasClientDirectory = await pathExists('src', 'features', feature, 'client');
       const hasServer = await pathExists('src', 'features', feature, 'server.ts');
-      expect(hasClient || hasServer, `${feature} needs a declared interface`).toBe(true);
+      expect(hasClient || hasClientDirectory || hasServer, `${feature} needs a declared interface`).toBe(true);
     }
   });
 

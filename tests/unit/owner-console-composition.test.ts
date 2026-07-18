@@ -65,7 +65,7 @@ describe('Owner Console composition', () => {
     expect(businessPanel).not.toContain('identityVersion: draft');
   });
 
-  it('keeps shared site headers in App composition', async () => {
+  it('keeps the one shared public-site header in App composition', async () => {
     for (const featurePath of [
       'src/features/owner/components/OwnerConsolePage.tsx',
       'src/features/developer-assets/components/DeveloperProgramPage.tsx',
@@ -75,7 +75,9 @@ describe('Owner Console composition', () => {
       expect(source, featurePath).not.toContain('@/features/app-shell');
     }
     const ownerPage = await readFile(rootPath('src/app/owner/page.tsx'), 'utf8');
-    expect(ownerPage).toContain('@/features/app-shell/client/publicSite');
+    expect(ownerPage).toContain('@/features/public-site/client');
+    expect(ownerPage).toContain('<PublicSiteHeader');
+    expect(ownerPage).not.toContain('@/features/app-shell');
 
     for (const appPath of [
       'src/app/developer/page.tsx',

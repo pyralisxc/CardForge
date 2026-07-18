@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 
-import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
+import { PublicAuthControls } from '@/features/account/client/auth';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { OwnerConsolePage } from '@/features/owner/client';
+import { PublicSiteHeader } from '@/features/public-site/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
@@ -11,10 +13,17 @@ export const metadata: Metadata = createPageMetadata({
   index: false,
 });
 
-export default function OwnerPage() {
+export default async function OwnerPage() {
+  const businessIdentity = await getCachedBusinessIdentity();
   return (
     <>
-      <PublicSiteHeader currentPath="/owner" showOwnerLink title="Owner Forge" />
+      <div className="cardforge-public">
+        <PublicSiteHeader
+          accountSlot={<PublicAuthControls />}
+          businessIdentity={businessIdentity}
+          currentPath="/owner"
+        />
+      </div>
       <OwnerConsolePage />
     </>
   );

@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 
 import { AccountProfilePage } from '@/features/account/client/profile';
+import { PublicAuthControls } from '@/features/account/client/auth';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
-import { PublicSiteHeader } from '@/features/app-shell/client/publicSite';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
+import { PublicSiteHeader } from '@/features/public-site/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
@@ -13,10 +15,19 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default async function AccountPage() {
-  const { authConfigured, ownerAccess } = await getCurrentCardforgeUserAccess();
+  const [{ authConfigured }, businessIdentity] = await Promise.all([
+    getCurrentCardforgeUserAccess(),
+    getCachedBusinessIdentity(),
+  ]);
   return (
     <>
-      <PublicSiteHeader currentPath="/account" showOwnerLink={ownerAccess.isOwner} />
+      <div className="cardforge-public">
+        <PublicSiteHeader
+          accountSlot={<PublicAuthControls />}
+          businessIdentity={businessIdentity}
+          currentPath="/account"
+        />
+      </div>
       <AccountProfilePage initialAuthConfigured={authConfigured} />
     </>
   );

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -15,15 +15,18 @@ describe('public header authentication controls', () => {
     expect(getState({ authConfigured: true, isLoaded: true, isSignedIn: true })).toBe('signed-in');
   });
 
-  it('places the authentication control in the shared public header', () => {
-    const headerSource = readFileSync(
-      resolve(process.cwd(), 'src/features/app-shell/components/PublicSiteHeader.tsx'),
+  it('opens the CardForge account from the signed-in public control', () => {
+    const controlsSource = readFileSync(
+      resolve(process.cwd(), 'src/features/account/components/PublicAuthControls.tsx'),
       'utf8',
     );
 
-    expect(headerSource).toContain("import { PublicAuthControls } from '@/features/account/client/auth'");
-    expect(headerSource).toContain('rightSlot ?? <PublicAuthControls />');
-    expect(headerSource).toContain('src="/brand/cardforge-studio/brand-mark.svg"');
-    expect(headerSource).not.toContain('<Hammer');
+    expect(controlsSource).toContain('userProfileUrl="/account"');
+    expect(controlsSource).not.toContain('userProfileUrl="/profile"');
+  });
+
+  it('removes the superseded app-shell public header', () => {
+    expect(existsSync(resolve(process.cwd(), 'src/features/app-shell/components/PublicSiteHeader.tsx'))).toBe(false);
+    expect(existsSync(resolve(process.cwd(), 'src/features/app-shell/client/publicSite.ts'))).toBe(false);
   });
 });

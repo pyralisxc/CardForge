@@ -19,12 +19,9 @@ export function FounderStrip() {
           <p className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
             I’m building CardForge in Oregon with a lot of curiosity, modern tools, and the belief that making a whole deck should feel just as creative as making the first card.
           </p>
-          <div className="mt-6 flex flex-wrap gap-5">
+          <div className="mt-6">
             <Link href="/cameron" prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-base font-bold text-[var(--public-brass)] hover:text-[var(--public-ivory)]">
               Come say hello <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link href="/cameron#support" prefetch={false} className="inline-flex min-h-11 items-center text-base font-semibold text-[var(--public-muted-text)] hover:text-[var(--public-ivory)]">
-              Support the work
             </Link>
           </div>
         </div>

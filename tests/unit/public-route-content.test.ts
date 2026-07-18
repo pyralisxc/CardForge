@@ -24,10 +24,15 @@ describe('public route stories', () => {
   });
 
   it('describes current access without calling Creator Pass planned', () => {
-    const access = readRoute('access');
+    const landing = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8');
+    const access = readFileSync(
+      join(process.cwd(), 'src/features/public-site/components/AccessComparison.tsx'),
+      'utf8',
+    );
 
+    expect(landing).toContain('<AccessComparison');
     expect(access).toContain('Creator Pass');
-    expect(access).toContain('product subscription');
+    expect(access).toContain('Subscribe');
     expect(access).not.toContain('planned home');
   });
 
@@ -60,7 +65,7 @@ describe('public route stories', () => {
   });
 
   it('uses the shared public shell across public marketing routes', () => {
-    for (const route of ['about', 'access', 'cameron', 'developer', 'roadmap']) {
+    for (const route of ['about', 'cameron', 'developer', 'roadmap']) {
       expect(readRoute(route), route).toContain('<PublicSiteShell');
     }
   });

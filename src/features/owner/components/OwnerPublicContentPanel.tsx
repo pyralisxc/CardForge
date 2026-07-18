@@ -10,11 +10,12 @@ import { updateOwnerConsole } from '@/features/owner/model/ownerConsoleClient';
 import type { SiteContentBlock, SiteContentBlockSlug } from '@/features/public-site/client/content';
 import type { RoadmapSettings } from '@/features/roadmap/client/admin';
 import { OwnerFieldHelp } from './OwnerPanelPrimitives';
+import { OwnerShareToolkit } from './OwnerShareToolkit';
 
 const groupLabels: Record<SiteContentBlock['group'], string> = {
   landing: 'Landing page',
   about: 'About page',
-  access: 'Access page',
+  sharing: 'Sharing',
 };
 
 export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange }: {
@@ -30,7 +31,8 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
     setBlocks(consolePayload.siteContentBlocks);
     setSettings(consolePayload.siteMechanics);
   }, [consolePayload]);
-  const groups = useMemo(() => (['landing', 'about', 'access'] as Array<SiteContentBlock['group']>).map((group) => ({ group, blocks: blocks.filter((block) => block.group === group) })), [blocks]);
+  const groups = useMemo(() => (['landing', 'about', 'sharing'] as Array<SiteContentBlock['group']>).map((group) => ({ group, blocks: blocks.filter((block) => block.group === group) })), [blocks]);
+  const shareMessage = blocks.find((block) => block.slug === 'sharing.message')?.body ?? '';
 
   const updateBlock = (slug: SiteContentBlockSlug, body: string) => {
     setBlocks((current) => current.map((block) => block.slug === slug ? { ...block, body } : block));
@@ -78,6 +80,7 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
               </div>
             </div>
           ))}
+          <OwnerShareToolkit message={shareMessage} />
         </div>
       </section>
     );
