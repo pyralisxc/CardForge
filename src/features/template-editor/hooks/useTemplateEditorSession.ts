@@ -58,12 +58,11 @@ export const resolveDraftPersistenceAction = ({
 };
 
 export function useTemplateEditorSession({
-  isActive,
   selectedTemplateId,
   templates,
 }: UseTemplateEditorSessionInput) {
   const [fontOptions, setFontOptions] = useState<CardFontOption[]>(CARD_FONT_OPTIONS);
-  const savedTemplateJsonRef = useRef<string | null>(null);
+  const [savedTemplateJson, setSavedTemplateJson] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -87,16 +86,16 @@ export function useTemplateEditorSession({
 
 
   useEffect(() => {
-    savedTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(initialTemplate));
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(initialTemplate)));
   }, [initialTemplate]);
 
   const beginDraft = useCallback((template: TCGCardTemplate) => {
-    savedTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(template));
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(template)));
     controller.resetTemplate(template);
   }, [controller]);
 
   const acceptTemplate = useCallback((template: TCGCardTemplate) => {
-    savedTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(template));
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(template)));
     controller.resetTemplate(template);
   }, [controller]);
 
@@ -106,7 +105,7 @@ export function useTemplateEditorSession({
     beginDraft,
     controller,
     developerFontFaceCss: createDeveloperFontFaceCss(fontOptions),
-    isDirty: savedTemplateJsonRef.current !== JSON.stringify(reconstructMinimalTemplate(controller.currentTemplate)),
+    isDirty: savedTemplateJson !== null && savedTemplateJson !== JSON.stringify(reconstructMinimalTemplate(controller.currentTemplate)),
     isHydrated: true,
   };
 }
