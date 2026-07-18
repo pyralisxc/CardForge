@@ -43,7 +43,7 @@ export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   useEffect(() => {
     setEditorState(resetTemplateEditorState(initialTemplate));
     setCheckedLayerIds([]);
-  }, [initialTemplate]);
+  }, [initialTemplate.id]);
 
   const canvas = useMemo(() => (
     getTemplateEditorCanvas(editorState.currentTemplate)

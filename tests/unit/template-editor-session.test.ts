@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createDefaultFreeformCanvas, type TCGCardTemplate } from '@/domain/templates';
-import {
-  resolveDraftPersistenceAction,
-  resolveTemplateEditorInitialTemplate,
-} from '@/features/template-editor/hooks/useTemplateEditorSession';
+import { resolveTemplateEditorInitialTemplate } from '@/features/template-editor/hooks/useTemplateEditorSession';
 
 const template = (id: string): TCGCardTemplate => ({
   id,
@@ -39,34 +36,4 @@ describe('template editor session resolution', () => {
     }).id).toBe(fallback.id);
   });
 
-  it('initializes autosave without writing and writes only subsequent changes', () => {
-    expect(resolveDraftPersistenceAction({
-      currentTemplateJson: 'first',
-      initialized: false,
-      isActive: true,
-      isHydrated: true,
-      lastTemplateJson: null,
-    })).toBe('initialize');
-    expect(resolveDraftPersistenceAction({
-      currentTemplateJson: 'first',
-      initialized: true,
-      isActive: true,
-      isHydrated: true,
-      lastTemplateJson: 'first',
-    })).toBe('skip');
-    expect(resolveDraftPersistenceAction({
-      currentTemplateJson: 'second',
-      initialized: true,
-      isActive: true,
-      isHydrated: true,
-      lastTemplateJson: 'first',
-    })).toBe('write');
-    expect(resolveDraftPersistenceAction({
-      currentTemplateJson: 'second',
-      initialized: true,
-      isActive: false,
-      isHydrated: true,
-      lastTemplateJson: 'first',
-    })).toBe('skip');
-  });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   CARD_FONT_OPTIONS,
@@ -12,11 +12,6 @@ import {
 import type { TCGCardTemplate } from '@/domain/templates';
 import { reconstructMinimalTemplate } from '@/domain/templates';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
-import {
-  clearTemplateEditorDraft,
-  readTemplateEditorDraft,
-  writeTemplateEditorDraft,
-} from '@/features/template-editor/lib/templateEditorDraftPersistence';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 import { loadEditorFonts } from '@/features/template-editor/services/editorBootstrap';
 
@@ -42,48 +37,12 @@ export const resolveTemplateEditorInitialTemplate = ({
   return reconstructMinimalTemplate(selected ?? templates[0] ?? makeNewFreeformTemplate());
 };
 
-interface ResolveDraftPersistenceActionInput {
-  currentTemplateJson: string;
-  initialized: boolean;
-  isActive: boolean;
-  isHydrated: boolean;
-  lastTemplateJson: string | null;
-}
-
-export const resolveDraftPersistenceAction = ({
-  currentTemplateJson,
-  initialized,
-  isActive,
-  isHydrated,
-  lastTemplateJson,
-}: ResolveDraftPersistenceActionInput): 'skip' | 'initialize' | 'write' => {
-  if (!isActive || !isHydrated) return 'skip';
-  if (!initialized) return 'initialize';
-  return lastTemplateJson === currentTemplateJson ? 'skip' : 'write';
-};
-
 export function useTemplateEditorSession({
-  isActive,
   selectedTemplateId,
   templates,
 }: UseTemplateEditorSessionInput) {
-  const [recoveredDraft, setRecoveredDraft] = useState<TCGCardTemplate | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
   const [fontOptions, setFontOptions] = useState<CardFontOption[]>(CARD_FONT_OPTIONS);
-  const persistenceInitializedRef = useRef(false);
-  const lastPersistedTemplateJsonRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void readTemplateEditorDraft().then((draft) => {
-      if (cancelled) return;
-      setRecoveredDraft(draft);
-      setIsHydrated(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [savedTemplateJson, setSavedTemplateJson] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -100,39 +59,23 @@ export function useTemplateEditorSession({
   }, []);
 
   const initialTemplate = useMemo(() => {
-    return resolveTemplateEditorInitialTemplate({ recoveredDraft, selectedTemplateId, templates });
-  }, [recoveredDraft, selectedTemplateId, templates]);
+    return resolveTemplateEditorInitialTemplate({ recoveredDraft: null, selectedTemplateId, templates });
+  }, [selectedTemplateId, templates]);
 
   const controller = useTemplateEditorController(initialTemplate);
 
+
   useEffect(() => {
-    const templateJson = JSON.stringify(reconstructMinimalTemplate(controller.currentTemplate));
-    const action = resolveDraftPersistenceAction({
-      currentTemplateJson: templateJson,
-      initialized: persistenceInitializedRef.current,
-      isActive,
-      isHydrated,
-      lastTemplateJson: lastPersistedTemplateJsonRef.current,
-    });
-    if (action === 'skip') return;
-    if (action === 'initialize') {
-      persistenceInitializedRef.current = true;
-      lastPersistedTemplateJsonRef.current = templateJson;
-      return;
-    }
-    void writeTemplateEditorDraft(controller.currentTemplate);
-    lastPersistedTemplateJsonRef.current = templateJson;
-  }, [controller.currentTemplate, isActive, isHydrated]);
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(initialTemplate)));
+  }, [initialTemplate.id]);
 
   const beginDraft = useCallback((template: TCGCardTemplate) => {
-    setRecoveredDraft(template);
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(template)));
     controller.resetTemplate(template);
   }, [controller]);
 
   const acceptTemplate = useCallback((template: TCGCardTemplate) => {
-    void clearTemplateEditorDraft();
-    lastPersistedTemplateJsonRef.current = JSON.stringify(reconstructMinimalTemplate(template));
-    setRecoveredDraft(null);
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(template)));
     controller.resetTemplate(template);
   }, [controller]);
 
@@ -142,6 +85,7 @@ export function useTemplateEditorSession({
     beginDraft,
     controller,
     developerFontFaceCss: createDeveloperFontFaceCss(fontOptions),
-    isHydrated,
+    isDirty: savedTemplateJson !== null && savedTemplateJson !== JSON.stringify(reconstructMinimalTemplate(controller.currentTemplate)),
+    isHydrated: true,
   };
 }

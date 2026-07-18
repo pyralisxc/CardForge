@@ -456,7 +456,9 @@ export function CardForgeStudioShell({
               projectFileGateMessage={exportGateMessage}
               selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}
               onSelectTemplateForEditing={setSingleCardGeneratorSelectedTemplateIdAction}
+              canSavePipelineTemplate={projectCapabilities.canWriteShippedLibrary}
               canUploadCustomAssets={canUploadCustomAssets}
+              onReturnToTemplateMaker={() => setActiveTabAction('template-maker')}
             />
           </TabsContent>
 
