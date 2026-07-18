@@ -459,7 +459,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
     .toBeGreaterThanOrEqual(3);
 });
 
-test('keeps an unsaved layout draft when visiting the generator before saving', async ({ page }) => {
+test('asks whether to save a changed template before leaving Layout Studio', async ({ page }) => {
   test.setTimeout(STUDIO_TEST_TIMEOUT);
   await gotoStudio(page);
 
@@ -472,15 +472,15 @@ test('keeps an unsaved layout draft when visiting the generator before saving', 
   await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
 
   await selectMainTab(page, /Generate/i);
-  await expect(page.getByRole('tab', { name: /Generate/i })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByTestId('layout-studio-panel')).toBeHidden();
-  await expect(page.getByTestId('generator-panel')).toBeVisible();
-  await selectMainTab(page, /Layout Studio/i);
-
+  await expect(page.getByRole('heading', { name: /Save changes to/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(page.getByRole('tab', { name: /Layout Studio/i })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
-  await expect(page.getByRole('button', { name: /Text Layer/ }).first()).toBeVisible();
-});
 
+  await selectMainTab(page, /Generate/i);
+  await page.getByRole('button', { name: 'Don’t save' }).click();
+  await expect(page.getByTestId('generator-panel')).toBeVisible();
+});
 test('adds structured row columns in the layout studio text inspector', async ({ page }) => {
   test.setTimeout(STUDIO_TEST_TIMEOUT);
   await gotoStudio(page);
