@@ -241,10 +241,10 @@ test('renders developer recruitment page for visitors without exposing the opera
 test('renders account profile with studio access and export status', async ({ page }) => {
   await page.goto('/account');
 
-  await expect(page.getByRole('heading', { name: /Connect Clerk|Your Forge: Starter Library|Your Forge: Creator Pass|Your forge is ready/i })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/Maker and generator available/i)).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Access at a glance/i })).toBeVisible();
-  await expect(page.getByText(/Project files and personal uploads stay local/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Account setup needed|Your account|Your CardForge account/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Your work stays with you' })).toBeVisible();
+  await expect(page.getByText(/Your projects and personal uploads stay on this device/i)).toBeVisible();
+  await expect(page.getByText('Your plan')).toBeVisible();
   await expect(page.getByRole('link', { name: /Open Studio/i })).toHaveAttribute('href', '/studio');
 });
 

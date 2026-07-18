@@ -17,7 +17,7 @@ export default async function OwnerPage() {
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <>
-      <div className="cardforge-public">
+      <div className="cardforge-public-tokens">
         <PublicSiteHeader
           accountSlot={<PublicAuthControls />}
           businessIdentity={businessIdentity}

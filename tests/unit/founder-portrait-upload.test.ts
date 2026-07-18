@@ -56,5 +56,12 @@ describe('founder portrait upload', () => {
     expect(route).toContain(".upload(FOUNDER_PORTRAIT_PATH");
     expect(route).toContain('upsert: true');
     expect(route.indexOf('if (uploadError)')).toBeLessThan(route.indexOf('await updateFounderProfile('));
+
+    const panel = readFileSync(
+      join(process.cwd(), 'src/features/owner/components/OwnerFounderProfilePanel.tsx'),
+      'utf8',
+    );
+    expect(panel).toContain('AbortSignal.timeout(PORTRAIT_UPLOAD_TIMEOUT_MS)');
+    expect(panel).toContain('This upload took too long.');
   });
 });

@@ -12,6 +12,7 @@ import type { FounderProfile, FounderProfileInput } from '@/features/public-site
 const toInput = ({ updatedAt: _updatedAt, ...profile }: FounderProfile): FounderProfileInput => profile;
 
 const inputClassName = 'border border-[#5f4526] bg-[#0c0b09] p-3 text-sm leading-6 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const PORTRAIT_UPLOAD_TIMEOUT_MS = 30_000;
 
 export function OwnerFounderProfilePanel({
   consolePayload,
@@ -67,7 +68,11 @@ export function OwnerFounderProfilePanel({
     try {
       const body = new FormData();
       body.set('portrait', portrait);
-      const response = await fetch('/api/owner/founder-profile/portrait', { method: 'POST', body });
+      const response = await fetch('/api/owner/founder-profile/portrait', {
+        method: 'POST',
+        body,
+        signal: AbortSignal.timeout(PORTRAIT_UPLOAD_TIMEOUT_MS),
+      });
       if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to upload the portrait.'));
       const result = await response.json() as { console: OwnerConsolePayload; portraitUrl: string | null };
       onConsoleChange(result.console);
@@ -76,7 +81,12 @@ export function OwnerFounderProfilePanel({
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast({ title: 'Portrait published', description: 'The processed portrait is now live on the Cameron page.' });
     } catch (error) {
-      toast({ title: 'Portrait not uploaded', description: error instanceof Error ? error.message : 'Unable to upload the portrait.', variant: 'destructive' });
+      const message = error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')
+        ? 'This upload took too long. The current portrait is unchanged; try a smaller image or try again.'
+        : error instanceof Error
+          ? error.message
+          : 'Unable to upload the portrait.';
+      toast({ title: 'Portrait not uploaded', description: message, variant: 'destructive' });
     } finally {
       setIsUploading(false);
     }

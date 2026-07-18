@@ -142,6 +142,12 @@ export function PublicSiteHeader({
                 </Link>
               </DialogClose>
             </nav>
+            {accountSlot ? (
+              <div className="cardforge-public-auth-status border-t border-[var(--public-border)] pt-5">
+                <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Account</p>
+                {accountSlot}
+              </div>
+            ) : null}
             <div className="border-t border-[var(--public-border)] pt-5">
               <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Follow Cameron</p>
               <FounderSocialLinks profile={founderProfile} />

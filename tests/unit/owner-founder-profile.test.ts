@@ -35,5 +35,6 @@ describe('owner-managed founder profile', () => {
     expect(panel).toContain("kind: 'founderProfile'");
     expect(panel).toContain('Save Cameron profile');
     expect(panel).toContain('Upload portrait');
+    expect(panel).toContain('AbortSignal.timeout(PORTRAIT_UPLOAD_TIMEOUT_MS)');
   });
 });
