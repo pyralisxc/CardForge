@@ -26,10 +26,9 @@ const collectTypeScriptFiles = async (directory: string): Promise<string[]> => {
 };
 
 describe('Account and Billing ownership', () => {
-  it('gives Account focused identity, access, Founder Beta, and administration owners', async () => {
+  it('gives Account focused identity, early-access, and administration owners', async () => {
     const requiredPaths = [
       ['src', 'features', 'account', 'components', 'AccountIdentitySection.tsx'],
-      ['src', 'features', 'account', 'components', 'AccountAccessSection.tsx'],
       ['src', 'features', 'account', 'components', 'AccountFounderBetaSection.tsx'],
       ['src', 'features', 'account', 'components', 'AccountDeveloperStatusSection.tsx'],
       ['src', 'features', 'account', 'model', 'founderBeta.ts'],
