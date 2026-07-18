@@ -202,7 +202,6 @@ test('renders public trust and access pages', async ({ page }) => {
     '/about',
     '/access',
     '/cameron',
-    '/support',
     '/privacy',
     '/terms',
     '/creator-pass-terms',

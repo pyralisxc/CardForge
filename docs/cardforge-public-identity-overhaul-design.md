@@ -79,7 +79,7 @@ Routes:
 - `/developer`: contributor program
 - `/roadmap`: shipped work and direction
 - `/contact`: support, billing, legal, and privacy contact
-- `/support`: initially an informational support page; payment activation belongs to Gates 4 and 5
+- `/cameron#support`: founder support and payment activation belong to the unified Cameron page
 
 Homepage sequence:
 
@@ -209,7 +209,7 @@ Focused coverage across the series includes:
 - legal identity/version rendering
 - route metadata, canonicals, robots, sitemap, and structured data
 - cached public delivery and publication revalidation
-- navigation, mobile menu, founder/support routes, and accessibility axe checks
+- navigation, mobile menu, the unified founder-support flow, and accessibility axe checks
 - examples model and truthful output rendering
 - product/support checkout purposes and price validation
 - support events never changing entitlement

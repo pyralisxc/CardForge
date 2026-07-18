@@ -309,8 +309,8 @@ export const buildCreatorSupportCheckoutSessionParams = ({
           quantity: 1,
         }]
       : [{ price: priceId!, quantity: 1 }],
-    success_url: `${normalizedAppUrl}/support?payment=success`,
-    cancel_url: `${normalizedAppUrl}/support?payment=cancelled`,
+    success_url: `${normalizedAppUrl}/cameron?payment=success#support`,
+    cancel_url: `${normalizedAppUrl}/cameron?payment=cancelled#support`,
     metadata,
     custom_text: {
       submit: {

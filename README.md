@@ -8,7 +8,7 @@ CardForge Studio is a software product created and operated by Cameron Locke, an
 
 - Public site: `/`
 - Product story and access: `/about`, `/access`
-- Founder identity and voluntary support: `/cameron` (`/support` redirects to `/cameron#support`)
+- Founder identity and voluntary support: `/cameron` and its `#support` section
 - Studio: `/studio`
 - Account and Founder Beta status: `/account`
 - Profile management: `/profile`

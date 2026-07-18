@@ -132,8 +132,8 @@ describe('billing', () => {
         },
         quantity: 1,
       }],
-      success_url: 'https://cardforge.example/support?payment=success',
-      cancel_url: 'https://cardforge.example/support?payment=cancelled',
+      success_url: 'https://cardforge.example/cameron?payment=success#support',
+      cancel_url: 'https://cardforge.example/cameron?payment=cancelled#support',
       metadata: {
         billingPurpose: 'creator_support',
         billingOffering: 'support_one_time',

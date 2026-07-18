@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const axePath = require.resolve('axe-core/axe.min.js');
 
-const publicRoutes = ['/', '/examples', '/about', '/access', '/cameron', '/support'] as const;
+const publicRoutes = ['/', '/examples', '/about', '/access', '/cameron'] as const;
 
 interface AxeViolation {
   id: string;
