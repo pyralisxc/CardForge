@@ -27,7 +27,6 @@ interface UseTemplateEditorCommandsInput {
   deleteSelected: () => void;
   duplicateSelected: () => void;
   isActive: boolean;
-  isDirty: boolean;
   onCloneTemplate: (templateId: string) => string | null;
   onSaveTemplate: (template: TCGCardTemplate) => string;
   onSelectTemplate: (templateId: string | null) => void;
@@ -46,7 +45,6 @@ export function useTemplateEditorCommands({
   deleteSelected,
   duplicateSelected,
   isActive,
-  isDirty: _isDirty,
   onCloneTemplate,
   onSaveTemplate,
   onSelectTemplate,
