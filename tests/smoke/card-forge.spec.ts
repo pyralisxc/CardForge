@@ -165,13 +165,13 @@ test('renders public landing page with studio and account entry points', async (
 
   await expect(page.getByRole('heading', { name: /Design one card\. Add your list\. CardForge builds the set\./i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: /From one good-looking card to the whole set\./i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Check beta access/i })).toHaveAttribute('href', '/account');
+  await expect(page.getByRole('link', { name: /Check your access/i })).toHaveAttribute('href', '/account');
   await expect(page.getByRole('link', { name: /Try the Studio/i }).first()).toHaveAttribute('href', '/studio');
   await expect(page.getByRole('link', { name: /See what it makes/i })).toHaveAttribute('href', '#interactive-showcase');
   await expect(page.getByRole('heading', { name: /Built independently by Cameron Locke/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /About/i }).first()).toHaveAttribute('href', '/about');
+  await expect(page.getByRole('link', { name: /How it works/i }).first()).toHaveAttribute('href', '/about');
   await expect(page.getByRole('link', { name: /Account/i }).first()).toHaveAttribute('href', '/account');
-  await expect(page.getByRole('link', { name: /Cameron/i }).first()).toHaveAttribute('href', '/cameron');
+  await expect(page.getByRole('link', { name: /Cameron Locke/i }).first()).toHaveAttribute('href', '/cameron');
   await expect(page.getByRole('link', { name: /Support Cameron/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Privacy/i }).first()).toHaveAttribute('href', '/privacy');
   await expect(page.getByRole('link', { name: /Developer Terms/i }).first()).toHaveAttribute('href', '/developer-terms');
@@ -398,7 +398,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Template', exact: true }).click();
+  await page.getByRole('tab', { name: 'Design', exact: true }).click();
   await page.getByLabel('Template Name').fill('Smoke Freeform Template');
   await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
@@ -441,7 +441,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
     .toBeGreaterThanOrEqual(1);
   await expect.poll(() => visibleFreeformPreviewElementCount(page)).toBeGreaterThanOrEqual(1);
 
-  await page.getByRole('tab', { name: /Bulk Import/i }).click();
+  await page.getByRole('tab', { name: /Use a list/i }).click();
   await page.locator('#bulk-file-upload-csv').setInputFiles({
     name: 'freeform-bulk.csv',
     mimeType: 'text/csv',
@@ -508,7 +508,7 @@ test('bulk generator uses advanced mapping toggle and strict mode gating', async
   await gotoStudio(page);
   await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
-  await page.getByRole('tab', { name: /Bulk Import/i }).click();
+  await page.getByRole('tab', { name: /Use a list/i }).click();
 
   await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,,♥,Ember-Claw');
 
@@ -665,7 +665,7 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(0\)/i })).toBeVisible();
   await expect(page.getByText('No outputs generated yet.')).toBeVisible();
 
-  await page.getByRole('tab', { name: /Bulk Import/i }).click();
+  await page.getByRole('tab', { name: /Use a list/i }).click();
   await page.locator('#bulkData').fill('rulesText,typeLine\n"",CREATURE - DRAGON');
 
   const strictModeToggle = page.getByLabel('Toggle strict mode for bulk generation');
@@ -681,7 +681,7 @@ test('supports keyboard save shortcut in template creator', async ({ page }) => 
   await expect(page.getByRole('heading', { name: /Layout Studio/i })).toBeVisible({ timeout: 30_000 });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Template', exact: true }).click();
+  await page.getByRole('tab', { name: 'Design', exact: true }).click();
   await page.getByLabel('Template Name').fill('Keyboard Save Template');
 
   await page.keyboard.press('Control+s');
