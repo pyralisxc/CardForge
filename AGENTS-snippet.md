@@ -1,8 +1,12 @@
-## Lean Repository Execution
+## Workflow Authority
 
-For implementation, refactor, public-site, branding, accessibility, SEO, testing, review, or UI-polish work, agents MUST load and follow:
+For CardForge implementation, refactor, testing, review, public-site, branding, accessibility, SEO, or UI-polish work, load and follow:
 
 `.agents/skills/lean-repository-execution/SKILL.md`
+
+The lean skill is CardForge's sole execution workflow. Do not create `docs/superpowers/**` or any planning, ledger, status, workflow, or progress artifact unless Cameron explicitly requests that artifact. Use a compact inline plan only when the task is high risk, materially ambiguous, or Cameron asks for one.
+
+## Lean Repository Execution
 
 Use one coherent objective branch and one final PR unless an independent ownership or high-risk billing, security, legal, migration, permission, or provider boundary requires separation.
 
