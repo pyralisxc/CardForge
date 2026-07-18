@@ -7,27 +7,15 @@ import { ArrowRight, ShieldCheck, Sparkles, UserCircle2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { AccountAccessSection } from '@/features/account/components/AccountAccessSection';
 import { AccountDeveloperStatusSection } from '@/features/account/components/AccountDeveloperStatusSection';
 import { AccountFounderBetaSection } from '@/features/account/components/AccountFounderBetaSection';
-import {
-  AccountIdentitySection,
-  type LocalAssetSummary,
-} from '@/features/account/components/AccountIdentitySection';
+import { AccountIdentitySection } from '@/features/account/components/AccountIdentitySection';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountAccessActions } from '@/features/account/lib/accountAccessActions';
 import { buildForgeTitle, getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import type { AccountEntitlement } from '@/features/account/lib/accountEntitlement';
 import type { FounderBetaCampaign } from '@/features/account/model/founderBeta';
 import { AccountBillingActions } from '@/features/billing/client/account';
-import {
-  CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
-  CUSTOM_ICON_ASSETS_STORAGE_KEY,
-  CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
-  CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
-  getProjectAssetStorage,
-  readProjectAssetListFromStorage,
-} from '@/features/project/client';
 
 interface PlatformStatusPayload {
   billing: { productAccessConfigured: boolean };
@@ -83,12 +71,6 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
   });
   const [platformStatus, setPlatformStatus] = useState<PlatformStatusPayload | null>(null);
   const [isClaimingFounderBeta, setIsClaimingFounderBeta] = useState(false);
-  const [localAssetSummary, setLocalAssetSummary] = useState<LocalAssetSummary>({
-    textures: 0,
-    dividers: 0,
-    icons: 0,
-    images: 0,
-  });
   const effectiveSignedIn = entitlement.authConfigured && clerkIdentity.isLoaded
     ? clerkIdentity.isSignedIn || entitlement.isSignedIn
     : entitlement.isSignedIn;
@@ -122,30 +104,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
     return () => { isMounted = false; };
   }, []);
 
-  useEffect(() => {
-    const readLocalAssets = async () => {
-      const storage = getProjectAssetStorage();
-      const [textures, dividers, icons, images] = await Promise.all([
-        readProjectAssetListFromStorage(storage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
-        readProjectAssetListFromStorage(storage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
-        readProjectAssetListFromStorage(storage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
-        readProjectAssetListFromStorage(storage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
-      ]);
-      setLocalAssetSummary({
-        textures: textures.length,
-        dividers: dividers.length,
-        icons: icons.length,
-        images: images.length,
-      });
-    };
-    void readLocalAssets();
-    window.addEventListener('storage', readLocalAssets);
-    window.addEventListener('focus', readLocalAssets);
-    return () => {
-      window.removeEventListener('storage', readLocalAssets);
-      window.removeEventListener('focus', readLocalAssets);
-    };
-  }, []);
+
 
   const accountEmail = useMemo(() => (
     clerkIdentity.email ?? entitlement.accountEmail ?? 'No signed-in account'
@@ -177,34 +136,32 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
   const accessExpiresOn = formatAccessExpiration(entitlement.accessExpiresAt);
   const isDeveloper = entitlement.authConfigured && effectiveSignedIn && entitlement.accessMode === 'dev';
   const isOwner = entitlement.authConfigured && effectiveSignedIn && entitlement.ownerAccess.isOwner;
-  const libraryAccessLabel = isOwner
-    ? 'Library Command'
-    : isDeveloper
-      ? 'Forge Review'
-      : entitlement.canExportClean
-        ? 'Creator Pass Library'
-        : 'Starter Library';
-  const accountTitle = buildForgeTitle({
-    displayName: clerkIdentity.displayName,
-    email: clerkIdentity.email ?? entitlement.accountEmail,
-    tierLabel: isOwner ? 'Library Command' : isDeveloper ? 'Forge Review' : entitlement.canExportClean ? 'Creator Pass' : 'Starter Library',
-    isAnonymous: !effectiveSignedIn,
-    isSetupIncomplete: isClerkSetupIncomplete,
-  });
-  const accountMessage = isClerkSetupIncomplete
-    ? 'Add matching Clerk keys locally, restart the dev server, then test free, paid, developer, and owner states.'
+  const accountTitle = isClerkSetupIncomplete
+    ? 'Account setup needed'
+    : effectiveSignedIn
+      ? 'Your account'
+      : 'Your CardForge account';
+  const accountPanelMessage = isClerkSetupIncomplete
+    ? 'Sign-in is not ready in this environment.'
     : isOwner
-      ? 'Owner access unlocks export, contributor command, voting rules, caps, and launch controls.'
+      ? 'You have access to CardForge owner tools.'
       : isDeveloper
-        ? 'Your developer account can submit building blocks, vote on the library, and export clean files without a subscription.'
+        ? 'You can help review and contribute to shared CardForge assets.'
         : accessExpiresOn
-          ? `Founder Beta keeps clean export active through ${accessExpiresOn}.`
+          ? `Clean export is active through ${accessExpiresOn}.`
           : entitlement.canExportClean
-            ? 'Clean export and Creator Pass assets are active while your project files stay local.'
-            : 'Build card systems in the browser. Sign in when you want custom art uploads, clean export, or a deeper reviewed library.';
-  const accountPanelMessage = !isClerkSetupIncomplete && !isOwner && !isDeveloper && !accessExpiresOn && !entitlement.canExportClean
-    ? 'Starter Library is active. Sign in to add custom art; Creator Pass unlocks clean export and the deeper reviewed library.'
-    : accountMessage;
+            ? 'Clean export is active for your account.'
+            : 'Make cards in Studio, then come back here whenever you need your account or plan.';
+
+  const planLabel = isOwner
+    ? 'Owner access'
+    : isDeveloper
+      ? 'Contributor access'
+      : accessExpiresOn
+        ? `Clean export through ${accessExpiresOn}`
+        : entitlement.canExportClean
+          ? 'Clean export'
+          : 'Free';
 
   const handleClaimFounderBeta = async () => {
     setIsClaimingFounderBeta(true);
@@ -274,22 +231,17 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
       {entitlement.authConfigured ? <ClerkIdentityBridge onChange={setClerkIdentity} /> : null}
-      <section className="mx-auto grid max-w-7xl gap-4 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <section className="mx-auto max-w-4xl px-4 py-5 md:px-6">
         <AccountIdentitySection
           accountDisplayName={accountDisplayName}
           accountEmail={accountEmail}
           accountPanelMessage={accountPanelMessage}
           accountTitle={accountTitle}
-          accessExpiresOn={accessExpiresOn}
           actions={accountActions}
-          cleanExportLabel={isClerkSetupIncomplete ? (entitlement.canExportClean ? 'Local dev fallback' : 'Locked') : (entitlement.canExportClean ? 'Unlocked' : 'Locked')}
           effectiveSignedIn={effectiveSignedIn}
-          libraryAccessLabel={libraryAccessLabel}
-          localAssetSummary={localAssetSummary}
+          planLabel={planLabel}
         />
-        <aside className="space-y-4">
-          <AccountAccessSection effectiveSignedIn={effectiveSignedIn} isDeveloper={isDeveloper} isOwner={isOwner} />
-          <AccountDeveloperStatusSection authSetupIncomplete={isClerkSetupIncomplete} isDeveloper={isDeveloper} isOwner={isOwner} ownerSource={entitlement.ownerAccess.source} />
+        <div className="mt-4 space-y-4">
           {founderBetaCampaign ? (
             <AccountFounderBetaSection
               campaign={founderBetaCampaign}
@@ -297,17 +249,8 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
               statusCopy={getFounderBetaStatusCopy({ campaign: founderBetaCampaign, isSignedIn: effectiveSignedIn, slotsRemaining: founderBetaSlotsRemaining })}
             />
           ) : null}
-        </aside>
-      </section>
-      <section className="mx-auto max-w-7xl px-4 pb-10 md:px-6">
-        <AccountDeveloperStatusSection
-          authSetupIncomplete={false}
-          isDeveloper={isDeveloper}
-          isOwner={isOwner}
-          ownerSource={entitlement.ownerAccess.source}
-          showAccountLinks
-          showStatusPanels={false}
-        />
+          <AccountDeveloperStatusSection isOwner={isOwner} />
+        </div>
       </section>
     </main>
   );
