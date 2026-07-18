@@ -37,26 +37,6 @@ export const resolveTemplateEditorInitialTemplate = ({
   return reconstructMinimalTemplate(selected ?? templates[0] ?? makeNewFreeformTemplate());
 };
 
-interface ResolveDraftPersistenceActionInput {
-  currentTemplateJson: string;
-  initialized: boolean;
-  isActive: boolean;
-  isHydrated: boolean;
-  lastTemplateJson: string | null;
-}
-
-export const resolveDraftPersistenceAction = ({
-  currentTemplateJson,
-  initialized,
-  isActive,
-  isHydrated,
-  lastTemplateJson,
-}: ResolveDraftPersistenceActionInput): 'skip' | 'initialize' | 'write' => {
-  if (!isActive || !isHydrated) return 'skip';
-  if (!initialized) return 'initialize';
-  return lastTemplateJson === currentTemplateJson ? 'skip' : 'write';
-};
-
 export function useTemplateEditorSession({
   selectedTemplateId,
   templates,
