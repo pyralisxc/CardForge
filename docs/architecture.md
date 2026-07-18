@@ -6,7 +6,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 
 ## Product Truth
 
-- Public site: `/`, `/about`, `/access`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages. `/cameron` combines the founder story and voluntary support; `/support` redirects to its support section.
+- Public site: `/`, `/about`, `/access`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages. `/cameron` combines the founder story and voluntary support in one route.
 - Studio: `/studio` contains Layout Studio and Generator.
 - Accounts: Clerk identifies users; CardForge stores trusted access in Clerk private metadata or server-side allowlists.
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.

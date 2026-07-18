@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -33,7 +33,6 @@ describe('public route stories', () => {
 
   it('publishes friendly support that activates checkout only with complete server configuration', () => {
     const cameron = readRoute('cameron');
-    const support = readRoute('support');
     const checkout = readFileSync(
       join(process.cwd(), 'src/features/billing/components/SupportCheckoutActions.tsx'),
       'utf8',
@@ -53,7 +52,7 @@ describe('public route stories', () => {
     }
     expect(cameron).toContain('supportOffers ?');
     expect(cameron).toContain('<SupportCheckoutActions');
-    expect(support).toContain("permanentRedirect('/cameron#support')");
+    expect(existsSync(join(process.cwd(), 'src/app/support/page.tsx'))).toBe(false);
     expect(checkout).toContain('/api/billing/support/checkout');
     expect(checkout).toContain('does not provide CardForge product access');
     expect(checkout).toContain('Renews monthly until canceled');
@@ -64,6 +63,5 @@ describe('public route stories', () => {
     for (const route of ['about', 'access', 'cameron', 'developer', 'roadmap']) {
       expect(readRoute(route), route).toContain('<PublicSiteShell');
     }
-    expect(readRoute('support')).not.toContain('<PublicSiteShell');
   });
 });
