@@ -203,9 +203,10 @@ export function useTemplateEditorCommands({
   }, [acceptTemplate, onSelectTemplate, requestTemplateChange]);
 
   const cloneTemplate = useCallback(() => {
-    if (!currentTemplate.id) return;
+    const templateId = currentTemplate.id;
+    if (!templateId) return;
     requestTemplateChange(() => {
-      const newId = onCloneTemplate(currentTemplate.id);
+      const newId = onCloneTemplate(templateId);
       if (newId) onSelectTemplate(newId);
     });
   }, [currentTemplate.id, onCloneTemplate, onSelectTemplate, requestTemplateChange]);
