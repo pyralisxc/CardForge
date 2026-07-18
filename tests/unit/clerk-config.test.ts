@@ -9,4 +9,8 @@ describe('Clerk middleware route selection', () => {
     expect(shouldRunClerkMiddlewareForRequest('/api/owner/console', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/api/owner/console', 'PUT')).toBe(true);
   });
+
+  it('runs for the public creator-support checkout so optional Clerk identity is available', () => {
+    expect(shouldRunClerkMiddlewareForRequest('/api/billing/support/checkout', 'POST')).toBe(true);
+  });
 });
