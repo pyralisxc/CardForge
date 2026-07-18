@@ -17,6 +17,8 @@ describe('consolidated public routes and account navigation', () => {
     expect([...primaryLinks, ...footerLinks]).not.toContain('/examples');
     expect([...primaryLinks, ...footerLinks]).not.toContain('/access');
     expect(footerLinks).not.toContain('/cameron#support');
+    expect(PUBLIC_NAVIGATION.primary.map((link) => link.href)).not.toContain('/cameron');
+    expect(PUBLIC_NAVIGATION.primary.map((link) => link.href)).not.toContain('/developer');
   });
 
   it('deletes the redundant route implementations instead of keeping redirects or dead pages', () => {
