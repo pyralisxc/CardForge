@@ -5,7 +5,6 @@ import { Shapes } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/shared/classNames';
 import { WorkspaceSection } from '@/features/template-editor/components/WorkspaceSection';
 import type { FreeformCardElement } from '@/domain/templates';
 
