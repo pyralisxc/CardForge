@@ -80,7 +80,8 @@ export function useTemplateEditorCommands({
     return createFrameKitPresetRecipes(kits);
   }, [currentTemplate.id]);
 
-  const saveTemplate = useCallback((templateToSave: TCGCardTemplate = currentTemplate) => {
+  const saveTemplate = useCallback((templateOverride?: TCGCardTemplate) => {
+    const templateToSave = templateOverride?.aspectRatio ? templateOverride : currentTemplate;
     if (!templateToSave.name?.trim() || templateToSave.name === 'New Card Template') {
       toast({
         title: 'Template name is required',
