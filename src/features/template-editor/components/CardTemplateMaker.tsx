@@ -200,7 +200,6 @@ export function CardTemplateMaker({
     deleteSelected,
     duplicateSelected,
     isActive,
-    isDirty,
     onCloneTemplate,
     onSaveTemplate,
     onSelectTemplate: onSelectTemplateForEditing,
