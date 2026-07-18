@@ -86,7 +86,7 @@ export function useTemplateEditorCommands({
         title: 'Template name is required',
         description: withNextStep(
           'Template name must be set before saving.',
-          'Enter a template name in Template Settings, then save again.',
+          'Enter a template name, then save again.',
         ),
         variant: 'destructive',
       });
