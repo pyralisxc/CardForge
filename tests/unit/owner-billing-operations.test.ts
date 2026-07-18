@@ -47,7 +47,11 @@ describe('owner billing operations', () => {
       currency: 'usd',
       created: 1_768_000_000,
       subscription: 'sub_123',
-      metadata: { clerkUserId: 'user_123', product: 'cardforge-studio-export' },
+      metadata: {
+        clerkUserId: 'user_123',
+        billingPurpose: 'product_access',
+        billingOffering: 'creator_pass',
+      },
     })).toEqual({
       id: 'cs_test_123',
       customerId: 'cus_123',
@@ -60,6 +64,8 @@ describe('owner billing operations', () => {
       currency: 'usd',
       createdAt: '2026-01-09T23:06:40.000Z',
       subscriptionId: 'sub_123',
+      billingPurpose: 'product_access',
+      billingOffering: 'creator_pass',
     });
   });
 
@@ -92,7 +98,11 @@ describe('owner billing operations', () => {
       customer: { id: 'cus_123', email: 'maker@example.test' },
       status: 'active',
       cancel_at_period_end: false,
-      metadata: { clerkUserId: 'user_123' },
+      metadata: {
+        clerkUserId: 'user_123',
+        billingPurpose: 'product_access',
+        billingOffering: 'creator_pass',
+      },
       items: {
         data: [{
           current_period_end: 1_768_100_000,
@@ -117,12 +127,22 @@ describe('owner billing operations', () => {
       amountCents: 899,
       currency: 'usd',
       interval: 'month',
+      billingPurpose: 'product_access',
+      billingOffering: 'creator_pass',
     });
   });
 
   it('builds a billing snapshot with configuration gaps and safe recent activity', () => {
     const snapshot = buildOwnerBillingSnapshot({
-      config: { checkoutConfigured: true, webhookConfigured: false, missing: [] },
+      config: {
+        productAccessConfigured: true,
+        supportOneTimeConfigured: false,
+        supportMonthlyConfigured: false,
+        supportConfigured: false,
+        webhookConfigured: false,
+        missingProductAccess: [],
+        missingSupport: [],
+      },
       checkoutSessions: [{
         id: 'cs_test_123',
         customer: null,
@@ -142,10 +162,51 @@ describe('owner billing operations', () => {
     expect(snapshot.status.webhookConfigured).toBe(false);
     expect(snapshot.recentCheckoutSessions).toHaveLength(1);
     expect(snapshot.recentSubscriptions).toEqual([]);
+    expect(snapshot.recentRefunds).toEqual([]);
     expect(snapshot.historySettings).toMatchObject({
       limit: 500,
       retentionDays: 30,
       clearedBefore: null,
+    });
+  });
+
+  it('reports Creator Pass and supporter revenue separately', () => {
+    const snapshot = buildOwnerBillingSnapshot({
+      checkoutSessions: [{
+        id: 'cs_support_once',
+        amount_total: 500,
+        currency: 'usd',
+        payment_status: 'paid',
+        metadata: {
+          billingPurpose: 'creator_support',
+          billingOffering: 'support_one_time',
+        },
+      }],
+      subscriptions: [
+        {
+          id: 'sub_product',
+          status: 'active',
+          metadata: { billingPurpose: 'product_access', billingOffering: 'creator_pass' },
+          items: { data: [{ price: { unit_amount: 1200, currency: 'usd', recurring: { interval: 'month' } } }] },
+        },
+        {
+          id: 'sub_support',
+          status: 'active',
+          metadata: { billingPurpose: 'creator_support', billingOffering: 'support_monthly' },
+          items: { data: [{ price: { unit_amount: 700, currency: 'usd', recurring: { interval: 'month' } } }] },
+        },
+      ],
+      refunds: [{ id: 're_1', amount: 500, currency: 'usd', status: 'succeeded' }],
+    });
+
+    expect(snapshot.metrics).toMatchObject({
+      creatorPassMrrCents: 1200,
+      supporterRecurringRevenueCents: 700,
+      oneTimeSupportCents: 500,
+      refundCount: 1,
+      refundTotalCents: 500,
+      activeCreatorPassSubscriptions: 1,
+      activeSupportSubscriptions: 1,
     });
   });
 });

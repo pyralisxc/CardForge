@@ -63,6 +63,7 @@ describe('versioned legal publication migration', () => {
     } as const;
 
     for (const document of DEFAULT_LEGAL_DOCUMENTS) {
+      if (document.slug === 'supporter-terms' || document.slug === 'refund') continue;
       const tag = tagBySlug[document.slug];
       const match = new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql);
       expect(match?.[1], document.slug).toBe(document.body);

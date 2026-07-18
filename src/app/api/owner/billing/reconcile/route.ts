@@ -6,6 +6,7 @@ import {
   buildStripeRevokedAccessMetadata,
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
+  classifySubscriptionBillingPurpose,
 } from '@/features/billing/server';
 import {
   buildMissingBillingSubscriptionBaselines,
@@ -56,7 +57,24 @@ export async function POST() {
       if (!page.has_more || page.data.length === 0) break;
       startingAfter = page.data.at(-1)?.id;
     }
-    const subscriptionIds = subscriptions.map((subscription) => subscription.id);
+    const prices = {
+      creatorPassPriceId: process.env.STRIPE_CREATOR_PASS_PRICE_ID,
+      supportCurrency: process.env.STRIPE_SUPPORT_CURRENCY,
+      supportMonthlyPriceIds: {
+        100: process.env.STRIPE_SUPPORT_MONTHLY_1_PRICE_ID,
+        500: process.env.STRIPE_SUPPORT_MONTHLY_5_PRICE_ID,
+        1000: process.env.STRIPE_SUPPORT_MONTHLY_10_PRICE_ID,
+        2000: process.env.STRIPE_SUPPORT_MONTHLY_20_PRICE_ID,
+      },
+    };
+    const classifiedSubscriptions = subscriptions.map((subscription) => ({
+      classification: classifySubscriptionBillingPurpose({ subscription, prices }),
+      subscription,
+    }));
+    const productSubscriptions = classifiedSubscriptions
+      .filter(({ classification }) => classification.purpose === 'product_access')
+      .map(({ subscription }) => subscription);
+    const subscriptionIds = productSubscriptions.map((subscription) => subscription.id);
     const ledgerSubscriptionIds = new Set<string>();
     let ledgerCreated = 0;
     if (subscriptionIds.length > 0) {
@@ -70,7 +88,7 @@ export async function POST() {
       }
 
       const baselines = buildMissingBillingSubscriptionBaselines({
-        subscriptions,
+        subscriptions: productSubscriptions,
         existingSubscriptionIds: ledgerSubscriptionIds,
         reconciledAt,
       });
@@ -95,7 +113,7 @@ export async function POST() {
     let mappingRepaired = 0;
     let needsCustomerSignIn = 0;
     let ambiguousClerkUsers = 0;
-    for (const subscription of subscriptions) {
+    for (const subscription of productSubscriptions) {
       let userId = subscription.metadata?.clerkUserId;
       let user;
       let shouldRepairMapping = false;
@@ -183,6 +201,13 @@ export async function POST() {
 
     return createNoStoreJsonResponse({
       checked: subscriptions.length,
+      productSubscriptionsChecked: productSubscriptions.length,
+      supportSubscriptionsSkipped: classifiedSubscriptions.filter(({ classification }) => (
+        classification.purpose === 'creator_support'
+      )).length,
+      unmatchedSubscriptions: classifiedSubscriptions.filter(({ classification }) => (
+        classification.purpose === 'unmatched'
+      )).length,
       repaired,
       unchanged,
       missingClerkUser,

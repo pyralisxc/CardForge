@@ -128,9 +128,10 @@ export function OwnerBillingPanel() {
     () => sortOwnerSubscriptions(billingSnapshot?.recentSubscriptions ?? []),
     [billingSnapshot?.recentSubscriptions],
   );
-  const activeSubscriberCount = subscriptions.filter((subscription) => (
-    subscription.status === 'active' || subscription.status === 'trialing'
-  )).length;
+  const billingCurrency = subscriptions.find((subscription) => subscription.currency)?.currency
+    ?? billingSnapshot?.recentCheckoutSessions.find((session) => session.currency)?.currency
+    ?? billingSnapshot?.recentRefunds.find((refund) => refund.currency)?.currency
+    ?? 'usd';
   const historySettings = billingSnapshot?.historySettings;
 
   const handleTabChange = (value: string) => {
@@ -238,10 +239,15 @@ export function OwnerBillingPanel() {
         <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">{billingError}</p>
       ) : null}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <MetricTile label="Checkout" value={billingSnapshot?.status.checkoutConfigured ? 'Ready' : 'Needs setup'} />
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricTile label="Creator Pass" value={billingSnapshot?.status.productAccessConfigured ? 'Ready' : 'Needs setup'} />
+        <MetricTile label="Creator Pass MRR" value={formatMoney(billingSnapshot?.metrics.creatorPassMrrCents ?? 0, billingCurrency)} />
+        <MetricTile label="Support monthly" value={formatMoney(billingSnapshot?.metrics.supporterRecurringRevenueCents ?? 0, billingCurrency)} />
+        <MetricTile label="Support one-time" value={formatMoney(billingSnapshot?.metrics.oneTimeSupportCents ?? 0, billingCurrency)} />
+        <MetricTile label="Support checkout" value={billingSnapshot?.status.supportConfigured ? 'Ready' : 'Needs setup'} />
         <MetricTile label="Webhook" value={billingSnapshot?.status.webhookConfigured ? 'Ready' : 'Needs setup'} />
-        <MetricTile label="Active subscribers" value={String(activeSubscriberCount)} />
+        <MetricTile label="Refunds (30 days)" value={`${billingSnapshot?.metrics.refundCount ?? 0} / ${formatMoney(billingSnapshot?.metrics.refundTotalCents ?? 0, billingCurrency)}`} />
+        <MetricTile label="Unmatched / failed" value={`${billingSnapshot?.metrics.unmatchedRecords ?? 0} / ${billingSnapshot?.metrics.failedEvents ?? 0}`} />
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6">
@@ -262,7 +268,9 @@ export function OwnerBillingPanel() {
             <p className="mt-1 text-xs leading-5 text-[#a98a55]">These are subscription records—not checkout attempts. Active and trialing subscribers appear first.</p>
           </div>
           {subscriptions.map((subscription) => {
-            const needsConnection = subscription.mappingStatus === 'stale' || subscription.mappingStatus === 'missing';
+            const isProductAccess = subscription.billingPurpose === 'product_access';
+            const needsConnection = isProductAccess
+              && (subscription.mappingStatus === 'stale' || subscription.mappingStatus === 'missing');
             return (
               <article key={subscription.id} className="border border-[#6d4f2b] bg-[#100c08] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -273,14 +281,18 @@ export function OwnerBillingPanel() {
                     </p>
                     <p className="mt-1 text-sm text-[#d9c28f]">{subscription.customerEmail ?? subscription.customerId ?? 'Customer email unavailable'}</p>
                   </div>
-                  <span className="text-xs uppercase tracking-[0.16em] text-[#d8b365]">{subscription.status ?? 'unknown'}</span>
+                  <span className="text-xs uppercase tracking-[0.16em] text-[#d8b365]">{subscription.billingPurpose.replace('_', ' ')} / {subscription.status ?? 'unknown'}</span>
                 </div>
                 <div className="mt-3 grid gap-2 text-xs text-[#8f7b57] md:grid-cols-2">
                   <p className="break-all">Subscription: {subscription.id}</p>
                   <p>{subscription.cancelAtPeriodEnd ? 'Cancels' : 'Period ends'}: {formatDateTime(subscription.currentPeriodEnd)}</p>
-                  <p className={`md:col-span-2 ${subscription.mappingStatus === 'connected' ? 'text-[#8fca72]' : 'text-[#f0bd75]'}`}>
-                    {getOwnerSubscriptionConnectionLabel(subscription)}
-                  </p>
+                  {isProductAccess ? (
+                    <p className={`md:col-span-2 ${subscription.mappingStatus === 'connected' ? 'text-[#8fca72]' : 'text-[#f0bd75]'}`}>
+                      {getOwnerSubscriptionConnectionLabel(subscription)}
+                    </p>
+                  ) : (
+                    <p className="md:col-span-2 text-[#8fca72]">Support subscription — no product entitlement expected</p>
+                  )}
                   {subscription.clerkUserId ? <p className="break-all md:col-span-2">Stored Clerk mapping: {subscription.clerkUserId}</p> : null}
                 </div>
                 {needsConnection ? (
@@ -361,7 +373,7 @@ export function OwnerBillingPanel() {
                 <span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Checkout {session.paymentStatus ?? session.status ?? 'unknown'}</span>
               </div>
               <p className="mt-2 text-sm text-[#d9c28f]">{session.customerEmail ?? session.clerkUserId ?? session.id}</p>
-              <p className="mt-2 text-xs text-[#8f7b57]">{formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription created'}</p>
+              <p className="mt-2 text-xs text-[#8f7b57]">{session.billingPurpose.replace('_', ' ')} / {formatDateTime(session.createdAt)} / {session.subscriptionId ?? 'No subscription created'}</p>
             </article>
           ))}
           {historyLoaded && billingSnapshot?.recentCheckoutSessions.length === 0 ? (

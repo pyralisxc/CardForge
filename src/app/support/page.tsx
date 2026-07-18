@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { Caravan, HeartHandshake, Home, ServerCog, Utensils } from 'lucide-react';
 
 import { PublicAuthControls } from '@/features/account/client/auth';
+import { SupportCheckoutActions } from '@/features/billing/client';
+import { getCreatorSupportOfferConfiguration, SUPPORT_MONTHLY_AMOUNTS_CENTS } from '@/features/billing/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteShell } from '@/features/public-site/client';
 import { createBreadcrumbStructuredData, StructuredData } from '@/features/public-site/server';
@@ -22,6 +24,7 @@ const uses = [
 
 export default async function SupportPage() {
   const businessIdentity = await getCachedBusinessIdentity();
+  const supportOffers = getCreatorSupportOfferConfiguration();
 
   return (
     <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/support">
@@ -44,9 +47,20 @@ export default async function SupportPage() {
             </p>
             <Link href="/access" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See Creator Pass</Link>
           </div>
-          <div role="status" className="mt-4 border-l-2 border-[var(--public-brass)] bg-[#21170d] p-4 text-base font-semibold text-[var(--public-ivory)]">
-            Payments are not active yet. This page explains the planned separation before any payment option is enabled.
-          </div>
+          {supportOffers ? (
+            <SupportCheckoutActions
+              currency={supportOffers.currency}
+              monthlyAmountsCents={SUPPORT_MONTHLY_AMOUNTS_CENTS}
+              oneTimeMaximumCents={supportOffers.oneTimeMaximumCents}
+              oneTimeMinimumCents={supportOffers.oneTimeMinimumCents}
+              oneTimePresetCents={supportOffers.oneTimePresetCents}
+              portalUrl={supportOffers.portalUrl}
+            />
+          ) : (
+            <div role="status" className="mt-4 border-l-2 border-[var(--public-brass)] bg-[#21170d] p-4 text-base font-semibold text-[var(--public-ivory)]">
+              Payments are not active yet. This page explains the separation before payment options are enabled.
+            </div>
+          )}
         </div>
       </section>
 

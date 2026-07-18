@@ -39,7 +39,13 @@ Stripe:
 ```text
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
-STRIPE_PRICE_ID=
+STRIPE_CREATOR_PASS_PRICE_ID=
+STRIPE_SUPPORT_MONTHLY_1_PRICE_ID=
+STRIPE_SUPPORT_MONTHLY_5_PRICE_ID=
+STRIPE_SUPPORT_MONTHLY_10_PRICE_ID=
+STRIPE_SUPPORT_MONTHLY_20_PRICE_ID=
+STRIPE_SUPPORT_CURRENCY=usd
+STRIPE_SUPPORT_PORTAL_URL=
 STRIPE_WEBHOOK_SECRET=
 ```
 
@@ -155,6 +161,8 @@ Production must expose a `pk_live_` publishable key and load Clerk through the v
 
 Stripe remains authoritative. The durable subscription ledger and duplicate-delivery path are live-proven. Do not ask the existing subscriber to purchase again: they must sign in or register with the exact email stored in Stripe, then the owner can reconcile the mapping.
 
+Once any creator-support subscription exists, never deploy a webhook older than the explicit billing-purpose classifier. Disable support configuration to roll back the support lane while retaining the purpose-aware webhook and additive ledger migration; an older webhook can misclassify signed-in support as product access.
+
 Use the configured owner QA account on `/owner`:
 
 1. Open **Operations**, refresh billing, and select **Reconcile billing**.
@@ -171,6 +179,15 @@ When rechecking webhook behavior, open **Stripe Workbench → Webhooks**, choose
 - `npm run pipeline:sync-defaults`: intentionally seeds repo-owned starter material into the reviewed asset pipeline.
 
 Public and authenticated browser verification belongs in the Playwright smoke suites; do not create parallel one-off browser audit scripts.
+
+## Restricted local runner
+
+Some managed workspaces set `HOME=/root` while preventing creation of `/root/.npm`, `/root/.supabase`, and `/root/.cache/ms-playwright`. In that environment, missing browser or CLI cache files are runner limitations rather than CardForge failures.
+
+- Generate a Supabase migration with an isolated writable home and cache: `env HOME=/tmp/cardforge-home npm --cache /tmp/cardforge-npm-cache exec --yes supabase@latest -- migration new <name>`.
+- A Supabase CLI shutdown-telemetry timeout may still return a nonzero exit after printing the created migration path; verify that exact file once, then continue instead of rerunning migration generation.
+- Playwright’s dry run reveals whether its install target is under the unwritable home. Do not repeatedly attempt browser downloads there. Run unit/type/build checks locally and require the hosted `public-smoke` job to install the browser and pass before merge.
+- Do not weaken or skip the hosted browser gate because the disposable local runner lacks its binary.
 
 ## Verification Commands
 
