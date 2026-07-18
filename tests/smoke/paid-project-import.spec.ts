@@ -101,7 +101,7 @@ test('paid account can export an edited shipped template and import it after bro
 
   await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
   await page.getByRole('tab', { name: /Layout Studio/i }).click();
-  await page.getByRole('tab', { name: 'Design', exact: true }).click();
+  await page.getByRole('tab', { name: 'Template', exact: true }).click();
   const templateName = `Paid Project Import ${Date.now()}`;
   await page.getByLabel('Template Name').fill(templateName);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
