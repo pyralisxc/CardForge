@@ -471,13 +471,13 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
 
-  await selectMainTab(page, /Generate/i);
+  await page.getByRole('tab', { name: /Generate/i }).click();
   await expect(page.getByRole('heading', { name: /Save changes to/i })).toBeVisible();
   await page.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
 
-  await selectMainTab(page, /Generate/i);
+  await page.getByRole('tab', { name: /Generate/i }).click();
   await page.getByRole('button', { name: 'Don’t save' }).click();
   await expect(page.getByTestId('generator-panel')).toBeVisible();
 });
