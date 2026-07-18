@@ -4,12 +4,12 @@ import type { ChangeEvent, RefObject } from 'react';
 import { Copy, FolderDown, FolderUp, Layers, Lock, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CardPreview } from '@/features/card-rendering/client';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/domain/templates';
 import { cn } from '@/shared/classNames';
+import { WorkspaceSection } from '@/features/template-editor/components/WorkspaceSection';
 import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 
 interface TemplateLibraryPanelProps {
@@ -70,13 +70,8 @@ export function TemplateLibraryPanel({
   );
 
   return (
-    <Card className={cn(panelClassName, 'rounded-[8px]')}>
-      <CardHeader className="p-2.5">
-        <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#b7bdc9]">
-          <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-[#d5ad54]" /> Card designs</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 p-2.5 pt-0">
+    <WorkspaceSection title="Card design" icon={Layers} defaultOpen panelClassName={panelClassName}>
+      <div className="space-y-2">
         <Select
           value={currentTemplateId || '__new__'}
           onValueChange={(value) => {
@@ -178,8 +173,8 @@ export function TemplateLibraryPanel({
             ))}
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </WorkspaceSection>
   );
 }
 
