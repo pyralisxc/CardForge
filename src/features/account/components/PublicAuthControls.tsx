@@ -2,8 +2,6 @@
 
 import { SignInButton, UserButton, useUser } from '@clerk/nextjs';
 import { LoaderCircle, LogIn } from 'lucide-react';
-import Link from 'next/link';
-
 import { Button } from '@/components/ui/button';
 import {
   getPublicAuthControlState,
@@ -11,13 +9,7 @@ import {
 } from '@/infrastructure/auth/clerk';
 
 export function PublicAuthControls() {
-  if (!isClerkPublicConfigPresent()) {
-    return (
-      <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-        <Link href="/account" prefetch={false}>Account</Link>
-      </Button>
-    );
-  }
+  if (!isClerkPublicConfigPresent()) return null;
 
   return <ClerkPublicAuthControls />;
 }
