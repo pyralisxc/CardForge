@@ -111,8 +111,8 @@ function createFrontTemplateButton(page: Page) {
   return page.getByRole('button', { name: 'Create new front design', exact: true });
 }
 
-function visibleCardPreviews(page: Page) {
-  return page.locator('.tcg-card-preview:visible');
+function visibleGeneratedCardPreviews(page: Page) {
+  return page.getByTestId('generated-gallery-scroll').locator('.tcg-card-preview:visible');
 }
 
 async function visibleFreeformPreviewElementCount(page: Page) {
@@ -287,7 +287,7 @@ test('loads default templates and adds a generated output', async ({ page }) => 
     .poll(() => page.locator('.tcg-card-preview').count())
     .toBeGreaterThanOrEqual(1);
 
-  const generatedPreview = visibleCardPreviews(page).first();
+  const generatedPreview = visibleGeneratedCardPreviews(page).first();
   await generatedPreview.click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Share card', exact: true })).toBeVisible();
@@ -375,7 +375,7 @@ test('lets free users try clean export and see the export gate', async ({ page }
   await expect(previewWatermark).toHaveAttribute('src', '/brand/cardforge-studio/watermark.svg');
   await expect(previewWatermark).toHaveCSS('opacity', '0.24');
 
-  await visibleCardPreviews(page).first().click();
+  await visibleGeneratedCardPreviews(page).first().click();
   const exportButton = page.getByRole('button', { name: 'Download individual card', exact: true });
   await expect(exportButton).toBeEnabled();
 
@@ -631,7 +631,7 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await page.keyboard.press('Enter');
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
-  await visibleCardPreviews(page).first().click();
+  await visibleGeneratedCardPreviews(page).first().click();
   await page.getByRole('button', { name: /Remove generated output 1/i }).click();
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(0\)/i })).toBeVisible();
