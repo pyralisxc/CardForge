@@ -1,5 +1,4 @@
 "use client";
-
 import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, PanelRight, Save, X } from 'lucide-react';
@@ -35,7 +34,6 @@ import { useTemplateEditorElements } from '@/features/template-editor/hooks/useT
 import { useTemplateEditorViewport } from '@/features/template-editor/hooks/useTemplateEditorViewport';
 import { useTemplateEditorCommands } from '@/features/template-editor/hooks/useTemplateEditorCommands';
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
-
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
@@ -62,7 +60,6 @@ interface CardTemplateMakerProps {
   onReturnToTemplateMaker: () => void;
   projectFileGateMessage?: string | null;
 }
-
 export function CardTemplateMaker({
   canUseProjectFiles,
   showCardWatermark,
