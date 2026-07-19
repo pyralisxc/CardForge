@@ -1,7 +1,7 @@
 "use client";
 import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Menu, PanelRight, Save, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,8 @@ import { TemplateEditableElement } from '@/features/template-editor/components/T
 import { TemplateCommandPalette } from '@/features/template-editor/components/TemplateCommandPalette';
 import { TemplateEditorLibrarySidebar } from '@/features/template-editor/components/TemplateEditorLibrarySidebar';
 import { TemplateEditorInspectorSidebar } from '@/features/template-editor/components/TemplateEditorInspectorSidebar';
+import { MobileCanvasControls } from '@/features/template-editor/components/MobileCanvasControls';
+import { MobileElementActions } from '@/features/template-editor/components/MobileElementActions';
 import { useTemplateEditorSession } from '@/features/template-editor/hooks/useTemplateEditorSession';
 import { useTemplateEditorVariables } from '@/features/template-editor/hooks/useTemplateEditorVariables';
 import { useTemplateEditorElements } from '@/features/template-editor/hooks/useTemplateEditorElements';
@@ -117,8 +119,8 @@ export function CardTemplateMaker({
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
   const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
   const [saveName, setSaveName] = useState('');
+  const [contextElement, setContextElement] = useState<FreeformCardElement | null>(null);
   const wasActiveRef = useRef(isActive);
-
   const selectElement = useCallback((id: string | null) => {
     selectElementInController(id);
     if (id !== null) {
@@ -179,6 +181,15 @@ export function CardTemplateMaker({
     deleteSelected,
     selectElement,
   });
+  const openElementActions = useCallback((element: FreeformCardElement) => {
+    selectElement(element.id);
+    setContextElement(element);
+  }, [selectElement]);
+  const openElementInspector = useCallback((element: FreeformCardElement) => {
+    selectElement(element.id);
+    setActiveInspectorTab('element');
+    setMobilePanel('inspector');
+  }, [selectElement, setMobilePanel]);
   const requestTemplateChange = useCallback((action: () => void) => {
     if (!isDirty) {
       action();
@@ -186,7 +197,6 @@ export function CardTemplateMaker({
     }
     setPendingTemplateChange(() => action);
   }, [isDirty]);
-
   const commands = useTemplateEditorCommands({
     acceptTemplate,
     beginDraft,
@@ -211,30 +221,25 @@ export function CardTemplateMaker({
     setPendingTemplateChange(null);
     action?.();
   }, [commands, currentTemplate, pendingTemplateChange, saveName]);
-
   const discardAndContinue = useCallback(() => {
     const action = pendingTemplateChange;
     setPendingTemplateChange(null);
     action?.();
   }, [pendingTemplateChange]);
-
   useEffect(() => {
     if (pendingTemplateChange !== null) setSaveName(currentTemplate.name ?? '');
   }, [currentTemplate.name, pendingTemplateChange]);
-
   useEffect(() => {
     if (wasActiveRef.current && !isActive && isDirty) {
       setPendingTemplateChange(() => () => undefined);
     }
     wasActiveRef.current = isActive;
   }, [isActive, isDirty]);
-
   const {
     commandPaletteOpen,
     saveTemplate: handleSave,
     setCommandPaletteOpen,
   } = commands;
-
   const livePreviewData = useMemo(() => ({
     cardName: 'Astral Relic',
     cost: '3',
@@ -242,7 +247,6 @@ export function CardTemplateMaker({
     artworkUrl: 'https://placehold.co/600x400.png?text=Astral+Relic',
     ...(currentTemplate.templatePreviewData || {}),
   }), [currentTemplate.templatePreviewData]);
-
   const renderEditableElement = useCallback((element: FreeformCardElement) => (
     <TemplateEditableElement
       key={element.id}
@@ -253,18 +257,18 @@ export function CardTemplateMaker({
       richTextHighlightColor={richTextHighlightColor}
       selected={selectedElementId === element.id}
       zoom={zoom}
+      onElementContextAction={openElementActions}
+      onElementEdit={openElementInspector}
       onElementPointerDown={handleElementPointerDown}
       onResizePointerDown={handleResizePointerDown}
     />
-  ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, previewMode, richTextHighlightColor, selectedElementId, zoom]);
-
+  ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, previewMode, richTextHighlightColor, selectedElementId, zoom]);
   const canvasFrameStyle: React.CSSProperties = {
     width: canvas.width,
     height: canvas.height,
     transform: `scale(${zoom})`,
     transformOrigin: 'top left',
   };
-
   const canvasStyle: React.CSSProperties = {
     ...canvasFrameStyle,
     width: canvas.width,
@@ -279,7 +283,6 @@ export function CardTemplateMaker({
     backgroundSize: 'cover',
     backgroundPosition: 'center center',
   };
-
   if (!draftPersistenceHydrated) {
     return (
       <div
@@ -291,7 +294,6 @@ export function CardTemplateMaker({
       </div>
     );
   }
-
   return (
     <TooltipProvider>
       <div
@@ -326,7 +328,6 @@ export function CardTemplateMaker({
           toolButtonClassName={makerTheme.toolButton}
           activeButtonClassName={makerTheme.activeButton}
         />
-
         <TemplateCommandPalette
           open={commandPaletteOpen}
           selectedElement={selectedElement}
@@ -354,26 +355,16 @@ export function CardTemplateMaker({
           onToggleSnap={() => setSnapToGrid(value => !value)}
           onTogglePreview={() => setPreviewMode(value => !value)}
         />
-
-        <div className="cardforge-maker-mobile-switcher no-print lg:hidden" role="toolbar" aria-label="Canvas controls">
-          <Button type="button" size="icon" variant="outline" aria-label="Open editor menu" className={cn(makerTheme.toolButton, 'h-10 w-10')} onClick={() => setMobilePanel('library')}>
-            <Menu className="h-5 w-5" />
-          </Button>
-          <span className="min-w-0 flex-1 px-1 text-center">
-            <span className="block truncate text-xs font-semibold text-[#f3ead7]">{currentTemplate.name || 'Untitled card'}</span>
-            <span className={cn('mt-0.5 block text-[10px] uppercase tracking-[0.12em]', isDirty ? 'text-[#f5d27b]' : 'text-[#8f95a3]')}>{isDirty ? 'Unsaved' : 'Ready'}</span>
-          </span>
-          <Button type="button" size="icon" variant="outline" aria-label="Open inspector" className={cn(makerTheme.toolButton, 'h-10 w-10')} onClick={() => {
+        <MobileCanvasControls
+          isDirty={isDirty}
+          templateName={currentTemplate.name}
+          onOpenInspector={() => {
             setActiveInspectorTab('element');
             setMobilePanel('inspector');
-          }}>
-            <PanelRight className="h-5 w-5" />
-          </Button>
-          <Button type="button" size="icon" aria-label="Save template" className="h-10 w-10 rounded-[5px] border border-[#7f6225] bg-[#d5ad54] text-[#11100c] hover:bg-[#f0ca71]" onClick={() => handleSave()}>
-            <Save className="h-5 w-5" />
-          </Button>
-        </div>
-
+          }}
+          onOpenMenu={() => setMobilePanel('library')}
+          onSave={() => handleSave()}
+        />
         <div className="cardforge-maker-grid grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {developerFontFaceCss && <style>{developerFontFaceCss}</style>}
           {mobilePanel !== 'canvas' ? (
@@ -412,7 +403,6 @@ export function CardTemplateMaker({
             templates={templates}
             userTemplates={userTemplates}
           />
-
           <TemplateCanvasStage
             canvas={canvas}
             canvasFrameStyle={canvasFrameStyle}
@@ -440,7 +430,6 @@ export function CardTemplateMaker({
             onStageWheel={handleStageWheel}
             renderEditableElement={renderEditableElement}
           />
-
           <TemplateEditorInspectorSidebar
             activeTab={activeInspectorTab}
             availableFonts={availableFonts}
@@ -465,6 +454,7 @@ export function CardTemplateMaker({
           <span>+/- Zoom</span>
           <span>Esc Deselect</span>
         </div>
+        <MobileElementActions element={contextElement} onDelete={() => { deleteSelected(); setContextElement(null); }} onDuplicate={() => { duplicateSelected(); setContextElement(null); }} onEdit={() => { if (contextElement) openElementInspector(contextElement); setContextElement(null); }} onOpenChange={(open) => !open && setContextElement(null)} />
         <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
