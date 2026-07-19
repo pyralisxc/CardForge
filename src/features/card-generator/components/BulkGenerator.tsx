@@ -129,11 +129,6 @@ export function BulkGenerator({
 
   const parsedRows = parsedCsv.rows;
 
-  const openDataReview = useCallback((issues = reviewIssues) => {
-    setDataReviewIssues(issues.length > 0 ? issues : ['We could not read this data source. Check the file format and field names.']);
-    setDataReviewOpen(true);
-  }, [reviewIssues]);
-
   const mappedColumnCount = useMemo(
     () => csvHeaders.filter((header) => !!columnMapping[header]).length,
     [columnMapping, csvHeaders]
@@ -195,6 +190,11 @@ export function BulkGenerator({
     ...bulkPreview.globalWarnings,
     ...bulkPreview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
   ])), [blockingIssues, bulkPreview.globalWarnings, bulkPreview.rows]);
+
+  const openDataReview = useCallback((issues = reviewIssues) => {
+    setDataReviewIssues(issues.length > 0 ? issues : ['We could not read this data source. Check the file format and field names.']);
+    setDataReviewOpen(true);
+  }, [reviewIssues]);
 
   const visibleCsvHeaders = useMemo(() => {
     let headers = csvHeaders;
