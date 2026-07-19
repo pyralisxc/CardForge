@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties, PointerEvent } from 'react';
+import type { CSSProperties, MouseEvent, PointerEvent } from 'react';
+import { useEffect, useRef } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 
@@ -43,6 +44,8 @@ interface TemplateEditableElementProps {
   richTextHighlightColor: string;
   selected: boolean;
   zoom: number;
+  onElementContextAction: (element: FreeformCardElement) => void;
+  onElementEdit: (element: FreeformCardElement) => void;
   onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: FreeformCardElement) => void;
   onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: FreeformCardElement, handle: ResizeHandle) => void;
 }
@@ -55,9 +58,22 @@ export function TemplateEditableElement({
   richTextHighlightColor,
   selected,
   zoom,
+  onElementContextAction,
+  onElementEdit,
   onElementPointerDown,
   onResizePointerDown,
 }: TemplateEditableElementProps) {
+  const longPressTimerRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPress = () => {
+    if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+    touchStartRef.current = null;
+  };
+
+  useEffect(() => clearLongPress, []);
+
   if (element.visible === false) return null;
 
   const imageResolution = element.type === 'image'
@@ -207,7 +223,31 @@ export function TemplateEditableElement({
         ...baseStyle,
         ...renderedTextStyle,
       }}
-      onPointerDown={(event) => onElementPointerDown(event, element)}
+      onPointerDown={(event) => {
+        onElementPointerDown(event, element);
+        if (event.pointerType !== 'touch' || previewMode || element.locked) return;
+        clearLongPress();
+        touchStartRef.current = { x: event.clientX, y: event.clientY };
+        longPressTimerRef.current = window.setTimeout(() => {
+          onElementContextAction(element);
+          longPressTimerRef.current = null;
+        }, 450);
+      }}
+      onPointerMove={(event) => {
+        const start = touchStartRef.current;
+        if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) < 10) return;
+        clearLongPress();
+      }}
+      onPointerUp={clearLongPress}
+      onPointerCancel={clearLongPress}
+      onContextMenu={(event: MouseEvent<HTMLDivElement>) => {
+        if (previewMode) return;
+        event.preventDefault();
+        onElementContextAction(element);
+      }}
+      onDoubleClick={() => {
+        if (element.type === 'text' && !previewMode) onElementEdit(element);
+      }}
     >
       {body}
       {selected && !previewMode && !element.locked && (
