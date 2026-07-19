@@ -517,7 +517,8 @@ export function BulkGenerator({
           </div>
         ) : null}
 
-        <BulkDataResolutionDialog open={dataReviewOpen} issues={reviewIssues.length > 0 ? blockingIssues : ['We could not read this data source. Check the file format and field names.']} onOpenChange={setDataReviewOpen}>
+        {dataReviewOpen ? (
+          <BulkDataResolutionDialog open issues={dataReviewIssues} onOpenChange={setDataReviewOpen}>
           {csvHeaders.length > 0 && selectedTemplate ? (
             <BulkMappingReviewPanel
               headers={csvHeaders}
@@ -540,7 +541,8 @@ export function BulkGenerator({
               onColumnMappingChange={setColumnMapping}
             />
           ) : null}
-        </BulkDataResolutionDialog> : null}
+          </BulkDataResolutionDialog>
+        ) : null}
 
         <BulkGenerateActionBar
           isLoading={isLoading}
