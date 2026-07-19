@@ -82,6 +82,7 @@ export function BulkGenerator({
   const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
   const [conflictFocusField, setConflictFocusField] = useState<string | null>(null);
   const [dataReviewOpen, setDataReviewOpen] = useState(false);
+  const [dataReviewIssues, setDataReviewIssues] = useState<string[]>([]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,6 +128,11 @@ export function BulkGenerator({
   }, [bulkDataInput, selectedFileType, selectedTemplate]);
 
   const parsedRows = parsedCsv.rows;
+
+  const openDataReview = useCallback((issues = reviewIssues) => {
+    setDataReviewIssues(issues.length > 0 ? issues : ['We could not read this data source. Check the file format and field names.']);
+    setDataReviewOpen(true);
+  }, [reviewIssues]);
 
   const mappedColumnCount = useMemo(
     () => csvHeaders.filter((header) => !!columnMapping[header]).length,
@@ -287,7 +293,7 @@ export function BulkGenerator({
         description: reviewIssues[0],
         variant: 'destructive',
       });
-      setDataReviewOpen(true);
+      openDataReview();
       return;
     }
 
@@ -373,12 +379,12 @@ export function BulkGenerator({
             ...preview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
           ];
           if (issues.length > 0) {
-            setDataReviewOpen(true);
+            openDataReview(issues);
           } else {
             toast({ title: 'Data ready', description: `${Math.max(0, rows.length - 1)} card${rows.length === 2 ? '' : 's'} are ready to generate.` });
           }
         } catch {
-          setDataReviewOpen(true);
+          openDataReview();
         }
       };
       reader.onerror = () => {
@@ -507,7 +513,7 @@ export function BulkGenerator({
         {bulkDataInput.trim() ? (
           <div className={`flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm ${reviewIssues.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/30 bg-emerald-500/10'}`}>
             <span>{reviewIssues.length > 0 ? `We found ${reviewIssues.length} item${reviewIssues.length === 1 ? '' : 's'} to fix before generating.` : `Data ready — ${Math.max(0, parsedRows.length - 1)} card${parsedRows.length === 2 ? '' : 's'} will be generated.`}</span>
-            {reviewIssues.length > 0 ? <button type="button" className="font-medium underline" onClick={() => setDataReviewOpen(true)}>Review data</button> : null}
+            {reviewIssues.length > 0 ? <button type="button" className="font-medium underline" onClick={() => openDataReview()}>Review data</button> : null}
           </div>
         ) : null}
 
@@ -534,7 +540,7 @@ export function BulkGenerator({
               onColumnMappingChange={setColumnMapping}
             />
           ) : null}
-        </BulkDataResolutionDialog>
+        </BulkDataResolutionDialog> : null}
 
         <BulkGenerateActionBar
           isLoading={isLoading}
