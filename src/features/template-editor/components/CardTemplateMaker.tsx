@@ -372,7 +372,7 @@ export function CardTemplateMaker({
           }}>
             <PanelRight className="h-5 w-5" />
           </Button>
-          <Button type="button" size="icon" aria-label="Save template" className="h-10 w-10 rounded-[5px] border border-[#7f6225] bg-[#d5ad54] text-[#11100c] hover:bg-[#f0ca71]" onClick={handleSave}>
+          <Button type="button" size="icon" aria-label="Save template" className="h-10 w-10 rounded-[5px] border border-[#7f6225] bg-[#d5ad54] text-[#11100c] hover:bg-[#f0ca71]" onClick={() => handleSave()}>
             <Save className="h-5 w-5" />
           </Button>
         </div>
