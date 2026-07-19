@@ -555,7 +555,7 @@ body {
 
     .cardforge-mobile-inspector-close {
       right: 0.75rem;
-      bottom: min(78svh - 3rem, calc(42rem - 3rem));
+      bottom: min(calc(78svh - 3rem), calc(42rem - 3rem));
     }
 
     .cardforge-maker-side {
