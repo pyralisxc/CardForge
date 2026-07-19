@@ -5,11 +5,11 @@ import {
   MAX_ROADMAP_SUGGESTION_LENGTH,
   DEFAULT_ROADMAP_VOTING_RULES,
   buildRoadmapTimelineCheckpoints,
-  calculateMrrUnlockTargetCents,
-  calculateMonthlyUnlockTargetCents,
+  buildRoadmapIncomeBreakdown,
   groupRoadmapTimelineItems,
   isChronicleTimelineItem,
   getCurrentTimelineWindow,
+  normalizeRoadmapExpenseVerifiedAt,
   normalizeRoadmapSuggestion,
   sortRoadmapFeatures,
   shouldArchiveUserRoadmapItem,
@@ -41,6 +41,14 @@ describe('roadmap rules', () => {
     expect(MAX_ACTIVE_USER_ROADMAP_ITEMS).toBe(50);
   });
 
+  it('accepts real expense-verification dates through today and rejects future or invalid dates', () => {
+    const now = new Date('2026-07-19T16:00:00.000Z');
+
+    expect(normalizeRoadmapExpenseVerifiedAt('2026-07-19', now)).toBe('2026-07-19');
+    expect(normalizeRoadmapExpenseVerifiedAt('2026-07-20', now)).toBeNull();
+    expect(normalizeRoadmapExpenseVerifiedAt('2026-02-30', now)).toBeNull();
+  });
+
   it('archives user-created suggestions after enough negative signal', () => {
     expect(shouldArchiveUserRoadmapItem({ source: 'user', upVotes: 9, downVotes: 12 })).toBe(true);
     expect(shouldArchiveUserRoadmapItem({ source: 'user', upVotes: 10, downVotes: 10 })).toBe(false);
@@ -69,13 +77,27 @@ describe('roadmap rules', () => {
     })).toBe(false);
   });
 
-  it('calculates monthly unlock targets as 12x monthly cost', () => {
-    expect(calculateMonthlyUnlockTargetCents(2500)).toBe(30000);
-    expect(calculateMonthlyUnlockTargetCents(10000)).toBe(120000);
-    expect(calculateMrrUnlockTargetCents(2500)).toBe(30000);
+  it('calculates roadmap income from Creator Pass MRR after estimated tax and reserve', () => {
+    expect(buildRoadmapIncomeBreakdown({
+      available: true,
+      activeSubscriberCount: 4,
+      grossMonthlyRevenueCents: 100_000,
+      estimatedTaxPercent: 30,
+      operatingReservePercent: 20,
+    })).toEqual({
+      available: true,
+      activeSubscriberCount: 4,
+      grossMonthlyRevenueCents: 100_000,
+      estimatedTaxPercent: 30,
+      estimatedTaxCents: 30_000,
+      afterEstimatedTaxCents: 70_000,
+      operatingReservePercent: 20,
+      operatingReserveCents: 14_000,
+      roadmapIncomeCents: 56_000,
+    });
   });
 
-  it('tracks running monthly roadmap cost and monthly unlock targets', () => {
+  it('tracks running monthly roadmap cost as the income needed for each checkpoint', () => {
     const checkpoints = buildRoadmapTimelineCheckpoints([
       { id: 'foundation', monthlyCostCents: 2500 },
       { id: 'shipped-note', monthlyCostCents: null },
@@ -85,11 +107,11 @@ describe('roadmap rules', () => {
     expect(checkpoints.map((checkpoint) => ({
       id: checkpoint.item.id,
       cumulativeMonthlyCostCents: checkpoint.cumulativeMonthlyCostCents,
-      monthlyUnlockTargetCents: checkpoint.monthlyUnlockTargetCents,
+      requiredRoadmapIncomeCents: checkpoint.requiredRoadmapIncomeCents,
     }))).toEqual([
-      { id: 'foundation', cumulativeMonthlyCostCents: 2500, monthlyUnlockTargetCents: 30000 },
-      { id: 'shipped-note', cumulativeMonthlyCostCents: 2500, monthlyUnlockTargetCents: 30000 },
-      { id: 'cloud-save', cumulativeMonthlyCostCents: 10000, monthlyUnlockTargetCents: 120000 },
+      { id: 'foundation', cumulativeMonthlyCostCents: 2500, requiredRoadmapIncomeCents: 2500 },
+      { id: 'shipped-note', cumulativeMonthlyCostCents: 2500, requiredRoadmapIncomeCents: 2500 },
+      { id: 'cloud-save', cumulativeMonthlyCostCents: 10000, requiredRoadmapIncomeCents: 10000 },
     ]);
   });
 

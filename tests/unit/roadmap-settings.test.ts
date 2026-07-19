@@ -12,11 +12,15 @@ describe('roadmap settings rules', () => {
       maxRoadmapSuggestionLength: '240',
       roadmapNegativeSignalMinTotalVotes: '12',
       roadmapNegativeSignalMinDownvotePercent: '65',
+      roadmapEstimatedTaxPercent: '30',
+      roadmapOperatingReservePercent: '20',
     })).toEqual({
       maxActiveUserRoadmapItems: 75,
       maxRoadmapSuggestionLength: 240,
       roadmapNegativeSignalMinTotalVotes: 12,
       roadmapNegativeSignalMinDownvotePercent: 65,
+      roadmapEstimatedTaxPercent: 30,
+      roadmapOperatingReservePercent: 20,
     });
 
     expect(normalizeRoadmapSettingsInput({

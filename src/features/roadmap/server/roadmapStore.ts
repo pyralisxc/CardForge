@@ -1,8 +1,11 @@
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
+import { isMissingSupabaseColumnError } from '@/infrastructure/database/supabaseErrors';
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
+import { getCurrentCreatorPassRevenue } from '@/features/billing/server';
 import {
-  calculateMrrUnlockTargetCents,
+  buildRoadmapIncomeBreakdown,
   DEFAULT_ROADMAP_SETTINGS,
+  normalizeRoadmapExpenseVerifiedAt,
   normalizeRoadmapSuggestion,
   type RoadmapItem,
   type RoadmapItemType,
@@ -26,8 +29,11 @@ type RoadmapItemRow = {
   status: RoadmapStatus;
   source: RoadmapSource;
   visible_month: string | null;
-  target_mrr_cents: number | null;
   monthly_cost_cents: number | null;
+  expense_provider?: string | null;
+  expense_plan?: string | null;
+  expense_source_url?: string | null;
+  expense_verified_at?: string | null;
   shipped_at: string | null;
   created_at: string;
   sort_order: number;
@@ -71,6 +77,16 @@ const normalizeCents = (value: unknown): number | null => {
   return Math.max(0, Math.round(value));
 };
 
+const normalizeHttpsUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
 const toRoadmapVotingRules = (settings: RoadmapSettings) => ({
   negativeSignalMinTotalVotes: settings.roadmapNegativeSignalMinTotalVotes,
   negativeSignalMinDownvotePercent: settings.roadmapNegativeSignalMinDownvotePercent,
@@ -85,13 +101,38 @@ const loadRoadmapSettings = async (): Promise<RoadmapSettings> => {
   }
 };
 
-const createUnavailablePayload = (settings: RoadmapSettings = DEFAULT_ROADMAP_SETTINGS): RoadmapPayload => ({
+const loadCreatorPassIncome = async (settings: RoadmapSettings) => {
+  try {
+    const revenue = await getCurrentCreatorPassRevenue();
+    return buildRoadmapIncomeBreakdown({
+      available: revenue.available,
+      activeSubscriberCount: revenue.activeSubscriberCount,
+      grossMonthlyRevenueCents: revenue.grossMonthlyRevenueCents,
+      estimatedTaxPercent: settings.roadmapEstimatedTaxPercent,
+      operatingReservePercent: settings.roadmapOperatingReservePercent,
+    });
+  } catch (error) {
+    console.error('Failed to load current Creator Pass revenue:', error);
+    return buildRoadmapIncomeBreakdown({
+      available: false,
+      activeSubscriberCount: 0,
+      grossMonthlyRevenueCents: 0,
+      estimatedTaxPercent: settings.roadmapEstimatedTaxPercent,
+      operatingReservePercent: settings.roadmapOperatingReservePercent,
+    });
+  }
+};
+
+const createUnavailablePayload = async (
+  settings: RoadmapSettings = DEFAULT_ROADMAP_SETTINGS,
+  creatorPassIncome?: RoadmapPayload['creatorPassIncome'],
+): Promise<RoadmapPayload> => ({
   configured: false,
   items: [],
   activeUserSuggestionCount: 0,
   maxActiveUserSuggestions: settings.maxActiveUserRoadmapItems,
   maxSuggestionLength: settings.maxRoadmapSuggestionLength,
-  currentProfitCents: 0,
+  creatorPassIncome: creatorPassIncome ?? await loadCreatorPassIncome(settings),
   developerRequestEmail: DEVELOPER_REQUEST_EMAIL,
 });
 
@@ -102,6 +143,7 @@ const mapRoadmapPayload = ({
   activeUserSuggestionCount,
   userId,
   settings,
+  creatorPassIncome,
 }: {
   configured: boolean;
   rows: RoadmapItemRow[];
@@ -109,6 +151,7 @@ const mapRoadmapPayload = ({
   activeUserSuggestionCount: number;
   userId: string | null;
   settings: RoadmapSettings;
+  creatorPassIncome: RoadmapPayload['creatorPassIncome'];
 }): RoadmapPayload => {
   const votesByItem = votes.reduce<Record<string, { upVotes: number; downVotes: number; userVote: RoadmapVoteValue | null }>>(
     (accumulator, vote) => {
@@ -131,6 +174,13 @@ const mapRoadmapPayload = ({
     configured,
     items: rows.map((row): RoadmapItem => {
       const voteSummary = votesByItem[row.id] ?? { upVotes: 0, downVotes: 0, userVote: null };
+      const hasAuditableExpense = row.item_type === 'roi_checkpoint'
+        && typeof row.monthly_cost_cents === 'number'
+        && row.monthly_cost_cents > 0
+        && Boolean(row.expense_provider)
+        && Boolean(row.expense_plan)
+        && Boolean(row.expense_source_url)
+        && Boolean(row.expense_verified_at);
       return {
         id: row.id,
         title: row.title,
@@ -139,8 +189,11 @@ const mapRoadmapPayload = ({
         status: row.status,
         source: row.source,
         visibleMonth: row.visible_month ?? row.created_at.slice(0, 7),
-        targetMrrCents: row.target_mrr_cents,
-        monthlyCostCents: row.monthly_cost_cents,
+        monthlyCostCents: hasAuditableExpense ? row.monthly_cost_cents : null,
+        expenseProvider: hasAuditableExpense ? row.expense_provider ?? null : null,
+        expensePlan: hasAuditableExpense ? row.expense_plan ?? null : null,
+        expenseSourceUrl: hasAuditableExpense ? row.expense_source_url ?? null : null,
+        expenseVerifiedAt: hasAuditableExpense ? row.expense_verified_at ?? null : null,
         shippedAt: row.shipped_at,
         createdAt: row.created_at,
         upVotes: voteSummary.upVotes,
@@ -151,7 +204,7 @@ const mapRoadmapPayload = ({
     activeUserSuggestionCount,
     maxActiveUserSuggestions: settings.maxActiveUserRoadmapItems,
     maxSuggestionLength: settings.maxRoadmapSuggestionLength,
-    currentProfitCents: 0,
+    creatorPassIncome,
     developerRequestEmail: DEVELOPER_REQUEST_EMAIL,
   };
 };
@@ -160,19 +213,43 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
   const config = getSupabaseServerConfigStatus();
   const supabase = getSupabaseServerClient();
   const settings = await loadRoadmapSettings();
-  if (!config.configured || !supabase) return createUnavailablePayload(settings);
+  const creatorPassIncome = await loadCreatorPassIncome(settings);
+  if (!config.configured || !supabase) return createUnavailablePayload(settings, creatorPassIncome);
 
-  const { data: rows, error: rowsError } = await supabase
+  let { data: rows, error: rowsError } = await supabase
     .from('cardforge_roadmap_items')
-    .select('id,title,description,item_type,status,source,visible_month,target_mrr_cents,monthly_cost_cents,shipped_at,created_at,sort_order')
+    .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,created_at,sort_order')
     .neq('status', 'archived_negative_signal')
     .order('visible_month', { ascending: true })
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
+  if (isMissingSupabaseColumnError(rowsError, [
+    'expense_provider',
+    'expense_plan',
+    'expense_source_url',
+    'expense_verified_at',
+  ])) {
+    const legacyResult = await supabase
+      .from('cardforge_roadmap_items')
+      .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,shipped_at,created_at,sort_order')
+      .neq('status', 'archived_negative_signal')
+      .order('visible_month', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+    rows = legacyResult.data?.map((row) => ({
+      ...row,
+      expense_provider: null,
+      expense_plan: null,
+      expense_source_url: null,
+      expense_verified_at: null,
+    })) ?? null;
+    rowsError = legacyResult.error;
+  }
+
   if (rowsError) {
     console.error('Failed to load roadmap items:', rowsError);
-    return createUnavailablePayload(settings);
+    return createUnavailablePayload(settings, creatorPassIncome);
   }
 
   const itemRows = (rows ?? []) as RoadmapItemRow[];
@@ -186,7 +263,7 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
 
   if (countError) {
     console.error('Failed to count roadmap suggestions:', countError);
-    return createUnavailablePayload(settings);
+    return createUnavailablePayload(settings, creatorPassIncome);
   }
 
   if (itemIds.length === 0) {
@@ -197,6 +274,7 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
       activeUserSuggestionCount: activeUserSuggestionCount ?? 0,
       userId,
       settings,
+      creatorPassIncome,
     });
   }
 
@@ -207,7 +285,7 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
 
   if (votesError) {
     console.error('Failed to load roadmap votes:', votesError);
-    return createUnavailablePayload(settings);
+    return createUnavailablePayload(settings, creatorPassIncome);
   }
 
   return mapRoadmapPayload({
@@ -217,6 +295,7 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
     activeUserSuggestionCount: activeUserSuggestionCount ?? 0,
     userId,
     settings,
+    creatorPassIncome,
   });
 };
 
@@ -285,8 +364,11 @@ export const createDeveloperRoadmapItem = async ({
   itemType,
   status,
   visibleMonth,
-  targetMrrCents,
   monthlyCostCents,
+  expenseProvider,
+  expensePlan,
+  expenseSourceUrl,
+  expenseVerifiedAt,
 }: {
   userId: string;
   userEmail: string | null;
@@ -295,8 +377,11 @@ export const createDeveloperRoadmapItem = async ({
   itemType?: unknown;
   status?: unknown;
   visibleMonth?: unknown;
-  targetMrrCents?: unknown;
   monthlyCostCents?: unknown;
+  expenseProvider?: unknown;
+  expensePlan?: unknown;
+  expenseSourceUrl?: unknown;
+  expenseVerifiedAt?: unknown;
 }): Promise<RoadmapPayload> => {
   const settings = await loadRoadmapSettings();
   const normalizedTitle = normalizeRoadmapSuggestion(title, settings);
@@ -311,8 +396,19 @@ export const createDeveloperRoadmapItem = async ({
     ? status as RoadmapStatus
     : 'planned';
   const normalizedMonthlyCostCents = normalizeCents(monthlyCostCents);
-  const normalizedTargetMrrCents = normalizeCents(targetMrrCents)
-    ?? (normalizedMonthlyCostCents !== null ? calculateMrrUnlockTargetCents(normalizedMonthlyCostCents) : null);
+  const normalizedExpenseProvider = normalizeOptionalText(expenseProvider, 80);
+  const normalizedExpensePlan = normalizeOptionalText(expensePlan, 80);
+  const normalizedExpenseSourceUrl = normalizeHttpsUrl(expenseSourceUrl);
+  const normalizedExpenseVerifiedAt = normalizeRoadmapExpenseVerifiedAt(expenseVerifiedAt);
+  if (normalizedItemType === 'roi_checkpoint' && (
+    !normalizedMonthlyCostCents
+    || !normalizedExpenseProvider
+    || !normalizedExpensePlan
+    || !normalizedExpenseSourceUrl
+    || !normalizedExpenseVerifiedAt
+  )) {
+    throw new RoadmapStoreError('Expense checkpoints require a positive monthly cost, provider, plan, official HTTPS source, and verification date.', 400);
+  }
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
@@ -328,8 +424,11 @@ export const createDeveloperRoadmapItem = async ({
       source: 'official',
       status: normalizedStatus,
       visible_month: normalizeVisibleMonth(visibleMonth),
-      target_mrr_cents: normalizedTargetMrrCents,
-      monthly_cost_cents: normalizedMonthlyCostCents,
+      monthly_cost_cents: normalizedItemType === 'roi_checkpoint' ? normalizedMonthlyCostCents : null,
+      expense_provider: normalizedItemType === 'roi_checkpoint' ? normalizedExpenseProvider : null,
+      expense_plan: normalizedItemType === 'roi_checkpoint' ? normalizedExpensePlan : null,
+      expense_source_url: normalizedItemType === 'roi_checkpoint' ? normalizedExpenseSourceUrl : null,
+      expense_verified_at: normalizedItemType === 'roi_checkpoint' ? normalizedExpenseVerifiedAt : null,
       shipped_at: normalizedStatus === 'shipped' ? new Date().toISOString() : null,
       created_by_user_id: userId,
       created_by_email: userEmail,
@@ -337,6 +436,14 @@ export const createDeveloperRoadmapItem = async ({
     });
 
   if (insertError) {
+    if (isMissingSupabaseColumnError(insertError, [
+      'expense_provider',
+      'expense_plan',
+      'expense_source_url',
+      'expense_verified_at',
+    ])) {
+      throw new RoadmapStoreError('Verified roadmap expenses are still deploying. Try again shortly.', 503);
+    }
     console.error('Failed to create developer roadmap item:', insertError);
     throw new RoadmapStoreError('Unable to create roadmap item.', 500);
   }

@@ -1,6 +1,5 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { resolveAccountEntitlement } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 import { deleteDeveloperRoadmapItem, RoadmapStoreError } from '@/features/roadmap/server';
@@ -29,19 +28,11 @@ export async function DELETE(
       publicMetadata: user.publicMetadata,
       privateMetadata: user.privateMetadata,
     });
-    const entitlement = resolveAccountEntitlement({
-      authConfigured: true,
-      isSignedIn: true,
-      emailAddresses,
-      privateMetadata: user.privateMetadata,
-      ownerAccess,
-    });
-
-    if (entitlement.accessMode !== 'dev') {
+    if (!ownerAccess.isOwner) {
       return createApiErrorResponse(
         403,
-        'roadmap_request_invalid',
-        'Developer access is required to manage CardForge-authored timeline items.'
+        'owner_access_required',
+        'Owner access is required to manage CardForge-authored timeline items.'
       );
     }
 
