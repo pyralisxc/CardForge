@@ -21,7 +21,9 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createRoadmapDeveloperRequestMailto } from '@/features/contact/client/links';
 import {
+  ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER,
   buildRoadmapTimelineCheckpoints,
+  findNextRoadmapIncomeCheckpoint,
   isChronicleTimelineItem,
   sortRoadmapFeatures,
   type RoadmapItem,
@@ -236,7 +238,9 @@ function TimelineNodeCard({
         <div className="mt-3 grid gap-1 text-[11px] leading-4">
           {target ? (
             <div className="flex items-center justify-between gap-2 border border-[#5f4526] bg-[#0c0b09] px-2 py-1">
-              <span className="uppercase tracking-[0.12em] text-[#a98a55]">Capacity needed</span>
+              <span className="uppercase tracking-[0.12em] text-[#a98a55]">
+                Income needed ({ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}×)
+              </span>
               <span className="text-[#ffe7ad]">{target}</span>
             </div>
           ) : null}
@@ -447,13 +451,8 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
   const planningComparisonAvailable = revenueAvailable && roadmapAvailable;
   const roadmapIncomeCents = creatorPassIncome?.roadmapIncomeCents ?? 0;
   const nextFundingCheckpoint = useMemo(
-    () => timelineCheckpoints.find((checkpoint) => (
-      checkpoint.item.itemType === 'roi_checkpoint'
-      && checkpoint.item.status !== 'shipped'
-      && checkpoint.cumulativeMonthlyCostCents > 0
-      && (!revenueAvailable || checkpoint.cumulativeMonthlyCostCents > roadmapIncomeCents)
-    )) ?? null,
-    [roadmapIncomeCents, revenueAvailable, timelineCheckpoints]
+    () => findNextRoadmapIncomeCheckpoint(timelineCheckpoints, roadmapIncomeCents),
+    [roadmapIncomeCents, timelineCheckpoints]
   );
   const latestFundingCheckpoint = timelineCheckpoints.length > 0
     ? timelineCheckpoints[timelineCheckpoints.length - 1]
@@ -463,6 +462,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
     ? Math.max(0, nextRequiredIncomeCents - roadmapIncomeCents)
     : null;
   const fullRoadmapMonthlyCostCents = latestFundingCheckpoint?.cumulativeMonthlyCostCents ?? 0;
+  const fullRoadmapRequiredIncomeCents = latestFundingCheckpoint?.requiredRoadmapIncomeCents ?? 0;
   const totalDeductionsCents = creatorPassIncome
     ? creatorPassIncome.estimatedTaxCents + creatorPassIncome.operatingReserveCents
     : 0;
@@ -793,7 +793,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
               <div>
                 <h3 className="font-serif text-2xl text-[#fff1c7]">Level-up roadmap</h3>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-[#c7b288]">
-                  Verified service upgrades with their monthly cost, official pricing source, and estimated Creator Pass capacity after the public planning deductions.
+                  Verified service upgrades with their monthly cost, official pricing source, and the {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× income buffer CardForge requires before taking on each increase.
                 </p>
               </div>
             </div>
@@ -833,13 +833,13 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
                   ? formatMonthlyCurrency(nextFundingGapCents) ?? '$0/mo'
                   : 'No planning gap'}
               detail={roadmapAvailable
-                ? `Verified fixed upgrades total ${formatMonthlyCurrency(fullRoadmapMonthlyCostCents) ?? '$0/mo'}; this comparison is not a promise that cash was collected.`
+                ? `Verified fixed upgrades total ${formatMonthlyCurrency(fullRoadmapMonthlyCostCents) ?? '$0/mo'}, requiring ${formatMonthlyCurrency(fullRoadmapRequiredIncomeCents) ?? '$0/mo'} of post-deduction roadmap income at the ${ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× rule.`
                 : 'Waiting for the verified expense roadmap.'}
               icon={<DollarSign className="h-3.5 w-3.5" />}
             />
           </div>
           <p className="mb-4 text-xs leading-5 text-[#a98a55]">
-            Revenue figures are planning estimates from active Creator Pass subscriptions at their listed recurring prices. They do not deduct Stripe fees, discounts, credits, refunds, or prove that an invoice was paid.
+            Revenue figures are planning estimates from active Creator Pass subscriptions at their listed recurring prices. Upgrade checkpoints require that post-tax, post-reserve estimate to reach {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× the running verified monthly cost. Figures do not deduct Stripe fees, discounts, credits, refunds, or prove that an invoice was paid.
           </p>
           <div className="relative border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
             <HorizontalTimeline

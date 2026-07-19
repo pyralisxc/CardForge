@@ -1,6 +1,7 @@
 export const MAX_ROADMAP_SUGGESTION_LENGTH = 200;
 export const MAX_ACTIVE_USER_ROADMAP_ITEMS = 50;
 export const ROADMAP_NEGATIVE_SIGNAL_MIN_TOTAL_VOTES = 20;
+export const ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER = 10;
 
 export interface RoadmapSettings {
   maxActiveUserRoadmapItems: number;
@@ -262,9 +263,27 @@ export const buildRoadmapTimelineCheckpoints = <Item extends { monthlyCostCents:
     return {
       item,
       cumulativeMonthlyCostCents,
-      requiredRoadmapIncomeCents: cumulativeMonthlyCostCents,
+      requiredRoadmapIncomeCents:
+        cumulativeMonthlyCostCents * ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER,
     };
   });
+};
+
+export const findNextRoadmapIncomeCheckpoint = <Item extends {
+  itemType: RoadmapItemType;
+  status: RoadmapStatus;
+}>(
+  checkpoints: Array<RoadmapTimelineCheckpoint<Item>>,
+  roadmapIncomeCents: number,
+): RoadmapTimelineCheckpoint<Item> | null => {
+  const normalizedIncomeCents = normalizeMoneyCents(roadmapIncomeCents);
+
+  return checkpoints.find((checkpoint) => (
+    checkpoint.item.itemType === 'roi_checkpoint'
+    && checkpoint.item.status !== 'shipped'
+    && checkpoint.cumulativeMonthlyCostCents > 0
+    && checkpoint.requiredRoadmapIncomeCents > normalizedIncomeCents
+  )) ?? null;
 };
 
 const getVoteTotal = (item: Pick<RoadmapItem, 'upVotes' | 'downVotes'>) => item.upVotes + item.downVotes;

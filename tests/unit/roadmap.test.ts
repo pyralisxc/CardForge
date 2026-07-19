@@ -6,6 +6,7 @@ import {
   DEFAULT_ROADMAP_VOTING_RULES,
   buildRoadmapTimelineCheckpoints,
   buildRoadmapIncomeBreakdown,
+  findNextRoadmapIncomeCheckpoint,
   groupRoadmapTimelineItems,
   isChronicleTimelineItem,
   getCurrentTimelineWindow,
@@ -97,7 +98,7 @@ describe('roadmap rules', () => {
     });
   });
 
-  it('tracks running monthly roadmap cost as the income needed for each checkpoint', () => {
+  it('requires 10x the running monthly roadmap cost before each upgrade checkpoint', () => {
     const checkpoints = buildRoadmapTimelineCheckpoints([
       { id: 'foundation', monthlyCostCents: 2500 },
       { id: 'shipped-note', monthlyCostCents: null },
@@ -109,10 +110,22 @@ describe('roadmap rules', () => {
       cumulativeMonthlyCostCents: checkpoint.cumulativeMonthlyCostCents,
       requiredRoadmapIncomeCents: checkpoint.requiredRoadmapIncomeCents,
     }))).toEqual([
-      { id: 'foundation', cumulativeMonthlyCostCents: 2500, requiredRoadmapIncomeCents: 2500 },
-      { id: 'shipped-note', cumulativeMonthlyCostCents: 2500, requiredRoadmapIncomeCents: 2500 },
-      { id: 'cloud-save', cumulativeMonthlyCostCents: 10000, requiredRoadmapIncomeCents: 10000 },
+      { id: 'foundation', cumulativeMonthlyCostCents: 2500, requiredRoadmapIncomeCents: 25000 },
+      { id: 'shipped-note', cumulativeMonthlyCostCents: 2500, requiredRoadmapIncomeCents: 25000 },
+      { id: 'cloud-save', cumulativeMonthlyCostCents: 10000, requiredRoadmapIncomeCents: 100000 },
     ]);
+  });
+
+  it('keeps the next upgrade gated until post-deduction income reaches its 10x target', () => {
+    const checkpoints = buildRoadmapTimelineCheckpoints([
+      { id: 'foundation', itemType: 'roi_checkpoint' as const, status: 'planned' as const, monthlyCostCents: 2500 },
+      { id: 'shipped-note', itemType: 'shipped_update' as const, status: 'shipped' as const, monthlyCostCents: null },
+      { id: 'cloud-save', itemType: 'roi_checkpoint' as const, status: 'planned' as const, monthlyCostCents: 7500 },
+    ]);
+
+    expect(findNextRoadmapIncomeCheckpoint(checkpoints, 3000)?.item.id).toBe('foundation');
+    expect(findNextRoadmapIncomeCheckpoint(checkpoints, 25000)?.item.id).toBe('cloud-save');
+    expect(findNextRoadmapIncomeCheckpoint(checkpoints, 100000)).toBeNull();
   });
 
   it('sorts feature board items by public voting modes', () => {
