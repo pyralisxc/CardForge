@@ -16,7 +16,6 @@ interface BulkTemplateSetupPanelProps {
   onDownloadExampleCsv: () => void;
   onDownloadExampleJson: () => void;
   onDownloadStructuredText: () => void;
-  onDownloadContractJson: () => void;
 }
 
 export function BulkTemplateSetupPanel({
@@ -26,7 +25,6 @@ export function BulkTemplateSetupPanel({
   onDownloadExampleCsv,
   onDownloadExampleJson,
   onDownloadStructuredText,
-  onDownloadContractJson,
 }: BulkTemplateSetupPanelProps) {
   const contractSummary = createBulkContractSummary(bulkFieldDefinitions);
   const requiredHeaders = contractSummary.requiredFields.map((field) => field.key);
@@ -36,14 +34,14 @@ export function BulkTemplateSetupPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">1. Template Contract</CardTitle>
-        <CardDescription>Bulk imports use the front template selected in Deck Setup.</CardDescription>
+        <CardTitle className="text-base">1. Card design</CardTitle>
+        <CardDescription>Choose the card design these cards will use.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border bg-muted/30 p-3 text-sm">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Selected front template</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Selected card design</p>
           <p className="font-medium">{selectedTemplate?.name || selectedTemplateId || 'No front template selected'}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Change this in Deck Setup above.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Change this in Card setup above.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -58,10 +56,6 @@ export function BulkTemplateSetupPanel({
           <Button type="button" variant="outline" onClick={onDownloadStructuredText} disabled={!selectedTemplate}>
             <FileText className="mr-2 h-4 w-4" />
             Download Text Starter
-          </Button>
-          <Button type="button" variant="ghost" onClick={onDownloadContractJson} disabled={!selectedTemplate}>
-            <FileJson className="mr-2 h-4 w-4" />
-            Advanced Contract
           </Button>
         </div>
 
@@ -91,10 +85,10 @@ export function BulkTemplateSetupPanel({
             <div className="rounded border bg-background/50 p-2">
               <p className="flex items-center gap-1.5 text-xs font-semibold">
                 <Table2 className="h-3.5 w-3.5 text-primary" />
-                Starter file fields
+                Your card fields
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                CSV and JSON starters use these exact field keys. Text or Markdown imports can use readable Field: value lines.
+                These are the details your data can fill. Text or Markdown can use readable Field: value lines.
               </p>
               <div className="mt-2 rounded bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-5 text-foreground break-words">
                 {exactHeaderLine || 'Select a template to see fields.'}
