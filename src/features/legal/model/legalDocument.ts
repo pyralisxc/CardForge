@@ -119,11 +119,13 @@ Known limitations may include complex canvas-style editing controls, keyboard in
 
 If an accessibility barrier prevents you from using CardForge Studio, contact the support email listed on this site and include the page, task, assistive technology if relevant, and the format or accommodation that would help.`;
 
-const creatorPoolBody = `The Creator Pool concept is archived and inactive. CardForge Studio does not currently operate creator-pool payout infrastructure or accrue creator-pool balances.
+const creatorPoolBody = `CardForge may earmark an owner-adjustable share of its operating reserve for a future developer pool. The default earmark is 50% of the operating reserve. This is a tagged part of money already reserved for CardForge, not an additional roadmap deduction.
 
-The creator pool is not active payout infrastructure today. It is not stock, equity, a security, employment, partnership, a wage promise, or guaranteed income. Any future program would depend on billing, refund handling, tax handling, payout provider setup, creator eligibility rules, legal review, and separately published program terms.
+The developer program has a maximum of 10 active seats. If payouts launch, eligible active developers for the applicable payout period will share the earmarked pool equally under owner-published eligibility and contribution rules. A full eligible roster would receive one tenth of that earmarked pool per developer.
 
-Archived planning language does not create a payable balance or enforceable distribution schedule.`;
+The developer pool is not active payout infrastructure today. It is not stock, equity, a security, employment, partnership, a wage promise, or guaranteed income. It depends on future billing reconciliation, refund and dispute handling, tax handling, payout-provider setup, creator eligibility rules, legal review, and owner-published program terms.
+
+Until payout systems and final legal terms are live, this notice describes product direction, not a payable balance or enforceable distribution schedule.`;
 
 const DEFAULT_EFFECTIVE_DATE = '2026-07-16';
 const DEFAULT_PUBLISHED_AT = '2026-07-16T00:00:00.000Z';
@@ -151,7 +153,7 @@ export const DEFAULT_LEGAL_DOCUMENTS: LegalDocument[] = [
   createDefaultDocument('developer-terms', 'Developer Contributor Terms', developerTermsBody),
   createDefaultDocument('contact', 'Contact and Support', contactBody),
   createDefaultDocument('accessibility', 'Accessibility Statement', accessibilityBody),
-  createDefaultDocument('creator-pool', 'Archived Creator Pool Notice', creatorPoolBody),
+  createDefaultDocument('creator-pool', 'Developer Pool Notice', creatorPoolBody),
 ];
 
 const legalSlugs = new Set<LegalDocumentSlug>(DEFAULT_LEGAL_DOCUMENTS.map((document) => document.slug));

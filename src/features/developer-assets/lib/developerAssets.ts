@@ -43,7 +43,7 @@ export interface DeveloperProgramSettings {
   allowContributorSelfVoting: boolean;
   ownerVoteWeight: number;
   archiveVisibleLimit: number;
-  profitSharePoolPercent: number;
+  developerReserveSharePercent: number;
   ownerFinalReviewRequired: boolean;
   publishCapsByType: DeveloperPublishCapsByType;
   tierCapsByType: DeveloperTierCapsByType;
@@ -191,7 +191,7 @@ export const DEFAULT_DEVELOPER_PUBLISH_CAPS_BY_TYPE: DeveloperPublishCapsByType 
   deriveDeveloperPublishCapsByType(DEFAULT_DEVELOPER_TIER_CAPS_BY_TYPE);
 
 export const DEFAULT_DEVELOPER_PROGRAM_SETTINGS: DeveloperProgramSettings = {
-  maxActiveDevelopers: 25,
+  maxActiveDevelopers: 10,
   monthlySubmissionLimit: 25,
   monthlyPublishedRequirement: 5,
   minimumVotesForGrading: 5,
@@ -204,7 +204,7 @@ export const DEFAULT_DEVELOPER_PROGRAM_SETTINGS: DeveloperProgramSettings = {
   allowContributorSelfVoting: true,
   ownerVoteWeight: 1,
   archiveVisibleLimit: 100,
-  profitSharePoolPercent: 10,
+  developerReserveSharePercent: 50,
   ownerFinalReviewRequired: true,
   publishCapsByType: DEFAULT_DEVELOPER_PUBLISH_CAPS_BY_TYPE,
   tierCapsByType: DEFAULT_DEVELOPER_TIER_CAPS_BY_TYPE,
@@ -361,7 +361,7 @@ export const normalizeDeveloperProgramSettingsInput = (
   const tierCapsByType = normalizeDeveloperTierCapsByType(value.tierCapsByType);
 
   return {
-    maxActiveDevelopers: normalizeInteger(value.maxActiveDevelopers, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.maxActiveDevelopers, 1, 100),
+    maxActiveDevelopers: normalizeInteger(value.maxActiveDevelopers, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.maxActiveDevelopers, 1, 10),
     monthlySubmissionLimit: normalizeInteger(value.monthlySubmissionLimit, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.monthlySubmissionLimit, 1, 250),
     monthlyPublishedRequirement: normalizeInteger(value.monthlyPublishedRequirement, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.monthlyPublishedRequirement, 0, 100),
     minimumVotesForGrading: normalizeInteger(value.minimumVotesForGrading, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.minimumVotesForGrading, 1, 1000),
@@ -374,7 +374,7 @@ export const normalizeDeveloperProgramSettingsInput = (
     allowContributorSelfVoting: normalizeBoolean(value.allowContributorSelfVoting, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.allowContributorSelfVoting),
     ownerVoteWeight: normalizeInteger(value.ownerVoteWeight, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerVoteWeight, 1, 3),
     archiveVisibleLimit: normalizeInteger(value.archiveVisibleLimit, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.archiveVisibleLimit, 1, 500),
-    profitSharePoolPercent: normalizeInteger(value.profitSharePoolPercent, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.profitSharePoolPercent, 0, 50),
+    developerReserveSharePercent: normalizeInteger(value.developerReserveSharePercent, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.developerReserveSharePercent, 0, 100),
     ownerFinalReviewRequired: normalizeBoolean(value.ownerFinalReviewRequired, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerFinalReviewRequired),
     publishCapsByType: deriveDeveloperPublishCapsByType(tierCapsByType),
     tierCapsByType,

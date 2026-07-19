@@ -102,12 +102,12 @@ describe('developer asset program rules', () => {
       allowContributorSelfVoting: false,
       ownerVoteWeight: '3',
       archiveVisibleLimit: '1000',
-      profitSharePoolPercent: '15',
+      developerReserveSharePercent: '150',
       publishCapsByType: { templates: '4', icons: -1 },
       tierCapsByType: { templates: { free: '12', paid: '6' }, icons: { free: -1, paid: 'abc' } },
     });
 
-    expect(settings.maxActiveDevelopers).toBe(100);
+    expect(settings.maxActiveDevelopers).toBe(10);
     expect(settings.monthlySubmissionLimit).toBe(DEFAULT_DEVELOPER_PROGRAM_SETTINGS.monthlySubmissionLimit);
     expect(settings.monthlyPublishedRequirement).toBe(7);
     expect(settings.minimumVotesForGrading).toBe(3);
@@ -120,7 +120,7 @@ describe('developer asset program rules', () => {
     expect(settings.allowContributorSelfVoting).toBe(false);
     expect(settings.ownerVoteWeight).toBe(3);
     expect(settings.archiveVisibleLimit).toBe(500);
-    expect(settings.profitSharePoolPercent).toBe(15);
+    expect(settings.developerReserveSharePercent).toBe(100);
     expect(settings.tierCapsByType.templates).toEqual({ free: 12, paid: 6 });
     expect(settings.tierCapsByType.icons).toEqual(DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.icons);
     expect(settings.publishCapsByType.templates).toBe(18);
