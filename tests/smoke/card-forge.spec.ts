@@ -848,7 +848,7 @@ test('supports touch-sized panel scrolling and canvas gesture ownership', async 
 
     for (const panel of [
       { open: 'Open editor menu', close: 'Close editor menu', name: 'Menu' },
-      { open: 'Open inspector', close: 'Close inspector', name: 'Inspector' },
+      { open: 'Edit selected element', close: 'Close inspector', name: 'Inspector' },
     ]) {
       await page.getByRole('button', { name: panel.open }).click();
       await page.waitForTimeout(250);
