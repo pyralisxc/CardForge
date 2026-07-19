@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { CardFace } from '@/domain/cards';
 import { Button } from '@/components/ui/button';
-import { Loader2, ImageDown } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
@@ -27,9 +27,10 @@ interface ExportCardImageButtonProps {
   gateMessage?: string | null;
   className?: string;
   ariaLabel?: string;
+  iconOnly?: boolean;
 }
 
-export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHighlightColor, disabled = false, gateMessage, className, ariaLabel }: ExportCardImageButtonProps) {
+export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHighlightColor, disabled = false, gateMessage, className, ariaLabel, iconOnly = false }: ExportCardImageButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -98,20 +99,27 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={disabled || isLoading} className={className} aria-label={ariaLabel}>
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageDown className="h-4 w-4" />}
-          Export Image
+        <Button
+          variant="outline"
+          size={iconOnly ? 'icon' : undefined}
+          disabled={disabled || isLoading}
+          className={className}
+          aria-label={ariaLabel ?? 'Download individual card'}
+          title="Download individual card"
+        >
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {iconOnly ? <span className="sr-only">Download individual card</span> : 'Download image'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleExport('png', 'front')}>Export front as PNG</DropdownMenuItem>
-        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('png', 'back')}>Export back as PNG</DropdownMenuItem> : null}
-        <DropdownMenuItem onClick={() => handleExport('jpeg', 'front')}>Export front as JPEG</DropdownMenuItem>
-        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('jpeg', 'back')}>Export back as JPEG</DropdownMenuItem> : null}
-        <DropdownMenuItem onClick={() => handleExport('webp', 'front')}>Export front as WebP</DropdownMenuItem>
-        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('webp', 'back')}>Export back as WebP</DropdownMenuItem> : null}
-        <DropdownMenuItem onClick={() => handleExport('tiff', 'front')}>Export front as TIFF (beta)</DropdownMenuItem>
-        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('tiff', 'back')}>Export back as TIFF (beta)</DropdownMenuItem> : null}
+        <DropdownMenuItem onClick={() => handleExport('png', 'front')}>Download front as PNG</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('png', 'back')}>Download back as PNG</DropdownMenuItem> : null}
+        <DropdownMenuItem onClick={() => handleExport('jpeg', 'front')}>Download front as JPEG</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('jpeg', 'back')}>Download back as JPEG</DropdownMenuItem> : null}
+        <DropdownMenuItem onClick={() => handleExport('webp', 'front')}>Download front as WebP</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('webp', 'back')}>Download back as WebP</DropdownMenuItem> : null}
+        <DropdownMenuItem onClick={() => handleExport('tiff', 'front')}>Download front as TIFF (beta)</DropdownMenuItem>
+        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('tiff', 'back')}>Download back as TIFF (beta)</DropdownMenuItem> : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

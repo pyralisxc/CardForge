@@ -286,6 +286,16 @@ test('loads default templates and adds a generated output', async ({ page }) => 
   await expect
     .poll(() => page.locator('.tcg-card-preview').count())
     .toBeGreaterThanOrEqual(1);
+
+  const generatedPreview = visibleCardPreviews(page).first();
+  await generatedPreview.click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Share card', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download individual card', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove generated output 1', exact: true })).toBeVisible();
+
+  await generatedPreview.dblclick();
+  await expect(page.getByRole('dialog')).toHaveAccessibleName(/Edit:/i);
 });
 
 test('lets free users try clean export and see the export gate', async ({ page }) => {
@@ -365,12 +375,12 @@ test('lets free users try clean export and see the export gate', async ({ page }
   await expect(previewWatermark).toHaveAttribute('src', '/brand/cardforge-studio/watermark.svg');
   await expect(previewWatermark).toHaveCSS('opacity', '0.24');
 
-  await visibleCardPreviews(page).first().hover();
-  const exportButton = page.getByRole('button', { name: 'Export Image', exact: true });
+  await visibleCardPreviews(page).first().click();
+  const exportButton = page.getByRole('button', { name: 'Download individual card', exact: true });
   await expect(exportButton).toBeEnabled();
 
   await exportButton.click();
-  await page.getByRole('menuitem', { name: 'Export front as PNG', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Download front as PNG', exact: true }).click();
 
   await expect(page.getByText('Clean export locked', { exact: true })).toBeVisible();
   const notifications = page.getByLabel('Notifications (F8)');
@@ -621,7 +631,7 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await page.keyboard.press('Enter');
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
-  await visibleCardPreviews(page).first().hover();
+  await visibleCardPreviews(page).first().click();
   await page.getByRole('button', { name: /Remove generated output 1/i }).click();
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(0\)/i })).toBeVisible();

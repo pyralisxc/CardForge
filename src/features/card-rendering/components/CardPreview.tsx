@@ -32,6 +32,7 @@ interface CardPreviewProps {
   showSizeInfo?: boolean;
   isEditorPreview?: boolean;
   highlightColor?: string;
+  onSelect?: (card: DisplayCard) => void;
   onEdit?: (card: DisplayCard) => void;
   targetWidthPx?: number;
 }
@@ -58,6 +59,7 @@ export function CardPreview({
   showSizeInfo = false,
   isEditorPreview = false,
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
+  onSelect,
   onEdit,
   targetWidthPx,
 }: CardPreviewProps) {
@@ -486,9 +488,25 @@ export function CardPreview({
       });
   }, [canvasToRender, cardPixelHeight, dataAiHintKeywords, dataToRender, descriptiveArtworkText, highlightColor, renderWidthPx, isEditorPreview, templateToRender]);
 
+  const isInteractive = !isEditorPreview && (onSelect || onEdit);
+
   const handleCardClick = () => {
+    if (onSelect && !isEditorPreview) {
+      onSelect(card);
+    }
+  };
+
+  const handleCardDoubleClick = () => {
     if (onEdit && !isEditorPreview) {
       onEdit(card);
+    }
+  };
+
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isInteractive) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleCardClick();
     }
   };
 
@@ -509,7 +527,7 @@ export function CardPreview({
         <div
           className={cn(
             "tcg-card-preview shadow-lg flex flex-col relative overflow-hidden",
-            onEdit && !isEditorPreview ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
+            isInteractive ? 'cursor-pointer hover:shadow-primary/50 hover:shadow-md transition-shadow duration-150' : '',
             `frame-${templateToRender.frameStyle || 'standard'}`
           )}
           style={{
@@ -519,6 +537,11 @@ export function CardPreview({
           }}
           data-ai-hint="tcg card custom"
           onClick={handleCardClick}
+          onDoubleClick={handleCardDoubleClick}
+          onKeyDown={handleCardKeyDown}
+          role={isInteractive ? 'button' : undefined}
+          tabIndex={isInteractive ? 0 : undefined}
+          aria-label={isInteractive ? 'Select generated output. Double-click to edit.' : undefined}
         >
           {freeformElements}
         </div>
