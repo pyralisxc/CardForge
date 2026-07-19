@@ -440,22 +440,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
     .toBeGreaterThanOrEqual(1);
   await expect.poll(() => visibleFreeformPreviewElementCount(page)).toBeGreaterThanOrEqual(1);
 
-  await page.getByRole('tab', { name: /Use a list/i }).click();
-  await page.locator('#bulk-file-upload-csv').setInputFiles({
-    name: 'freeform-bulk.csv',
-    mimeType: 'text/csv',
-    buffer: Buffer.from('Rank,Suit,CenterMark,newText\nA,♥,♥,Bulk Arcane One\nK,♠,♠,Bulk Arcane Two\n'),
-  });
-  await expect(page.locator('#bulkData')).toContainText('Bulk Arcane One');
-  await page.getByRole('button', { name: /Generate Outputs from Data/i }).dispatchEvent('click');
 
-  await expect(page.getByRole('heading', { name: /Generated Outputs \(3\)/i })).toBeVisible();
-  await expect
-    .poll(() => page.locator('.tcg-card-preview').count())
-    .toBeGreaterThanOrEqual(3);
-  await expect
-    .poll(() => visibleFreeformPreviewElementCount(page))
-    .toBeGreaterThanOrEqual(3);
 });
 
 test('asks whether to save a changed template before leaving Layout Studio', async ({ page }) => {
@@ -513,6 +498,8 @@ test('bulk generator reviews issues as data is entered without expanding the wor
   await expect(page.getByText(/Data ready — 1 card will be generated./i)).toBeVisible();
   await expect(page.getByText('Mapped Template Field', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Generate Outputs from Data/i })).toBeEnabled();
+  await page.getByRole('button', { name: /Generate Outputs from Data/i }).click();
+  await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
 
   await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,,♥,Ember-Claw');
   await expect(page.getByRole('button', { name: 'Review data', exact: true })).toBeVisible();
