@@ -361,6 +361,11 @@ body {
     gap: 0.5rem;
   }
 
+  .cardforge-mobile-overlay-backdrop,
+  .cardforge-mobile-overlay-close {
+    display: none;
+  }
+
   .cardforge-maker-scroll {
     height: min(74svh, 42rem) !important;
     min-height: 0 !important;
@@ -454,17 +459,103 @@ body {
   }
 
   @media (max-width: 1023px) {
+    .cardforge-editor-topbar,
+    #maker-shortcuts-help {
+      display: none !important;
+    }
+
+    .cardforge-maker-shell {
+      position: relative;
+      isolation: isolate;
+      min-height: calc(100svh - 8rem) !important;
+    }
+
+    .cardforge-maker-mobile-switcher {
+      position: absolute;
+      z-index: 10;
+      top: 0.5rem;
+      right: 0.5rem;
+      left: 0.5rem;
+      display: flex;
+      align-items: center;
+      min-height: 3rem;
+      border: 1px solid #2b2f39;
+      border-radius: 0.5rem;
+      background: rgba(8, 12, 18, 0.94);
+      padding: 0.25rem;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
+      backdrop-filter: blur(12px);
+    }
+
     .cardforge-maker-grid {
+      position: relative;
       grid-template-columns: minmax(0, 1fr) !important;
+      min-height: calc(100svh - 8rem) !important;
     }
 
     .cardforge-maker-shell[data-mobile-panel="canvas"] .cardforge-maker-library,
     .cardforge-maker-shell[data-mobile-panel="canvas"] .cardforge-maker-inspector,
-    .cardforge-maker-shell[data-mobile-panel="library"] .cardforge-maker-canvas,
     .cardforge-maker-shell[data-mobile-panel="library"] .cardforge-maker-inspector,
-    .cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-maker-library,
-    .cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-maker-canvas {
+    .cardforge-maker-shell[data-mobile-panel="inspector"] .cardforge-maker-library {
       display: none;
+    }
+
+    .cardforge-mobile-overlay-backdrop {
+      position: absolute;
+      z-index: 20;
+      inset: 0;
+      display: block;
+      border: 0;
+      background: rgba(2, 5, 9, 0.46);
+    }
+
+    .cardforge-maker-library,
+    .cardforge-maker-inspector {
+      position: absolute;
+      z-index: 30;
+      display: block;
+      overflow: hidden;
+      background: #0d1117;
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.48);
+    }
+
+    .cardforge-maker-library {
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: min(88vw, 25rem);
+      border-right: 1px solid #252b35;
+    }
+
+    .cardforge-maker-inspector {
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: min(78svh, 42rem);
+      border-top: 1px solid #252b35;
+      border-radius: 0.85rem 0.85rem 0 0;
+    }
+
+    .cardforge-mobile-overlay-close {
+      position: absolute;
+      z-index: 40;
+      display: inline-flex;
+      height: 2.5rem;
+      width: 2.5rem;
+      border-color: #3b4352;
+      background: #111720;
+      color: #f3ead7;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .cardforge-mobile-menu-close {
+      top: 0.5rem;
+      left: min(calc(88vw - 3rem), 22rem);
+    }
+
+    .cardforge-mobile-inspector-close {
+      right: 0.75rem;
+      bottom: min(78svh - 3rem, calc(42rem - 3rem));
     }
 
     .cardforge-maker-side {
@@ -472,16 +563,21 @@ body {
       border-top-width: 0;
     }
 
-    .cardforge-maker-scroll {
-      height: calc(100svh - 14rem) !important;
-      min-height: 320px !important;
+    .cardforge-maker-scroll,
+    .cardforge-maker-library .cardforge-maker-scroll,
+    .cardforge-maker-inspector .cardforge-maker-scroll {
+      height: 100% !important;
+      min-height: 0 !important;
       max-height: none !important;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
 
     .cardforge-canvas-scroll {
-      height: calc(100svh - 16rem) !important;
+      height: calc(100svh - 8rem) !important;
       min-height: 320px !important;
-      padding: 0.75rem !important;
+      padding: 4.75rem 0.75rem 0.75rem !important;
+      overscroll-behavior: contain;
     }
   }
 
