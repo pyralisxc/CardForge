@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: July 16, 2026
+Last updated: July 19, 2026
 
 This is the current live-operations checklist for CardForge.
 
@@ -30,8 +30,6 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
 Stripe:

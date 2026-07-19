@@ -1,6 +1,7 @@
 export * from './lib/assetRegistry';
 export * from './lib/developerAssets';
 export * from './lib/developerAssetStore';
+export * from './lib/developerAssetUploadPolicy';
 export * from './lib/registryContentAssets';
 export * from './lib/registryFonts';
 
