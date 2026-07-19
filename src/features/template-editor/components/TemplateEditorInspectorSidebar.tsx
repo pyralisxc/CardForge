@@ -16,7 +16,6 @@ import { ImageInspectorPanel } from '@/features/template-editor/components/Image
 import { InspectorFlowSection } from '@/features/template-editor/components/InspectorFlowSection';
 import { ShapeInspectorPanel } from '@/features/template-editor/components/ShapeInspectorPanel';
 import { TemplateEditorInspectorPanel } from '@/features/template-editor/components/TemplateEditorInspectorPanel';
-import { TemplateSettingsPanel } from '@/features/template-editor/components/TemplateSettingsPanel';
 import { TypographyInspectorPanel } from '@/features/template-editor/components/TypographyInspectorPanel';
 import type { TemplateEditorCommands } from '@/features/template-editor/hooks/useTemplateEditorCommands';
 import type { TemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
@@ -68,30 +67,6 @@ export function TemplateEditorInspectorSidebar({
             hasSelectedElement={Boolean(selectedElement)}
             selectedElementType={selectedElement?.type}
             selectedElementName={selectedElement?.name}
-            templateContent={(
-              <TemplateSettingsPanel
-                currentTemplate={currentTemplate}
-                customWidthValue={commands.customWidthValue}
-                customHeightValue={commands.customHeightValue}
-                customUnit={commands.customUnit}
-                gridSize={canvas.gridSize || 20}
-                frameKitRecipes={commands.frameKitRecipes}
-                backgroundImageInputRef={commands.backgroundImageInputRef}
-                borderImageInputRef={commands.borderImageInputRef}
-                controlClassName={makerTheme.control}
-                buttonClassName={makerTheme.button}
-                onCustomWidthValueChange={commands.setCustomWidthValue}
-                onCustomHeightValueChange={commands.setCustomHeightValue}
-                onCustomUnitChange={commands.setCustomUnit}
-                onApplyCustomDimensions={commands.applyCustomDimensions}
-                onResetGridToTemplateDefault={commands.resetGridToTemplateDefault}
-                onApplyFrameStyle={commands.applyFrameStyle}
-                onApplyElementPresetRecipe={elements.applyElementPresetRecipe}
-                onFileUpload={commands.handleFileUpload}
-                onUpdateCanvas={updateCanvas}
-                onUpdateTemplate={updateTemplate}
-              />
-            )}
             elementContent={selectedElement ? (
               <>
                 {(elements.canUseTypography || elements.canUseImageSource) && (
