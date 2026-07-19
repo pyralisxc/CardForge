@@ -128,23 +128,6 @@ export function BulkGenerator({
 
   const parsedRows = parsedCsv.rows;
 
-  const bulkPreview = useMemo(() => {
-    if (!selectedTemplate) return { rows: [], globalWarnings: [] };
-    return createBulkPreview({
-      rows: parsedRows,
-      columnMapping,
-      fieldDefinitions: bulkFieldDefinitions,
-      previewOverrides: {},
-      maxPreviewRows: Math.min(parsedRows.length, 25),
-    });
-  }, [bulkFieldDefinitions, columnMapping, parsedRows, selectedTemplate]);
-
-  const reviewIssues = useMemo(() => Array.from(new Set([
-    ...blockingIssues,
-    ...bulkPreview.globalWarnings,
-    ...bulkPreview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
-  ])), [blockingIssues, bulkPreview.globalWarnings, bulkPreview.rows]);
-
   const mappedColumnCount = useMemo(
     () => csvHeaders.filter((header) => !!columnMapping[header]).length,
     [columnMapping, csvHeaders]
@@ -189,6 +172,23 @@ export function BulkGenerator({
     if (parsedCsv.error) return [parsedCsv.error];
     return getBulkGenerationBlockingIssues(csvHeaders, parsedRows, columnMapping);
   }, [bulkDataInput, columnMapping, csvHeaders, parsedCsv.error, parsedRows, selectedTemplate]);
+
+  const bulkPreview = useMemo(() => {
+    if (!selectedTemplate) return { rows: [], globalWarnings: [] };
+    return createBulkPreview({
+      rows: parsedRows,
+      columnMapping,
+      fieldDefinitions: bulkFieldDefinitions,
+      previewOverrides: {},
+      maxPreviewRows: Math.min(parsedRows.length, 25),
+    });
+  }, [bulkFieldDefinitions, columnMapping, parsedRows, selectedTemplate]);
+
+  const reviewIssues = useMemo(() => Array.from(new Set([
+    ...blockingIssues,
+    ...bulkPreview.globalWarnings,
+    ...bulkPreview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
+  ])), [blockingIssues, bulkPreview.globalWarnings, bulkPreview.rows]);
 
   const visibleCsvHeaders = useMemo(() => {
     let headers = csvHeaders;
