@@ -8,6 +8,10 @@ import { CardPreview } from '@/features/card-rendering/client';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
 import { ShareCardButton } from '@/features/card-generator/components/ShareCardButton';
+import {
+  resolveGeneratedGalleryColumnCount,
+  type GeneratedGalleryColumns,
+} from '@/features/card-generator/lib/generatedGalleryLayout';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -38,10 +42,18 @@ interface GeneratedCardGalleryProps {
 const GALLERY_GRID_GAP_PX = 12;
 
 const GALLERY_DENSITY_OPTIONS: Record<GeneratedGalleryDensity, { label: string; previewWidthPx: number; gridMinWidthPx: number; rowHeightPx: number }> = {
-  compact: { label: 'Compact grid', previewWidthPx: 132, gridMinWidthPx: 144, rowHeightPx: 226 },
-  comfortable: { label: 'Comfortable grid', previewWidthPx: 176, gridMinWidthPx: 188, rowHeightPx: 286 },
-  large: { label: 'Detailed outputs', previewWidthPx: 232, gridMinWidthPx: 244, rowHeightPx: 368 },
+  compact: { label: 'Small cards', previewWidthPx: 132, gridMinWidthPx: 144, rowHeightPx: 226 },
+  comfortable: { label: 'Medium cards', previewWidthPx: 176, gridMinWidthPx: 188, rowHeightPx: 286 },
+  large: { label: 'Large cards', previewWidthPx: 232, gridMinWidthPx: 244, rowHeightPx: 368 },
 };
+
+const GALLERY_COLUMN_OPTIONS: Array<{ value: GeneratedGalleryColumns; label: string }> = [
+  { value: 'auto', label: 'Auto fit' },
+  { value: '2', label: '2 per row' },
+  { value: '3', label: '3 per row' },
+  { value: '4', label: '4 per row' },
+  { value: '6', label: '6 per row' },
+];
 
 export function GeneratedCardGallery({
   templates,
@@ -60,6 +72,7 @@ export function GeneratedCardGallery({
   onRemoveCard,
 }: GeneratedCardGalleryProps) {
   const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('compact');
+  const [galleryColumns, setGalleryColumns] = useState<GeneratedGalleryColumns>('auto');
   const scrollParentRef = useRef<HTMLDivElement | null>(null);
   const gridMeasureRef = useRef<HTMLDivElement | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
@@ -86,7 +99,12 @@ export function GeneratedCardGallery({
   ), [gallerySearch, gallerySort, generatedDisplayCards]);
 
   const densityConfig = GALLERY_DENSITY_OPTIONS[galleryDensity];
-  const columnCount = Math.max(1, Math.floor((gridWidth + GALLERY_GRID_GAP_PX) / (densityConfig.gridMinWidthPx + GALLERY_GRID_GAP_PX)));
+  const columnCount = resolveGeneratedGalleryColumnCount({
+    availableWidth: gridWidth,
+    minimumItemWidth: densityConfig.gridMinWidthPx,
+    gap: GALLERY_GRID_GAP_PX,
+    requestedColumns: galleryColumns,
+  });
   const rowCount = Math.ceil(filteredSortedCards.length / columnCount);
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -104,7 +122,9 @@ export function GeneratedCardGallery({
     const resizeObserver = new ResizeObserver(updateGridWidth);
     resizeObserver.observe(element);
     return () => resizeObserver.disconnect();
-  }, []);
+  // The gallery mounts empty. Re-run once there are outputs so the measurement
+  // target exists; otherwise it remains at its initial zero-width, one-column state.
+  }, [generatedDisplayCards.length]);
 
   useEffect(() => {
     virtualizer.scrollToIndex(0);
@@ -146,12 +166,22 @@ export function GeneratedCardGallery({
             </SelectContent>
           </Select>
           <Select value={galleryDensity} onValueChange={(value) => setGalleryDensity(value as GeneratedGalleryDensity)}>
-            <SelectTrigger className="h-8 w-36 text-sm sm:w-40" aria-label="Gallery density">
+            <SelectTrigger className="h-8 w-32 text-sm sm:w-36" aria-label="Card size in generated outputs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {Object.entries(GALLERY_DENSITY_OPTIONS).map(([value, option]) => (
                 <SelectItem key={value} value={value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={galleryColumns} onValueChange={(value) => setGalleryColumns(value as GeneratedGalleryColumns)}>
+            <SelectTrigger className="h-8 w-28 text-sm sm:w-32" aria-label="Cards per row in generated outputs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GALLERY_COLUMN_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

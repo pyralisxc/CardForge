@@ -577,7 +577,8 @@ test('supports a 1000-card generated gallery without rendering every preview at 
   await gotoStudio(page);
 
   await expect(page.getByRole('heading', { name: /Generated Outputs \(1000\)/i })).toBeVisible({ timeout: 45_000 });
-  await expect(page.getByRole('combobox', { name: 'Gallery density', exact: true })).toContainText('Compact grid');
+  await expect(page.getByRole('combobox', { name: 'Card size in generated outputs', exact: true })).toContainText('Small cards');
+  await expect(page.getByRole('combobox', { name: 'Cards per row in generated outputs', exact: true })).toContainText('Auto fit');
   await expect(page.getByText('Showing 1000 matching outputs', { exact: true })).toBeVisible();
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeLessThanOrEqual(70);
   await expect.poll(() => page.locator('.tcg-card-preview').count()).toBeGreaterThan(0);
