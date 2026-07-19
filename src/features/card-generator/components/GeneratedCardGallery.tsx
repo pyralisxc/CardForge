@@ -73,6 +73,7 @@ export function GeneratedCardGallery({
 }: GeneratedCardGalleryProps) {
   const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('compact');
   const [galleryColumns, setGalleryColumns] = useState<GeneratedGalleryColumns>('auto');
+  const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null);
   const scrollParentRef = useRef<HTMLDivElement | null>(null);
   const gridMeasureRef = useRef<HTMLDivElement | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
@@ -226,53 +227,69 @@ export function GeneratedCardGallery({
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    {rowCards.map((cardItem, cardIndex) => (
-                      <div key={cardItem.uniqueId} className="relative group/card">
-                        <div className="relative mx-auto w-fit">
-                          <CardPreview
-                            card={cardItem}
-                            isPrintMode={false}
-                            highlightColor={richTextHighlightColor}
-                            className="mx-auto"
-                            showSizeInfo={rowStart + cardIndex === 0}
-                            onEdit={onEditCardRequest}
-                            targetWidthPx={densityConfig.previewWidthPx}
-                          />
-                          {showPreviewWatermark ? <CardWatermarkOverlay /> : null}
-                        </div>
-                        <button
-                          type="button"
-                          className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-destructive/50 bg-background/90 text-destructive opacity-0 shadow-sm transition-opacity duration-150 hover:bg-destructive hover:text-destructive-foreground focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-destructive group-hover/card:opacity-100"
-                          onClick={() => onRemoveCard(cardItem)}
-                          aria-label={`Remove generated output ${rowStart + cardIndex + 1}`}
-                          title="Remove output"
+                    {rowCards.map((cardItem, cardIndex) => {
+                      const isSelected = selectedOutputId === cardItem.uniqueId;
+                      return (
+                        <div
+                          key={cardItem.uniqueId}
+                          className={`relative rounded-md transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                          data-selected={isSelected ? 'true' : 'false'}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 transition-opacity duration-150 group-hover/card:opacity-100 focus-within:opacity-100">
-                          <ShareCardButton
-                            card={cardItem}
-                            exportMode={exportMode}
-                            exportDpi={exportDpi}
-                            richTextHighlightColor={richTextHighlightColor}
-                            ariaLabel={hasRepeatedExportButtons ? `Share output ${rowStart + cardIndex + 1}` : undefined}
-                          />
-                          <ExportCardImageButton
-                            card={cardItem}
-                            exportMode={exportMode}
-                            exportDpi={exportDpi}
-                            richTextHighlightColor={richTextHighlightColor}
-                            disabled={false}
-                            gateMessage={exportGateMessage}
-                            ariaLabel={
-                              hasRepeatedExportButtons
-                                ? `Export image for output ${rowStart + cardIndex + 1}`
-                                : undefined
-                            }
-                          />
+                          <div className="relative mx-auto w-fit">
+                            <CardPreview
+                              card={cardItem}
+                              isPrintMode={false}
+                              highlightColor={richTextHighlightColor}
+                              className="mx-auto"
+                              showSizeInfo={rowStart + cardIndex === 0}
+                              onSelect={(card) => setSelectedOutputId(card.uniqueId)}
+                              onEdit={onEditCardRequest}
+                              targetWidthPx={densityConfig.previewWidthPx}
+                            />
+                            {showPreviewWatermark ? <CardWatermarkOverlay /> : null}
+                          </div>
+                          {isSelected ? (
+                            <button
+                              type="button"
+                              className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-destructive/50 bg-background/90 text-destructive shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-destructive"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onRemoveCard(cardItem);
+                              }}
+                              aria-label={`Remove generated output ${rowStart + cardIndex + 1}`}
+                              title="Remove output"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                          {isSelected ? (
+                            <div className="absolute bottom-2 right-2 flex gap-2">
+                              <ShareCardButton
+                                card={cardItem}
+                                exportMode={exportMode}
+                                exportDpi={exportDpi}
+                                richTextHighlightColor={richTextHighlightColor}
+                                ariaLabel={hasRepeatedExportButtons ? `Share output ${rowStart + cardIndex + 1}` : undefined}
+                              />
+                              <ExportCardImageButton
+                                card={cardItem}
+                                exportMode={exportMode}
+                                exportDpi={exportDpi}
+                                richTextHighlightColor={richTextHighlightColor}
+                                disabled={false}
+                                gateMessage={exportGateMessage}
+                                iconOnly
+                                ariaLabel={
+                                  hasRepeatedExportButtons
+                                    ? `Download individual output ${rowStart + cardIndex + 1}`
+                                    : 'Download individual card'
+                                }
+                              />
+                            </div>
+                          ) : null}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}
