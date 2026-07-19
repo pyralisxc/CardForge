@@ -30,7 +30,7 @@ export function FounderSocialLinks({ profile, compact = false }: { profile: Soci
   const controlClassName = `${compact ? 'h-10 w-10' : 'h-11 w-11'} inline-flex items-center justify-center rounded-[var(--public-radius)] border border-[var(--public-border)] text-[var(--public-muted-text)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]`;
 
   return (
-    <div className="flex items-center gap-2" aria-label="Follow Cameron">
+    <div className="flex items-center gap-2" aria-label="Follow CardForge Studio">
       {networks.map((network) => network.url ? (
         <a
           key={network.label}

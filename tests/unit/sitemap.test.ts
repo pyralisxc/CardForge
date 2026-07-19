@@ -16,6 +16,14 @@ describe('sitemap', () => {
       'https://cardforges.com/developer',
       'https://cardforges.com/roadmap',
       'https://cardforges.com/cameron',
+      'https://cardforges.com/contact',
+      'https://cardforges.com/accessibility',
+      'https://cardforges.com/privacy',
+      'https://cardforges.com/terms',
+      'https://cardforges.com/creator-pass-terms',
+      'https://cardforges.com/supporter-terms',
+      'https://cardforges.com/refund',
+      'https://cardforges.com/developer-terms',
     ]);
   });
 

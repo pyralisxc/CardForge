@@ -20,6 +20,7 @@ describe('founder social links', () => {
   it('uses safe external links and accessible coming-soon controls', () => {
     const component = source('src/features/public-site/components/FounderSocialLinks.tsx');
 
+    expect(component).toContain('aria-label="Follow CardForge Studio"');
     expect(component).toContain('target="_blank"');
     expect(component).toContain('rel="noopener noreferrer"');
     expect(component).toContain('aria-live="polite"');

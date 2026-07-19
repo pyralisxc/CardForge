@@ -8,6 +8,14 @@ const publicRoutes = [
   '/developer',
   '/roadmap',
   '/cameron',
+  '/contact',
+  '/accessibility',
+  '/privacy',
+  '/terms',
+  '/creator-pass-terms',
+  '/supporter-terms',
+  '/refund',
+  '/developer-terms',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -15,6 +15,7 @@ export const PUBLIC_NAVIGATION = {
     { href: '/account', label: 'Account' },
   ],
   studio: { href: '/studio', label: 'Try the Studio' },
+  founder: { href: '/cameron', label: 'Meet Cameron' },
   footerGroups: [
     {
       label: 'Product',
@@ -54,6 +55,7 @@ export const PUBLIC_NAVIGATION = {
 } as const satisfies {
   primary: ReadonlyArray<PublicNavigationLink>;
   studio: PublicNavigationLink;
+  founder: PublicNavigationLink;
   footerGroups: ReadonlyArray<PublicNavigationGroup>;
 };
 
