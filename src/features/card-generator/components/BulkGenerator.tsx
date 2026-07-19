@@ -15,23 +15,20 @@ import {
   createBulkExampleCsv,
   createBulkExampleJson,
   createBulkExampleStructuredText,
-  createBulkImportContract,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
   getUnmappedRequiredFieldKeys,
   normalizeCsvHeaders,
   parseBulkDataSource,
   resolveDuplicateFieldMapping,
-  shouldBlockBulkGeneration,
 } from '@/features/card-generator/lib/bulkGeneration';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
-import { useProjectStore } from '@/features/project/client';
 import { BulkTemplateSetupPanel } from '@/features/card-generator/components/BulkTemplateSetupPanel';
 import { BulkCsvInputPanel } from '@/features/card-generator/components/BulkCsvInputPanel';
 import { BulkMappingReviewPanel } from '@/features/card-generator/components/BulkMappingReviewPanel';
-import { BulkPreviewValidationPanel } from '@/features/card-generator/components/BulkPreviewValidationPanel';
 import { BulkGenerateActionBar } from '@/features/card-generator/components/BulkGenerateActionBar';
+import { BulkDataResolutionDialog } from '@/features/card-generator/components/BulkDataResolutionDialog';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface BulkGeneratorProps {
@@ -42,7 +39,6 @@ interface BulkGeneratorProps {
   selectedTemplateIdProp: string | null;
 }
 
-type PreviewFilter = 'all' | 'warnings' | 'clean';
 type SupportedFileType = 'auto';
 
 const downloadTextFile = ({
@@ -82,16 +78,12 @@ export function BulkGenerator({
   const [selectedFileType] = useState<SupportedFileType>('auto');
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
-  const [previewOverrides, setPreviewOverrides] = useState<Record<number, Record<string, string>>>({});
-  const [previewFilter, setPreviewFilter] = useState<PreviewFilter>('all');
   const [showAdvancedMapping, setShowAdvancedMapping] = useState(false);
   const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
   const [conflictFocusField, setConflictFocusField] = useState<string | null>(null);
-  const [strictMode, setStrictMode] = useState(false);
+  const [dataReviewOpen, setDataReviewOpen] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const richTextHighlightColor = useProjectStore((state) => state.richTextHighlightColor);
-  const setRichTextHighlightColorAction = useProjectStore((state) => state.setRichTextHighlightColor);
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateIdProp),
@@ -106,11 +98,6 @@ export function BulkGenerator({
   const bulkFieldDefinitions = useMemo(
     () => fieldDefinitions.filter((field) => !field.isStaticBaseText),
     [fieldDefinitions]
-  );
-
-  const fieldDefinitionMap = useMemo(
-    () => new Map(bulkFieldDefinitions.map((field) => [field.key, field])),
-    [bulkFieldDefinitions]
   );
 
   const exampleCSV = useMemo(
@@ -147,24 +134,16 @@ export function BulkGenerator({
       rows: parsedRows,
       columnMapping,
       fieldDefinitions: bulkFieldDefinitions,
-      previewOverrides,
+      previewOverrides: {},
+      maxPreviewRows: Math.min(parsedRows.length, 25),
     });
-  }, [bulkFieldDefinitions, columnMapping, parsedRows, previewOverrides, selectedTemplate]);
+  }, [bulkFieldDefinitions, columnMapping, parsedRows, selectedTemplate]);
 
-  const filteredPreviewRows = useMemo(() => {
-    if (previewFilter === 'warnings') {
-      return bulkPreview.rows.filter((row) => row.warnings.length > 0);
-    }
-    if (previewFilter === 'clean') {
-      return bulkPreview.rows.filter((row) => row.warnings.length === 0);
-    }
-    return bulkPreview.rows;
-  }, [bulkPreview.rows, previewFilter]);
-
-  const previewWarningCount = useMemo(
-    () => bulkPreview.rows.reduce((count, row) => count + row.warnings.length, 0),
-    [bulkPreview.rows]
-  );
+  const reviewIssues = useMemo(() => Array.from(new Set([
+    ...blockingIssues,
+    ...bulkPreview.globalWarnings,
+    ...bulkPreview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
+  ])), [blockingIssues, bulkPreview.globalWarnings, bulkPreview.rows]);
 
   const mappedColumnCount = useMemo(
     () => csvHeaders.filter((header) => !!columnMapping[header]).length,
@@ -222,12 +201,6 @@ export function BulkGenerator({
     return headers;
   }, [columnMapping, conflictFocusField, csvHeaders, showUnmappedOnly]);
 
-  const hasBlockingWarnings = shouldBlockBulkGeneration(
-    strictMode,
-    bulkPreview.globalWarnings.length,
-    previewWarningCount
-  );
-
   useEffect(() => {
     if (!bulkDataInput.trim() || !selectedTemplate) {
       setCsvHeaders([]);
@@ -247,8 +220,6 @@ export function BulkGenerator({
   }, [bulkDataInput, selectedFileType, selectedTemplate, bulkFieldDefinitions]);
 
   useEffect(() => {
-    setPreviewOverrides({});
-    setPreviewFilter('all');
     setShowAdvancedMapping(false);
     setShowUnmappedOnly(false);
     setConflictFocusField(null);
@@ -286,22 +257,12 @@ export function BulkGenerator({
   const handleResolveDuplicateRequiredField = useCallback((fieldKey: string) => {
     setColumnMapping((current) => resolveDuplicateFieldMapping(current, fieldKey));
     setConflictFocusField(null);
-    const fieldLabel = fieldDefinitionMap.get(fieldKey)?.label ?? fieldKey;
+    const fieldLabel = bulkFieldDefinitions.find((field) => field.key === fieldKey)?.label ?? fieldKey;
     toast({
       title: 'Duplicate mapping resolved',
       description: `${fieldLabel} now keeps its first mapped column and ignores extra duplicates.`,
     });
-  }, [fieldDefinitionMap, toast]);
-
-  const applyPreviewOverride = useCallback((rowNumber: number, fieldKey: string, value: string) => {
-    setPreviewOverrides((previous) => ({
-      ...previous,
-      [rowNumber]: {
-        ...(previous[rowNumber] || {}),
-        [fieldKey]: value,
-      },
-    }));
-  }, []);
+  }, [bulkFieldDefinitions, toast]);
 
   const handleGenerate = async () => {
     if (!selectedTemplate) {
@@ -320,20 +281,13 @@ export function BulkGenerator({
       });
       return;
     }
-    if (blockingIssues.length > 0) {
+    if (reviewIssues.length > 0) {
       toast({
         title: 'Bulk generation blocked',
-        description: withNextStep(blockingIssues[0], 'Fix the blocking CSV issue in Preview & Validation, then generate again.'),
+        description: reviewIssues[0],
         variant: 'destructive',
       });
-      return;
-    }
-    if (hasBlockingWarnings) {
-      toast({
-        title: ERROR_COPY.strictModeBlocked.title,
-        description: withNextStep('Warnings are still present in mapping or required fields.', 'Use Preview & Validation quick fixes, or disable Strict Mode to continue.'),
-        variant: 'destructive',
-      });
+      setDataReviewOpen(true);
       return;
     }
 
@@ -357,16 +311,16 @@ export function BulkGenerator({
         fieldDefinitions,
         rows,
         columnMapping,
-        previewOverrides,
+        previewOverrides: {},
       });
 
       onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
-        toast({ title: 'Bulk generation complete', description: `${generatedCards.length} outputs were added. Next step: review outputs and export.` });
+        toast({ title: 'Bulk generation complete', description: `${generatedCards.length} outputs were added. Next step: edit individual cards or export.` });
       } else {
         toast({
         title: 'No outputs were generated',
-          description: withNextStep('No rows produced card output.', 'Check column mapping and row data in Preview & Validation, then try again.'),
+          description: withNextStep('No rows produced card output.', 'Check your data and field matching, then try again.'),
           variant: 'default',
         });
       }
@@ -402,7 +356,30 @@ export function BulkGenerator({
       reader.onload = (loadEvent) => {
         const text = loadEvent.target?.result as string;
         setBulkDataInput(text);
-        toast({ title: 'Data source loaded', description: `Loaded ${file.name}. Next step: review mapping and generate outputs.` });
+        try {
+          const rows = parseBulkDataSource(text.trim(), selectedFileType);
+          const headers = normalizeCsvHeaders(rows[0] || []);
+          const mapping = buildInitialColumnMapping(headers, bulkFieldDefinitions);
+          const preview = createBulkPreview({
+            rows,
+            columnMapping: mapping,
+            fieldDefinitions: bulkFieldDefinitions,
+            previewOverrides: {},
+            maxPreviewRows: Math.min(rows.length, 25),
+          });
+          const issues = [
+            ...getBulkGenerationBlockingIssues(headers, rows, mapping),
+            ...preview.globalWarnings,
+            ...preview.rows.flatMap((row) => row.warnings.map((warning) => `Row ${row.rowNumber}: ${warning}`)),
+          ];
+          if (issues.length > 0) {
+            setDataReviewOpen(true);
+          } else {
+            toast({ title: 'Data ready', description: `${Math.max(0, rows.length - 1)} card${rows.length === 2 ? '' : 's'} are ready to generate.` });
+          }
+        } catch {
+          setDataReviewOpen(true);
+        }
       };
       reader.onerror = () => {
         toast({
@@ -499,35 +476,11 @@ export function BulkGenerator({
     toast({ title: 'Text starter downloaded', description: `${fileName} is ready for a no-spreadsheet bulk workflow.` });
   };
 
-  const handleDownloadContractJson = useCallback(() => {
-    if (!selectedTemplate) {
-      toast({
-        title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('A template is required before downloading contract JSON.', 'Choose a template in step 1 and try again.'),
-        variant: 'default',
-      });
-      return;
-    }
-
-    const contract = createBulkImportContract({
-      template: selectedTemplate,
-      fieldDefinitions: bulkFieldDefinitions,
-    });
-
-    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'template');
-    downloadTextFile({
-      content: JSON.stringify(contract, null, 2),
-      fileName: `contract_${safeTemplateName}.json`,
-      mimeType: 'application/json',
-    });
-    toast({ title: 'Contract JSON downloaded', description: 'Use this contract as the source of truth for bulk validation and external pipelines.' });
-  }, [bulkFieldDefinitions, selectedTemplate, toast]);
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Bulk Import</CardTitle>
-        <CardDescription>Run a contract-driven data workflow with mapping, preview, validation, and export-ready output.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Make cards from a list</CardTitle>
+        <CardDescription>Choose a card design, add your data, and generate cards you can edit individually.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <BulkTemplateSetupPanel
@@ -537,7 +490,6 @@ export function BulkGenerator({
           onDownloadExampleCsv={handleDownloadTemplateCSV}
           onDownloadExampleJson={handleDownloadTemplateJSON}
           onDownloadStructuredText={handleDownloadStructuredText}
-          onDownloadContractJson={handleDownloadContractJson}
         />
 
         <BulkCsvInputPanel
@@ -552,50 +504,42 @@ export function BulkGenerator({
           onFileUpload={handleFileUpload}
         />
 
-        {csvHeaders.length > 0 && selectedTemplate && (
-          <BulkMappingReviewPanel
-            headers={csvHeaders}
-            visibleHeaders={visibleCsvHeaders}
-            columnMapping={columnMapping}
-            fieldDefinitions={bulkFieldDefinitions}
-            mappedColumnCount={mappedColumnCount}
-            showAdvancedMapping={showAdvancedMapping}
-            showUnmappedOnly={showUnmappedOnly}
-            conflictFocusField={conflictFocusField}
-            duplicateRequiredFields={duplicateRequiredFields}
-            duplicateRequiredFieldCounts={duplicateRequiredFieldCounts}
-            unmappedRequiredFields={unmappedRequiredFields}
-            onToggleAdvancedMapping={() => setShowAdvancedMapping((prev) => !prev)}
-            onAutoMapAgain={handleAutoMapAgain}
-            onAutoMapRequiredFields={handleAutoMapRequiredFields}
-            onToggleShowUnmappedOnly={() => setShowUnmappedOnly((prev) => !prev)}
-            onSetConflictFocusField={setConflictFocusField}
-            onResolveDuplicateRequiredField={handleResolveDuplicateRequiredField}
-            onColumnMappingChange={setColumnMapping}
-          />
-        )}
+        {bulkDataInput.trim() ? (
+          <div className={`flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm ${reviewIssues.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/30 bg-emerald-500/10'}`}>
+            <span>{reviewIssues.length > 0 ? `We found ${reviewIssues.length} item${reviewIssues.length === 1 ? '' : 's'} to fix before generating.` : `Data ready — ${Math.max(0, parsedRows.length - 1)} card${parsedRows.length === 2 ? '' : 's'} will be generated.`}</span>
+            {reviewIssues.length > 0 ? <button type="button" className="font-medium underline" onClick={() => setDataReviewOpen(true)}>Review data</button> : null}
+          </div>
+        ) : null}
 
-        <BulkPreviewValidationPanel
-          rows={bulkPreview.rows}
-          filteredRows={filteredPreviewRows}
-          blockingIssues={blockingIssues}
-          globalWarnings={bulkPreview.globalWarnings}
-          previewFilter={previewFilter}
-          previewWarningCount={previewWarningCount}
-          strictMode={strictMode}
-          hasBlockingWarnings={hasBlockingWarnings}
-          fieldDefinitionMap={fieldDefinitionMap}
-          richTextHighlightColor={richTextHighlightColor}
-          onSetPreviewFilter={setPreviewFilter}
-          onApplyPreviewOverride={applyPreviewOverride}
-          onSetRichTextHighlightColor={setRichTextHighlightColorAction}
-          onSetStrictMode={setStrictMode}
-        />
+        <BulkDataResolutionDialog open={dataReviewOpen} issues={reviewIssues.length > 0 ? blockingIssues : ['We could not read this data source. Check the file format and field names.']} onOpenChange={setDataReviewOpen}>
+          {csvHeaders.length > 0 && selectedTemplate ? (
+            <BulkMappingReviewPanel
+              headers={csvHeaders}
+              visibleHeaders={visibleCsvHeaders}
+              columnMapping={columnMapping}
+              fieldDefinitions={bulkFieldDefinitions}
+              mappedColumnCount={mappedColumnCount}
+              showAdvancedMapping={showAdvancedMapping}
+              showUnmappedOnly={showUnmappedOnly}
+              conflictFocusField={conflictFocusField}
+              duplicateRequiredFields={duplicateRequiredFields}
+              duplicateRequiredFieldCounts={duplicateRequiredFieldCounts}
+              unmappedRequiredFields={unmappedRequiredFields}
+              onToggleAdvancedMapping={() => setShowAdvancedMapping((prev) => !prev)}
+              onAutoMapAgain={handleAutoMapAgain}
+              onAutoMapRequiredFields={handleAutoMapRequiredFields}
+              onToggleShowUnmappedOnly={() => setShowUnmappedOnly((prev) => !prev)}
+              onSetConflictFocusField={setConflictFocusField}
+              onResolveDuplicateRequiredField={handleResolveDuplicateRequiredField}
+              onColumnMappingChange={setColumnMapping}
+            />
+          ) : null}
+        </BulkDataResolutionDialog>
 
         <BulkGenerateActionBar
           isLoading={isLoading}
-          disabled={isLoading || !selectedTemplateIdProp || !bulkDataInput.trim() || hasBlockingWarnings || blockingIssues.length > 0}
-          helperText={blockingIssues[0] ?? (hasBlockingWarnings ? 'Strict Mode is blocking generation until warnings are resolved.' : undefined)}
+          disabled={isLoading || !selectedTemplateIdProp || !bulkDataInput.trim() || reviewIssues.length > 0}
+          helperText={reviewIssues[0]}
           onGenerate={handleGenerate}
         />
       </CardContent>
