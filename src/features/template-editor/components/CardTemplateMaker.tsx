@@ -1,7 +1,7 @@
 "use client";
-
 import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Menu, PanelRight, Save, X } from 'lucide-react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,10 +31,9 @@ import { TemplateEditorInspectorSidebar } from '@/features/template-editor/compo
 import { useTemplateEditorSession } from '@/features/template-editor/hooks/useTemplateEditorSession';
 import { useTemplateEditorVariables } from '@/features/template-editor/hooks/useTemplateEditorVariables';
 import { useTemplateEditorElements } from '@/features/template-editor/hooks/useTemplateEditorElements';
-import { useTemplateEditorViewport, type MobileMakerPanel } from '@/features/template-editor/hooks/useTemplateEditorViewport';
+import { useTemplateEditorViewport } from '@/features/template-editor/hooks/useTemplateEditorViewport';
 import { useTemplateEditorCommands } from '@/features/template-editor/hooks/useTemplateEditorCommands';
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
-
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
@@ -61,13 +60,6 @@ interface CardTemplateMakerProps {
   onReturnToTemplateMaker: () => void;
   projectFileGateMessage?: string | null;
 }
-
-const MOBILE_MAKER_PANELS: Array<{ value: MobileMakerPanel; label: string }> = [
-  { value: 'canvas', label: 'Canvas' },
-  { value: 'library', label: 'Templates' },
-  { value: 'inspector', label: 'Inspector' },
-];
-
 export function CardTemplateMaker({
   canUseProjectFiles,
   showCardWatermark,
@@ -363,27 +355,40 @@ export function CardTemplateMaker({
           onTogglePreview={() => setPreviewMode(value => !value)}
         />
 
-        <div className="cardforge-maker-mobile-switcher no-print border-b border-[#252b35] bg-[#080c12] p-2 lg:hidden" role="group" aria-label="Layout Studio surface">
-          {MOBILE_MAKER_PANELS.map((panel) => (
-            <Button
-              key={panel.value}
-              type="button"
-              size="sm"
-              variant="ghost"
-              aria-pressed={mobilePanel === panel.value}
-              className={cn(
-                'h-10 flex-1 rounded-[4px] border border-[#2d3340] text-xs font-semibold text-[#c8b07f]',
-                mobilePanel === panel.value && 'border-[#d5ad54] bg-[#24180e] text-[#fff1c7]'
-              )}
-              onClick={() => setMobilePanel(panel.value)}
-            >
-              {panel.label}
-            </Button>
-          ))}
+        <div className="cardforge-maker-mobile-switcher no-print lg:hidden" role="toolbar" aria-label="Canvas controls">
+          <Button type="button" size="icon" variant="outline" aria-label="Open editor menu" className={cn(makerTheme.toolButton, 'h-10 w-10')} onClick={() => setMobilePanel('library')}>
+            <Menu className="h-5 w-5" />
+          </Button>
+          <span className="min-w-0 flex-1 px-1 text-center">
+            <span className="block truncate text-xs font-semibold text-[#f3ead7]">{currentTemplate.name || 'Untitled card'}</span>
+            <span className={cn('mt-0.5 block text-[10px] uppercase tracking-[0.12em]', isDirty ? 'text-[#f5d27b]' : 'text-[#8f95a3]')}>{isDirty ? 'Unsaved' : 'Ready'}</span>
+          </span>
+          <Button type="button" size="icon" variant="outline" aria-label="Open inspector" className={cn(makerTheme.toolButton, 'h-10 w-10')} onClick={() => {
+            setActiveInspectorTab('element');
+            setMobilePanel('inspector');
+          }}>
+            <PanelRight className="h-5 w-5" />
+          </Button>
+          <Button type="button" size="icon" aria-label="Save template" className="h-10 w-10 rounded-[5px] border border-[#7f6225] bg-[#d5ad54] text-[#11100c] hover:bg-[#f0ca71]" onClick={() => handleSave()}>
+            <Save className="h-5 w-5" />
+          </Button>
         </div>
 
         <div className="cardforge-maker-grid grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {developerFontFaceCss && <style>{developerFontFaceCss}</style>}
+          {mobilePanel !== 'canvas' ? (
+            <button type="button" className="cardforge-mobile-overlay-backdrop lg:hidden" aria-label="Close open editor panel" onClick={() => setMobilePanel('canvas')} />
+          ) : null}
+          {mobilePanel === 'library' ? (
+            <Button type="button" size="icon" variant="outline" aria-label="Close editor menu" className="cardforge-mobile-overlay-close cardforge-mobile-menu-close lg:hidden" onClick={() => setMobilePanel('canvas')}>
+              <X className="h-5 w-5" />
+            </Button>
+          ) : null}
+          {mobilePanel === 'inspector' ? (
+            <Button type="button" size="icon" variant="outline" aria-label="Close inspector" className="cardforge-mobile-overlay-close cardforge-mobile-inspector-close lg:hidden" onClick={() => setMobilePanel('canvas')}>
+              <X className="h-5 w-5" />
+            </Button>
+          ) : null}
           <TemplateEditorLibrarySidebar
             backFaceTemplates={backFaceTemplates}
             canUseProjectFiles={canUseProjectFiles}

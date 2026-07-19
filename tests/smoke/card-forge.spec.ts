@@ -842,14 +842,17 @@ test('supports touch-sized panel scrolling and canvas gesture ownership', async 
     expect(metrics.resizeHandleSize, `${viewport.name} resize handles stay touchable after canvas scaling`).toBeGreaterThanOrEqual(16);
     expect(metrics.canvasTouchAction, `${viewport.name} canvas owns custom pinch zoom and two-finger pan gestures`).toBe('none');
 
-    await page.getByRole('button', { name: 'Zoom in (+)' }).click();
-    await page.getByRole('button', { name: 'Set canvas to 100 percent' }).click();
-    await expect(page.getByText(/100% \//)).toBeVisible();
-    await page.getByRole('button', { name: 'Center canvas' }).click();
+    const canvasBehindOverlay = () => page.locator('.cardforge-maker-canvas').evaluate((element) => (
+      element.getBoundingClientRect().height > 0 && getComputedStyle(element).display !== 'none'
+    ));
 
-    for (const panelName of ['Templates', 'Inspector']) {
-      await page.getByRole('button', { name: panelName, exact: true }).click();
+    for (const panel of [
+      { open: 'Open editor menu', close: 'Close editor menu', name: 'Menu' },
+      { open: 'Open inspector', close: 'Close inspector', name: 'Inspector' },
+    ]) {
+      await page.getByRole('button', { name: panel.open }).click();
       await page.waitForTimeout(250);
+      await expect.poll(canvasBehindOverlay).toBe(true);
       const panelMetrics = await page.evaluate(() => {
         const scrollRoot = [...document.querySelectorAll('.cardforge-maker-scroll')]
           .find((root) => root.getBoundingClientRect().height > 0);
@@ -864,12 +867,13 @@ test('supports touch-sized panel scrolling and canvas gesture ownership', async 
           scrollTop: viewport?.scrollTop ?? 0,
         };
       });
-      expect(panelMetrics.rootHeight, `${viewport.name} ${panelName} panel has usable height`).toBeGreaterThan(180);
-      expect(panelMetrics.viewportHeight, `${viewport.name} ${panelName} viewport fills root`).toBe(panelMetrics.rootHeight);
-      expect(panelMetrics.maxScroll, `${viewport.name} ${panelName} panel has scrollable content`).toBeGreaterThan(200);
-      expect(panelMetrics.overflowY, `${viewport.name} ${panelName} allows vertical scrolling`).toBe('auto');
-      expect(panelMetrics.touchAction, `${viewport.name} ${panelName} keeps touch scroll`).toContain('pan-y');
-      expect(panelMetrics.scrollTop, `${viewport.name} ${panelName} accepts scroll`).toBeGreaterThan(0);
+      expect(panelMetrics.rootHeight, `${viewport.name} ${panel.name} overlay has usable height`).toBeGreaterThan(180);
+      expect(panelMetrics.viewportHeight, `${viewport.name} ${panel.name} overlay viewport fills its panel`).toBe(panelMetrics.rootHeight);
+      expect(panelMetrics.maxScroll, `${viewport.name} ${panel.name} overlay has scrollable content`).toBeGreaterThan(200);
+      expect(panelMetrics.overflowY, `${viewport.name} ${panel.name} overlay allows vertical scrolling`).toBe('auto');
+      expect(panelMetrics.touchAction, `${viewport.name} ${panel.name} overlay keeps touch scroll`).toContain('pan-y');
+      expect(panelMetrics.scrollTop, `${viewport.name} ${panel.name} overlay accepts scroll`).toBeGreaterThan(0);
+      await page.getByRole('button', { name: panel.close }).click();
     }
   }
 });
