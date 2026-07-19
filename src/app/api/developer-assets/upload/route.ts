@@ -1,31 +1,20 @@
 import { nanoid } from 'nanoid';
 
-import { resolveAccountEntitlement } from '@/features/account/server';
+import { getCurrentCardforgeUserAccess, resolveAccountEntitlement } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { isDeveloperAssetType, type DeveloperAssetType } from '@/features/developer-assets/server';
-import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import {
+  DEVELOPER_ASSET_STORAGE_BUCKET,
+  DEVELOPER_ASSET_UPLOAD_ALLOWED_MIME_TYPES,
+  DEVELOPER_ASSET_UPLOAD_MAX_BYTES,
+  isDeveloperAssetType,
+  type DeveloperAssetType,
+} from '@/features/developer-assets/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 
-const BUCKET = 'cardforge-developer-assets';
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set([
-  'image/svg+xml',
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'application/json',
-  'font/woff2',
-  'font/woff',
-  'font/ttf',
-  'font/otf',
-  'application/font-woff',
-  'application/x-font-ttf',
-  'application/x-font-otf',
-  'application/octet-stream',
-]);
+const ALLOWED_MIME_TYPES = new Set<string>(DEVELOPER_ASSET_UPLOAD_ALLOWED_MIME_TYPES);
 const ALLOWED_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp', 'json', 'woff2', 'woff', 'ttf', 'otf']);
 const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
 const NON_FONT_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp', 'json']);
@@ -110,7 +99,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) {
       return createApiErrorResponse(400, 'developer_asset_request_invalid', 'Choose a source file to upload.');
     }
-    if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+    if (file.size <= 0 || file.size > DEVELOPER_ASSET_UPLOAD_MAX_BYTES) {
       return createApiErrorResponse(413, 'payload_too_large', 'Developer asset files must be 10 MB or smaller.');
     }
     const extension = getFileExtension(file);
@@ -127,7 +116,7 @@ export async function POST(request: Request) {
     const storagePath = `${access.user.id}/${assetType}/${Date.now()}-${safeStem}-${nanoid(8)}.${extension}`;
     const { error: uploadError } = await supabase
       .storage
-      .from(BUCKET)
+      .from(DEVELOPER_ASSET_STORAGE_BUCKET)
       .upload(storagePath, await file.arrayBuffer(), {
         contentType: file.type || 'application/octet-stream',
         upsert: false,
@@ -138,9 +127,9 @@ export async function POST(request: Request) {
       return createApiErrorResponse(500, 'developer_asset_unavailable', 'Unable to upload developer asset file.');
     }
 
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+    const { data } = supabase.storage.from(DEVELOPER_ASSET_STORAGE_BUCKET).getPublicUrl(storagePath);
     return createNoStoreJsonResponse({
-      bucket: BUCKET,
+      bucket: DEVELOPER_ASSET_STORAGE_BUCKET,
       path: storagePath,
       sourceUrl: data.publicUrl,
       previewUrl: data.publicUrl,
