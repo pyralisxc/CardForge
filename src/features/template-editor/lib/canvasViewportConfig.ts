@@ -11,6 +11,6 @@ export const CANVAS_ZOOM = {
   actualSize: 1,
 } as const;
 
-export const RESIZE_HANDLE_SCREEN_SIZE = 28;
+export const RESIZE_HANDLE_SCREEN_SIZE = 40;
 export const RESIZE_HANDLE_MIN_CANVAS_SIZE = 10;
 export const RESIZE_HANDLE_MAX_CANVAS_SIZE = 128;

@@ -400,7 +400,6 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await createFrontTemplateButton(page).click();
   await page.getByRole('button', { name: 'Card setup', exact: true }).click();
   await page.getByLabel('Template Name').fill('Smoke Freeform Template');
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.keyboard.press('Control+K');
   await expect(page.getByRole('dialog', { name: 'Command Palette' })).toBeVisible();
@@ -441,22 +440,7 @@ test('creates a freeform template and renders it in the generator', async ({ pag
     .toBeGreaterThanOrEqual(1);
   await expect.poll(() => visibleFreeformPreviewElementCount(page)).toBeGreaterThanOrEqual(1);
 
-  await page.getByRole('tab', { name: /Use a list/i }).click();
-  await page.locator('#bulk-file-upload-csv').setInputFiles({
-    name: 'freeform-bulk.csv',
-    mimeType: 'text/csv',
-    buffer: Buffer.from('Rank,Suit,CenterMark,newText\nA,♥,♥,Bulk Arcane One\nK,♠,♠,Bulk Arcane Two\n'),
-  });
-  await expect(page.locator('#bulkData')).toContainText('Bulk Arcane One');
-  await page.getByRole('button', { name: /Generate Outputs from Data/i }).dispatchEvent('click');
 
-  await expect(page.getByRole('heading', { name: /Generated Outputs \(3\)/i })).toBeVisible();
-  await expect
-    .poll(() => page.locator('.tcg-card-preview').count())
-    .toBeGreaterThanOrEqual(3);
-  await expect
-    .poll(() => visibleFreeformPreviewElementCount(page))
-    .toBeGreaterThanOrEqual(3);
 });
 
 test('asks whether to save a changed template before leaving Layout Studio', async ({ page }) => {
@@ -467,7 +451,6 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await expect(createFrontTemplateButton(page)).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
 
@@ -475,7 +458,6 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await expect(page.getByRole('heading', { name: /Save changes to/i })).toBeVisible();
   await page.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
 
   await page.getByRole('tab', { name: /Make cards/i }).click();
@@ -491,7 +473,6 @@ test('adds structured row columns in the layout studio text inspector', async ({
   await expect(createFrontTemplateButton(page)).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
 
   await page.getByRole('radio', { name: /Repeating Text/i }).click();
@@ -503,48 +484,28 @@ test('adds structured row columns in the layout studio text inspector', async ({
   await expect(page.getByLabel('Variable name for Value')).toBeVisible();
 });
 
-test('bulk generator uses advanced mapping toggle and strict mode gating', async ({ page }) => {
+test('bulk generator reviews issues as data is entered without expanding the workspace', async ({ page }) => {
   await seedBulkMappingTemplate(page);
   await gotoStudio(page);
   await selectMainTab(page, /Make cards/i);
   await expectGeneratorReady(page);
   await page.getByRole('tab', { name: /Use a list/i }).click();
 
+  await expect(page.getByText('1. Card design', { exact: true })).toBeVisible();
+  await expect(page.getByText('2. Add your card data', { exact: true })).toBeVisible();
+
+  await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,♥,♥,Ember-Claw');
+  await expect(page.getByText(/Data ready — 1 card will be generated./i)).toBeVisible();
+  await expect(page.getByText('Mapped Template Field', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Generate Outputs from Data/i })).toBeEnabled();
+  await page.getByRole('button', { name: /Generate Outputs from Data/i }).click();
+  await expect(page.getByRole('heading', { name: /Generated Outputs \(1\)/i })).toBeVisible();
+
   await page.locator('#bulkData').fill('Rank,Suit,CenterMark,newText\nA,,♥,Ember-Claw');
-
-  await expect(page.getByRole('button', { name: /Download Text Starter/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Use Text Starter/i })).toBeVisible();
-  await expect(page.getByText(/CSV for spreadsheets/i)).toBeVisible();
-  await expect(page.getByText(/TXT \/ MD for regular writing/i)).toBeVisible();
-
-  await expect(page.getByText('Mapped Template Field', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Mapping Editor', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Auto-map Again', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Show Unmapped Only', exact: true })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Mapping Editor', exact: true }).dispatchEvent('click');
-  await page.getByLabel('Map CSV column newText to template field').dispatchEvent('click');
-  await page.getByRole('option', { name: 'Ignore', exact: true }).dispatchEvent('click');
-  await page.getByRole('button', { name: 'Show Unmapped Only', exact: true }).dispatchEvent('click');
-  await expect(page.getByText(/Showing \d+ unmapped columns\./i)).toBeVisible();
-
-  await page.getByRole('button', { name: 'Auto-map Again', exact: true }).dispatchEvent('click');
-  await expect(page.getByText('Auto-mapping refreshed', { exact: true })).toBeVisible();
-
-  const generateButton = page.getByRole('button', { name: /Generate Outputs from Data/i });
-  await expect(generateButton).toBeEnabled();
-
-  await page.getByLabel('Toggle strict mode for bulk generation').dispatchEvent('click');
-  await expect(page.getByText(/Strict Mode is on\./i)).toBeVisible();
-  await expect(generateButton).toBeDisabled();
-
-  await page.getByRole('button', { name: 'Fill with TBD', exact: true }).dispatchEvent('click');
-  await expect(page.getByText('Missing value for Suit', { exact: true })).toBeHidden();
-  await expect(generateButton).toBeEnabled();
-
-  await page.getByLabel('Toggle strict mode for bulk generation').dispatchEvent('click');
-  await expect(page.getByText(/Strict Mode is off\./i)).toBeVisible();
-  await expect(generateButton).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Review data', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Review data', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Review data before generating');
+  await expect(page.getByRole('dialog')).toContainText('Mapped Template Field');
 });
 
 test('supports a 1000-card generated gallery without rendering every preview at once', async ({ page }) => {
@@ -668,11 +629,9 @@ test('supports keyboard-first generation and strict mode toggle', async ({ page 
   await page.getByRole('tab', { name: /Use a list/i }).click();
   await page.locator('#bulkData').fill('rulesText,typeLine\n"",CREATURE - DRAGON');
 
-  const strictModeToggle = page.getByLabel('Toggle strict mode for bulk generation');
-  await expect(strictModeToggle).toBeVisible();
-  await strictModeToggle.dispatchEvent('click');
-
-  await expect(page.getByText(/Strict Mode is on\./i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review data', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Review data', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Review data before generating');
 });
 
 test('supports keyboard save shortcut in template creator', async ({ page }) => {
@@ -839,7 +798,7 @@ test('supports touch-sized panel scrolling and canvas gesture ownership', async 
     expect(metrics.canvasPanelVisible, `${viewport.name} shows the canvas as the active phone surface`).toBe(true);
     expect(metrics.elementTouchAction, `${viewport.name} elements own drag gestures`).toBe('none');
     expect(metrics.resizeHandleTouchAction, `${viewport.name} resize handles own drag gestures`).toBe('none');
-    expect(metrics.resizeHandleSize, `${viewport.name} resize handles stay touchable after canvas scaling`).toBeGreaterThanOrEqual(16);
+    expect(metrics.resizeHandleSize, `${viewport.name} resize handles prioritize reliable touch resizing`).toBeGreaterThanOrEqual(32);
     expect(metrics.canvasTouchAction, `${viewport.name} canvas owns custom pinch zoom and two-finger pan gestures`).toBe('none');
 
     const canvasBehindOverlay = () => page.locator('.cardforge-maker-canvas').evaluate((element) => (

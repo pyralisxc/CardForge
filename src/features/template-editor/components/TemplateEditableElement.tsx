@@ -259,7 +259,7 @@ export function TemplateEditableElement({
               aria-label={resizeHandle.label}
               data-cardforge-resize-handle="true"
               className={cn(
-                'absolute rounded-[2px] border border-[#d5ad54] bg-[#090b0f] shadow-[0_0_12px_rgba(213,173,84,0.45)]',
+                'absolute border-0 bg-transparent shadow-none before:absolute before:inset-[30%] before:rounded-[2px] before:border before:border-[#d5ad54] before:bg-[#090b0f] before:shadow-[0_0_12px_rgba(213,173,84,0.45)]',
                 resizeHandle.className
               )}
               style={{ cursor: resizeHandle.cursor, height: resizeHandleSize, width: resizeHandleSize }}

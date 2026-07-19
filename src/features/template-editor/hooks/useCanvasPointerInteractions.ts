@@ -14,10 +14,11 @@ import {
 } from '@/features/template-editor/lib/canvasPointerMath';
 
 type DragState =
-  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean }
-  | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean };
+  | { mode: 'move'; id: string; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number }
+  | { mode: 'resize'; id: string; handle: ResizeHandle; startX: number; startY: number; original: FreeformCardElement; childOriginals: Map<string, FreeformCardElement>; hasMoved: boolean; startSlop: number };
 
-const DRAG_START_SLOP = 3;
+const MOUSE_DRAG_START_SLOP = 3;
+const TOUCH_DRAG_START_SLOP = 10;
 
 interface UseCanvasPointerInteractionsInput {
   canvas: FreeformCanvas;
@@ -76,7 +77,7 @@ export function useCanvasPointerInteractions({
     }
     const descendantIds = getDescendantIds(targetElement.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
-    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals, hasMoved: false };
+    dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals, hasMoved: false, startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }, [canvas.elements, getCanvasPoint, previewMode, selectElement, selectedElementId]);
 
@@ -88,7 +89,7 @@ export function useCanvasPointerInteractions({
     const point = getCanvasPoint(event);
     const descendantIds = getDescendantIds(element.id, canvas.elements);
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
-    dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals, hasMoved: false };
+    dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals, hasMoved: false, startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }, [canvas.elements, getCanvasPoint, previewMode, selectElement]);
 
@@ -102,7 +103,7 @@ export function useCanvasPointerInteractions({
     const deltaY = point.y - dragState.startY;
     const movement = Math.hypot(deltaX, deltaY);
     if (!dragState.hasMoved) {
-      if (movement < DRAG_START_SLOP) return;
+      if (movement < dragState.startSlop) return;
       dragState.hasMoved = true;
       recordTemplateHistory(currentTemplate);
     }
