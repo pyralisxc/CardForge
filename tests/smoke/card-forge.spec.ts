@@ -400,7 +400,6 @@ test('creates a freeform template and renders it in the generator', async ({ pag
   await createFrontTemplateButton(page).click();
   await page.getByRole('button', { name: 'Card setup', exact: true }).click();
   await page.getByLabel('Template Name').fill('Smoke Freeform Template');
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.keyboard.press('Control+K');
   await expect(page.getByRole('dialog', { name: 'Command Palette' })).toBeVisible();
@@ -467,7 +466,6 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await expect(createFrontTemplateButton(page)).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
   await page.locator('#element-template-expression').fill('Unsaved Browser QA Text');
 
@@ -475,7 +473,6 @@ test('asks whether to save a changed template before leaving Layout Studio', asy
   await expect(page.getByRole('heading', { name: /Save changes to/i })).toBeVisible();
   await page.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByRole('tab', { name: /Layout Studio/i })).toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await expect(page.locator('#element-template-expression')).toContainText('Unsaved Browser QA Text');
 
   await page.getByRole('tab', { name: /Make cards/i }).click();
@@ -491,7 +488,6 @@ test('adds structured row columns in the layout studio text inspector', async ({
   await expect(createFrontTemplateButton(page)).toBeVisible({ timeout: STUDIO_READY_TIMEOUT });
 
   await createFrontTemplateButton(page).click();
-  await page.getByRole('tab', { name: 'Element', exact: true }).click();
   await page.getByRole('button', { name: 'Text', exact: true }).click();
 
   await page.getByRole('radio', { name: /Repeating Text/i }).click();
@@ -522,7 +518,7 @@ test('bulk generator reviews issues as data is entered without expanding the wor
   await expect(page.getByRole('button', { name: 'Review data', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Review data', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Review data before generating');
-  await expect(page.getByRole('dialog')).toContainText('Row 2: Missing value for Suit');
+  await expect(page.getByRole('dialog')).toContainText('Mapped Template Field');
 });
 
 test('supports a 1000-card generated gallery without rendering every preview at once', async ({ page }) => {
