@@ -21,7 +21,7 @@ import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
   title: 'Build Complete Card Sets',
-  description: 'Design one card, add your list, and let CardForge build the complete set in your browser.',
+  description: 'Create highly customized card sets from reusable layouts and structured data, then review and export the whole set in your browser.',
   path: '/',
 });
 

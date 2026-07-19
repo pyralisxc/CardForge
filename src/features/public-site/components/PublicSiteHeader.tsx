@@ -108,7 +108,7 @@ export function PublicSiteHeader({
           <DialogContent
             id="public-mobile-navigation"
             overlayClassName="cardforge-public-tokens"
-            className="cardforge-public-tokens cardforge-public-mobile-menu left-auto right-0 top-0 h-svh max-w-sm translate-x-0 translate-y-0 content-start gap-6 rounded-none border-y-0 border-l border-r-0 border-[var(--public-border)] bg-[var(--public-charcoal)] p-6 text-[var(--public-ivory)] shadow-[var(--public-shadow)]"
+            className="cardforge-public-tokens cardforge-public-mobile-menu left-auto right-0 top-0 h-svh max-w-sm translate-x-0 translate-y-0 content-start gap-6 overflow-y-auto rounded-none border-y-0 border-l border-r-0 border-[var(--public-border)] bg-[var(--public-charcoal)] p-6 text-[var(--public-ivory)] shadow-[var(--public-shadow)]"
           >
             <div className="pr-12">
               <DialogTitle className="font-[var(--public-font-display)] text-2xl text-[var(--public-ivory)]">
@@ -148,8 +148,25 @@ export function PublicSiteHeader({
                 {accountSlot}
               </div>
             ) : null}
+            <section className="border-t border-[var(--public-border)] pt-5" aria-labelledby="mobile-developer-heading">
+              <h2 id="mobile-developer-heading" className="text-base font-semibold text-[var(--public-ivory)]">
+                Check out our developer
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--public-muted-text)]">
+                Meet Cameron Locke, the independent developer building CardForge Studio.
+              </p>
+              <DialogClose asChild>
+                <Link
+                  href={PUBLIC_NAVIGATION.founder.href}
+                  prefetch={false}
+                  className="mt-2 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]"
+                >
+                  {PUBLIC_NAVIGATION.founder.label}
+                </Link>
+              </DialogClose>
+            </section>
             <div className="border-t border-[var(--public-border)] pt-5">
-              <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Follow Cameron</p>
+              <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Follow CardForge Studio</p>
               <FounderSocialLinks profile={founderProfile} />
             </div>
           </DialogContent>
