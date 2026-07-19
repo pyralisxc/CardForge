@@ -36,8 +36,8 @@ export function BulkCsvInputPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">2. Data Source</CardTitle>
-        <CardDescription>Upload or paste spreadsheet data, app JSON, or regular Field: value writing.</CardDescription>
+        <CardTitle className="text-base">2. Add your card data</CardTitle>
+        <CardDescription>Upload a file or paste a list. CardForge checks it as you go.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
@@ -105,7 +105,7 @@ export function BulkCsvInputPanel({
         ) : null}
 
         <div className="space-y-2">
-          <Label htmlFor="bulkData">Data Source</Label>
+          <Label htmlFor="bulkData">Card data</Label>
           <Textarea
             id="bulkData"
             value={bulkDataInput}
