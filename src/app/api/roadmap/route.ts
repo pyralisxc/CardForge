@@ -1,6 +1,5 @@
 import { currentUser } from '@clerk/nextjs/server';
 
-import { resolveAccountEntitlement } from '@/features/account/server';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess } from '@/domain/entitlements';
 import { createDeveloperRoadmapItem, createRoadmapSuggestion, getRoadmapForUser, RoadmapStoreError } from '@/features/roadmap/server';
@@ -54,8 +53,11 @@ export async function POST(request: Request) {
       itemType?: unknown;
       status?: unknown;
       visibleMonth?: unknown;
-      targetMrrCents?: unknown;
       monthlyCostCents?: unknown;
+      expenseProvider?: unknown;
+      expensePlan?: unknown;
+      expenseSourceUrl?: unknown;
+      expenseVerifiedAt?: unknown;
       developerItem?: unknown;
     };
 
@@ -69,20 +71,12 @@ export async function POST(request: Request) {
       publicMetadata: user.publicMetadata,
       privateMetadata: user.privateMetadata,
     });
-    const entitlement = resolveAccountEntitlement({
-      authConfigured: true,
-      isSignedIn: true,
-      emailAddresses,
-      privateMetadata: user.privateMetadata,
-      ownerAccess,
-    });
-
     if (wantsDeveloperItem) {
-      if (entitlement.accessMode !== 'dev') {
+      if (!ownerAccess.isOwner) {
         return createApiErrorResponse(
           403,
-          'roadmap_request_invalid',
-          'Developer access is required to manage CardForge-authored timeline items.'
+          'owner_access_required',
+          'Owner access is required to manage CardForge-authored timeline items.'
         );
       }
 
@@ -94,8 +88,11 @@ export async function POST(request: Request) {
         itemType: body.itemType,
         status: body.status,
         visibleMonth: body.visibleMonth,
-        targetMrrCents: body.targetMrrCents,
         monthlyCostCents: body.monthlyCostCents,
+        expenseProvider: body.expenseProvider,
+        expensePlan: body.expensePlan,
+        expenseSourceUrl: body.expenseSourceUrl,
+        expenseVerifiedAt: body.expenseVerifiedAt,
       });
 
       return createNoStoreJsonResponse(payload, { status: 201 });

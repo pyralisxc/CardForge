@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Database,
   DollarSign,
+  ExternalLink,
   History,
   Mail,
   Plus,
@@ -34,6 +35,7 @@ import {
 
 interface RoadmapPanelProps {
   isDeveloper: boolean;
+  isOwner: boolean;
   isSignedIn: boolean;
   accountEmail: string | null;
   supportEmail?: string | null;
@@ -155,9 +157,10 @@ function FeatureCard({
         </span>
         <div className="min-w-0">
           <span className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">
-            {voteTotal(item)} total votes
+            {item.source === 'official' ? 'CardForge plan' : 'Community suggestion'} · {statusLabels[item.status]} · {voteTotal(item)} votes
           </span>
           <h3 className="mt-1 text-sm font-semibold leading-5 text-[#ffe7ad]">{item.title}</h3>
+          {item.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#a98a55]">{item.description}</p> : null}
         </div>
         <div className="flex shrink-0 gap-2">
           <VoteButton
@@ -186,7 +189,7 @@ function TimelineNodeCard({
   item,
   index,
   cumulativeMonthlyCostCents,
-  monthlyUnlockTargetCents,
+  requiredRoadmapIncomeCents,
   isSignedIn,
   isSaving,
   isDeveloper,
@@ -196,7 +199,7 @@ function TimelineNodeCard({
   item: RoadmapItem;
   index: number;
   cumulativeMonthlyCostCents: number;
-  monthlyUnlockTargetCents: number;
+  requiredRoadmapIncomeCents: number;
   isSignedIn: boolean;
   isSaving: boolean;
   isDeveloper: boolean;
@@ -204,7 +207,7 @@ function TimelineNodeCard({
   onDelete: (itemId: string) => void;
 }) {
   const target = cumulativeMonthlyCostCents > 0
-    ? formatMonthlyCurrency(monthlyUnlockTargetCents)
+    ? formatMonthlyCurrency(requiredRoadmapIncomeCents)
     : null;
   const newCost = formatMonthlyCurrency(item.monthlyCostCents);
   const runningCost = cumulativeMonthlyCostCents > 0
@@ -222,13 +225,18 @@ function TimelineNodeCard({
           <span className="border border-[#6f522f] px-1.5 py-0.5 text-[#d9c08c]">{statusLabels[item.status]}</span>
         </div>
         <h4 className="mt-2 font-serif text-lg leading-5 text-[#fff1c7]">{item.title}</h4>
+        {item.expenseProvider && item.expensePlan ? (
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+            {item.expenseProvider} · {item.expensePlan}
+          </p>
+        ) : null}
         {item.description ? (
           <p className="mt-2 line-clamp-3 text-xs leading-5 text-[#c7b288]">{item.description}</p>
         ) : null}
         <div className="mt-3 grid gap-1 text-[11px] leading-4">
           {target ? (
             <div className="flex items-center justify-between gap-2 border border-[#5f4526] bg-[#0c0b09] px-2 py-1">
-              <span className="uppercase tracking-[0.12em] text-[#a98a55]">Unlock target</span>
+              <span className="uppercase tracking-[0.12em] text-[#a98a55]">Capacity needed</span>
               <span className="text-[#ffe7ad]">{target}</span>
             </div>
           ) : null}
@@ -246,6 +254,17 @@ function TimelineNodeCard({
           ) : null}
           {!target && !newCost && !runningCost ? (
             <span className="text-xs text-[#e2aa4a]">{itemTypeLabels[item.itemType]}</span>
+          ) : null}
+          {item.expenseSourceUrl && item.expenseVerifiedAt ? (
+            <a
+              className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-[#d8b365] underline decoration-[#6d4f2b] underline-offset-4 hover:text-[#ffe7ad]"
+              href={item.expenseSourceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Pricing verified {item.expenseVerifiedAt}
+              <ExternalLink className="h-3 w-3" />
+            </a>
           ) : null}
         </div>
         <div className="mt-3 flex items-center justify-end gap-2">
@@ -340,7 +359,7 @@ function HorizontalTimeline({
                 item={checkpoint.item}
                 index={index}
                 cumulativeMonthlyCostCents={checkpoint.cumulativeMonthlyCostCents}
-                monthlyUnlockTargetCents={checkpoint.monthlyUnlockTargetCents}
+                requiredRoadmapIncomeCents={checkpoint.requiredRoadmapIncomeCents}
                 isDeveloper={isDeveloper}
                 isSignedIn={isSignedIn}
                 isSaving={isSaving}
@@ -385,7 +404,7 @@ function FinancialMetric({
   );
 }
 
-export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEmail }: RoadmapPanelProps) {
+export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, supportEmail }: RoadmapPanelProps) {
   const { toast } = useToast();
   const [payload, setPayload] = useState<RoadmapPayload | null>(null);
   const [suggestion, setSuggestion] = useState('');
@@ -395,10 +414,14 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
   const [devForm, setDevForm] = useState({
     title: '',
     description: '',
-    itemType: 'roi_checkpoint' as Exclude<RoadmapItemType, 'feature'>,
+    itemType: (isOwner ? 'roi_checkpoint' : 'shipped_update') as Exclude<RoadmapItemType, 'feature'>,
     status: 'planned' as RoadmapStatus,
     visibleMonth: '2026-06',
     monthlyCostDollars: '',
+    expenseProvider: '',
+    expensePlan: '',
+    expenseSourceUrl: '',
+    expenseVerifiedAt: new Date().toISOString().slice(0, 10),
   });
   const developerRequestMailto = useMemo(
     () => createRoadmapDeveloperRequestMailto({ accountEmail, supportEmail }),
@@ -406,7 +429,9 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
   );
 
   const chronicleItems = useMemo(() => payload?.items.filter(isChronicleTimelineItem) ?? [], [payload]);
-  const featureBoardItems = useMemo(() => payload?.items.filter((item) => item.itemType === 'feature') ?? [], [payload]);
+  const featureBoardItems = useMemo(() => payload?.items.filter((item) => (
+    item.itemType === 'feature' && item.status !== 'shipped'
+  )) ?? [], [payload]);
   const featureItems = useMemo(() => sortRoadmapFeatures(featureBoardItems, sortMode), [featureBoardItems, sortMode]);
   const sortedOfficialItems = useMemo(() => [...chronicleItems].sort((left, right) => {
     if (left.visibleMonth !== right.visibleMonth) return left.visibleMonth.localeCompare(right.visibleMonth);
@@ -416,27 +441,44 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
     () => buildRoadmapTimelineCheckpoints(sortedOfficialItems),
     [sortedOfficialItems]
   );
-  const currentProfitCents = payload?.currentProfitCents ?? 0;
+  const creatorPassIncome = payload?.creatorPassIncome ?? null;
+  const revenueAvailable = creatorPassIncome?.available === true;
+  const roadmapAvailable = payload?.configured === true;
+  const planningComparisonAvailable = revenueAvailable && roadmapAvailable;
+  const roadmapIncomeCents = creatorPassIncome?.roadmapIncomeCents ?? 0;
   const nextFundingCheckpoint = useMemo(
     () => timelineCheckpoints.find((checkpoint) => (
       checkpoint.item.itemType === 'roi_checkpoint'
       && checkpoint.item.status !== 'shipped'
       && checkpoint.cumulativeMonthlyCostCents > 0
+      && (!revenueAvailable || checkpoint.cumulativeMonthlyCostCents > roadmapIncomeCents)
     )) ?? null,
-    [timelineCheckpoints]
+    [roadmapIncomeCents, revenueAvailable, timelineCheckpoints]
   );
   const latestFundingCheckpoint = timelineCheckpoints.length > 0
     ? timelineCheckpoints[timelineCheckpoints.length - 1]
     : null;
-  const nextMonthlyUnlockTargetCents = nextFundingCheckpoint?.monthlyUnlockTargetCents ?? 0;
-  const nextFundingGapCents = Math.max(0, nextMonthlyUnlockTargetCents - currentProfitCents);
+  const nextRequiredIncomeCents = nextFundingCheckpoint?.requiredRoadmapIncomeCents ?? 0;
+  const nextFundingGapCents = planningComparisonAvailable
+    ? Math.max(0, nextRequiredIncomeCents - roadmapIncomeCents)
+    : null;
   const fullRoadmapMonthlyCostCents = latestFundingCheckpoint?.cumulativeMonthlyCostCents ?? 0;
+  const totalDeductionsCents = creatorPassIncome
+    ? creatorPassIncome.estimatedTaxCents + creatorPassIncome.operatingReserveCents
+    : 0;
   const maxSuggestionLength = payload?.maxSuggestionLength ?? 200;
   const activeUserSuggestionCount = payload?.activeUserSuggestionCount ?? 0;
   const maxActiveUserSuggestions = payload?.maxActiveUserSuggestions ?? 50;
   const boardHasSpace = activeUserSuggestionCount < maxActiveUserSuggestions;
   const remainingSuggestionSlots = Math.max(0, maxActiveUserSuggestions - activeUserSuggestionCount);
   const featureVoteCount = featureBoardItems.reduce((total, item) => total + voteTotal(item), 0);
+  const expenseCheckpointIncomplete = devForm.itemType === 'roi_checkpoint' && (
+    !devForm.monthlyCostDollars
+    || !devForm.expenseProvider.trim()
+    || !devForm.expensePlan.trim()
+    || !devForm.expenseSourceUrl.trim()
+    || !devForm.expenseVerifiedAt
+  );
 
   const loadRoadmap = useCallback(async () => {
     try {
@@ -551,13 +593,25 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
           status: devForm.status,
           visibleMonth: devForm.visibleMonth,
           monthlyCostCents: devForm.monthlyCostDollars ? Number(devForm.monthlyCostDollars) * 100 : undefined,
+          expenseProvider: devForm.expenseProvider,
+          expensePlan: devForm.expensePlan,
+          expenseSourceUrl: devForm.expenseSourceUrl,
+          expenseVerifiedAt: devForm.expenseVerifiedAt,
         }),
       });
       if (!response.ok) {
         throw new Error(await getApiErrorMessage(response, 'Unable to add timeline item.'));
       }
       setPayload(await response.json() as RoadmapPayload);
-      setDevForm((current) => ({ ...current, title: '', description: '', monthlyCostDollars: '' }));
+      setDevForm((current) => ({
+        ...current,
+        title: '',
+        description: '',
+        monthlyCostDollars: '',
+        expenseProvider: '',
+        expensePlan: '',
+        expenseSourceUrl: '',
+      }));
       toast({
         title: 'Chronicle updated',
         description: 'The CardForge-authored timeline item has been added.',
@@ -609,7 +663,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
             </div>
             <h2 className="mt-3 font-serif text-3xl text-[#fff1c7] md:text-4xl">Help choose what the forge makes easier next</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
-              Vote on small improvements, add a focused request, and follow the bigger software level-ups with monthly profit targets and operating costs shown in plain sight.
+              Vote on focused improvements and follow the real service upgrades CardForge can plan around as Creator Pass grows.
             </p>
           </div>
           <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
@@ -739,7 +793,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
               <div>
                 <h3 className="font-serif text-2xl text-[#fff1c7]">Level-up roadmap</h3>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-[#c7b288]">
-                  A scrollable launch path for the upgrades that make CardForge sturdier, faster, and more useful. Unlock targets are 12x the running monthly platform cost, measured as monthly profit.
+                  Verified service upgrades with their monthly cost, official pricing source, and estimated Creator Pass capacity after the public planning deductions.
                 </p>
               </div>
             </div>
@@ -749,31 +803,44 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
           </div>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <FinancialMetric
-              label="Current profit"
-              value={formatMonthlyCurrency(currentProfitCents) ?? '$0/mo'}
-              detail="Tracked monthly profit available for roadmap unlocks."
+              label="Est. roadmap income"
+              value={revenueAvailable ? formatMonthlyCurrency(roadmapIncomeCents) ?? '$0/mo' : 'Unavailable'}
+              detail={creatorPassIncome
+                ? `Listed-price run rate after ${creatorPassIncome.estimatedTaxPercent}% estimated tax and a ${creatorPassIncome.operatingReservePercent}% post-tax reserve.`
+                : 'Waiting for the current Creator Pass subscription summary.'}
               icon={<DollarSign className="h-3.5 w-3.5" />}
               emphasis
             />
             <FinancialMetric
-              label="Next target"
-              value={formatMonthlyCurrency(nextMonthlyUnlockTargetCents) ?? '$0/mo'}
-              detail="Monthly profit needed: 12x the next running cost."
+              label="Gross Creator Pass MRR"
+              value={revenueAvailable ? formatMonthlyCurrency(creatorPassIncome?.grossMonthlyRevenueCents ?? 0) ?? '$0/mo' : 'Unavailable'}
+              detail={revenueAvailable && creatorPassIncome
+                ? `${creatorPassIncome.activeSubscriberCount} active Creator Pass subscription${creatorPassIncome.activeSubscriberCount === 1 ? '' : 's'} at current listed prices; trials and support excluded.`
+                : 'Stripe subscription data is currently unavailable.'}
               icon={<Target className="h-3.5 w-3.5" />}
             />
             <FinancialMetric
-              label="Gap to unlock"
-              value={formatMonthlyCurrency(nextFundingGapCents) ?? '$0/mo'}
-              detail="How much monthly profit is still needed before that checkpoint unlocks."
+              label="Planning deductions"
+              value={revenueAvailable ? `-${formatMonthlyCurrency(totalDeductionsCents) ?? '$0/mo'}` : 'Unavailable'}
+              detail="Estimated income tax plus the requested operating reserve; this is planning, not filed tax accounting."
               icon={<Target className="h-3.5 w-3.5" />}
             />
             <FinancialMetric
-              label="Full roadmap cost"
-              value={formatMonthlyCurrency(fullRoadmapMonthlyCostCents) ?? '$0/mo'}
-              detail="Running monthly platform cost if every visible checkpoint is funded."
+              label={!roadmapAvailable ? 'Expense roadmap' : nextFundingCheckpoint ? 'Next planning gap' : 'Planning comparison'}
+              value={!roadmapAvailable || !revenueAvailable
+                ? 'Unavailable'
+                : nextFundingCheckpoint
+                  ? formatMonthlyCurrency(nextFundingGapCents) ?? '$0/mo'
+                  : 'No planning gap'}
+              detail={roadmapAvailable
+                ? `Verified fixed upgrades total ${formatMonthlyCurrency(fullRoadmapMonthlyCostCents) ?? '$0/mo'}; this comparison is not a promise that cash was collected.`
+                : 'Waiting for the verified expense roadmap.'}
               icon={<DollarSign className="h-3.5 w-3.5" />}
             />
           </div>
+          <p className="mb-4 text-xs leading-5 text-[#a98a55]">
+            Revenue figures are planning estimates from active Creator Pass subscriptions at their listed recurring prices. They do not deduct Stripe fees, discounts, credits, refunds, or prove that an invoice was paid.
+          </p>
           <div className="relative border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
             <HorizontalTimeline
               items={timelineCheckpoints}
@@ -794,13 +861,16 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
               <h3 className="font-serif text-xl text-[#fff1c7]">Developer level-up controls</h3>
             </div>
             <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Add the monthly operating cost for the upgrade. Public unlock targets are calculated from the running monthly cost times 12, so every checkpoint represents the monthly profit level needed to support that jump.
+              {isOwner
+                ? 'Expense checkpoints require the provider, plan, monthly cost, official pricing page, and verification date. Shipped progress carries no invented expense.'
+                : 'Publish shipped Chronicle progress here. Verified financial checkpoints remain owner-only.'}
             </p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <input
                 className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
                 value={devForm.title}
                 placeholder="Timeline title"
+                aria-label="Timeline title"
                 maxLength={200}
                 onChange={(event) => setDevForm((current) => ({ ...current, title: event.target.value }))}
               />
@@ -808,6 +878,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
                 className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
                 value={devForm.visibleMonth}
                 placeholder="YYYY-MM"
+                aria-label="Visible month"
                 pattern="\d{4}-\d{2}"
                 onChange={(event) => setDevForm((current) => ({ ...current, visibleMonth: event.target.value }))}
               />
@@ -816,7 +887,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
                 value={devForm.itemType}
                 onChange={(event) => setDevForm((current) => ({ ...current, itemType: event.target.value as Exclude<RoadmapItemType, 'feature'> }))}
               >
-                <option value="roi_checkpoint">Level-up checkpoint</option>
+                {isOwner ? <option value="roi_checkpoint">Level-up checkpoint</option> : null}
                 <option value="shipped_update">Chronicle shipped progress</option>
               </select>
               <select
@@ -833,9 +904,48 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
                 className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
                 value={devForm.monthlyCostDollars}
                 placeholder="New monthly operating cost dollars"
+                aria-label="New monthly operating cost in dollars"
                 inputMode="numeric"
+                disabled={devForm.itemType !== 'roi_checkpoint'}
                 onChange={(event) => setDevForm((current) => ({ ...current, monthlyCostDollars: event.target.value }))}
               />
+              {devForm.itemType === 'roi_checkpoint' ? (
+                <>
+                  <input
+                    className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                    value={devForm.expenseProvider}
+                    placeholder="Provider, e.g. Supabase"
+                    aria-label="Expense provider"
+                    maxLength={80}
+                    onChange={(event) => setDevForm((current) => ({ ...current, expenseProvider: event.target.value }))}
+                  />
+                  <input
+                    className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                    value={devForm.expensePlan}
+                    placeholder="Plan, e.g. Pro"
+                    aria-label="Provider plan"
+                    maxLength={80}
+                    onChange={(event) => setDevForm((current) => ({ ...current, expensePlan: event.target.value }))}
+                  />
+                  <input
+                    className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365] md:col-span-2"
+                    value={devForm.expenseSourceUrl}
+                    placeholder="Official HTTPS pricing URL"
+                    aria-label="Official pricing URL"
+                    type="url"
+                    onChange={(event) => setDevForm((current) => ({ ...current, expenseSourceUrl: event.target.value }))}
+                  />
+                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                    Pricing verified
+                    <input
+                      className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
+                      value={devForm.expenseVerifiedAt}
+                      type="date"
+                      onChange={(event) => setDevForm((current) => ({ ...current, expenseVerifiedAt: event.target.value }))}
+                    />
+                  </label>
+                </>
+              ) : null}
               <textarea
                 className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365] md:col-span-2"
                 value={devForm.description}
@@ -847,7 +957,7 @@ export function RoadmapPanel({ isDeveloper, isSignedIn, accountEmail, supportEma
             <Button
               type="submit"
               className="mt-4 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
-              disabled={isSaving || devForm.title.trim().length === 0}
+              disabled={isSaving || devForm.title.trim().length === 0 || expenseCheckpointIncomplete}
             >
               <Plus className="mr-2 h-4 w-4" />
               Add level-up item

@@ -7,6 +7,8 @@ export interface RoadmapSettings {
   maxRoadmapSuggestionLength: number;
   roadmapNegativeSignalMinTotalVotes: number;
   roadmapNegativeSignalMinDownvotePercent: number;
+  roadmapEstimatedTaxPercent: number;
+  roadmapOperatingReservePercent: number;
 }
 
 export const DEFAULT_ROADMAP_SETTINGS: RoadmapSettings = {
@@ -14,6 +16,8 @@ export const DEFAULT_ROADMAP_SETTINGS: RoadmapSettings = {
   maxRoadmapSuggestionLength: MAX_ROADMAP_SUGGESTION_LENGTH,
   roadmapNegativeSignalMinTotalVotes: ROADMAP_NEGATIVE_SIGNAL_MIN_TOTAL_VOTES,
   roadmapNegativeSignalMinDownvotePercent: 51,
+  roadmapEstimatedTaxPercent: 30,
+  roadmapOperatingReservePercent: 20,
 };
 
 const normalizeBoundedInteger = (
@@ -55,7 +59,29 @@ export const normalizeRoadmapSettingsInput = (
     1,
     100,
   ),
+  roadmapEstimatedTaxPercent: normalizeBoundedInteger(
+    value.roadmapEstimatedTaxPercent,
+    DEFAULT_ROADMAP_SETTINGS.roadmapEstimatedTaxPercent,
+    0,
+    100,
+  ),
+  roadmapOperatingReservePercent: normalizeBoundedInteger(
+    value.roadmapOperatingReservePercent,
+    DEFAULT_ROADMAP_SETTINGS.roadmapOperatingReservePercent,
+    0,
+    100,
+  ),
 });
+
+export const normalizeRoadmapExpenseVerifiedAt = (
+  value: unknown,
+  now: Date = new Date(),
+): string | null => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) return null;
+  return value <= now.toISOString().slice(0, 10) ? value : null;
+};
 
 export interface RoadmapVotingRules {
   negativeSignalMinTotalVotes: number;
@@ -87,8 +113,11 @@ export interface RoadmapItem {
   status: RoadmapStatus;
   source: RoadmapSource;
   visibleMonth: string;
-  targetMrrCents: number | null;
   monthlyCostCents: number | null;
+  expenseProvider: string | null;
+  expensePlan: string | null;
+  expenseSourceUrl: string | null;
+  expenseVerifiedAt: string | null;
   shippedAt: string | null;
   createdAt: string;
   upVotes: number;
@@ -105,10 +134,25 @@ export type RoadmapAdminItem = Pick<
   | 'status'
   | 'source'
   | 'visibleMonth'
-  | 'targetMrrCents'
   | 'monthlyCostCents'
+  | 'expenseProvider'
+  | 'expensePlan'
+  | 'expenseSourceUrl'
+  | 'expenseVerifiedAt'
   | 'shippedAt'
 >;
+
+export interface RoadmapIncomeBreakdown {
+  available: boolean;
+  activeSubscriberCount: number;
+  grossMonthlyRevenueCents: number;
+  estimatedTaxPercent: number;
+  estimatedTaxCents: number;
+  afterEstimatedTaxCents: number;
+  operatingReservePercent: number;
+  operatingReserveCents: number;
+  roadmapIncomeCents: number;
+}
 
 export interface RoadmapPayload {
   configured: boolean;
@@ -116,7 +160,7 @@ export interface RoadmapPayload {
   activeUserSuggestionCount: number;
   maxActiveUserSuggestions: number;
   maxSuggestionLength: number;
-  currentProfitCents: number;
+  creatorPassIncome: RoadmapIncomeBreakdown;
   developerRequestEmail: string;
 }
 
@@ -165,15 +209,47 @@ export const shouldArchiveUserRoadmapItem = ({
   return (downVotes / totalVotes) * 100 >= rules.negativeSignalMinDownvotePercent;
 };
 
-export const calculateMonthlyUnlockTargetCents = (monthlyCostCents: number): number =>
-  Math.max(0, Math.round(monthlyCostCents * 12));
+const normalizeMoneyCents = (value: number): number => (
+  Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0
+);
 
-export const calculateMrrUnlockTargetCents = calculateMonthlyUnlockTargetCents;
+export const buildRoadmapIncomeBreakdown = ({
+  available,
+  activeSubscriberCount,
+  grossMonthlyRevenueCents,
+  estimatedTaxPercent,
+  operatingReservePercent,
+}: {
+  available: boolean;
+  activeSubscriberCount: number;
+  grossMonthlyRevenueCents: number;
+  estimatedTaxPercent: number;
+  operatingReservePercent: number;
+}): RoadmapIncomeBreakdown => {
+  const gross = normalizeMoneyCents(grossMonthlyRevenueCents);
+  const taxPercent = normalizeBoundedInteger(estimatedTaxPercent, 0, 0, 100);
+  const reservePercent = normalizeBoundedInteger(operatingReservePercent, 0, 0, 100);
+  const estimatedTaxCents = Math.round(gross * taxPercent / 100);
+  const afterEstimatedTaxCents = Math.max(0, gross - estimatedTaxCents);
+  const operatingReserveCents = Math.round(afterEstimatedTaxCents * reservePercent / 100);
+
+  return {
+    available,
+    activeSubscriberCount: normalizeMoneyCents(activeSubscriberCount),
+    grossMonthlyRevenueCents: gross,
+    estimatedTaxPercent: taxPercent,
+    estimatedTaxCents,
+    afterEstimatedTaxCents,
+    operatingReservePercent: reservePercent,
+    operatingReserveCents,
+    roadmapIncomeCents: Math.max(0, afterEstimatedTaxCents - operatingReserveCents),
+  };
+};
 
 export interface RoadmapTimelineCheckpoint<Item> {
   item: Item;
   cumulativeMonthlyCostCents: number;
-  monthlyUnlockTargetCents: number;
+  requiredRoadmapIncomeCents: number;
 }
 
 export const buildRoadmapTimelineCheckpoints = <Item extends { monthlyCostCents: number | null }>(
@@ -186,7 +262,7 @@ export const buildRoadmapTimelineCheckpoints = <Item extends { monthlyCostCents:
     return {
       item,
       cumulativeMonthlyCostCents,
-      monthlyUnlockTargetCents: calculateMonthlyUnlockTargetCents(cumulativeMonthlyCostCents),
+      requiredRoadmapIncomeCents: cumulativeMonthlyCostCents,
     };
   });
 };
