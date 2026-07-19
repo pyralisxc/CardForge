@@ -54,7 +54,7 @@ export function TemplateEditorInspectorSidebar({
   richTextHighlightColor,
   variables,
 }: TemplateEditorInspectorSidebarProps) {
-  const { canvas, currentTemplate, selectedElement, updateCanvas, updateElement, updateTemplate } = controller;
+  const { currentTemplate, selectedElement, updateElement } = controller;
 
   return (
     <aside className="cardforge-maker-side cardforge-maker-inspector min-w-0 border-t border-[#252b35] bg-[#0d1117] lg:border-l lg:border-t-0">
