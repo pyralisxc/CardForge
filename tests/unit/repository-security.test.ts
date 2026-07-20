@@ -98,7 +98,7 @@ describe('repository security defaults', () => {
 
     expect(riskRegister).toContain('| Area | Risk | Priority | Status | Evidence / next review |');
     expect(riskRegister).toContain('Implemented; live proof open');
-    expect(riskRegister).toContain('29764020173');
+    expect(riskRegister).toContain('29765074696');
     expect(riskRegister).toContain('Accepted');
     expect(riskRegister).toContain('Closed');
   });

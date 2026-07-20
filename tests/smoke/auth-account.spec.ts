@@ -418,7 +418,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
     {
       role: 'free',
       email: getReusableFreeEmail(),
-      accountText: /Starter Library is active/i,
+      accountText: /Make cards in Studio, then come back here whenever you need your account or plan/i,
       developerHeading: /Join the community shaping the forge/i,
       developerText: /Help shape the shared CardForge library/i,
       studioText: /Free preview mode/i,
@@ -438,7 +438,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
     {
       role: 'developer',
       email: getReusableDevEmail(),
-      accountText: /developer account can submit building blocks/i,
+      accountText: /help review and contribute to shared CardForge assets/i,
       developerHeading: /Shape the library behind the forge/i,
       developerText: /Developer Asset Hub/i,
       studioText: /Dev export entitlement active/i,
@@ -448,7 +448,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
     {
       role: 'owner',
       email: getReusableOwnerEmail(),
-      accountText: /Owner access unlocks export, contributor command/i,
+      accountText: /access to CardForge owner tools/i,
       developerHeading: /Shape the library behind the forge/i,
       developerText: /Developer Asset Hub/i,
       studioText: /Dev export entitlement active/i,
@@ -541,7 +541,7 @@ test('reusable free QA account can claim Founder Beta, vote, and open profile to
     await signInWithClerkTestingToken(page, qaUser.email, '/account');
     await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(qaUser.email, { exact: true })).toBeVisible();
-    await expect(page.getByText('Free', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your work stays with you', exact: true }).locator('..').getByText('Free', { exact: true })).toBeVisible();
 
     await expect(page.getByRole('button', { name: /Claim Founder Beta/i })).toBeVisible({ timeout: 30_000 });
     const claimResponsePromise = page.waitForResponse((response) => response.url().includes('/api/founder-beta/claim'));

@@ -58,7 +58,7 @@ async function signInWithClerkTestingToken(page: Page, email: string, targetPath
   await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.evaluate(() => window.sessionStorage.clear());
   await clearCardForgeBrowserStorage(page);
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await clerk.loaded({ page });
 
   const activeEmail = await page.evaluate(() => (
