@@ -121,7 +121,7 @@ test('paid account can export an edited shipped template and import it after bro
 
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 30_000 }),
-    page.getByRole('button', { name: /Export Project/i }).click(),
+    page.getByRole('button', { name: 'Download project', exact: true }).click(),
   ]);
   const exportPath = path.join(DOWNLOAD_DIR, download.suggestedFilename());
   await download.saveAs(exportPath);

@@ -463,7 +463,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
   await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await expect(page.getByRole('heading', { name: /Design one card\. Add your list\. CardForge builds the set\./i })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('link', { name: /Check your access/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Try the Studio/i })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Try the Studio', exact: true })).toBeVisible();
 
   for (const account of qaAccounts) {
     const qaUser = await resolveQaUser(account.email);
@@ -541,7 +541,7 @@ test('reusable free QA account can claim Founder Beta, vote, and open profile to
     await signInWithClerkTestingToken(page, qaUser.email, '/account');
     await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(qaUser.email, { exact: true })).toBeVisible();
-    await expect(page.getByText('Locked', { exact: true })).toBeVisible();
+    await expect(page.getByText('Free', { exact: true })).toBeVisible();
 
     await expect(page.getByRole('button', { name: /Claim Founder Beta/i })).toBeVisible({ timeout: 30_000 });
     const claimResponsePromise = page.waitForResponse((response) => response.url().includes('/api/founder-beta/claim'));

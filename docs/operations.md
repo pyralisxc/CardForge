@@ -69,7 +69,7 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 - Stripe has processed the first live sale.
 - The current production deployment is `dpl_8uCiJA3qdvU1ua5tPGeYKQGnLUN4`, READY on `main` commit `b8f6355b7943c9b814caef36656bd47f0f1b6df3`.
 - The maintained five-route production health check passed against the canonical domain on July 19. Vercel reported no grouped production runtime errors in the following 24 hours.
-- The July 20 protected authenticated smoke bootstrap reused and aligned all four QA roles, and its signed-out Clerk test passed. Its role matrix and paid recovery tests did not complete; treat the matrix as unverified until a non-skipped green run is recorded.
+- The July 20 protected run [29764020173](https://github.com/pyralisxc/CardForge/actions/runs/29764020173) reused all four QA roles and passed its signed-out Clerk test, but failed three maintained UI assertions before the role matrix and paid recovery could be accepted. Treat the matrix as unverified until a non-skipped green replacement run is recorded.
 - Stripe webhook ordering and duplicate delivery are live-proven; the first subscriber's Clerk mapping remains pending until they sign in or register with the exact Stripe email.
 - Founder Beta launch wave is capped at 25 seats.
 - Resend test email works with the configured support inbox.
@@ -141,13 +141,13 @@ While `@pyralisxc` is the only trusted code owner, the active ruleset retains ze
 
 ## Authenticated production smoke
 
-Run **Actions → Authenticated smoke → Run workflow** against `main` after auth, billing, provider-domain, or entitlement changes. The workflow fails before browser installation unless all protected values exist:
+Run **Actions → Authenticated smoke → Run workflow** against the candidate branch before merge, then `main` after auth, billing, provider-domain, or entitlement changes. The workflow fails before browser installation unless all protected values exist:
 
 - reusable free, paid, developer, and owner QA account emails;
 - production Clerk publishable and secret keys; and
 - production Supabase URL and service-role key.
 
-A valid run must pass the signed-out Clerk modal check, the reusable free, Founder Beta, paid, developer, and owner account/entitlement matrix, developer and owner lifecycle coverage, and paid project export/import restoration. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The July 20 run [29757358610](https://github.com/pyralisxc/CardForge/actions/runs/29757358610) is evidence of a failure, not release approval.
+A valid run must pass the signed-out Clerk modal check, the reusable free, Founder Beta, paid, developer, and owner account/entitlement matrix, developer and owner lifecycle coverage, and paid project export/import restoration. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The July 20 run [29764020173](https://github.com/pyralisxc/CardForge/actions/runs/29764020173) is evidence of a failure, not release approval.
 
 ## Clerk production verification
 
