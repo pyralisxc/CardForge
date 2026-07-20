@@ -88,7 +88,8 @@ describe('current operator repository policy', () => {
     expect(read('README.md')).toContain(APPROVED_OPERATOR_DESCRIPTION);
     expect(read('docs/architecture.md')).toContain('src/features/business-identity');
     expect(read('docs/operations.md')).toContain('Business identity provider alignment');
-    expect(read('docs/risk-register.md')).toContain('Repository aligned; provider alignment pending');
+    expect(read('docs/risk-register.md')).toContain('No direct Stripe dashboard evidence is recorded.');
+    expect(read('docs/risk-register.md')).toContain('No direct Resend sender/reply-to evidence is recorded.');
 
     const runbook = read('docs/operator-identity-and-transfer-runbook.md');
     expect(runbook).toContain(APPROVED_OPERATOR_DESCRIPTION);

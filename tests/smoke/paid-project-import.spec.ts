@@ -55,7 +55,7 @@ test.afterEach(async () => {
 async function signInWithClerkTestingToken(page: Page, email: string, targetPath: string) {
   await setupClerkTestingToken({ page });
   await page.context().clearCookies();
-  await page.goto(targetPath, { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.evaluate(() => window.sessionStorage.clear());
   await clearCardForgeBrowserStorage(page);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
@@ -136,6 +136,7 @@ test('paid account can export an edited shipped template and import it after bro
     }),
   ]));
 
+  await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.evaluate(() => window.sessionStorage.clear());
   await clearCardForgeBrowserStorage(page);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });

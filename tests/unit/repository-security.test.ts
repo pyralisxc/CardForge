@@ -97,8 +97,8 @@ describe('repository security defaults', () => {
     const riskRegister = readFileSync(join(process.cwd(), 'docs/risk-register.md'), 'utf8');
 
     expect(riskRegister).toContain('| Area | Risk | Priority | Status | Evidence / next review |');
-    expect(riskRegister).toContain('Purpose cutover prepared; provider rollout pending');
-    expect(riskRegister).toContain('29469266134');
+    expect(riskRegister).toContain('Implemented; live proof open');
+    expect(riskRegister).toContain('29757358610');
     expect(riskRegister).toContain('Accepted');
     expect(riskRegister).toContain('Closed');
   });

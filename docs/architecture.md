@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: July 17, 2026
+Last updated: July 20, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one developer asset pipeline, and one owner console.
 
@@ -51,6 +51,7 @@ CardForge has three storage lanes:
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency. Template field contracts, generator/editor field interpretation, template display labels, pointer selection, and parent-resize geometry live here because multiple features consume them.
 - `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
 - `src/features/card-generator`: Single card, bulk import, generated output gallery, image tools, and export tools. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
+- `src/features/card-rendering`: shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark presentation consumed through `client.ts`.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
 - `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
 - `src/features/account`: current-user resolution, access entitlement, profile surfaces, Founder Beta, and owner account administration behind explicit client/server interfaces.

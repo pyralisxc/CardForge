@@ -461,9 +461,9 @@ test('reusable QA account matrix exposes the correct account, developer, and own
   test.skip(missing.length > 0 && !allowDisposableUsers(), `Set reusable QA emails for account matrix: ${missing.join(', ')}.`);
 
   await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 120_000 });
-  await expect(page.getByRole('heading', { name: /Build card systems/i })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/Free demo seats/i)).toBeVisible();
-  await expect(page.locator('header').getByRole('link', { name: /Open Studio/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Design one card\. Add your list\. CardForge builds the set\./i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('link', { name: /Check your access/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Try the Studio/i })).toBeVisible();
 
   for (const account of qaAccounts) {
     const qaUser = await resolveQaUser(account.email);
@@ -476,7 +476,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       });
       await signInWithClerkTestingToken(page, qaUser.email, '/account');
       await expectEntitlement(page, account.entitlement);
-      await expect(page.getByRole('heading', { level: 1, name: /Forge|Your Forge/i })).toBeVisible({ timeout: 45_000 });
+      await expect(page.getByRole('heading', { level: 1, name: /Your account|Forge|Your Forge/i })).toBeVisible({ timeout: 45_000 });
       await expect(page.locator('main')).toContainText(account.accountText);
       await expect(page.getByRole('link', { name: /Manage Account/i })).toBeVisible();
 
@@ -539,7 +539,7 @@ test('reusable free QA account can claim Founder Beta, vote, and open profile to
     await removeFounderBetaClaim(qaUser.userId);
 
     await signInWithClerkTestingToken(page, qaUser.email, '/account');
-    await expect(page.getByRole('heading', { name: /Forge: Starter Library/i })).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole('heading', { name: 'Your account', exact: true })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(qaUser.email, { exact: true })).toBeVisible();
     await expect(page.getByText('Locked', { exact: true })).toBeVisible();
 
