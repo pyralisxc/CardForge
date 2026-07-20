@@ -144,7 +144,14 @@ test('paid account can export an edited shipped template and import it after bro
   await recoveryPage.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
-  await expect(recoveryPage.getByLabel('Choose template')).not.toContainText(templateName);
+  await expect.poll(async () => {
+    const storedWorkspace = await readWorkspaceStorage(recoveryPage);
+    if (!storedWorkspace) return false;
+    const parsedWorkspace = JSON.parse(storedWorkspace) as {
+      state?: { userTemplates?: Array<{ name?: string }> };
+    };
+    return parsedWorkspace.state?.userTemplates?.some((template) => template.name === templateName) ?? false;
+  }, { timeout: 10_000 }).toBe(false);
 
   await recoveryPage.locator('input[type="file"][accept*="json"]').setInputFiles(exportPath);
   const replaceProjectButton = recoveryPage.getByRole('button', { name: 'Replace Project' });
