@@ -147,7 +147,7 @@ Run **Actions → Authenticated smoke → Run workflow** against the candidate b
 - production Clerk publishable and secret keys; and
 - production Supabase URL and service-role key.
 
-A valid run must pass the signed-out Clerk modal check, the reusable free, Founder Beta, paid, developer, and owner account/entitlement matrix, developer and owner lifecycle coverage, and paid project export/import restoration. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The July 20 run [29767272435](https://github.com/pyralisxc/CardForge/actions/runs/29767272435) is evidence of a failure, not release approval.
+A valid run must pass the signed-out Clerk modal/bootstrap check, the reusable free, Founder Beta, paid, developer, and owner entitlement and authorization matrix, and one paid project export/import recovery. It intentionally does not gate marketing copy, panel labels, profile styling, roadmap voting, or the developer asset submission lifecycle; verify those manually or with focused tests when the feature changes. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The July 20 run [29767272435](https://github.com/pyralisxc/CardForge/actions/runs/29767272435) is evidence of a failure, not release approval.
 
 ## Clerk production verification
 

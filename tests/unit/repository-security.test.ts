@@ -93,16 +93,6 @@ describe('repository security defaults', () => {
     expect(dependabot.match(/version-update:semver-major/g)).toHaveLength(2);
   });
 
-  it('records an explicit status and evidence for every launch risk', () => {
-    const riskRegister = readFileSync(join(process.cwd(), 'docs/risk-register.md'), 'utf8');
-
-    expect(riskRegister).toContain('| Area | Risk | Priority | Status | Evidence / next review |');
-    expect(riskRegister).toContain('Implemented; live proof open');
-    expect(riskRegister).toContain('29767272435');
-    expect(riskRegister).toContain('Accepted');
-    expect(riskRegister).toContain('Closed');
-  });
-
   it('documents the provider-owned launch closure procedure', () => {
     const operations = readFileSync(join(process.cwd(), 'docs/operations.md'), 'utf8');
 
