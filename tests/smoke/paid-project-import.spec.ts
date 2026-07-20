@@ -55,9 +55,8 @@ test.afterEach(async () => {
 async function signInWithClerkTestingToken(page: Page, email: string, targetPath: string) {
   await setupClerkTestingToken({ page });
   await page.context().clearCookies();
-  await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.goto('/privacy', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.evaluate(() => window.sessionStorage.clear());
-  await clearCardForgeBrowserStorage(page);
   await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await clerk.loaded({ page });
 
@@ -136,10 +135,11 @@ test('paid account can export an edited shipped template and import it after bro
     }),
   ]));
 
-  await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.goto('/privacy', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.evaluate(() => window.sessionStorage.clear());
+  await page.waitForTimeout(250);
   await clearCardForgeBrowserStorage(page);
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
   await page.getByRole('tab', { name: /Layout Studio/i }).click();
   await expect(page.getByLabel('Choose template')).not.toContainText(templateName);

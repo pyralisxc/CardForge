@@ -478,7 +478,7 @@ test('reusable QA account matrix exposes the correct account, developer, and own
       await expectEntitlement(page, account.entitlement);
       await expect(page.getByRole('heading', { level: 1, name: /Your account|Forge|Your Forge/i })).toBeVisible({ timeout: 45_000 });
       await expect(page.locator('main')).toContainText(account.accountText);
-      await expect(page.getByRole('link', { name: /Manage Account/i })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Profile & security', exact: true })).toBeVisible();
 
       await page.goto('/developer', { waitUntil: 'domcontentloaded', timeout: 120_000 });
       await expect(page.getByRole('heading', { name: account.developerHeading })).toBeVisible({ timeout: 45_000 });
