@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Response } from '@playwright/test';
 import { clerk, clerkSetup, setupClerkTestingToken } from '@clerk/testing/playwright';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -19,11 +19,21 @@ async function readWorkspaceStorage(page: Page): Promise<string | null> {
         resolve(null);
         return;
       }
+      let workspaceValue: string | null = null;
       const transaction = database.transaction('key-value', 'readonly');
       const getRequest = transaction.objectStore('key-value').get('project-workspace:workspace');
-      getRequest.onsuccess = () => resolve(typeof getRequest.result === 'string' ? getRequest.result : null);
+      getRequest.onsuccess = () => {
+        workspaceValue = typeof getRequest.result === 'string' ? getRequest.result : null;
+      };
       getRequest.onerror = () => reject(getRequest.error);
-      transaction.oncomplete = () => database.close();
+      transaction.oncomplete = () => {
+        database.close();
+        resolve(workspaceValue);
+      };
+      transaction.onabort = () => {
+        database.close();
+        reject(transaction.error);
+      };
     };
   }));
 }
@@ -52,7 +62,7 @@ test.afterEach(async () => {
   await fs.rm(DOWNLOAD_DIR, { recursive: true, force: true });
 });
 
-async function signInWithClerkTestingToken(page: Page, email: string, targetPath: string) {
+async function signInWithClerkTestingToken(page: Page, email: string, targetPath: string): Promise<Response> {
   await setupClerkTestingToken({ page });
   await page.context().clearCookies();
   await page.goto('/privacy', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
@@ -76,7 +86,12 @@ async function signInWithClerkTestingToken(page: Page, email: string, targetPath
     await page.waitForFunction(() => Boolean(window.Clerk?.user?.id), null, { timeout: 45_000 });
   }
 
+  const entitlementResponsePromise = page.waitForResponse((response) => (
+    new URL(response.url()).pathname === '/api/account/entitlement'
+    && response.request().method() === 'GET'
+  ), { timeout: STUDIO_READY_TIMEOUT });
   await page.goto(targetPath, { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  return entitlementResponsePromise;
 }
 
 test('paid account can export an edited shipped template and import it after browser storage clears', async ({ page }) => {
@@ -89,10 +104,13 @@ test('paid account can export an edited shipped template and import it after bro
   await fs.rm(DOWNLOAD_DIR, { recursive: true, force: true });
   await fs.mkdir(DOWNLOAD_DIR, { recursive: true });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await signInWithClerkTestingToken(page, process.env.CARDFORGE_E2E_PAID_EMAIL!, '/studio');
+  const entitlementResponse = await signInWithClerkTestingToken(
+    page,
+    process.env.CARDFORGE_E2E_PAID_EMAIL!,
+    '/studio',
+  );
 
-  const entitlementResponse = await page.request.get('/api/account/entitlement');
-  await expect(entitlementResponse).toBeOK();
+  expect(entitlementResponse.ok()).toBe(true);
   await expect(await entitlementResponse.json()).toMatchObject({
     accessMode: 'paid',
     canExportClean: true,
@@ -100,6 +118,9 @@ test('paid account can export an edited shipped template and import it after bro
 
   await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
   await page.getByRole('tab', { name: /Layout Studio/i }).click();
+  await expect(page.getByRole('button', { name: 'Buy Creator Pass', exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
   await page.getByRole('button', { name: 'Card setup', exact: true }).click();
   const templateName = `Paid Project Import ${Date.now()}`;
   await page.getByLabel('Template Name').fill(templateName);
@@ -144,6 +165,9 @@ test('paid account can export an edited shipped template and import it after bro
   await recoveryPage.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
+  await expect(recoveryPage.getByRole('button', { name: 'Buy Creator Pass', exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
   await expect.poll(async () => {
     const storedWorkspace = await readWorkspaceStorage(recoveryPage);
     if (!storedWorkspace) return false;
