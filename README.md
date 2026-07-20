@@ -58,9 +58,11 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 ## Source Map
 
 - `src/app/`: Next.js routes and API routes.
-- `src/features/app-shell/`: Studio shell, workspace state, and route-level composition.
+- `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
+- `src/features/app-shell/`: Studio shell, workspace bootstrap, and route-level composition.
 - `src/features/template-editor/`: Layout Studio panels, inspector tools, canvas commands, and editor controller hooks.
 - `src/features/card-generator/`: Single output entry, bulk data import, generated gallery, export controls, and paper/export settings.
+- `src/features/card-rendering/`: Shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark presentation.
 - `src/features/project/`: Local project files, project asset persistence, and project access rules.
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
@@ -70,8 +72,11 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.
-- `src/lib/`: Shared model, card rendering/export primitives, Supabase setup, validation utilities, API responses, and constants.
-- `src/store/`: Zustand persisted local app state and derived selectors.
+- `src/features/roadmap/`: Public roadmap, feature suggestions/votes, and owner roadmap operations.
+- `src/infrastructure/`: Clerk, Supabase, HTTP, public-URL, and abuse-throttling infrastructure.
+- `src/shared/`: Framework-independent utilities.
+- `src/components/ui/`: Generic UI primitives and generic browser UI state.
+- `src/lib/`, `src/store/`, and `src/types/` are retired root ownership lanes and must not be recreated.
 - `data/default-templates/`, `data/styles/`, and `public/card-assets/`: starter/import material for the Forge Pipeline sync, not runtime fallback catalogs.
 - `supabase/migrations/`: Ordered database migrations for shared roadmap, owner, Founder Beta, asset registry, and developer pipeline state.
 - `tests/unit/`: Vitest coverage for pure helpers and model behavior.

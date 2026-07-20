@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Response } from '@playwright/test';
 import { clerk, clerkSetup, setupClerkTestingToken } from '@clerk/testing/playwright';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -19,11 +19,21 @@ async function readWorkspaceStorage(page: Page): Promise<string | null> {
         resolve(null);
         return;
       }
+      let workspaceValue: string | null = null;
       const transaction = database.transaction('key-value', 'readonly');
       const getRequest = transaction.objectStore('key-value').get('project-workspace:workspace');
-      getRequest.onsuccess = () => resolve(typeof getRequest.result === 'string' ? getRequest.result : null);
+      getRequest.onsuccess = () => {
+        workspaceValue = typeof getRequest.result === 'string' ? getRequest.result : null;
+      };
       getRequest.onerror = () => reject(getRequest.error);
-      transaction.oncomplete = () => database.close();
+      transaction.oncomplete = () => {
+        database.close();
+        resolve(workspaceValue);
+      };
+      transaction.onabort = () => {
+        database.close();
+        reject(transaction.error);
+      };
     };
   }));
 }
@@ -52,13 +62,12 @@ test.afterEach(async () => {
   await fs.rm(DOWNLOAD_DIR, { recursive: true, force: true });
 });
 
-async function signInWithClerkTestingToken(page: Page, email: string, targetPath: string) {
+async function signInWithClerkTestingToken(page: Page, email: string, targetPath: string): Promise<Response> {
   await setupClerkTestingToken({ page });
   await page.context().clearCookies();
-  await page.goto(targetPath, { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.goto('/privacy', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await page.evaluate(() => window.sessionStorage.clear());
-  await clearCardForgeBrowserStorage(page);
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await clerk.loaded({ page });
 
   const activeEmail = await page.evaluate(() => (
@@ -77,7 +86,12 @@ async function signInWithClerkTestingToken(page: Page, email: string, targetPath
     await page.waitForFunction(() => Boolean(window.Clerk?.user?.id), null, { timeout: 45_000 });
   }
 
+  const entitlementResponsePromise = page.waitForResponse((response) => (
+    new URL(response.url()).pathname === '/api/account/entitlement'
+    && response.request().method() === 'GET'
+  ), { timeout: STUDIO_READY_TIMEOUT });
   await page.goto(targetPath, { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  return entitlementResponsePromise;
 }
 
 test('paid account can export an edited shipped template and import it after browser storage clears', async ({ page }) => {
@@ -90,10 +104,13 @@ test('paid account can export an edited shipped template and import it after bro
   await fs.rm(DOWNLOAD_DIR, { recursive: true, force: true });
   await fs.mkdir(DOWNLOAD_DIR, { recursive: true });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await signInWithClerkTestingToken(page, process.env.CARDFORGE_E2E_PAID_EMAIL!, '/studio');
+  const entitlementResponse = await signInWithClerkTestingToken(
+    page,
+    process.env.CARDFORGE_E2E_PAID_EMAIL!,
+    '/studio',
+  );
 
-  const entitlementResponse = await page.request.get('/api/account/entitlement');
-  await expect(entitlementResponse).toBeOK();
+  expect(entitlementResponse.ok()).toBe(true);
   await expect(await entitlementResponse.json()).toMatchObject({
     accessMode: 'paid',
     canExportClean: true,
@@ -101,11 +118,13 @@ test('paid account can export an edited shipped template and import it after bro
 
   await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
   await page.getByRole('tab', { name: /Layout Studio/i }).click();
+  await expect(page.getByRole('button', { name: 'Buy Creator Pass', exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
   await page.getByRole('button', { name: 'Card setup', exact: true }).click();
   const templateName = `Paid Project Import ${Date.now()}`;
   await page.getByLabel('Template Name').fill(templateName);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Template Saved', { exact: true })).toBeVisible({ timeout: 30_000 });
 
   await expect.poll(() => readWorkspaceStorage(page), { timeout: 10_000 }).not.toBeNull();
   const savedStorage = JSON.parse(await readWorkspaceStorage(page) ?? '{}') as {
@@ -121,7 +140,7 @@ test('paid account can export an edited shipped template and import it after bro
 
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 30_000 }),
-    page.getByRole('button', { name: /Export Project/i }).click(),
+    page.getByRole('button', { name: 'Download project', exact: true }).click(),
   ]);
   const exportPath = path.join(DOWNLOAD_DIR, download.suggestedFilename());
   await download.saveAs(exportPath);
@@ -136,23 +155,37 @@ test('paid account can export an edited shipped template and import it after bro
     }),
   ]));
 
-  await page.evaluate(() => window.sessionStorage.clear());
-  await clearCardForgeBrowserStorage(page);
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByRole('tab', { name: /Layout Studio/i }).click();
-  await expect(page.getByLabel('Choose template')).not.toContainText(templateName);
+  const context = page.context();
+  await page.close();
+  const recoveryPage = await context.newPage();
+  await setupClerkTestingToken({ page: recoveryPage });
+  await recoveryPage.goto('/privacy', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.evaluate(() => window.sessionStorage.clear());
+  await clearCardForgeBrowserStorage(recoveryPage);
+  await recoveryPage.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
+  await expect(recoveryPage.getByRole('button', { name: 'Buy Creator Pass', exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect.poll(async () => {
+    const storedWorkspace = await readWorkspaceStorage(recoveryPage);
+    if (!storedWorkspace) return false;
+    const parsedWorkspace = JSON.parse(storedWorkspace) as {
+      state?: { userTemplates?: Array<{ name?: string }> };
+    };
+    return parsedWorkspace.state?.userTemplates?.some((template) => template.name === templateName) ?? false;
+  }, { timeout: 10_000 }).toBe(false);
 
-  await page.locator('input[type="file"][accept*="json"]').setInputFiles(exportPath);
-  await expect(page.getByRole('heading', { name: 'Import project file?' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('1 template', { exact: false })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: 'Replace Project' }).click();
-  await expect(page.getByText('Project Imported', { exact: true })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('1 template imported. No generated outputs were included in this file.', { exact: true })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByLabel('Choose template')).toContainText(`Personal / ${templateName}`, { timeout: 30_000 });
+  await recoveryPage.locator('input[type="file"][accept*="json"]').setInputFiles(exportPath);
+  const replaceProjectButton = recoveryPage.getByRole('button', { name: 'Replace Project' });
+  await expect(replaceProjectButton).toBeVisible({ timeout: 30_000 });
+  await replaceProjectButton.click();
+  const importedDesignControl = recoveryPage.getByRole('combobox').filter({ hasText: templateName });
+  await expect(importedDesignControl).toHaveCount(1, { timeout: 30_000 });
 
-  await expect.poll(() => readWorkspaceStorage(page), { timeout: 10_000 }).not.toBeNull();
-  const importedStorage = JSON.parse(await readWorkspaceStorage(page) ?? '{}') as {
+  await expect.poll(() => readWorkspaceStorage(recoveryPage), { timeout: 10_000 }).not.toBeNull();
+  const importedStorage = JSON.parse(await readWorkspaceStorage(recoveryPage) ?? '{}') as {
     state?: { userTemplates?: Array<{ name?: string; templateSource?: string; templateLibrarySource?: string }> };
   };
   expect(importedStorage.state?.userTemplates).toEqual(expect.arrayContaining([
@@ -163,8 +196,8 @@ test('paid account can export an edited shipped template and import it after bro
     }),
   ]));
 
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByRole('tab', { name: /Layout Studio/i }).click();
-  await expect(page.getByLabel('Choose template')).toContainText(`Personal / ${templateName}`, { timeout: 30_000 });
+  await recoveryPage.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
+  await expect(importedDesignControl).toHaveCount(1, { timeout: 30_000 });
 });

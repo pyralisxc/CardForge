@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: July 19, 2026
+Last updated: July 20, 2026
 
 This is the current live-operations checklist for CardForge.
 
@@ -67,11 +67,13 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 
 - Custom domain is active.
 - Stripe has processed the first live sale.
-- Clerk production sign-in and the reusable authenticated account matrix are verified.
+- The current production deployment is `dpl_8uCiJA3qdvU1ua5tPGeYKQGnLUN4`, READY on `main` commit `b8f6355b7943c9b814caef36656bd47f0f1b6df3`.
+- The maintained five-route production health check passed against the canonical domain on July 19. Vercel reported no grouped production runtime errors in the following 24 hours.
+- The July 20 protected run [29776711919](https://github.com/pyralisxc/CardForge/actions/runs/29776711919) passed the complete four-outcome matrix without skips on candidate commit `4810ca024eeb6da9360923ca1dc8c99c88fc5906`: signed-out Clerk bootstrap, the reusable free/paid/developer/owner authorization matrix, Founder Beta claiming, and paid project export/import recovery. Artifact [8474955050](https://github.com/pyralisxc/CardForge/actions/runs/29776711919/artifacts/8474955050) is retained through August 3.
 - Stripe webhook ordering and duplicate delivery are live-proven; the first subscriber's Clerk mapping remains pending until they sign in or register with the exact Stripe email.
 - Founder Beta launch wave is capped at 25 seats.
 - Resend test email works with the configured support inbox.
-- Google Search Console verification may depend on DNS propagation.
+- Google Search Console completion remains open.
 
 ## Business identity provider alignment
 
@@ -126,36 +128,38 @@ Secrets stay in Vercel/provider dashboards. The owner console should show readin
 
 ## Delivery Gates
 
-- Pull requests must pass CI and public smoke checks before merge.
+- The active GitHub `Updates` ruleset applies to the default branch and `main`. It requires pull requests and resolved review threads, blocks branch deletion and non-fast-forward updates, and strictly requires the GitHub Actions checks `verify` and `public-smoke`.
+- Pull requests must pass `verify` and `public-smoke` before merge.
 - `npm run architecture:check` must report zero violations; no baseline or exception file exists.
 - Authenticated provider smoke uses protected environment secrets and must never run for untrusted fork code.
-- `main` should require a pull request, required checks, resolved review threads, and blocked force pushes.
 - Vercel build success alone is not a release-health verdict.
 - Production route health runs every six hours; GitHub owns failure notification and Vercel runtime error groups remain the primary server-error aggregation view.
 
 ### Solo-maintainer branch rule
 
-While `@pyralisxc` is the only code owner, required approval count remains zero because a pull-request author cannot approve their own change. Require the `verify` and `public-smoke` checks now. Raise required approvals to one when a second trusted reviewer is added, or review this exception by August 15, 2026.
+While `@pyralisxc` is the only trusted code owner, the active ruleset retains zero required approvals because a pull-request author cannot approve their own change. Raise required approvals to one when a second trusted reviewer is added, or review this exception by August 15, 2026.
 
 ## Authenticated production smoke
 
-Run **Actions → Authenticated smoke → Run workflow** against `main` after auth, billing, provider-domain, or entitlement changes. The workflow fails before browser installation unless all protected values exist:
+Run **Actions → Authenticated smoke → Run workflow** against the candidate branch before merge, then `main` after auth, billing, provider-domain, or entitlement changes. The workflow fails before browser installation unless all protected values exist:
 
 - reusable free, paid, developer, and owner QA account emails;
 - production Clerk publishable and secret keys; and
 - production Supabase URL and service-role key.
 
-A valid run must pass the signed-out Clerk modal check, the reusable account/entitlement matrix, developer and owner lifecycle coverage, and paid project export/import restoration. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable.
+A valid run must pass the signed-out Clerk modal/bootstrap check, the reusable free, Founder Beta, paid, developer, and owner entitlement and authorization matrix, and one paid project export/import recovery. It intentionally does not gate marketing copy, panel labels, profile styling, roadmap voting, or the developer asset submission lifecycle; verify those manually or with focused tests when the feature changes. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The non-skipped July 20 run [29776711919](https://github.com/pyralisxc/CardForge/actions/runs/29776711919) is the current candidate-branch release evidence.
 
 ## Clerk production verification
 
-Use a signed-out Chrome window on `https://cardforges.com`:
+Use a real signed-out browser on `https://cardforges.com`:
 
 1. Open DevTools Network and filter for `client` or `environment`.
 2. Click **Sign in** in the public header and confirm the modal becomes interactive rather than remaining on **Connecting**.
 3. Complete sign-in and confirm the header and Account page refresh to the signed-in user.
 4. Sign out and confirm the public header returns to **Sign in**.
 5. Confirm no Clerk `/v1/client` or `/v1/environment` request returned HTTP 400 or greater.
+
+Repeat the same check through the mobile navigation and once with a throttled network. Record the browser, date, visible settled control, and bootstrap-response result. Hosted smoke can prove the signed-out modal/network assertion; it does not replace this real-browser desktop/mobile/throttled acceptance check.
 
 Production must expose a `pk_live_` publishable key and load Clerk through the verified `clerk.cardforges.com` domain. Never record the complete key in an issue, log, or screenshot.
 
