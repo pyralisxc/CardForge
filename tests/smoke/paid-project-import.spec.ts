@@ -181,7 +181,8 @@ test('paid account can export an edited shipped template and import it after bro
   const replaceProjectButton = recoveryPage.getByRole('button', { name: 'Replace Project' });
   await expect(replaceProjectButton).toBeVisible({ timeout: 30_000 });
   await replaceProjectButton.click();
-  await expect(recoveryPage.getByLabel('Choose template')).toContainText(templateName, { timeout: 30_000 });
+  const importedDesignControl = recoveryPage.getByRole('combobox').filter({ hasText: templateName });
+  await expect(importedDesignControl).toHaveCount(1, { timeout: 30_000 });
 
   await expect.poll(() => readWorkspaceStorage(recoveryPage), { timeout: 10_000 }).not.toBeNull();
   const importedStorage = JSON.parse(await readWorkspaceStorage(recoveryPage) ?? '{}') as {
@@ -198,5 +199,5 @@ test('paid account can export an edited shipped template and import it after bro
   await recoveryPage.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
-  await expect(recoveryPage.getByLabel('Choose template')).toContainText(templateName, { timeout: 30_000 });
+  await expect(importedDesignControl).toHaveCount(1, { timeout: 30_000 });
 });
