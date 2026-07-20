@@ -44,7 +44,8 @@ npm run lint       # ESLint
 npm run typecheck  # next typegen + TypeScript no-emit check
 npm run test       # Vitest unit suite
 npm run test:watch # Vitest watch mode
-npm run smoke      # Playwright smoke suite
+npm run smoke           # Lean public Playwright release gate
+npm run smoke:protected # Protected auth/access/recovery suite (configured QA environment only)
 ```
 
 Maintained operational commands:

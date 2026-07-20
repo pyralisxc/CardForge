@@ -1,27 +1,20 @@
-import { access, readFile, readdir } from 'node:fs/promises';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 const rootPath = (...parts: string[]) => path.join(process.cwd(), ...parts);
 
-const pathExists = async (...parts: string[]) => {
-  try {
-    await access(rootPath(...parts));
-    return true;
-  } catch {
-    return false;
-  }
-};
+const pathExists = (...parts: string[]) => existsSync(rootPath(...parts));
 
-const collectTypeScriptFiles = async (directory: string): Promise<string[]> => {
-  const entries = await readdir(directory, { withFileTypes: true });
+const collectTypeScriptFiles = (directory: string): string[] => {
+  const entries = readdirSync(directory, { withFileTypes: true });
   const files: string[] = [];
 
   for (const entry of entries) {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await collectTypeScriptFiles(entryPath));
+      files.push(...collectTypeScriptFiles(entryPath));
     } else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
       files.push(entryPath);
     }
@@ -31,23 +24,23 @@ const collectTypeScriptFiles = async (directory: string): Promise<string[]> => {
 };
 
 describe('domain model ownership', () => {
-  it('keeps card studio contracts in focused domain modules', async () => {
-    await expect(pathExists('src', 'types', 'index.ts')).resolves.toBe(false);
-    await expect(pathExists('src', 'domain', 'cards', 'index.ts')).resolves.toBe(true);
-    await expect(pathExists('src', 'domain', 'templates', 'index.ts')).resolves.toBe(true);
-    await expect(pathExists('src', 'domain', 'rendering', 'index.ts')).resolves.toBe(true);
+  it('keeps card studio contracts in focused domain modules', () => {
+    expect(pathExists('src', 'types', 'index.ts')).toBe(false);
+    expect(pathExists('src', 'domain', 'cards', 'index.ts')).toBe(true);
+    expect(pathExists('src', 'domain', 'templates', 'index.ts')).toBe(true);
+    expect(pathExists('src', 'domain', 'rendering', 'index.ts')).toBe(true);
   });
 
-  it('does not restore imports from the retired type root', async () => {
+  it('does not restore imports from the retired type root', () => {
     const files = [
-      ...await collectTypeScriptFiles(rootPath('src')),
-      ...await collectTypeScriptFiles(rootPath('tests')),
+      ...collectTypeScriptFiles(rootPath('src')),
+      ...collectTypeScriptFiles(rootPath('tests')),
     ];
     const retiredImport = `@${'/types'}`;
     const offenders: string[] = [];
 
     for (const file of files) {
-      if ((await readFile(file, 'utf8')).includes(retiredImport)) {
+      if (readFileSync(file, 'utf8').includes(retiredImport)) {
         offenders.push(path.relative(process.cwd(), file));
       }
     }
@@ -55,10 +48,10 @@ describe('domain model ownership', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('keeps domain dependencies one-way', async () => {
-    const cards = await readFile(rootPath('src', 'domain', 'cards', 'types.ts'), 'utf8');
-    const templates = await readFile(rootPath('src', 'domain', 'templates', 'types.ts'), 'utf8');
-    const rendering = await readFile(rootPath('src', 'domain', 'rendering', 'types.ts'), 'utf8');
+  it('keeps domain dependencies one-way', () => {
+    const cards = readFileSync(rootPath('src', 'domain', 'cards', 'types.ts'), 'utf8');
+    const templates = readFileSync(rootPath('src', 'domain', 'templates', 'types.ts'), 'utf8');
+    const rendering = readFileSync(rootPath('src', 'domain', 'rendering', 'types.ts'), 'utf8');
 
     expect(cards).not.toContain('@/domain/');
     expect(templates).toContain("from '@/domain/cards'");

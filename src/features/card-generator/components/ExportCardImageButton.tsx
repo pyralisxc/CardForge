@@ -106,13 +106,14 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
           className={className}
           aria-label={ariaLabel ?? 'Download individual card'}
           title="Download individual card"
+          data-testid="single-card-export-trigger"
         >
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {iconOnly ? <span className="sr-only">Download individual card</span> : 'Download image'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleExport('png', 'front')}>Download front as PNG</DropdownMenuItem>
+        <DropdownMenuItem data-testid="single-card-export-png-front" onClick={() => handleExport('png', 'front')}>Download front as PNG</DropdownMenuItem>
         {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('png', 'back')}>Download back as PNG</DropdownMenuItem> : null}
         <DropdownMenuItem onClick={() => handleExport('jpeg', 'front')}>Download front as JPEG</DropdownMenuItem>
         {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('jpeg', 'back')}>Download back as JPEG</DropdownMenuItem> : null}
