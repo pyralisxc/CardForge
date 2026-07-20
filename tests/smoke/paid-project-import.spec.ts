@@ -135,25 +135,28 @@ test('paid account can export an edited shipped template and import it after bro
     }),
   ]));
 
-  await page.goto('/privacy', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-  await page.evaluate(() => window.sessionStorage.clear());
-  await page.waitForTimeout(250);
-  await clearCardForgeBrowserStorage(page);
-  await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByRole('tab', { name: /Layout Studio/i }).click();
-  await expect(page.getByLabel('Choose template')).not.toContainText(templateName);
+  const context = page.context();
+  await page.close();
+  const recoveryPage = await context.newPage();
+  await setupClerkTestingToken({ page: recoveryPage });
+  await recoveryPage.goto('/privacy', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.evaluate(() => window.sessionStorage.clear());
+  await clearCardForgeBrowserStorage(recoveryPage);
+  await recoveryPage.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
+  await expect(recoveryPage.getByLabel('Choose template')).not.toContainText(templateName);
 
-  await page.locator('input[type="file"][accept*="json"]').setInputFiles(exportPath);
-  await expect(page.getByRole('heading', { name: 'Import project file?' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('1 template', { exact: false })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: 'Replace Project' }).click();
-  await expect(page.getByText('Project Imported', { exact: true })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('1 template imported. No generated outputs were included in this file.', { exact: true })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByLabel('Choose template')).toContainText(`Personal / ${templateName}`, { timeout: 30_000 });
+  await recoveryPage.locator('input[type="file"][accept*="json"]').setInputFiles(exportPath);
+  await expect(recoveryPage.getByRole('heading', { name: 'Import project file?' })).toBeVisible({ timeout: 30_000 });
+  await expect(recoveryPage.getByText('1 template', { exact: false })).toBeVisible({ timeout: 30_000 });
+  await recoveryPage.getByRole('button', { name: 'Replace Project' }).click();
+  await expect(recoveryPage.getByText('Project Imported', { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(recoveryPage.getByText('1 template imported. No generated outputs were included in this file.', { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(recoveryPage.getByLabel('Choose template')).toContainText(`Personal / ${templateName}`, { timeout: 30_000 });
 
-  await expect.poll(() => readWorkspaceStorage(page), { timeout: 10_000 }).not.toBeNull();
-  const importedStorage = JSON.parse(await readWorkspaceStorage(page) ?? '{}') as {
+  await expect.poll(() => readWorkspaceStorage(recoveryPage), { timeout: 10_000 }).not.toBeNull();
+  const importedStorage = JSON.parse(await readWorkspaceStorage(recoveryPage) ?? '{}') as {
     state?: { userTemplates?: Array<{ name?: string; templateSource?: string; templateLibrarySource?: string }> };
   };
   expect(importedStorage.state?.userTemplates).toEqual(expect.arrayContaining([
@@ -164,8 +167,8 @@ test('paid account can export an edited shipped template and import it after bro
     }),
   ]));
 
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByRole('tab', { name: /Layout Studio/i }).click();
-  await expect(page.getByLabel('Choose template')).toContainText(`Personal / ${templateName}`, { timeout: 30_000 });
+  await recoveryPage.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
+  await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
+  await expect(recoveryPage.getByLabel('Choose template')).toContainText(`Personal / ${templateName}`, { timeout: 30_000 });
 });
