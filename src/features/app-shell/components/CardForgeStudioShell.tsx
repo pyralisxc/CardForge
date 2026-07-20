@@ -425,6 +425,7 @@ export function CardForgeStudioShell({
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
+                data-testid={`studio-tab-${tab.value}`}
                 className="flex items-center gap-2 text-[#c8b07f] data-[state=active]:bg-[#24180e] data-[state=active]:text-[#ffe7ad]"
                 onClick={() => setActiveTabAction(tab.value)}
               >

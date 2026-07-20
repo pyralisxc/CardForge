@@ -15,7 +15,8 @@
     "architecture:check": "node scripts/check-architecture.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "playwright test --workers=1",
+    "smoke": "playwright test tests/smoke/public-core.spec.ts --workers=1",
+    "smoke:protected": "playwright test tests/smoke/auth-account.spec.ts tests/smoke/paid-project-import.spec.ts --workers=1",
     "health:production": "node scripts/check-production-health.mjs",
     "qa:bootstrap-authenticated-smoke": "node scripts/bootstrap-authenticated-smoke-users.mjs",
     "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs"

@@ -256,7 +256,12 @@ export function SingleCardGenerator({
           <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No Layout Studio templates available. Please create one in Layout Studio first.</p>
         )}
 
-        <Button onClick={handleAddCard} disabled={!selectedTemplateIdProp || isAddingCard} className="w-full">
+        <Button
+          onClick={handleAddCard}
+          disabled={!selectedTemplateIdProp || isAddingCard}
+          className="w-full"
+          data-testid="create-generated-output"
+        >
           <PlusSquare className="mr-2 h-4 w-4" /> {isAddingCard ? 'Generating Output...' : 'Create Generated Output'}
         </Button>
       </CardContent>

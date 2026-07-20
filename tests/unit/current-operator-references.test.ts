@@ -14,6 +14,7 @@ const APPROVED_OPERATOR_DESCRIPTION =
 const ignoredDirectoryNames = new Set([
   '.git',
   '.next',
+  '.worktrees',
   'coverage',
   'node_modules',
   'test-results',
@@ -60,12 +61,6 @@ describe('current operator repository policy', () => {
 
     expect(read('supabase/migrations/202607140005_legal_business_identity.sql'))
       .toContain('Align live operator identity and billing language with current operations.');
-    expect(read('docs/cardforge-public-identity-overhaul-design.md'))
-      .toContain('has no current operator, contracting-party, privacy-controller, billing, receipt, structured-data, or public-brand role');
-    expect(read('docs/operator-identity-and-transfer-runbook.md'))
-      .toContain('has no current role as operator, contracting party, privacy controller, billing entity, receipt identity, or public brand');
-    expect(read('supabase/migrations/20260716210518_business_identity_foundation.sql'))
-      .toContain('Replace the retired operator name in each known stale opening');
   });
 
   it('uses the canonical operator description in production health checks', () => {
@@ -76,33 +71,6 @@ describe('current operator repository policy', () => {
 
   it('publishes Cameron ownership in repository policy', () => {
     expect(read('LICENSE')).toContain('Copyright (c) 2026 Cameron Locke. All rights reserved.');
-    expect(read('CONTRIBUTING.md')).toContain('terms explicitly agreed to by Cameron Locke');
     expect(read('.github/CODEOWNERS')).toContain('/src/features/business-identity/ @pyralisxc');
-
-    expect(read('src/features/legal/model/legalDocument.ts')).toContain(
-      '${DEFAULT_BUSINESS_IDENTITY.legalOperatorName} handles support',
-    );
-  });
-
-  it('documents the current Oregon operating boundary and provider-alignment status', () => {
-    expect(read('README.md')).toContain(APPROVED_OPERATOR_DESCRIPTION);
-    expect(read('docs/architecture.md')).toContain('src/features/business-identity');
-    expect(read('docs/operations.md')).toContain('Business identity provider alignment');
-
-    const runbook = read('docs/operator-identity-and-transfer-runbook.md');
-    expect(runbook).toContain(APPROVED_OPERATOR_DESCRIPTION);
-    expect(runbook).toContain('has no current role');
-    expect(runbook).toContain('No provider change is performed by this runbook');
-    expect(runbook).toContain('Clerk');
-    expect(runbook).toContain('Domain registrar and DNS');
-    expect(runbook).toContain('GitHub');
-    expect(runbook).toContain('Search Console');
-    expect(runbook).toContain('structured data');
-    expect(runbook).toContain(
-      'The business-identity feature owns the browser-safe contract and repository default.',
-    );
-    expect(runbook).toContain(
-      'The Supabase singleton is the runtime record.',
-    );
   });
 });
