@@ -108,6 +108,7 @@ Use `/owner` for:
 - email test
 - support/contact request history
 - site copy
+- homepage cover and Studio walkthrough images
 - Cameron profile, portrait, and social links
 - business identity
 - site mechanics

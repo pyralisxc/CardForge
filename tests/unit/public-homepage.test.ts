@@ -14,7 +14,7 @@ describe('proof-led homepage', () => {
     expect(hero).toContain('href="/studio"');
     expect(hero).toContain('See what it makes');
     expect(hero).toContain('href="#interactive-showcase"');
-    expect(hero).toContain('/card-assets/showcase/cardforge-workshop-cover.webp');
+    expect(hero).toContain("getDefaultSiteMedia('landing.hero')");
     expect(hero).toContain('fetchPriority="high"');
     expect(hero).not.toContain('StudioProductProof');
   });
@@ -43,13 +43,13 @@ describe('proof-led homepage', () => {
     expect(page.indexOf('<OutcomeHero')).toBeLessThan(page.indexOf('<InteractiveStudioShowcase'));
     expect(page.indexOf('<InteractiveStudioShowcase')).toBeLessThan(page.indexOf('<WorkflowProof'));
     expect(page).not.toContain('cardforge-hero-workbench.png');
-    expect(hero).toContain('cardforge-workshop-cover.webp');
+    expect(hero).toContain('getSiteMediaDisplaySrc(media)');
     expect(showcase).toContain('Layout Studio');
     expect(showcase).toContain('Generator');
     expect(showcase).toContain('Finished Sets');
-    expect(showcase).toContain('/card-assets/showcase/studio-layout.jpg');
-    expect(showcase).toContain('/card-assets/showcase/studio-generator-single.jpg');
-    expect(showcase).toContain('/card-assets/showcase/studio-generator-bulk.jpg');
+    expect(showcase).toContain("getDefaultSiteMedia('landing.showcase.layout')");
+    expect(showcase).toContain("getDefaultSiteMedia('landing.showcase.generator-single')");
+    expect(showcase).toContain("getDefaultSiteMedia('landing.showcase.generator-bulk')");
     expect(showcase).not.toContain('unoptimized');
     expect(showcase).toContain('sizes="(min-width: 1280px) 1119px');
     expect(showcase).toContain("maxWidth: `${width}px`");

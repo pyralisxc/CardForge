@@ -14,6 +14,7 @@ import {
   createCardForgeStructuredData,
   createSiteContentMap,
   getCachedSiteContentBlocks,
+  getCachedSiteMedia,
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
@@ -25,11 +26,16 @@ export const metadata = createPageMetadata({
 });
 
 export default async function LandingPage() {
-  const [siteContentBlocks, businessIdentity] = await Promise.all([
+  const [siteContentBlocks, businessIdentity, siteMedia] = await Promise.all([
     getCachedSiteContentBlocks('landing'),
     getCachedBusinessIdentity(),
+    getCachedSiteMedia(),
   ]);
   const siteCopy = createSiteContentMap(siteContentBlocks);
+  const heroMedia = siteMedia.find((asset) => asset.slot === 'landing.hero');
+  const layoutMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.layout');
+  const generatorSingleMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-single');
+  const generatorBulkMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-bulk');
 
   return (
     <PublicSiteShell
@@ -37,8 +43,12 @@ export default async function LandingPage() {
       currentPath="/"
     >
       <StructuredData value={createCardForgeStructuredData(businessIdentity)} />
-      <OutcomeHero />
-      <InteractiveStudioShowcase />
+      <OutcomeHero media={heroMedia} />
+      <InteractiveStudioShowcase
+        layoutMedia={layoutMedia}
+        generatorSingleMedia={generatorSingleMedia}
+        generatorBulkMedia={generatorBulkMedia}
+      />
       <WorkflowProof />
 
       <section aria-labelledby="founder-beta-heading" className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-7 md:px-8">

@@ -2,12 +2,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
-export function OutcomeHero() {
+import {
+  getDefaultSiteMedia,
+  getSiteMediaDisplaySrc,
+  type SiteMediaAsset,
+} from '@/features/public-site/model/siteMedia';
+
+export function OutcomeHero({ media = getDefaultSiteMedia('landing.hero') }: { media?: SiteMediaAsset }) {
   return (
     <section className="relative flex min-h-[34rem] overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:min-h-[40rem] md:px-8 md:py-16">
       <Image
-        src="/card-assets/showcase/cardforge-workshop-cover.webp"
-        alt="A warm CardForge workshop with illustrated card proofs, drawing tools, and a card-layout screen spread across a dark wood desk."
+        src={getSiteMediaDisplaySrc(media)}
+        alt={media.alt}
         fill
         priority
         fetchPriority="high"

@@ -40,3 +40,12 @@ export {
   type FounderProfile,
   type FounderProfileInput,
 } from './model/founderProfile';
+export {
+  DEFAULT_SITE_MEDIA,
+  getDefaultSiteMedia,
+  getSiteMediaDisplaySrc,
+  getSiteMediaStoragePath,
+  SITE_MEDIA_SLOTS,
+  type SiteMediaAsset,
+  type SiteMediaSlot,
+} from './model/siteMedia';

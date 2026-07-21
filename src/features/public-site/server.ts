@@ -11,6 +11,33 @@ export {
 } from './server/publicContentCache';
 export type { SiteContentGroup } from './model/siteContent';
 export {
+  SITE_MEDIA_BUCKET,
+  SITE_MEDIA_SLOTS,
+  getDefaultSiteMedia,
+  getSiteMediaDisplaySrc,
+  getSiteMediaStoragePath,
+  isSiteMediaSlot,
+  normalizeSiteMediaAlt,
+  type SiteMediaAsset,
+  type SiteMediaSlot,
+} from './model/siteMedia';
+export {
+  getSiteMedia,
+  SiteMediaStoreError,
+  updateSiteMedia,
+} from './server/siteMediaStore';
+export {
+  getCachedSiteMedia,
+  revalidateSiteMediaCache,
+  SITE_MEDIA_TAG,
+} from './server/publicSiteMediaCache';
+export {
+  MAX_SITE_MEDIA_BYTES,
+  processSiteMediaImage,
+  SITE_MEDIA_MIME_TYPES,
+  validateSiteMediaFile,
+} from './server/siteMediaImage';
+export {
   CARDFORGE_EXAMPLES,
   type CardForgeExample,
   type CardForgeExampleRow,
