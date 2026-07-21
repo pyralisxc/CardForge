@@ -1,11 +1,13 @@
 "use client";
 
 import type { ChangeEvent, MutableRefObject } from 'react';
-import { FileJson, FileText, FileUp, Table2 } from 'lucide-react';
+import { useState } from 'react';
+import { FileText, FileUp } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { TemplateFieldDefinition } from '@/domain/templates';
 import type { TCGCardTemplate } from '@/domain/templates';
@@ -15,6 +17,7 @@ interface BulkCsvInputPanelProps {
   selectedTemplate?: TCGCardTemplate;
   bulkDataInput: string;
   exampleCsv: string;
+  exampleJson: string;
   exampleStructuredText: string;
   bulkFieldDefinitions: TemplateFieldDefinition[];
   fileInputRef: MutableRefObject<HTMLInputElement | null>;
@@ -22,17 +25,41 @@ interface BulkCsvInputPanelProps {
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
+type BulkStarterChoice = 'text' | 'csv' | 'json' | 'upload' | 'blank';
+
+const starterActions: Record<BulkStarterChoice, string> = {
+  text: 'Use text starter',
+  csv: 'Use example CSV',
+  json: 'Use example JSON',
+  upload: 'Choose file',
+  blank: 'Start blank',
+};
+
 export function BulkCsvInputPanel({
   selectedTemplateId,
   selectedTemplate,
   bulkDataInput,
   exampleCsv,
+  exampleJson,
   exampleStructuredText,
   bulkFieldDefinitions,
   fileInputRef,
   onDataInputChange,
   onFileUpload,
 }: BulkCsvInputPanelProps) {
+  const [starterChoice, setStarterChoice] = useState<BulkStarterChoice>('text');
+
+  const useStarter = () => {
+    if (starterChoice === 'upload') {
+      fileInputRef.current?.click();
+      return;
+    }
+    if (starterChoice === 'text') onDataInputChange(exampleStructuredText);
+    if (starterChoice === 'csv') onDataInputChange(exampleCsv);
+    if (starterChoice === 'json') onDataInputChange(exampleJson);
+    if (starterChoice === 'blank') onDataInputChange('');
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -40,10 +67,23 @@ export function BulkCsvInputPanel({
         <CardDescription>Upload a file or paste a list. CardForge checks it as you go.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!selectedTemplateId}>
-            <FileUp className="mr-2 h-4 w-4" />
-            Upload Data
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="space-y-2">
+            <Label htmlFor="bulk-starter-choice">Start with</Label>
+            <Select value={starterChoice} onValueChange={(value) => setStarterChoice(value as BulkStarterChoice)}>
+              <SelectTrigger id="bulk-starter-choice"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text">Plain text starter</SelectItem>
+                <SelectItem value="csv">Example CSV</SelectItem>
+                <SelectItem value="json">Example JSON</SelectItem>
+                <SelectItem value="upload">Upload a file</SelectItem>
+                <SelectItem value="blank">Start blank</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="button" onClick={useStarter} disabled={!selectedTemplateId && starterChoice !== 'blank'}>
+            {starterChoice === 'upload' ? <FileUp className="mr-2 h-4 w-4" /> : <FileText className="mr-2 h-4 w-4" />}
+            {starterActions[starterChoice]}
           </Button>
           <input
             id="bulk-file-upload-csv"
@@ -53,59 +93,17 @@ export function BulkCsvInputPanel({
             className="sr-only"
             onChange={onFileUpload}
           />
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!selectedTemplate}
-            onClick={() => onDataInputChange(exampleCsv)}
-          >
-            <Table2 className="mr-2 h-4 w-4" />
-            Use Example CSV
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!selectedTemplate}
-            onClick={() => onDataInputChange(exampleStructuredText)}
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            Use Text Starter
-          </Button>
-        </div>
-
-        <div className="grid gap-2 md:grid-cols-3">
-          <div className="rounded-md border bg-muted/30 p-3 text-xs">
-            <div className="flex items-center gap-2 font-medium">
-              <Table2 className="h-3.5 w-3.5 text-primary" />
-              CSV
-            </div>
-            <p className="mt-1 text-muted-foreground">Best for spreadsheets. First row is field keys, following rows are cards.</p>
-          </div>
-          <div className="rounded-md border bg-muted/30 p-3 text-xs">
-            <div className="flex items-center gap-2 font-medium">
-              <FileJson className="h-3.5 w-3.5 text-primary" />
-              JSON
-            </div>
-            <p className="mt-1 text-muted-foreground">Best for generated data. Upload an array of objects using field keys.</p>
-          </div>
-          <div className="rounded-md border bg-muted/30 p-3 text-xs">
-            <div className="flex items-center gap-2 font-medium">
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              TXT / MD
-            </div>
-            <p className="mt-1 text-muted-foreground">Best for normal writing. Use Field: value lines and separate cards with ---.</p>
-          </div>
         </div>
 
         {selectedTemplate ? (
           <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <p><span className="font-medium text-foreground">Expected fields:</span> {bulkFieldDefinitions.map((field) => field.label).join(', ') || 'No generator fields found.'}</p>
-            <p><span className="font-medium text-foreground">Text format:</span> Field: value lines work in TXT/MD. Repeat a field block after --- to create another card.</p>
+            <p><span className="font-medium text-foreground">Card fields:</span> {bulkFieldDefinitions.map((field) => field.label).join(', ') || 'No card fields found.'}</p>
+            <p><span className="font-medium text-foreground">Plain text:</span> One block becomes one card. Use Field: value lines and separate cards with ---.</p>
           </div>
         ) : null}
 
         <div className="space-y-2">
-          <Label htmlFor="bulkData">Card data</Label>
+          <Label htmlFor="bulkData">Add your card list</Label>
           <Textarea
             id="bulkData"
             value={bulkDataInput}

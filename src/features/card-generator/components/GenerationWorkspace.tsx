@@ -50,11 +50,6 @@ interface GenerationWorkspaceProps {
   exportGateMessage?: string | null;
   exportEntitlementLabel: string;
   exportEntitlementMessage: string;
-  accountAccessMode: string;
-  accountEmail: string | null;
-  accountSource: string;
-  authConfigured: boolean;
-  isSignedIn: boolean;
   onOpenTemplateMaker: () => void;
   onSingleCardAdded: (card: DisplayCard) => void;
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
@@ -113,11 +108,6 @@ export function GenerationWorkspace({
   exportGateMessage,
   exportEntitlementLabel,
   exportEntitlementMessage,
-  accountAccessMode,
-  accountEmail,
-  accountSource,
-  authConfigured,
-  isSignedIn,
   onOpenTemplateMaker,
   onSingleCardAdded,
   onBulkCardsGenerated,
@@ -171,10 +161,6 @@ export function GenerationWorkspace({
   const exportProgressPercent = zipProgress && zipProgress.total > 0
     ? Math.round((zipProgress.done / zipProgress.total) * 100)
     : 0;
-  const zipExportLabel = exportMode === 'physical'
-    ? `Export Print PNG ZIP (${exportFaceCount} faces)`
-    : `Export Digital PNG ZIP (${exportFaceCount} images)`;
-
   const scrollGalleryIntoView = useCallback(() => {
     window.requestAnimationFrame(() => {
       galleryRegionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -218,7 +204,7 @@ export function GenerationWorkspace({
   return (
     <>
     <div className="space-y-8">
-      <section data-workflow-step="setup" aria-labelledby="generator-setup-heading" className="rounded-lg border bg-card p-4 shadow-sm">
+      <section data-workflow-step="setup" tabIndex={-1} aria-labelledby="generator-setup-heading" className="rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Layers3 className="h-5 w-5 text-primary" />
             <div>
@@ -236,14 +222,14 @@ export function GenerationWorkspace({
               />
             </div>
             <div>
-              <Label htmlFor="deck-front-template">Front design</Label>
+              <Label htmlFor="deck-front-template">Card design</Label>
               <Select
                 value={generatorSelectedTemplateId ?? undefined}
                 onValueChange={(value) => onTemplateSelectionChange(value)}
                 disabled={templates.length === 0}
               >
                 <SelectTrigger id="deck-front-template">
-                  <SelectValue placeholder="Choose front design" />
+                  <SelectValue placeholder="Choose a card design" />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map((template) => (
@@ -342,7 +328,7 @@ export function GenerationWorkspace({
       <section data-workflow-step="review" aria-labelledby="generator-review-heading" className="space-y-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Review the set</p>
-          <h2 id="generator-review-heading" className="mt-1 text-xl font-semibold">Check every generated card</h2>
+          <h2 id="generator-review-heading" className="mt-1 text-xl font-semibold">Review your cards</h2>
         </div>
         <div ref={galleryRegionRef} className="min-w-0 scroll-mt-4">
           <GeneratedCardGallery
@@ -374,28 +360,9 @@ export function GenerationWorkspace({
                   <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
                   <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 rounded-md border bg-background/80 p-3 text-xs text-muted-foreground sm:grid-cols-4">
-                  <div>
-                    <p className="font-semibold text-foreground">Auth</p>
-                    <p>{authConfigured ? 'Configured' : 'Local fallback'}</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">Session</p>
-                    <p>{isSignedIn ? 'Signed in' : 'Signed out'}</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">Access</p>
-                    <p className="uppercase">{accountAccessMode}</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground">Account</p>
-                    <p className="truncate">{accountEmail || accountSource}</p>
-                  </div>
-                </div>
-                <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={onSelectPaperSize} />
                 <div className="space-y-3 pt-2 border-t">
                   <div className="space-y-1">
-                    <Label htmlFor="exportMode" className="text-md font-medium">Export Profile</Label>
+                    <Label htmlFor="exportMode" className="text-md font-medium">How will you use this set?</Label>
                     <Select
                       value={exportMode}
                       onValueChange={(value) => onSetExportMode(value as ExportMode)}
@@ -404,15 +371,21 @@ export function GenerationWorkspace({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="physical">Physical Print (300 DPI, strict checks)</SelectItem>
-                        <SelectItem value="virtual">Virtual Export (faster, warning-first)</SelectItem>
+                        <SelectItem value="physical">Print physical cards</SelectItem>
+                        <SelectItem value="virtual">Share or play digitally</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Physical mode is recommended for print companies. Virtual mode is optimized for digital sharing.
+                      Choose print for physical cards, or digital for online sharing and virtual tabletop play.
                     </p>
+                  </div>
+                </div>
+                <details className="rounded-md border bg-muted/20 p-3">
+                  <summary className="cursor-pointer font-medium">Print settings</summary>
+                  <div className="mt-4 space-y-3">
+                    <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={onSelectPaperSize} />
                     <div className="space-y-1">
-                      <Label htmlFor="exportDpi" className="text-xs">Export DPI</Label>
+                      <Label htmlFor="exportDpi" className="text-xs">Image quality</Label>
                       <Select
                         value={String(exportDpi)}
                         onValueChange={(value) => onSetExportDpi(parseInt(value, 10))}
@@ -427,8 +400,7 @@ export function GenerationWorkspace({
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                  <Label className="text-md font-medium">PDF Options</Label>
+                  <Label className="text-md font-medium">PDF layout</Label>
                   <TooltipProvider>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -494,7 +466,8 @@ export function GenerationWorkspace({
                       </p>
                     </div>
                   )}
-                </div>
+                  </div>
+                </details>
 
                 <div className="flex flex-col gap-2 pt-2 border-t">
                   {!canExportClean && exportGateMessage ? (
@@ -507,9 +480,9 @@ export function GenerationWorkspace({
                         disabled={isCheckoutStarting}
                         className="w-full"
                       >
-                        {isCheckoutStarting ? 'Checking access...' : 'Unlock clean export'}
+                        {isCheckoutStarting ? 'Checking access...' : 'Unlock clean downloads'}
                       </Button>
-                      <p>Sign in to claim an open Founder Beta seat, or buy Creator Pass through Stripe when you are ready for clean exports.</p>
+                      <p>Sign in to claim an open Founder Beta seat, or use Creator Pass when you are ready for clean downloads.</p>
                     </div>
                   ) : null}
                   <SaveAsPdfButton
@@ -527,13 +500,13 @@ export function GenerationWorkspace({
                     templateName={generatedDisplayCards[0]?.template?.name}
                   />
                   <Button variant="outline" onClick={onExportAllAsZip} disabled={generatedDisplayCards.length === 0 || isZipExporting} className="flex items-center gap-2">
-                    <Download className="h-4 w-4" /> {isZipExporting ? `Exporting... ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : zipExportLabel}
+                    <Download className="h-4 w-4" /> {isZipExporting ? `Preparing… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : 'Download PNG set'}
                   </Button>
                   <Button variant="outline" onClick={onExportTabletopSimulatorSpritesheets} disabled={generatedDisplayCards.length === 0 || isZipExporting} className="flex items-center gap-2">
-                    <Gamepad2 className="h-4 w-4" /> Export Tabletop Simulator ZIP
+                    <Gamepad2 className="h-4 w-4" /> Tabletop Simulator export
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Tabletop Simulator export creates 10 x 7 spritesheets with up to 69 playable cards per sheet plus a JSON manifest.
+                    Tabletop Simulator export creates 10 × 7 spritesheets with up to 69 playable cards per sheet plus a JSON manifest.
                   </p>
                   {generatedDisplayCards.length > 0 && (
                     <p className="text-xs text-muted-foreground">
@@ -545,7 +518,7 @@ export function GenerationWorkspace({
                   )}
                   {generatedDisplayCards.length > 0 && (
                     <Button variant="destructive" onClick={onClearCardsRequest} className="flex items-center gap-2">
-                      <Trash2 className="h-4 w-4" /> Clear All ({generatedDisplayCards.length})
+                      <Trash2 className="h-4 w-4" /> Remove all cards ({generatedDisplayCards.length})
                     </Button>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: July 20, 2026
+Last updated: July 21, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one developer asset pipeline, and one owner console.
 
@@ -12,7 +12,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
 - Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
 - Email: Resend sends transactional messages to the configured support inbox and users.
-- Shared data: Supabase stores owner settings, legal copy, the founder profile and public portrait object, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles, submissions, votes, and contact request history.
+- Shared data: Supabase stores owner settings, editable homepage media, legal copy, the founder profile and public portrait object, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles, submissions, votes, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
 
 ## Source Lanes
@@ -95,7 +95,7 @@ App routes compose the public-site-owned shared header. The Owner Console keeps 
 ## Card Creation Model
 
 - Layout Studio owns reusable front templates and separate back templates.
-- Generator owns card sets, selected front template, selected card back, card data, generated output, and export settings.
+- Generator owns card sets, the selected card design and card back, card details, cards in the set, and export settings.
 - Card backs are not front-template fields.
 - Text variables use Field Contract v1.
 - Images have generator-side formatting controls for fit, position, scale, rotation, offset, and flips.
@@ -112,7 +112,7 @@ The current developer pipeline is operational infrastructure, not an active payo
 
 ## Public delivery and search identity
 
-Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, founder-profile, content-group, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
+Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, founder-profile, homepage-media, content-group, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
 
 `cardforge_founder_profile` is a private single-row service-role record. The public shell reads its cached copy for Facebook, Instagram, and Discord controls; blank links announce a coming-soon state. Owner portrait uploads are decoded and normalized by Sharp, stored as metadata-free WebP at `cardforge-public-media/founder/cameron-locke/portrait.webp`, and only become the active portrait after Storage succeeds.
 

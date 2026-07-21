@@ -519,9 +519,13 @@ body {
       position: absolute;
       z-index: 30;
       display: block;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       background: #0d1117;
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.48);
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
 
     .cardforge-maker-library {
@@ -571,11 +575,18 @@ body {
     .cardforge-maker-scroll,
     .cardforge-maker-library .cardforge-maker-scroll,
     .cardforge-maker-inspector .cardforge-maker-scroll {
-      height: 100% !important;
-      min-height: 0 !important;
+      height: auto !important;
+      min-height: 100% !important;
       max-height: none !important;
+      overflow: visible !important;
       overscroll-behavior: contain;
       touch-action: pan-y;
+    }
+
+    .cardforge-maker-scroll [data-radix-scroll-area-viewport] {
+      height: auto !important;
+      min-height: 100% !important;
+      overflow: visible !important;
     }
 
     .cardforge-canvas-scroll {

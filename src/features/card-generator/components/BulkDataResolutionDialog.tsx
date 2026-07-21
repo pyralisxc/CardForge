@@ -30,10 +30,10 @@ export function BulkDataResolutionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-600" />
-            Review data before generating
+            We found something to fix
           </DialogTitle>
           <DialogDescription>
-            Fix the items below, then return to generate your cards.
+            Fix the items below, then return to add your cards.
           </DialogDescription>
         </DialogHeader>
         <ul className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">

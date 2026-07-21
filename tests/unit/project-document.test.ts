@@ -221,16 +221,16 @@ describe('project document serialization', () => {
     expect(parsed.error).toContain('CardForge project export');
   });
 
-  it('rejects old stored-card arrays because outputs need matching templates', () => {
+  it('rejects stored-card arrays because cards need matching card designs', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify([storedCard]));
 
     expect(parsed.success).toBe(false);
     if (parsed.success) throw new Error('Expected old stored-card JSON to fail');
-    expect(parsed.error).toContain('Generated-output JSON needs its matching templates');
-    expect(parsed.error).toContain('full CardForge project export');
+    expect(parsed.error).toContain('Card JSON needs its matching card designs');
+    expect(parsed.error).toContain('full CardForge project file');
   });
 
-  it('rejects persisted generated-output snapshots without matching user templates', () => {
+  it('rejects persisted card snapshots without matching card designs', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       state: {
         storedCards: [storedCard],
@@ -240,10 +240,10 @@ describe('project document serialization', () => {
 
     expect(parsed.success).toBe(false);
     if (parsed.success) throw new Error('Expected generated-output-only snapshot to fail');
-    expect(parsed.error).toContain('Generated-output JSON needs its matching templates');
+    expect(parsed.error).toContain('Card JSON needs its matching card designs');
   });
 
-  it('routes bulk contract JSON away from the project importer', () => {
+  it('routes a card-list JSON file away from the project importer', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       contractVersion: 1,
       templateId: 'user-template-1',
@@ -260,11 +260,11 @@ describe('project document serialization', () => {
 
     expect(parsed.success).toBe(false);
     if (parsed.success) throw new Error('Expected bulk contract JSON to fail');
-    expect(parsed.error).toContain('bulk contract JSON');
-    expect(parsed.error).toContain('Bulk Import');
+    expect(parsed.error).toContain('card list');
+    expect(parsed.error).toContain('Make Cards → Use a list');
   });
 
-  it('routes bulk row JSON away from the project importer', () => {
+  it('routes card-list rows away from the project importer', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify([
       {
         Name: 'Rift Adept',
@@ -275,8 +275,8 @@ describe('project document serialization', () => {
 
     expect(parsed.success).toBe(false);
     if (parsed.success) throw new Error('Expected bulk row JSON to fail');
-    expect(parsed.error).toContain('bulk data rows');
-    expect(parsed.error).toContain('Generator > Bulk Import');
+    expect(parsed.error).toContain('card list');
+    expect(parsed.error).toContain('Make Cards → Use a list');
   });
 
   it('rejects persisted local workspace snapshots because project imports use project exports only', () => {

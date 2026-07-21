@@ -10,6 +10,7 @@ import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMe
 import {
   getFounderPortraitPublicUrl,
   getFounderProfile,
+  getSiteMedia,
   getSiteContentBlocks,
 } from '@/features/public-site/server';
 import {
@@ -22,6 +23,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     businessIdentity,
     siteMechanics,
     siteContentBlocks,
+    siteMedia,
     founderProfile,
     legalDocuments,
     founderBeta,
@@ -33,6 +35,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     getBusinessIdentity(),
     getRoadmapSettings(),
     getSiteContentBlocks(),
+    getSiteMedia(),
     getFounderProfile(),
     getLegalDocuments(),
     getFounderBetaCampaign(),
@@ -47,6 +50,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     businessIdentity,
     siteMechanics,
     siteContentBlocks,
+    siteMedia,
     founderProfile,
     founderPortraitUrl: getFounderPortraitPublicUrl(founderProfile.portraitStoragePath),
     legalDocuments,

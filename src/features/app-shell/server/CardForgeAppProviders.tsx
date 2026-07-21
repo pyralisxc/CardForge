@@ -6,7 +6,6 @@ import {
   createPublicShareSettings,
   PublicShareSettingsProvider,
 } from '@/features/card-generator/client';
-import { BrowserStorageAlerts } from '@/features/project/client';
 import {
   createSiteContentMap,
   getCachedSiteContentBlocks,
@@ -23,7 +22,6 @@ export async function CardForgeAppProviders({ children }: { children: ReactNode 
   const app = (
     <PublicShareSettingsProvider settings={shareSettings}>
       {children}
-      <BrowserStorageAlerts />
       <Toaster />
     </PublicShareSettingsProvider>
   );

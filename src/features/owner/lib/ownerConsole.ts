@@ -1,7 +1,7 @@
 import type { ContactRequest } from '@/features/contact/client';
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
-import type { FounderProfile, SiteContentBlock } from '@/features/public-site/client';
+import type { FounderProfile, SiteContentBlock, SiteMediaAsset } from '@/features/public-site/client';
 import type {
   RoadmapAdminItem,
   RoadmapSettings,
@@ -22,6 +22,7 @@ export interface OwnerConsolePayload {
   businessIdentity: BusinessIdentity;
   siteMechanics: RoadmapSettings;
   siteContentBlocks: SiteContentBlock[];
+  siteMedia: SiteMediaAsset[];
   founderProfile: FounderProfile;
   founderPortraitUrl: string | null;
   legalDocuments: LegalDocument[];

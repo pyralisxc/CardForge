@@ -62,7 +62,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
 - `src/features/app-shell/`: Studio shell, workspace bootstrap, and route-level composition.
 - `src/features/template-editor/`: Layout Studio panels, inspector tools, canvas commands, and editor controller hooks.
-- `src/features/card-generator/`: Single output entry, bulk data import, generated gallery, export controls, and paper/export settings.
+- `src/features/card-generator/`: One-card and list-based creation, card review, editing, sharing, downloads, and print/export settings.
 - `src/features/card-rendering/`: Shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark presentation.
 - `src/features/project/`: Local project files, project asset persistence, and project access rules.
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.

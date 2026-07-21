@@ -4,6 +4,11 @@ import Image from 'next/image';
 import { Database, LayoutTemplate, Layers3 } from 'lucide-react';
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 
+import {
+  getDefaultSiteMedia,
+  getSiteMediaDisplaySrc,
+  type SiteMediaAsset,
+} from '@/features/public-site/model/siteMedia';
 import { CARDFORGE_EXAMPLES, type CardForgeExample } from '../model/examples';
 import {
   getNextShowcaseStage,
@@ -19,32 +24,17 @@ const stages = [
 
 type FinishedSetComponent = ComponentType<{ example: CardForgeExample }>;
 
-const generatorScreenshots = {
-  single: {
-    src: '/card-assets/showcase/studio-generator-single.jpg',
-    alt: 'The real CardForge Generator showing the front and back setup followed by two-column Single Output fields.',
-    width: 869,
-    height: 1536,
-  },
-  bulk: {
-    src: '/card-assets/showcase/studio-generator-bulk.jpg',
-    alt: 'The real CardForge Generator showing the Bulk Import workflow followed by the generated-output review area.',
-    width: 904,
-    height: 1536,
-  },
-} as const;
-
 function StudioScreenshot({
-  src,
-  alt,
+  media,
   width,
   height,
 }: {
-  src: string;
-  alt: string;
+  media: SiteMediaAsset;
   width: number;
   height: number;
 }) {
+  const src = getSiteMediaDisplaySrc(media);
+  const alt = media.alt;
   return (
     <div
       className="max-h-[46rem] overflow-y-auto rounded-[var(--public-radius)] border border-[#3b2b19] bg-[#070707]"
@@ -65,7 +55,15 @@ function StudioScreenshot({
   );
 }
 
-export function InteractiveStudioShowcase() {
+export function InteractiveStudioShowcase({
+  layoutMedia = getDefaultSiteMedia('landing.showcase.layout'),
+  generatorSingleMedia = getDefaultSiteMedia('landing.showcase.generator-single'),
+  generatorBulkMedia = getDefaultSiteMedia('landing.showcase.generator-bulk'),
+}: {
+  layoutMedia?: SiteMediaAsset;
+  generatorSingleMedia?: SiteMediaAsset;
+  generatorBulkMedia?: SiteMediaAsset;
+}) {
   const [activeStage, setActiveStage] = useState(0);
   const [activeExample, setActiveExample] = useState(0);
   const [activeGeneratorView, setActiveGeneratorView] = useState<'single' | 'bulk'>('single');
@@ -116,6 +114,7 @@ export function InteractiveStudioShowcase() {
 
   const example = CARDFORGE_EXAMPLES[activeExample] ?? CARDFORGE_EXAMPLES[0];
   const panelId = 'showcase-stage-panel';
+  const generatorMedia = activeGeneratorView === 'single' ? generatorSingleMedia : generatorBulkMedia;
 
   return (
     <section
@@ -186,7 +185,7 @@ export function InteractiveStudioShowcase() {
                         : 'border-[#3b2b19] text-[var(--public-muted-text)] hover:border-[#76501f]'
                     }`}
                   >
-                    {view === 'single' ? 'Single Output' : 'Bulk Import'}
+                    {view === 'single' ? 'Make one card' : 'Use a list'}
                   </button>
                 ))}
               </div>
@@ -222,13 +221,16 @@ export function InteractiveStudioShowcase() {
           >
             {activeStage === 0 ? (
               <StudioScreenshot
-                src="/card-assets/showcase/studio-layout.jpg"
-                alt="The real CardForge Layout Studio with its template library, editable canvas, layers, controls, and field inspector."
+                media={layoutMedia}
                 width={1119}
                 height={1536}
               />
             ) : activeStage === 1 ? (
-              <StudioScreenshot {...generatorScreenshots[activeGeneratorView]} />
+              <StudioScreenshot
+                media={generatorMedia}
+                width={activeGeneratorView === 'single' ? 869 : 904}
+                height={1536}
+              />
             ) : finishedSetLoadFailed ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
                 The finished-set preview is temporarily unavailable. You can still explore the Studio screenshots.

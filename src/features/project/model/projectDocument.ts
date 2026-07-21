@@ -102,10 +102,10 @@ const isLikelyBulkDataRow = (value: unknown): boolean => (
 );
 
 const getUnsupportedProjectDocumentReason = (value: unknown): string => {
-  const storedCardOnlyMessage = 'Generated-output JSON needs its matching templates. Import a full CardForge project export.';
+  const storedCardOnlyMessage = 'Card JSON needs its matching card designs. Import a full CardForge project file.';
 
   if (isLikelyBulkContract(value)) {
-    return 'This is a bulk contract JSON file, not a project import. Use it as the source of truth beside Bulk Import data, or import a CardForge project export here.';
+    return 'This JSON file is for a card list, not a project file. Add it in Make Cards → Use a list, or import a full CardForge project file here.';
   }
 
   if (Array.isArray(value)) {
@@ -113,7 +113,7 @@ const getUnsupportedProjectDocumentReason = (value: unknown): string => {
       return storedCardOnlyMessage;
     }
     if (value.length > 0 && value.every(isLikelyBulkDataRow)) {
-      return 'This looks like bulk data rows. Paste or upload this JSON in Generator > Bulk Import instead of the Layout Studio project importer.';
+      return 'This looks like a card list. Paste or upload it in Make Cards → Use a list instead of importing it as a project file.';
     }
   }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { PackageOpen, Search, Trash2 } from 'lucide-react';
+import { PackageOpen, Pencil, Search, Trash2 } from 'lucide-react';
 
 import { CardPreview } from '@/features/card-rendering/client';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
@@ -73,7 +73,7 @@ export function GeneratedCardGallery({
 }: GeneratedCardGalleryProps) {
   const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('compact');
   const [galleryColumns, setGalleryColumns] = useState<GeneratedGalleryColumns>('auto');
-  const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const scrollParentRef = useRef<HTMLDivElement | null>(null);
   const gridMeasureRef = useRef<HTMLDivElement | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
@@ -138,7 +138,7 @@ export function GeneratedCardGallery({
     <div>
       <div className="sticky top-0 z-10 bg-background pb-2 flex items-center justify-between mb-2 gap-3 flex-wrap">
         <h2 className="min-w-0 text-xl font-semibold text-foreground sm:text-2xl">
-          Generated Outputs ({generatedDisplayCards.length})
+          Cards in This Set ({generatedDisplayCards.length})
           {selectedTemplate && (
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               - {selectedTemplate.name}
@@ -149,7 +149,7 @@ export function GeneratedCardGallery({
           <div className="relative min-w-0">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="Search outputs..."
+              placeholder="Search cards..."
               value={gallerySearch}
               onChange={(event) => onGallerySearchChange(event.target.value)}
               className="h-8 w-36 pl-8 text-sm sm:w-40"
@@ -167,7 +167,7 @@ export function GeneratedCardGallery({
             </SelectContent>
           </Select>
           <Select value={galleryDensity} onValueChange={(value) => setGalleryDensity(value as GeneratedGalleryDensity)}>
-            <SelectTrigger className="h-8 w-32 text-sm sm:w-36" aria-label="Card size in generated outputs">
+            <SelectTrigger className="h-8 w-32 text-sm sm:w-36" aria-label="Card size in this set">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -177,7 +177,7 @@ export function GeneratedCardGallery({
             </SelectContent>
           </Select>
           <Select value={galleryColumns} onValueChange={(value) => setGalleryColumns(value as GeneratedGalleryColumns)}>
-            <SelectTrigger className="h-8 w-28 text-sm sm:w-32" aria-label="Cards per row in generated outputs">
+            <SelectTrigger className="h-8 w-28 text-sm sm:w-32" aria-label="Cards per row in this set">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -192,8 +192,8 @@ export function GeneratedCardGallery({
       {generatedDisplayCards.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
           <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
-          <p className="text-lg font-medium">No outputs generated yet.</p>
-          <p className="text-sm">Create a single output or run Bulk Import. Filled fields appear here for visual review, edits, and export.</p>
+          <p className="text-lg font-medium">Your set is ready for its first card.</p>
+          <p className="text-sm">Make one card or add a list above. Every card will appear here so you can review and edit it before downloading the set.</p>
         </div>
       ) : (
         <div
@@ -203,8 +203,8 @@ export function GeneratedCardGallery({
         >
           <div className="mb-3 flex items-center justify-between gap-3 rounded-md border bg-background/80 px-3 py-2 text-xs text-muted-foreground">
             <span>
-              Showing {filteredSortedCards.length} matching outputs
-              {filteredSortedCards.length !== generatedDisplayCards.length ? ` (${generatedDisplayCards.length} total generated)` : ''}
+              Showing {filteredSortedCards.length} matching cards
+              {filteredSortedCards.length !== generatedDisplayCards.length ? ` (${generatedDisplayCards.length} in this set)` : ''}
             </span>
             <span>{columnCount} per row</span>
           </div>
@@ -228,7 +228,7 @@ export function GeneratedCardGallery({
                     }}
                   >
                     {rowCards.map((cardItem, cardIndex) => {
-                      const isSelected = selectedOutputId === cardItem.uniqueId;
+                      const isSelected = selectedCardId === cardItem.uniqueId;
                       return (
                         <div
                           key={cardItem.uniqueId}
@@ -242,7 +242,7 @@ export function GeneratedCardGallery({
                               highlightColor={richTextHighlightColor}
                               className="mx-auto"
                               showSizeInfo={rowStart + cardIndex === 0}
-                              onSelect={(card) => setSelectedOutputId(card.uniqueId)}
+                              onSelect={(card) => setSelectedCardId(card.uniqueId)}
                               onEdit={onEditCardRequest}
                               targetWidthPx={densityConfig.previewWidthPx}
                             />
@@ -256,20 +256,31 @@ export function GeneratedCardGallery({
                                 event.stopPropagation();
                                 onRemoveCard(cardItem);
                               }}
-                              aria-label={`Remove generated output ${rowStart + cardIndex + 1}`}
-                              title="Remove output"
+                              aria-label={`Remove card ${rowStart + cardIndex + 1}`}
+                              title="Remove card"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           ) : null}
                           {isSelected ? (
                             <div className="absolute bottom-2 right-2 flex gap-2">
+                              <button
+                                type="button"
+                                className="inline-flex h-8 items-center gap-1 rounded-md border bg-background/90 px-2 text-xs font-medium shadow-sm transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onEditCardRequest(cardItem);
+                                }}
+                                aria-label={hasRepeatedExportButtons ? `Edit card ${rowStart + cardIndex + 1}` : 'Edit card'}
+                              >
+                                <Pencil className="h-3.5 w-3.5" /> Edit card
+                              </button>
                               <ShareCardButton
                                 card={cardItem}
                                 exportMode={exportMode}
                                 exportDpi={exportDpi}
                                 richTextHighlightColor={richTextHighlightColor}
-                                ariaLabel={hasRepeatedExportButtons ? `Share output ${rowStart + cardIndex + 1}` : undefined}
+                                ariaLabel={hasRepeatedExportButtons ? `Share card ${rowStart + cardIndex + 1}` : undefined}
                               />
                               <ExportCardImageButton
                                 card={cardItem}
@@ -281,7 +292,7 @@ export function GeneratedCardGallery({
                                 iconOnly
                                 ariaLabel={
                                   hasRepeatedExportButtons
-                                    ? `Download individual output ${rowStart + cardIndex + 1}`
+                                    ? `Download card ${rowStart + cardIndex + 1}`
                                     : 'Download individual card'
                                 }
                               />

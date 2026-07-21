@@ -71,7 +71,7 @@ export function SaveAsPdfButton({
     if (generatedDisplayCards.length === 0) {
       toast({
         title: ERROR_COPY.pdfNoCards.title,
-        description: withNextStep('PDF export requires at least one generated output.', 'Generate an output first, then try Save as PDF again.'),
+        description: withNextStep('PDF export requires at least one card.', 'Add a card to your set, then try downloading the PDF again.'),
         variant: "default",
       });
       return;
@@ -81,7 +81,7 @@ export function SaveAsPdfButton({
       toast({
         title: 'PDF export size limit reached',
         description: withNextStep(
-          `PDF export is limited to ${MAX_TOTAL_PDF_EXPORT_CARDS} outputs per run (current: ${generatedDisplayCards.length}).`,
+          `PDF export is limited to ${MAX_TOTAL_PDF_EXPORT_CARDS} cards per download (current: ${generatedDisplayCards.length}).`,
           'Reduce the batch size and export again in multiple runs.'
         ),
         variant: 'destructive',
@@ -104,7 +104,7 @@ export function SaveAsPdfButton({
     if (criticalIssues.size > 0) {
       toast({
         title: "Export Blocked by Quality Checks",
-        description: withNextStep(Array.from(criticalIssues).slice(0, 2).join(' '), 'Fix these output issues in the generator or template, then export again.'),
+        description: withNextStep(Array.from(criticalIssues).slice(0, 2).join(' '), 'Fix these card issues in Make Cards or the card design, then download again.'),
         variant: "destructive",
       });
       setIsLoadingPdf(false);
@@ -114,7 +114,7 @@ export function SaveAsPdfButton({
     if (warningIssues.size > 0) {
       toast({
         title: ERROR_COPY.exportWarnings.title,
-        description: withNextStep(Array.from(warningIssues).slice(0, 2).join(' '), 'You can continue, but review output quality before sending to print.'),
+        description: withNextStep(Array.from(warningIssues).slice(0, 2).join(' '), 'You can continue, but review card quality before sending to print.'),
         duration: 7000,
       });
     }
@@ -146,7 +146,7 @@ export function SaveAsPdfButton({
         if (totalChunks > 1) {
           toast({
             title: `Generating PDF chunk ${chunkIndex + 1}/${totalChunks}`,
-            description: `Outputs ${chunkStart + 1}-${chunkEnd} of ${generatedDisplayCards.length}.`,
+            description: `Cards ${chunkStart + 1}-${chunkEnd} of ${generatedDisplayCards.length}.`,
           });
         }
 

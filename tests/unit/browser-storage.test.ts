@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   BROWSER_STORAGE_DATABASE,
+  BROWSER_STORAGE_SAVE_STATUS_EVENT,
   createBrowserKeyValueStorage,
   createIndexedDbStorage,
   getBrowserRecoverySnapshot,
+  getBrowserWorkspaceSaveStatus,
   getBrowserStorageHealth,
   getConstrainedImageSize,
   readProjectPreference,
@@ -44,6 +46,59 @@ describe('browser IndexedDB storage', () => {
 
     expect(await workspace.getItem('state')).toBe('{"kind":"workspace"}');
     expect(await assets.getItem('state')).toBe('{"kind":"assets"}');
+  });
+
+  it('reports the real IndexedDB workspace write lifecycle', async () => {
+    const statuses: string[] = [];
+    const browser = new EventTarget();
+    vi.stubGlobal('window', browser);
+    try {
+      browser.addEventListener(BROWSER_STORAGE_SAVE_STATUS_EVENT, (event) => {
+        statuses.push((event as CustomEvent<string>).detail);
+      });
+      const workspace = createIndexedDbStorage('workspace-status', { trackWorkspaceSaveStatus: true });
+
+      await workspace.setItem('state', '{"saved":true}');
+
+      expect(statuses).toEqual(['saving', 'saved']);
+      expect(getBrowserWorkspaceSaveStatus()).toBe('saved');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('reports a failed workspace write without pretending the change was saved', async () => {
+    const statuses: string[] = [];
+    const browser = new EventTarget();
+    vi.stubGlobal('window', browser);
+    vi.stubGlobal('indexedDB', {
+      open: () => {
+        const request = {
+          error: new Error('Storage is full'),
+          onerror: null as null | (() => void),
+          onupgradeneeded: null,
+          onsuccess: null,
+        };
+        queueMicrotask(() => request.onerror?.());
+        return request;
+      },
+    });
+    try {
+      browser.addEventListener(BROWSER_STORAGE_SAVE_STATUS_EVENT, (event) => {
+        statuses.push((event as CustomEvent<string>).detail);
+      });
+      const workspace = createIndexedDbStorage('workspace-status-failure', {
+        suppressWriteErrors: true,
+        trackWorkspaceSaveStatus: true,
+      });
+
+      await workspace.setItem('state', '{"saved":false}');
+
+      expect(statuses).toEqual(['saving', 'failed']);
+      expect(getBrowserWorkspaceSaveStatus()).toBe('failed');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('uses an inert adapter during server rendering when IndexedDB is unavailable', async () => {

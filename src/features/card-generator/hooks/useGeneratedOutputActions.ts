@@ -42,7 +42,7 @@ export function useGeneratedOutputActions({
   const handleClearGeneratedCards = useCallback(() => {
     clearGeneratedCards();
     setIsClearCardsDialogOpen(false);
-    toast({ title: 'Cleared', description: 'Generated outputs have been cleared.' });
+    toast({ title: 'Cards removed', description: 'The cards were removed from this set.' });
   }, [clearGeneratedCards, toast]);
 
   const handleEditCardRequest = useCallback((cardToEdit: DisplayCard) => {

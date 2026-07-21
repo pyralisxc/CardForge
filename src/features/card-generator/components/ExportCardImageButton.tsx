@@ -55,7 +55,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
       if (validation.warnings.length > 0) {
         toast({
           title: ERROR_COPY.exportWarnings.title,
-          description: withNextStep(validation.warnings.slice(0, 2).join(' '), 'Review the output preview for quality issues before sharing or printing.'),
+          description: withNextStep(validation.warnings.slice(0, 2).join(' '), 'Review the card preview for quality issues before sharing or printing.'),
           duration: 7000,
         });
       }
@@ -82,8 +82,8 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
       URL.revokeObjectURL(url);
       const exportProfile = getExportProfile(exportMode, exportDpi);
       toast({
-        title: 'Output exported',
-        description: `Saved as ${format.toUpperCase()} using ${exportProfile.label} (${exportProfile.dpi} DPI). Next step: review output quality before final delivery.`,
+        title: 'Card downloaded',
+        description: `Saved as ${format.toUpperCase()} using ${exportProfile.label} (${exportProfile.dpi} DPI). Review card quality before final delivery.`,
       });
     } catch (err) {
       toast({
