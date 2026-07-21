@@ -617,14 +617,6 @@ body {
       line-height: 1.35 !important;
     }
 
-    .cardforge-studio-nav {
-      display: none !important;
-    }
-
-    .cardforge-studio-account > div > div:first-child {
-      display: none !important;
-    }
-
     .cardforge-studio-main {
       padding-top: 1rem;
       padding-bottom: 1rem;

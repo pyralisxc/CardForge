@@ -9,6 +9,7 @@ describe('generated gallery layout', () => {
       minimumItemWidth: 144,
       gap: 12,
       requestedColumns: 'auto',
+      itemCount: 12,
     })).toBe(4);
   });
 
@@ -18,6 +19,7 @@ describe('generated gallery layout', () => {
       minimumItemWidth: 144,
       gap: 12,
       requestedColumns: '6',
+      itemCount: 12,
     })).toBe(2);
   });
 
@@ -27,6 +29,17 @@ describe('generated gallery layout', () => {
       minimumItemWidth: 144,
       gap: 12,
       requestedColumns: '4',
+      itemCount: 1,
     })).toBe(1);
+  });
+
+  it('does not claim empty columns when only a few cards exist', () => {
+    expect(resolveGeneratedGalleryColumnCount({
+      availableWidth: 1440,
+      minimumItemWidth: 220,
+      gap: 12,
+      requestedColumns: 'auto',
+      itemCount: 2,
+    })).toBe(2);
   });
 });

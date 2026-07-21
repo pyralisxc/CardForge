@@ -17,9 +17,9 @@ import {
 } from '../model/showcaseTiming';
 
 const stages = [
-  { label: 'Layout Studio', icon: LayoutTemplate },
-  { label: 'Generator', icon: Database },
-  { label: 'Finished Sets', icon: Layers3 },
+  { label: 'Design layouts', icon: LayoutTemplate },
+  { label: 'Make cards', icon: Database },
+  { label: 'Review the set', icon: Layers3 },
 ] as const;
 
 type FinishedSetComponent = ComponentType<{ example: CardForgeExample }>;
@@ -171,8 +171,8 @@ export function InteractiveStudioShowcase({
 
           {activeStage === 1 ? (
             <div className="border-b border-[#302315] bg-[#100d09] px-3 py-3">
-              <p className="sr-only">Choose a Generator view</p>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Generator screenshot">
+              <p className="sr-only">Choose how to make cards</p>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Card-making screenshot">
                 {(['single', 'bulk'] as const).map((view) => (
                   <button
                     key={view}

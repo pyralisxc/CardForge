@@ -36,6 +36,7 @@ import { useTemplateEditorElements } from '@/features/template-editor/hooks/useT
 import { useTemplateEditorViewport } from '@/features/template-editor/hooks/useTemplateEditorViewport';
 import { useTemplateEditorCommands } from '@/features/template-editor/hooks/useTemplateEditorCommands';
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
+import { createTemplateEditorActions } from '@/features/template-editor/lib/templateEditorActions';
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
@@ -240,6 +241,31 @@ export function CardTemplateMaker({
     saveTemplate: handleSave,
     setCommandPaletteOpen,
   } = commands;
+  const editorActions = createTemplateEditorActions({
+    canUndo: history.length > 0,
+    canRedo: future.length > 0,
+    showGrid,
+    snapToGrid,
+    previewMode,
+    onUndo: undo,
+    onRedo: redo,
+    onZoomOut: () => {
+      setAutoFitCanvas(false);
+      setZoom(value => clamp(Math.round((value - CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
+    },
+    onZoomIn: () => {
+      setAutoFitCanvas(false);
+      setZoom(value => clamp(Math.round((value + CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
+    },
+    onFitToScreen: fitCanvasToViewport,
+    onActualSize: resetCanvasZoom,
+    onCenterCanvas: centerCanvasViewport,
+    onToggleGrid: () => setShowGrid(value => !value),
+    onToggleSnapToGrid: () => setSnapToGrid(value => !value),
+    onTogglePreviewMode: () => setPreviewMode(value => !value),
+    onOpenCommandPalette: () => setCommandPaletteOpen(true),
+    onSave: handleSave,
+  });
   const livePreviewData = useMemo(() => ({
     cardName: 'Astral Relic',
     cost: '3',
@@ -301,30 +327,8 @@ export function CardTemplateMaker({
         data-mobile-panel={mobilePanel}
       >
         <TemplateEditorTopBar
-          canUndo={history.length > 0}
-          canRedo={future.length > 0}
-          showGrid={showGrid}
-          snapToGrid={snapToGrid}
-          previewMode={previewMode}
+          actions={editorActions}
           isDirty={isDirty}
-          onUndo={undo}
-          onRedo={redo}
-          onZoomOut={() => {
-            setAutoFitCanvas(false);
-            setZoom(value => clamp(Math.round((value - CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
-          }}
-          onZoomIn={() => {
-            setAutoFitCanvas(false);
-            setZoom(value => clamp(Math.round((value + CANVAS_ZOOM.step) * 100) / 100, CANVAS_ZOOM.min, CANVAS_ZOOM.max));
-          }}
-          onFitToScreen={fitCanvasToViewport}
-          onActualSize={resetCanvasZoom}
-          onCenterCanvas={centerCanvasViewport}
-          onToggleGrid={() => setShowGrid(value => !value)}
-          onToggleSnapToGrid={() => setSnapToGrid(value => !value)}
-          onTogglePreviewMode={() => setPreviewMode(value => !value)}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-          onSave={handleSave}
           toolButtonClassName={makerTheme.toolButton}
           activeButtonClassName={makerTheme.activeButton}
         />
@@ -356,6 +360,7 @@ export function CardTemplateMaker({
           onTogglePreview={() => setPreviewMode(value => !value)}
         />
         <MobileCanvasControls
+          actions={editorActions}
           isDirty={isDirty}
           templateName={currentTemplate.name}
           onOpenInspector={() => {
@@ -363,7 +368,6 @@ export function CardTemplateMaker({
             setMobilePanel('inspector');
           }}
           onOpenMenu={() => setMobilePanel('library')}
-          onSave={() => handleSave()}
         />
         <div className="cardforge-maker-grid grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {developerFontFaceCss && <style>{developerFontFaceCss}</style>}
@@ -458,27 +462,27 @@ export function CardTemplateMaker({
         <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled template'}”?</AlertDialogTitle>
+              <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled card design'}”?</AlertDialogTitle>
               <AlertDialogDescription>
                 {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate
-                  ? 'This is a CardForge pipeline template. Saving creates a new personal copy and keeps the original unchanged.'
+                  ? 'This is a built-in CardForge card design. Saving creates a new personal copy and keeps the original unchanged.'
                   : 'Your changes are not saved yet.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-2">
-              <label htmlFor="template-save-name" className="text-sm font-medium text-foreground">Template name</label>
+              <label htmlFor="template-save-name" className="text-sm font-medium text-foreground">Card design name</label>
               <Input
                 id="template-save-name"
                 value={saveName}
                 onChange={(event) => setSaveName(event.target.value)}
-                placeholder="Name this template"
+                placeholder="Name this card design"
               />
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel>
               <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
               <AlertDialogAction onClick={saveAndContinue}>
-                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate ? 'Save as new template' : 'Save changes'}
+                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate ? 'Save as new card design' : 'Save changes'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -414,7 +414,7 @@ export function BulkGenerator({
     if (!csvContent.trim() || !csvContent.includes('\n') || csvContent.startsWith('Select a template first.')) {
       toast({
         title: 'Example CSV unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Add card fields in Layout Studio, save, then download again.'),
+        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -438,7 +438,7 @@ export function BulkGenerator({
     if (!exampleJSON.trim() || exampleJSON === '[]') {
       toast({
         title: 'Example JSON unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Add card fields in Layout Studio, save, then download again.'),
+        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -462,7 +462,7 @@ export function BulkGenerator({
     if (!exampleStructuredText.trim() || exampleStructuredText.startsWith('Select a template first.')) {
       toast({
         title: 'Text starter unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Add card fields in Layout Studio, save, then download again.'),
+        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
         variant: 'destructive',
       });
       return;

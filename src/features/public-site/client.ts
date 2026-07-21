@@ -5,7 +5,7 @@ export {
   type SiteContentBlock,
   type SiteContentBlockSlug,
 } from './model/siteContent';
-export { PUBLIC_NAVIGATION } from './model/publicNavigation';
+export { PUBLIC_NAVIGATION, STUDIO_NAVIGATION } from './model/publicNavigation';
 export { PublicSiteHeader } from './components/PublicSiteHeader';
 export { PublicSiteFooter } from './components/PublicSiteFooter';
 export { PublicSiteShell } from './components/PublicSiteShell';

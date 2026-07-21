@@ -253,7 +253,7 @@ export function SingleCardGenerator({
           <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Choose a card design above to start entering details.</p>
         )}
          {templates.length === 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No card designs are available yet. Create one in Layout Studio first.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No card designs are available yet. Use Design layouts to create one first.</p>
         )}
 
         <Button

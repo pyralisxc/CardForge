@@ -7,18 +7,21 @@ export function resolveGeneratedGalleryColumnCount({
   minimumItemWidth,
   gap,
   requestedColumns,
+  itemCount,
 }: {
   availableWidth: number;
   minimumItemWidth: number;
   gap: number;
   requestedColumns: GeneratedGalleryColumns;
+  itemCount: number;
 }) {
   const columnsThatFit = Math.max(
     1,
     Math.floor((availableWidth + gap) / (minimumItemWidth + gap)),
   );
+  const usefulColumns = Math.min(columnsThatFit, Math.max(1, itemCount));
 
-  if (requestedColumns === 'auto') return columnsThatFit;
+  if (requestedColumns === 'auto') return usefulColumns;
 
-  return Math.min(Number(requestedColumns), columnsThatFit);
+  return Math.min(Number(requestedColumns), usefulColumns);
 }
