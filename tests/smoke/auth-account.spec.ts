@@ -235,20 +235,25 @@ test.afterAll(async () => {
   await cleanupCreatedUsers();
 });
 
-test('signed-out production auth opens Clerk without client bootstrap failures', async ({ page }) => {
+test('signed-out production auth follows the public sign-in route without Clerk bootstrap failures', async ({ page }) => {
   test.setTimeout(120_000);
   test.skip(Boolean(authSetupError), authSetupError ?? 'Unable to prepare Clerk testing token.');
   test.skip(!process.env.CLERK_SECRET_KEY, 'CLERK_SECRET_KEY is required for authenticated smoke tests.');
   test.skip(!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required for authenticated smoke tests.');
 
+  const clerkBootstrapResponses: Array<{ url: string; status: number }> = [];
   const failedClerkBootstrapRequests: Array<{ url: string; status: number }> = [];
   const clerkConsoleErrors: string[] = [];
   page.on('response', (response) => {
     const url = new URL(response.url());
     const isBootstrapRequest = url.pathname.endsWith('/v1/client')
       || url.pathname.endsWith('/v1/environment');
-    if (isBootstrapRequest && response.status() >= 400) {
-      failedClerkBootstrapRequests.push({ url: response.url(), status: response.status() });
+    if (isBootstrapRequest) {
+      const clerkResponse = { url: response.url(), status: response.status() };
+      clerkBootstrapResponses.push(clerkResponse);
+      if (response.status() >= 400) {
+        failedClerkBootstrapRequests.push(clerkResponse);
+      }
     }
   });
   page.on('console', (message) => {
@@ -258,20 +263,26 @@ test('signed-out production auth opens Clerk without client bootstrap failures',
   });
 
   await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 120_000 });
+  const publicHeader = page.locator('header');
+  const signInLink = publicHeader.getByRole('link', { name: 'Sign in', exact: true });
+  await expect(signInLink).toBeVisible({ timeout: 45_000 });
+  await expect(signInLink).toHaveAttribute('href', '/sign-in');
+  await expect(publicHeader).not.toContainText(/Connecting/i);
+
+  await Promise.all([
+    page.waitForURL(/\/sign-in(?:[/?#]|$)/, { timeout: 45_000 }),
+    signInLink.click(),
+  ]);
   await clerk.loaded({ page });
-  const signInButton = page.locator('header').getByRole('button', { name: 'Sign in', exact: true });
-  await expect(signInButton).toBeVisible({ timeout: 45_000 });
-  await signInButton.click();
-  await expect(page.locator('.cl-modalContent')).toBeVisible({ timeout: 45_000 });
   await expect(page.locator([
     '.cl-socialButtonsBlockButton',
     'input[name="identifier"]',
     'input[type="email"]',
-  ].join(', ')).first()).toBeVisible({ timeout: 45_000 });
+  ].join(', ')).first()).toBeEnabled({ timeout: 45_000 });
   await page.waitForTimeout(1_000);
 
   await test.info().attach('clerk-browser-diagnostics', {
-    body: JSON.stringify({ failedClerkBootstrapRequests, clerkConsoleErrors }, null, 2),
+    body: JSON.stringify({ clerkBootstrapResponses, failedClerkBootstrapRequests, clerkConsoleErrors }, null, 2),
     contentType: 'application/json',
   });
   expect(failedClerkBootstrapRequests).toEqual([]);
