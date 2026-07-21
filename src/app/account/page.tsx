@@ -3,8 +3,9 @@ import type { Metadata } from 'next';
 import { AccountProfilePage } from '@/features/account/client/profile';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { PublicSiteHeader } from '@/features/public-site/client';
+import { PublicSiteHeader } from '@/features/public-site/client/shell';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
@@ -20,7 +21,7 @@ export default async function AccountPage() {
     getCachedBusinessIdentity(),
   ]);
   return (
-    <>
+    <CardForgeAppProviders>
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
           accountSlot={<PublicAuthControls />}
@@ -29,6 +30,6 @@ export default async function AccountPage() {
         />
       </div>
       <AccountProfilePage initialAuthConfigured={authConfigured} />
-    </>
+    </CardForgeAppProviders>
   );
 }

@@ -25,6 +25,28 @@ describe('public header authentication controls', () => {
     expect(controlsSource).not.toContain('userProfileUrl="/profile"');
   });
 
+  it('keeps a direct public sign-in path without restoring Clerk to the public header bundle', () => {
+    const headerSource = readFileSync(
+      resolve(process.cwd(), 'src/features/public-site/components/PublicSiteHeader.tsx'),
+      'utf8',
+    );
+    const signInPageSource = readFileSync(
+      resolve(process.cwd(), 'src/app/sign-in/[[...sign-in]]/page.tsx'),
+      'utf8',
+    );
+    const clerkInfrastructureSource = readFileSync(
+      resolve(process.cwd(), 'src/infrastructure/auth/clerk.ts'),
+      'utf8',
+    );
+
+    expect(headerSource).toContain('href="/sign-in"');
+    expect(headerSource).toContain('Sign in');
+    expect(headerSource).not.toContain('@clerk/nextjs');
+    expect(signInPageSource).toContain("import { ClerkProvider, SignIn } from '@clerk/nextjs'");
+    expect(signInPageSource).toContain('<SignIn fallbackRedirectUrl="/account" />');
+    expect(clerkInfrastructureSource).toContain("'/sign-in'");
+  });
+
   it('removes the superseded app-shell public header', () => {
     expect(existsSync(resolve(process.cwd(), 'src/features/app-shell/components/PublicSiteHeader.tsx'))).toBe(false);
     expect(existsSync(resolve(process.cwd(), 'src/features/app-shell/client/publicSite.ts'))).toBe(false);

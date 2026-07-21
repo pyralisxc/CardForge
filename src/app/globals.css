@@ -272,7 +272,7 @@ body {
   --public-radius: 0.25rem;
   --public-shadow: 0 1rem 2.5rem rgb(0 0 0 / 38%);
   --public-space: clamp(2.5rem, 5vw, 4.5rem);
-  --public-font-body: var(--font-cardforge-ui), "Helvetica Neue", Arial, sans-serif;
+  --public-font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --public-font-display: var(--font-cardforge-spectral), Georgia, serif;
 }
 
@@ -313,6 +313,11 @@ body {
 
 .cardforge-public #main-content {
   scroll-margin-top: 1rem;
+}
+
+.cardforge-public-deferred-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48rem;
 }
 
 .cardforge-public-mobile-menu > button:last-child {

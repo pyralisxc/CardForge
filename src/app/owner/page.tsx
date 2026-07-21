@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 
 import { PublicAuthControls } from '@/features/account/client/auth';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { OwnerConsolePage } from '@/features/owner/client';
-import { PublicSiteHeader } from '@/features/public-site/client';
+import { PublicSiteHeader } from '@/features/public-site/client/shell';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
@@ -16,7 +17,7 @@ export const metadata: Metadata = createPageMetadata({
 export default async function OwnerPage() {
   const businessIdentity = await getCachedBusinessIdentity();
   return (
-    <>
+    <CardForgeAppProviders>
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
           accountSlot={<PublicAuthControls />}
@@ -25,6 +26,6 @@ export default async function OwnerPage() {
         />
       </div>
       <OwnerConsolePage />
-    </>
+    </CardForgeAppProviders>
   );
 }

@@ -6,14 +6,14 @@ import { describe, expect, it } from 'vitest';
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('owner-managed public sharing', () => {
-  it('provides one global owner-controlled share message to generated-card sharing', () => {
+  it('provides one owner-controlled share message to generated-card sharing in the app runtime', () => {
     const contextPath = resolve(process.cwd(), 'src/features/card-generator/components/PublicShareSettingsContext.tsx');
     expect(existsSync(contextPath)).toBe(true);
 
-    const layout = readSource('src/app/layout.tsx');
+    const appProviders = readSource('src/features/app-shell/server/CardForgeAppProviders.tsx');
     const shareButton = readSource('src/features/card-generator/components/ShareCardButton.tsx');
-    expect(layout).toContain("getCachedSiteContentBlocks('sharing')");
-    expect(layout).toContain('<PublicShareSettingsProvider');
+    expect(appProviders).toContain("getCachedSiteContentBlocks('sharing')");
+    expect(appProviders).toContain('<PublicShareSettingsProvider');
     expect(shareButton).toContain('usePublicShareSettings');
     expect(shareButton).toContain('text: shareSettings.message');
     expect(shareButton).toContain('url: shareSettings.homepageUrl');

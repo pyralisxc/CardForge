@@ -75,16 +75,16 @@ describe('Owner Console composition', () => {
       expect(source, featurePath).not.toContain('@/features/app-shell');
     }
     const ownerPage = await readFile(rootPath('src/app/owner/page.tsx'), 'utf8');
-    expect(ownerPage).toContain('@/features/public-site/client');
+    expect(ownerPage).toContain('@/features/public-site/client/shell');
     expect(ownerPage).toContain('<PublicSiteHeader');
-    expect(ownerPage).not.toContain('@/features/app-shell');
+    expect(ownerPage).not.toContain('StudioHeader');
 
     for (const appPath of [
       'src/app/developer/page.tsx',
       'src/app/roadmap/page.tsx',
     ]) {
       const source = await readFile(rootPath(appPath), 'utf8');
-      expect(source, appPath).toContain('@/features/public-site/client');
+      expect(source, appPath).toContain('@/features/public-site/client/shell');
       expect(source, appPath).toContain('<PublicSiteShell');
     }
   });

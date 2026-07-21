@@ -1,4 +1,5 @@
 import { ProfileManagementPage, ProfileSetupFallback } from '@/features/account/client/profile';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -14,5 +15,9 @@ export default function ProfilePage() {
     return <ProfileSetupFallback />;
   }
 
-  return <ProfileManagementPage />;
+  return (
+    <CardForgeAppProviders>
+      <ProfileManagementPage />
+    </CardForgeAppProviders>
+  );
 }

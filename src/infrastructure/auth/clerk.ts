@@ -23,6 +23,7 @@ export const getPublicAuthControlState = ({
 const CLERK_PAGE_PREFIXES = [
   '/account',
   '/profile',
+  '/sign-in',
   '/__clerk',
 ];
 
