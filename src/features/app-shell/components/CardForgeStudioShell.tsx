@@ -5,7 +5,6 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MenuIcon, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
 import { useToast } from '@/components/ui/use-toast';
@@ -191,7 +190,6 @@ export function CardForgeStudioShell({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
@@ -303,11 +301,6 @@ export function CardForgeStudioShell({
     toast,
   });
 
-  const handleMobileMenuSelect = useCallback((tabValue: string) => {
-    setActiveTabAction(tabValue);
-    setIsMobileMenuOpen(false);
-  }, [setActiveTabAction]);
-
   const handleDismissFirstRunGuide = useCallback(() => {
     firstRunGuideDismissedRef.current = true;
     setShowFirstRunGuide(false);
@@ -368,8 +361,8 @@ export function CardForgeStudioShell({
           <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
         )}
         {showFirstRunGuide ? (
-          <section className="mb-4 border border-[#6d4f2b] bg-[#15100a] p-4 no-print md:p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <section className="relative mb-4 border border-[#6d4f2b] bg-[#15100a] p-4 no-print md:p-5">
+            <div className="pr-10">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Welcome to the forge</p>
                 <h1 className="mt-2 font-serif text-2xl font-semibold text-[#fff1c7]">Make one card, then build the set.</h1>
@@ -377,64 +370,35 @@ export function CardForgeStudioShell({
                   Choose a ready-made card design and add your card details. Your work saves in this browser as you go. Clearing browser data or changing devices can remove this copy; a downloaded project backup is the portable recovery path when it is available to you.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="self-start text-[#c8b07f] hover:bg-[#24180e] hover:text-[#fff3ca]"
-                onClick={handleDismissFirstRunGuide}
-                aria-label="Dismiss first run guide"
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 text-[#c8b07f] hover:bg-[#24180e] hover:text-[#fff3ca]"
+              onClick={handleDismissFirstRunGuide}
+              aria-label="Dismiss first run guide"
+            >
+              <X className="h-4 w-4" />
+            </Button>
             <div className="mt-4 flex flex-wrap gap-3">
               <Button type="button" onClick={handleStartMakingCards}>Start making cards</Button>
-              <Button type="button" variant="outline" onClick={handleEditDesignFirst}>Edit the design first</Button>
+              <Button type="button" variant="outline" onClick={handleEditDesignFirst}>Design the layout first</Button>
             </div>
           </section>
         ) : null}
         <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full min-w-0">
           <div className="cardforge-studio-context mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
-            <p><span className="font-semibold text-[#fff1c7]">Layout Studio</span> shapes card designs and their fields.</p>
+            <p><span className="font-semibold text-[#fff1c7]">Design layouts</span> shapes card designs and their fields.</p>
             <p><span className="font-semibold text-[#fff1c7]">Make Cards</span> adds card details, then keeps every card ready for review and export.</p>
           </div>
-          <div className="md:hidden mb-4">
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" className="w-full flex items-center justify-center gap-2">
-                  <MenuIcon className="h-5 w-5" />
-                  Menu ({STUDIO_TABS.find(t => t.value === effectiveActiveTab)?.label})
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] sm:w-[320px]">
-                <SheetHeader>
-                  <SheetTitle className="text-lg font-semibold">Navigation</SheetTitle>
-                </SheetHeader>
-                <nav className="mt-6 flex flex-col space-y-2">
-                  {STUDIO_TABS.map(tab => (
-                    <Button
-                      key={tab.value}
-                      variant={effectiveActiveTab === tab.value ? "secondary" : "ghost"}
-                      className="w-full justify-start"
-                      onClick={() => handleMobileMenuSelect(tab.value)}
-                    >
-                      <tab.icon className="mr-2 h-4 w-4" />
-                      {tab.label}
-                    </Button>
-                  ))}
-                </nav>
-              </SheetContent>
-            </Sheet>
-          </div>
-
-          <TabsList className="cardforge-studio-tabs mb-6 hidden w-full border border-[#5f4526] bg-[#15100a] md:grid md:grid-cols-2 no-print">
+          <TabsList className="cardforge-studio-tabs mb-4 grid h-auto w-full grid-cols-2 border border-[#5f4526] bg-[#15100a] p-1 no-print md:mb-6">
             {STUDIO_TABS.map(tab => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
                 data-testid={`studio-tab-${tab.value}`}
-                className="flex items-center gap-2 text-[#c8b07f] data-[state=active]:bg-[#24180e] data-[state=active]:text-[#ffe7ad]"
+                className="flex min-h-11 items-center justify-center gap-2 px-2 text-xs text-[#c8b07f] data-[state=active]:bg-[#24180e] data-[state=active]:text-[#ffe7ad] sm:text-sm"
                 onClick={() => setActiveTabAction(tab.value)}
               >
                 <tab.icon className="mr-2 h-4 w-4" /> {tab.label}

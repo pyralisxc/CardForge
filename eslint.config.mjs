@@ -18,6 +18,7 @@ const eslintConfig = [
       ".next/**",
       ".next-smoke/**",
       ".next-dev/**",
+      ".worktrees/**",
       "next-env.d.ts",
       "node_modules/**",
       "coverage/**",

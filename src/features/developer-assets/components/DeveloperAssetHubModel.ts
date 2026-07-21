@@ -42,7 +42,7 @@ export const reviewQueueHelp = 'All voteable assets live in one lane. Use status
 
 export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, DeveloperAssetSubmissionGuidance> = {
   templates: {
-    destination: 'Layout Studio template library',
+    destination: 'Design layouts: card design library',
     sourceLabel: 'Template JSON',
     sourceHelp: 'Submit a saved CardForge template JSON so reviewers can inspect the full canvas, layers, sample text, and generator-ready fields.',
     acceptedFileTypes: 'JSON template export',
@@ -51,7 +51,7 @@ export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, Develo
     checklist: ['Complete layout', 'Readable sample text', 'Generator fields named clearly'],
   },
   elementPresets: {
-    destination: 'Layout Studio recipe and preset tools',
+    destination: 'Design layouts: recipe and preset tools',
     sourceLabel: 'Preset or style JSON',
     sourceHelp: 'Submit a structured recipe, appearance style, or element preset JSON that can apply predictably to a specific element role.',
     acceptedFileTypes: 'JSON recipe or style export',
@@ -107,7 +107,7 @@ export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, Develo
   fonts: {
     destination: 'Studio typography picker',
     sourceLabel: 'Font file',
-    sourceHelp: 'Submit a web-usable font file that can become a reviewed text family in Layout Studio after approval.',
+    sourceHelp: 'Submit a web-usable font file that can become a reviewed text family in the Design layouts workspace after approval.',
     acceptedFileTypes: 'WOFF2, WOFF, TTF, or OTF',
     accept: '.woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf,application/font-woff,application/x-font-ttf,application/x-font-otf,application/octet-stream',
     notesHelp: 'Mention license rights, best text role, readable size range, category, and whether it is display-only or body-safe.',

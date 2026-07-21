@@ -8,21 +8,40 @@ export interface PublicNavigationGroup {
   links: ReadonlyArray<PublicNavigationLink>;
 }
 
+const NAVIGATION_LINKS = {
+  home: { href: '/', label: 'Home' },
+  about: { href: '/about', label: 'How it works' },
+  studio: { href: '/studio', label: 'Studio' },
+  roadmap: { href: '/roadmap', label: 'Roadmap' },
+  developer: { href: '/developer', label: 'Developers' },
+  account: { href: '/account', label: 'Account' },
+  founder: { href: '/cameron', label: 'Meet Cameron' },
+} as const satisfies Record<string, PublicNavigationLink>;
+
+export const STUDIO_NAVIGATION = [
+  NAVIGATION_LINKS.home,
+  NAVIGATION_LINKS.about,
+  NAVIGATION_LINKS.studio,
+  NAVIGATION_LINKS.roadmap,
+  NAVIGATION_LINKS.developer,
+  NAVIGATION_LINKS.account,
+] as const satisfies ReadonlyArray<PublicNavigationLink>;
+
 export const PUBLIC_NAVIGATION = {
   primary: [
-    { href: '/about', label: 'How it works' },
-    { href: '/roadmap', label: 'Roadmap' },
-    { href: '/account', label: 'Account' },
+    NAVIGATION_LINKS.about,
+    NAVIGATION_LINKS.roadmap,
+    NAVIGATION_LINKS.account,
   ],
-  studio: { href: '/studio', label: 'Try the Studio' },
-  founder: { href: '/cameron', label: 'Meet Cameron' },
+  studio: { ...NAVIGATION_LINKS.studio, label: 'Try the Studio' },
+  founder: NAVIGATION_LINKS.founder,
   footerGroups: [
     {
       label: 'Product',
       links: [
-        { href: '/studio', label: 'Studio' },
-        { href: '/account', label: 'Account' },
-        { href: '/roadmap', label: 'Roadmap' },
+        NAVIGATION_LINKS.studio,
+        NAVIGATION_LINKS.account,
+        NAVIGATION_LINKS.roadmap,
       ],
     },
     {

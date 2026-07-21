@@ -117,7 +117,7 @@ test('paid account can export an edited shipped template and import it after bro
   });
 
   await page.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
-  await page.getByRole('tab', { name: /Layout Studio/i }).click();
+  await page.getByRole('tab', { name: /Design layouts/i }).click();
   await expect(page.getByRole('button', { name: 'Buy Creator Pass', exact: true })).toHaveCount(0, {
     timeout: 30_000,
   });
@@ -164,7 +164,7 @@ test('paid account can export an edited shipped template and import it after bro
   await clearCardForgeBrowserStorage(recoveryPage);
   await recoveryPage.goto('/studio', { waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
-  await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
+  await recoveryPage.getByRole('tab', { name: /Design layouts/i }).click();
   await expect(recoveryPage.getByRole('button', { name: 'Buy Creator Pass', exact: true })).toHaveCount(0, {
     timeout: 30_000,
   });
@@ -198,6 +198,6 @@ test('paid account can export an edited shipped template and import it after bro
 
   await recoveryPage.reload({ waitUntil: 'domcontentloaded', timeout: STUDIO_READY_TIMEOUT });
   await recoveryPage.getByTestId('studio-ready').waitFor({ state: 'visible', timeout: STUDIO_READY_TIMEOUT });
-  await recoveryPage.getByRole('tab', { name: /Layout Studio/i }).click();
+  await recoveryPage.getByRole('tab', { name: /Design layouts/i }).click();
   await expect(importedDesignControl).toHaveCount(1, { timeout: 30_000 });
 });

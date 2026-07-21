@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { SignInButton, UserProfile, useUser } from '@clerk/nextjs';
-import { ArrowLeft, FolderOpen, Hammer, KeyRound, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { FolderOpen, KeyRound, ShieldCheck, UserCircle2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { getAccountDisplayName, toPossessiveName } from '@/features/account/lib/accountDisplay';
@@ -39,23 +39,6 @@ function ProfileShell({
 }) {
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
-      <header className="border-b border-[#5f4526] bg-[#120e09]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-          <Link href="/" prefetch={false} className="flex items-center gap-3 text-[#f9e7b7]">
-            <span className="grid h-9 w-9 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d]">
-              <Hammer className="h-4 w-4" />
-            </span>
-            <span className="font-serif text-xl font-semibold">CardForge Studio</span>
-          </Link>
-          <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-            <Link href="/account" prefetch={false}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Account
-            </Link>
-          </Button>
-        </div>
-      </header>
-
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="mb-4 border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
           <div className="flex items-center gap-3 text-[#e2aa4a]">

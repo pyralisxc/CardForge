@@ -192,10 +192,10 @@ export function GenerationWorkspace({
         <PenTool className="h-16 w-16 text-primary/60" />
         <div className="space-y-2">
           <h2 className="text-2xl font-bold">No Card Designs Yet</h2>
-          <p className="text-muted-foreground max-w-sm">Create a card design in Layout Studio first, then come back here to fill in details and make cards.</p>
+          <p className="text-muted-foreground max-w-sm">Use Design layouts to create a card design first, then come back here to fill in details and make cards.</p>
         </div>
         <Button size="lg" onClick={onOpenTemplateMaker} className="gap-2">
-          <PenTool className="h-5 w-5" /> Open Layout Studio
+          <PenTool className="h-5 w-5" /> Open Design layouts
         </Button>
       </div>
     );

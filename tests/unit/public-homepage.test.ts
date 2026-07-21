@@ -44,9 +44,9 @@ describe('proof-led homepage', () => {
     expect(page.indexOf('<InteractiveStudioShowcase')).toBeLessThan(page.indexOf('<WorkflowProof'));
     expect(page).not.toContain('cardforge-hero-workbench.png');
     expect(hero).toContain('getSiteMediaDisplaySrc(media)');
-    expect(showcase).toContain('Layout Studio');
-    expect(showcase).toContain('Generator');
-    expect(showcase).toContain('Finished Sets');
+    expect(showcase).toContain('Design layouts');
+    expect(showcase).toContain('Make cards');
+    expect(showcase).toContain('Review the set');
     expect(showcase).toContain("getDefaultSiteMedia('landing.showcase.layout')");
     expect(showcase).toContain("getDefaultSiteMedia('landing.showcase.generator-single')");
     expect(showcase).toContain("getDefaultSiteMedia('landing.showcase.generator-bulk')");

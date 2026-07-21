@@ -14,7 +14,7 @@ describe('Studio first-session experience', () => {
   it('uses actionable existing-Studio choices instead of the retired step list', () => {
     expect(shell).toContain('Welcome to the forge');
     expect(shell).toContain('Start making cards');
-    expect(shell).toContain('Edit the design first');
+    expect(shell).toContain('Design the layout first');
     expect(shell).toContain("setActiveTabAction('generator')");
     expect(shell).toContain("setActiveTabAction('template-maker')");
     expect(shell).not.toContain('const firstRunSteps');

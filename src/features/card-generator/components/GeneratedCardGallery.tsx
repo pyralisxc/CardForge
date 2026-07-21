@@ -13,6 +13,7 @@ import {
   type GeneratedGalleryColumns,
 } from '@/features/card-generator/lib/generatedGalleryLayout';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import type { TCGCardTemplate } from '@/domain/templates';
@@ -42,9 +43,9 @@ interface GeneratedCardGalleryProps {
 const GALLERY_GRID_GAP_PX = 12;
 
 const GALLERY_DENSITY_OPTIONS: Record<GeneratedGalleryDensity, { label: string; previewWidthPx: number; gridMinWidthPx: number; rowHeightPx: number }> = {
-  compact: { label: 'Small cards', previewWidthPx: 132, gridMinWidthPx: 144, rowHeightPx: 226 },
-  comfortable: { label: 'Medium cards', previewWidthPx: 176, gridMinWidthPx: 188, rowHeightPx: 286 },
-  large: { label: 'Large cards', previewWidthPx: 232, gridMinWidthPx: 244, rowHeightPx: 368 },
+  compact: { label: 'Small cards', previewWidthPx: 150, gridMinWidthPx: 220, rowHeightPx: 304 },
+  comfortable: { label: 'Medium cards', previewWidthPx: 190, gridMinWidthPx: 260, rowHeightPx: 360 },
+  large: { label: 'Large cards', previewWidthPx: 240, gridMinWidthPx: 320, rowHeightPx: 440 },
 };
 
 const GALLERY_COLUMN_OPTIONS: Array<{ value: GeneratedGalleryColumns; label: string }> = [
@@ -71,7 +72,7 @@ export function GeneratedCardGallery({
   onEditCardRequest,
   onRemoveCard,
 }: GeneratedCardGalleryProps) {
-  const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('compact');
+  const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('comfortable');
   const [galleryColumns, setGalleryColumns] = useState<GeneratedGalleryColumns>('auto');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const scrollParentRef = useRef<HTMLDivElement | null>(null);
@@ -105,6 +106,7 @@ export function GeneratedCardGallery({
     minimumItemWidth: densityConfig.gridMinWidthPx,
     gap: GALLERY_GRID_GAP_PX,
     requestedColumns: galleryColumns,
+    itemCount: filteredSortedCards.length,
   });
   const rowCount = Math.ceil(filteredSortedCards.length / columnCount);
   const virtualizer = useVirtualizer({
@@ -145,18 +147,18 @@ export function GeneratedCardGallery({
             </span>
           )}
         </h2>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <div className="relative min-w-0">
+        <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+          <div className="relative col-span-2 min-w-0 sm:col-span-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder="Search cards..."
               value={gallerySearch}
               onChange={(event) => onGallerySearchChange(event.target.value)}
-              className="h-8 w-36 pl-8 text-sm sm:w-40"
+              className="h-10 w-full pl-8 text-sm sm:h-8 sm:w-40"
             />
           </div>
           <Select value={gallerySort} onValueChange={(value) => onGallerySortChange(value as GeneratedGallerySort)}>
-            <SelectTrigger className="h-8 w-32 text-sm sm:w-36" aria-label="Sort gallery">
+            <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-36" aria-label="Sort gallery">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -167,7 +169,7 @@ export function GeneratedCardGallery({
             </SelectContent>
           </Select>
           <Select value={galleryDensity} onValueChange={(value) => setGalleryDensity(value as GeneratedGalleryDensity)}>
-            <SelectTrigger className="h-8 w-32 text-sm sm:w-36" aria-label="Card size in this set">
+            <SelectTrigger className="h-10 w-full text-sm sm:h-8 sm:w-36" aria-label="Card size in this set">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -177,7 +179,7 @@ export function GeneratedCardGallery({
             </SelectContent>
           </Select>
           <Select value={galleryColumns} onValueChange={(value) => setGalleryColumns(value as GeneratedGalleryColumns)}>
-            <SelectTrigger className="h-8 w-28 text-sm sm:w-32" aria-label="Cards per row in this set">
+            <SelectTrigger className="col-span-2 h-10 w-full text-sm sm:col-span-1 sm:h-8 sm:w-32" aria-label="Cards per row in this set">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -232,7 +234,7 @@ export function GeneratedCardGallery({
                       return (
                         <div
                           key={cardItem.uniqueId}
-                          className={`relative rounded-md transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                          className={`rounded-md p-1 transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                           data-selected={isSelected ? 'true' : 'false'}
                         >
                           <div className="relative mx-auto w-fit">
@@ -248,56 +250,65 @@ export function GeneratedCardGallery({
                             />
                             {showPreviewWatermark ? <CardWatermarkOverlay /> : null}
                           </div>
-                          {isSelected ? (
-                            <button
-                              type="button"
-                              className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-destructive/50 bg-background/90 text-destructive shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-destructive"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onRemoveCard(cardItem);
-                              }}
-                              aria-label={`Remove card ${rowStart + cardIndex + 1}`}
-                              title="Remove card"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                          {isSelected ? (
-                            <div className="absolute bottom-2 right-2 flex gap-2">
-                              <button
-                                type="button"
-                                className="inline-flex h-8 items-center gap-1 rounded-md border bg-background/90 px-2 text-xs font-medium shadow-sm transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  onEditCardRequest(cardItem);
-                                }}
-                                aria-label={hasRepeatedExportButtons ? `Edit card ${rowStart + cardIndex + 1}` : 'Edit card'}
-                              >
-                                <Pencil className="h-3.5 w-3.5" /> Edit card
-                              </button>
-                              <ShareCardButton
-                                card={cardItem}
-                                exportMode={exportMode}
-                                exportDpi={exportDpi}
-                                richTextHighlightColor={richTextHighlightColor}
-                                ariaLabel={hasRepeatedExportButtons ? `Share card ${rowStart + cardIndex + 1}` : undefined}
-                              />
-                              <ExportCardImageButton
-                                card={cardItem}
-                                exportMode={exportMode}
-                                exportDpi={exportDpi}
-                                richTextHighlightColor={richTextHighlightColor}
-                                disabled={false}
-                                gateMessage={exportGateMessage}
-                                iconOnly
-                                ariaLabel={
-                                  hasRepeatedExportButtons
-                                    ? `Download card ${rowStart + cardIndex + 1}`
-                                    : 'Download individual card'
-                                }
-                              />
-                            </div>
-                          ) : null}
+                          <div
+                            data-testid="generated-card-action-rail"
+                            className={`mx-auto mt-2 flex min-h-12 w-full items-center gap-1 rounded-md border border-border/80 bg-background/95 p-1 shadow-sm ${isSelected ? '' : 'invisible'}`}
+                            style={{ maxWidth: `${densityConfig.gridMinWidthPx}px` }}
+                            aria-label={isSelected ? `Actions for card ${rowStart + cardIndex + 1}` : undefined}
+                          >
+                            {isSelected ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="h-10 min-w-0 flex-1 gap-1 px-2 text-xs"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onEditCardRequest(cardItem);
+                                  }}
+                                  aria-label={hasRepeatedExportButtons ? `Edit card ${rowStart + cardIndex + 1}` : 'Edit card'}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" /> Edit card
+                                </Button>
+                                <ShareCardButton
+                                  card={cardItem}
+                                  exportMode={exportMode}
+                                  exportDpi={exportDpi}
+                                  richTextHighlightColor={richTextHighlightColor}
+                                  ariaLabel={hasRepeatedExportButtons ? `Share card ${rowStart + cardIndex + 1}` : undefined}
+                                />
+                                <ExportCardImageButton
+                                  card={cardItem}
+                                  exportMode={exportMode}
+                                  exportDpi={exportDpi}
+                                  richTextHighlightColor={richTextHighlightColor}
+                                  disabled={false}
+                                  gateMessage={exportGateMessage}
+                                  iconOnly
+                                  ariaLabel={
+                                    hasRepeatedExportButtons
+                                      ? `Download card ${rowStart + cardIndex + 1}`
+                                      : 'Download individual card'
+                                  }
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-10 w-10 shrink-0 border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onRemoveCard(cardItem);
+                                  }}
+                                  aria-label={`Remove card ${rowStart + cardIndex + 1}`}
+                                  title="Remove card"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : null}
+                          </div>
                         </div>
                       );
                     })}

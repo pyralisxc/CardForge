@@ -30,9 +30,9 @@ export const DEFAULT_SITE_MEDIA: SiteMediaDefaults[] = [
   },
   {
     slot: 'landing.showcase.layout',
-    label: 'Layout Studio screenshot',
+    label: 'Design layouts screenshot',
     defaultSrc: '/card-assets/showcase/studio-layout.jpg',
-    defaultAlt: 'The CardForge Layout Studio with its card design library, editable canvas, layers, controls, and card field inspector.',
+    defaultAlt: 'The CardForge card design workspace with its card design library, editable canvas, layers, controls, and card field inspector.',
   },
   {
     slot: 'landing.showcase.generator-single',
