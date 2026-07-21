@@ -67,9 +67,10 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 
 - Custom domain is active.
 - Stripe has processed the first live sale.
-- The current production deployment is `dpl_8uCiJA3qdvU1ua5tPGeYKQGnLUN4`, READY on `main` commit `b8f6355b7943c9b814caef36656bd47f0f1b6df3`.
-- The maintained five-route production health check passed against the canonical domain on July 19. Vercel reported no grouped production runtime errors in the following 24 hours.
-- The July 20 protected run [29776711919](https://github.com/pyralisxc/CardForge/actions/runs/29776711919) passed the complete four-outcome matrix without skips on candidate commit `4810ca024eeb6da9360923ca1dc8c99c88fc5906`: signed-out Clerk bootstrap, the reusable free/paid/developer/owner authorization matrix, Founder Beta claiming, and paid project export/import recovery. Artifact [8474955050](https://github.com/pyralisxc/CardForge/actions/runs/29776711919/artifacts/8474955050) is retained through August 3.
+- The last recorded production deployment verification was `dpl_8uCiJA3qdvU1ua5tPGeYKQGnLUN4`, READY on `main` commit `b8f6355b7943c9b814caef36656bd47f0f1b6df3`.
+- The maintained five-route production health check passed against the canonical domain on July 19 for that deployment. Vercel reported no grouped production runtime errors in the following 24 hours.
+- Current production is commit `9e5da78312bb19f5b58d3550124af257b5be979e`, which serves a static public **Sign in** link to `/sign-in`; Clerk mounts only on that dedicated route and returns successful authentication to `/account`.
+- The July 21 protected run [29854209641](https://github.com/pyralisxc/CardForge/actions/runs/29854209641) on production commit `9e5da78312bb19f5b58d3550124af257b5be979e` passed the reusable free/paid/developer/owner matrix, Founder Beta flow, and paid project recovery, but failed only the retired homepage-modal assertion. Its [artifact 8504695104](https://github.com/pyralisxc/CardForge/actions/runs/29854209641/artifacts/8504695104) is retained through August 4 and is diagnostic evidence, not current four-outcome release proof. Run the corrected protected smoke before release approval and replace this entry with that non-skipped evidence.
 - Stripe webhook ordering and duplicate delivery are live-proven; the first subscriber's Clerk mapping remains pending until they sign in or register with the exact Stripe email.
 - Founder Beta launch wave is capped at 25 seats.
 - Resend test email works with the configured support inbox.
@@ -148,19 +149,20 @@ Run **Actions → Authenticated smoke → Run workflow** against the candidate b
 - production Clerk publishable and secret keys; and
 - production Supabase URL and service-role key.
 
-A valid run must pass the signed-out Clerk modal/bootstrap check, the reusable free, Founder Beta, paid, developer, and owner entitlement and authorization matrix, and one paid project export/import recovery. It intentionally does not gate marketing copy, panel labels, profile styling, roadmap voting, or the developer asset submission lifecycle; verify those manually or with focused tests when the feature changes. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The non-skipped July 20 run [29776711919](https://github.com/pyralisxc/CardForge/actions/runs/29776711919) is the current candidate-branch release evidence.
+A valid run must pass the signed-out public-header → `/sign-in` → interactive Clerk-form/bootstrap check, the reusable free, Founder Beta, paid, developer, and owner entitlement and authorization matrix, and one paid project export/import recovery. The signed-out check records every Clerk `/v1/client` and `/v1/environment` response, fails on any HTTP 400 or greater response or Clerk-related browser console error, and never expects Clerk to mount on `/`. It intentionally does not gate marketing copy, panel labels, profile styling, roadmap voting, or the developer asset submission lifecycle; verify those manually or with focused tests when the feature changes. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The July 21 run [29854209641](https://github.com/pyralisxc/CardForge/actions/runs/29854209641) is obsolete signed-out-test diagnostic evidence, not release proof; replace it with a non-skipped corrected run before release approval.
 
 ## Clerk production verification
 
 Use a real signed-out browser on `https://cardforges.com`:
 
 1. Open DevTools Network and filter for `client` or `environment`.
-2. Click **Sign in** in the public header and confirm the modal becomes interactive rather than remaining on **Connecting**.
-3. Complete sign-in and confirm the header and Account page refresh to the signed-in user.
-4. Sign out and confirm the public header returns to **Sign in**.
-5. Confirm no Clerk `/v1/client` or `/v1/environment` request returned HTTP 400 or greater.
+2. Confirm the homepage header exposes a visible **Sign in** link to `/sign-in` and does not remain on a **Connecting** state.
+3. Click **Sign in**, confirm navigation to `/sign-in`, and wait for the dedicated Clerk form to become interactive.
+4. Complete sign-in and confirm the Account page at `/account` refreshes to the signed-in user.
+5. Sign out and confirm the public header returns to the static **Sign in** link.
+6. Confirm no Clerk `/v1/client` or `/v1/environment` request returned HTTP 400 or greater.
 
-Repeat the same check through the mobile navigation and once with a throttled network. Record the browser, date, visible settled control, and bootstrap-response result. Hosted smoke can prove the signed-out modal/network assertion; it does not replace this real-browser desktop/mobile/throttled acceptance check.
+Repeat the same check through the mobile navigation and once with a throttled network. Record the browser, date, visible static link and interactive form, and bootstrap-response result. Hosted smoke can prove the signed-out route/network assertion; it does not replace this real-browser desktop/mobile/throttled acceptance check.
 
 Production must expose a `pk_live_` publishable key and load Clerk through the verified `clerk.cardforges.com` domain. Never record the complete key in an issue, log, or screenshot.
 
