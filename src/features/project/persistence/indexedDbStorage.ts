@@ -2,6 +2,7 @@ import type { StateStorage } from 'zustand/middleware';
 
 export const BROWSER_STORAGE_DATABASE = 'cardforge-browser-storage';
 export const BROWSER_STORAGE_FAILURE_EVENT = 'cardforge:browser-storage-failure';
+export const BROWSER_STORAGE_SAVE_STATUS_EVENT = 'cardforge:workspace-save-status';
 const BROWSER_STORAGE_OBJECT_STORE = 'key-value';
 const BROWSER_STORAGE_VERSION = 1;
 export const MAX_LOCAL_ASSET_BYTES = 8 * 1024 * 1024;
@@ -20,6 +21,42 @@ export interface BrowserStorageHealth {
   usageBytes: number | null;
   usageRatio: number | null;
 }
+
+export type BrowserStorageSaveStatus = 'saving' | 'saved' | 'failed';
+
+let pendingWorkspaceWrites = 0;
+let workspaceSaveStatus: BrowserStorageSaveStatus = 'saved';
+
+const publishWorkspaceSaveStatus = (status: BrowserStorageSaveStatus) => {
+  workspaceSaveStatus = status;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(BROWSER_STORAGE_SAVE_STATUS_EVENT, { detail: status }));
+  }
+};
+
+export const getBrowserWorkspaceSaveStatus = () => workspaceSaveStatus;
+
+export const subscribeToBrowserWorkspaceSaveStatus = (listener: () => void) => {
+  if (typeof window === 'undefined') return () => undefined;
+  window.addEventListener(BROWSER_STORAGE_SAVE_STATUS_EVENT, listener);
+  return () => window.removeEventListener(BROWSER_STORAGE_SAVE_STATUS_EVENT, listener);
+};
+
+const beginWorkspaceWrite = () => {
+  pendingWorkspaceWrites += 1;
+  publishWorkspaceSaveStatus('saving');
+};
+
+const finishWorkspaceWrite = (didFail: boolean) => {
+  pendingWorkspaceWrites = Math.max(0, pendingWorkspaceWrites - 1);
+  if (didFail) {
+    publishWorkspaceSaveStatus('failed');
+    return;
+  }
+  if (pendingWorkspaceWrites === 0 && workspaceSaveStatus !== 'failed') {
+    publishWorkspaceSaveStatus('saved');
+  }
+};
 
 const openDatabase = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
   if (typeof indexedDB === 'undefined') {
@@ -130,7 +167,7 @@ export const getBrowserRecoverySnapshot = async (namespace: string, key: string)
 
 export const createIndexedDbStorage = (
   namespace: string,
-  options: { keepRecoverySnapshot?: boolean; suppressWriteErrors?: boolean } = {},
+  options: { keepRecoverySnapshot?: boolean; suppressWriteErrors?: boolean; trackWorkspaceSaveStatus?: boolean } = {},
 ): StateStorage => {
   if (typeof indexedDB === 'undefined') {
     return {
@@ -155,12 +192,16 @@ export const createIndexedDbStorage = (
       return indexedDbStorage.getItem(key);
     },
     setItem: async (key, value) => {
+      if (options.trackWorkspaceSaveStatus) beginWorkspaceWrite();
       try {
         await indexedDbStorage.setItem(key, value);
       } catch (error) {
         reportWriteFailure(error);
+        if (options.trackWorkspaceSaveStatus) finishWorkspaceWrite(true);
         if (!options.suppressWriteErrors) throw error;
+        return;
       }
+      if (options.trackWorkspaceSaveStatus) finishWorkspaceWrite(false);
     },
     removeItem: async (key) => {
       await indexedDbStorage.removeItem(key);

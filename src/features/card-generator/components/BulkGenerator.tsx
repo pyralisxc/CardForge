@@ -274,7 +274,7 @@ export function BulkGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('Bulk generation requires a selected template.', 'Pick a template in step 1, then generate again.'),
+        description: withNextStep('Choose a card design before adding cards from a list.', 'Choose a card design above, then try again.'),
         variant: 'destructive',
       });
       return;
@@ -282,14 +282,14 @@ export function BulkGenerator({
     if (!bulkDataInput.trim()) {
       toast({
         title: ERROR_COPY.csvRequired.title,
-        description: withNextStep('No CSV data was found.', 'Paste CSV content or upload a .csv file, then generate again.'),
+        description: withNextStep('No card list was found.', 'Paste your list or upload a file, then try again.'),
         variant: 'destructive',
       });
       return;
     }
     if (reviewIssues.length > 0) {
       toast({
-        title: 'Bulk generation blocked',
+        title: 'We found something to fix',
         description: reviewIssues[0],
         variant: 'destructive',
       });
@@ -303,7 +303,7 @@ export function BulkGenerator({
       if (rows.length < 2) {
         toast({
           title: ERROR_COPY.csvFormatIncomplete.title,
-          description: withNextStep('A header row and at least one data row are required.', 'Check your CSV format or download the example CSV template and try again.'),
+          description: withNextStep('A header row and at least one card are required.', 'Check your CSV format or download an example CSV file and try again.'),
           variant: 'destructive',
         });
         setIsLoading(false);
@@ -322,19 +322,19 @@ export function BulkGenerator({
 
       onCardsGenerated(generatedCards);
       if (generatedCards.length > 0) {
-        toast({ title: 'Bulk generation complete', description: `${generatedCards.length} outputs were added. Next step: edit individual cards or export.` });
+        toast({ title: 'Cards added to your set', description: `${generatedCards.length} cards are ready to review, edit, or download.` });
       } else {
         toast({
-        title: 'No outputs were generated',
-          description: withNextStep('No rows produced card output.', 'Check your data and field matching, then try again.'),
+        title: 'No cards were added',
+          description: withNextStep('No rows produced a card.', 'Check your details and card-field matches, then try again.'),
           variant: 'default',
         });
       }
     } catch (error) {
       console.error('Error generating outputs:', error);
       toast({
-        title: 'Bulk generation failed',
-        description: withNextStep(extractErrorMessage(error), 'Review data structure and mapped fields, then retry.'),
+      title: 'Cards could not be added',
+        description: withNextStep(extractErrorMessage(error), 'Review your list and card-field matches, then try again.'),
         variant: 'destructive',
       });
     } finally {
@@ -405,7 +405,7 @@ export function BulkGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('A template is required before downloading example CSV.', 'Choose a template in step 1 and try again.'),
+        description: withNextStep('Choose a card design before downloading an example CSV.', 'Choose a card design above, then try again.'),
         variant: 'default',
       });
       return;
@@ -414,7 +414,7 @@ export function BulkGenerator({
     if (!csvContent.trim() || !csvContent.includes('\n') || csvContent.startsWith('Select a template first.')) {
       toast({
         title: 'Example CSV unavailable',
-        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Layout Studio, save, then download again.'),
+        description: withNextStep('This card design has no usable card fields.', 'Add card fields in Layout Studio, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -430,7 +430,7 @@ export function BulkGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('A template is required before downloading example JSON.', 'Choose a template in step 1 and try again.'),
+        description: withNextStep('Choose a card design before downloading an example JSON file.', 'Choose a card design above, then try again.'),
         variant: 'default',
       });
       return;
@@ -438,7 +438,7 @@ export function BulkGenerator({
     if (!exampleJSON.trim() || exampleJSON === '[]') {
       toast({
         title: 'Example JSON unavailable',
-        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Layout Studio, save, then download again.'),
+        description: withNextStep('This card design has no usable card fields.', 'Add card fields in Layout Studio, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -454,7 +454,7 @@ export function BulkGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('A template is required before downloading a text starter.', 'Choose a template in step 1 and try again.'),
+        description: withNextStep('Choose a card design before downloading a text starter.', 'Choose a card design above, then try again.'),
         variant: 'default',
       });
       return;
@@ -462,7 +462,7 @@ export function BulkGenerator({
     if (!exampleStructuredText.trim() || exampleStructuredText.startsWith('Select a template first.')) {
       toast({
         title: 'Text starter unavailable',
-        description: withNextStep('The selected template has no usable placeholder fields.', 'Add placeholders in Layout Studio, save, then download again.'),
+        description: withNextStep('This card design has no usable card fields.', 'Add card fields in Layout Studio, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -503,6 +503,7 @@ export function BulkGenerator({
           selectedTemplate={selectedTemplate}
           bulkDataInput={bulkDataInput}
           exampleCsv={exampleCSV}
+          exampleJson={exampleJSON}
           exampleStructuredText={exampleStructuredText}
           bulkFieldDefinitions={bulkFieldDefinitions}
           fileInputRef={fileInputRef}
@@ -512,7 +513,7 @@ export function BulkGenerator({
 
         {bulkDataInput.trim() ? (
           <div className={`flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm ${reviewIssues.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/30 bg-emerald-500/10'}`}>
-            <span>{reviewIssues.length > 0 ? `We found ${reviewIssues.length} item${reviewIssues.length === 1 ? '' : 's'} to fix before generating.` : `Data ready — ${Math.max(0, parsedRows.length - 1)} card${parsedRows.length === 2 ? '' : 's'} will be generated.`}</span>
+            <span>{reviewIssues.length > 0 ? `We found ${reviewIssues.length} thing${reviewIssues.length === 1 ? '' : 's'} to fix.` : `CardForge is ready to make ${Math.max(0, parsedRows.length - 1)} card${parsedRows.length === 2 ? '' : 's'}.`}</span>
             {reviewIssues.length > 0 ? <button type="button" className="font-medium underline" onClick={() => openDataReview()}>Review data</button> : null}
           </div>
         ) : null}

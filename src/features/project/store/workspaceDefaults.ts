@@ -21,7 +21,7 @@ export const isDraftTemplateSelection = (templateId: string | null): boolean => 
 
 export const createDefaultActiveCardSet = (): CardSet => ({
   id: 'active-card-set',
-  name: 'Untitled Deck',
+  name: 'Untitled Set',
   frontTemplateId: null,
   backingTemplateId: null,
 });

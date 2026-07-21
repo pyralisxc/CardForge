@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: July 20, 2026
+Last updated: July 21, 2026
 
 This is the current live-operations checklist for CardForge.
 
@@ -131,7 +131,7 @@ Secrets stay in Vercel/provider dashboards. The owner console should show readin
 
 - The active GitHub `Updates` ruleset applies to the default branch and `main`. It requires pull requests and resolved review threads, blocks branch deletion and non-fast-forward updates, and strictly requires the GitHub Actions checks `verify` and `public-smoke`.
 - Pull requests must pass `verify` and `public-smoke` before merge.
-- `public-smoke` is intentionally limited to public/API health, one generated output, the free clean-export boundary, and uncaught browser or HTTP 5xx failures along those paths. Marketing copy, route catalogs, menu labels, accessibility scans, editor interactions, bulk/performance scenarios, and device-layout checks are manual or focused verification when that feature changes; they are not permanent release gates.
+- `public-smoke` is intentionally limited to public/API health, one created card, the free clean-export boundary, and uncaught browser or HTTP 5xx failures along those paths. Marketing copy, route catalogs, menu labels, accessibility scans, editor interactions, bulk/performance scenarios, and device-layout checks are manual or focused verification when that feature changes; they are not permanent release gates.
 - `npm run architecture:check` must report zero violations; no baseline or exception file exists.
 - Authenticated provider smoke uses protected environment secrets and must never run for untrusted fork code.
 - Vercel build success alone is not a release-health verdict.

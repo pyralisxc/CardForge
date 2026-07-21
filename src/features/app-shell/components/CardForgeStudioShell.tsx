@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle2, MenuIcon, X } from 'lucide-react';
+import { MenuIcon, X } from 'lucide-react';
 
 import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
 import { useToast } from '@/components/ui/use-toast';
@@ -24,7 +24,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
-import { useProjectFileActions } from '@/features/project/client';
+import { BrowserStorageAlerts, useBrowserWorkspaceSaveStatus, useProjectFileActions } from '@/features/project/client';
 import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLibraries';
 import { useCheckoutActions } from '@/features/billing/client';
 import { useCardZipExportActions, useGeneratedOutputActions } from '@/features/card-generator/client';
@@ -52,7 +52,7 @@ const WorkspaceLoadingState = () => (
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e4aa43] border-t-transparent" aria-hidden="true" />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Preparing Studio</p>
-            <p className="mt-2 text-sm leading-6 text-[#cbb58b]">Loading the editor, library assets, and generated-output workspace.</p>
+            <p className="mt-2 text-sm leading-6 text-[#cbb58b]">Loading your card designs and card set.</p>
           </div>
         </div>
       </section>
@@ -107,13 +107,6 @@ export type StudioBusinessIdentity = {
   copyrightHolder: string;
 };
 
-const firstRunSteps = [
-  'Pick or clone a template',
-  'Edit the layout and variables',
-  'Generate single or bulk outputs',
-  'Upgrade for clean exports and project files',
-] as const;
-
 export function CardForgeStudioShell({
   businessIdentity,
 }: {
@@ -122,6 +115,7 @@ export function CardForgeStudioShell({
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
   const projectCapabilities = accountEntitlement.capabilities;
+  const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();
   const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
   const exportEntitlementCopy = accountEntitlement.copy;
   const exportGateMessage = accountEntitlement.copy.gateMessage;
@@ -320,6 +314,26 @@ export function CardForgeStudioShell({
     void writeProjectPreference(STUDIO_GUIDE_STORAGE_KEY, true);
   }, []);
 
+  const focusStudioRegion = useCallback((selector: string) => {
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(selector);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const handleStartMakingCards = useCallback(() => {
+    setActiveTabAction('generator');
+    handleDismissFirstRunGuide();
+    focusStudioRegion('[data-workflow-step="setup"]');
+  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
+
+  const handleEditDesignFirst = useCallback(() => {
+    setActiveTabAction('template-maker');
+    handleDismissFirstRunGuide();
+    focusStudioRegion('[data-testid="layout-studio-panel"]');
+  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
+
   useEffect(() => {
     let cancelled = false;
     void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => {
@@ -344,6 +358,7 @@ export function CardForgeStudioShell({
         authConfigured={accountEntitlement.authConfigured}
         isSignedIn={accountEntitlement.isSignedIn}
         modeLabel={exportEntitlementLabel}
+        saveStatus={workspaceSaveStatus}
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
       />
       <main className="cardforge-studio-main container mx-auto w-full max-w-full flex-grow p-4 md:p-6 lg:p-8">
@@ -356,10 +371,10 @@ export function CardForgeStudioShell({
           <section className="mb-4 border border-[#6d4f2b] bg-[#15100a] p-4 no-print md:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">First run path</p>
-                <h1 className="mt-2 font-serif text-2xl font-semibold text-[#fff1c7]">Make one card before tuning everything.</h1>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Welcome to the forge</p>
+                <h1 className="mt-2 font-serif text-2xl font-semibold text-[#fff1c7]">Make one card, then build the set.</h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbb58b]">
-                  CardForge is local-first: design work stays in this browser until you export a project file, card images, or submit an asset for review.
+                  Choose a ready-made card design and add your card details. Your work saves in this browser as you go. Clearing browser data or changing devices can remove this copy; a downloaded project backup is the portable recovery path when it is available to you.
                 </p>
               </div>
               <Button
@@ -373,23 +388,16 @@ export function CardForgeStudioShell({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="mt-4 grid gap-2 md:grid-cols-4">
-              {firstRunSteps.map((step, index) => (
-                <div key={step} className="flex gap-3 border border-[#4a3823] bg-[#100c08] p-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#e2aa4a]" />
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">{String(index + 1).padStart(2, '0')}</p>
-                    <p className="text-sm leading-5 text-[#d8c49a]">{step}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button type="button" onClick={handleStartMakingCards}>Start making cards</Button>
+              <Button type="button" variant="outline" onClick={handleEditDesignFirst}>Edit the design first</Button>
             </div>
           </section>
         ) : null}
         <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full min-w-0">
           <div className="cardforge-studio-context mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
-            <p><span className="font-semibold text-[#fff1c7]">Layout Studio</span> builds templates, text modes, and variables.</p>
-            <p><span className="font-semibold text-[#fff1c7]">Generate</span> fills those contracts and keeps outputs visible for review, edits, and export.</p>
+            <p><span className="font-semibold text-[#fff1c7]">Layout Studio</span> shapes card designs and their fields.</p>
+            <p><span className="font-semibold text-[#fff1c7]">Make Cards</span> adds card details, then keeps every card ready for review and export.</p>
           </div>
           <div className="md:hidden mb-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -434,7 +442,7 @@ export function CardForgeStudioShell({
             ))}
           </TabsList>
 
-          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" className="data-[state=inactive]:hidden">
+          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="data-[state=inactive]:hidden">
             <CardTemplateMaker
               canUseProjectFiles={projectCapabilities.canExportClean}
               showCardWatermark={showVisibleCardWatermark}
@@ -488,11 +496,6 @@ export function CardForgeStudioShell({
               exportGateMessage={exportGateMessage}
               exportEntitlementLabel={exportEntitlementLabel}
               exportEntitlementMessage={exportEntitlementMessage}
-              accountAccessMode={accountEntitlement.authConfigured ? accountEntitlement.accessMode : 'setup'}
-              accountEmail={accountEntitlement.accountEmail}
-              accountSource={accountEntitlement.source}
-              authConfigured={accountEntitlement.authConfigured}
-              isSignedIn={accountEntitlement.isSignedIn}
               onOpenTemplateMaker={() => setActiveTabAction('template-maker')}
               onSingleCardAdded={handleSingleCardAdded}
               onBulkCardsGenerated={handleBulkCardsGenerated}
@@ -516,6 +519,7 @@ export function CardForgeStudioShell({
 
         </Tabs>
       </main>
+      <BrowserStorageAlerts canUseProjectFiles={projectCapabilities.canExportClean} />
       {isEditDialogOpen && editingCardFromStore && (
         <EditCardDialog
             isOpen={isEditDialogOpen}
@@ -528,19 +532,19 @@ export function CardForgeStudioShell({
       <AlertDialog open={!!templatePendingDeleteId} onOpenChange={(open) => !open && setTemplatePendingDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this template?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this card design?</AlertDialogTitle>
             <AlertDialogDescription>
               {(() => {
                 const template = templatesFromStore.find(t => t.id === templatePendingDeleteId);
                 const dependentCardCount = storedCards.filter(card => card.templateId === templatePendingDeleteId).length;
-                return `"${template?.name || templatePendingDeleteId || 'This template'}" will be permanently removed from this browser. ${dependentCardCount} generated output${dependentCardCount === 1 ? '' : 's'} using it will also be removed.`;
+                return `"${template?.name || templatePendingDeleteId || 'This card design'}" will be permanently removed from this browser. ${dependentCardCount} card${dependentCardCount === 1 ? '' : 's'} using it will also be removed.`;
               })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDeleteTemplate} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete Template
+              Delete Card Design
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -548,15 +552,15 @@ export function CardForgeStudioShell({
       <AlertDialog open={isClearCardsDialogOpen} onOpenChange={setIsClearCardsDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear all generated outputs?</AlertDialogTitle>
+            <AlertDialogTitle>Remove all cards from this set?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove {generatedDisplayCards.length} generated output{generatedDisplayCards.length === 1 ? '' : 's'} from this browser. Templates will not be deleted.
+              This will permanently remove {generatedDisplayCards.length} card{generatedDisplayCards.length === 1 ? '' : 's'} from this browser. Card designs will not be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleClearGeneratedCards} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Clear Outputs
+              Remove Cards
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -569,8 +573,8 @@ export function CardForgeStudioShell({
               <div className="space-y-3 text-sm leading-6">
                 <p>
                   {pendingProjectImport?.preview.fileName || 'Selected file'} includes{' '}
-                  {pendingProjectImport?.preview.templateCount ?? 0} template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'},{' '}
-                  {pendingProjectImport?.preview.outputCount ?? 0} generated output{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'},{' '}
+                  {pendingProjectImport?.preview.templateCount ?? 0} card design{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'},{' '}
+                  {pendingProjectImport?.preview.outputCount ?? 0} card{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'},{' '}
                   {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and{' '}
                   {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.
                 </p>
@@ -583,7 +587,7 @@ export function CardForgeStudioShell({
                   </p>
                 ) : null}
                 <p>
-                  Replace loads the file as the local project. Merge adds or updates templates, outputs, styles, assets, and export settings without clearing current local work.
+                  Replace loads the file as the local project. Merge adds or updates card designs, cards, styles, assets, and export settings without clearing current local work.
                 </p>
               </div>
             </AlertDialogDescription>

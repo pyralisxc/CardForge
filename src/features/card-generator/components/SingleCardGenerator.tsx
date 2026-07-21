@@ -110,7 +110,7 @@ export function SingleCardGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('A front template is required before adding a card.', 'Choose a front template in Deck Setup and try again.'),
+        description: withNextStep('Choose a card design before adding a card.', 'Choose a card design above, then try again.'),
         variant: "destructive",
       });
       return;
@@ -132,7 +132,7 @@ export function SingleCardGenerator({
         title: ERROR_COPY.requiredFieldsMissing.title,
         description: withNextStep(
           `Missing: ${missingRequiredFields.slice(0, 3).join(', ')}${missingRequiredFields.length > 3 ? ', ...' : ''}.`,
-          'Fill in required fields, then create the generated output again.'
+          'Fill in the required card details, then add the card to your set.'
         ),
         variant: 'destructive',
       });
@@ -155,7 +155,7 @@ export function SingleCardGenerator({
     onSingleCardAdded(displayCard);
     setHasAddedCardInSession(true);
 
-    toast({ title: "Output generated", description: 'Your output is now in the generated outputs gallery. Next step: review, edit, export, or add another output.' });
+    toast({ title: 'Card added', description: 'Your card is now in this set. Review, edit, download, or add another card.' });
     
     const [, resetData] = initializeCardDataFromTemplate(selectedTemplate);
     setCardData(resetData);
@@ -176,10 +176,10 @@ export function SingleCardGenerator({
     fileRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
   ) => {
     if (fields.length === 0 && selectedTemplateIdProp) {
-      return <p className="text-sm text-muted-foreground">This template has no recognized placeholder fields.</p>;
+      return <p className="text-sm text-muted-foreground">This card design has no card fields yet.</p>;
     }
     if (!selectedTemplateIdProp) {
-        return <p className="text-sm text-muted-foreground">Choose a front template in Deck Setup to see its fields.</p>;
+        return <p className="text-sm text-muted-foreground">Choose a card design above to see its fields.</p>;
     }
     return (
       <GeneratorFieldGroups
@@ -190,7 +190,7 @@ export function SingleCardGenerator({
         onHighlightColorChange={setRichTextHighlightColorAction}
         fileInputRefs={fileRefs}
         onImageUpload={handleImageUpload}
-        emptyMessage="This template has no recognized placeholder fields."
+        emptyMessage="This card design has no card fields yet."
       />
     );
   };
@@ -206,20 +206,20 @@ export function SingleCardGenerator({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Single Output Entry</CardTitle>
-        <CardDescription>Fill one output against the same field contract that drives bulk generation and export.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Make One Card</CardTitle>
+        <CardDescription>Add the details for one card. You can change them later.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {selectedTemplateIdProp && !hasAddedCardInSession && (
           <div className="rounded-md border p-3 text-xs bg-muted/20" role="status" aria-live="polite">
-            <p className="font-medium">Quick Start: Generate a reference output</p>
+            <p className="font-medium">Your first card is ready</p>
             {selectedTemplate ? (
               <p className="mt-1 text-muted-foreground">
                 Using {selectedTemplate.name || selectedTemplate.id} ({getTemplateSourceLabel(selectedTemplate)}).
               </p>
             ) : null}
             <p className="mt-1 text-muted-foreground">
-              Fill required fields, use rich-text tools when available, then create the output. Visual review happens in Generated Outputs so preview, edit, and export all share one source of truth.
+              Start with the example and replace it with your own details. Then add the card to your set and review it here before downloading.
             </p>
             {richTextFieldCount > 0 && (
               <p className="mt-2 font-medium text-primary">
@@ -239,7 +239,7 @@ export function SingleCardGenerator({
             <AccordionItem value="card-data-item">
               <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
                 <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4" /> Output Data
+                  <Layers className="h-4 w-4" /> Card Details
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3 pt-3 border-t">
@@ -250,10 +250,10 @@ export function SingleCardGenerator({
         )}
 
          {!selectedTemplateIdProp && templates.length > 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Select a template above to start entering data.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Choose a card design above to start entering details.</p>
         )}
          {templates.length === 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No Layout Studio templates available. Please create one in Layout Studio first.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No card designs are available yet. Create one in Layout Studio first.</p>
         )}
 
         <Button
@@ -262,7 +262,7 @@ export function SingleCardGenerator({
           className="w-full"
           data-testid="create-generated-output"
         >
-          <PlusSquare className="mr-2 h-4 w-4" /> {isAddingCard ? 'Generating Output...' : 'Create Generated Output'}
+          <PlusSquare className="mr-2 h-4 w-4" /> {isAddingCard ? 'Adding card…' : 'Add Card to Set'}
         </Button>
       </CardContent>
     </Card>

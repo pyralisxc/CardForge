@@ -8,7 +8,7 @@ import { BROWSER_STORAGE_FAILURE_EVENT, createIndexedDbStorage } from '../persis
 const BACKUP_REMINDER_KEY = 'cardforge-project-backup-reminder-at';
 const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function BrowserStorageAlerts() {
+export function BrowserStorageAlerts({ canUseProjectFiles }: { canUseProjectFiles: boolean }) {
   const { toast } = useToast();
 
   useEffect(() => {
@@ -19,14 +19,16 @@ export function BrowserStorageAlerts() {
       lastFailureToastAt = now;
       toast({
         title: 'Project Save Failed',
-        description: 'Browser storage could not save the latest change. Download a project backup now, then free browser storage before continuing.',
+        description: canUseProjectFiles
+          ? 'Browser storage could not save the latest change. Download a project backup now, then free browser storage before continuing.'
+          : 'Browser storage could not save the latest change. Free browser storage before continuing. Portable project backups are available with Founder Beta or Creator Pass.',
         variant: 'destructive',
         duration: 12_000,
       });
     };
     window.addEventListener(BROWSER_STORAGE_FAILURE_EVENT, handleStorageFailure);
     return () => window.removeEventListener(BROWSER_STORAGE_FAILURE_EVENT, handleStorageFailure);
-  }, [toast]);
+  }, [canUseProjectFiles, toast]);
 
   useEffect(() => {
     if (!window.location.pathname.startsWith('/studio')) return;
@@ -40,8 +42,10 @@ export function BrowserStorageAlerts() {
       timer = window.setTimeout(() => {
         void preferences.setItem(BACKUP_REMINDER_KEY, String(Date.now()));
         toast({
-          title: 'Keep a Portable Backup',
-          description: 'Your work is local to this browser. Use Export Project periodically so you can recover it on another device or after browser cleanup.',
+          title: 'Your work is saved in this browser',
+          description: canUseProjectFiles
+            ? 'Download a project backup periodically so you can reopen it on another device or recover after browser cleanup.'
+            : 'Portable project backups are available with Founder Beta or Creator Pass.',
           duration: 10_000,
         });
       }, 20_000);
@@ -51,7 +55,7 @@ export function BrowserStorageAlerts() {
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [toast]);
+  }, [canUseProjectFiles, toast]);
 
   return null;
 }

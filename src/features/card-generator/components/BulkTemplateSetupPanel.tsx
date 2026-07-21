@@ -1,6 +1,12 @@
 "use client";
 
 import { Download, FileJson, FileText, Table2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,27 +50,26 @@ export function BulkTemplateSetupPanel({
           <p className="mt-1 text-xs text-muted-foreground">Change this in Card setup above.</p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={onDownloadExampleCsv} disabled={!selectedTemplate}>
-            <Download className="mr-2 h-4 w-4" />
-            Download CSV Starter
-          </Button>
-          <Button type="button" variant="outline" onClick={onDownloadExampleJson} disabled={!selectedTemplate}>
-            <FileJson className="mr-2 h-4 w-4" />
-            Download JSON Starter
-          </Button>
-          <Button type="button" variant="outline" onClick={onDownloadStructuredText} disabled={!selectedTemplate}>
-            <FileText className="mr-2 h-4 w-4" />
-            Download Text Starter
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" disabled={!selectedTemplate}>
+              <Download className="mr-2 h-4 w-4" />
+              Download a starter file
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={onDownloadStructuredText}><FileText className="mr-2 h-4 w-4" />Text / Markdown</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDownloadExampleCsv}><Download className="mr-2 h-4 w-4" />CSV</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDownloadExampleJson}><FileJson className="mr-2 h-4 w-4" />JSON</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {selectedTemplate ? (
           <div className="space-y-3 rounded-md border bg-muted/30 p-3 text-sm">
             <div>
               <p className="font-medium">{selectedTemplate.name || selectedTemplate.id}</p>
               <p className="text-muted-foreground">
-                {getTemplateSourceLabel(selectedTemplate)} template - download a starter file, edit the values, then upload or paste it below.
+                {getTemplateSourceLabel(selectedTemplate)} card design — download a starter file, edit the values, then upload or paste it below.
               </p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -91,7 +96,7 @@ export function BulkTemplateSetupPanel({
                 These are the details your data can fill. Text or Markdown can use readable Field: value lines.
               </p>
               <div className="mt-2 rounded bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-5 text-foreground break-words">
-                {exactHeaderLine || 'Select a template to see fields.'}
+                {exactHeaderLine || 'Select a card design to see fields.'}
               </div>
             </div>
 

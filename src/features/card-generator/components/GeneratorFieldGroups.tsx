@@ -67,7 +67,7 @@ const groupGeneratorFields = (fields: TemplateFieldDefinition[]): FieldGroup[] =
 
     groups.push({
       id: groupId,
-      label: field.sourceElementName || (field.isImage ? 'Artwork / Image' : 'Template Fields'),
+      label: field.sourceElementName || (field.isImage ? 'Artwork / Image' : 'Card Fields'),
       preview: field.sourceElementPreview,
       contentModel: field.contentModel,
       fields: [field],
@@ -227,7 +227,7 @@ export function GeneratorFieldGroups({
   onHighlightColorChange,
   fileInputRefs,
   onImageUpload,
-  emptyMessage = 'No editable fields were detected for this template.',
+  emptyMessage = 'No editable card fields were found for this card design.',
 }: GeneratorFieldGroupsProps) {
   if (fields.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;

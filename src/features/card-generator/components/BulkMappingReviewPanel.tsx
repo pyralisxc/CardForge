@@ -56,17 +56,17 @@ export function BulkMappingReviewPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">3. Mapping Review</CardTitle>
-        <CardDescription>{mappedColumnCount} of {headers.length} CSV columns are mapped to template fields.</CardDescription>
+        <CardTitle className="text-base">Match columns to card fields</CardTitle>
+        <CardDescription>{mappedColumnCount} of {headers.length} columns match card fields.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant={showAdvancedMapping ? 'default' : 'outline'} onClick={onToggleAdvancedMapping}>
-            Mapping Editor
+            Match columns
           </Button>
           <Button type="button" variant="outline" onClick={onAutoMapAgain}>
             <Wand2 className="mr-2 h-4 w-4" />
-            Auto-map Again
+            Match automatically
           </Button>
           <Button type="button" variant="outline" onClick={onToggleShowUnmappedOnly}>
             Show Unmapped Only
@@ -81,14 +81,14 @@ export function BulkMappingReviewPanel({
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="font-medium">Skipped columns need review</p>
+                <p className="font-medium">Some columns need review</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  These columns will not appear in generated outputs unless you map them: {unmappedHeaders.join(', ')}
+                  These details will not appear on cards until you match them: {unmappedHeaders.join(', ')}
                 </p>
               </div>
               {!showUnmappedOnly ? (
                 <Button type="button" size="sm" variant="outline" onClick={onToggleShowUnmappedOnly}>
-                  Review Skipped
+                  Review details
                 </Button>
               ) : null}
             </div>
@@ -99,7 +99,7 @@ export function BulkMappingReviewPanel({
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-medium">Required fields need mapping</p>
+                <p className="font-medium">Required card fields need a match</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {unmappedRequiredFields
                     .map((fieldKey) => fieldDefinitions.find((field) => field.key === fieldKey)?.label ?? fieldKey)
@@ -108,22 +108,22 @@ export function BulkMappingReviewPanel({
               </div>
               <Button type="button" size="sm" variant="outline" onClick={onAutoMapRequiredFields}>
                 <Wand2 className="mr-2 h-3.5 w-3.5" />
-                Auto-map Required
+                Match required fields
               </Button>
             </div>
           </div>
         ) : headers.length > 0 ? (
           <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4" />
-            Required fields are mapped.
+            Required card fields are matched.
           </div>
         ) : null}
 
-        <p className="text-sm font-medium">Mapped Template Field</p>
+        <p className="text-sm font-medium">Card field</p>
 
         {duplicateRequiredFields.length > 0 ? (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-            <p className="font-medium">Required field conflicts detected</p>
+            <p className="font-medium">Two columns match the same required card field</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {duplicateRequiredFields.map((fieldKey) => {
                 const count = duplicateRequiredFieldCounts.get(fieldKey) ?? 2;
@@ -136,7 +136,7 @@ export function BulkMappingReviewPanel({
                       variant={conflictFocusField === fieldKey ? 'default' : 'outline'}
                       onClick={() => onSetConflictFocusField(conflictFocusField === fieldKey ? null : fieldKey)}
                     >
-                      {fieldLabel} mapped {count} times
+                      {fieldLabel} matched {count} times
                     </Button>
                     <Button
                       type="button"
@@ -159,12 +159,12 @@ export function BulkMappingReviewPanel({
             return (
               <div key={rowIdentity.key} className="grid gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
                 <div>
-                  <Label className="text-sm font-medium">CSV Column</Label>
+                  <Label className="text-sm font-medium">Column</Label>
                   <p className="font-mono text-sm">{header}</p>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor={rowIdentity.inputId} className="text-sm">
-                    Template Field
+                    Card field
                   </Label>
                   <Select
                     value={columnMapping[header] ?? '__ignore__'}
@@ -175,7 +175,7 @@ export function BulkMappingReviewPanel({
                       });
                     }}
                   >
-                    <SelectTrigger id={rowIdentity.inputId} aria-label={`Map CSV column ${header} to template field`}>
+                    <SelectTrigger id={rowIdentity.inputId} aria-label={`Match column ${header} to a card field`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

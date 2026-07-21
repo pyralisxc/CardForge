@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { Hammer } from 'lucide-react';
 import { AccountControls } from '@/features/account/client/auth';
+import type { BrowserStorageSaveStatus } from '@/features/project/client';
 
 interface StudioHeaderProps {
   authConfigured: boolean;
   currentPath?: string;
   isSignedIn: boolean;
   modeLabel: string;
+  saveStatus: BrowserStorageSaveStatus;
   onRefreshEntitlement: () => void;
 }
 
@@ -25,6 +27,7 @@ export function StudioHeader({
   currentPath = '/studio',
   isSignedIn,
   modeLabel,
+  saveStatus,
   onRefreshEntitlement,
 }: StudioHeaderProps) {
   return (
@@ -63,6 +66,11 @@ export function StudioHeader({
             onRefreshEntitlement={onRefreshEntitlement}
           />
         </div>
+        <p className={`order-4 w-full text-xs md:order-none md:w-auto ${
+          saveStatus === 'failed' ? 'text-red-300' : saveStatus === 'saving' ? 'text-[#e2c07b]' : 'text-[#b8caa0]'
+        }`} role="status" aria-live="polite">
+          {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'failed' ? 'Save failed' : 'Saved in this browser'}
+        </p>
       </div>
     </header>
   );

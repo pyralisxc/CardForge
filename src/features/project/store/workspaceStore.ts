@@ -83,7 +83,7 @@ export const useProjectStore = create<ProjectState>()(
         name: 'workspace',
         storage: createJSONStorage(() => createIndexedDbStorage(
           'project-workspace',
-          { keepRecoverySnapshot: true, suppressWriteErrors: true },
+          { keepRecoverySnapshot: true, suppressWriteErrors: true, trackWorkspaceSaveStatus: true },
         )),
         partialize: (state) => ({
           userTemplates: state.userTemplates,

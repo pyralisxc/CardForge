@@ -16,7 +16,7 @@ describe('app store helpers', () => {
       storedCards: [],
       activeCardSet: {
         id: 'active-card-set',
-        name: 'Untitled Deck',
+        name: 'Untitled Set',
         frontTemplateId: null,
         backingTemplateId: null,
       },
@@ -228,7 +228,7 @@ describe('app store helpers', () => {
       templateId: 'styled-template',
       backingTemplateId: null,
       setId: 'active-card-set',
-      setName: 'Untitled Deck',
+      setName: 'Untitled Set',
       data: {
         cardName: 'Avery',
         '__cardforgeFieldStyle.cardName.textColor': '#00ffaa',
@@ -302,7 +302,7 @@ describe('app store helpers', () => {
         templateId: 'import-template',
         backingTemplateId: null,
         setId: 'active-card-set',
-        setName: 'Untitled Deck',
+        setName: 'Untitled Set',
         data: { cardName: 'Updated' },
       },
       {
@@ -310,7 +310,7 @@ describe('app store helpers', () => {
         templateId: 'import-template',
         backingTemplateId: null,
         setId: 'active-card-set',
-        setName: 'Untitled Deck',
+        setName: 'Untitled Set',
         data: { cardName: 'New' },
       },
     ]);

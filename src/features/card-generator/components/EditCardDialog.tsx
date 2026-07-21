@@ -126,7 +126,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
     fileRefsLocal: React.MutableRefObject<Record<string, HTMLInputElement | null>>
   ) => {
     if (fields.length === 0) {
-      return <p className="text-sm text-muted-foreground">No editable fields for this card's template.</p>;
+      return <p className="text-sm text-muted-foreground">No editable card fields for this card design.</p>;
     }
     return (
       <GeneratorFieldGroups
@@ -137,7 +137,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
         onHighlightColorChange={setRichTextHighlightColorAction}
         fileInputRefs={fileRefsLocal}
         onImageUpload={handleImageUpload}
-        emptyMessage="No editable fields for this card's template."
+        emptyMessage="No editable card fields for this card design."
       />
     );
   };
@@ -148,7 +148,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
         <DialogHeader>
           <DialogTitle>Edit: {cardIdentifier}</DialogTitle>
           <DialogDescription>
-            Template: {card.template.name || card.template.id?.substring(0,8)}
+            Card design: {card.template.name || card.template.id?.substring(0,8)}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="flex-grow pr-6 -mr-6 mb-4"> {/* Scroll area for content */}
@@ -161,7 +161,7 @@ export function EditCardDialog({ isOpen, card, onSave, onDuplicate, onClose }: E
                 </AccordionItem>
             </Accordion>
              {dynamicFields.length === 0 && card && ( // Show if card is loaded but no fields
-                <p className="text-sm text-muted-foreground mt-3">Selected template has no editable placeholder fields.</p>
+                <p className="text-sm text-muted-foreground mt-3">This card design has no editable card fields.</p>
             )}
         </ScrollArea>
 

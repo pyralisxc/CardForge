@@ -22,7 +22,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   setActiveTab: (tab) => set({ activeTab: normalizeActiveTab(tab) }),
   setRichTextHighlightColor: (color) => set({ richTextHighlightColor: color }),
   setActiveCardSetName: (name) => set((state) => ({
-    activeCardSet: { ...state.activeCardSet, name: name.trim() || 'Untitled Deck' },
+    activeCardSet: { ...state.activeCardSet, name: name.trim() || 'Untitled Set' },
   })),
   setActiveCardSetFrontTemplateId: (id) => set((state) => ({
     activeCardSet: { ...state.activeCardSet, frontTemplateId: id },

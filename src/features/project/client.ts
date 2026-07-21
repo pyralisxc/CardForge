@@ -1,4 +1,5 @@
 export { BrowserStorageAlerts } from './components/BrowserStorageAlerts';
+export { useBrowserWorkspaceSaveStatus } from './hooks/useBrowserWorkspaceSaveStatus';
 export {
   buildProjectImportPreview,
   buildProjectImportSummary,
@@ -24,17 +25,20 @@ export type {
 export {
   BROWSER_STORAGE_DATABASE,
   BROWSER_STORAGE_FAILURE_EVENT,
+  BROWSER_STORAGE_SAVE_STATUS_EVENT,
   createBrowserKeyValueStorage,
   createIndexedDbStorage,
   getBrowserRecoverySnapshot,
+  getBrowserWorkspaceSaveStatus,
   getBrowserStorageHealth,
   getConstrainedImageSize,
   MAX_LOCAL_ASSET_BYTES,
   MAX_LOCAL_ASSET_DIMENSION,
   optimizeLocalAssetFile,
+  subscribeToBrowserWorkspaceSaveStatus,
   validateLocalAssetFile,
 } from './persistence/indexedDbStorage';
-export type { BrowserStorageHealth } from './persistence/indexedDbStorage';
+export type { BrowserStorageHealth, BrowserStorageSaveStatus } from './persistence/indexedDbStorage';
 export {
   readProjectPreference,
   removeProjectPreference,

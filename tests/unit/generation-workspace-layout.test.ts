@@ -25,11 +25,20 @@ describe('Generator workspace flow', () => {
     }
   });
 
-  it('keeps Single and Bulk Import as generation modes without hiding export in a tab', () => {
+  it('keeps one-card and list creation in the existing generator without hiding export in a tab', () => {
     expect(source).toContain('grid-cols-2');
     expect(source).toContain('value="single"');
     expect(source).toContain('value="bulk"');
     expect(source).not.toContain('value="export"');
     expect(source).not.toContain('lg:grid-cols-[340px_minmax(0,1fr)]');
+  });
+
+  it('uses a plain export summary and keeps detailed print controls collapsed', () => {
+    expect(source).toContain('Print settings');
+    expect(source).toContain('<details');
+    expect(source).not.toContain('>Auth<');
+    expect(source).not.toContain('>Session<');
+    expect(source).not.toContain('>Access<');
+    expect(source).not.toContain('>Account<');
   });
 });

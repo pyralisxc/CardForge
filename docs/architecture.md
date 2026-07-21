@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: July 20, 2026
+Last updated: July 21, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one developer asset pipeline, and one owner console.
 
@@ -95,7 +95,7 @@ App routes compose the public-site-owned shared header. The Owner Console keeps 
 ## Card Creation Model
 
 - Layout Studio owns reusable front templates and separate back templates.
-- Generator owns card sets, selected front template, selected card back, card data, generated output, and export settings.
+- Generator owns card sets, the selected card design and card back, card details, cards in the set, and export settings.
 - Card backs are not front-template fields.
 - Text variables use Field Contract v1.
 - Images have generator-side formatting controls for fit, position, scale, rotation, offset, and flips.
