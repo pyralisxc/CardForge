@@ -6,7 +6,7 @@ import {
   type BusinessIdentity,
 } from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
-import { PublicSiteShell } from '@/features/public-site/client';
+import { PublicSiteShell } from '@/features/public-site/client/shell';
 import { LegalDocumentBody } from './LegalDocumentBody';
 
 const trustLinks = [

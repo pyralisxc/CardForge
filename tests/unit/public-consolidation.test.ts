@@ -29,13 +29,13 @@ describe('consolidated public routes and account navigation', () => {
   it('uses the shared public header on account and owner pages', () => {
     for (const path of ['src/app/account/page.tsx', 'src/app/owner/page.tsx']) {
       const source = readSource(path);
-      expect(source).toContain("from '@/features/public-site/client'");
+      expect(source).toContain("from '@/features/public-site/client/shell'");
       expect(source).toContain('getCachedBusinessIdentity');
       expect(source).toContain('<PublicSiteHeader');
       expect(source).toContain('accountSlot={<PublicAuthControls />}');
       expect(source).toContain('className="cardforge-public-tokens"');
       expect(source).not.toContain('className="cardforge-public"');
-      expect(source).not.toContain('@/features/app-shell');
+      expect(source).not.toContain('StudioHeader');
     }
   });
 

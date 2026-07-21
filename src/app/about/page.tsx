@@ -7,9 +7,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-import { PublicAuthControls } from '@/features/account/client/auth';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { PublicSiteShell } from '@/features/public-site/client';
+import { PublicSiteShell } from '@/features/public-site/client/shell';
 import { createBreadcrumbStructuredData, StructuredData } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -30,7 +29,7 @@ export default async function AboutPage() {
   const businessIdentity = await getCachedBusinessIdentity();
 
   return (
-    <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/about">
+    <PublicSiteShell businessIdentity={businessIdentity} currentPath="/about">
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
         { name: 'About CardForge Studio', path: '/about' },

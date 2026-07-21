@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 
 import { PublicAuthControls } from '@/features/account/client/auth';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { PublicSiteShell } from '@/features/public-site/client';
+import { PublicSiteShell } from '@/features/public-site/client/shell';
 import { RoadmapPage } from '@/features/roadmap/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
@@ -17,12 +18,14 @@ export const metadata: Metadata = createPageMetadata({
 export default async function ForgeChroniclePage() {
   const businessIdentity = await getCachedBusinessIdentity();
   return (
-    <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/roadmap">
-      <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
-        { name: 'Home', path: '/' },
-        { name: 'Roadmap', path: '/roadmap' },
-      ])} />
-      <RoadmapPage initialAuthConfigured={isClerkServerConfigPresent()} supportEmail={businessIdentity.supportEmail} />
-    </PublicSiteShell>
+    <CardForgeAppProviders>
+      <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/roadmap">
+        <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
+          { name: 'Home', path: '/' },
+          { name: 'Roadmap', path: '/roadmap' },
+        ])} />
+        <RoadmapPage initialAuthConfigured={isClerkServerConfigPresent()} supportEmail={businessIdentity.supportEmail} />
+      </PublicSiteShell>
+    </CardForgeAppProviders>
   );
 }

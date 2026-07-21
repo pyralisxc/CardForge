@@ -15,6 +15,7 @@ describe('proof-led homepage', () => {
     expect(hero).toContain('See what it makes');
     expect(hero).toContain('href="#interactive-showcase"');
     expect(hero).toContain('/card-assets/showcase/cardforge-workshop-cover.webp');
+    expect(hero).toContain('fetchPriority="high"');
     expect(hero).not.toContain('StudioProductProof');
   });
 
@@ -34,6 +35,7 @@ describe('proof-led homepage', () => {
     const page = readSource('src/app/page.tsx');
     const hero = readSource('src/features/public-site/components/OutcomeHero.tsx');
     const showcase = readSource('src/features/public-site/components/InteractiveStudioShowcase.tsx');
+    const finishedSet = readSource('src/features/public-site/components/FinishedSetShowcase.tsx');
 
     expect(page).toContain('<PublicSiteShell');
     expect(page).toContain('<OutcomeHero');
@@ -48,14 +50,18 @@ describe('proof-led homepage', () => {
     expect(showcase).toContain('/card-assets/showcase/studio-layout.jpg');
     expect(showcase).toContain('/card-assets/showcase/studio-generator-single.jpg');
     expect(showcase).toContain('/card-assets/showcase/studio-generator-bulk.jpg');
-    expect(showcase).toContain('unoptimized');
+    expect(showcase).not.toContain('unoptimized');
+    expect(showcase).toContain('sizes="(min-width: 1280px) 1119px');
     expect(showcase).toContain("maxWidth: `${width}px`");
     expect(showcase).toContain('w-auto max-w-full');
-    expect(showcase).not.toContain('sizes="(min-width: 1280px) 1180px, 94vw"');
     expect(showcase).toContain('activeGeneratorView');
-    expect(showcase).toContain('<CardPreview');
-    expect(showcase).toContain('createBulkDisplayCards');
-    expect(showcase).toContain("fetch('/api/templates'");
+    expect(showcase).toContain("import('./FinishedSetShowcase')");
+    expect(showcase).not.toContain('<CardPreview');
+    expect(showcase).not.toContain('createBulkDisplayCards');
+    expect(showcase).not.toContain("fetch('/api/templates'");
+    expect(finishedSet).toContain('<CardPreview');
+    expect(finishedSet).toContain('createBulkDisplayCards');
+    expect(finishedSet).toContain("fetch('/api/templates'");
     expect(showcase).toContain('onPointerDownCapture');
     expect(showcase).toContain('onKeyDownCapture');
     expect(showcase).toContain('prefers-reduced-motion: reduce');

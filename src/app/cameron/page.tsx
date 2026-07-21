@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { ArrowRight, Caravan, Compass, HeartHandshake, Home, ServerCog, Sparkles, Utensils } from 'lucide-react';
 
-import { PublicAuthControls } from '@/features/account/client/auth';
 import { SupportCheckoutActions } from '@/features/billing/client';
 import { getCreatorSupportOfferConfiguration, SUPPORT_MONTHLY_AMOUNTS_CENTS } from '@/features/billing/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { PublicSiteShell } from '@/features/public-site/client';
+import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
   createBreadcrumbStructuredData,
   createFounderProfileStructuredData,
@@ -40,7 +39,7 @@ export default async function CameronPage() {
     : null;
 
   return (
-    <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/cameron">
+    <PublicSiteShell businessIdentity={businessIdentity} currentPath="/cameron">
       <StructuredData value={createFounderProfileStructuredData(businessIdentity)} />
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },

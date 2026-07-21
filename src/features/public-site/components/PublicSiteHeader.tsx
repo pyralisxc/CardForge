@@ -3,7 +3,7 @@
 import React, { type ReactNode, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Menu } from 'lucide-react';
+import { ArrowRight, LogIn, Menu } from 'lucide-react';
 
 import {
   Dialog,
@@ -87,6 +87,16 @@ export function PublicSiteHeader({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
 
+        {!accountSlot ? (
+          <Link
+            href="/sign-in"
+            prefetch={false}
+            className="hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-4 text-base font-bold text-[var(--public-ivory)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)] xl:inline-flex"
+          >
+            <LogIn className="h-4 w-4" aria-hidden="true" /> Sign in
+          </Link>
+        ) : null}
+
         {accountSlot ? (
           <div className="cardforge-public-auth-status hidden shrink-0 xl:block">
             {accountSlot}
@@ -131,6 +141,17 @@ export function PublicSiteHeader({
                   </Link>
                 </DialogClose>
               ))}
+              {!accountSlot ? (
+                <DialogClose asChild>
+                  <Link
+                    href="/sign-in"
+                    prefetch={false}
+                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]"
+                  >
+                    <LogIn className="h-4 w-4" aria-hidden="true" /> Sign in
+                  </Link>
+                </DialogClose>
+              ) : null}
               <DialogClose asChild>
                 <Link
                   href={PUBLIC_NAVIGATION.studio.href}

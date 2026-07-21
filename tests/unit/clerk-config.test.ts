@@ -14,4 +14,9 @@ describe('Clerk middleware route selection', () => {
   it('runs for the public creator-support checkout so optional Clerk identity is available', () => {
     expect(shouldRunClerkMiddlewareForRequest('/api/billing/support/checkout', 'POST')).toBe(true);
   });
+
+  it('runs for the dedicated public sign-in route', () => {
+    expect(shouldRunClerkMiddlewareForRequest('/sign-in', 'GET')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/sign-in/sso-callback', 'GET')).toBe(true);
+  });
 });

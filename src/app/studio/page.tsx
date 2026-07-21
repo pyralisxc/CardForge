@@ -1,4 +1,5 @@
 import { CardForgeStudioShell } from '@/features/app-shell/client/studio';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -13,9 +14,11 @@ export default async function StudioPage() {
   const businessIdentity = await getBusinessIdentity();
 
   return (
-    <CardForgeStudioShell businessIdentity={{
-      brandName: businessIdentity.brandName,
-      copyrightHolder: businessIdentity.copyrightHolder,
-    }} />
+    <CardForgeAppProviders>
+      <CardForgeStudioShell businessIdentity={{
+        brandName: businessIdentity.brandName,
+        copyrightHolder: businessIdentity.copyrightHolder,
+      }} />
+    </CardForgeAppProviders>
   );
 }

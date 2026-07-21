@@ -1,20 +1,11 @@
 
 import type {Metadata} from 'next';
-import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster";
-import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
-import { BrowserStorageAlerts } from '@/features/project/client';
 import {
-  createPublicShareSettings,
-  PublicShareSettingsProvider,
-} from '@/features/card-generator/client';
-import {
-  createSiteContentMap,
   FounderProfileProvider,
-} from '@/features/public-site/client';
-import { getCachedFounderProfile, getCachedSiteContentBlocks } from '@/features/public-site/server';
+} from '@/features/public-site/client/context';
+import { getCachedFounderProfile } from '@/features/public-site/server';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
@@ -48,31 +39,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [founderProfile, sharingBlocks] = await Promise.all([
-    getCachedFounderProfile(),
-    getCachedSiteContentBlocks('sharing'),
-  ]);
-  const sharingCopy = createSiteContentMap(sharingBlocks);
-  const shareSettings = createPublicShareSettings(
-    sharingCopy['sharing.message'],
-    getPublicAppUrl(),
-  );
+  const founderProfile = await getCachedFounderProfile();
   const app = (
     <FounderProfileProvider profile={founderProfile}>
-      <PublicShareSettingsProvider settings={shareSettings}>
-        {children}
-        <BrowserStorageAlerts />
-        <Toaster />
-      </PublicShareSettingsProvider>
+      {children}
     </FounderProfileProvider>
   );
 
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        {isClerkServerConfigPresent()
-          ? <ClerkProvider>{app}</ClerkProvider>
-          : app}
+        {app}
       </body>
     </html>
   );

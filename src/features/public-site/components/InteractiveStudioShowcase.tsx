@@ -1,12 +1,9 @@
 "use client";
 
 import Image from 'next/image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Database, LayoutTemplate, Layers3 } from 'lucide-react';
+import { useCallback, useEffect, useState, type ComponentType } from 'react';
 
-import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
-import { createBulkDisplayCards } from '@/features/card-generator/client';
-import { CardPreview } from '@/features/card-rendering/client';
 import { CARDFORGE_EXAMPLES, type CardForgeExample } from '../model/examples';
 import {
   getNextShowcaseStage,
@@ -14,20 +11,13 @@ import {
   INTERACTION_PAUSE_MS,
 } from '../model/showcaseTiming';
 
-interface TemplatesPayload {
-  defaults?: TCGCardTemplate[];
-}
-
 const stages = [
   { label: 'Layout Studio', icon: LayoutTemplate },
   { label: 'Generator', icon: Database },
   { label: 'Finished Sets', icon: Layers3 },
 ] as const;
 
-const buildRows = (example: CardForgeExample): string[][] => {
-  const headers = Array.from(new Set(example.rows.flatMap((row) => Object.keys(row))));
-  return [headers, ...example.rows.map((row) => headers.map((header) => row[header] ?? ''))];
-};
+type FinishedSetComponent = ComponentType<{ example: CardForgeExample }>;
 
 const generatorScreenshots = {
   single: {
@@ -67,7 +57,7 @@ function StudioScreenshot({
           alt={alt}
           width={width}
           height={height}
-          unoptimized
+          sizes="(min-width: 1280px) 1119px, (min-width: 640px) calc(100vw - 6.5rem), calc(100vw - 4rem)"
           className="h-auto w-auto max-w-full"
         />
       </div>
@@ -76,28 +66,13 @@ function StudioScreenshot({
 }
 
 export function InteractiveStudioShowcase() {
-  const [templates, setTemplates] = useState<readonly TCGCardTemplate[] | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
   const [activeStage, setActiveStage] = useState(0);
   const [activeExample, setActiveExample] = useState(0);
   const [activeGeneratorView, setActiveGeneratorView] = useState<'single' | 'bulk'>('single');
   const [pauseUntil, setPauseUntil] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetch('/api/templates', { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Template catalog returned ${response.status}.`);
-        return response.json() as Promise<TemplatesPayload>;
-      })
-      .then((payload) => setTemplates(Array.isArray(payload.defaults) ? payload.defaults : []))
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        setLoadFailed(true);
-      });
-    return () => controller.abort();
-  }, []);
+  const [FinishedSetShowcase, setFinishedSetShowcase] = useState<FinishedSetComponent | null>(null);
+  const [finishedSetLoadFailed, setFinishedSetLoadFailed] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -120,37 +95,33 @@ export function InteractiveStudioShowcase() {
     return () => window.clearTimeout(timer);
   }, [activeStage, pauseUntil, reducedMotion]);
 
+  useEffect(() => {
+    if (activeStage !== 2 || FinishedSetShowcase || finishedSetLoadFailed) return;
+    let cancelled = false;
+    void import('./FinishedSetShowcase')
+      .then((module) => {
+        if (!cancelled) setFinishedSetShowcase(() => module.FinishedSetShowcase);
+      })
+      .catch(() => {
+        if (!cancelled) setFinishedSetLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [FinishedSetShowcase, activeStage, finishedSetLoadFailed]);
+
   const pauseAutomaticMovement = useCallback(() => {
     setPauseUntil(Date.now() + INTERACTION_PAUSE_MS);
   }, []);
 
   const example = CARDFORGE_EXAMPLES[activeExample] ?? CARDFORGE_EXAMPLES[0];
-  const frontTemplate = templates?.find((template) => template.id === example.frontTemplateId);
-  const backTemplate = example.backTemplateId
-    ? templates?.find((template) => template.id === example.backTemplateId)
-    : undefined;
-
-  const cards = useMemo(() => {
-    if (!frontTemplate) return [];
-    const rows = buildRows(example);
-    const headers = rows[0] ?? [];
-    return createBulkDisplayCards({
-      template: frontTemplate,
-      backingTemplate: backTemplate,
-      fieldDefinitions: extractTemplateFieldDefinitions(frontTemplate),
-      rows,
-      columnMapping: Object.fromEntries(headers.map((header) => [header, header])),
-      createId: (rowNumber) => `${example.slug}-showcase-${rowNumber}`,
-    });
-  }, [backTemplate, example, frontTemplate]);
-
   const panelId = 'showcase-stage-panel';
 
   return (
     <section
       id="interactive-showcase"
       aria-labelledby="interactive-showcase-heading"
-      className="scroll-mt-6 border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-14"
+      className="cardforge-public-deferred-section scroll-mt-6 border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-14"
     >
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">
@@ -258,31 +229,16 @@ export function InteractiveStudioShowcase() {
               />
             ) : activeStage === 1 ? (
               <StudioScreenshot {...generatorScreenshots[activeGeneratorView]} />
-            ) : loadFailed ? (
+            ) : finishedSetLoadFailed ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
-                The finished-set preview is temporarily unavailable. You can still explore the Studio walkthrough above.
+                The finished-set preview is temporarily unavailable. You can still explore the Studio screenshots.
               </div>
-            ) : !templates || !frontTemplate ? (
-              <div role="status" className="grid min-h-[25rem] place-items-center text-base text-[var(--public-muted-text)]">
-                Loading the real CardForge templates…
-              </div>
+            ) : FinishedSetShowcase ? (
+              <FinishedSetShowcase example={example} />
             ) : (
-              <figure className="min-h-[27rem] border border-[#3b2b19] bg-[#0d0b08] p-4">
-                <figcaption className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <p className="text-base font-semibold text-[var(--public-brass)]">The finished set</p>
-                    <h3 className="mt-1 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{example.name}</h3>
-                  </div>
-                  <p className="text-base text-[var(--public-muted-text)]">{cards.length} cards, one reusable template</p>
-                </figcaption>
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {cards.slice(0, 4).map((card, index) => (
-                    <div key={card.uniqueId} role="img" aria-label={`${example.altText.rows[index]} Finished card ${index + 1}.`} className="flex min-w-0 justify-center rounded-[var(--public-radius)] bg-[#21170d] p-2">
-                      <CardPreview card={card} face="front" targetWidthPx={190} />
-                    </div>
-                  ))}
-                </div>
-              </figure>
+              <div role="status" className="grid min-h-[25rem] place-items-center text-base text-[var(--public-muted-text)]">
+                Preparing the finished-set preview…
+              </div>
             )}
           </div>
 

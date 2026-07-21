@@ -10,6 +10,7 @@ export function OutcomeHero() {
         alt="A warm CardForge workshop with illustrated card proofs, drawing tools, and a card-layout screen spread across a dark wood desk."
         fill
         priority
+        fetchPriority="high"
         sizes="100vw"
         className="object-cover object-[62%_center]"
       />

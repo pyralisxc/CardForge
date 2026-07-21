@@ -1,19 +1,18 @@
 import Link from 'next/link';
 import { ArrowRight, Gift } from 'lucide-react';
 
-import { PublicAuthControls } from '@/features/account/client/auth';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   AccessComparison,
   FounderStrip,
   InteractiveStudioShowcase,
   OutcomeHero,
-  PublicSiteShell,
   WorkflowProof,
-  createSiteContentMap,
-} from '@/features/public-site/client';
+} from '@/features/public-site/client/landing';
+import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
   createCardForgeStructuredData,
+  createSiteContentMap,
   getCachedSiteContentBlocks,
   StructuredData,
 } from '@/features/public-site/server';
@@ -35,7 +34,6 @@ export default async function LandingPage() {
   return (
     <PublicSiteShell
       businessIdentity={businessIdentity}
-      accountSlot={<PublicAuthControls />}
       currentPath="/"
     >
       <StructuredData value={createCardForgeStructuredData(businessIdentity)} />
