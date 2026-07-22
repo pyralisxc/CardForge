@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
@@ -190,7 +190,7 @@ export function CardForgeStudioShell({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
-  const pendingStudioFocusSelectorRef = useRef<string | null>(null);
+  const [pendingStudioFocusSelector, setPendingStudioFocusSelector] = useState<string | null>(null);
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
@@ -309,42 +309,33 @@ export function CardForgeStudioShell({
   }, []);
 
   const focusStudioRegion = useCallback((selector: string) => {
-    window.requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(selector);
-      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      target?.focus({ preventScroll: true });
-    });
+    const target = document.querySelector<HTMLElement>(selector);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target?.focus({ preventScroll: true });
   }, []);
 
   const handleStartMakingCards = useCallback(() => {
-    pendingStudioFocusSelectorRef.current = '[data-workflow-step="setup"]';
+    setPendingStudioFocusSelector('[data-workflow-step="setup"]');
     setActiveTabAction('generator');
     handleDismissFirstRunGuide();
   }, [handleDismissFirstRunGuide, setActiveTabAction]);
 
   const handleEditDesignFirst = useCallback(() => {
-    pendingStudioFocusSelectorRef.current = '[data-testid="layout-studio-panel"]';
+    setPendingStudioFocusSelector('[data-testid="layout-studio-panel"]');
     setActiveTabAction('template-maker');
     handleDismissFirstRunGuide();
   }, [handleDismissFirstRunGuide, setActiveTabAction]);
 
   const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
 
-  useEffect(() => {
-    const selector = pendingStudioFocusSelectorRef.current;
-    if (!selector) return;
+  useLayoutEffect(() => {
+    if (!pendingStudioFocusSelector) return;
+    const target = document.querySelector<HTMLElement>(pendingStudioFocusSelector);
+    if (!target) return;
 
-    const frame = window.requestAnimationFrame(() => {
-      if (!pendingStudioFocusSelectorRef.current) return;
-      const target = document.querySelector<HTMLElement>(selector);
-      if (!target) return;
-
-      pendingStudioFocusSelectorRef.current = null;
-      focusStudioRegion(selector);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [effectiveActiveTab, focusStudioRegion, showFirstRunGuide]);
+    focusStudioRegion(pendingStudioFocusSelector);
+    setPendingStudioFocusSelector(null);
+  }, [effectiveActiveTab, focusStudioRegion, pendingStudioFocusSelector]);
 
   useEffect(() => {
     let cancelled = false;
