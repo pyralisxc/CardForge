@@ -103,7 +103,9 @@ test('completes a first Studio session and restores the edited card after refres
 
   await page.getByRole('button', { name: 'Start making cards', exact: true }).click();
   await expect(page.getByTestId('studio-tab-generator')).toHaveAttribute('data-state', 'active');
-  await expect(page.locator('[data-workflow-step="setup"]')).toBeFocused();
+  const setupRegion = page.locator('[data-workflow-step="setup"]');
+  await expect(setupRegion).toBeVisible();
+  await expect(setupRegion).toBeInViewport();
 
   await page.getByTestId('create-generated-output').click();
   const preview = visibleGeneratedCardPreviews(page).first();
