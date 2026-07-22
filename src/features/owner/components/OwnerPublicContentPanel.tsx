@@ -10,7 +10,6 @@ import { updateOwnerConsole } from '@/features/owner/model/ownerConsoleClient';
 import type { SiteContentBlock, SiteContentBlockSlug } from '@/features/public-site/client/content';
 import type { RoadmapSettings } from '@/features/roadmap/client/admin';
 import { OwnerFieldHelp } from './OwnerPanelPrimitives';
-import { OwnerHomepageMediaPanel } from './OwnerHomepageMediaPanel';
 import { OwnerShareToolkit } from './OwnerShareToolkit';
 
 const groupLabels: Record<SiteContentBlock['group'], string> = {
@@ -68,7 +67,6 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
       <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
         <div className="flex items-center gap-3 text-[#e2aa4a]"><FileText className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Public site copy</h2></div>
         <div className="mt-6 grid gap-4">
-          <OwnerHomepageMediaPanel consolePayload={consolePayload} onConsoleChange={onConsoleChange} />
           {groups.map(({ group, blocks: groupBlocks }) => (
             <div key={group} className="border border-[#4a3823] bg-[#100c08] p-4">
               <h3 className="font-serif text-xl text-[#ffe7ad]">{groupLabels[group]}</h3>

@@ -18,11 +18,15 @@ export {
   getSiteMediaStoragePath,
   isSiteMediaSlot,
   normalizeSiteMediaAlt,
+  normalizeSiteMediaPresentation,
   type SiteMediaAsset,
+  type SiteMediaPresentation,
   type SiteMediaSlot,
+  type SiteMediaVersion,
 } from './model/siteMedia';
 export {
   getSiteMedia,
+  restorePreviousSiteMedia,
   SiteMediaStoreError,
   updateSiteMedia,
 } from './server/siteMediaStore';
@@ -57,12 +61,6 @@ export {
   getFounderPortraitPublicUrl,
   updateFounderProfile,
 } from './server/founderProfileStore';
-export {
-  FOUNDER_PORTRAIT_MIME_TYPES,
-  MAX_FOUNDER_PORTRAIT_BYTES,
-  processFounderPortrait,
-  validateFounderPortraitFile,
-} from './server/founderPortrait';
 export {
   FOUNDER_PROFILE_TAG,
   getCachedFounderProfile,

@@ -1,14 +1,13 @@
 "use client";
 
-import Image from 'next/image';
 import { Database, LayoutTemplate, Layers3 } from 'lucide-react';
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 
 import {
   getDefaultSiteMedia,
-  getSiteMediaDisplaySrc,
   type SiteMediaAsset,
 } from '@/features/public-site/model/siteMedia';
+import { getSiteMediaFrameAspectRatio, ResponsiveSiteMediaImage } from './ResponsiveSiteMediaImage';
 import { CARDFORGE_EXAMPLES, type CardForgeExample } from '../model/examples';
 import {
   getNextShowcaseStage,
@@ -26,31 +25,46 @@ type FinishedSetComponent = ComponentType<{ example: CardForgeExample }>;
 
 function StudioScreenshot({
   media,
-  width,
-  height,
 }: {
   media: SiteMediaAsset;
-  width: number;
-  height: number;
 }) {
-  const src = getSiteMediaDisplaySrc(media);
   const alt = media.alt;
+  const width = media.width ?? 1600;
+  const height = media.height ?? 1200;
+  const frameAspectRatio = getSiteMediaFrameAspectRatio(media.presentation);
+  const mobileWidthClass = {
+    compact: 'max-w-[84%]',
+    standard: 'max-w-[92%]',
+    large: 'max-w-full',
+  }[media.presentation.mobileSize];
+  const desktopWidthClass = {
+    compact: 'md:max-w-3xl',
+    standard: 'md:max-w-5xl',
+    large: 'md:max-w-full',
+  }[media.presentation.desktopSize];
   return (
     <div
-      className="max-h-[46rem] overflow-y-auto rounded-[var(--public-radius)] border border-[#3b2b19] bg-[#070707]"
-      tabIndex={0}
-      aria-label={`${alt} Scroll to see the entire screenshot.`}
+      className={`mx-auto rounded-[var(--public-radius)] border border-[#3b2b19] bg-[#070707] ${frameAspectRatio ? 'overflow-hidden' : 'max-h-[46rem] overflow-y-auto'} ${mobileWidthClass} ${desktopWidthClass}`}
+      tabIndex={frameAspectRatio ? undefined : 0}
+      aria-label={frameAspectRatio ? alt : `${alt} Scroll to see the entire screenshot.`}
     >
-      <div className="mx-auto" style={{ maxWidth: `${width}px` }}>
-        <Image
-          src={src}
-          alt={alt}
+      {frameAspectRatio ? (
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: frameAspectRatio }}>
+          <ResponsiveSiteMediaImage
+            media={media}
+            fill
+            sizes="(min-width: 1280px) 1119px, (min-width: 640px) calc(100vw - 6.5rem), calc(100vw - 4rem)"
+          />
+        </div>
+      ) : (
+        <ResponsiveSiteMediaImage
+          media={media}
           width={width}
           height={height}
           sizes="(min-width: 1280px) 1119px, (min-width: 640px) calc(100vw - 6.5rem), calc(100vw - 4rem)"
-          className="h-auto w-auto max-w-full"
+          className="h-auto w-full"
         />
-      </div>
+      )}
     </div>
   );
 }
@@ -217,19 +231,15 @@ export function InteractiveStudioShowcase({
             id={panelId}
             role="tabpanel"
             aria-labelledby={`showcase-tab-${activeStage}`}
-            className="min-h-[30rem] bg-[radial-gradient(circle_at_top,#2a1a0c_0%,#11100d_45%,#090806_100%)] p-3 sm:p-5"
+            className="bg-[radial-gradient(circle_at_top,#2a1a0c_0%,#11100d_45%,#090806_100%)] p-3 sm:p-5"
           >
             {activeStage === 0 ? (
               <StudioScreenshot
                 media={layoutMedia}
-                width={1119}
-                height={1536}
               />
             ) : activeStage === 1 ? (
               <StudioScreenshot
                 media={generatorMedia}
-                width={activeGeneratorView === 'single' ? 869 : 904}
-                height={1536}
               />
             ) : finishedSetLoadFailed ? (
               <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">

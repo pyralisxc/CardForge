@@ -9,6 +9,7 @@ import {
   getDefaultSiteMedia,
   getSiteMediaDisplaySrc,
   getSiteMediaStoragePath,
+  normalizeSiteMediaPresentation,
 } from '@/features/public-site/client';
 import {
   MAX_SITE_MEDIA_BYTES,
@@ -17,18 +18,47 @@ import {
 } from '@/features/public-site/server';
 
 describe('owner-managed homepage media', () => {
-  it('keeps four explicit homepage image slots with safe bundled fallbacks', () => {
+  it('keeps every owner-managed public image in one explicit media catalog', () => {
     expect(DEFAULT_SITE_MEDIA.map((asset) => asset.slot)).toEqual([
       'landing.hero',
       'landing.showcase.layout',
       'landing.showcase.generator-single',
       'landing.showcase.generator-bulk',
+      'founder.portrait',
     ]);
     const hero = getDefaultSiteMedia('landing.hero');
     expect(getSiteMediaDisplaySrc(hero)).toBe('/card-assets/showcase/cardforge-workshop-cover.webp');
     expect(getSiteMediaDisplaySrc({ ...hero, storagePath: 'landing/hero/example.webp', updatedAt: '2026-07-21T19:30:00.000Z' }))
       .toContain('/api/public/site-media/landing.hero?v=');
     expect(getSiteMediaStoragePath('landing.hero', 'upload-id')).toBe('landing/hero/upload-id.webp');
+    expect(getSiteMediaStoragePath('founder.portrait', 'upload-id')).toBe('founder/portrait/upload-id.webp');
+    expect(getSiteMediaDisplaySrc(getDefaultSiteMedia('founder.portrait'))).toBeNull();
+    expect(hero.presentation).toMatchObject({ frame: 'wide', fit: 'cover', desktopFocalX: 62 });
+    expect(getDefaultSiteMedia('landing.showcase.layout').presentation.frame).toBe('natural');
+    expect(getDefaultSiteMedia('landing.showcase.layout')).toMatchObject({ width: 1119, height: 1536 });
+    expect(getDefaultSiteMedia('founder.portrait').presentation.frame).toBe('portrait');
+    expect(hero.previousVersion).toBeNull();
+  });
+
+  it('validates responsive presentation controls by media slot', () => {
+    const layout = getDefaultSiteMedia('landing.showcase.layout');
+    const valid = normalizeSiteMediaPresentation('landing.showcase.layout', {
+      ...layout.presentation,
+      frame: 'wide',
+      fit: 'contain',
+      desktopSize: 'compact',
+      mobileSize: 'large',
+    });
+    expect(valid).toMatchObject({ ok: true, value: { frame: 'wide', fit: 'contain' } });
+
+    expect(normalizeSiteMediaPresentation('landing.hero', {
+      ...getDefaultSiteMedia('landing.hero').presentation,
+      frame: 'natural',
+    })).toMatchObject({ ok: false });
+    expect(normalizeSiteMediaPresentation('founder.portrait', {
+      ...getDefaultSiteMedia('founder.portrait').presentation,
+      desktopZoom: 4,
+    })).toMatchObject({ ok: false });
   });
 
   it('accepts declared images, bounds them, strips metadata, and emits WebP', async () => {
@@ -42,22 +72,40 @@ describe('owner-managed homepage media', () => {
       create: { width: 3000, height: 3200, channels: 3, background: '#8c5b2d' },
     }).png().withMetadata({ orientation: 1 }).toBuffer();
     const processed = await processSiteMediaImage(source, 'landing.showcase.layout');
-    const metadata = await sharp(processed).metadata();
+    const metadata = await sharp(processed.buffer).metadata();
 
     expect(metadata.format).toBe('webp');
     expect(metadata.width).toBeLessThanOrEqual(1600);
     expect(metadata.height).toBeLessThanOrEqual(2400);
     expect(metadata.exif).toBeUndefined();
+    expect(processed.width).toBe(metadata.width);
+    expect(processed.height).toBe(metadata.height);
+
+    const portraitSource = await sharp({
+      create: { width: 2200, height: 3300, channels: 3, background: '#5f4526' },
+    }).png().toBuffer();
+    const portrait = await processSiteMediaImage(portraitSource, 'founder.portrait');
+    expect(portrait.width).toBeLessThanOrEqual(1600);
+    expect(portrait.height).toBeLessThanOrEqual(2000);
   });
 
   it('keeps owner authorization and successful storage ahead of publishing media state', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/owner/site-media/[slot]/route.ts'), 'utf8');
-    const panel = readFileSync(join(process.cwd(), 'src/features/owner/components/OwnerHomepageMediaPanel.tsx'), 'utf8');
+    const restoreRoute = readFileSync(join(process.cwd(), 'src/app/api/owner/site-media/[slot]/restore/route.ts'), 'utf8');
+    const panel = readFileSync(join(process.cwd(), 'src/features/owner/components/OwnerSiteMediaPanel.tsx'), 'utf8');
+    const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260721233000_unify_site_media_presentation.sql'), 'utf8');
 
     expect(route.indexOf('await getCurrentOwnerAccess()')).toBeLessThan(route.indexOf('await request.formData()'));
     expect(route.indexOf('.upload(uploadedPath')).toBeLessThan(route.indexOf('await updateSiteMedia('));
     expect(route).toContain('revalidateSiteMediaCache()');
-    expect(panel).toContain('Upload and publish');
+    expect(restoreRoute.indexOf('await getCurrentOwnerAccess()')).toBeLessThan(restoreRoute.indexOf('await restorePreviousSiteMedia(slot)'));
+    expect(restoreRoute).toContain('revalidateSiteMediaCache()');
+    expect(panel).toContain('Publish changes');
+    expect(panel).toContain('Restore previous');
+    expect(panel).toContain("'desktop' | 'mobile'");
     expect(panel).toContain('AbortSignal.timeout(UPLOAD_TIMEOUT_MS)');
+    expect(panel).toContain('setDetectedDimensions');
+    expect(migration).toContain("'founder.portrait'");
+    expect(migration).toContain('previous_presentation jsonb');
   });
 });

@@ -17,6 +17,11 @@ export { WorkflowProof } from './components/WorkflowProof';
 export { AccessComparison } from './components/AccessComparison';
 export { FounderStrip } from './components/FounderStrip';
 export {
+  getSiteMediaFrameAspectRatio,
+  getSiteMediaImageStyle,
+  ResponsiveSiteMediaImage,
+} from './components/ResponsiveSiteMediaImage';
+export {
   FounderProfileProvider,
   useFounderProfile,
 } from './components/FounderProfileContext';
@@ -45,7 +50,14 @@ export {
   getDefaultSiteMedia,
   getSiteMediaDisplaySrc,
   getSiteMediaStoragePath,
+  normalizeSiteMediaPresentation,
   SITE_MEDIA_SLOTS,
   type SiteMediaAsset,
+  type SiteMediaFit,
+  type SiteMediaFrame,
+  type SiteMediaKind,
+  type SiteMediaPresentation,
+  type SiteMediaSize,
   type SiteMediaSlot,
+  type SiteMediaVersion,
 } from './model/siteMedia';

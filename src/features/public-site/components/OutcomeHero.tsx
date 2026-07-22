@@ -1,26 +1,39 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
 import {
   getDefaultSiteMedia,
-  getSiteMediaDisplaySrc,
   type SiteMediaAsset,
 } from '@/features/public-site/model/siteMedia';
+import { ResponsiveSiteMediaImage } from './ResponsiveSiteMediaImage';
+
+const mobileHeightClass = {
+  compact: 'min-h-[28rem]',
+  standard: 'min-h-[34rem]',
+  large: 'min-h-[40rem]',
+} as const;
+
+const desktopHeightClass = {
+  compact: 'md:min-h-[34rem]',
+  standard: 'md:min-h-[40rem]',
+  large: 'md:min-h-[48rem]',
+} as const;
 
 export function OutcomeHero({ media = getDefaultSiteMedia('landing.hero') }: { media?: SiteMediaAsset }) {
   return (
-    <section className="relative flex min-h-[34rem] overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:min-h-[40rem] md:px-8 md:py-16">
-      <Image
-        src={getSiteMediaDisplaySrc(media)}
-        alt={media.alt}
+    <section className={`relative flex overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:px-8 md:py-16 ${mobileHeightClass[media.presentation.mobileSize]} ${desktopHeightClass[media.presentation.desktopSize]}`}>
+      <ResponsiveSiteMediaImage
+        media={media}
         fill
         priority
         fetchPriority="high"
         sizes="100vw"
-        className="object-cover object-[62%_center]"
       />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,6,5,0.97)_0%,rgba(9,8,6,0.88)_30%,rgba(9,8,6,0.42)_58%,rgba(7,6,5,0.16)_100%),linear-gradient(0deg,rgba(7,6,5,0.82)_0%,transparent_45%)]" aria-hidden="true" />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,6,5,0.97)_0%,rgba(9,8,6,0.88)_30%,rgba(9,8,6,0.42)_58%,rgba(7,6,5,0.16)_100%),linear-gradient(0deg,rgba(7,6,5,0.82)_0%,transparent_45%)]"
+        style={{ opacity: media.presentation.overlayStrength / 100 }}
+        aria-hidden="true"
+      />
       <div className="relative mx-auto flex w-full max-w-7xl items-center">
         <div className="max-w-3xl">
           <p className="text-base font-semibold text-[var(--public-brass)]">
