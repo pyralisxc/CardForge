@@ -68,14 +68,14 @@ describe('zip export helpers', () => {
 
   it('builds stable zip copy from the export mode and face count', () => {
     expect(createZipExportCopy('physical', 2)).toEqual({
-      outputLabel: 'physical print output faces',
+      outputLabel: 'print-ready card faces',
       folderName: 'physical-print-output-faces',
       fileNamePrefix: 'cardforge-physical-print-output-faces',
       buttonLabel: 'Export Print PNG ZIP (2 faces)',
     });
 
     expect(createZipExportCopy('virtual', 1)).toMatchObject({
-      outputLabel: 'digital output images',
+      outputLabel: 'digital card images',
       folderName: 'digital-output-images',
       fileNamePrefix: 'cardforge-digital-output-images',
       buttonLabel: 'Export Digital PNG ZIP (1 images)',

@@ -75,7 +75,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
       if (!blob) throw new Error('Failed to create image blob.');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const cardName = (card.data?.cardName || card.data?.title || card.data?.name || 'output') as string;
+      const cardName = (card.data?.cardName || card.data?.title || card.data?.name || 'card') as string;
       link.href = url;
       link.download = `${String(cardName).replace(/\s+/g, '-').toLowerCase()}-${face}.${format === 'jpeg' ? 'jpg' : format}`;
       link.click();

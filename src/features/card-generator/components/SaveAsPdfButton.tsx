@@ -120,10 +120,10 @@ export function SaveAsPdfButton({
     }
 
     const totalChunks = Math.ceil(generatedDisplayCards.length / MAX_PDF_CARDS_PER_FILE);
-    const safeName = (templateName || generatedDisplayCards[0]?.template?.name || 'cardforge-outputs')
+    const safeName = (templateName || generatedDisplayCards[0]?.template?.name || 'cardforge-cards')
       .replace(/[^a-zA-Z0-9_\- ]/g, '')
       .trim()
-      .replace(/\s+/g, '-') || 'cardforge-outputs';
+      .replace(/\s+/g, '-') || 'cardforge-cards';
     const pdfModeSlug = exportMode === 'physical'
       ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : 'print-duplex-sheets')
       : 'digital-sheet';

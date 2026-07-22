@@ -349,6 +349,7 @@ export function CardForgeStudioShell({
     <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[#0c0b09] text-[#f7ead0]">
       <StudioHeader
         authConfigured={accountEntitlement.authConfigured}
+        isLoadingAccount={accountEntitlement.isLoadingEntitlement}
         isSignedIn={accountEntitlement.isSignedIn}
         modeLabel={exportEntitlementLabel}
         saveStatus={workspaceSaveStatus}

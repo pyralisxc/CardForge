@@ -18,6 +18,7 @@ import { STUDIO_NAVIGATION } from '@/features/public-site/client';
 interface StudioHeaderProps {
   authConfigured: boolean;
   currentPath?: string;
+  isLoadingAccount: boolean;
   isSignedIn: boolean;
   modeLabel: string;
   saveStatus: BrowserStorageSaveStatus;
@@ -27,6 +28,7 @@ interface StudioHeaderProps {
 export function StudioHeader({
   authConfigured,
   currentPath = '/studio',
+  isLoadingAccount,
   isSignedIn,
   modeLabel,
   saveStatus,
@@ -63,6 +65,7 @@ export function StudioHeader({
         <div className="cardforge-studio-account ml-auto">
           <AccountControls
             authConfigured={authConfigured}
+            isLoadingAccount={isLoadingAccount}
             isSignedIn={isSignedIn}
             modeLabel={modeLabel}
             onRefreshEntitlement={onRefreshEntitlement}
