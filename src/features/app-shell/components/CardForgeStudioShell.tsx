@@ -344,7 +344,7 @@ export function CardForgeStudioShell({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [effectiveActiveTab, focusStudioRegion]);
+  }, [effectiveActiveTab, focusStudioRegion, showFirstRunGuide]);
 
   useEffect(() => {
     let cancelled = false;
