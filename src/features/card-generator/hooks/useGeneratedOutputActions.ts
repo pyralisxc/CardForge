@@ -32,7 +32,7 @@ export function useGeneratedOutputActions({
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
     addGeneratedCards(cards);
-    if (cards.length > 0) toast({ title: 'Data Generation Complete', description: `${cards.length} outputs added.` });
+    if (cards.length > 0) toast({ title: 'Cards added to your set', description: `${cards.length} cards are ready for review.` });
   }, [addGeneratedCards, toast]);
 
   const handleSingleCardAdded = useCallback((card: DisplayCard) => {
@@ -51,12 +51,13 @@ export function useGeneratedOutputActions({
 
   const handleSaveEditedCard = useCallback((updatedCard: DisplayCard) => {
     updateGeneratedCard(updatedCard);
-    toast({ title: 'Output Updated', description: 'Changes saved.' });
-  }, [toast, updateGeneratedCard]);
+    closeEditDialog();
+    toast({ title: 'Card updated', description: 'Changes saved.' });
+  }, [closeEditDialog, toast, updateGeneratedCard]);
 
   const handleRemoveCard = useCallback((cardToRemove: DisplayCard) => {
     removeGeneratedCard(cardToRemove.uniqueId);
-    toast({ title: 'Output removed', description: 'The generated output was removed from this browser.' });
+    toast({ title: 'Card removed', description: 'The card was removed from this browser.' });
   }, [removeGeneratedCard, toast]);
 
   const handleDuplicateCard = useCallback((cardToDuplicate: DisplayCard) => {
@@ -65,7 +66,7 @@ export function useGeneratedOutputActions({
       uniqueId: nanoid(),
     };
     addGeneratedCards([newCard]);
-    toast({ title: 'Output Duplicated', description: 'A copy of the output has been added.' });
+    toast({ title: 'Card duplicated', description: 'A copy of the card was added to this set.' });
   }, [addGeneratedCards, toast]);
 
   const handleCloseEditDialog = useCallback(() => {

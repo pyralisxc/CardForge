@@ -77,7 +77,7 @@ test('serves the public shell and core APIs', async ({ request }) => {
   }
 });
 
-test('creates one generated output without runtime failures', async ({ page }) => {
+test('creates one card without runtime failures', async ({ page }) => {
   await resetBrowserStorage(page);
   const runtimeFailures = observeRuntimeFailures(page);
   const response = await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
@@ -91,6 +91,64 @@ test('creates one generated output without runtime failures', async ({ page }) =
   await createOutput.click();
   await expect(visibleGeneratedCardPreviews(page).first()).toBeVisible({ timeout: READY_TIMEOUT });
 
+  expect(runtimeFailures).toEqual([]);
+});
+
+test('completes a first Studio session and restores the edited card after refresh', async ({ page }) => {
+  await resetBrowserStorage(page);
+  const runtimeFailures = observeRuntimeFailures(page);
+
+  await page.goto('/studio', { waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+  await expect(page.getByTestId('studio-ready')).toBeVisible({ timeout: READY_TIMEOUT });
+
+  await page.getByRole('button', { name: 'Start making cards', exact: true }).click();
+  await expect(page.getByTestId('studio-tab-generator')).toHaveAttribute('data-state', 'active');
+  const setupRegion = page.locator('[data-workflow-step="setup"]');
+  await expect(setupRegion).toBeVisible();
+  await expect(setupRegion).toBeInViewport();
+
+  await page.getByTestId('create-generated-output').click();
+  const preview = visibleGeneratedCardPreviews(page).first();
+  await expect(preview).toBeVisible({ timeout: READY_TIMEOUT });
+  await preview.click();
+
+  const editCard = page.getByRole('button', { name: 'Edit card', exact: true });
+  await expect(editCard).toBeVisible();
+  await editCard.click();
+  const editDialog = page.getByRole('dialog');
+  await expect(editDialog).toBeVisible();
+  await editDialog.getByRole('button', { name: 'Save Changes', exact: true }).click();
+  await expect(editDialog).toBeHidden();
+
+  await expect.poll(async () => (
+    (await page.evaluate(() => new Promise<boolean>((resolve, reject) => {
+      const request = indexedDB.open('cardforge-browser-storage', 1);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        const transaction = database.transaction('key-value', 'readonly');
+        const read = transaction.objectStore('key-value').get('project-workspace:workspace');
+        read.onerror = () => {
+          database.close();
+          reject(read.error);
+        };
+        read.onsuccess = () => {
+          database.close();
+          try {
+            const workspace = JSON.parse(String(read.result ?? '{}')) as { state?: { storedCards?: unknown[] } };
+            resolve(Boolean(workspace.state?.storedCards?.length));
+          } catch {
+            resolve(false);
+          }
+        };
+      };
+    })))
+  ), { timeout: 10_000 }).toBe(true);
+
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: READY_TIMEOUT });
+  await expect(page.getByTestId('studio-ready')).toBeVisible({ timeout: READY_TIMEOUT });
+  await page.getByTestId('studio-tab-generator').click();
+  await expect(visibleGeneratedCardPreviews(page).first()).toBeVisible({ timeout: READY_TIMEOUT });
   expect(runtimeFailures).toEqual([]);
 });
 

@@ -10,9 +10,11 @@ import { LogIn, UserPlus } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { resolveAccountControlsState } from '@/features/account/lib/accountControlsState';
 
 interface AccountControlsProps {
   authConfigured: boolean;
+  isLoadingAccount: boolean;
   isSignedIn: boolean;
   modeLabel: string;
   onRefreshEntitlement: () => void;
@@ -20,15 +22,25 @@ interface AccountControlsProps {
 
 export function AccountControls({
   authConfigured,
+  isLoadingAccount,
   isSignedIn,
   modeLabel,
   onRefreshEntitlement,
 }: AccountControlsProps) {
-  if (!authConfigured) {
+  const state = resolveAccountControlsState({ authConfigured, isLoadingAccount });
+
+  if (state === 'checking') {
+    return (
+      <p className="ml-auto hidden text-right text-xs text-[#c8b07f] sm:block" role="status" aria-live="polite">
+        Checking account access…
+      </p>
+    );
+  }
+
+  if (state === 'unavailable') {
     return (
       <div className="ml-auto hidden text-right text-xs text-[#c8b07f] sm:block">
-        <p className="font-semibold text-[#fff1c7]">Clerk setup incomplete</p>
-        <p>Add secret key to test accounts</p>
+        <p className="font-semibold text-[#fff1c7]">Account sign-in isn&apos;t available here.</p>
       </div>
     );
   }

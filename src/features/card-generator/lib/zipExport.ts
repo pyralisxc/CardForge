@@ -73,13 +73,13 @@ export const createCardZipExportItems = (cards: DisplayCard[]): CardZipExportIte
 export const createZipExportCopy = (exportMode: ExportMode, faceCount: number): ZipExportCopy => (
   exportMode === 'physical'
     ? {
-        outputLabel: 'physical print output faces',
+        outputLabel: 'print-ready card faces',
         folderName: 'physical-print-output-faces',
         fileNamePrefix: 'cardforge-physical-print-output-faces',
         buttonLabel: `Export Print PNG ZIP (${faceCount} faces)`,
       }
     : {
-        outputLabel: 'digital output images',
+        outputLabel: 'digital card images',
         folderName: 'digital-output-images',
         fileNamePrefix: 'cardforge-digital-output-images',
         buttonLabel: `Export Digital PNG ZIP (${faceCount} images)`,
@@ -87,7 +87,7 @@ export const createZipExportCopy = (exportMode: ExportMode, faceCount: number): 
 );
 
 export const getZipExportFileName = ({ card, cardIndex, face }: CardZipExportItem): string => {
-  const safeName = (card.data?.cardName || card.data?.name || `output-${cardIndex + 1}`)
+  const safeName = (card.data?.cardName || card.data?.name || `card-${cardIndex + 1}`)
     .toString()
     .replace(/[^a-z0-9_-]/gi, '_')
     .substring(0, 40);
@@ -139,7 +139,7 @@ export const createTabletopSimulatorManifest = (
     cardHeightPx,
     cards: sheet.cards.map((item) => ({
       number: item.sheetCardIndex + 1,
-      name: String(item.card.data?.cardName || item.card.data?.name || `Output ${item.sourceIndex + 1}`),
+      name: String(item.card.data?.cardName || item.card.data?.name || `Card ${item.sourceIndex + 1}`),
       uniqueId: item.card.uniqueId,
       hasBack: hasCardBacking(item.card),
     })),

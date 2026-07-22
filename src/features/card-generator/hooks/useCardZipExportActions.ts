@@ -175,7 +175,7 @@ export function useCardZipExportActions({
           'Use each front PNG as a Custom Deck face sheet in Tabletop Simulator.',
           'Set Width to 10 and Height to 7. Each sheet contains at most 69 playable cards.',
           'If a matching back PNG exists, use it as the custom deck back image for that sheet.',
-          'The JSON manifest lists card numbers and source CardForge output ids.',
+          'The JSON manifest lists card numbers and CardForge card ids.',
         ].join('\n')
       );
 

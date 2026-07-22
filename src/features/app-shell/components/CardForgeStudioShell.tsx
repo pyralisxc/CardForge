@@ -327,6 +327,8 @@ export function CardForgeStudioShell({
     focusStudioRegion('[data-testid="layout-studio-panel"]');
   }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
 
+  const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
+
   useEffect(() => {
     let cancelled = false;
     void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => {
@@ -339,7 +341,6 @@ export function CardForgeStudioShell({
     };
   }, []);
 
-  const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
   const isStudioReady = !isLoadingTemplates;
 
   // Comment: Initial selection of template for single card generator (and now bulk generator)
@@ -349,6 +350,7 @@ export function CardForgeStudioShell({
     <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[#0c0b09] text-[#f7ead0]">
       <StudioHeader
         authConfigured={accountEntitlement.authConfigured}
+        isLoadingAccount={accountEntitlement.isLoadingEntitlement}
         isSignedIn={accountEntitlement.isSignedIn}
         modeLabel={exportEntitlementLabel}
         saveStatus={workspaceSaveStatus}

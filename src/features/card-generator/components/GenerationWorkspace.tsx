@@ -543,7 +543,7 @@ export function GenerationWorkspace({
         </div>
         <Progress value={exportProgressPercent} className="h-2" />
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Keep CardForge open until the download begins. For 1000 front/back outputs, current print-quality exports can be hundreds of MB.
+          Keep CardForge open until the download begins. For 1000 front and back card images, print-quality exports can be hundreds of MB.
         </p>
       </div>
     )}
