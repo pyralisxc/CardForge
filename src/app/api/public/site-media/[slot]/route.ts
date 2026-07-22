@@ -13,6 +13,7 @@ export async function GET(
   const media = (await getCachedSiteMedia()).find((asset) => asset.slot === slot);
   if (!media) return new Response(null, { status: 404 });
   if (!media.storagePath) {
+    if (!media.defaultSrc) return new Response(null, { status: 404 });
     return Response.redirect(new URL(media.defaultSrc, request.url), 307);
   }
 

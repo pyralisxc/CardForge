@@ -21,12 +21,24 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerReadinessPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerOperationsPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerPublicContentPanel.tsx'],
+      ['src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerAccessPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
     ];
     await Promise.all(requiredPaths.map(async (parts) => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
     }));
+  });
+
+  it('gives all public images one dedicated responsive owner workspace', async () => {
+    const page = await readFile(rootPath('src/features/owner/components/OwnerConsolePage.tsx'), 'utf8');
+    const copy = await readFile(rootPath('src/features/owner/components/OwnerPublicContentPanel.tsx'), 'utf8');
+    const founder = await readFile(rootPath('src/features/owner/components/OwnerFounderProfilePanel.tsx'), 'utf8');
+
+    expect(page).toContain('OwnerSiteMediaPanel');
+    expect(page).toContain('>Site Media</TabsTrigger>');
+    expect(copy).not.toContain('OwnerHomepageMediaPanel');
+    expect(founder).not.toContain('Upload portrait');
   });
 
   it('keeps the page as a small loading, navigation, and panel coordinator', async () => {

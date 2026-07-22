@@ -6,9 +6,15 @@ import { getCreatorSupportOfferConfiguration, SUPPORT_MONTHLY_AMOUNTS_CENTS } fr
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
+  getDefaultSiteMedia,
+  getSiteMediaDisplaySrc,
+  ResponsiveSiteMediaImage,
+} from '@/features/public-site/client';
+import {
   createBreadcrumbStructuredData,
   createFounderProfileStructuredData,
   getCachedFounderProfile,
+  getCachedSiteMedia,
   getFounderPortraitPublicUrl,
   StructuredData,
 } from '@/features/public-site/server';
@@ -28,15 +34,29 @@ const supportUses = [
 ] as const;
 
 export default async function CameronPage() {
-  const [businessIdentity, profile] = await Promise.all([
+  const [businessIdentity, profile, siteMedia] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedFounderProfile(),
+    getCachedSiteMedia(),
   ]);
   const supportOffers = getCreatorSupportOfferConfiguration();
   const rawPortraitUrl = getFounderPortraitPublicUrl(profile.portraitStoragePath);
-  const portraitUrl = rawPortraitUrl
+  const legacyPortraitUrl = rawPortraitUrl
     ? `${rawPortraitUrl}?v=${encodeURIComponent(profile.updatedAt ?? 'current')}`
     : null;
+  const portraitMedia = siteMedia.find((asset) => asset.slot === 'founder.portrait')
+    ?? getDefaultSiteMedia('founder.portrait');
+  const portraitUrl = getSiteMediaDisplaySrc(portraitMedia);
+  const portraitDesktopGrid = {
+    compact: 'md:grid-cols-[10rem_1fr]',
+    standard: 'md:grid-cols-[12rem_1fr]',
+    large: 'md:grid-cols-[16rem_1fr]',
+  }[portraitMedia.presentation.desktopSize];
+  const portraitMobileWidth = {
+    compact: 'max-w-48',
+    standard: 'max-w-64',
+    large: 'max-w-full',
+  }[portraitMedia.presentation.mobileSize];
 
   return (
     <PublicSiteShell businessIdentity={businessIdentity} currentPath="/cameron">
@@ -47,14 +67,16 @@ export default async function CameronPage() {
       ])} />
 
       <section className="border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_18%_16%,#30200f_0%,#0c0b09_42%)] px-5 py-10 md:px-8 md:py-14">
-        <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-[12rem_1fr] md:items-center">
+        <div className={`mx-auto grid max-w-5xl gap-8 md:items-center ${portraitDesktopGrid}`}>
           <div
             role="img"
-            aria-label={profile.portraitAlt}
-            className="grid aspect-[4/5] place-items-center overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] bg-cover bg-center font-[var(--public-font-display)] text-5xl text-[var(--public-brass)] shadow-[0_0_40px_rgba(217,164,65,0.1)]"
-            style={portraitUrl ? { backgroundImage: `url(${portraitUrl})` } : undefined}
+            aria-label={portraitMedia.alt || profile.portraitAlt}
+            className={`relative grid aspect-[4/5] w-full place-items-center overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] bg-cover bg-center font-[var(--public-font-display)] text-5xl text-[var(--public-brass)] shadow-[0_0_40px_rgba(217,164,65,0.1)] md:max-w-none ${portraitMobileWidth}`}
+            style={!portraitUrl && legacyPortraitUrl ? { backgroundImage: `url(${legacyPortraitUrl})` } : undefined}
           >
-            {portraitUrl ? null : 'CL'}
+            {portraitUrl ? (
+              <ResponsiveSiteMediaImage media={portraitMedia} fill sizes="(min-width: 768px) 256px, 100vw" />
+            ) : legacyPortraitUrl ? null : 'CL'}
           </div>
           <div>
             <p className="text-base font-semibold text-[var(--public-brass)]">{profile.heroEyebrow}</p>

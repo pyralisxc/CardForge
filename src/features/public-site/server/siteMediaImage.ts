@@ -19,20 +19,31 @@ export const validateSiteMediaFile = ({ size, type }: { size: number; type: stri
   return { ok: true as const };
 };
 
-export const processSiteMediaImage = async (source: Buffer, slot: SiteMediaSlot): Promise<Buffer> => {
+export interface ProcessedSiteMediaImage {
+  buffer: Buffer;
+  width: number;
+  height: number;
+}
+
+export const processSiteMediaImage = async (
+  source: Buffer,
+  slot: SiteMediaSlot,
+): Promise<ProcessedSiteMediaImage> => {
   try {
-    const isScreenshot = slot !== 'landing.hero';
+    const isScreenshot = slot.startsWith('landing.showcase.');
+    const isPortrait = slot === 'founder.portrait';
     const pipeline = sharp(source, { failOn: 'error' }).rotate();
     await pipeline.metadata();
-    return await pipeline
+    const { data, info } = await pipeline
       .resize({
-        width: isScreenshot ? 1600 : 2400,
-        height: isScreenshot ? 2400 : 1600,
+        width: isScreenshot || isPortrait ? 1600 : 2400,
+        height: isScreenshot || isPortrait ? (isPortrait ? 2000 : 2400) : 1600,
         fit: 'inside',
         withoutEnlargement: true,
       })
       .webp({ quality: 90 })
-      .toBuffer();
+      .toBuffer({ resolveWithObject: true });
+    return { buffer: data, width: info.width, height: info.height };
   } catch {
     throw new Error('Upload a valid image file.');
   }

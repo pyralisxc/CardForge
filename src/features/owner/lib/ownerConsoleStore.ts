@@ -8,7 +8,6 @@ import { getLegalDocuments } from '@/features/legal/server';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMetrics';
 import {
-  getFounderPortraitPublicUrl,
   getFounderProfile,
   getSiteMedia,
   getSiteContentBlocks,
@@ -52,7 +51,6 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     siteContentBlocks,
     siteMedia,
     founderProfile,
-    founderPortraitUrl: getFounderPortraitPublicUrl(founderProfile.portraitStoragePath),
     legalDocuments,
     founderBetaCampaign: founderBeta.campaign,
     founderBetaClaims,

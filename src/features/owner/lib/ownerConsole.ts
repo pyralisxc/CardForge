@@ -24,7 +24,6 @@ export interface OwnerConsolePayload {
   siteContentBlocks: SiteContentBlock[];
   siteMedia: SiteMediaAsset[];
   founderProfile: FounderProfile;
-  founderPortraitUrl: string | null;
   legalDocuments: LegalDocument[];
   founderBetaCampaign: FounderBetaCampaign;
   founderBetaClaims: FounderBetaClaim[];

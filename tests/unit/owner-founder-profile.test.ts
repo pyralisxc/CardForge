@@ -23,18 +23,16 @@ describe('owner-managed founder profile', () => {
     expect(route.indexOf('await updateFounderProfile(')).toBeLessThan(route.indexOf('revalidateFounderProfile();'));
   });
 
-  it('provides independent profile-save and actual portrait-upload controls', () => {
+  it('keeps founder copy focused while Site Media owns the portrait', () => {
     const panel = source('src/features/owner/components/OwnerFounderProfilePanel.tsx');
     const page = source('src/features/owner/components/OwnerConsolePage.tsx');
 
     expect(page).toContain('OwnerFounderProfilePanel');
     expect(page).toContain('Cameron Profile');
-    expect(panel).toContain('type="file"');
-    expect(panel).toContain('accept="image/jpeg,image/png,image/webp"');
-    expect(panel).toContain("fetch('/api/owner/founder-profile/portrait'");
     expect(panel).toContain("kind: 'founderProfile'");
     expect(panel).toContain('Save Cameron profile');
-    expect(panel).toContain('Upload portrait');
-    expect(panel).toContain('AbortSignal.timeout(PORTRAIT_UPLOAD_TIMEOUT_MS)');
+    expect(panel).toContain('Portrait controls now live in Site Media.');
+    expect(panel).not.toContain('Upload portrait');
+    expect(page).toContain('OwnerSiteMediaPanel');
   });
 });
