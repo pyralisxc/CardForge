@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
@@ -190,7 +190,6 @@ export function CardForgeStudioShell({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
-  const [pendingStudioFocusSelector, setPendingStudioFocusSelector] = useState<string | null>(null);
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
@@ -309,33 +308,26 @@ export function CardForgeStudioShell({
   }, []);
 
   const focusStudioRegion = useCallback((selector: string) => {
-    const target = document.querySelector<HTMLElement>(selector);
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    target?.focus({ preventScroll: true });
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(selector);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target?.focus({ preventScroll: true });
+    });
   }, []);
 
   const handleStartMakingCards = useCallback(() => {
-    setPendingStudioFocusSelector('[data-workflow-step="setup"]');
     setActiveTabAction('generator');
     handleDismissFirstRunGuide();
-  }, [handleDismissFirstRunGuide, setActiveTabAction]);
+    focusStudioRegion('[data-workflow-step="setup"]');
+  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
 
   const handleEditDesignFirst = useCallback(() => {
-    setPendingStudioFocusSelector('[data-testid="layout-studio-panel"]');
     setActiveTabAction('template-maker');
     handleDismissFirstRunGuide();
-  }, [handleDismissFirstRunGuide, setActiveTabAction]);
+    focusStudioRegion('[data-testid="layout-studio-panel"]');
+  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
 
   const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
-
-  useLayoutEffect(() => {
-    if (!pendingStudioFocusSelector) return;
-    const target = document.querySelector<HTMLElement>(pendingStudioFocusSelector);
-    if (!target) return;
-
-    focusStudioRegion(pendingStudioFocusSelector);
-    setPendingStudioFocusSelector(null);
-  }, [effectiveActiveTab, focusStudioRegion, pendingStudioFocusSelector]);
 
   useEffect(() => {
     let cancelled = false;
