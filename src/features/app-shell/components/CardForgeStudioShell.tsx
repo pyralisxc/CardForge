@@ -190,6 +190,7 @@ export function CardForgeStudioShell({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
+  const pendingStudioFocusSelectorRef = useRef<string | null>(null);
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
@@ -316,16 +317,34 @@ export function CardForgeStudioShell({
   }, []);
 
   const handleStartMakingCards = useCallback(() => {
+    pendingStudioFocusSelectorRef.current = '[data-workflow-step="setup"]';
     setActiveTabAction('generator');
     handleDismissFirstRunGuide();
-    focusStudioRegion('[data-workflow-step="setup"]');
-  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
+  }, [handleDismissFirstRunGuide, setActiveTabAction]);
 
   const handleEditDesignFirst = useCallback(() => {
+    pendingStudioFocusSelectorRef.current = '[data-testid="layout-studio-panel"]';
     setActiveTabAction('template-maker');
     handleDismissFirstRunGuide();
-    focusStudioRegion('[data-testid="layout-studio-panel"]');
-  }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
+  }, [handleDismissFirstRunGuide, setActiveTabAction]);
+
+  const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
+
+  useEffect(() => {
+    const selector = pendingStudioFocusSelectorRef.current;
+    if (!selector) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (!pendingStudioFocusSelectorRef.current) return;
+      const target = document.querySelector<HTMLElement>(selector);
+      if (!target) return;
+
+      pendingStudioFocusSelectorRef.current = null;
+      focusStudioRegion(selector);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [effectiveActiveTab, focusStudioRegion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -339,7 +358,6 @@ export function CardForgeStudioShell({
     };
   }, []);
 
-  const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
   const isStudioReady = !isLoadingTemplates;
 
   // Comment: Initial selection of template for single card generator (and now bulk generator)
