@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: July 21, 2026
+Last updated: July 23, 2026
 
 This is the current live-operations checklist for CardForge.
 
@@ -10,6 +10,7 @@ This is the current live-operations checklist for CardForge.
 - Vercel production branch: `main`
 - Required canonical env var: `NEXT_PUBLIC_APP_URL=https://cardforges.com`
 - Robots and sitemap must point to `https://cardforges.com`.
+- `https://www.cardforges.com` is attached to the Vercel project and permanently redirects to the canonical apex.
 - Google Search Console uses a DNS TXT record on the root `cardforges.com` domain.
 
 ## Required Production Services
@@ -51,7 +52,7 @@ Email:
 
 ```text
 RESEND_API_KEY=
-CARDFORGE_EMAIL_FROM=CardForge <onboarding@resend.dev>
+CARDFORGE_EMAIL_FROM=CardForge <support@cardforges.com>
 CARDFORGE_EMAIL_REPLY_TO=
 ```
 
@@ -66,27 +67,32 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 ## Launch State
 
 - Custom domain is active.
-- Stripe has processed the first live sale.
-- The last recorded production deployment verification was `dpl_8uCiJA3qdvU1ua5tPGeYKQGnLUN4`, READY on `main` commit `b8f6355b7943c9b814caef36656bd47f0f1b6df3`.
-- The maintained five-route production health check passed against the canonical domain on July 19 for that deployment. Vercel reported no grouped production runtime errors in the following 24 hours.
-- Current production is commit `9e5da78312bb19f5b58d3550124af257b5be979e`, which serves a static public **Sign in** link to `/sign-in`; Clerk mounts only on that dedicated route and returns successful authentication to `/account`.
-- The July 21 protected run [29856676781](https://github.com/pyralisxc/CardForge/actions/runs/29856676781) passed all four required outcomes without skips against `https://cardforges.com`: static public **Sign in** link → dedicated `/sign-in` Clerk form/bootstrap, reusable free/paid/developer/owner access matrix, Founder Beta claim, and paid project export/import recovery. The evidence workflow ran PR #79 commit `08a7e87f6980ecafd7d4fe5edcf9b1c5cd70f9ed` against current production commit `9e5da78312bb19f5b58d3550124af257b5be979e`; [artifact 8505588881](https://github.com/pyralisxc/CardForge/actions/runs/29856676781/artifacts/8505588881) is retained through August 4, 2026.
-- Stripe webhook ordering and duplicate delivery are live-proven; the first subscriber's Clerk mapping remains pending until they sign in or register with the exact Stripe email.
+- Current production deployment `dpl_9ncYWokxiUbiQ3epVY681GjMXKhw` is READY on `main` commit `8ed65a4f0bb0bf3252407b65c8a5f41a6949c1a2`.
+- The maintained five-route production health check passed on July 23 in [run 30008144709](https://github.com/pyralisxc/CardForge/actions/runs/30008144709). Vercel showed no grouped runtime errors in the preceding 24 hours and no retained 5xx cluster for the current deployment.
+- Current production serves a static public **Sign in** link to `/sign-in`; Clerk mounts only on that dedicated route and returns successful authentication to `/account`.
+- The Stage 2 closure [run 29889963025](https://github.com/pyralisxc/CardForge/actions/runs/29889963025), job `88828243550`, passed all four protected outcomes without skips on the production commit: signed-out Clerk entry, reusable free/paid/developer/owner authorization, Founder Beta claiming, and paid project export/import recovery. [Artifact 8517892501](https://github.com/pyralisxc/CardForge/actions/runs/29889963025/artifacts/8517892501) is retained through August 5, 2026.
+- The July 23 scheduled [run 30022834234](https://github.com/pyralisxc/CardForge/actions/runs/30022834234), job `89259701921`, repeated the same four outcomes without skips. [Artifact 8570031414](https://github.com/pyralisxc/CardForge/actions/runs/30022834234/artifacts/8570031414) is retained through August 6, 2026.
+- Stripe has processed the Creator Pass sale plus one-time and monthly creator-support payments. Purpose-aware webhook handling is live-proven, support does not grant product access, and the existing Creator Pass subscriber agrees across Stripe, Clerk, Supabase, and the owner console.
 - Founder Beta launch wave is capped at 25 seats.
-- Resend test email works with the configured support inbox.
-- Google Search Console completion remains open.
+- Resend domain verification, sender/reply-to configuration, outbound test delivery, and the stored production contact-request delivery record agree.
+- Google Search Console domain verification is complete. `https://cardforges.com/sitemap.xml` was submitted successfully and reported 13 discovered pages when last read on July 21.
+- Vercel serves valid TLS for `www.cardforges.com` and returned a permanent `308` redirect to `https://cardforges.com/` on July 23.
+- July 23 paid-browser acceptance proved individual front/back PNG downloads, a four-face PNG ZIP, PDF generation without an application error, a two-card Tabletop Simulator export, and 72-card desktop/mobile save-and-reload recovery. The 72-card TTS pass exposed an oversized-canvas PNG failure; PR #81 constrains every 10×7 sheet to 4096 pixels per dimension with focused regression coverage. Inspecting the downloaded PDF/TTS artifacts and importing one package into Tabletop Simulator remain manual acceptance checks.
+- Supabase migration `20260721220801_grant_site_media_service_role` is applied in production. It grants only `SELECT`, `INSERT`, and `UPDATE` on `cardforge_site_media` to `service_role`; this repository migration records that already-live state and does not require another provider mutation.
 
 ## Business identity provider alignment
 
-The repository identity is CardForge Studio, created and operated by Cameron Locke as an independent sole proprietor based in Oregon. Gate 1's business-identity migration is applied in production, and `cardforges.com` is serving the exact merged Gate 1 commit. Stripe account/receipt identity and Resend sender/reply-to alignment still require direct provider verification before the overall provider-alignment risk is closed.
+The repository identity is CardForge Studio, created and operated by Cameron Locke as an independent sole proprietor based in Oregon. The business-identity migration is applied in production, and current public legal and product surfaces use that identity.
 
-Before claiming production alignment, obtain explicit approval and verify the current legal/business identity in Supabase, Stripe receipts and account records, Resend sender/reply-to settings, and every public legal page. Do not change provider configuration, apply migrations, merge, or deploy from a documentation-only review. Follow [the operator identity and transfer runbook](operator-identity-and-transfer-runbook.md) and record exact deployment and provider evidence here after rollout.
+Direct provider verification on July 23 confirmed that Stripe uses public business name **CardForge Studio**, website `https://cardforges.com`, and statement descriptor `CARDFORGE STUDIO`. Resend has verified `cardforges.com`; the delivered test used `CardForge <support@cardforges.com>` and the configured support reply-to. A customer receipt/invoice is available in Stripe, but that inspected payment had not sent a receipt email. A reply-to header is also not proof of a completed reply round trip. Those two low-risk acceptance checks remain in the manual checklist; they do not reopen sender, domain, checkout, webhook, or entitlement alignment.
+
+Do not change provider identity from a documentation-only review. Follow [the operator identity and transfer runbook](operator-identity-and-transfer-runbook.md) for any later identity or ownership transfer.
 
 ## Legal publication and public cache operations
 
 Legal documents are immutable versioned publications. Publishing through `/owner` requires the identity version currently shown in the console; a concurrent identity update produces a conflict instead of attaching legal text to stale operator data. Publication does not create or infer retroactive terms acceptance.
 
-The Gate 2 migration must be applied before the new publication API is used in production. After approval and migration:
+The versioned legal-publications migration is applied in production. When publishing:
 
 1. Confirm all nine legal slugs have a current publication and the expected business-identity version.
 2. Publish the Creator Pool archived notice as a new version if the preserved historical version is still current.
@@ -138,6 +144,18 @@ Secrets stay in Vercel/provider dashboards. The owner console should show readin
 - Vercel build success alone is not a release-health verdict.
 - Production route health runs every six hours; GitHub owns failure notification and Vercel runtime error groups remain the primary server-error aggregation view.
 
+## Operational Ownership
+
+Cameron Locke is the named operator for launch-period incidents. Existing surfaces own the first signal and response path:
+
+- CI, public smoke, authenticated smoke, and scheduled production-health failures: GitHub Actions email/notification, then the failed job and retained artifact.
+- Checkout, webhook, and reconciliation failures: Stripe Workbench plus the owner-console billing snapshot and reconciliation result; Supabase is the durable event/ledger check.
+- Server/runtime failures: Vercel runtime error groups and function logs.
+- Persistence failures: the Studio save status, quota warning, recovery snapshot, and project import; reproduce in the affected browser before changing provider state.
+- Contact/email failures: the owner-console contact history and email-test result, then Resend delivery details.
+
+No separate analytics provider is enabled for launch. This is intentional: CardForge is operating with no product or marketing analytics by design. Reconsider measurement only when a concrete question, privacy disclosure, and approved provider justify the added data collection.
+
 ### Solo-maintainer branch rule
 
 While `@pyralisxc` is the only trusted code owner, the active ruleset retains zero required approvals because a pull-request author cannot approve their own change. Raise required approvals to one when a second trusted reviewer is added, or review this exception by August 15, 2026.
@@ -150,7 +168,7 @@ Run **Actions → Authenticated smoke → Run workflow** against the candidate b
 - production Clerk publishable and secret keys; and
 - production Supabase URL and service-role key.
 
-A valid run must pass the signed-out public-header → `/sign-in` → interactive Clerk-form/bootstrap check, the reusable free, Founder Beta, paid, developer, and owner entitlement and authorization matrix, and one paid project export/import recovery. The signed-out check records every Clerk `/v1/client` and `/v1/environment` response, fails on any HTTP 400 or greater response or Clerk-related browser console error, and never expects Clerk to mount on `/`. It intentionally does not gate marketing copy, panel labels, profile styling, roadmap voting, or the developer asset submission lifecycle; verify those manually or with focused tests when the feature changes. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. The current candidate-branch evidence is the July 21 non-skipped [run 29856676781](https://github.com/pyralisxc/CardForge/actions/runs/29856676781) on PR #79 commit `08a7e87f6980ecafd7d4fe5edcf9b1c5cd70f9ed`, against production commit `9e5da78312bb19f5b58d3550124af257b5be979e`; its [artifact 8505588881](https://github.com/pyralisxc/CardForge/actions/runs/29856676781/artifacts/8505588881) expires August 4, 2026.
+A valid run must pass the signed-out public-header → `/sign-in` → interactive Clerk-form/bootstrap check, the reusable free, Founder Beta, paid, developer, and owner entitlement and authorization matrix, and one paid project export/import recovery. The signed-out check records every Clerk `/v1/client` and `/v1/environment` response, fails on any HTTP 400 or greater response or Clerk-related browser console error, and never expects Clerk to mount on `/`. It intentionally does not gate marketing copy, panel labels, profile styling, roadmap voting, or the developer asset submission lifecycle; verify those manually or with focused tests when the feature changes. Retain the `authenticated-smoke-<run id>` artifact for 14 days and record the run URL in the risk register. A green run with skipped role tests is not acceptable. Current production evidence is [run 30022834234](https://github.com/pyralisxc/CardForge/actions/runs/30022834234) on commit `8ed65a4f0bb0bf3252407b65c8a5f41a6949c1a2`; all four outcomes passed without skips, and [artifact 8570031414](https://github.com/pyralisxc/CardForge/actions/runs/30022834234/artifacts/8570031414) expires August 6, 2026.
 
 ## Clerk production verification
 
@@ -169,7 +187,7 @@ Production must expose a `pk_live_` publishable key and load Clerk through the v
 
 ## Billing reconciliation
 
-Stripe remains authoritative. The durable subscription ledger and duplicate-delivery path are live-proven. Do not ask the existing subscriber to purchase again: they must sign in or register with the exact email stored in Stripe, then the owner can reconcile the mapping.
+Stripe remains authoritative. The durable subscription ledger and duplicate-delivery path are live-proven. The existing Creator Pass subscriber is reconciled: Stripe subscription, Clerk private metadata, Supabase ledger, and the owner console show the same paid account. Do not ask the subscriber to purchase again. Reconcile again only after a relevant billing, identity, or webhook state change.
 
 Once any creator-support subscription exists, never deploy a webhook older than the explicit billing-purpose classifier. Disable support configuration to roll back the support lane while retaining the purpose-aware webhook and additive ledger migration; an older webhook can misclassify signed-in support as product access.
 
@@ -228,7 +246,12 @@ git diff --check
 - Confirm `/studio`, `/account`, `/profile`, `/owner`, and `/creator-pool` emit noindex metadata.
 - Confirm marketing and legal pages emit a self-referencing canonical and matching Open Graph URL.
 - Validate the CardForge and Cameron JSON-LD in a structured-data inspection tool.
-- Submit sitemap in Google Search Console after DNS verification.
+- Confirm the submitted sitemap remains successful in Google Search Console after domain or metadata changes.
 - Complete one Stripe checkout or customer portal round trip after domain/env changes.
 - Send one Owner Console test email after Resend/env changes.
 - Confirm unpaid export prompts Creator Pass or Founder Beta, not developer application copy.
+- Recheck the `www.cardforges.com` permanent redirect after domain or canonical-host changes.
+- Inspect the generated PDF and Tabletop Simulator package, including fronts, backs, ordering, and one import into Tabletop Simulator. Browser success alone does not prove the downloaded artifacts or simulator import.
+- When convenient, record one hours-long editing session with large artwork and storage pressure. The July 23 72-card desktop/mobile save-and-reload acceptance is ordinary recovery evidence, not a literal long-session soak.
+- Send or inspect one Stripe customer receipt and complete one reply-to round trip into the support inbox.
+- Verify cancellation, refund, and entitlement removal only through a naturally occurring event or an explicitly approved test account. Never alter the real subscriber merely to manufacture evidence.

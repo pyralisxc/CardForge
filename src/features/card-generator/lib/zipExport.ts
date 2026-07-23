@@ -22,6 +22,19 @@ export interface TabletopSimulatorSheetGrid {
   cardsPerSheet: number;
 }
 
+export interface TabletopSimulatorCardCellSize {
+  cardWidthPx: number;
+  cardHeightPx: number;
+  sheetWidthPx: number;
+  sheetHeightPx: number;
+}
+
+export interface TabletopSimulatorRenderedSheetSize {
+  sheetIndex: number;
+  cardWidthPx: number;
+  cardHeightPx: number;
+}
+
 export interface TabletopSimulatorSheetCard {
   card: DisplayCard;
   sourceIndex: number;
@@ -62,6 +75,34 @@ export const TABLETOP_SIMULATOR_GRID: TabletopSimulatorSheetGrid = {
   columns: 10,
   rows: 7,
   cardsPerSheet: 69,
+};
+
+// Tabletop Simulator recommends custom-deck textures around 4096 × 4096.
+// Keeping the assembled canvas inside that boundary also avoids browser PNG
+// encoding failures caused by very large print-resolution source canvases.
+export const TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX = 4096;
+
+export const getTabletopSimulatorCardCellSize = (
+  sourceWidthPx: number,
+  sourceHeightPx: number,
+  grid: TabletopSimulatorSheetGrid = TABLETOP_SIMULATOR_GRID
+): TabletopSimulatorCardCellSize => {
+  const safeWidth = Math.max(1, Math.floor(sourceWidthPx));
+  const safeHeight = Math.max(1, Math.floor(sourceHeightPx));
+  const scale = Math.min(
+    1,
+    TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX / (safeWidth * grid.columns),
+    TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX / (safeHeight * grid.rows)
+  );
+  const cardWidthPx = Math.max(1, Math.floor(safeWidth * scale));
+  const cardHeightPx = Math.max(1, Math.floor(safeHeight * scale));
+
+  return {
+    cardWidthPx,
+    cardHeightPx,
+    sheetWidthPx: cardWidthPx * grid.columns,
+    sheetHeightPx: cardHeightPx * grid.rows,
+  };
 };
 
 export const createCardZipExportItems = (cards: DisplayCard[]): CardZipExportItem[] =>
@@ -119,29 +160,39 @@ export const getTabletopSimulatorSheetFileName = (
 
 export const createTabletopSimulatorManifest = (
   sheets: TabletopSimulatorSheet[],
-  cardWidthPx: number,
-  cardHeightPx: number
-): TabletopSimulatorManifest => ({
-  format: 'cardforge-tabletop-simulator-spritesheets-v1',
-  notes: [
-    'Upload the exported sheet images to a public or local source that Tabletop Simulator can access.',
-    'Use 10 columns and 7 rows. CardForge reserves the final grid slot so each sheet contains at most 69 playable cards.',
-    'If a back sheet is present, use it as the matching custom deck back for that numbered sheet.',
-  ],
-  sheets: sheets.map((sheet) => ({
-    sheet: sheet.sheetIndex + 1,
-    frontFile: getTabletopSimulatorSheetFileName(sheet, 'front'),
-    backFile: sheet.hasBacks ? getTabletopSimulatorSheetFileName(sheet, 'back') : null,
-    columns: sheet.grid.columns,
-    rows: sheet.grid.rows,
-    cardsPerSheet: sheet.grid.cardsPerSheet,
-    cardWidthPx,
-    cardHeightPx,
-    cards: sheet.cards.map((item) => ({
-      number: item.sheetCardIndex + 1,
-      name: String(item.card.data?.cardName || item.card.data?.name || `Card ${item.sourceIndex + 1}`),
-      uniqueId: item.card.uniqueId,
-      hasBack: hasCardBacking(item.card),
-    })),
-  })),
-});
+  renderedSheetSizes: TabletopSimulatorRenderedSheetSize[]
+): TabletopSimulatorManifest => {
+  const sizesBySheetIndex = new Map(renderedSheetSizes.map((size) => [size.sheetIndex, size]));
+
+  return {
+    format: 'cardforge-tabletop-simulator-spritesheets-v1',
+    notes: [
+      'Upload the exported sheet images to a public or local source that Tabletop Simulator can access.',
+      'Use 10 columns and 7 rows. CardForge reserves the final grid slot so each sheet contains at most 69 playable cards.',
+      'If a back sheet is present, use it as the matching custom deck back for that numbered sheet.',
+    ],
+    sheets: sheets.map((sheet) => {
+      const renderedSize = sizesBySheetIndex.get(sheet.sheetIndex);
+      if (!renderedSize) {
+        throw new Error(`Missing rendered dimensions for Tabletop Simulator sheet ${sheet.sheetIndex + 1}.`);
+      }
+
+      return {
+        sheet: sheet.sheetIndex + 1,
+        frontFile: getTabletopSimulatorSheetFileName(sheet, 'front'),
+        backFile: sheet.hasBacks ? getTabletopSimulatorSheetFileName(sheet, 'back') : null,
+        columns: sheet.grid.columns,
+        rows: sheet.grid.rows,
+        cardsPerSheet: sheet.grid.cardsPerSheet,
+        cardWidthPx: renderedSize.cardWidthPx,
+        cardHeightPx: renderedSize.cardHeightPx,
+        cards: sheet.cards.map((item) => ({
+          number: item.sheetCardIndex + 1,
+          name: String(item.card.data?.cardName || item.card.data?.name || `Card ${item.sourceIndex + 1}`),
+          uniqueId: item.card.uniqueId,
+          hasBack: hasCardBacking(item.card),
+        })),
+      };
+    }),
+  };
+};
