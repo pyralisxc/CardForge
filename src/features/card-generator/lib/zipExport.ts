@@ -85,10 +85,17 @@ export const TABLETOP_SIMULATOR_GRID: TabletopSimulatorSheetGrid = {
 // Keeping the assembled canvas inside that boundary also avoids browser PNG
 // encoding failures caused by very large print-resolution source canvases.
 export const TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX = 4096;
-export const TABLETOP_SIMULATOR_RENDER_DPI = 120;
+export const TABLETOP_SIMULATOR_RENDER_DPI = 165;
 
 export const getTabletopSimulatorExportProfile = (): ExportProfile =>
-  getExportProfile('virtual', TABLETOP_SIMULATOR_RENDER_DPI);
+  ({
+    ...getExportProfile('virtual', TABLETOP_SIMULATOR_RENDER_DPI),
+    // The assembled 10 × 7 sheet—not each temporary card render—owns the
+    // final 4K texture budget. A 1× source at 165 DPI fills that budget
+    // without recreating the large intermediate canvases that exhausted
+    // browser memory during large-set exports.
+    canvasPixelRatio: 1,
+  });
 
 export const getTabletopSimulatorCardCellSize = (
   sourceWidthPx: number,

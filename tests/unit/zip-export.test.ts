@@ -116,10 +116,11 @@ describe('zip export helpers', () => {
     expect(cell.cardWidthPx / cell.cardHeightPx).toBeCloseTo(3012 / 3897, 2);
   });
 
-  it('uses a single-pixel-ratio render profile for memory-bounded large-set exports', () => {
+  it('uses the full 4K sheet budget with a memory-bounded render profile', () => {
     expect(getTabletopSimulatorExportProfile()).toMatchObject({
       mode: 'virtual',
-      dpi: 120,
+      dpi: 165,
+      renderWidthPx: 409,
       canvasPixelRatio: 1,
     });
   });
