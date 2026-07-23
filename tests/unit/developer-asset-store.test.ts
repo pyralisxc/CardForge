@@ -54,7 +54,7 @@ describe('developer asset store helpers', () => {
 
   it('maps database settings rows into normalized program settings', () => {
     expect(mapDeveloperProgramSettingsRow({
-      max_active_developers: 25,
+      max_active_developers: 10,
       monthly_submission_limit: 25,
       monthly_published_requirement: 5,
       minimum_votes_for_grading: 6,
@@ -67,12 +67,12 @@ describe('developer asset store helpers', () => {
       allow_contributor_self_voting: false,
       owner_vote_weight: 2,
       archive_visible_limit: 100,
-      profit_share_pool_percent: 10,
+      developer_reserve_share_percent: 50,
       owner_final_review_required: true,
       publish_caps_by_type: { templates: 2, icons: 9 },
       tier_caps_by_type: { templates: { free: 10, paid: 4 } },
     })).toMatchObject({
-      maxActiveDevelopers: 25,
+      maxActiveDevelopers: 10,
       monthlySubmissionLimit: 25,
       monthlyPublishedRequirement: 5,
       minimumVotesForGrading: 6,
@@ -84,6 +84,7 @@ describe('developer asset store helpers', () => {
       allowPaidEarlyAccessToCandidates: true,
       allowContributorSelfVoting: false,
       ownerVoteWeight: 2,
+      developerReserveSharePercent: 50,
       publishCapsByType: {
         templates: 14,
         icons: DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.icons.free

@@ -93,7 +93,7 @@ export interface DeveloperProgramSettingsRow {
   allow_contributor_self_voting?: unknown;
   owner_vote_weight?: unknown;
   archive_visible_limit?: unknown;
-  profit_share_pool_percent?: unknown;
+  developer_reserve_share_percent?: unknown;
   owner_final_review_required?: unknown;
   publish_caps_by_type?: unknown;
   tier_caps_by_type?: unknown;
@@ -338,7 +338,7 @@ export const mapDeveloperProgramSettingsRow = (
       allowContributorSelfVoting: row.allow_contributor_self_voting,
       ownerVoteWeight: row.owner_vote_weight,
       archiveVisibleLimit: row.archive_visible_limit,
-      profitSharePoolPercent: row.profit_share_pool_percent,
+      developerReserveSharePercent: row.developer_reserve_share_percent,
       ownerFinalReviewRequired: row.owner_final_review_required,
       publishCapsByType: row.publish_caps_by_type,
       tierCapsByType: row.tier_caps_by_type,
@@ -523,7 +523,7 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
     return { configured: false, settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS };
   }
 
-  const settingsColumns = 'max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,minimum_positive_vote_percent,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,minimum_votes_for_tier_assignment,show_paid_preview_to_free_users,allow_paid_early_access_to_candidates,allow_contributor_self_voting,owner_vote_weight,archive_visible_limit,profit_share_pool_percent,owner_final_review_required,publish_caps_by_type,tier_caps_by_type';
+  const settingsColumns = 'max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,minimum_positive_vote_percent,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,minimum_votes_for_tier_assignment,show_paid_preview_to_free_users,allow_paid_early_access_to_candidates,allow_contributor_self_voting,owner_vote_weight,archive_visible_limit,developer_reserve_share_percent,owner_final_review_required,publish_caps_by_type,tier_caps_by_type';
   const settingsColumnsWithoutOwnerVoteWeight = settingsColumns.replace('owner_vote_weight,', '');
   const { data, error } = await supabase
     .from('cardforge_developer_program_settings')
@@ -872,7 +872,7 @@ export const updateDeveloperProgramSettings = async (
     allow_contributor_self_voting: normalized.allowContributorSelfVoting,
     owner_vote_weight: normalized.ownerVoteWeight,
     archive_visible_limit: normalized.archiveVisibleLimit,
-    profit_share_pool_percent: normalized.profitSharePoolPercent,
+    developer_reserve_share_percent: normalized.developerReserveSharePercent,
     owner_final_review_required: normalized.ownerFinalReviewRequired,
     publish_caps_by_type: normalized.publishCapsByType,
     tier_caps_by_type: normalized.tierCapsByType,

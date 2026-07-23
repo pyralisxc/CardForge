@@ -350,7 +350,7 @@ export function OwnerDeveloperProgramPanel() {
             <NumberField label="Max developers" help="Total active developer slots in the curated program." value={settings.maxActiveDevelopers} onChange={(value) => setSettings({ ...settings, maxActiveDevelopers: value })} />
             <NumberField label="Submission allowance" help="Maximum site-submitted assets one developer can upload each calendar month. Submissions left is calculated from this." value={settings.monthlySubmissionLimit} onChange={(value) => setSettings({ ...settings, monthlySubmissionLimit: value })} />
             <NumberField label="Required published" help="Minimum published assets expected from each active developer per calendar month." value={settings.monthlyPublishedRequirement} onChange={(value) => setSettings({ ...settings, monthlyPublishedRequirement: value })} />
-            <NumberField label="Creator pool %" help="Reserved future creator-pool placeholder for financial launch accounting." value={settings.profitSharePoolPercent} onChange={(value) => setSettings({ ...settings, profitSharePoolPercent: value })} />
+            <NumberField label="Developer share of reserve %" help="Portion of the operating reserve earmarked for the future developer pool. This is a subdivision of the reserve, not an extra roadmap deduction." value={settings.developerReserveSharePercent} onChange={(value) => setSettings({ ...settings, developerReserveSharePercent: value })} />
           </div>
         </div>
 

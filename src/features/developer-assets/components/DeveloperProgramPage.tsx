@@ -30,7 +30,7 @@ const developerRealityChecks = [
   },
   {
     title: 'Creator pool is future-facing',
-    copy: 'The 10% creator-pool target is a transparent direction for financial launch, not active payout infrastructure today.',
+    copy: 'Half of the operating reserve is earmarked for a future developer pool by default. It does not reduce roadmap income and is not active payout infrastructure today.',
   },
 ];
 
