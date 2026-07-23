@@ -11,6 +11,7 @@ import {
   createTabletopSimulatorSheets,
   createZipExportCopy,
   getTabletopSimulatorCardCellSize,
+  getTabletopSimulatorExportProfile,
   getTabletopSimulatorSheetFileName,
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
@@ -114,7 +115,7 @@ export function useCardZipExportActions({
     setZipProgress({ done: 0, total: totalRenderJobs });
 
     try {
-      const exportProfile = getExportProfile('virtual', 150);
+      const exportProfile = getTabletopSimulatorExportProfile();
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
@@ -128,9 +129,11 @@ export function useCardZipExportActions({
         face: 'front' | 'back',
         requestedCellSize?: ReturnType<typeof getTabletopSimulatorCardCellSize>
       ) => {
-        const firstCanvas = await renderer.renderToCanvas(sheet.cards[0].card, face === 'back' && hasCardBacking(sheet.cards[0].card) ? 'back' : 'front');
+        const firstFace = face === 'back' && hasCardBacking(sheet.cards[0].card) ? 'back' : 'front';
+        const firstBlob = await renderer.renderToBlob(sheet.cards[0].card, firstFace);
+        const firstBitmap = await createImageBitmap(firstBlob);
         const cellSize = requestedCellSize
-          ?? getTabletopSimulatorCardCellSize(firstCanvas.width, firstCanvas.height, sheet.grid);
+          ?? getTabletopSimulatorCardCellSize(firstBitmap.width, firstBitmap.height, sheet.grid);
         const sheetCanvas = document.createElement('canvas');
         sheetCanvas.width = cellSize.sheetWidthPx;
         sheetCanvas.height = cellSize.sheetHeightPx;
@@ -140,26 +143,41 @@ export function useCardZipExportActions({
         context.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
         context.imageSmoothingEnabled = true;
         context.imageSmoothingQuality = 'high';
-        context.drawImage(firstCanvas, 0, 0, cellSize.cardWidthPx, cellSize.cardHeightPx);
+        try {
+          context.drawImage(firstBitmap, 0, 0, cellSize.cardWidthPx, cellSize.cardHeightPx);
+        } finally {
+          firstBitmap.close();
+        }
 
         for (let i = 1; i < sheet.cards.length; i++) {
           const item = sheet.cards[i];
           const cardFace = face === 'back' && hasCardBacking(item.card) ? 'back' : 'front';
-          const canvas = await renderer.renderToCanvas(item.card, cardFace);
+          const blob = await renderer.renderToBlob(item.card, cardFace);
+          const bitmap = await createImageBitmap(blob);
           const column = item.sheetCardIndex % sheet.grid.columns;
           const row = Math.floor(item.sheetCardIndex / sheet.grid.columns);
-          context.drawImage(
-            canvas,
-            column * cellSize.cardWidthPx,
-            row * cellSize.cardHeightPx,
-            cellSize.cardWidthPx,
-            cellSize.cardHeightPx
-          );
+          try {
+            context.drawImage(
+              bitmap,
+              column * cellSize.cardWidthPx,
+              row * cellSize.cardHeightPx,
+              cellSize.cardWidthPx,
+              cellSize.cardHeightPx
+            );
+          } finally {
+            bitmap.close();
+          }
         }
 
-        const blob = await new Promise<Blob | null>((resolve) => sheetCanvas.toBlob(resolve, 'image/png'));
-        if (!blob) throw new Error('Tabletop Simulator spritesheet did not produce a PNG blob.');
-        folder.file(getTabletopSimulatorSheetFileName(sheet, face), blob);
+        let sheetBlob: Blob | null;
+        try {
+          sheetBlob = await new Promise<Blob | null>((resolve) => sheetCanvas.toBlob(resolve, 'image/png'));
+        } finally {
+          sheetCanvas.width = 0;
+          sheetCanvas.height = 0;
+        }
+        if (!sheetBlob) throw new Error('Tabletop Simulator spritesheet did not produce a PNG blob.');
+        folder.file(getTabletopSimulatorSheetFileName(sheet, face), sheetBlob);
         completed += 1;
         setZipProgress({ done: completed, total: totalRenderJobs });
         return cellSize;
