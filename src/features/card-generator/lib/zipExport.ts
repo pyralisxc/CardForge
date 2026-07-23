@@ -1,5 +1,9 @@
 import type { CardFace } from '@/domain/cards';
-import type { ExportMode } from '@/features/card-generator/lib/printValidation';
+import {
+  getExportProfile,
+  type ExportMode,
+  type ExportProfile,
+} from '@/features/card-generator/lib/printValidation';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
@@ -81,6 +85,10 @@ export const TABLETOP_SIMULATOR_GRID: TabletopSimulatorSheetGrid = {
 // Keeping the assembled canvas inside that boundary also avoids browser PNG
 // encoding failures caused by very large print-resolution source canvases.
 export const TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX = 4096;
+export const TABLETOP_SIMULATOR_RENDER_DPI = 120;
+
+export const getTabletopSimulatorExportProfile = (): ExportProfile =>
+  getExportProfile('virtual', TABLETOP_SIMULATOR_RENDER_DPI);
 
 export const getTabletopSimulatorCardCellSize = (
   sourceWidthPx: number,

@@ -5,6 +5,7 @@ import {
   createCardZipExportItems,
   createTabletopSimulatorSheets,
   createTabletopSimulatorManifest,
+  getTabletopSimulatorExportProfile,
   getTabletopSimulatorCardCellSize,
   createZipExportCopy,
   getTabletopSimulatorSheetFileName,
@@ -113,6 +114,14 @@ describe('zip export helpers', () => {
     expect(cell.sheetWidthPx).toBeLessThanOrEqual(4096);
     expect(cell.sheetHeightPx).toBeLessThanOrEqual(4096);
     expect(cell.cardWidthPx / cell.cardHeightPx).toBeCloseTo(3012 / 3897, 2);
+  });
+
+  it('uses a single-pixel-ratio render profile for memory-bounded large-set exports', () => {
+    expect(getTabletopSimulatorExportProfile()).toMatchObject({
+      mode: 'virtual',
+      dpi: 120,
+      canvasPixelRatio: 1,
+    });
   });
 
   it('creates stable Tabletop Simulator manifest and file names', () => {
