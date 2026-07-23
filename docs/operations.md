@@ -10,6 +10,7 @@ This is the current live-operations checklist for CardForge.
 - Vercel production branch: `main`
 - Required canonical env var: `NEXT_PUBLIC_APP_URL=https://cardforges.com`
 - Robots and sitemap must point to `https://cardforges.com`.
+- `https://www.cardforges.com` is attached to the Vercel project and permanently redirects to the canonical apex.
 - Google Search Console uses a DNS TXT record on the root `cardforges.com` domain.
 
 ## Required Production Services
@@ -75,6 +76,8 @@ CARDFORGE_PAID_ACCOUNT_EMAILS=
 - Founder Beta launch wave is capped at 25 seats.
 - Resend domain verification, sender/reply-to configuration, outbound test delivery, and the stored production contact-request delivery record agree.
 - Google Search Console domain verification is complete. `https://cardforges.com/sitemap.xml` was submitted successfully and reported 13 discovered pages when last read on July 21.
+- Vercel serves valid TLS for `www.cardforges.com` and returned a permanent `308` redirect to `https://cardforges.com/` on July 23.
+- July 23 paid-browser acceptance proved individual front/back PNG downloads, a four-face PNG ZIP, PDF generation without an application error, a two-card Tabletop Simulator export, and 72-card desktop/mobile save-and-reload recovery. The 72-card TTS pass exposed an oversized-canvas PNG failure; PR #81 constrains every 10×7 sheet to 4096 pixels per dimension with focused regression coverage. Inspecting the downloaded PDF/TTS artifacts and importing one package into Tabletop Simulator remain manual acceptance checks.
 - Supabase migration `20260721220801_grant_site_media_service_role` is applied in production. It grants only `SELECT`, `INSERT`, and `UPDATE` on `cardforge_site_media` to `service_role`; this repository migration records that already-live state and does not require another provider mutation.
 
 ## Business identity provider alignment
@@ -140,6 +143,18 @@ Secrets stay in Vercel/provider dashboards. The owner console should show readin
 - Authenticated provider smoke uses protected environment secrets and must never run for untrusted fork code.
 - Vercel build success alone is not a release-health verdict.
 - Production route health runs every six hours; GitHub owns failure notification and Vercel runtime error groups remain the primary server-error aggregation view.
+
+## Operational Ownership
+
+Cameron Locke is the named operator for launch-period incidents. Existing surfaces own the first signal and response path:
+
+- CI, public smoke, authenticated smoke, and scheduled production-health failures: GitHub Actions email/notification, then the failed job and retained artifact.
+- Checkout, webhook, and reconciliation failures: Stripe Workbench plus the owner-console billing snapshot and reconciliation result; Supabase is the durable event/ledger check.
+- Server/runtime failures: Vercel runtime error groups and function logs.
+- Persistence failures: the Studio save status, quota warning, recovery snapshot, and project import; reproduce in the affected browser before changing provider state.
+- Contact/email failures: the owner-console contact history and email-test result, then Resend delivery details.
+
+No separate analytics provider is enabled for launch. This is intentional: CardForge is operating with no product or marketing analytics by design. Reconsider measurement only when a concrete question, privacy disclosure, and approved provider justify the added data collection.
 
 ### Solo-maintainer branch rule
 
@@ -235,9 +250,8 @@ git diff --check
 - Complete one Stripe checkout or customer portal round trip after domain/env changes.
 - Send one Owner Console test email after Resend/env changes.
 - Confirm unpaid export prompts Creator Pass or Founder Beta, not developer application copy.
-- Decide whether `www.cardforges.com` is intentionally unsupported. If it should redirect, add the Vercel domain and DNS/certificate configuration before testing the redirect.
-- Inspect actual paid single-image, PNG-set, PDF, and Tabletop Simulator downloads, including fronts, backs, ordering, and one large set. Unit-level export construction is not end-to-end file proof.
-- Record one long editing session with large artwork, storage pressure, refresh/reopen recovery, and a representative mobile-storage pass.
+- Recheck the `www.cardforges.com` permanent redirect after domain or canonical-host changes.
+- Inspect the generated PDF and Tabletop Simulator package, including fronts, backs, ordering, and one import into Tabletop Simulator. Browser success alone does not prove the downloaded artifacts or simulator import.
+- When convenient, record one hours-long editing session with large artwork and storage pressure. The July 23 72-card desktop/mobile save-and-reload acceptance is ordinary recovery evidence, not a literal long-session soak.
 - Send or inspect one Stripe customer receipt and complete one reply-to round trip into the support inbox.
-- Record the analytics decision, including an explicit no-analytics-by-design decision if that is the intended policy.
 - Verify cancellation, refund, and entitlement removal only through a naturally occurring event or an explicitly approved test account. Never alter the real subscriber merely to manufacture evidence.
