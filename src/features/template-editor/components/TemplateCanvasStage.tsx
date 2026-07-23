@@ -74,7 +74,6 @@ interface TemplateCanvasStageProps {
   canvas: FreeformCanvas;
   canvasFrameStyle: CSSProperties;
   canvasRef: { current: HTMLDivElement | null };
-  canvasStyle: CSSProperties;
   currentTemplate: TCGCardTemplate;
   gridSize: number;
   livePreviewData: CardData;
@@ -102,7 +101,6 @@ export function TemplateCanvasStage({
   canvas,
   canvasFrameStyle,
   canvasRef,
-  canvasStyle,
   currentTemplate,
   gridSize,
   livePreviewData,
@@ -235,7 +233,7 @@ export function TemplateCanvasStage({
             aria-describedby="maker-canvas-help maker-selection-status maker-shortcuts-help"
             aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete Backspace Escape"
             className="relative shadow-[0_24px_70px_rgba(0,0,0,0.75),0_0_0_1px_rgba(213,173,84,0.2)] focus:outline-none focus:ring-2 focus:ring-[#d5ad54]"
-            style={previewMode ? canvasFrameStyle : canvasStyle}
+            style={canvasFrameStyle}
             onKeyDown={onCanvasKeyDown}
             onPointerDown={() => {
               if (previewMode) return;
@@ -243,17 +241,15 @@ export function TemplateCanvasStage({
               onDeselectCanvas();
             }}
           >
-            {previewMode ? (
-              <CardPreview
-                card={{ template: currentTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-editor-preview` }}
-                face="front"
-                highlightColor={richTextHighlightColor}
-                isEditorPreview
-                targetWidthPx={canvas.width}
-              />
-            ) : (
-              [...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)
-            )}
+            <CardPreview
+              card={{ template: currentTemplate, data: livePreviewData, uniqueId: `${currentTemplate.id || 'unsaved'}-editor-surface` }}
+              face="front"
+              highlightColor={richTextHighlightColor}
+              targetWidthPx={canvas.width}
+              interactionOverlay={!previewMode ? (
+                [...canvas.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderEditableElement)
+              ) : null}
+            />
             {showCardWatermark ? <CardWatermarkOverlay testId="template-editor-watermark" /> : null}
           </div>
         </div>

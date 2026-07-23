@@ -281,6 +281,7 @@ export function CardForgeStudioShell({
     handleExportAllAsZip,
     handleExportTabletopSimulatorSpritesheets,
     isZipExporting,
+    zipExportKind,
     zipProgress,
   } = useCardZipExportActions({
     canExportClean: projectCapabilities.canExportClean,
@@ -457,6 +458,7 @@ export function CardForgeStudioShell({
               gallerySearch={gallerySearch}
               gallerySort={gallerySort}
               isZipExporting={isZipExporting}
+              zipExportKind={zipExportKind}
               isCheckoutStarting={isCheckoutStarting}
               canExportClean={projectCapabilities.canExportClean}
               exportGateMessage={exportGateMessage}

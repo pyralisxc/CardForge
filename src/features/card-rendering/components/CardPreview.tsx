@@ -14,7 +14,7 @@ import {
   TCG_ASPECT_RATIO,
 } from '@/domain/rendering';
 import { isDividerElement } from '@/domain/templates';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from '@/domain/templates';
 import { appearanceToStyle } from '../model/appearance';
@@ -31,6 +31,7 @@ interface CardPreviewProps {
   isPrintMode?: boolean;
   showSizeInfo?: boolean;
   isEditorPreview?: boolean;
+  interactionOverlay?: ReactNode;
   highlightColor?: string;
   onSelect?: (card: DisplayCard) => void;
   onEdit?: (card: DisplayCard) => void;
@@ -58,6 +59,7 @@ export function CardPreview({
   isPrintMode = false,
   showSizeInfo = false,
   isEditorPreview = false,
+  interactionOverlay,
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
   onSelect,
   onEdit,
@@ -544,6 +546,7 @@ export function CardPreview({
           aria-label={isInteractive ? 'Select generated output. Double-click to edit.' : undefined}
         >
           {freeformElements}
+          {interactionOverlay}
         </div>
       </div>
       {showSizeInfo && !isPrintMode && (

@@ -7,7 +7,13 @@ import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering
 import { Button } from '@/components/ui/button';
 import { Loader2, FileDown } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
+import {
+  getExportProfile,
+  getRasterExportDimensionsPx,
+  getRasterExportQualityOption,
+  validateCardExportQuality,
+  type ExportMode,
+} from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { getCardPhysicalSizeMm } from '@/domain/rendering';
@@ -92,6 +98,10 @@ export function SaveAsPdfButton({
     setIsLoadingPdf(true);
 
     const exportProfile = getExportProfile(exportMode, exportDpi);
+    const rasterQuality = getRasterExportQualityOption(exportDpi);
+    const firstCardDimensions = generatedDisplayCards[0]
+      ? getRasterExportDimensionsPx(generatedDisplayCards[0], exportMode, exportDpi)
+      : null;
     const criticalIssues = new Set<string>();
     const warningIssues = new Set<string>();
 
@@ -133,8 +143,8 @@ export function SaveAsPdfButton({
       title: totalChunks > 1 ? 'Generating chunked PDFs...' : 'Generating PDF...',
       description:
         totalChunks > 1
-          ? `Using ${exportProfile.label} profile (${exportProfile.dpi} DPI target). This export will generate ${totalChunks} files.`
-          : `Using ${exportProfile.label} profile (${exportProfile.dpi} DPI target).`,
+          ? `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}. This export will generate ${totalChunks} files.`
+          : `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}.`,
     });
 
     try {

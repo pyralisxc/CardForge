@@ -33,9 +33,9 @@ describe('Generator workspace flow', () => {
     expect(source).not.toContain('lg:grid-cols-[340px_minmax(0,1fr)]');
   });
 
-  it('uses a plain export summary and keeps detailed print controls collapsed', () => {
-    expect(source).toContain('Print settings');
-    expect(source).toContain('<details');
+  it('groups export controls by destination and explains fixed raster output', () => {
+    expect(source).toContain('<ExportControlsPanel');
+    expect(source).not.toContain('Estimated archive size');
     expect(source).not.toContain('>Auth<');
     expect(source).not.toContain('>Session<');
     expect(source).not.toContain('>Access<');

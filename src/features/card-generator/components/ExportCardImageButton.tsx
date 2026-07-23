@@ -11,7 +11,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { getExportProfile, validateCardExportQuality, type ExportMode } from '@/features/card-generator/lib/printValidation';
+import {
+  getRasterExportDimensionsPx,
+  getRasterExportQualityOption,
+  validateCardExportQuality,
+  type ExportMode,
+} from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { renderCardToCanvas } from '@/features/card-generator/lib/cardPreviewExport';
@@ -36,7 +41,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
 
   const hasBackFace = hasCardBacking(card);
 
-  const handleExport = async (format: 'png' | 'webp' | 'jpeg' | 'tiff', face: CardFace = 'front') => {
+  const handleExport = async (format: 'png' | 'webp' | 'jpeg', face: CardFace = 'front') => {
     if (gateMessage) {
       toast({
         title: 'Clean export locked',
@@ -65,14 +70,12 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
         ? 'image/webp'
         : format === 'jpeg'
           ? 'image/jpeg'
-          : format === 'tiff'
-            ? 'image/tiff'
-            : 'image/png';
+          : 'image/png';
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.95));
-      if (!blob && format === 'tiff') {
-        throw new Error('TIFF export is not supported by this browser. Use PNG for print-vendor workflows or convert externally.');
-      }
       if (!blob) throw new Error('Failed to create image blob.');
+      if (blob.type !== mimeType) {
+        throw new Error(`${format.toUpperCase()} export is not supported by this browser. Choose PNG instead.`);
+      }
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       const cardName = (card.data?.cardName || card.data?.title || card.data?.name || 'card') as string;
@@ -80,15 +83,16 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
       link.download = `${String(cardName).replace(/\s+/g, '-').toLowerCase()}-${face}.${format === 'jpeg' ? 'jpg' : format}`;
       link.click();
       URL.revokeObjectURL(url);
-      const exportProfile = getExportProfile(exportMode, exportDpi);
+      const dimensions = getRasterExportDimensionsPx(card, exportMode, exportDpi);
+      const quality = getRasterExportQualityOption(exportDpi);
       toast({
         title: 'Card downloaded',
-        description: `Saved as ${format.toUpperCase()} using ${exportProfile.label} (${exportProfile.dpi} DPI). Review card quality before final delivery.`,
+        description: `Saved as ${format.toUpperCase()} at ${dimensions.widthPx} × ${dimensions.heightPx}px using ${quality.label.toLowerCase()} raster quality. Enlarging beyond these pixels will soften the image.`,
       });
     } catch (err) {
       toast({
         title: ERROR_COPY.exportFailed.title,
-        description: withNextStep(extractErrorMessage(err), 'Check quality warnings, then retry with PNG if the selected format is not supported.'),
+        description: withNextStep(extractErrorMessage(err), 'Check quality warnings, then retry with PNG if the selected browser format is not supported.'),
         variant: 'destructive',
       });
     } finally {
@@ -119,8 +123,6 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
         {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('jpeg', 'back')}>Download back as JPEG</DropdownMenuItem> : null}
         <DropdownMenuItem onClick={() => handleExport('webp', 'front')}>Download front as WebP</DropdownMenuItem>
         {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('webp', 'back')}>Download back as WebP</DropdownMenuItem> : null}
-        <DropdownMenuItem onClick={() => handleExport('tiff', 'front')}>Download front as TIFF (beta)</DropdownMenuItem>
-        {hasBackFace ? <DropdownMenuItem onClick={() => handleExport('tiff', 'back')}>Download back as TIFF (beta)</DropdownMenuItem> : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

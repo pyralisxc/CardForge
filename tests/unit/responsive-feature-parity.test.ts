@@ -87,6 +87,7 @@ describe('responsive feature parity', () => {
     const editCard = readSource('src/features/card-generator/components/EditCardDialog.tsx');
     const bulkCards = readSource('src/features/card-generator/components/BulkGenerator.tsx');
     const workspace = readSource('src/features/card-generator/components/GenerationWorkspace.tsx');
+    const exportControls = readSource('src/features/card-generator/components/ExportControlsPanel.tsx');
 
     expect(singleCard).toContain('<GeneratorFieldGroups');
     expect(editCard).toContain('<GeneratorFieldGroups');
@@ -96,11 +97,12 @@ describe('responsive feature parity', () => {
       '<SingleCardGenerator',
       '<BulkGenerator',
       '<GeneratedCardGallery',
-      '<SaveAsPdfButton',
+      '<ExportControlsPanel',
     ]) {
       expect(workspace).toContain(sharedWorkspaceOwner);
     }
 
-    expect(workspace.indexOf('<GeneratedCardGallery')).toBeLessThan(workspace.indexOf('<SaveAsPdfButton'));
+    expect(exportControls).toContain('<SaveAsPdfButton');
+    expect(workspace.indexOf('<GeneratedCardGallery')).toBeLessThan(workspace.indexOf('<ExportControlsPanel'));
   });
 });

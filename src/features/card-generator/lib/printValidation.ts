@@ -1,6 +1,11 @@
 import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import { validateCardDataAgainstFieldContracts } from '@/domain/templates';
-import { AVAILABLE_FONTS, getCardFaceCanvas, hasCardBacking } from '@/domain/rendering';
+import {
+  AVAILABLE_FONTS,
+  getCardExportDimensionsPx,
+  getCardFaceCanvas,
+  hasCardBacking,
+} from '@/domain/rendering';
 import type { DisplayCard, ExportMode } from '@/domain/rendering';
 
 export type { ExportMode } from '@/domain/rendering';
@@ -18,6 +23,18 @@ export interface ExportProfile {
 export interface ExportValidationResult {
   critical: string[];
   warnings: string[];
+}
+
+export interface RasterExportDimensionsPx {
+  widthPx: number;
+  heightPx: number;
+  effectivePixelsPerInch: number;
+}
+
+export interface RasterExportQualityOption {
+  value: number;
+  label: string;
+  description: string;
 }
 
 const EXPORT_PROFILES: Record<ExportMode, ExportProfile> = {
@@ -40,6 +57,24 @@ const EXPORT_PROFILES: Record<ExportMode, ExportProfile> = {
     recommendedFormat: 'png',
   },
 };
+
+export const RASTER_EXPORT_QUALITY_OPTIONS: RasterExportQualityOption[] = [
+  {
+    value: 150,
+    label: 'Standard',
+    description: 'Smaller files for ordinary card-size printing and digital use.',
+  },
+  {
+    value: 300,
+    label: 'High detail',
+    description: 'Larger lossless images for close inspection and downstream editing.',
+  },
+  {
+    value: 600,
+    label: 'Maximum',
+    description: 'Very large raster files for workflows that can handle the extra memory and storage.',
+  },
+];
 
 const clampDpi = (dpi: number): number => {
   if (!Number.isFinite(dpi)) return 300;
@@ -88,24 +123,44 @@ export const getExportProfile = (mode: ExportMode, dpiOverride?: number): Export
   };
 };
 
+export const getRasterExportQualityOption = (value: number): RasterExportQualityOption =>
+  RASTER_EXPORT_QUALITY_OPTIONS.find((option) => option.value === value)
+  ?? {
+    value,
+    label: 'Custom',
+    description: 'Custom raster render setting.',
+  };
+
+export const getRasterExportDimensionsPx = (
+  card: DisplayCard,
+  mode: ExportMode,
+  dpiOverride?: number
+): RasterExportDimensionsPx => {
+  const profile = getExportProfile(mode, dpiOverride);
+  const baseDimensions = getCardExportDimensionsPx(card, profile.dpi);
+  return {
+    widthPx: baseDimensions.widthPx * profile.canvasPixelRatio,
+    heightPx: baseDimensions.heightPx * profile.canvasPixelRatio,
+    effectivePixelsPerInch: profile.dpi * profile.canvasPixelRatio,
+  };
+};
+
 export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, dpiOverride?: number): ExportValidationResult => {
   const critical: string[] = [];
   const warnings: string[] = [];
   const fieldDefinitions = extractTemplateFieldDefinitions(card.template);
   const exportProfile = getExportProfile(mode, dpiOverride);
+  const effectivePixelsPerInch = exportProfile.dpi * exportProfile.canvasPixelRatio;
 
-  if (mode === 'physical' && exportProfile.dpi < 300) {
-    warnings.push('Physical print exports should use at least 300 DPI for standard print workflows.');
+  if (mode === 'physical' && effectivePixelsPerInch < 300) {
+    warnings.push('Physical print exports should contain at least 300 pixels per inch at the intended card size.');
   }
 
-  if (mode === 'virtual' && exportProfile.dpi < 96) {
-    warnings.push('Virtual exports below 96 DPI may look soft on common displays.');
+  if (mode === 'virtual' && effectivePixelsPerInch < 96) {
+    warnings.push('Virtual exports below 96 pixels per inch at the intended card size may look soft on common displays.');
   }
 
   if (mode === 'physical') {
-    warnings.push('Physical ZIP exports produce individual front/back card-face PNGs. Use Save as PDF when you need the selected paper size, cut lines, and sheet layout.');
-    warnings.push('Browser exports are RGB. If your print vendor requires CMYK, spot colors, bleed boxes, or PDF/X, convert the exported PNG/PDF in a prepress tool before final production.');
-
     [
       { label: 'front', canvas: getCardFaceCanvas(card, 'front') },
       { label: 'back', canvas: hasCardBacking(card) ? getCardFaceCanvas(card, 'back') : undefined },

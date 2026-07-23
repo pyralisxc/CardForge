@@ -2,7 +2,11 @@
 
 import { useCallback, useState } from 'react';
 
-import { getExportProfile, type ExportMode } from '@/features/card-generator/lib/printValidation';
+import {
+  getExportProfile,
+  getRasterExportQualityOption,
+  type ExportMode,
+} from '@/features/card-generator/lib/printValidation';
 
 import type { useToast } from '@/components/ui/use-toast';
 import {
@@ -11,14 +15,17 @@ import {
   createTabletopSimulatorSheets,
   createZipExportCopy,
   getTabletopSimulatorCardCellSize,
+  getTabletopSimulatorExportPreset,
   getTabletopSimulatorExportProfile,
   getTabletopSimulatorSheetFileName,
   getZipExportFileName,
+  type TabletopSimulatorExportQuality,
 } from '@/features/card-generator/lib/zipExport';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
+export type ZipExportKind = 'png-set' | 'tabletop-simulator';
 
 interface UseCardZipExportActionsInput {
   canExportClean: boolean;
@@ -41,6 +48,7 @@ export function useCardZipExportActions({
 }: UseCardZipExportActionsInput) {
   const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
   const [isZipExporting, setIsZipExporting] = useState(false);
+  const [zipExportKind, setZipExportKind] = useState<ZipExportKind | null>(null);
 
   const handleExportAllAsZip = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
@@ -55,6 +63,7 @@ export function useCardZipExportActions({
 
     const exportItems = createCardZipExportItems(generatedDisplayCards);
     const exportCopy = createZipExportCopy(exportMode, exportItems.length);
+    setZipExportKind('png-set');
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: exportItems.length });
 
@@ -88,17 +97,20 @@ export function useCardZipExportActions({
       URL.revokeObjectURL(url);
       toast({
         title: 'ZIP Exported',
-        description: `${exportItems.length} ${exportCopy.outputLabel} saved to ${exportCopy.fileNamePrefix}.zip using ${exportProfile.label} profile.`,
+        description: `${exportItems.length} ${exportCopy.outputLabel} saved to ${exportCopy.fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality.`,
       });
     } catch (err) {
       toast({ title: 'Export Failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
       setZipProgress(null);
+      setZipExportKind(null);
     }
   }, [canExportClean, exportDpi, exportGateMessage, exportMode, generatedDisplayCards, richTextHighlightColor, toast]);
 
-  const handleExportTabletopSimulatorSpritesheets = useCallback(async () => {
+  const handleExportTabletopSimulatorSpritesheets = useCallback(async (
+    quality: TabletopSimulatorExportQuality = 'standard'
+  ) => {
     if (generatedDisplayCards.length === 0) return;
     if (!canExportClean) {
       toast({
@@ -109,13 +121,15 @@ export function useCardZipExportActions({
       return;
     }
 
-    const sheets = createTabletopSimulatorSheets(generatedDisplayCards);
+    const preset = getTabletopSimulatorExportPreset(quality);
+    const sheets = createTabletopSimulatorSheets(generatedDisplayCards, quality);
     const totalRenderJobs = sheets.reduce((total, sheet) => total + 1 + (sheet.hasBacks ? 1 : 0), 0);
+    setZipExportKind('tabletop-simulator');
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: totalRenderJobs });
 
     try {
-      const exportProfile = getTabletopSimulatorExportProfile();
+      const exportProfile = getTabletopSimulatorExportProfile(quality);
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
@@ -209,7 +223,7 @@ export function useCardZipExportActions({
           'CardForge Tabletop Simulator spritesheets',
           '',
           'Use each front PNG as a Custom Deck face sheet in Tabletop Simulator.',
-          'Set Width to 10 and Height to 7. Each sheet contains at most 69 playable cards.',
+          `Set Width to ${preset.grid.columns} and Height to ${preset.grid.rows}. Each sheet contains at most ${preset.grid.cardsPerSheet} playable cards.`,
           'If a matching back PNG exists, use it as the custom deck back image for that sheet.',
           'The JSON manifest lists card numbers and CardForge card ids.',
         ].join('\n')
@@ -219,20 +233,21 @@ export function useCardZipExportActions({
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'cardforge-tabletop-simulator-spritesheets.zip';
+      link.download = `cardforge-tabletop-simulator-${quality}-spritesheets.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       toast({
         title: 'Tabletop Simulator ZIP exported',
-        description: `${sheets.length} spritesheet${sheets.length === 1 ? '' : 's'} saved with a manifest. Upload the sheet images where Tabletop Simulator can access them, then create a custom deck with 10 columns and 7 rows.`,
+        description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} saved with a manifest. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
       });
     } catch (err) {
       toast({ title: 'Tabletop Simulator export failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
       setZipProgress(null);
+      setZipExportKind(null);
     }
   }, [canExportClean, exportGateMessage, generatedDisplayCards, richTextHighlightColor, toast]);
 
@@ -240,6 +255,7 @@ export function useCardZipExportActions({
     handleExportAllAsZip,
     handleExportTabletopSimulatorSpritesheets,
     isZipExporting,
+    zipExportKind,
     zipProgress,
   };
 }
