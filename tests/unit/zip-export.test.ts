@@ -117,7 +117,11 @@ describe('zip export helpers', () => {
 
   it('creates stable Tabletop Simulator manifest and file names', () => {
     const sheets = createTabletopSimulatorSheets([makeCard({ data: { cardName: 'A Name: With / Weird * Things' } })]);
-    const manifest = createTabletopSimulatorManifest(sheets, 372, 520);
+    const manifest = createTabletopSimulatorManifest(sheets, [{
+      sheetIndex: 0,
+      cardWidthPx: 372,
+      cardHeightPx: 520,
+    }]);
 
     expect(getTabletopSimulatorSheetFileName(sheets[0], 'front')).toBe('tts-sheet-001-front.png');
     expect(manifest.sheets[0]).toMatchObject({
@@ -128,5 +132,22 @@ describe('zip export helpers', () => {
       cardHeightPx: 520,
       cards: [{ number: 1, name: 'A Name: With / Weird * Things' }],
     });
+  });
+
+  it('records the rendered dimensions for each Tabletop Simulator sheet', () => {
+    const cards = Array.from({ length: 70 }, (_, index) => makeCard({
+      uniqueId: `card-${index + 1}`,
+      data: { cardName: `Card ${index + 1}` },
+    }));
+    const sheets = createTabletopSimulatorSheets(cards);
+    const manifest = createTabletopSimulatorManifest(sheets, [
+      { sheetIndex: 0, cardWidthPx: 409, cardHeightPx: 529 },
+      { sheetIndex: 1, cardWidthPx: 300, cardHeightPx: 400 },
+    ]);
+
+    expect(manifest.sheets.map(({ cardWidthPx, cardHeightPx }) => ({ cardWidthPx, cardHeightPx }))).toEqual([
+      { cardWidthPx: 409, cardHeightPx: 529 },
+      { cardWidthPx: 300, cardHeightPx: 400 },
+    ]);
   });
 });

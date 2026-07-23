@@ -121,14 +121,16 @@ export function useCardZipExportActions({
       const folder = zip.folder('tabletop-simulator-spritesheets')!;
       const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor);
       let completed = 0;
-      let cardWidthPx = 0;
-      let cardHeightPx = 0;
+      const renderedSheetSizes: Array<{ sheetIndex: number; cardWidthPx: number; cardHeightPx: number }> = [];
 
-      const renderSheet = async (sheet: typeof sheets[number], face: 'front' | 'back') => {
+      const renderSheet = async (
+        sheet: typeof sheets[number],
+        face: 'front' | 'back',
+        requestedCellSize?: ReturnType<typeof getTabletopSimulatorCardCellSize>
+      ) => {
         const firstCanvas = await renderer.renderToCanvas(sheet.cards[0].card, face === 'back' && hasCardBacking(sheet.cards[0].card) ? 'back' : 'front');
-        const cellSize = getTabletopSimulatorCardCellSize(firstCanvas.width, firstCanvas.height, sheet.grid);
-        cardWidthPx = cellSize.cardWidthPx;
-        cardHeightPx = cellSize.cardHeightPx;
+        const cellSize = requestedCellSize
+          ?? getTabletopSimulatorCardCellSize(firstCanvas.width, firstCanvas.height, sheet.grid);
         const sheetCanvas = document.createElement('canvas');
         sheetCanvas.width = cellSize.sheetWidthPx;
         sheetCanvas.height = cellSize.sheetHeightPx;
@@ -138,7 +140,7 @@ export function useCardZipExportActions({
         context.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
         context.imageSmoothingEnabled = true;
         context.imageSmoothingQuality = 'high';
-        context.drawImage(firstCanvas, 0, 0, cardWidthPx, cardHeightPx);
+        context.drawImage(firstCanvas, 0, 0, cellSize.cardWidthPx, cellSize.cardHeightPx);
 
         for (let i = 1; i < sheet.cards.length; i++) {
           const item = sheet.cards[i];
@@ -146,7 +148,13 @@ export function useCardZipExportActions({
           const canvas = await renderer.renderToCanvas(item.card, cardFace);
           const column = item.sheetCardIndex % sheet.grid.columns;
           const row = Math.floor(item.sheetCardIndex / sheet.grid.columns);
-          context.drawImage(canvas, column * cardWidthPx, row * cardHeightPx, cardWidthPx, cardHeightPx);
+          context.drawImage(
+            canvas,
+            column * cellSize.cardWidthPx,
+            row * cellSize.cardHeightPx,
+            cellSize.cardWidthPx,
+            cellSize.cardHeightPx
+          );
         }
 
         const blob = await new Promise<Blob | null>((resolve) => sheetCanvas.toBlob(resolve, 'image/png'));
@@ -154,13 +162,19 @@ export function useCardZipExportActions({
         folder.file(getTabletopSimulatorSheetFileName(sheet, face), blob);
         completed += 1;
         setZipProgress({ done: completed, total: totalRenderJobs });
+        return cellSize;
       };
 
       try {
         for (const sheet of sheets) {
-          await renderSheet(sheet, 'front');
+          const cellSize = await renderSheet(sheet, 'front');
+          renderedSheetSizes.push({
+            sheetIndex: sheet.sheetIndex,
+            cardWidthPx: cellSize.cardWidthPx,
+            cardHeightPx: cellSize.cardHeightPx,
+          });
           if (sheet.hasBacks) {
-            await renderSheet(sheet, 'back');
+            await renderSheet(sheet, 'back', cellSize);
           }
         }
       } finally {
@@ -169,7 +183,7 @@ export function useCardZipExportActions({
 
       folder.file(
         'tabletop-simulator-manifest.json',
-        JSON.stringify(createTabletopSimulatorManifest(sheets, cardWidthPx, cardHeightPx), null, 2)
+        JSON.stringify(createTabletopSimulatorManifest(sheets, renderedSheetSizes), null, 2)
       );
       folder.file(
         'README.txt',
