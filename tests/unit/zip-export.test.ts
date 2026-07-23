@@ -5,6 +5,7 @@ import {
   createCardZipExportItems,
   createTabletopSimulatorSheets,
   createTabletopSimulatorManifest,
+  getTabletopSimulatorCardCellSize,
   createZipExportCopy,
   getTabletopSimulatorSheetFileName,
   getZipExportFileName,
@@ -104,6 +105,14 @@ describe('zip export helpers', () => {
     expect(sheets[0].cards).toHaveLength(69);
     expect(sheets[1].cards).toHaveLength(1);
     expect(sheets[0].grid).toEqual({ columns: 10, rows: 7, cardsPerSheet: 69 });
+  });
+
+  it('keeps large Tabletop Simulator sheets inside the recommended texture boundary', () => {
+    const cell = getTabletopSimulatorCardCellSize(3012, 3897);
+
+    expect(cell.sheetWidthPx).toBeLessThanOrEqual(4096);
+    expect(cell.sheetHeightPx).toBeLessThanOrEqual(4096);
+    expect(cell.cardWidthPx / cell.cardHeightPx).toBeCloseTo(3012 / 3897, 2);
   });
 
   it('creates stable Tabletop Simulator manifest and file names', () => {

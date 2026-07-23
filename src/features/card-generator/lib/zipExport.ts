@@ -22,6 +22,13 @@ export interface TabletopSimulatorSheetGrid {
   cardsPerSheet: number;
 }
 
+export interface TabletopSimulatorCardCellSize {
+  cardWidthPx: number;
+  cardHeightPx: number;
+  sheetWidthPx: number;
+  sheetHeightPx: number;
+}
+
 export interface TabletopSimulatorSheetCard {
   card: DisplayCard;
   sourceIndex: number;
@@ -62,6 +69,34 @@ export const TABLETOP_SIMULATOR_GRID: TabletopSimulatorSheetGrid = {
   columns: 10,
   rows: 7,
   cardsPerSheet: 69,
+};
+
+// Tabletop Simulator recommends custom-deck textures around 4096 × 4096.
+// Keeping the assembled canvas inside that boundary also avoids browser PNG
+// encoding failures caused by very large print-resolution source canvases.
+export const TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX = 4096;
+
+export const getTabletopSimulatorCardCellSize = (
+  sourceWidthPx: number,
+  sourceHeightPx: number,
+  grid: TabletopSimulatorSheetGrid = TABLETOP_SIMULATOR_GRID
+): TabletopSimulatorCardCellSize => {
+  const safeWidth = Math.max(1, Math.floor(sourceWidthPx));
+  const safeHeight = Math.max(1, Math.floor(sourceHeightPx));
+  const scale = Math.min(
+    1,
+    TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX / (safeWidth * grid.columns),
+    TABLETOP_SIMULATOR_MAX_SHEET_DIMENSION_PX / (safeHeight * grid.rows)
+  );
+  const cardWidthPx = Math.max(1, Math.floor(safeWidth * scale));
+  const cardHeightPx = Math.max(1, Math.floor(safeHeight * scale));
+
+  return {
+    cardWidthPx,
+    cardHeightPx,
+    sheetWidthPx: cardWidthPx * grid.columns,
+    sheetHeightPx: cardHeightPx * grid.rows,
+  };
 };
 
 export const createCardZipExportItems = (cards: DisplayCard[]): CardZipExportItem[] =>

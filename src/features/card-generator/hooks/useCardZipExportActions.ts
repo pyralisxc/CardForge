@@ -10,6 +10,7 @@ import {
   createTabletopSimulatorManifest,
   createTabletopSimulatorSheets,
   createZipExportCopy,
+  getTabletopSimulatorCardCellSize,
   getTabletopSimulatorSheetFileName,
   getZipExportFileName,
 } from '@/features/card-generator/lib/zipExport';
@@ -113,7 +114,7 @@ export function useCardZipExportActions({
     setZipProgress({ done: 0, total: totalRenderJobs });
 
     try {
-      const exportProfile = getExportProfile('virtual', Math.max(150, Math.min(exportDpi, 300)));
+      const exportProfile = getExportProfile('virtual', 150);
       const JSZip = (await import('jszip')).default;
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
@@ -125,16 +126,19 @@ export function useCardZipExportActions({
 
       const renderSheet = async (sheet: typeof sheets[number], face: 'front' | 'back') => {
         const firstCanvas = await renderer.renderToCanvas(sheet.cards[0].card, face === 'back' && hasCardBacking(sheet.cards[0].card) ? 'back' : 'front');
-        cardWidthPx = firstCanvas.width;
-        cardHeightPx = firstCanvas.height;
+        const cellSize = getTabletopSimulatorCardCellSize(firstCanvas.width, firstCanvas.height, sheet.grid);
+        cardWidthPx = cellSize.cardWidthPx;
+        cardHeightPx = cellSize.cardHeightPx;
         const sheetCanvas = document.createElement('canvas');
-        sheetCanvas.width = firstCanvas.width * sheet.grid.columns;
-        sheetCanvas.height = firstCanvas.height * sheet.grid.rows;
+        sheetCanvas.width = cellSize.sheetWidthPx;
+        sheetCanvas.height = cellSize.sheetHeightPx;
         const context = sheetCanvas.getContext('2d');
         if (!context) throw new Error('Unable to create Tabletop Simulator spritesheet canvas.');
         context.fillStyle = '#ffffff';
         context.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
-        context.drawImage(firstCanvas, 0, 0);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(firstCanvas, 0, 0, cardWidthPx, cardHeightPx);
 
         for (let i = 1; i < sheet.cards.length; i++) {
           const item = sheet.cards[i];
@@ -198,7 +202,7 @@ export function useCardZipExportActions({
       setIsZipExporting(false);
       setZipProgress(null);
     }
-  }, [canExportClean, exportDpi, exportGateMessage, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [canExportClean, exportGateMessage, generatedDisplayCards, richTextHighlightColor, toast]);
 
   return {
     handleExportAllAsZip,
