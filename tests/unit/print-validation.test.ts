@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getExportProfile, validateCardExportQuality } from '@/features/card-generator/lib/printValidation';
+import {
+  getExportProfile,
+  getRasterExportDimensionsPx,
+  getRasterExportQualityOption,
+  validateCardExportQuality,
+} from '@/features/card-generator/lib/printValidation';
 
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { DisplayCard } from '@/domain/rendering';
@@ -58,6 +63,25 @@ describe('print validation', () => {
     expect(getExportProfile('virtual', 96)).toMatchObject({ dpi: 96, canvasPixelRatio: 1 });
   });
 
+  it('describes the actual raster pixels produced by each quality option', () => {
+    const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://example.com/image.png' });
+
+    expect(getRasterExportDimensionsPx(card, 'physical', 150)).toEqual({
+      widthPx: 744,
+      heightPx: 1040,
+      effectivePixelsPerInch: 300,
+    });
+    expect(getRasterExportDimensionsPx(card, 'physical', 300)).toEqual({
+      widthPx: 2232,
+      heightPx: 3117,
+      effectivePixelsPerInch: 900,
+    });
+    expect(getRasterExportQualityOption(300)).toMatchObject({
+      label: 'High detail',
+      value: 300,
+    });
+  });
+
   it('blocks physical exports when placeholders are used', () => {
     const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://placehold.co/600x400.png?text=Artwork' });
     const validation = validateCardExportQuality(card, 'physical');
@@ -81,11 +105,11 @@ describe('print validation', () => {
     expect(validation.warnings.some((message) => message === 'Rules Text is required.')).toBe(true);
   });
 
-  it('warns when physical export DPI is below print standard', () => {
+  it('uses actual raster detail instead of the internal render target for print warnings', () => {
     const card = makeCard({ rulesText: 'Text', artworkUrl: 'https://example.com/image.png' });
     const validation = validateCardExportQuality(card, 'physical', 150);
 
-    expect(validation.warnings.some((message) => message.includes('at least 300 DPI'))).toBe(true);
+    expect(validation.warnings.some((message) => message.includes('at least 300 pixels per inch'))).toBe(false);
   });
 
   it('warns when text content sits inside the physical safe area', () => {

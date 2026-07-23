@@ -5,6 +5,7 @@ import {
   createCardZipExportItems,
   createTabletopSimulatorSheets,
   createTabletopSimulatorManifest,
+  getTabletopSimulatorExportPreset,
   getTabletopSimulatorExportProfile,
   getTabletopSimulatorCardCellSize,
   createZipExportCopy,
@@ -70,10 +71,10 @@ describe('zip export helpers', () => {
 
   it('builds stable zip copy from the export mode and face count', () => {
     expect(createZipExportCopy('physical', 2)).toEqual({
-      outputLabel: 'print-ready card faces',
-      folderName: 'physical-print-output-faces',
-      fileNamePrefix: 'cardforge-physical-print-output-faces',
-      buttonLabel: 'Export Print PNG ZIP (2 faces)',
+      outputLabel: 'physical card PNG faces',
+      folderName: 'physical-card-png-faces',
+      fileNamePrefix: 'cardforge-physical-card-png-faces',
+      buttonLabel: 'Export Physical Card PNG ZIP (2 faces)',
     });
 
     expect(createZipExportCopy('virtual', 1)).toMatchObject({
@@ -100,12 +101,29 @@ describe('zip export helpers', () => {
       data: { cardName: `Card ${index + 1}` },
     }));
 
-    const sheets = createTabletopSimulatorSheets(cards);
+    const sheets = createTabletopSimulatorSheets(cards, 'standard');
 
     expect(sheets).toHaveLength(2);
     expect(sheets[0].cards).toHaveLength(69);
     expect(sheets[1].cards).toHaveLength(1);
     expect(sheets[0].grid).toEqual({ columns: 10, rows: 7, cardsPerSheet: 69 });
+  });
+
+  it('offers a high-detail 5 × 4 layout with more pixels per card', () => {
+    const cards = Array.from({ length: 70 }, (_, index) => makeCard({
+      uniqueId: `card-${index + 1}`,
+      data: { cardName: `Card ${index + 1}` },
+    }));
+
+    const sheets = createTabletopSimulatorSheets(cards, 'high-detail');
+
+    expect(sheets).toHaveLength(4);
+    expect(sheets[0].cards).toHaveLength(19);
+    expect(sheets[0].grid).toEqual({ columns: 5, rows: 4, cardsPerSheet: 19 });
+    expect(getTabletopSimulatorExportPreset('high-detail')).toMatchObject({
+      label: 'High detail',
+      renderDpi: 330,
+    });
   });
 
   it('keeps large Tabletop Simulator sheets inside the recommended texture boundary', () => {
@@ -117,10 +135,16 @@ describe('zip export helpers', () => {
   });
 
   it('uses the full 4K sheet budget with a memory-bounded render profile', () => {
-    expect(getTabletopSimulatorExportProfile()).toMatchObject({
+    expect(getTabletopSimulatorExportProfile('standard')).toMatchObject({
       mode: 'virtual',
       dpi: 165,
       renderWidthPx: 409,
+      canvasPixelRatio: 1,
+    });
+    expect(getTabletopSimulatorExportProfile('high-detail')).toMatchObject({
+      mode: 'virtual',
+      dpi: 330,
+      renderWidthPx: 819,
       canvasPixelRatio: 1,
     });
   });

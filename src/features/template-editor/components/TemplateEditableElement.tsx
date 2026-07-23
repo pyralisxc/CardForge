@@ -2,21 +2,14 @@
 
 import type { CSSProperties, MouseEvent, PointerEvent } from 'react';
 import { useEffect, useRef } from 'react';
-import * as LucideIcons from 'lucide-react';
-import { Sparkles } from 'lucide-react';
 
-import { VectorShapeElement } from '@/features/card-rendering/client';
-import { appearanceToStyle } from '@/features/card-rendering/client';
-import { CardTextContent } from '@/features/card-rendering/client';
-import { isDividerElement, normalizeAppearanceForElement } from '@/domain/templates';
-import { borderWidthClassToPixels, borderWidthClassToStyle, radiusClassToCss, resolveFreeformImageUrl } from '@/features/card-rendering/client';
-import { resolveImageElementOverrides } from '@/domain/rendering';
-import { getImageFieldKeyForElement, replacePlaceholdersLocal } from '@/domain/rendering';
-import { buildTextElementStyle } from '@/features/card-rendering/client';
-import { cn } from '@/shared/classNames';
-import { canRenderVectorShape } from '@/domain/rendering';
 import type { CardData } from '@/domain/cards';
-import type { FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
+import {
+  getImageFieldKeyForElement,
+  resolveImageElementOverrides,
+} from '@/domain/rendering';
+import type { FreeformCardElement } from '@/domain/templates';
+import { cn } from '@/shared/classNames';
 import type { ResizeHandle } from '@/features/template-editor/hooks/useCanvasPointerInteractions';
 import {
   CANVAS_ZOOM,
@@ -37,11 +30,8 @@ const RESIZE_HANDLES: Array<{ handle: ResizeHandle; className: string; cursor: s
 ];
 
 interface TemplateEditableElementProps {
-  currentTemplate: TCGCardTemplate;
   element: FreeformCardElement;
   livePreviewData: CardData;
-  previewMode: boolean;
-  richTextHighlightColor: string;
   selected: boolean;
   zoom: number;
   onElementContextAction: (element: FreeformCardElement) => void;
@@ -51,11 +41,8 @@ interface TemplateEditableElementProps {
 }
 
 export function TemplateEditableElement({
-  currentTemplate,
   element,
   livePreviewData,
-  previewMode,
-  richTextHighlightColor,
   selected,
   zoom,
   onElementContextAction,
@@ -79,128 +66,25 @@ export function TemplateEditableElement({
   const imageResolution = element.type === 'image'
     ? resolveImageElementOverrides(element, livePreviewData, getImageFieldKeyForElement(element))
     : null;
-  const renderElement = imageResolution?.element ?? element;
-  const borderWidth = borderWidthClassToPixels(renderElement.borderWidth);
-  const resolvedBg = renderElement.backgroundImageUrl ? replacePlaceholdersLocal(renderElement.backgroundImageUrl, livePreviewData, false) : '';
-  const structuredAppearanceStyle = appearanceToStyle(normalizeAppearanceForElement(renderElement));
-  const elementIsDivider = isDividerElement(renderElement);
+  const interactionElement = imageResolution?.element ?? element;
   const layerTransform = [
-    `rotate(${renderElement.rotation || 0}deg)`,
-    renderElement.flipX ? 'scaleX(-1)' : null,
-    renderElement.flipY ? 'scaleY(-1)' : null,
+    `rotate(${interactionElement.rotation || 0}deg)`,
+    interactionElement.flipX ? 'scaleX(-1)' : null,
+    interactionElement.flipY ? 'scaleY(-1)' : null,
   ].filter(Boolean).join(' ');
-  const baseStyle: CSSProperties = {
+  const overlayStyle: CSSProperties = {
     position: 'absolute',
-    left: renderElement.x,
-    top: renderElement.y,
-    width: renderElement.width,
-    height: renderElement.height,
+    left: interactionElement.x,
+    top: interactionElement.y,
+    width: interactionElement.width,
+    height: interactionElement.height,
     transform: layerTransform,
     transformOrigin: 'center',
-    opacity: renderElement.opacity ?? 1,
-    zIndex: renderElement.zIndex,
-    color: renderElement.textColor || currentTemplate.baseTextColor || undefined,
-    backgroundColor: renderElement.backgroundColor || 'transparent',
-    backgroundImage: resolvedBg && (resolvedBg.startsWith('linear-gradient') || resolvedBg.startsWith('radial-gradient'))
-      ? resolvedBg
-      : resolvedBg && (resolvedBg.startsWith('http') || resolvedBg.startsWith('data:'))
-        ? `url(${resolvedBg})`
-        : undefined,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    borderStyle: borderWidth > 0 ? 'solid' : undefined,
-    borderColor: renderElement.borderColor || currentTemplate.defaultElementBorderColor || undefined,
-    borderRadius: radiusClassToCss(renderElement.borderRadius) || renderElement.borderRadius || undefined,
-    ...borderWidthClassToStyle(renderElement.borderWidth),
+    zIndex: interactionElement.zIndex,
     boxSizing: 'border-box',
-    overflow: 'hidden',
-    cursor: previewMode || renderElement.locked ? 'default' : 'move',
-    ...structuredAppearanceStyle,
+    cursor: interactionElement.locked ? 'not-allowed' : 'move',
+    background: 'transparent',
   };
-
-  let body;
-  if (renderElement.type === 'image') {
-    const imageUrl = resolveFreeformImageUrl(renderElement, livePreviewData, 'Artwork');
-    body = (
-      <img
-        src={imageUrl}
-        alt={renderElement.name}
-        className="block h-full w-full max-h-full max-w-full"
-        style={{
-          minWidth: 0,
-          minHeight: 0,
-          objectFit: imageResolution?.imageStyle.objectFit || renderElement.imageObjectFit || 'cover',
-          objectPosition: imageResolution?.imageStyle.objectPosition || `${renderElement.imageObjectPositionX || 'center'} ${renderElement.imageObjectPositionY || 'center'}`,
-          transform: imageResolution?.imageStyle.transform,
-          transformOrigin: 'center',
-          borderRadius: 'inherit',
-        }}
-        draggable={false}
-      />
-    );
-  } else if (element.type === 'icon') {
-    const iconImageUrl = element.iconImageSource ? replacePlaceholdersLocal(element.iconImageSource, livePreviewData, false) : '';
-    if (iconImageUrl && (iconImageUrl.startsWith('http') || iconImageUrl.startsWith('data:') || iconImageUrl.startsWith('/'))) {
-      body = <img src={iconImageUrl} alt={element.name} className="block h-full w-full max-h-full max-w-full" style={{ minWidth: 0, minHeight: 0, objectFit: 'contain', objectPosition: 'center', borderRadius: 'inherit' }} draggable={false} />;
-    } else {
-      const IconComponent = (LucideIcons as unknown as Record<string, React.ElementType>)[element.iconName || 'Sparkles'] || Sparkles;
-      body = <IconComponent size="78%" color={element.strokeColor || element.textColor || 'currentColor'} fill={element.fillColor || 'none'} strokeWidth={element.strokeWidth || 2} />;
-    }
-  } else if (element.type === 'shape') {
-    if (elementIsDivider) {
-      body = null;
-      baseStyle.backgroundColor = element.fillColor || element.backgroundColor || 'transparent';
-      baseStyle.borderColor = element.strokeColor || element.borderColor || undefined;
-      baseStyle.borderWidth = element.strokeWidth !== undefined ? element.strokeWidth : baseStyle.borderWidth;
-      baseStyle.borderRadius = element.shapeKind === 'capsule' ? '9999px' : baseStyle.borderRadius;
-      baseStyle.height = Math.max(element.height || 0, element.strokeWidth || 2, 2);
-      baseStyle.backgroundColor = 'transparent';
-      baseStyle.borderWidth = 0;
-      Object.assign(baseStyle, structuredAppearanceStyle);
-    } else if (canRenderVectorShape(element)) {
-      const vectorShapeStyle: CSSProperties = {
-        ...structuredAppearanceStyle,
-        backgroundColor: structuredAppearanceStyle.backgroundColor || element.fillColor || element.backgroundColor || baseStyle.backgroundColor,
-        backgroundImage: structuredAppearanceStyle.backgroundImage || baseStyle.backgroundImage,
-        backgroundSize: structuredAppearanceStyle.backgroundSize || baseStyle.backgroundSize,
-        backgroundRepeat: structuredAppearanceStyle.backgroundRepeat || baseStyle.backgroundRepeat,
-        backgroundPosition: structuredAppearanceStyle.backgroundPosition || baseStyle.backgroundPosition,
-        backgroundBlendMode: structuredAppearanceStyle.backgroundBlendMode || baseStyle.backgroundBlendMode,
-        borderColor: structuredAppearanceStyle.borderColor || element.strokeColor || element.borderColor || baseStyle.borderColor,
-        borderWidth: element.strokeWidth !== undefined ? element.strokeWidth : structuredAppearanceStyle.borderWidth || baseStyle.borderWidth,
-      };
-      body = <VectorShapeElement element={element} style={vectorShapeStyle} />;
-      baseStyle.backgroundColor = 'transparent';
-      baseStyle.backgroundImage = undefined;
-      baseStyle.borderColor = undefined;
-      baseStyle.borderWidth = 0;
-      baseStyle.borderStyle = 'none';
-      baseStyle.borderRadius = undefined;
-      baseStyle.boxShadow = undefined;
-      baseStyle.overflow = 'visible';
-    } else {
-      body = null;
-      baseStyle.backgroundColor = element.fillColor || element.backgroundColor || 'transparent';
-      baseStyle.borderColor = element.strokeColor || element.borderColor || undefined;
-      baseStyle.borderWidth = element.strokeWidth !== undefined ? element.strokeWidth : baseStyle.borderWidth;
-      Object.assign(baseStyle, structuredAppearanceStyle);
-    }
-  } else {
-    body = (
-      <CardTextContent
-        template={currentTemplate}
-        element={element}
-        data={livePreviewData}
-        highlightColor={richTextHighlightColor}
-        style={{ lineHeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', textDecoration: 'inherit', fontStyle: 'inherit' }}
-      />
-    );
-  }
-
-  const textElementStyle = element.type === 'text' ? buildTextElementStyle(element) : null;
-  const renderedTextStyle = element.type === 'text' && textElementStyle
-    ? { ...textElementStyle, fontSize: undefined as unknown as CSSProperties['fontSize'] }
-    : null;
   const resizeHandleSize = Math.round(Math.min(
     Math.max(RESIZE_HANDLE_SCREEN_SIZE / Math.max(zoom, CANVAS_ZOOM.min), RESIZE_HANDLE_MIN_CANVAS_SIZE),
     RESIZE_HANDLE_MAX_CANVAS_SIZE,
@@ -208,24 +92,18 @@ export function TemplateEditableElement({
 
   return (
     <div
-      key={element.id}
       data-freeform-element-id={element.id}
+      data-cardforge-editor-overlay="true"
       data-selected={selected ? 'true' : 'false'}
-      data-element-locked={element.locked ? 'true' : 'false'}
+      data-element-locked={interactionElement.locked ? 'true' : 'false'}
       className={cn(
-        element.type === 'text' && [element.padding || 'p-1', element.fontFamily || 'font-sans', element.fontWeight || 'font-normal'],
-        element.type === 'text' && 'whitespace-pre-wrap break-words',
-        element.type === 'icon' && 'flex items-center justify-center',
-        selected && !previewMode && 'outline outline-2 outline-offset-2 outline-[#d5ad54]',
-        element.locked && 'cursor-not-allowed'
+        selected && 'outline outline-2 outline-offset-2 outline-[#d5ad54]',
+        interactionElement.locked && 'cursor-not-allowed'
       )}
-      style={{
-        ...baseStyle,
-        ...renderedTextStyle,
-      }}
+      style={overlayStyle}
       onPointerDown={(event) => {
         onElementPointerDown(event, element);
-        if (event.pointerType !== 'touch' || previewMode || element.locked) return;
+        if (event.pointerType !== 'touch' || interactionElement.locked) return;
         clearLongPress();
         touchStartRef.current = { x: event.clientX, y: event.clientY };
         longPressTimerRef.current = window.setTimeout(() => {
@@ -241,16 +119,14 @@ export function TemplateEditableElement({
       onPointerUp={clearLongPress}
       onPointerCancel={clearLongPress}
       onContextMenu={(event: MouseEvent<HTMLDivElement>) => {
-        if (previewMode) return;
         event.preventDefault();
         onElementContextAction(element);
       }}
       onDoubleClick={() => {
-        if (element.type === 'text' && !previewMode) onElementEdit(element);
+        if (element.type === 'text') onElementEdit(element);
       }}
     >
-      {body}
-      {selected && !previewMode && !element.locked && (
+      {selected && !interactionElement.locked ? (
         <>
           {RESIZE_HANDLES.map((resizeHandle) => (
             <button
@@ -267,7 +143,7 @@ export function TemplateEditableElement({
             />
           ))}
         </>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,30 +1,26 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from 'react';
-import { ArrowLeftRight, BringToFront, Download, FilePlus2, Gamepad2, Layers3, PackagePlus, PenTool, Scissors, Trash2 } from 'lucide-react';
+import { FilePlus2, Layers3, PackagePlus, PenTool } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { CardPreview } from '@/features/card-rendering/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BulkGenerator } from '@/features/card-generator/components/BulkGenerator';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
+import { ExportControlsPanel } from '@/features/card-generator/components/ExportControlsPanel';
 import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
-import { PaperSizeSelector } from '@/features/card-generator/components/PaperSizeSelector';
-import { SaveAsPdfButton } from '@/features/card-generator/components/SaveAsPdfButton';
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
+import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
 import type { CardSet } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
+import type { TabletopSimulatorExportQuality } from '@/features/card-generator/lib/zipExport';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
-import { hasCardBacking } from '@/domain/rendering';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
@@ -45,6 +41,7 @@ interface GenerationWorkspaceProps {
   gallerySearch: string;
   gallerySort: GeneratedGallerySort;
   isZipExporting: boolean;
+  zipExportKind: ZipExportKind | null;
   isCheckoutStarting: boolean;
   canExportClean: boolean;
   exportGateMessage?: string | null;
@@ -62,27 +59,13 @@ interface GenerationWorkspaceProps {
   onSetExportDpi: (dpi: number) => void;
   onStartCheckout: () => void;
   onExportAllAsZip: () => void;
-  onExportTabletopSimulatorSpritesheets: () => void;
+  onExportTabletopSimulatorSpritesheets: (quality: TabletopSimulatorExportQuality) => void;
   onClearCardsRequest: () => void;
   onGallerySearchChange: (value: string) => void;
   onGallerySortChange: (value: GeneratedGallerySort) => void;
   onEditCardRequest: (card: DisplayCard) => void;
   onRemoveCard: (card: DisplayCard) => void;
 }
-
-const BASELINE_PRINT_ZIP_BYTES_PER_FACE_AT_300_DPI = 226_884;
-
-const formatBytes = (bytes: number) => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
-};
 
 export function GenerationWorkspace({
   isLoadingTemplates,
@@ -103,6 +86,7 @@ export function GenerationWorkspace({
   gallerySearch,
   gallerySort,
   isZipExporting,
+  zipExportKind,
   isCheckoutStarting,
   canExportClean,
   exportGateMessage,
@@ -152,15 +136,6 @@ export function GenerationWorkspace({
       : null
   ), [activeCardSet.id, activeCardSet.name, selectedBackingTemplate, selectedTemplate]);
   const showGeneratedPreviewWatermark = shouldShowVisibleCardWatermark(canExportClean);
-  const exportFaceCount = generatedDisplayCards.reduce(
-    (count, card) => count + (hasCardBacking(card) ? 2 : 1),
-    0
-  );
-  const dpiScale = Math.max(0.1, (exportDpi / 300) ** 2);
-  const estimatedZipBytes = exportFaceCount * BASELINE_PRINT_ZIP_BYTES_PER_FACE_AT_300_DPI * dpiScale;
-  const exportProgressPercent = zipProgress && zipProgress.total > 0
-    ? Math.round((zipProgress.done / zipProgress.total) * 100)
-    : 0;
   const scrollGalleryIntoView = useCallback(() => {
     window.requestAnimationFrame(() => {
       galleryRegionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -351,202 +326,35 @@ export function GenerationWorkspace({
       </section>
 
       <section data-workflow-step="export" aria-labelledby="generator-export-heading">
-            <Card>
-              <CardHeader>
-                <CardTitle id="generator-export-heading" className="text-xl flex items-center gap-2">Export the finished set</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-md border bg-muted/40 p-3 text-xs">
-                  <p className="font-semibold text-foreground">{exportEntitlementLabel}</p>
-                  <p className="mt-1 text-muted-foreground">{exportEntitlementMessage}</p>
-                </div>
-                <div className="space-y-3 pt-2 border-t">
-                  <div className="space-y-1">
-                    <Label htmlFor="exportMode" className="text-md font-medium">How will you use this set?</Label>
-                    <Select
-                      value={exportMode}
-                      onValueChange={(value) => onSetExportMode(value as ExportMode)}
-                    >
-                      <SelectTrigger id="exportMode" className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="physical">Print physical cards</SelectItem>
-                        <SelectItem value="virtual">Share or play digitally</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Choose print for physical cards, or digital for online sharing and virtual tabletop play.
-                    </p>
-                  </div>
-                </div>
-                <details className="rounded-md border bg-muted/20 p-3">
-                  <summary className="cursor-pointer font-medium">Print settings</summary>
-                  <div className="mt-4 space-y-3">
-                    <PaperSizeSelector selectedSize={selectedPaperSize} onSelectSize={onSelectPaperSize} />
-                    <div className="space-y-1">
-                      <Label htmlFor="exportDpi" className="text-xs">Image quality</Label>
-                      <Select
-                        value={String(exportDpi)}
-                        onValueChange={(value) => onSetExportDpi(parseInt(value, 10))}
-                      >
-                        <SelectTrigger id="exportDpi" className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="150">150 DPI</SelectItem>
-                          <SelectItem value="300">300 DPI (industry standard)</SelectItem>
-                          <SelectItem value="600">600 DPI</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  <Label className="text-md font-medium">PDF layout</Label>
-                  <TooltipProvider>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label htmlFor="pdfMargin" className="text-xs flex items-center gap-1 cursor-help"><BringToFront className="h-3 w-3"/>Margins (mm)</Label>
-                          </TooltipTrigger>
-                          <TooltipContent>Space from paper edge to first card. Typical: 5-10 mm.</TooltipContent>
-                        </Tooltip>
-                        <Input
-                          id="pdfMargin"
-                          type="number"
-                          value={pdfMarginMm}
-                          onChange={(event) => onSetPdfOptions({ margin: parseInt(event.target.value, 10) || 0 })}
-                          className="h-8 text-xs"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Label htmlFor="pdfCardSpacing" className="text-xs flex items-center gap-1 cursor-help"><ArrowLeftRight className="h-3 w-3"/>Card Spacing (mm)</Label>
-                          </TooltipTrigger>
-                          <TooltipContent>Gap between each card. 0 = no gap, 2-4 mm is typical for cutting.</TooltipContent>
-                        </Tooltip>
-                        <Input
-                          id="pdfCardSpacing"
-                          type="number"
-                          value={pdfCardSpacingMm}
-                          onChange={(event) => onSetPdfOptions({ spacing: parseInt(event.target.value, 10) || 0 })}
-                          className="h-8 text-xs"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-                  </TooltipProvider>
-                  <div className="flex items-center space-x-2 pt-1">
-                    <Switch
-                      id="pdfIncludeCutLines"
-                      checked={pdfIncludeCutLines}
-                      onCheckedChange={(checked) => onSetPdfOptions({ cutLines: checked })}
-                      aria-label="Toggle cut lines in PDF"
-                    />
-                    <Label htmlFor="pdfIncludeCutLines" className="flex items-center gap-1 cursor-pointer text-xs"><Scissors className="h-3 w-3"/>Include Cut Lines</Label>
-                  </div>
-                  {exportMode === 'physical' && (
-                    <div className="space-y-1">
-                      <Label htmlFor="pdfDuplexLayout" className="text-xs">Front/Back PDF Layout</Label>
-                      <Select
-                        value={pdfDuplexLayout}
-                        onValueChange={(value) => onSetPdfOptions({ duplexLayout: value as PdfDuplexLayout })}
-                      >
-                        <SelectTrigger id="pdfDuplexLayout" className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="separate-pages">Separate front/back sheets</SelectItem>
-                          <SelectItem value="same-page">Front + back on same sheet</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Separate sheets supports duplex printing. Same sheet places each back after its front for review, hand cutting, or manual assembly.
-                      </p>
-                    </div>
-                  )}
-                  </div>
-                </details>
-
-                <div className="flex flex-col gap-2 pt-2 border-t">
-                  {!canExportClean && exportGateMessage ? (
-                    <div className="space-y-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-muted-foreground">
-                      <p>{exportGateMessage}</p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={onStartCheckout}
-                        disabled={isCheckoutStarting}
-                        className="w-full"
-                      >
-                        {isCheckoutStarting ? 'Checking access...' : 'Unlock clean downloads'}
-                      </Button>
-                      <p>Sign in to claim an open Founder Beta seat, or use Creator Pass when you are ready for clean downloads.</p>
-                    </div>
-                  ) : null}
-                  <SaveAsPdfButton
-                    generatedDisplayCards={generatedDisplayCards}
-                    selectedPaperSize={selectedPaperSize}
-                    pdfMarginMm={pdfMarginMm}
-                    pdfCardSpacingMm={pdfCardSpacingMm}
-                    pdfIncludeCutLines={pdfIncludeCutLines}
-                    pdfDuplexLayout={pdfDuplexLayout}
-                    exportMode={exportMode}
-                    exportDpi={exportDpi}
-                    richTextHighlightColor={richTextHighlightColor}
-                    disabled={generatedDisplayCards.length === 0}
-                    gateMessage={exportGateMessage}
-                    templateName={generatedDisplayCards[0]?.template?.name}
-                  />
-                  <Button variant="outline" onClick={onExportAllAsZip} disabled={generatedDisplayCards.length === 0 || isZipExporting} className="flex items-center gap-2">
-                    <Download className="h-4 w-4" /> {isZipExporting ? `Preparing… ${zipProgress?.done ?? 0}/${zipProgress?.total ?? 0}` : 'Download PNG set'}
-                  </Button>
-                  <Button variant="outline" onClick={onExportTabletopSimulatorSpritesheets} disabled={generatedDisplayCards.length === 0 || isZipExporting} className="flex items-center gap-2">
-                    <Gamepad2 className="h-4 w-4" /> Tabletop Simulator export
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Tabletop Simulator export creates 10 × 7 spritesheets with up to 69 playable cards per sheet plus a JSON manifest.
-                  </p>
-                  {generatedDisplayCards.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Estimated ZIP size: about {formatBytes(estimatedZipBytes)}. Large print batches can take several minutes; keep this tab open while exporting.
-                    </p>
-                  )}
-                  {zipProgress && (
-                    <Progress value={(zipProgress.done / zipProgress.total) * 100} className="h-1.5 mt-1" />
-                  )}
-                  {generatedDisplayCards.length > 0 && (
-                    <Button variant="destructive" onClick={onClearCardsRequest} className="flex items-center gap-2">
-                      <Trash2 className="h-4 w-4" /> Remove all cards ({generatedDisplayCards.length})
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+        <ExportControlsPanel
+          canExportClean={canExportClean}
+          exportDpi={exportDpi}
+          exportEntitlementLabel={exportEntitlementLabel}
+          exportEntitlementMessage={exportEntitlementMessage}
+          exportGateMessage={exportGateMessage}
+          exportMode={exportMode}
+          generatedDisplayCards={generatedDisplayCards}
+          isCheckoutStarting={isCheckoutStarting}
+          isZipExporting={isZipExporting}
+          pdfCardSpacingMm={pdfCardSpacingMm}
+          pdfDuplexLayout={pdfDuplexLayout}
+          pdfIncludeCutLines={pdfIncludeCutLines}
+          pdfMarginMm={pdfMarginMm}
+          richTextHighlightColor={richTextHighlightColor}
+          selectedPaperSize={selectedPaperSize}
+          zipExportKind={zipExportKind}
+          zipProgress={zipProgress}
+          onClearCardsRequest={onClearCardsRequest}
+          onExportAllAsZip={onExportAllAsZip}
+          onExportTabletopSimulatorSpritesheets={onExportTabletopSimulatorSpritesheets}
+          onSelectPaperSize={onSelectPaperSize}
+          onSetExportDpi={onSetExportDpi}
+          onSetExportMode={onSetExportMode}
+          onSetPdfOptions={onSetPdfOptions}
+          onStartCheckout={onStartCheckout}
+        />
       </section>
     </div>
-    {isZipExporting && zipProgress && (
-      <div
-        className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-4xl rounded-xl border bg-background/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur"
-        role="status"
-        aria-live="polite"
-      >
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold">Export job running</p>
-            <p className="text-xs text-muted-foreground">
-              Rendering {zipProgress.done} of {zipProgress.total} faces. Estimated archive size about {formatBytes(estimatedZipBytes)}.
-            </p>
-          </div>
-          <p className="text-sm font-semibold tabular-nums">{exportProgressPercent}%</p>
-        </div>
-        <Progress value={exportProgressPercent} className="h-2" />
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Keep CardForge open until the download begins. For 1000 front and back card images, print-quality exports can be hundreds of MB.
-        </p>
-      </div>
-    )}
     </>
   );
 }

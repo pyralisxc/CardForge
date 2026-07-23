@@ -24,17 +24,18 @@ export const getCardPreviewLayout = ({
   targetWidthPx,
   aspectRatio,
   canvas,
-  isPrintMode,
 }: {
   targetWidthPx: number;
   aspectRatio?: string;
   canvas?: FreeformCanvas | null;
   isPrintMode: boolean;
 }): CardPreviewLayout => {
-  const shouldScalePreviewFromTemplateSize = !isPrintMode && !!canvas && canvas.width > 0;
-  const renderWidthPx = shouldScalePreviewFromTemplateSize ? canvas.width : targetWidthPx;
-  const renderHeightPx = getCardHeightForWidth(renderWidthPx, aspectRatio);
-  const visualScale = shouldScalePreviewFromTemplateSize ? targetWidthPx / renderWidthPx : 1;
+  const hasCanonicalCanvas = !!canvas && canvas.width > 0 && canvas.height > 0;
+  const renderWidthPx = hasCanonicalCanvas ? canvas.width : targetWidthPx;
+  const renderHeightPx = hasCanonicalCanvas
+    ? canvas.height
+    : getCardHeightForWidth(renderWidthPx, aspectRatio);
+  const visualScale = hasCanonicalCanvas ? targetWidthPx / renderWidthPx : 1;
 
   return {
     renderWidthPx,

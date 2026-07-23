@@ -16,7 +16,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { replacePlaceholdersLocal } from '@/domain/rendering';
 import { cn } from '@/shared/classNames';
 import { useProjectStore } from '@/features/project/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -276,11 +275,8 @@ export function CardTemplateMaker({
   const renderEditableElement = useCallback((element: FreeformCardElement) => (
     <TemplateEditableElement
       key={element.id}
-      currentTemplate={currentTemplate}
       element={element}
       livePreviewData={livePreviewData}
-      previewMode={previewMode}
-      richTextHighlightColor={richTextHighlightColor}
       selected={selectedElementId === element.id}
       zoom={zoom}
       onElementContextAction={openElementActions}
@@ -288,26 +284,12 @@ export function CardTemplateMaker({
       onElementPointerDown={handleElementPointerDown}
       onResizePointerDown={handleResizePointerDown}
     />
-  ), [currentTemplate, handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, previewMode, richTextHighlightColor, selectedElementId, zoom]);
+  ), [handleElementPointerDown, handleResizePointerDown, livePreviewData, openElementActions, openElementInspector, selectedElementId, zoom]);
   const canvasFrameStyle: React.CSSProperties = {
     width: canvas.width,
     height: canvas.height,
     transform: `scale(${zoom})`,
     transformOrigin: 'top left',
-  };
-  const canvasStyle: React.CSSProperties = {
-    ...canvasFrameStyle,
-    width: canvas.width,
-    height: canvas.height,
-    backgroundColor: currentTemplate.baseBackgroundColor || '#ffffff',
-    color: currentTemplate.baseTextColor || '#000000',
-    borderColor: currentTemplate.cardBorderColor || 'hsl(var(--border))',
-    borderWidth: currentTemplate.cardBorderWidth || '4px',
-    borderStyle: currentTemplate.cardBorderStyle && currentTemplate.cardBorderStyle !== '_default_' ? currentTemplate.cardBorderStyle : 'solid',
-    borderRadius: currentTemplate.cardBorderRadius || '0.5rem',
-    backgroundImage: currentTemplate.cardBackgroundImageUrl ? `url(${replacePlaceholdersLocal(currentTemplate.cardBackgroundImageUrl, livePreviewData, false)})` : undefined,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center center',
   };
   if (!draftPersistenceHydrated) {
     return (
@@ -411,7 +393,6 @@ export function CardTemplateMaker({
             canvas={canvas}
             canvasFrameStyle={canvasFrameStyle}
             canvasRef={canvasRef}
-            canvasStyle={canvasStyle}
             currentTemplate={currentTemplate}
             gridSize={gridSize}
             livePreviewData={livePreviewData}
