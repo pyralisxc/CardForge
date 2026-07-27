@@ -4,10 +4,10 @@ import {
   createDeveloperAssetSubmission,
   DeveloperAssetStoreError,
   getDeveloperAssetProgramView,
-  upsertDeveloperProfile,
   updateDeveloperProfileOverrides,
   updateDeveloperProgramSettings,
 } from '@/features/developer-assets/server';
+import { upsertDeveloperProfile } from '@/features/developer-access/server';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';

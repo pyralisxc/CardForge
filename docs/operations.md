@@ -156,6 +156,47 @@ Cameron Locke is the named operator for launch-period incidents. Existing surfac
 
 No separate analytics provider is enabled for launch. This is intentional: CardForge is operating with no product or marketing analytics by design. Reconsider measurement only when a concrete question, privacy disclosure, and approved provider justify the added data collection.
 
+## Developer Cockpit and Buffer rollout
+
+The contribution cockpit has two independent production switches:
+
+- `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED=true` activates owner-granted campaign/site scopes for non-owner developers.
+- `CARDFORGE_BUFFER_PUBLISHING_ENABLED=true` permits owner-only Buffer mutations.
+
+Both default false. Owner inspection remains available while disabled so the migration and workflow can be verified without delegating new permissions or publishing externally.
+
+Required server-only Buffer values:
+
+```bash
+BUFFER_API_KEY=
+BUFFER_ORGANIZATION_ID=
+CARDFORGE_BUFFER_ALLOWED_CHANNEL_IDS=
+CARDFORGE_BUFFER_PUBLISHING_ENABLED=false
+```
+
+Treat `CARDFORGE_BUFFER_ALLOWED_CHANNEL_IDS` as the production blast-radius boundary. List only the connected Facebook/Instagram/other channel IDs CardForge intends to operate. A blank allowlist exposes every channel the account key can reach and is not acceptable for production enablement.
+
+Preflight before activating extended contributors:
+
+1. Apply `20260727090000_developer_contribution_cockpit.sql` and confirm the three new tables have RLS enabled, browser roles have no privileges, and `service_role` can use the atomic site-proposal publication function.
+2. Confirm `cardforge-social-sources` is private and `cardforge-social-media` is public with the documented image-only size limits.
+3. Publish reviewed new versions of the privacy notice and developer terms that cover marketing/site-copy contributions, attribution/history, provider delivery, and approved public media. Do not enable non-owner campaign/site scopes before that legal publication.
+4. In the owner cockpit, grant campaign and site scopes only to the intended active developer QA account; confirm another developer remains asset-only.
+5. Set `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED=true`, deploy, and verify the scoped developer can draft/submit but cannot approve, expose media, publish site copy, load channels, or call provider mutations.
+
+Preflight before activating Buffer:
+
+1. Generate a personal API key from the owner Buffer account and store it only in the server environment.
+2. Record the intended organization ID, connect the production channels in Buffer, and populate the exact channel allowlist.
+3. Leave publishing disabled and use the owner cockpit to load channels. Confirm service/name/paused state and that no unlisted channel is returned.
+4. Create an owner-approved internal campaign with non-sensitive media. Confirm the private source URL requires authentication and the approved public derivative is stable over HTTPS.
+5. Set `CARDFORGE_BUFFER_PUBLISHING_ENABLED=true`, redeploy, create Buffer drafts first, and verify CardForge stores one provider job per channel with the matching provider post ID.
+6. Schedule a deliberately harmless post, verify the due time in Buffer, then refresh CardForge until the delivery status agrees. Record the deployment, campaign ID, job IDs, provider post IDs, and visible result in the risk register without recording the API key.
+
+Rollback by setting `CARDFORGE_BUFFER_PUBLISHING_ENABLED=false` and redeploying. This stops new provider mutations but intentionally preserves CardForge campaigns/jobs and existing Buffer drafts or schedules. Cancel or edit already-created posts in Buffer, then refresh the CardForge job ledger; do not delete contribution or delivery history to simulate rollback.
+
+Buffer post metrics are provider-level public-content measurements, not CardForge visitor analytics. This release stores delivery states only and does not ingest social metrics or add first-party product/marketing tracking.
+
 ### Solo-maintainer branch rule
 
 While `@pyralisxc` is the only trusted code owner, the active ruleset retains zero required approvals because a pull-request author cannot approve their own change. Raise required approvals to one when a second trusted reviewer is added, or review this exception by August 15, 2026.
@@ -244,6 +285,7 @@ git diff --check
 - Open `https://cardforges.com`.
 - Confirm `https://cardforges.com/robots.txt` points to `https://cardforges.com/sitemap.xml`.
 - Confirm `/studio`, `/account`, `/profile`, `/owner`, and `/creator-pool` emit noindex metadata.
+- Confirm `/developer/cockpit` emits noindex metadata and `/developer` remains the indexable application page.
 - Confirm marketing and legal pages emit a self-referencing canonical and matching Open Graph URL.
 - Validate the CardForge and Cameron JSON-LD in a structured-data inspection tool.
 - Confirm the submitted sitemap remains successful in Google Search Console after domain or metadata changes.

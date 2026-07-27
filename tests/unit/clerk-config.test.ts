@@ -15,6 +15,12 @@ describe('Clerk middleware route selection', () => {
     expect(shouldRunClerkMiddlewareForRequest('/api/billing/support/checkout', 'POST')).toBe(true);
   });
 
+  it('runs for every protected developer cockpit API route', () => {
+    expect(shouldRunClerkMiddlewareForRequest('/api/developer-cockpit', 'GET')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/api/developer-cockpit/campaigns', 'POST')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/api/developer-cockpit/provider', 'POST')).toBe(true);
+  });
+
   it('runs for the dedicated public sign-in route', () => {
     expect(shouldRunClerkMiddlewareForRequest('/sign-in', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/sign-in/sso-callback', 'GET')).toBe(true);

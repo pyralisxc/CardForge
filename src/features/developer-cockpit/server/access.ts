@@ -1,0 +1,79 @@
+import {
+  getCurrentCardforgeUserAccess,
+  resolveAccountEntitlement,
+  type CardforgeServerUser,
+} from '@/features/account/server';
+import {
+  getDeveloperProfileCapabilities,
+  hasContributionScope,
+  resolveDeveloperContributionScopes,
+  upsertDeveloperProfile,
+  type DeveloperContributionScope,
+} from '@/features/developer-access/server';
+
+export interface DeveloperCockpitAccess {
+  user: CardforgeServerUser;
+  isDeveloper: boolean;
+  isOwner: boolean;
+  scopes: DeveloperContributionScope[];
+  email: string | null;
+  displayName: string | null;
+}
+
+export class DeveloperCockpitAccessError extends Error {
+  constructor(message: string, public readonly status: 401 | 403) {
+    super(message);
+  }
+}
+
+export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockpitAccess> => {
+  const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
+  if (!user) {
+    throw new DeveloperCockpitAccessError('Sign in before using the developer cockpit.', 401);
+  }
+
+  const entitlement = resolveAccountEntitlement({
+    authConfigured,
+    isSignedIn: true,
+    emailAddresses: user.emailAddresses,
+    privateMetadata: user.privateMetadata,
+    ownerAccess,
+  });
+  const isDeveloper = entitlement.accessMode === 'dev';
+  if (!isDeveloper && !ownerAccess.isOwner) {
+    throw new DeveloperCockpitAccessError('Developer access is required for the contribution cockpit.', 403);
+  }
+
+  await upsertDeveloperProfile({
+    developerId: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  });
+  const capabilities = await getDeveloperProfileCapabilities(user.id);
+  const isOwner = ownerAccess.isOwner;
+  const extendedContributionsEnabled =
+    process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true';
+  return {
+    user,
+    isDeveloper,
+    isOwner,
+    email: user.email,
+    displayName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
+    scopes: resolveDeveloperContributionScopes({
+      isOwner,
+      profileStatus: capabilities.status,
+      canDraftCampaigns: capabilities.canDraftCampaigns && extendedContributionsEnabled,
+      canProposeSiteContent: capabilities.canProposeSiteContent && extendedContributionsEnabled,
+    }),
+  };
+};
+
+export const requireContributionScope = (
+  access: DeveloperCockpitAccess,
+  scope: DeveloperContributionScope,
+): void => {
+  if (!hasContributionScope(access.scopes, scope)) {
+    throw new DeveloperCockpitAccessError('Your developer account does not have permission for that contribution lane.', 403);
+  }
+};

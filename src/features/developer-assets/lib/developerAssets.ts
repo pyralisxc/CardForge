@@ -21,7 +21,6 @@ export const DEVELOPER_ASSET_STATUSES = [
 
 export type DeveloperAssetType = typeof DEVELOPER_ASSET_TYPES[number];
 export type DeveloperAssetStatus = typeof DEVELOPER_ASSET_STATUSES[number];
-export type DeveloperProfileStatus = 'invited' | 'active' | 'inactive' | 'suspended';
 export type DeveloperVoteValue = 'positive' | 'negative';
 export type DeveloperAssetAccessTier = 'hidden' | 'free' | 'paid' | 'developer';
 export type DeveloperAssetAccessTierOverride = 'hidden' | 'free' | 'paid';

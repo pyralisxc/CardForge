@@ -19,6 +19,13 @@ import {
   type DeveloperProgramSettings,
   type DeveloperVoteValue,
 } from '@/features/developer-assets/lib/developerAssets';
+import {
+  countActiveDevelopers,
+  DeveloperAccessStoreError,
+  fetchDeveloperProfileRows,
+  updateDeveloperAssetProfileRules,
+  type DeveloperProfileRow,
+} from '@/features/developer-access/server';
 import { developerAssetTypeToRegistryAssetKind } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
@@ -124,18 +131,6 @@ export interface DeveloperAssetSubmissionRow {
   negative_votes: number | null;
   submitted_at: string;
   updated_at: string | null;
-}
-
-export interface DeveloperProfileRow {
-  clerk_user_id: string;
-  email: string | null;
-  status?: 'invited' | 'active' | 'inactive' | 'suspended' | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  monthly_submission_limit_override?: number | null;
-  monthly_published_requirement_override?: number | null;
-  eligible_for_profit_share?: boolean | null;
-  owner_note?: string | null;
 }
 
 export interface DeveloperProfileOverrideInput {
@@ -498,25 +493,6 @@ export const buildDeveloperAssetProgramView = ({
   };
 };
 
-const countActiveDevelopers = async (): Promise<number> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return 1;
-
-  const { count, error } = await supabase
-    .from('cardforge_developer_profiles')
-    .select('clerk_user_id', { count: 'exact', head: true })
-    .eq('status', 'active');
-
-  if (error) {
-    if (!isMissingDeveloperAssetTableError(error)) {
-      console.error('Failed to count active developers:', error);
-    }
-    return 1;
-  }
-
-  return Math.max(1, count ?? 0);
-};
-
 const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings: DeveloperProgramSettings }> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) {
@@ -556,35 +532,6 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
     configured: true,
     settings: mapDeveloperProgramSettingsRow(data?.[0] as DeveloperProgramSettingsRow | undefined),
   };
-};
-
-const DEVELOPER_PROFILE_COLUMNS =
-  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,eligible_for_profit_share,owner_note';
-const DEVELOPER_PROFILE_BASE_COLUMNS = 'clerk_user_id,email,first_name,last_name';
-
-const fetchDeveloperProfileRows = async (): Promise<DeveloperProfileRow[]> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return [];
-
-  const { data, error } = await supabase
-    .from('cardforge_developer_profiles')
-    .select(DEVELOPER_PROFILE_COLUMNS);
-
-  if (error && isMissingDeveloperAssetColumnError(error)) {
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('cardforge_developer_profiles')
-      .select(DEVELOPER_PROFILE_BASE_COLUMNS);
-    if (!fallbackError) return (fallbackData ?? []) as DeveloperProfileRow[];
-  }
-
-  if (error) {
-    if (!isMissingDeveloperAssetTableError(error)) {
-      console.error('Failed to load developer profiles:', error);
-    }
-    return [];
-  }
-
-  return (data ?? []) as DeveloperProfileRow[];
 };
 
 const fetchSubmissionRows = async (
@@ -782,35 +729,6 @@ export const getDeveloperAssetVotePolicy = async (
   };
 };
 
-export const upsertDeveloperProfile = async ({
-  developerId,
-  email,
-  firstName,
-  lastName,
-}: {
-  developerId: string;
-  email: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-}): Promise<void> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase || !developerId) return;
-
-  const { error } = await supabase
-    .from('cardforge_developer_profiles')
-    .upsert({
-      clerk_user_id: developerId,
-      email,
-      first_name: normalizeShortText(firstName, 80) || null,
-      last_name: normalizeShortText(lastName, 80) || null,
-      status: 'active',
-    }, { onConflict: 'clerk_user_id' });
-
-  if (error && !isMissingDeveloperAssetTableError(error)) {
-    console.error('Failed to upsert developer profile:', error);
-  }
-};
-
 export const updateDeveloperProfileOverrides = async ({
   developerId,
   input,
@@ -835,14 +753,16 @@ export const updateDeveloperProfileOverrides = async ({
     owner_note: normalized.owner_note,
     ...(normalized.status ? { status: normalized.status } : {}),
   };
-  const { error } = await supabase
-    .from('cardforge_developer_profiles')
-    .update(updateRow)
-    .eq('clerk_user_id', normalizedDeveloperId);
-
-  if (error) {
-    console.error('Failed to update developer profile overrides:', error);
-    throw new DeveloperAssetStoreError('Unable to update developer profile rules.', 500);
+  try {
+    await updateDeveloperAssetProfileRules({
+      developerId: normalizedDeveloperId,
+      rules: updateRow,
+    });
+  } catch (error) {
+    if (error instanceof DeveloperAccessStoreError) {
+      throw new DeveloperAssetStoreError(error.message, error.status);
+    }
+    throw error;
   }
 
   return getDeveloperAssetProgramView(currentUserId, currentContributorIds);

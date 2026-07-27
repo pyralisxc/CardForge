@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 import type { TCGCardTemplate } from '@/domain/templates';
+import { getDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
@@ -167,13 +168,8 @@ const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
   if (!PIPELINE_OWNER_EMAIL) {
     throw new Error('CARDFORGE_PIPELINE_OWNER_EMAIL is required for shipped-library writes.');
   }
-  const { data: ownerProfiles } = await supabase
-    .from('cardforge_developer_profiles')
-    .select('clerk_user_id,email')
-    .eq('email', PIPELINE_OWNER_EMAIL)
-    .limit(1);
-  const ownerProfile = ownerProfiles?.[0] as { clerk_user_id?: string; email?: string | null } | undefined;
-  const ownerDeveloperId = ownerProfile?.clerk_user_id || PIPELINE_OWNER_EMAIL;
+  const ownerProfile = await getDeveloperProfileReferenceByEmail(PIPELINE_OWNER_EMAIL);
+  const ownerDeveloperId = ownerProfile?.developerId || PIPELINE_OWNER_EMAIL;
   const ownerEmail = ownerProfile?.email || PIPELINE_OWNER_EMAIL;
 
   const registryPatch = {

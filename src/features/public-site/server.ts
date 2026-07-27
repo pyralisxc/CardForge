@@ -9,7 +9,11 @@ export {
   revalidateSiteContentCache,
   siteContentTag,
 } from './server/publicContentCache';
-export type { SiteContentGroup } from './model/siteContent';
+export type {
+  SiteContentBlock,
+  SiteContentBlockSlug,
+  SiteContentGroup,
+} from './model/siteContent';
 export {
   SITE_MEDIA_BUCKET,
   SITE_MEDIA_SLOTS,
