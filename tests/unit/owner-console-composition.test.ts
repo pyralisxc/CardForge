@@ -80,7 +80,7 @@ describe('Owner Console composition', () => {
   it('keeps the one shared public-site header in App composition', async () => {
     for (const featurePath of [
       'src/features/owner/components/OwnerConsolePage.tsx',
-      'src/features/developer-assets/components/DeveloperProgramPage.tsx',
+      'src/features/developer-program/components/DeveloperProgramPage.tsx',
       'src/features/roadmap/components/RoadmapPage.tsx',
     ]) {
       const source = await readFile(rootPath(featurePath), 'utf8');

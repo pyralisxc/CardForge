@@ -13,7 +13,8 @@ CardForge Studio is a software product created and operated by Cameron Locke, an
 - Account and Founder Beta status: `/account`
 - Profile management: `/profile`
 - Public roadmap and feature voting: `/roadmap`
-- Developer application and asset pipeline: `/developer`
+- Developer application: `/developer`
+- Protected contribution cockpit: `/developer/cockpit`
 - Contact and versioned trust documents: `/contact`, `/privacy`, `/terms`, `/refund`, `/creator-pass-terms`, `/supporter-terms`, `/developer-terms`, `/accessibility`
 - Owner console: `/owner`
 
@@ -70,7 +71,11 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/business-identity/`: canonical operator identity, owner editing, and server-owned Supabase persistence.
 - `src/features/public-site/`: owner-editable marketing/sharing/founder content, shared public navigation, public social/share controls, tagged public caching, portrait processing, and structured search identity.
 - `src/features/legal/`: immutable versioned legal publication, constrained document rendering, and public legal caching.
+- `src/features/developer-access/`: the single owner of developer identity, profile status, contribution grants, and every runtime access to the `cardforge_developer_profiles` persistence boundary.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
+- `src/features/developer-program/`: public developer-program recruitment and explanation.
+- `src/features/developer-cockpit/`: protected cockpit composition, campaign packages, private-to-public media approval, site-copy proposals, and durable review/delivery ledgers.
+- `src/features/social-publishing/`: server-only publishing-provider adapters. Buffer owns channel connections, scheduling, and delivery; it does not own CardForge contribution records or media sources.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.
 - `src/features/roadmap/`: Public roadmap, feature suggestions/votes, and owner roadmap operations.
@@ -88,7 +93,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 CardForge has three storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
-- Supabase-backed shared state for the Forge Pipeline, roadmap voting, Founder Beta claims, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions, votes, and published shared-library assets including reviewed fonts.
+- Supabase-backed shared state for the Forge Pipeline, roadmap voting, Founder Beta claims, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
 - Repo starter/import files that can seed the pipeline with `npm run pipeline:sync-defaults`, but should not silently replace a missing database catalog at runtime.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.
@@ -120,6 +125,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:9002
 Stripe Checkout owns both payment lanes, but their metadata and entitlement behavior are separate. `product_access` uses the authenticated Creator Pass Price and may update CardForge entitlement. `creator_support` offers a server-bounded customer-selected one-time amount plus fixed $1, $5, $10, and $20 monthly Prices, may be used without a CardForge account, and never updates product entitlement. The server verifies each purpose, amount, currency, recurrence, and monthly Price before checkout or webhook processing. Follow [the provider rollout guide](docs/stripe-support-rollout.md) before merging or deploying billing-purpose changes.
 
 Reusable authenticated QA accounts are preferred over disposable user creation. Set the `CARDFORGE_E2E_*` values documented in `.env.example` when running the authenticated smoke suite.
+
+Extended contributor campaigns/site proposals and Buffer publishing are separate release gates. Both default off. Follow the Developer Cockpit and Buffer checklist in [docs/operations.md](docs/operations.md); never expose `BUFFER_API_KEY` to a client bundle or enable publishing before the connected-channel allowlist and production owner flow are verified.
 
 ## Documentation
 

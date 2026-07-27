@@ -3,9 +3,9 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 import {
   DeveloperAssetStoreError,
   getDeveloperAssetVotePolicy,
-  upsertDeveloperProfile,
   voteOnDeveloperAssetSubmission,
 } from '@/features/developer-assets/server';
+import { upsertDeveloperProfile } from '@/features/developer-access/server';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 

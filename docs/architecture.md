@@ -1,8 +1,8 @@
 # CardForge Architecture
 
-Last updated: July 21, 2026
+Last updated: July 27, 2026
 
-CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one developer asset pipeline, and one owner console.
+CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one public developer application, one protected contribution cockpit, and one owner console.
 
 ## Product Truth
 
@@ -12,7 +12,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
 - Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
 - Email: Resend sends transactional messages to the configured support inbox and users.
-- Shared data: Supabase stores owner settings, editable homepage media, legal copy, the founder profile and public portrait object, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles, submissions, votes, and contact request history.
+- Shared data: Supabase stores owner settings, editable homepage media, legal copy, the founder profile and public portrait object, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles/scopes, asset submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider delivery jobs, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
 
 ## Source Lanes
@@ -38,11 +38,13 @@ CardForge has three storage lanes:
 - `src/app/page.tsx`: public landing page.
 - `src/app/studio/page.tsx`: Studio route.
 - `src/app/account/page.tsx`: access, Founder Beta, Creator Pass, roadmap, and profile entry.
-- `src/app/developer/page.tsx`: developer application and Asset Hub.
+- `src/app/developer/page.tsx`: public, indexable developer application.
+- `src/app/developer/cockpit/page.tsx`: protected, noindex contribution workspace.
 - `src/app/owner/page.tsx`: owner console.
 - `src/app/api/billing/*`: Stripe status, checkout, portal, and webhook.
 - `src/app/api/owner/*`: owner console, billing, account, and email operations.
 - `src/app/api/developer-assets/*`: developer pipeline read/write/vote/upload.
+- `src/app/api/developer-cockpit/*`: scoped campaign/site proposal/media operations plus owner-only provider and scope mutations.
 - `src/app/api/assets`, `src/app/api/fonts`, `src/app/api/templates`, `src/app/api/styles`: live catalog/bootstrap APIs.
 
 ## Feature Ownership
@@ -60,7 +62,11 @@ CardForge has three storage lanes:
 - `src/features/legal`: immutable versioned legal-publication contracts, constrained Markdown presentation, tagged public caching, and server-owned Supabase publication.
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
-- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner developer-program controls.
+- `src/features/developer-access`: the single developer identity and authorization owner. It owns profile status, contribution-scope resolution, owner grant mutations, and every runtime access to `cardforge_developer_profiles`.
+- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls.
+- `src/features/developer-program`: public developer-program recruitment and explanation.
+- `src/features/developer-cockpit`: protected cockpit composition, CardForge-owned campaign/site proposal ledgers, media approval, and workflow state transitions.
+- `src/features/social-publishing`: server-only provider boundary. Buffer owns channel connections, post scheduling, and delivery status; CardForge owns package content, approval history, source media, and the durable mapping to provider post IDs.
 - `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Business identity, Founder Beta, account administration, billing, and public content remain owned by their product features.
 - `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
 - `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.
@@ -89,6 +95,7 @@ App routes compose the public-site-owned shared header. The Owner Console keeps 
 - Founder Beta users get time-limited clean export access while seats remain available.
 - Creator Pass users get paid clean export access through Stripe.
 - Developer access grants export plus pipeline tools.
+- Active developer access grants asset submission/review. Campaign drafting and site-copy proposals are separate owner-managed scopes and remain globally gated until updated contribution terms/privacy are published.
 - Owner access grants owner console plus developer-grade tools.
 - Public Clerk metadata is display-only and must not grant paid/dev/owner access.
 
@@ -109,6 +116,23 @@ Developer submissions and CardForge starter assets use one lifecycle:
 Assets can also be `archived` or `rejected`. Published creator-facing tiers are `free` and `paid`; internal `developer` and `hidden` values are pipeline states, not extra customer library tiers.
 
 The current developer pipeline is operational infrastructure, not an active payout system. The former Creator Pool page is an archived, noindex notice and is not promoted as an access tier or active program.
+
+## Developer Contribution Cockpit
+
+`/developer` recruits and explains the program. `/developer/cockpit` is the protected working surface. It composes, but does not absorb, four owners:
+
+- `developer-access` owns developer identity, active/inactive status, scope resolution, and owner-managed contribution grants.
+- `developer-assets` retains the existing asset submission, peer voting, publishing, archive, and recovery lifecycle.
+- `developer-cockpit` owns marketing campaign packages and site-copy proposals, including contributor attribution, versions, review notes, and owner decisions.
+- `social-publishing` owns the Buffer protocol adapter. The API key is server-only and provider mutations require both owner access and `CARDFORGE_BUFFER_PUBLISHING_ENABLED=true`.
+
+Non-owner developers never gain approval, site publication, provider configuration, or scheduling powers. New campaign/site scopes default false in Supabase and are additionally hidden behind `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED`. Campaign images are normalized into a private source bucket; owner campaign approval copies only reviewed derivatives into the stable public bucket Buffer can fetch. Raw or unapproved media is never sent to Buffer.
+
+Campaigns use the durable lifecycle:
+
+`draft -> submitted -> changes_requested -> approved -> provider_draft | scheduled -> published`
+
+Provider errors remain recorded and retryable; cancellation is terminal. Site proposals capture the live block they were based on. The atomic owner publication function rejects stale proposals rather than overwriting newer live copy.
 
 ## Public delivery and search identity
 

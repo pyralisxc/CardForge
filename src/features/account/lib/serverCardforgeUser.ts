@@ -1,9 +1,9 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 
 import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
+import { getDeveloperProfileIdentity } from '@/features/developer-access/server';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
-import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 const CLERK_USER_READ_TIMEOUT_MS = 3000;
 
@@ -110,37 +110,17 @@ const getProfileFallbackUser = async (
   userId: string,
   claims: Metadata | null,
 ): Promise<CardforgeServerUser> => {
-  const supabase = getSupabaseServerClient();
   const fallbackEmailAddresses = readEmailClaims(claims);
   const fallbackPrivateMetadata = readMetadataClaims(claims);
-
-  if (!supabase) {
-    return {
-      id: userId,
-      email: fallbackEmailAddresses[0] ?? null,
-      emailAddresses: fallbackEmailAddresses,
-      firstName: null,
-      lastName: null,
-      publicMetadata: {},
-      privateMetadata: fallbackPrivateMetadata,
-      source: 'session_profile',
-    };
-  }
-
-  const { data } = await supabase
-    .from('cardforge_developer_profiles')
-    .select('email,first_name,last_name')
-    .eq('clerk_user_id', userId)
-    .limit(1);
-  const profile = data?.[0] as { email?: string | null; first_name?: string | null; last_name?: string | null } | undefined;
+  const profile = await getDeveloperProfileIdentity(userId);
   const email = profile?.email ?? fallbackEmailAddresses[0] ?? null;
 
   return {
     id: userId,
     email,
     emailAddresses: email ? [email] : fallbackEmailAddresses,
-    firstName: profile?.first_name ?? null,
-    lastName: profile?.last_name ?? null,
+    firstName: profile?.firstName ?? null,
+    lastName: profile?.lastName ?? null,
     publicMetadata: {},
     privateMetadata: fallbackPrivateMetadata,
     source: 'session_profile',

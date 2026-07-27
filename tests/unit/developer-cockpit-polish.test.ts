@@ -1,0 +1,78 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { normalizeCampaignInput } from '@/features/developer-cockpit/model';
+
+const root = process.cwd();
+const sourcePath = (...segments: string[]) => resolve(root, 'src', ...segments);
+
+const collectSourceFiles = (directory: string): string[] => readdirSync(directory)
+  .flatMap((entry) => {
+    const path = join(directory, entry);
+    return statSync(path).isDirectory() ? collectSourceFiles(path) : [path];
+  })
+  .filter((path) => path.endsWith('.ts') || path.endsWith('.tsx'));
+
+describe('developer cockpit polish contract', () => {
+  it('rejects oversized campaign copy instead of silently truncating it', () => {
+    const result = normalizeCampaignInput({
+      title: 'x'.repeat(121),
+      objective: 'A clear objective.',
+      variants: [{ service: 'facebook', text: 'Channel copy.' }],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: 'Campaign name must be 120 characters or fewer.',
+    });
+  });
+
+  it('gives the developer profile table one source owner', () => {
+    const owners = collectSourceFiles(sourcePath())
+      .filter((path) => readFileSync(path, 'utf8').includes(".from('cardforge_developer_profiles')"))
+      .map((path) => relative(root, path).replaceAll('\\', '/'));
+
+    expect(owners).toEqual([
+      'src/features/developer-access/server/profileStore.ts',
+    ]);
+  });
+
+  it('keeps campaign orchestration small and exposes deliberate lifecycle controls', () => {
+    const panel = readFileSync(
+      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCampaignPanel.tsx'),
+      'utf8',
+    );
+    const queue = readFileSync(
+      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCampaignQueue.tsx'),
+      'utf8',
+    );
+
+    expect(panel.split(/\r?\n/u).length).toBeLessThan(180);
+    expect(queue).toContain('Withdraw submission');
+    expect(queue).toContain('Cancel draft');
+    expect(queue).toContain('CockpitConfirmationDialog');
+  });
+
+  it('confirms live site publication and supports proposal withdrawal', () => {
+    const proposalPanel = readFileSync(
+      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperSiteProposalPanel.tsx'),
+      'utf8',
+    );
+
+    expect(proposalPanel).toContain('CockpitConfirmationDialog');
+    expect(proposalPanel).toContain('Publish to live site');
+    expect(proposalPanel).toContain('Withdraw proposal');
+  });
+
+  it('uses a compact mobile cockpit navigator', () => {
+    const cockpitPage = readFileSync(
+      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCockpitPage.tsx'),
+      'utf8',
+    );
+
+    expect(cockpitPage).toContain('aria-label="Cockpit section"');
+    expect(cockpitPage).toContain('hidden sm:flex');
+  });
+});
