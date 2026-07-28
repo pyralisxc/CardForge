@@ -82,8 +82,8 @@ export function DeveloperCampaignPanel({
         <div className="flex items-center gap-3">
           <Megaphone className="h-5 w-5 text-[#e2aa4a]" />
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Campaign operations</p>
-            <p className="text-sm text-[#c7b288]">Review the queue first; open the composer only when you need it.</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Campaign production</p>
+            <p className="text-sm text-[#c7b288]">Build durable packages that keep proof, rights, channel copy, media, approval, and delivery together.</p>
           </div>
         </div>
         {canDraft && !showComposer ? (

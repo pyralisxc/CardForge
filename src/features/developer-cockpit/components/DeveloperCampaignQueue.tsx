@@ -11,8 +11,14 @@ import {
   type DeveloperCockpitView,
   type ProviderChannelBinding,
 } from '@/features/developer-cockpit/client/api';
+import {
+  getCampaignStatusGuidance,
+  matchesCampaignQueueFilter,
+  type CampaignQueueFilter,
+} from '@/features/developer-cockpit/client/campaignWorkflow';
 import { CockpitConfirmationDialog } from '@/features/developer-cockpit/components/CockpitConfirmationDialog';
 import { toLocalDateTime } from '@/features/developer-cockpit/components/DeveloperCampaignComposer';
+import { DeveloperCampaignPackageDetails } from '@/features/developer-cockpit/components/DeveloperCampaignPackageDetails';
 import {
   SOCIAL_SERVICE_LABELS,
   canTransitionCampaign,
@@ -20,7 +26,6 @@ import {
 } from '@/features/developer-cockpit/model';
 
 const fieldClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]';
-type QueueFilter = 'review' | 'active' | 'published' | 'cancelled' | 'all';
 
 export function DeveloperCampaignQueue({
   cockpit,
@@ -37,7 +42,9 @@ export function DeveloperCampaignQueue({
 }) {
   const canApprove = cockpit.scopes.includes('campaigns.approve');
   const canPublish = cockpit.scopes.includes('campaigns.publish');
-  const [filter, setFilter] = useState<QueueFilter>(cockpit.isOwner ? 'review' : 'active');
+  const [filter, setFilter] = useState<CampaignQueueFilter>(
+    cockpit.isOwner ? 'needs_action' : 'active',
+  );
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
@@ -55,19 +62,27 @@ export function DeveloperCampaignQueue({
   const campaigns = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return cockpit.campaigns.filter((campaign) => {
-      const matchesFilter = filter === 'all'
-        || (filter === 'review' && campaign.status === 'submitted')
-        || (filter === 'active' && !['published', 'cancelled'].includes(campaign.status))
-        || campaign.status === filter;
+      const matchesFilter = matchesCampaignQueueFilter(campaign, filter, {
+        currentUserId: cockpit.currentUserId,
+        isOwner: cockpit.isOwner,
+      });
       const matchesQuery = !normalizedQuery || [
         campaign.title,
         campaign.objective,
+        campaign.sourceReference,
+        campaign.licenseNotes,
         campaign.contributorName,
         campaign.contributorEmail,
       ].some((value) => value?.toLowerCase().includes(normalizedQuery));
       return matchesFilter && matchesQuery;
     });
-  }, [cockpit.campaigns, filter, query]);
+  }, [
+    cockpit.campaigns,
+    cockpit.currentUserId,
+    cockpit.isOwner,
+    filter,
+    query,
+  ]);
 
   const run = async (key: string, success: string, action: () => Promise<DeveloperCockpitView>) => {
     setBusy(key);
@@ -131,7 +146,7 @@ export function DeveloperCampaignQueue({
             <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Working queue</p>
             <h2 id="campaign-queue-heading" className="font-serif text-2xl text-[#fff1c7]">{cockpit.isOwner ? 'Campaign review and delivery' : 'Your campaign packages'}</h2>
           </div>
-          <p className="text-sm text-[#c7b288]">{campaigns.length} shown · {cockpit.campaigns.length} total</p>
+          <p className="text-sm text-[#c7b288]">{campaigns.length} shown / {cockpit.campaigns.length} total</p>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
           <label className="relative">
@@ -139,7 +154,22 @@ export function DeveloperCampaignQueue({
             <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-[#a98a55]" />
             <input type="search" className={`${fieldClassName} pl-10`} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, objective, or contributor" />
           </label>
-          <label><span className="sr-only">Filter campaign packages</span><select aria-label="Filter campaign packages" className={fieldClassName} value={filter} onChange={(event) => setFilter(event.target.value as QueueFilter)}><option value="review">Needs review</option><option value="active">Active work</option><option value="published">Published</option><option value="cancelled">Cancelled</option><option value="all">All packages</option></select></label>
+          <label>
+            <span className="sr-only">Filter campaign packages</span>
+            <select
+              aria-label="Filter campaign packages"
+              className={fieldClassName}
+              value={filter}
+              onChange={(event) => setFilter(event.target.value as CampaignQueueFilter)}
+            >
+              {cockpit.isOwner ? <option value="needs_action">Needs owner action</option> : null}
+              {cockpit.isOwner ? <option value="review">Awaiting review</option> : null}
+              <option value="active">Active work</option>
+              <option value="published">Published</option>
+              <option value="cancelled">Closed</option>
+              <option value="all">All packages</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -166,7 +196,16 @@ export function DeveloperCampaignQueue({
               <div>
                 <div className="flex flex-wrap items-center gap-2"><h3 className="font-serif text-xl text-[#fff1c7]">{campaign.title}</h3><StatusBadge status={campaign.status} /></div>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">{campaign.objective}</p>
-                <p className="mt-2 text-xs text-[#a98a55]">{campaign.contributorName ?? campaign.contributorEmail ?? campaign.contributorId} · v{campaign.version} · {campaign.variants.map((variant) => SOCIAL_SERVICE_LABELS[variant.service]).join(', ')}</p>
+                <p className="mt-2 text-xs text-[#a98a55]">
+                  {campaign.contributorName ?? campaign.contributorEmail ?? campaign.contributorId}
+                  {' / '}
+                  version {campaign.version}
+                  {' / '}
+                  {campaign.variants.length} channel deliverable{campaign.variants.length === 1 ? '' : 's'}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-[#d2b77e]">
+                  {getCampaignStatusGuidance(campaign.status, cockpit.isOwner)}
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {canEdit ? <Button type="button" className="min-h-11" variant="outline" onClick={() => onEdit(campaign)}>Edit</Button> : null}
@@ -185,7 +224,7 @@ export function DeveloperCampaignQueue({
             </div>
 
             {campaign.reviewNote ? <p className="mt-3 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">Owner note: {campaign.reviewNote}</p> : null}
-            <div className="mt-4 grid gap-3 md:grid-cols-2">{campaign.variants.map((variant) => <div key={variant.service} className="border border-[#4a3823] bg-[#100c08] p-3"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">{SOCIAL_SERVICE_LABELS[variant.service]}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#d8c49a]">{variant.text}</p>{variant.media.length ? <p className="mt-2 text-xs text-[#a98a55]">{variant.media.length} image{variant.media.length === 1 ? '' : 's'} awaiting the same package decision</p> : null}</div>)}</div>
+            <DeveloperCampaignPackageDetails campaign={campaign} jobs={jobs} />
 
             {canApprove && campaign.status === 'submitted' ? (
               <div className="mt-4 border border-[#8c6436] bg-[#1b1209] p-4">
@@ -219,7 +258,26 @@ export function DeveloperCampaignQueue({
               </div>
             ) : null}
 
-            {jobs.length ? <div className="mt-4 flex flex-wrap items-center gap-2">{jobs.map((job) => <span key={job.id} className="border border-[#4a3823] px-2 py-1 text-xs text-[#c7b288]">{SOCIAL_SERVICE_LABELS[job.service]} · {job.status}{job.errorMessage ? ` · ${job.errorMessage}` : ''}</span>)}{canPublish ? <Button type="button" className="min-h-11" variant="ghost" onClick={() => void run(`refresh:${campaign.id}`, 'Buffer delivery status refreshed.', () => mutateDeveloperCockpit('provider', 'POST', { action: 'refresh', campaignId: campaign.id }))}><RefreshCw className="mr-2 h-4 w-4" />Refresh status</Button> : null}</div> : null}
+            {jobs.length && canPublish ? (
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  className="min-h-11"
+                  variant="ghost"
+                  onClick={() => void run(
+                    `refresh:${campaign.id}`,
+                    'Buffer delivery status refreshed.',
+                    () => mutateDeveloperCockpit('provider', 'POST', {
+                      action: 'refresh',
+                      campaignId: campaign.id,
+                    }),
+                  )}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh delivery status
+                </Button>
+              </div>
+            ) : null}
           </article>
         );
       })}

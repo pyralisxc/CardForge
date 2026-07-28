@@ -3,6 +3,11 @@ import { join, relative, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import {
+  getCampaignPackageReadiness,
+  isCampaignActionable,
+  matchesCampaignQueueFilter,
+} from '@/features/developer-cockpit/client/campaignWorkflow';
 import { normalizeCampaignInput } from '@/features/developer-cockpit/model';
 
 const root = process.cwd();
@@ -55,6 +60,80 @@ describe('developer cockpit polish contract', () => {
     expect(queue).toContain('CockpitConfirmationDialog');
   });
 
+  it('keeps owner work visible from review through publishing setup', () => {
+    const campaign = {
+      contributorId: 'developer-1',
+      status: 'submitted' as const,
+    };
+
+    expect(isCampaignActionable(campaign, {
+      currentUserId: 'owner-1',
+      isOwner: true,
+    })).toBe(true);
+    expect(isCampaignActionable({
+      ...campaign,
+      status: 'approved',
+    }, {
+      currentUserId: 'owner-1',
+      isOwner: true,
+    })).toBe(true);
+    expect(matchesCampaignQueueFilter({
+      ...campaign,
+      status: 'published',
+    }, 'needs_action', {
+      currentUserId: 'owner-1',
+      isOwner: true,
+    })).toBe(false);
+  });
+
+  it('makes package readiness visible without making optional production signals persistence requirements', () => {
+    expect(getCampaignPackageReadiness({
+      title: '',
+      objective: '',
+      sourceReference: '',
+      licenseNotes: '',
+      variants: [{ service: 'facebook', text: '', media: [] }],
+    })).toMatchObject({
+      completed: 0,
+      total: 5,
+      readyToSave: false,
+    });
+
+    expect(getCampaignPackageReadiness({
+      title: 'Release proof',
+      objective: 'Show what changed.',
+      sourceReference: 'PR #88',
+      licenseNotes: 'CardForge-owned capture.',
+      variants: [{
+        service: 'facebook',
+        text: 'The cockpit is ready.',
+        media: [{
+          sourceBucket: 'cardforge-social-sources',
+          sourcePath: 'developer-1/capture.webp',
+          publicUrl: null,
+          alt: 'The CardForge Developer Cockpit campaign queue.',
+        }],
+      }],
+    })).toMatchObject({
+      completed: 5,
+      total: 5,
+      readyToSave: true,
+    });
+  });
+
+  it('shows reviewers campaign proof instead of approving an image count', () => {
+    const details = readFileSync(
+      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCampaignPackageDetails.tsx'),
+      'utf8',
+    );
+
+    expect(details).toContain('Production context');
+    expect(details).toContain('Source or release');
+    expect(details).toContain('Rights and ownership');
+    expect(details).toContain('<Image');
+    expect(details).toContain('media.alt');
+  });
+
   it('confirms live site publication and supports proposal withdrawal', () => {
     const proposalPanel = readFileSync(
       sourcePath('features', 'developer-cockpit', 'components', 'DeveloperSiteProposalPanel.tsx'),
@@ -74,5 +153,6 @@ describe('developer cockpit polish contract', () => {
 
     expect(cockpitPage).toContain('aria-label="Cockpit section"');
     expect(cockpitPage).toContain('hidden sm:flex');
+    expect(cockpitPage).toContain("label: 'Asset Contributions'");
   });
 });

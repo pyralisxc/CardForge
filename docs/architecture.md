@@ -134,6 +134,8 @@ Campaigns use the durable lifecycle:
 
 Provider errors remain recorded and retryable; cancellation is terminal. Site proposals capture the live block they were based on. The atomic owner publication function rejects stale proposals rather than overwriting newer live copy.
 
+The current human/agent workflow assessment, campaign-media catalog recommendation, and continuous-production roadmap live in [the Developer Cockpit UX and media workflow audit](developer-cockpit-ux-media-audit.md). That audit may refine presentation and future sequencing, but it does not override the ownership and security boundaries above.
+
 ## Public delivery and search identity
 
 Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, founder-profile, homepage-media, content-group, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
