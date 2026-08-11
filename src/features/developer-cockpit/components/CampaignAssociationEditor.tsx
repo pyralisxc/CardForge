@@ -106,7 +106,7 @@ export function CampaignAssociationEditor({
                   onChange={(event) => update(index, {
                     externalKey: event.target.value,
                   })}
-                  placeholder="PR #94, v0.1.0, or feature key"
+                  placeholder="PR #123, v1.2.0, or feature key"
                 />
               </label>
               <label className="grid gap-1 text-xs text-[#c7b288]">

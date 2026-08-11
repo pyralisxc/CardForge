@@ -137,7 +137,7 @@ Campaigns use the durable lifecycle:
 
 Provider errors remain recorded and retryable; cancellation is terminal. Site proposals capture the live block they were based on. The atomic owner publication function rejects stale proposals rather than overwriting newer live copy.
 
-The [Developer Cockpit media workflow document](developer-cockpit-ux-media-audit.md) records the current human and scoped-agent contract, including the owner-only Campaign Media Library and future derivative automation boundaries.
+The [Developer Cockpit media workflow document](developer-cockpit-media-workflow.md) records the current human and scoped-agent contract, including the owner-only Campaign Media Library and future derivative automation boundaries.
 
 ## Public delivery and search identity
 

@@ -174,15 +174,26 @@ CARDFORGE_BUFFER_PUBLISHING_ENABLED=false
 
 Treat `CARDFORGE_BUFFER_ALLOWED_CHANNEL_IDS` as the production blast-radius boundary. List only the connected Facebook/Instagram/other channel IDs CardForge intends to operate. A blank allowlist exposes every channel the account key can reach and is not acceptable for production enablement.
 
+### Current cockpit baseline
+
+The production schema and repository history agree as of August 11, 2026:
+
+- The Developer Cockpit schema, Founder Beta retirement cleanup, and campaign-attachment index are applied.
+- Campaign/media tables use RLS, browser roles have no privileges, and transaction functions remain service-role only.
+- The cockpit RPCs, retired demo tables/RPC, active developer profile, legal publications, and derivative index were verified after migration.
+- Supabase security and performance advisors found no warning/error security issue or uncovered foreign key. Informational no-policy notices are expected for service-role-only tables; new indexes remain unused until production traffic exercises them.
+- `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_BUFFER_PUBLISHING_ENABLED` remain false. No contributor scope or Buffer mutation was enabled by the database rollout.
+
+Do not replay the applied migrations as an activation step. New database work must use a forward migration.
+
 Preflight before activating extended contributors:
 
-1. Before applying `20260727090000_developer_contribution_cockpit.sql`, confirm production migration history still does not contain it and that `cardforge_social_campaigns`, `cardforge_campaign_media`, `cardforge_campaign_media_derivatives`, `cardforge_social_campaign_media_attachments`, `cardforge_social_campaign_associations`, `cardforge_social_publish_jobs`, and `cardforge_site_content_proposals` do not exist. This is the first and final cockpit schema; do not add a compatibility migration solely for the retired bucket/path contract.
-2. Apply the migration in an approved rollout window. Confirm every cockpit/media table has RLS enabled; `anon` and `authenticated` have no privileges; and only `service_role` has table/function access. Exercise the atomic campaign create, campaign update, campaign approval, and site-proposal publication functions with a disposable QA record. Force one invalid relationship and one stale version; confirm each transaction leaves the parent row, relationships, approval state, and version unchanged.
+1. Confirm the published privacy notice and developer terms cover marketing/site-copy contributions, attribution/history, provider delivery, and approved public media. Publish a reviewed new version if the current text is insufficient.
+2. Exercise the atomic campaign create, campaign update, campaign approval, and site-proposal publication functions with a disposable QA record. Force one invalid relationship and one stale version; confirm each transaction leaves the parent row, relationships, approval state, and version unchanged.
 3. Confirm `cardforge-social-sources` is private and retains both the protected immutable original and protected normalized WebP master. Confirm `cardforge-social-media` is public only for explicitly approved derivatives, with the documented JPEG/PNG/WebP 12 MiB ingest limit.
-4. Run Supabase security and performance advisors, resolve relevant warnings, and record the results before enabling any contribution scope.
-5. Publish reviewed new versions of the privacy notice and developer terms that cover marketing/site-copy contributions, attribution/history, provider delivery, and approved public media. Do not enable non-owner campaign/site scopes before that legal publication.
-6. In the owner cockpit, grant campaign and site scopes only to the intended active developer QA account; confirm another developer remains asset-only.
-7. Set `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED=true`, deploy, and verify the scoped developer can ingest/reuse media by ID and draft/submit, but cannot approve, expose media, publish site copy, load channels, or call provider mutations. Verify the owner Media Library shows provenance, relationships, and metadata totals without raw object paths.
+4. Re-run Supabase security and performance advisors after any follow-up migration and resolve relevant warnings before enabling a contribution scope.
+5. In the owner cockpit, grant campaign and site scopes only to the intended active developer QA account; confirm another developer remains asset-only.
+6. Set `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED=true`, deploy, and verify the scoped developer can ingest/reuse media by ID and draft/submit, but cannot approve, expose media, publish site copy, load channels, or call provider mutations. Verify the owner Media Library shows provenance, relationships, and metadata totals without raw object paths.
 
 Preflight before activating Buffer:
 

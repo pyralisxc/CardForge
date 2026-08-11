@@ -7,7 +7,7 @@ import {
 } from '@/features/social-publishing/server/bufferPublisher';
 
 describe('Buffer publishing adapter', () => {
-  it('stays disabled unless the explicit publishing switch and server credentials are present', () => {
+  it('stays disabled unless credentials, the switch, and an exact channel allowlist are present', () => {
     expect(getBufferConfiguration({})).toMatchObject({
       configured: false,
       publishingEnabled: false,
@@ -19,6 +19,25 @@ describe('Buffer publishing adapter', () => {
     })).toMatchObject({
       configured: true,
       publishingEnabled: false,
+    });
+    expect(getBufferConfiguration({
+      BUFFER_API_KEY: 'secret',
+      BUFFER_ORGANIZATION_ID: 'org-1',
+      CARDFORGE_BUFFER_PUBLISHING_ENABLED: 'true',
+    })).toMatchObject({
+      configured: true,
+      publishingEnabled: false,
+      allowedChannelIds: [],
+    });
+    expect(getBufferConfiguration({
+      BUFFER_API_KEY: 'secret',
+      BUFFER_ORGANIZATION_ID: 'org-1',
+      CARDFORGE_BUFFER_ALLOWED_CHANNEL_IDS: 'channel-1, channel-2',
+      CARDFORGE_BUFFER_PUBLISHING_ENABLED: 'true',
+    })).toMatchObject({
+      configured: true,
+      publishingEnabled: true,
+      allowedChannelIds: ['channel-1', 'channel-2'],
     });
   });
 

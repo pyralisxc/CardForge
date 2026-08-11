@@ -47,7 +47,6 @@ const searchableText = (file: string): string => readFileSync(file, 'utf8')
 describe('current operator repository policy', () => {
   it('allows the retired operator only in immutable history and approved transition records', () => {
     const allowed = [
-      'docs/cardforge-public-identity-overhaul-design.md',
       'docs/operator-identity-and-transfer-runbook.md',
       'supabase/migrations/202607140005_legal_business_identity.sql',
       'supabase/migrations/20260716210518_business_identity_foundation.sql',

@@ -49,18 +49,21 @@ export const getBufferConfiguration = (
 ): BufferConfiguration => {
   const apiKey = environment.BUFFER_API_KEY?.trim() ?? '';
   const organizationId = environment.BUFFER_ORGANIZATION_ID?.trim() ?? '';
+  const allowedChannelIds = (environment.CARDFORGE_BUFFER_ALLOWED_CHANNEL_IDS ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
   const missing = [
     ...(!apiKey ? ['BUFFER_API_KEY'] : []),
     ...(!organizationId ? ['BUFFER_ORGANIZATION_ID'] : []),
   ];
   return {
     configured: missing.length === 0,
-    publishingEnabled: environment.CARDFORGE_BUFFER_PUBLISHING_ENABLED === 'true',
+    publishingEnabled:
+      environment.CARDFORGE_BUFFER_PUBLISHING_ENABLED === 'true'
+      && allowedChannelIds.length > 0,
     organizationId: organizationId || null,
-    allowedChannelIds: (environment.CARDFORGE_BUFFER_ALLOWED_CHANNEL_IDS ?? '')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean),
+    allowedChannelIds,
     missing,
   };
 };

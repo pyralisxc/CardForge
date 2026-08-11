@@ -2,7 +2,7 @@
 
 Last updated: August 11, 2026
 
-`developer-cockpit` owns campaign packages, canonical campaign media, review history, production associations, and the Campaign Media Library. `developer-access` owns contributor identity/status/scopes. `social-publishing` owns the server-only provider boundary. Supabase owns durable metadata and objects; Buffer owns only future connected-channel delivery.
+`developer-cockpit` owns campaign packages, canonical campaign media, review history, production associations, and the Campaign Media Library. `developer-access` owns contributor identity/status/scopes. `social-publishing` owns the server-only provider boundary. Supabase owns durable metadata and objects; Buffer owns only gated connected-channel delivery.
 
 ## Canonical production model
 
@@ -36,7 +36,7 @@ Agents and contributors cannot approve/promote media, expose private media, conf
 
 All cockpit/media tables have RLS and browser roles have no privileges. Transaction functions are executable only by `service_role`. The application uses the existing server-owned Supabase boundary. ID-based media previews resolve both parent-media and derivative access on the server; clients cannot submit arbitrary bucket/path values or traverse storage paths. Contributor media responses omit other campaigns and delivery history even when the underlying media is reusable.
 
-`CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_BUFFER_PUBLISHING_ENABLED` remain false by default. This change does not apply a production migration, grant scopes, connect Buffer, create provider drafts, schedule, publish, or alter legal terms. Follow the final migration and verification order in `docs/operations.md`.
+The cockpit schema, retirement cleanup, and derivative-attachment index are applied in production and recorded in repository history. `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_BUFFER_PUBLISHING_ENABLED` remain false by default. Production has not delegated campaign/site scopes or enabled Buffer mutations. Follow the remaining legal, scoped-QA, channel-allowlist, draft, and harmless-post checks in `docs/operations.md` before either gate changes.
 
 ## Deferred production automation
 
