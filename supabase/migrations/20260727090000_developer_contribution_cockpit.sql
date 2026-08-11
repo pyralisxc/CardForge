@@ -87,7 +87,7 @@ create table if not exists public.cardforge_campaign_media_derivatives (
   crop_width numeric(5,4),
   crop_height numeric(5,4),
   exposure text not null default 'private' check (exposure in ('private', 'public')),
-  promotion_key text,
+  promotion_key text not null check (char_length(promotion_key) between 16 and 160),
   approved_by text,
   approved_at timestamptz,
   created_at timestamptz not null default now(),
@@ -95,21 +95,29 @@ create table if not exists public.cardforge_campaign_media_derivatives (
     (crop_x is null and crop_y is null and crop_width is null and crop_height is null)
     or (crop_x between 0 and 1 and crop_y between 0 and 1 and crop_width > 0 and crop_width <= 1 and crop_height > 0 and crop_height <= 1)
   ),
-  unique (parent_media_id, purpose, promotion_key)
+  unique (parent_media_id, purpose, promotion_key),
+  unique (id, parent_media_id)
 );
 
 create table if not exists public.cardforge_social_campaign_media_attachments (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid not null references public.cardforge_social_campaigns(id) on delete cascade,
-  service text not null,
+  service text not null check (service in (
+    'facebook', 'instagram', 'threads', 'bluesky', 'linkedin', 'x',
+    'pinterest', 'tiktok', 'youtube', 'mastodon', 'googlebusiness'
+  )),
   media_id uuid not null references public.cardforge_campaign_media(id) on delete restrict,
-  derivative_id uuid references public.cardforge_campaign_media_derivatives(id) on delete restrict,
+  derivative_id uuid,
   display_order integer not null default 0 check (display_order >= 0 and display_order < 100),
   alt_text text not null check (char_length(alt_text) between 1 and 300),
   caption_override text not null default '' check (char_length(caption_override) <= 1000),
   crop_intent jsonb not null default '{}'::jsonb check (jsonb_typeof(crop_intent) = 'object'),
   created_at timestamptz not null default now(),
-  unique (campaign_id, service, media_id, display_order)
+  unique (campaign_id, service, media_id),
+  unique (campaign_id, service, display_order),
+  foreign key (derivative_id, media_id)
+    references public.cardforge_campaign_media_derivatives(id, parent_media_id)
+    on delete restrict
 );
 
 create table if not exists public.cardforge_social_campaign_associations (
@@ -130,7 +138,10 @@ create table if not exists public.cardforge_social_publish_jobs (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid not null references public.cardforge_social_campaigns(id) on delete cascade,
   provider text not null default 'buffer' check (provider = 'buffer'),
-  service text not null,
+  service text not null check (service in (
+    'facebook', 'instagram', 'threads', 'bluesky', 'linkedin', 'x',
+    'pinterest', 'tiktok', 'youtube', 'mastodon', 'googlebusiness'
+  )),
   provider_channel_id text not null,
   provider_post_id text,
   status text not null check (status in ('provider_draft', 'scheduled', 'published', 'failed', 'cancelled', 'unknown')),
@@ -198,6 +209,330 @@ alter table public.cardforge_site_content_proposals enable row level security;
 
 revoke all privileges on public.cardforge_social_campaigns, public.cardforge_campaign_media, public.cardforge_campaign_media_derivatives, public.cardforge_social_campaign_media_attachments, public.cardforge_social_campaign_associations, public.cardforge_social_publish_jobs, public.cardforge_site_content_proposals from public, anon, authenticated;
 grant all privileges on public.cardforge_social_campaigns, public.cardforge_campaign_media, public.cardforge_campaign_media_derivatives, public.cardforge_social_campaign_media_attachments, public.cardforge_social_campaign_associations, public.cardforge_social_publish_jobs, public.cardforge_site_content_proposals to service_role;
+
+create or replace function public.cardforge_replace_social_campaign_relationships(
+  p_campaign_id uuid,
+  p_attachments jsonb,
+  p_associations jsonb,
+  p_actor_id text
+)
+returns void language plpgsql security invoker set search_path = '' as $$
+begin
+  delete from public.cardforge_social_campaign_media_attachments
+  where campaign_id = p_campaign_id;
+
+  insert into public.cardforge_social_campaign_media_attachments (
+    campaign_id,
+    service,
+    media_id,
+    derivative_id,
+    display_order,
+    alt_text,
+    caption_override,
+    crop_intent
+  )
+  select
+    p_campaign_id,
+    attachment.service,
+    attachment.media_id,
+    attachment.derivative_id,
+    attachment.display_order,
+    attachment.alt_text,
+    attachment.caption_override,
+    coalesce(attachment.crop_intent, '{}'::jsonb)
+  from jsonb_to_recordset(coalesce(p_attachments, '[]'::jsonb)) as attachment (
+    service text,
+    media_id uuid,
+    derivative_id uuid,
+    display_order integer,
+    alt_text text,
+    caption_override text,
+    crop_intent jsonb
+  );
+
+  delete from public.cardforge_social_campaign_associations
+  where campaign_id = p_campaign_id;
+
+  insert into public.cardforge_social_campaign_associations (
+    campaign_id,
+    kind,
+    external_key,
+    reference_url,
+    title_snapshot,
+    metadata_snapshot,
+    note,
+    created_by
+  )
+  select
+    p_campaign_id,
+    association.kind,
+    association.external_key,
+    association.reference_url,
+    association.title_snapshot,
+    coalesce(association.metadata_snapshot, '{}'::jsonb),
+    association.note,
+    p_actor_id
+  from jsonb_to_recordset(coalesce(p_associations, '[]'::jsonb)) as association (
+    kind text,
+    external_key text,
+    reference_url text,
+    title_snapshot text,
+    metadata_snapshot jsonb,
+    note text
+  );
+end;
+$$;
+
+create or replace function public.cardforge_create_social_campaign(
+  p_contributor_id text,
+  p_contributor_email text,
+  p_contributor_name text,
+  p_idempotency_key text,
+  p_title text,
+  p_objective text,
+  p_destination_url text,
+  p_production_note text,
+  p_variants jsonb,
+  p_requested_publish_at timestamptz,
+  p_attachments jsonb,
+  p_associations jsonb
+)
+returns uuid language plpgsql security invoker set search_path = '' as $$
+declare
+  campaign_id uuid;
+begin
+  select id into campaign_id
+  from public.cardforge_social_campaigns
+  where contributor_id = p_contributor_id
+    and creation_idempotency_key = p_idempotency_key;
+
+  if found then
+    return campaign_id;
+  end if;
+
+  begin
+    insert into public.cardforge_social_campaigns (
+      contributor_id,
+      contributor_email,
+      contributor_name,
+      creation_idempotency_key,
+      title,
+      objective,
+      destination_url,
+      production_note,
+      variants,
+      requested_publish_at,
+      status
+    ) values (
+      p_contributor_id,
+      p_contributor_email,
+      p_contributor_name,
+      p_idempotency_key,
+      p_title,
+      p_objective,
+      p_destination_url,
+      p_production_note,
+      p_variants,
+      p_requested_publish_at,
+      'draft'
+    )
+    returning id into campaign_id;
+  exception when unique_violation then
+    select id into campaign_id
+    from public.cardforge_social_campaigns
+    where contributor_id = p_contributor_id
+      and creation_idempotency_key = p_idempotency_key;
+
+    if not found then
+      raise;
+    end if;
+
+    return campaign_id;
+  end;
+
+  perform public.cardforge_replace_social_campaign_relationships(
+    campaign_id,
+    p_attachments,
+    p_associations,
+    p_contributor_id
+  );
+
+  return campaign_id;
+end;
+$$;
+
+create or replace function public.cardforge_update_social_campaign(
+  p_campaign_id uuid,
+  p_expected_version integer,
+  p_actor_id text,
+  p_title text,
+  p_objective text,
+  p_destination_url text,
+  p_production_note text,
+  p_variants jsonb,
+  p_requested_publish_at timestamptz,
+  p_attachments jsonb,
+  p_associations jsonb
+)
+returns boolean language plpgsql security invoker set search_path = '' as $$
+declare
+  changed_campaign_id uuid;
+begin
+  update public.cardforge_social_campaigns
+  set
+    title = p_title,
+    objective = p_objective,
+    destination_url = p_destination_url,
+    production_note = p_production_note,
+    variants = p_variants,
+    requested_publish_at = p_requested_publish_at,
+    status = case when status = 'changes_requested' then 'draft' else status end,
+    version = p_expected_version + 1
+  where id = p_campaign_id
+    and version = p_expected_version
+    and status in ('draft', 'changes_requested')
+  returning id into changed_campaign_id;
+
+  if not found then
+    return false;
+  end if;
+
+  perform public.cardforge_replace_social_campaign_relationships(
+    changed_campaign_id,
+    p_attachments,
+    p_associations,
+    p_actor_id
+  );
+
+  return true;
+end;
+$$;
+
+create or replace function public.cardforge_finalize_social_campaign_approval(
+  p_campaign_id uuid,
+  p_expected_version integer,
+  p_reviewer_id text,
+  p_review_note text,
+  p_approved_at timestamptz,
+  p_selections jsonb
+)
+returns boolean language plpgsql security invoker set search_path = '' as $$
+declare
+  campaign_record public.cardforge_social_campaigns%rowtype;
+  attachment_count integer;
+  changed_attachment_count integer;
+begin
+  select * into campaign_record
+  from public.cardforge_social_campaigns
+  where id = p_campaign_id
+    and version = p_expected_version
+    and status = 'submitted'
+  for update;
+
+  if not found then
+    return false;
+  end if;
+
+  select count(*) into attachment_count
+  from public.cardforge_social_campaign_media_attachments
+  where campaign_id = p_campaign_id;
+
+  if attachment_count <> jsonb_array_length(coalesce(p_selections, '[]'::jsonb)) then
+    raise exception 'Approved media selection count does not match the campaign.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(coalesce(p_selections, '[]'::jsonb)) as selection (
+      attachment_id uuid,
+      derivative_id uuid
+    )
+    left join public.cardforge_social_campaign_media_attachments as attachment
+      on attachment.id = selection.attachment_id
+      and attachment.campaign_id = p_campaign_id
+    left join public.cardforge_campaign_media_derivatives as derivative
+      on derivative.id = selection.derivative_id
+      and derivative.parent_media_id = attachment.media_id
+    left join public.cardforge_campaign_media as media
+      on media.id = attachment.media_id
+    where attachment.id is null
+      or derivative.id is null
+      or derivative.storage_bucket <> 'cardforge-social-media'
+      or media.rights_expires_at <= p_approved_at
+  ) then
+    raise exception 'Every campaign attachment must use its own authorized public derivative.';
+  end if;
+
+  update public.cardforge_campaign_media_derivatives as derivative
+  set
+    exposure = 'public',
+    approved_by = p_reviewer_id,
+    approved_at = p_approved_at
+  from jsonb_to_recordset(coalesce(p_selections, '[]'::jsonb)) as selection (
+    attachment_id uuid,
+    derivative_id uuid
+  ), public.cardforge_social_campaign_media_attachments as attachment
+  where attachment.id = selection.attachment_id
+    and attachment.campaign_id = p_campaign_id
+    and derivative.id = selection.derivative_id
+    and derivative.parent_media_id = attachment.media_id;
+
+  update public.cardforge_campaign_media as media
+  set
+    review_state = 'public',
+    reviewed_by = p_reviewer_id,
+    reviewed_at = p_approved_at
+  where exists (
+    select 1
+    from public.cardforge_social_campaign_media_attachments as attachment
+    where attachment.campaign_id = p_campaign_id
+      and attachment.media_id = media.id
+  );
+
+  update public.cardforge_social_campaign_media_attachments as attachment
+  set derivative_id = selection.derivative_id
+  from jsonb_to_recordset(coalesce(p_selections, '[]'::jsonb)) as selection (
+    attachment_id uuid,
+    derivative_id uuid
+  ), public.cardforge_campaign_media_derivatives as derivative
+  where attachment.id = selection.attachment_id
+    and attachment.campaign_id = p_campaign_id
+    and derivative.id = selection.derivative_id
+    and derivative.parent_media_id = attachment.media_id
+    and derivative.exposure = 'public'
+    and derivative.storage_bucket = 'cardforge-social-media';
+
+  get diagnostics changed_attachment_count = row_count;
+  if changed_attachment_count <> attachment_count then
+    raise exception 'Every campaign attachment must use its own approved public derivative.';
+  end if;
+
+  update public.cardforge_social_campaigns
+  set
+    status = 'approved',
+    approved_at = p_approved_at,
+    reviewed_by = p_reviewer_id,
+    review_note = left(coalesce(p_review_note, ''), 1200),
+    version = p_expected_version + 1
+  where id = campaign_record.id
+    and version = p_expected_version;
+
+  if not found then
+    raise exception 'Campaign changed during approval.';
+  end if;
+
+  return true;
+end;
+$$;
+
+revoke execute on function public.cardforge_replace_social_campaign_relationships(uuid, jsonb, jsonb, text) from public, anon, authenticated;
+revoke execute on function public.cardforge_create_social_campaign(text, text, text, text, text, text, text, text, jsonb, timestamptz, jsonb, jsonb) from public, anon, authenticated;
+revoke execute on function public.cardforge_update_social_campaign(uuid, integer, text, text, text, text, text, jsonb, timestamptz, jsonb, jsonb) from public, anon, authenticated;
+revoke execute on function public.cardforge_finalize_social_campaign_approval(uuid, integer, text, text, timestamptz, jsonb) from public, anon, authenticated;
+grant execute on function public.cardforge_replace_social_campaign_relationships(uuid, jsonb, jsonb, text) to service_role;
+grant execute on function public.cardforge_create_social_campaign(text, text, text, text, text, text, text, text, jsonb, timestamptz, jsonb, jsonb) to service_role;
+grant execute on function public.cardforge_update_social_campaign(uuid, integer, text, text, text, text, text, jsonb, timestamptz, jsonb, jsonb) to service_role;
+grant execute on function public.cardforge_finalize_social_campaign_approval(uuid, integer, text, text, timestamptz, jsonb) to service_role;
 
 create or replace function public.cardforge_publish_site_content_proposal(proposal_id uuid, expected_version integer, reviewer_id text, owner_review_note text)
 returns void language plpgsql security invoker set search_path = '' as $$

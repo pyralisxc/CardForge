@@ -4,6 +4,8 @@ export * from './server/apiError';
 export * from './server/campaignStore';
 export * from './server/cockpitStore';
 export * from './server/media';
+export * from './server/mediaApproval';
+export * from './server/mediaIngest';
 export * from './server/providerStore';
 export * from './server/siteProposalStore';
 export { DeveloperCockpitStoreError, getCampaignRecord } from './server/storeShared';

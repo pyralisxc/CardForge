@@ -158,7 +158,14 @@ export interface DeveloperCockpitView {
 export const CAMPAIGN_FIELD_LIMITS = {
   title: 120, objective: 600, destinationUrl: 2_048, productionNote: 1_000,
   variantText: 5_000, mediaAlt: 300, captionOverride: 1_000, associationKey: 500,
+  rightsBasis: 1_000, creatorCredit: 500, rightsRestriction: 1_000,
+  reusableCaption: 1_000, reusableDescription: 2_000,
+  associationTitle: 500, associationNote: 1_000,
 } as const;
+
+const MAX_CAMPAIGN_ASSOCIATIONS = 12;
+const MAX_CROP_INTENT_JSON_LENGTH = 2_000;
+const MAX_ASSOCIATION_METADATA_JSON_LENGTH = 12_000;
 
 type CampaignAttachmentInput = {
   mediaId: string; derivativeId: string | null; displayOrder: number; altText: string;
@@ -221,6 +228,7 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
     if (source !== undefined && !Array.isArray(source)) return { ok: false, message: 'Campaign attachments must be a list.' };
     if (Array.isArray(source) && source.length > 4) return { ok: false, message: 'Each channel can include at most four images.' };
     const attachmentIds = new Set<string>();
+    const attachmentOrders = new Set<number>();
     const attachments: CampaignAttachmentInput[] = [];
     for (const rawAttachment of Array.isArray(source) ? source : []) {
       const attachment = objectValue(rawAttachment);
@@ -238,6 +246,9 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
       if (altText.length > CAMPAIGN_FIELD_LIMITS.mediaAlt) return { ok: false, message: 'Campaign image alt text must be 300 characters or fewer.' };
       if (captionOverride.length > CAMPAIGN_FIELD_LIMITS.captionOverride) return { ok: false, message: 'Caption override must be 1,000 characters or fewer.' };
       if (!Number.isInteger(displayOrder) || displayOrder < 0 || displayOrder > 99) return { ok: false, message: 'Campaign image order is invalid.' };
+      if (attachmentOrders.has(displayOrder)) return { ok: false, message: 'Each campaign image needs a unique display order.' };
+      attachmentOrders.add(displayOrder);
+      if (JSON.stringify(cropIntent).length > MAX_CROP_INTENT_JSON_LENGTH) return { ok: false, message: 'Campaign crop intent is too large.' };
       attachments.push({ mediaId, derivativeId, displayOrder, altText, captionOverride, cropIntent });
     }
     variants.push({ service, text, attachments });
@@ -245,6 +256,7 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
   const associations: Array<Omit<CampaignDevelopmentAssociation, 'id' | 'createdBy' | 'createdAt'>> = [];
   const associationKeys = new Set<string>();
   if (input.associations !== undefined && !Array.isArray(input.associations)) return { ok: false, message: 'Development associations must be a list.' };
+  if (Array.isArray(input.associations) && input.associations.length > MAX_CAMPAIGN_ASSOCIATIONS) return { ok: false, message: `A campaign can include at most ${MAX_CAMPAIGN_ASSOCIATIONS} development associations.` };
   for (const rawAssociation of Array.isArray(input.associations) ? input.associations : []) {
     const association = objectValue(rawAssociation);
     const kind = association?.kind;
@@ -254,16 +266,20 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
     const note = longText(association?.note);
     const metadataSnapshot = objectValue(association?.metadataSnapshot) ?? {};
     if (!['pull_request', 'commit', 'release', 'feature', 'shared_asset', 'jam_recording'].includes(String(kind)) || !externalKey || externalKey.length > CAMPAIGN_FIELD_LIMITS.associationKey || referenceUrl === null) return { ok: false, message: 'Each development association needs a supported kind and durable reference.' };
+    if (referenceUrl.length > CAMPAIGN_FIELD_LIMITS.destinationUrl) return { ok: false, message: 'Development association URLs must be 2,048 characters or fewer.' };
+    if (titleSnapshot.length > CAMPAIGN_FIELD_LIMITS.associationTitle) return { ok: false, message: 'Development association titles must be 500 characters or fewer.' };
+    if (note.length > CAMPAIGN_FIELD_LIMITS.associationNote) return { ok: false, message: 'Development association notes must be 1,000 characters or fewer.' };
     const key = `${kind}:${externalKey}`;
     if (associationKeys.has(key)) return { ok: false, message: 'Add each development association only once.' };
+    if (JSON.stringify(metadataSnapshot).length > MAX_ASSOCIATION_METADATA_JSON_LENGTH) return { ok: false, message: 'Development association metadata is too large.' };
     associationKeys.add(key);
-    associations.push({ kind: kind as CampaignAssociationKind, externalKey, referenceUrl, titleSnapshot: titleSnapshot.slice(0, 500), metadataSnapshot, note: note.slice(0, 1000) });
+    associations.push({ kind: kind as CampaignAssociationKind, externalKey, referenceUrl, titleSnapshot, metadataSnapshot, note });
   }
   return { ok: true, value: { title, objective, destinationUrl, productionNote, requestedPublishAt, variants, associations } };
 };
 
 const contributorCampaignTransitions: Partial<Record<SocialCampaignStatus, SocialCampaignStatus[]>> = { draft: ['submitted', 'cancelled'], changes_requested: ['draft', 'submitted', 'cancelled'], submitted: ['cancelled'] };
-const ownerCampaignTransitions: Partial<Record<SocialCampaignStatus, SocialCampaignStatus[]>> = { draft: ['submitted', 'cancelled'], submitted: ['changes_requested', 'approved', 'cancelled'], changes_requested: ['approved', 'cancelled'], approved: ['provider_draft', 'scheduled', 'failed', 'cancelled'], provider_draft: ['scheduled', 'published', 'failed', 'cancelled'], scheduled: ['published', 'failed', 'cancelled'], failed: ['approved', 'cancelled'] };
+const ownerCampaignTransitions: Partial<Record<SocialCampaignStatus, SocialCampaignStatus[]>> = { draft: ['submitted', 'cancelled'], submitted: ['changes_requested', 'approved', 'cancelled'], changes_requested: ['cancelled'], approved: ['provider_draft', 'scheduled', 'failed', 'cancelled'], provider_draft: ['scheduled', 'published', 'failed', 'cancelled'], scheduled: ['published', 'failed', 'cancelled'], failed: ['approved', 'cancelled'] };
 export const canTransitionCampaign = (from: SocialCampaignStatus, to: SocialCampaignStatus, actor: 'contributor' | 'owner'): boolean => (actor === 'owner' ? ownerCampaignTransitions : contributorCampaignTransitions)[from]?.includes(to) ?? false;
 
 export type SiteProposalInputResult = { ok: true; value: { slug: SiteContentBlockSlug; proposedBody: string; rationale: string } } | { ok: false; message: string };

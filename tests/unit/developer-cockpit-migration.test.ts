@@ -38,8 +38,26 @@ describe('developer contribution cockpit migration', () => {
     expect(sql).toContain('create table if not exists public.cardforge_social_campaign_associations');
     expect(sql).toContain('unique (content_hash)');
     expect(sql).toContain('creation_idempotency_key');
+    expect(sql).toContain('unique (campaign_id, service, media_id)');
+    expect(sql).toContain('unique (campaign_id, service, display_order)');
+    expect(sql).toContain('foreign key (derivative_id, media_id)');
+    expect(sql).toContain('references public.cardforge_campaign_media_derivatives(id, parent_media_id)');
     expect(sql).not.toContain('source_reference');
     expect(sql).not.toContain('license_notes');
+  });
+
+  it('commits campaign relationships and owner approval through service-only transactions', () => {
+    const sql = readFileSync(migrationPath, 'utf8').toLowerCase().replace(/\s+/g, ' ');
+
+    expect(sql).toContain('function public.cardforge_create_social_campaign');
+    expect(sql).toContain('function public.cardforge_update_social_campaign');
+    expect(sql).toContain('function public.cardforge_replace_social_campaign_relationships');
+    expect(sql).toContain('function public.cardforge_finalize_social_campaign_approval');
+    expect(sql).toContain("derivative.storage_bucket <> 'cardforge-social-media'");
+    expect(sql).toContain('media.rights_expires_at <= p_approved_at');
+    expect(sql).toContain('revoke execute on function public.cardforge_create_social_campaign');
+    expect(sql).toContain('grant execute on function public.cardforge_finalize_social_campaign_approval');
+    expect(sql).not.toContain('function public.cardforge_mark_campaign_media_public');
   });
 
   it('restricts atomic site publication to the service role and rejects stale proposals', () => {

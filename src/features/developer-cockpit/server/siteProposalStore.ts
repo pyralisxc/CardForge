@@ -10,6 +10,7 @@ import {
   mapProposalRow,
   normalizeExpectedVersion,
   PROPOSAL_COLUMNS,
+  readFirstDatabaseRow,
   requireCockpitDatabase,
   throwCockpitDatabaseError,
   type SiteProposalRow,
@@ -23,7 +24,7 @@ const getSiteProposal = async (proposalId: string): Promise<SiteContentProposal>
     .eq('id', proposalId)
     .limit(1);
   if (error) throwCockpitDatabaseError('Unable to load the site-copy proposal.', error);
-  const row = data?.[0] as SiteProposalRow | undefined;
+  const row = readFirstDatabaseRow<SiteProposalRow>(data);
   if (!row) throw new DeveloperCockpitStoreError('Site-copy proposal not found.', 404);
   return mapProposalRow(row);
 };
@@ -65,7 +66,13 @@ export const createSiteContentProposal = async (
     .select(PROPOSAL_COLUMNS)
     .limit(1);
   if (error) throwCockpitDatabaseError('Unable to create the site-copy proposal.', error);
-  return mapProposalRow(data?.[0] as SiteProposalRow);
+  const row = readFirstDatabaseRow<SiteProposalRow>(data);
+  if (!row) {
+    throw new DeveloperCockpitStoreError(
+      'Site-copy proposal creation did not return a resource.',
+    );
+  }
+  return mapProposalRow(row);
 };
 
 export const saveSiteContentProposal = async ({
@@ -107,7 +114,7 @@ export const saveSiteContentProposal = async ({
     .select(PROPOSAL_COLUMNS)
     .limit(1);
   if (error) throwCockpitDatabaseError('Unable to save the site-copy proposal.', error);
-  const row = data?.[0] as SiteProposalRow | undefined;
+  const row = readFirstDatabaseRow<SiteProposalRow>(data);
   if (!row) throw new DeveloperCockpitStoreError('This proposal changed elsewhere. Reload before saving.', 409);
   return mapProposalRow(row);
 };
@@ -154,7 +161,7 @@ export const transitionSiteContentProposal = async ({
     .select(PROPOSAL_COLUMNS)
     .limit(1);
   if (error) throwCockpitDatabaseError('Unable to update the site-copy proposal workflow.', error);
-  const row = data?.[0] as SiteProposalRow | undefined;
+  const row = readFirstDatabaseRow<SiteProposalRow>(data);
   if (!row) throw new DeveloperCockpitStoreError('This proposal changed elsewhere. Reload before reviewing.', 409);
   return mapProposalRow(row);
 };

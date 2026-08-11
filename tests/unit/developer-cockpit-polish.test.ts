@@ -60,6 +60,33 @@ describe('developer cockpit polish contract', () => {
     expect(queue).toContain('CockpitConfirmationDialog');
   });
 
+  it('keeps canonical campaign and media responsibilities in readable files', () => {
+    const focusedFiles = [
+      'components/DeveloperCampaignComposer.tsx',
+      'components/CampaignVariantEditor.tsx',
+      'server/campaignStore.ts',
+      'server/media.ts',
+      'server/mediaApproval.ts',
+      'server/mediaIngest.ts',
+      'server/storeShared.ts',
+      'server/storeRows.ts',
+    ];
+    const cockpitRoot = sourcePath('features', 'developer-cockpit');
+
+    for (const path of focusedFiles) {
+      const source = readFileSync(resolve(cockpitRoot, path), 'utf8');
+      expect(source.split(/\r?\n/u).length, path).toBeLessThan(500);
+    }
+
+    const composer = readFileSync(
+      resolve(cockpitRoot, 'components', 'DeveloperCampaignComposer.tsx'),
+      'utf8',
+    );
+    expect(composer).toContain('CampaignAssociationEditor');
+    expect(composer).toContain('CampaignMediaIngestFields');
+    expect(composer).toContain('CampaignVariantEditor');
+  });
+
   it('keeps owner work visible from review through publishing setup', () => {
     const campaign = {
       contributorId: 'developer-1',

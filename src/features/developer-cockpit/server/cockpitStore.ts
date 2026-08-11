@@ -18,6 +18,7 @@ import {
   hydrateCampaignRows,
   mapProposalRow,
   PROPOSAL_COLUMNS,
+  readDatabaseRows,
   type CampaignRow,
   type SiteProposalRow,
 } from './storeShared';
@@ -39,7 +40,13 @@ const fetchCampaigns = async (
     if (!isMissingSupabaseTableError(error)) console.error('Failed to load social campaigns:', error);
     return { configured: false, campaigns: [] };
   }
-  return { configured: true, campaigns: await hydrateCampaignRows((data ?? []) as CampaignRow[]) };
+  return {
+    configured: true,
+    campaigns: await hydrateCampaignRows(
+      readDatabaseRows<CampaignRow>(data),
+      access,
+    ),
+  };
 };
 
 const fetchSiteProposals = async (
@@ -60,7 +67,7 @@ const fetchSiteProposals = async (
   }
   return {
     configured: true,
-    proposals: (data ?? []).map((row) => mapProposalRow(row as SiteProposalRow)),
+    proposals: readDatabaseRows<SiteProposalRow>(data).map(mapProposalRow),
   };
 };
 

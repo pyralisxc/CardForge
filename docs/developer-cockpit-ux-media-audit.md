@@ -14,7 +14,7 @@ Campaign media is a first-class CardForge resource with a stable UUID. Storage b
 - Development associations are durable CardForge snapshots for pull requests, commits, releases, features, shared assets, and Jam recordings. They are references, not GitHub/Jam mutation authority.
 - Public derivatives have their own UUID, parent relationship, dimensions, format, crop/focal data, exposure state, and approval timestamp. A public URL is derived delivery output, never identity.
 
-The exact content hash is unique. A retry with the same client media idempotency key returns the same record; a permitted reuse attaches the existing media ID without copying source binaries. Campaign creation also requires an idempotency key.
+The exact content hash is unique. A retry with the same client media idempotency key returns the same authorized record; a permitted reuse attaches the existing media ID without copying source binaries. Campaign creation also requires an idempotency key. Campaign creation and revision replace their variants, attachments, and development associations in one transaction, so a failed relationship cannot leave a partial package or advance its version.
 
 ## Human workflow
 
@@ -22,7 +22,7 @@ Contributors assemble a campaign brief, production note, channel copy, and ID-ba
 
 Owners use the **Campaign Media** tab in the Developer Cockpit, distinct from **Asset Contributions**. It provides a visual grid/detail view for thumbnail, state, contributor, dimensions, file size, rights/credit, campaigns, delivery history, creation date, reuse relationships, and metadata-derived storage totals. Filters include private, needs review, approved, public, archived, and unused. The interface never offers raw storage control.
 
-Owner approval is the only action that exposes a derivative. Promotion uses a durable `(parent media, purpose, promotion key)` identity and deterministic public output, so retries and media reused by several variants cannot create random duplicate public objects. Originals and unreviewed masters remain private.
+Owner approval is the only action that exposes a derivative. Promotion uses a durable `(parent media, purpose, promotion key)` identity and a server-generated, unguessable output path, so retries and media reused by several variants converge on one derivative. Derivative exposure, parent-media review state, attachment selection, and campaign approval commit in one transaction. A failed or stale approval can leave only an unlinked, undisclosed storage object; it cannot expose a derivative through CardForge or partially approve the package. Originals and unreviewed masters remain private.
 
 ## Scoped agent contract
 
@@ -34,7 +34,7 @@ Agents and contributors cannot approve/promote media, expose private media, conf
 
 ## Security and rollout
 
-All cockpit/media tables have RLS and browser roles have no privileges. The application uses the existing server-owned Supabase boundary. ID-based media previews resolve and authorize the record on the server; clients cannot submit arbitrary bucket/path values or traverse storage paths.
+All cockpit/media tables have RLS and browser roles have no privileges. Transaction functions are executable only by `service_role`. The application uses the existing server-owned Supabase boundary. ID-based media previews resolve both parent-media and derivative access on the server; clients cannot submit arbitrary bucket/path values or traverse storage paths. Contributor media responses omit other campaigns and delivery history even when the underlying media is reusable.
 
 `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_BUFFER_PUBLISHING_ENABLED` remain false by default. This change does not apply a production migration, grant scopes, connect Buffer, create provider drafts, schedule, publish, or alter legal terms. Follow the final migration and verification order in `docs/operations.md`.
 

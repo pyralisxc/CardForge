@@ -57,7 +57,16 @@ export const loadBufferChannels = async (): Promise<BufferChannelView[]> => {
 
 export const uploadCampaignMedia = async (
   file: File,
-  metadata: { idempotencyKey: string; rightsBasis?: string; creatorCredit?: string; rightsRestriction?: string; reusableCaption?: string; reusableDescription?: string } = { idempotencyKey: crypto.randomUUID() },
+  metadata: {
+    idempotencyKey: string;
+    rightsBasis?: string;
+    creatorCredit?: string;
+    rightsRestriction?: string;
+    rightsExpiresAt?: string;
+    reusableCaption?: string;
+    reusableDescription?: string;
+    focalPoint?: { x: number; y: number };
+  } = { idempotencyKey: crypto.randomUUID() },
 ): Promise<CampaignMedia> => {
   const formData = new FormData();
   formData.set('image', file);
@@ -65,8 +74,10 @@ export const uploadCampaignMedia = async (
   if (metadata.rightsBasis) formData.set('rightsBasis', metadata.rightsBasis);
   if (metadata.creatorCredit) formData.set('creatorCredit', metadata.creatorCredit);
   if (metadata.rightsRestriction) formData.set('rightsRestriction', metadata.rightsRestriction);
+  if (metadata.rightsExpiresAt) formData.set('rightsExpiresAt', metadata.rightsExpiresAt);
   if (metadata.reusableCaption) formData.set('reusableCaption', metadata.reusableCaption);
   if (metadata.reusableDescription) formData.set('reusableDescription', metadata.reusableDescription);
+  if (metadata.focalPoint) formData.set('focalPoint', JSON.stringify(metadata.focalPoint));
   const response = await fetch('/api/developer-cockpit/media', {
     method: 'POST',
     body: formData,
