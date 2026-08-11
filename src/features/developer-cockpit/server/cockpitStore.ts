@@ -15,12 +15,14 @@ import {
 import {
   CAMPAIGN_COLUMNS,
   fetchPublishJobs,
-  mapCampaignRow,
+  hydrateCampaignRows,
   mapProposalRow,
   PROPOSAL_COLUMNS,
+  readDatabaseRows,
   type CampaignRow,
   type SiteProposalRow,
 } from './storeShared';
+import { getAuthorizedCampaignMedia } from './media';
 
 const fetchCampaigns = async (
   access: DeveloperCockpitAccess,
@@ -40,7 +42,10 @@ const fetchCampaigns = async (
   }
   return {
     configured: true,
-    campaigns: (data ?? []).map((row) => mapCampaignRow(row as CampaignRow)),
+    campaigns: await hydrateCampaignRows(
+      readDatabaseRows<CampaignRow>(data),
+      access,
+    ),
   };
 };
 
@@ -62,18 +67,19 @@ const fetchSiteProposals = async (
   }
   return {
     configured: true,
-    proposals: (data ?? []).map((row) => mapProposalRow(row as SiteProposalRow)),
+    proposals: readDatabaseRows<SiteProposalRow>(data).map(mapProposalRow),
   };
 };
 
 export const getDeveloperCockpitView = async (
   access: DeveloperCockpitAccess,
 ): Promise<DeveloperCockpitView> => {
-  const [campaignResult, proposalResult, siteContentBlocks, profiles] = await Promise.all([
+  const [campaignResult, proposalResult, siteContentBlocks, profiles, campaignMedia] = await Promise.all([
     fetchCampaigns(access),
     fetchSiteProposals(access),
     getSiteContentBlocks(),
     listDeveloperAccessProfiles(access.isOwner),
+    getAuthorizedCampaignMedia(access),
   ]);
   const publishJobs = await fetchPublishJobs(campaignResult.campaigns.map((campaign) => campaign.id));
   const provider = getBufferConfiguration();
@@ -88,6 +94,13 @@ export const getDeveloperCockpitView = async (
     isOwner: access.isOwner,
     scopes: access.scopes,
     campaigns: campaignResult.campaigns,
+    campaignMedia,
+    campaignMediaSummary: {
+      mediaCount: campaignMedia.length,
+      protectedBytes: campaignMedia.reduce((total, media) => total + media.originalByteCount + media.normalizedByteCount, 0),
+      derivativeBytes: campaignMedia.reduce((total, media) => total + media.derivatives.reduce((derivativeTotal, derivative) => derivativeTotal + derivative.byteCount, 0), 0),
+      unusedMediaCount: campaignMedia.filter((media) => media.campaignIds.length === 0 && !media.archivedAt).length,
+    },
     publishJobs,
     siteProposals: proposalResult.proposals,
     siteContentBlocks,

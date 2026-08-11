@@ -60,6 +60,33 @@ describe('developer cockpit polish contract', () => {
     expect(queue).toContain('CockpitConfirmationDialog');
   });
 
+  it('keeps canonical campaign and media responsibilities in readable files', () => {
+    const focusedFiles = [
+      'components/DeveloperCampaignComposer.tsx',
+      'components/CampaignVariantEditor.tsx',
+      'server/campaignStore.ts',
+      'server/media.ts',
+      'server/mediaApproval.ts',
+      'server/mediaIngest.ts',
+      'server/storeShared.ts',
+      'server/storeRows.ts',
+    ];
+    const cockpitRoot = sourcePath('features', 'developer-cockpit');
+
+    for (const path of focusedFiles) {
+      const source = readFileSync(resolve(cockpitRoot, path), 'utf8');
+      expect(source.split(/\r?\n/u).length, path).toBeLessThan(500);
+    }
+
+    const composer = readFileSync(
+      resolve(cockpitRoot, 'components', 'DeveloperCampaignComposer.tsx'),
+      'utf8',
+    );
+    expect(composer).toContain('CampaignAssociationEditor');
+    expect(composer).toContain('CampaignMediaIngestFields');
+    expect(composer).toContain('CampaignVariantEditor');
+  });
+
   it('keeps owner work visible from review through publishing setup', () => {
     const campaign = {
       contributorId: 'developer-1',
@@ -90,9 +117,8 @@ describe('developer cockpit polish contract', () => {
     expect(getCampaignPackageReadiness({
       title: '',
       objective: '',
-      sourceReference: '',
-      licenseNotes: '',
-      variants: [{ service: 'facebook', text: '', media: [] }],
+      productionNote: '',
+      variants: [{ service: 'facebook', text: '', attachments: [] }],
     })).toMatchObject({
       completed: 0,
       total: 5,
@@ -102,16 +128,19 @@ describe('developer cockpit polish contract', () => {
     expect(getCampaignPackageReadiness({
       title: 'Release proof',
       objective: 'Show what changed.',
-      sourceReference: 'PR #88',
-      licenseNotes: 'CardForge-owned capture.',
+      productionNote: 'PR #88',
       variants: [{
         service: 'facebook',
         text: 'The cockpit is ready.',
-        media: [{
-          sourceBucket: 'cardforge-social-sources',
-          sourcePath: 'developer-1/capture.webp',
-          publicUrl: null,
-          alt: 'The CardForge Developer Cockpit campaign queue.',
+        attachments: [{
+          id: 'attachment-1',
+          mediaId: '11111111-1111-4111-8111-111111111111',
+          derivativeId: null,
+          displayOrder: 0,
+          captionOverride: '',
+          cropIntent: {},
+          altText: 'The CardForge Developer Cockpit campaign queue.',
+          media: { rightsBasis: 'CardForge-owned capture.' } as never,
         }],
       }],
     })).toMatchObject({
@@ -128,10 +157,10 @@ describe('developer cockpit polish contract', () => {
     );
 
     expect(details).toContain('Production context');
-    expect(details).toContain('Source or release');
-    expect(details).toContain('Rights and ownership');
+    expect(details).toContain('Production note');
+    expect(details).toContain('Development associations');
     expect(details).toContain('<Image');
-    expect(details).toContain('media.alt');
+    expect(details).toContain('attachment.altText');
   });
 
   it('confirms live site publication and supports proposal withdrawal', () => {

@@ -5,7 +5,8 @@ import { Megaphone, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
-  mutateDeveloperCockpit,
+  loadDeveloperCockpit,
+  mutateCampaign,
   type DeveloperCockpitView,
 } from '@/features/developer-cockpit/client/api';
 import {
@@ -53,15 +54,15 @@ export function DeveloperCampaignPanel({
     setMessage('');
     try {
       const payload = getCampaignPayload(draft);
-      const nextCockpit = editing
-        ? await mutateDeveloperCockpit('campaigns', 'PATCH', {
+      await (editing
+        ? mutateCampaign('PATCH', {
           action: 'save',
           campaignId: editing.id,
           expectedVersion: editing.version,
           campaign: payload,
         })
-        : await mutateDeveloperCockpit('campaigns', 'POST', payload);
-      onChange(nextCockpit);
+        : mutateCampaign('POST', payload));
+      onChange(await loadDeveloperCockpit());
       setMessage(editing ? 'Campaign changes saved.' : 'Campaign draft created.');
       resetComposer();
     } catch (nextError) {
@@ -105,6 +106,7 @@ export function DeveloperCampaignPanel({
           draft={draft}
           editing={editing}
           busy={busy}
+          mediaLibrary={cockpit.campaignMedia}
           onDraftChange={setDraft}
           onCancel={resetComposer}
           onSave={() => void saveCampaign()}

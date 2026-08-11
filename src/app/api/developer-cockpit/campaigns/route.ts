@@ -2,10 +2,10 @@ import {
   approveSocialCampaign,
   cancelSocialCampaign,
   createDeveloperCockpitErrorResponse,
-  DeveloperCockpitStoreError,
   createSocialCampaign,
+  DeveloperCockpitStoreError,
   getCurrentDeveloperCockpitAccess,
-  getDeveloperCockpitView,
+  listSocialCampaigns,
   requestSocialCampaignChanges,
   requireContributionScope,
   saveSocialCampaign,
@@ -24,9 +24,36 @@ const consumeMutationLimit = async (userId: string) => {
     windowSeconds: 3600,
   });
   if (!rateLimit.allowed) {
-    throw new DeveloperCockpitStoreError('Too many campaign changes. Please try again later.', 429);
+    throw new DeveloperCockpitStoreError(
+      'Too many campaign changes. Please try again later.',
+      429,
+    );
   }
 };
+
+export async function GET(request: Request) {
+  try {
+    const access = await getCurrentDeveloperCockpitAccess();
+    requireContributionScope(access, 'campaigns.draft');
+    const url = new URL(request.url);
+    const cursor = Math.max(0, Number(url.searchParams.get('cursor') ?? 0) || 0);
+    const limit = Math.min(
+      100,
+      Math.max(1, Number(url.searchParams.get('limit') ?? 25) || 25),
+    );
+    return createNoStoreJsonResponse(await listSocialCampaigns({
+      access,
+      status: url.searchParams.get('status') ?? undefined,
+      cursor,
+      limit,
+    }));
+  } catch (error) {
+    return createDeveloperCockpitErrorResponse(
+      error,
+      'Unable to list campaign packages.',
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -34,12 +61,15 @@ export async function POST(request: Request) {
     requireContributionScope(access, 'campaigns.draft');
     await consumeMutationLimit(access.user.id);
     const body = await request.json() as Parameters<typeof createSocialCampaign>[1];
-    await createSocialCampaign(access, body);
-    return createNoStoreJsonResponse({
-      cockpit: await getDeveloperCockpitView(access),
-    }, { status: 201 });
+    return createNoStoreJsonResponse(
+      await createSocialCampaign(access, body),
+      { status: 201 },
+    );
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(error, 'Unable to create the campaign package.');
+    return createDeveloperCockpitErrorResponse(
+      error,
+      'Unable to create the campaign package.',
+    );
   }
 }
 
@@ -55,51 +85,63 @@ export async function PATCH(request: Request) {
       reviewNote?: unknown;
     };
     const campaignId = typeof body.campaignId === 'string' ? body.campaignId : '';
+
     if (body.action === 'save') {
       requireContributionScope(access, 'campaigns.draft');
-      await saveSocialCampaign({
+      return createNoStoreJsonResponse(await saveSocialCampaign({
         access,
         campaignId,
         expectedVersion: body.expectedVersion,
         input: body.campaign ?? {},
-      });
-    } else if (body.action === 'submit') {
+      }));
+    }
+    if (body.action === 'submit') {
       requireContributionScope(access, 'campaigns.draft');
-      await submitSocialCampaign(access, campaignId, body.expectedVersion);
-    } else if (body.action === 'request_changes') {
+      return createNoStoreJsonResponse(await submitSocialCampaign(
+        access,
+        campaignId,
+        body.expectedVersion,
+      ));
+    }
+    if (body.action === 'request_changes') {
       requireContributionScope(access, 'campaigns.approve');
-      await requestSocialCampaignChanges(
+      return createNoStoreJsonResponse(await requestSocialCampaignChanges(
         access,
         campaignId,
         body.expectedVersion,
         body.reviewNote,
-      );
-    } else if (body.action === 'approve') {
+      ));
+    }
+    if (body.action === 'approve') {
       requireContributionScope(access, 'campaigns.approve');
-      await approveSocialCampaign(
+      return createNoStoreJsonResponse(await approveSocialCampaign(
         access,
         campaignId,
         body.expectedVersion,
         body.reviewNote,
-      );
-    } else if (body.action === 'cancel') {
+      ));
+    }
+    if (body.action === 'cancel') {
       requireContributionScope(
         access,
         access.isOwner ? 'campaigns.approve' : 'campaigns.draft',
       );
-      await cancelSocialCampaign(
+      return createNoStoreJsonResponse(await cancelSocialCampaign(
         access,
         campaignId,
         body.expectedVersion,
         body.reviewNote,
-      );
-    } else {
-      throw new DeveloperCockpitStoreError('Choose a supported campaign action.', 400);
+      ));
     }
-    return createNoStoreJsonResponse({
-      cockpit: await getDeveloperCockpitView(access),
-    });
+
+    throw new DeveloperCockpitStoreError(
+      'Choose a supported campaign action.',
+      400,
+    );
   } catch (error) {
-    return createDeveloperCockpitErrorResponse(error, 'Unable to update the campaign package.');
+    return createDeveloperCockpitErrorResponse(
+      error,
+      'Unable to update the campaign package.',
+    );
   }
 }

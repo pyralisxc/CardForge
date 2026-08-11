@@ -20,6 +20,7 @@ import {
   requireCockpitDatabase,
   throwCockpitDatabaseError,
 } from './storeShared';
+import { getPublicCampaignMediaUrl } from './media';
 
 const validateProviderBindings = (
   campaign: SocialCampaign,
@@ -183,7 +184,12 @@ export const publishSocialCampaignToBuffer = async ({
       if (mode === 'schedule' && (existingJob?.status === 'scheduled' || existingJob?.status === 'published')) {
         continue;
       }
-      const mediaUrls = variant.media.map((item) => item.publicUrl).filter((url): url is string => Boolean(url));
+      const mediaUrls = await Promise.all(
+        variant.attachments.map((attachment) => getPublicCampaignMediaUrl(
+          attachment.mediaId,
+          attachment.derivativeId,
+        )),
+      );
       const result = mode === 'draft'
         ? await publisher.createDraft({ channelId: channel.id, text: variant.text, mediaUrls })
         : existingJob?.status === 'provider_draft' && existingJob.providerPostId

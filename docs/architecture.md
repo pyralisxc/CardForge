@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: July 27, 2026
+Last updated: August 11, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one public developer application, one protected contribution cockpit, and one owner console.
 
@@ -123,10 +123,14 @@ The current developer pipeline is operational infrastructure, not an active payo
 
 - `developer-access` owns developer identity, active/inactive status, scope resolution, and owner-managed contribution grants.
 - `developer-assets` retains the existing asset submission, peer voting, publishing, archive, and recovery lifecycle.
-- `developer-cockpit` owns marketing campaign packages and site-copy proposals, including contributor attribution, versions, review notes, and owner decisions.
+- `developer-cockpit` owns marketing campaign packages, canonical campaign media, derivatives, attachments, production associations, and site-copy proposals, including contributor attribution, versions, review notes, and owner decisions.
 - `social-publishing` owns the Buffer protocol adapter. The API key is server-only and provider mutations require both owner access and `CARDFORGE_BUFFER_PUBLISHING_ENABLED=true`.
 
-Non-owner developers never gain approval, site publication, provider configuration, or scheduling powers. New campaign/site scopes default false in Supabase and are additionally hidden behind `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED`. Campaign images are normalized into a private source bucket; owner campaign approval copies only reviewed derivatives into the stable public bucket Buffer can fetch. Raw or unapproved media is never sent to Buffer.
+Non-owner developers never gain approval, site publication, provider configuration, or scheduling powers. New campaign/site scopes default false in Supabase and are additionally hidden behind `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED`.
+
+Campaign media has one canonical CardForge UUID. Ingestion retains an immutable protected original and a protected normalized WebP master; storage bucket/object references stay server-only. Campaign JSON retains only channel copy. Relational attachments reference media IDs and own display order, contextual alt text, crop intent, caption overrides, and an optional chosen derivative. Media owns intrinsic metadata, content hash, rights/credit, focal point, lifecycle, and its approved derivatives. A public URL is delivery output, never application identity.
+
+Owner approval creates or reuses the deterministic public derivative for each media ID, records it before exposure, and is retry-safe. The protected original/master never goes to Buffer. `social-publishing` resolves the approved derivative server-side only when the separately gated owner delivery flow is enabled.
 
 Campaigns use the durable lifecycle:
 
@@ -134,7 +138,7 @@ Campaigns use the durable lifecycle:
 
 Provider errors remain recorded and retryable; cancellation is terminal. Site proposals capture the live block they were based on. The atomic owner publication function rejects stale proposals rather than overwriting newer live copy.
 
-The current human/agent workflow assessment, campaign-media catalog recommendation, and continuous-production roadmap live in [the Developer Cockpit UX and media workflow audit](developer-cockpit-ux-media-audit.md). That audit may refine presentation and future sequencing, but it does not override the ownership and security boundaries above.
+The [Developer Cockpit media workflow document](developer-cockpit-ux-media-audit.md) records the current human and scoped-agent contract, including the owner-only Campaign Media Library and future derivative automation boundaries.
 
 ## Public delivery and search identity
 

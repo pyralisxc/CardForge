@@ -6,6 +6,8 @@ import { CalendarClock, Loader2, RefreshCw, Search, Send, ShieldCheck } from 'lu
 import { Button } from '@/components/ui/button';
 import {
   loadBufferChannels,
+  loadDeveloperCockpit,
+  mutateCampaign,
   mutateDeveloperCockpit,
   type BufferChannelView,
   type DeveloperCockpitView,
@@ -69,8 +71,8 @@ export function DeveloperCampaignQueue({
       const matchesQuery = !normalizedQuery || [
         campaign.title,
         campaign.objective,
-        campaign.sourceReference,
-        campaign.licenseNotes,
+        campaign.productionNote,
+        ...campaign.associations.map((association) => association.titleSnapshot || association.externalKey),
         campaign.contributorName,
         campaign.contributorEmail,
       ].some((value) => value?.toLowerCase().includes(normalizedQuery));
@@ -84,11 +86,12 @@ export function DeveloperCampaignQueue({
     query,
   ]);
 
-  const run = async (key: string, success: string, action: () => Promise<DeveloperCockpitView>) => {
+  const run = async (key: string, success: string, action: () => Promise<unknown>) => {
     setBusy(key);
     onError('');
     try {
-      onChange(await action());
+      await action();
+      onChange(await loadDeveloperCockpit());
       onMessage(success);
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Unable to update the campaign.');
@@ -101,7 +104,7 @@ export function DeveloperCampaignQueue({
     campaign: SocialCampaign,
     action: 'submit' | 'request_changes' | 'approve' | 'cancel',
     success: string,
-  ) => run(`${action}:${campaign.id}`, success, () => mutateDeveloperCockpit('campaigns', 'PATCH', {
+  ) => run(`${action}:${campaign.id}`, success, () => mutateCampaign('PATCH', {
     action,
     campaignId: campaign.id,
     expectedVersion: campaign.version,
@@ -234,7 +237,7 @@ export function DeveloperCampaignQueue({
                   <CockpitConfirmationDialog
                     trigger={<Button type="button" className="min-h-11" disabled={Boolean(busy)}><ShieldCheck className="mr-2 h-4 w-4" />Approve package and media</Button>}
                     title="Approve this package and its media?"
-                    description={<><p>This promotes {campaign.variants.reduce((count, variant) => count + variant.media.length, 0)} protected image(s) to the public campaign library and unlocks owner publishing controls.</p><p className="mt-2">It does not send anything to Buffer yet.</p></>}
+                    description={<><p>This promotes {campaign.variants.reduce((count, variant) => count + variant.attachments.length, 0)} protected image attachment(s) through stable public derivatives and unlocks owner publishing controls.</p><p className="mt-2">It does not send anything to Buffer yet.</p></>}
                     actionLabel="Approve package"
                     onConfirm={() => void workflow(campaign, 'approve', 'Campaign package and media approved.')}
                   />
