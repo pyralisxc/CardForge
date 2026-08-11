@@ -131,6 +131,7 @@ Extended contributor campaigns/site proposals and Buffer publishing are separate
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md): current product architecture and source-of-truth behavior.
+- [docs/developer-cockpit-ux-media-audit.md](docs/developer-cockpit-ux-media-audit.md): contributor, owner, agent, media-package, and continuous-production workflow audit.
 - [docs/operations.md](docs/operations.md): live operations, env vars, provider checks, and launch-critical verification.
 - [docs/risk-register.md](docs/risk-register.md): open, accepted, and verified launch risks with review dates.
 

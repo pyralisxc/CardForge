@@ -20,6 +20,7 @@ import {
   type DeveloperCockpitView,
   loadDeveloperCockpit,
 } from '@/features/developer-cockpit/client/api';
+import { isCampaignActionable } from '@/features/developer-cockpit/client/campaignWorkflow';
 import { DeveloperCampaignPanel } from '@/features/developer-cockpit/components/DeveloperCampaignPanel';
 import { DeveloperScopePanel } from '@/features/developer-cockpit/components/DeveloperScopePanel';
 import { DeveloperSiteProposalPanel } from '@/features/developer-cockpit/components/DeveloperSiteProposalPanel';
@@ -27,7 +28,7 @@ import { DeveloperSiteProposalPanel } from '@/features/developer-cockpit/compone
 const tabClassName = 'min-h-11 rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]';
 const cockpitTabs: ReadonlyArray<{ value: string; label: string; ownerOnly?: boolean }> = [
   { value: 'overview', label: 'Cockpit' },
-  { value: 'library', label: 'Library' },
+  { value: 'library', label: 'Asset Contributions' },
   { value: 'campaigns', label: 'Campaigns' },
   { value: 'site', label: 'Site Proposals' },
   { value: 'standards', label: 'Standards' },
@@ -78,7 +79,12 @@ export function DeveloperCockpitPage() {
     );
   }
 
-  const submittedCampaigns = cockpit.campaigns.filter((campaign) => campaign.status === 'submitted').length;
+  const actionableCampaigns = cockpit.campaigns.filter((campaign) => (
+    isCampaignActionable(campaign, {
+      currentUserId: cockpit.currentUserId,
+      isOwner: cockpit.isOwner,
+    })
+  )).length;
   const submittedProposals = cockpit.siteProposals.filter((proposal) => proposal.status === 'submitted').length;
   const activeJobs = cockpit.publishJobs.filter((job) => job.status === 'scheduled' || job.status === 'provider_draft').length;
 
@@ -89,9 +95,9 @@ export function DeveloperCockpitPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Developer cockpit</p>
-              <h1 className="mt-2 font-serif text-3xl text-[#fff1c7] md:text-4xl">Operate the contribution lanes.</h1>
+              <h1 className="mt-2 font-serif text-3xl text-[#fff1c7] md:text-4xl">Build, review, and ship contributions.</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
-                Supabase owns packages, permissions, media, approvals, and history. Buffer owns connected social channels, scheduling, and delivery.
+                Turn development work into reviewed assets, production-ready campaign packages, and deliberate site improvements.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -129,9 +135,9 @@ export function DeveloperCockpitPage() {
 
           <TabsContent value="overview" className="mt-3 space-y-4">
             <div className="grid gap-3 md:grid-cols-3">
-              <MetricCard icon={Megaphone} label="Campaign review" value={submittedCampaigns} help={cockpit.isOwner ? 'Submitted packages waiting for owner review.' : 'Your packages currently in owner review.'} />
-              <MetricCard icon={FileCheck2} label="Site review" value={submittedProposals} help={cockpit.isOwner ? 'Copy proposals waiting for an owner decision.' : 'Your copy proposals currently in owner review.'} />
-              <MetricCard icon={Activity} label="Provider jobs" value={activeJobs} help="Buffer drafts and scheduled posts with durable CardForge records." />
+              <MetricCard icon={Megaphone} label="Campaign actions" value={actionableCampaigns} help={cockpit.isOwner ? 'Review, provider setup, or delivery recovery that needs you.' : 'Drafts or requested revisions ready for your attention.'} onOpen={() => setActiveTab('campaigns')} />
+              <MetricCard icon={FileCheck2} label="Site review" value={submittedProposals} help={cockpit.isOwner ? 'Copy proposals waiting for an owner decision.' : 'Your copy proposals currently in owner review.'} onOpen={() => setActiveTab('site')} />
+              <MetricCard icon={Activity} label="Provider jobs" value={activeJobs} help="Buffer drafts and scheduled posts with durable CardForge records." onOpen={() => setActiveTab('campaigns')} />
             </div>
             <section className="grid gap-3 lg:grid-cols-2">
               <article className="border border-[#5f4526] bg-[#15100a] p-5">
@@ -173,18 +179,25 @@ function MetricCard({
   label,
   value,
   help,
+  onOpen,
 }: {
   icon: typeof Megaphone;
   label: string;
   value: number;
   help: string;
+  onOpen: () => void;
 }) {
   return (
-    <article className="border border-[#5f4526] bg-[#15100a] p-4">
+    <button
+      type="button"
+      className="min-h-11 border border-[#5f4526] bg-[#15100a] p-4 text-left transition-colors hover:border-[#d8b365] hover:bg-[#1b1209] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2aa4a]"
+      onClick={onOpen}
+      aria-label={`Open ${label.toLowerCase()}`}
+    >
       <div className="flex items-center justify-between gap-3"><span className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">{label}</span><Icon className="h-4 w-4 text-[#e2aa4a]" /></div>
       <p className="mt-3 font-serif text-3xl text-[#fff1c7]">{value}</p>
       <p className="mt-2 text-xs leading-5 text-[#c7b288]">{help}</p>
-    </article>
+    </button>
   );
 }
 

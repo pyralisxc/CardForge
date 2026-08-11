@@ -2,10 +2,20 @@
 
 import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { Check, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
+import {
+  Check,
+  CheckCircle2,
+  Circle,
+  Copy,
+  ImagePlus,
+  Loader2,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { uploadCampaignMedia } from '@/features/developer-cockpit/client/api';
+import { getCampaignPackageReadiness } from '@/features/developer-cockpit/client/campaignWorkflow';
 import {
   CAMPAIGN_FIELD_LIMITS,
   SOCIAL_SERVICES,
@@ -82,6 +92,7 @@ export function DeveloperCampaignComposer({
   onError: (message: string) => void;
 }) {
   const [mediaAlt, setMediaAlt] = useState<Record<number, string>>({});
+  const readiness = getCampaignPackageReadiness(draft);
 
   const updateVariant = (index: number, update: Partial<SocialCampaignVariant>) => {
     onDraftChange({
@@ -132,34 +143,76 @@ export function DeveloperCampaignComposer({
         <div>
           <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">{editing ? 'Editing package' : 'New package'}</p>
           <h2 className="font-serif text-2xl text-[#fff1c7]">{editing ? editing.title : 'Build a campaign package'}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
+            Assemble one durable production brief, then shape channel-specific deliverables around it.
+          </p>
         </div>
         <Button type="button" className="min-h-11" variant="outline" onClick={onCancel}>Close composer</Button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <CountedField label="Campaign name" value={draft.title} limit={CAMPAIGN_FIELD_LIMITS.title}>
-          <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.title} value={draft.title} onChange={(event) => onDraftChange({ ...draft, title: event.target.value })} placeholder="Founder workflow proof" />
-        </CountedField>
-        <label className="grid gap-1 text-xs text-[#c7b288]">Destination URL<input type="url" className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.destinationUrl} value={draft.destinationUrl} onChange={(event) => onDraftChange({ ...draft, destinationUrl: event.target.value })} /></label>
-        <CountedField className="md:col-span-2" label="Objective" value={draft.objective} limit={CAMPAIGN_FIELD_LIMITS.objective}>
-          <textarea className={`${fieldClassName} min-h-24`} maxLength={CAMPAIGN_FIELD_LIMITS.objective} value={draft.objective} onChange={(event) => onDraftChange({ ...draft, objective: event.target.value })} placeholder="What should someone understand or do after seeing this?" />
-        </CountedField>
-        <CountedField label="Source reference" value={draft.sourceReference} limit={CAMPAIGN_FIELD_LIMITS.sourceReference}>
-          <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.sourceReference} value={draft.sourceReference} onChange={(event) => onDraftChange({ ...draft, sourceReference: event.target.value })} placeholder="Jam link, release, issue, or capture notes" />
-        </CountedField>
-        <label className="grid gap-1 text-xs text-[#c7b288]">Requested publish time<input type="datetime-local" className={fieldClassName} value={draft.requestedPublishAt} onChange={(event) => onDraftChange({ ...draft, requestedPublishAt: event.target.value })} /></label>
-        <CountedField className="md:col-span-2" label="License and ownership notes" value={draft.licenseNotes} limit={CAMPAIGN_FIELD_LIMITS.licenseNotes}>
-          <textarea className={`${fieldClassName} min-h-20`} maxLength={CAMPAIGN_FIELD_LIMITS.licenseNotes} value={draft.licenseNotes} onChange={(event) => onDraftChange({ ...draft, licenseNotes: event.target.value })} placeholder="Who created the media, what it contains, and why CardForge may publish it." />
-        </CountedField>
-      </div>
+      <PackageReadiness readiness={readiness} />
 
-      <div className="mt-5 space-y-3">
+      <fieldset className="mt-5 border border-[#4a3823] bg-[#100c08] p-4" disabled={busy}>
+        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+          1. Campaign brief
+        </legend>
+        <p className="mb-3 text-xs leading-5 text-[#a98a55]">
+          Name the story once and define the outcome every channel should support.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <CountedField label="Campaign name" value={draft.title} limit={CAMPAIGN_FIELD_LIMITS.title}>
+            <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.title} value={draft.title} onChange={(event) => onDraftChange({ ...draft, title: event.target.value })} placeholder="Founder workflow proof" />
+          </CountedField>
+          <label className="grid gap-1 text-xs text-[#c7b288]">Destination URL<input type="url" className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.destinationUrl} value={draft.destinationUrl} onChange={(event) => onDraftChange({ ...draft, destinationUrl: event.target.value })} /></label>
+          <CountedField className="md:col-span-2" label="Objective" value={draft.objective} limit={CAMPAIGN_FIELD_LIMITS.objective}>
+            <textarea className={`${fieldClassName} min-h-24`} maxLength={CAMPAIGN_FIELD_LIMITS.objective} value={draft.objective} onChange={(event) => onDraftChange({ ...draft, objective: event.target.value })} placeholder="What should someone understand or do after seeing this?" />
+          </CountedField>
+        </div>
+      </fieldset>
+
+      <fieldset className="mt-4 border border-[#4a3823] bg-[#100c08] p-4" disabled={busy}>
+        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+          2. Production context
+        </legend>
+        <p className="mb-3 text-xs leading-5 text-[#a98a55]">
+          Connect this package to the work that produced it and make publication rights reviewable.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <CountedField label="Source or release" value={draft.sourceReference} limit={CAMPAIGN_FIELD_LIMITS.sourceReference}>
+            <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.sourceReference} value={draft.sourceReference} onChange={(event) => onDraftChange({ ...draft, sourceReference: event.target.value })} placeholder="PR, release, feature, commit, asset, or Jam link" />
+          </CountedField>
+          <label className="grid gap-1 text-xs text-[#c7b288]">Requested publish time<input type="datetime-local" className={fieldClassName} value={draft.requestedPublishAt} onChange={(event) => onDraftChange({ ...draft, requestedPublishAt: event.target.value })} /></label>
+          <CountedField className="md:col-span-2" label="Rights and ownership notes" value={draft.licenseNotes} limit={CAMPAIGN_FIELD_LIMITS.licenseNotes}>
+            <textarea className={`${fieldClassName} min-h-20`} maxLength={CAMPAIGN_FIELD_LIMITS.licenseNotes} value={draft.licenseNotes} onChange={(event) => onDraftChange({ ...draft, licenseNotes: event.target.value })} placeholder="Who created the media, what it contains, and why CardForge may publish it." />
+          </CountedField>
+        </div>
+      </fieldset>
+
+      <fieldset className="mt-4 border border-[#4a3823] bg-[#100c08] p-4" disabled={busy}>
+        <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+          3. Channel deliverables
+        </legend>
+        <p className="mb-3 text-xs leading-5 text-[#a98a55]">
+          Start from the shared brief, then make each channel read naturally on its own.
+        </p>
+        <div className="space-y-3">
         {draft.variants.map((variant, index) => (
           <div key={`${variant.service}:${index}`} className="border border-[#4a3823] bg-[#100c08] p-4">
             <div className="flex flex-wrap gap-3">
               <select aria-label={`Channel ${index + 1}`} className={`${fieldClassName} flex-1`} value={variant.service} onChange={(event) => updateVariant(index, { service: event.target.value as SocialService })}>
                 {SOCIAL_SERVICES.map((service) => <option key={service} value={service} disabled={draft.variants.some((candidate, candidateIndex) => candidateIndex !== index && candidate.service === service)}>{SOCIAL_SERVICE_LABELS[service]}</option>)}
               </select>
+              {index > 0 && draft.variants[0]?.text ? (
+                <Button
+                  type="button"
+                  className="min-h-11"
+                  variant="ghost"
+                  onClick={() => updateVariant(index, { text: draft.variants[0].text })}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Start from {SOCIAL_SERVICE_LABELS[draft.variants[0].service]} copy
+                </Button>
+              ) : null}
               {draft.variants.length > 1 ? <Button type="button" className="min-h-11" variant="outline" onClick={() => onDraftChange({ ...draft, variants: draft.variants.filter((_, candidateIndex) => candidateIndex !== index) })}><Trash2 className="mr-2 h-4 w-4" />Remove</Button> : null}
             </div>
             <CountedField className="mt-3" label={`${SOCIAL_SERVICE_LABELS[variant.service]} post copy`} value={variant.text} limit={CAMPAIGN_FIELD_LIMITS.variantText}>
@@ -177,13 +230,43 @@ export function DeveloperCampaignComposer({
             {variant.media.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{variant.media.map((media, mediaIndex) => <CampaignMediaPreview key={`${media.sourcePath ?? media.publicUrl}:${mediaIndex}`} media={media} onRemove={() => updateVariant(index, { media: variant.media.filter((_, candidate) => candidate !== mediaIndex) })} />)}</div> : null}
           </div>
         ))}
-      </div>
+        </div>
+      </fieldset>
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button type="button" className="min-h-11" variant="outline" onClick={addVariant} disabled={draft.variants.length >= SOCIAL_SERVICES.length}><Plus className="mr-2 h-4 w-4" />Add channel variant</Button>
-        <Button type="button" className="min-h-11" onClick={onSave} disabled={busy}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}{editing ? 'Save changes' : 'Create draft'}</Button>
+        <Button type="button" className="min-h-11" variant="outline" onClick={addVariant} disabled={busy || draft.variants.length >= SOCIAL_SERVICES.length}><Plus className="mr-2 h-4 w-4" />Add channel variant</Button>
+        <Button type="button" className="min-h-11" onClick={onSave} disabled={busy || !readiness.readyToSave}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}{editing ? 'Save package changes' : 'Create campaign draft'}</Button>
       </div>
+      {!readiness.readyToSave ? <p className="mt-2 text-xs leading-5 text-[#f0bd75]">Add a campaign name, objective, and copy for every channel before saving this draft.</p> : null}
     </article>
+  );
+}
+
+function PackageReadiness({
+  readiness,
+}: {
+  readiness: ReturnType<typeof getCampaignPackageReadiness>;
+}) {
+  return (
+    <section className="mt-4 border border-[#6d4f2b] bg-[#1b1209] p-4" aria-labelledby="package-readiness-heading">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 id="package-readiness-heading" className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
+          Package readiness
+        </h3>
+        <p className="text-xs text-[#d8c49a]">{readiness.completed} of {readiness.total} production signals ready</p>
+      </div>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        {readiness.items.map((item) => (
+          <li key={item.key} className={`flex items-center gap-2 text-xs ${item.complete ? 'text-[#a8e7b8]' : 'text-[#c7b288]'}`}>
+            {item.complete ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <Circle className="h-4 w-4 shrink-0" />}
+            <span>{item.label}{item.requiredToSave ? ' *' : ''}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs leading-5 text-[#a98a55]">
+        Required signals (*) make a valid draft. Source, rights, and accessible media make it production-ready for owner review.
+      </p>
+    </section>
   );
 }
 
