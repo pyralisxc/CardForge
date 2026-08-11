@@ -42,7 +42,7 @@ export function AccessComparison() {
           ))}
         </div>
         <p className="mt-4 text-sm leading-6 text-[var(--public-muted-text)]">
-          Founder Beta access appears in Account when a wave is open. Developers can help improve shared CardForge tools and artwork through the Developer Program.
+          Developers can help improve shared CardForge tools and artwork through the Developer Program.
         </p>
       </div>
     </section>

@@ -2,8 +2,6 @@ export type SiteContentBlockSlug =
   | 'landing.hero.headline'
   | 'landing.hero.body'
   | 'landing.hero.support'
-  | 'landing.demo.heading'
-  | 'landing.demo.body'
   | 'about.hero.headline'
   | 'about.hero.body'
   | 'sharing.message';
@@ -38,20 +36,6 @@ export const DEFAULT_SITE_CONTENT_BLOCKS: SiteContentBlock[] = [
     group: 'landing',
     label: 'Landing hero support line',
     body: 'See every card together, fix anything that looks odd, and download the finished set when it feels right.',
-    updatedAt: null,
-  },
-  {
-    slug: 'landing.demo.heading',
-    group: 'landing',
-    label: 'Landing demo-seat headline',
-    body: 'Free demo seats are open for the current wave.',
-    updatedAt: null,
-  },
-  {
-    slug: 'landing.demo.body',
-    group: 'landing',
-    label: 'Landing demo-seat body',
-    body: 'Claim a Founder Beta seat while there is room and try clean downloads during the beta period.',
     updatedAt: null,
   },
   {

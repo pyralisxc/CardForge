@@ -7,4 +7,3 @@ export {
   type CardforgeServerUser,
 } from './lib/serverCardforgeUser';
 export * from './server/accountAdministration';
-export * from './server/founderBetaStore';

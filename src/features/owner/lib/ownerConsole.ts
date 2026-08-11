@@ -6,7 +6,6 @@ import type {
   RoadmapAdminItem,
   RoadmapSettings,
 } from '@/features/roadmap/client';
-import type { FounderBetaCampaign, FounderBetaClaim } from '@/features/account/client';
 
 export interface OwnerDatabaseMetrics {
   databaseSizeBytes: number;
@@ -14,7 +13,6 @@ export interface OwnerDatabaseMetrics {
   storageSizeBytes: number;
   assetRegistryCount: number;
   developerSubmissionCount: number;
-  founderBetaClaimCount: number;
 }
 
 export interface OwnerConsolePayload {
@@ -25,8 +23,6 @@ export interface OwnerConsolePayload {
   siteMedia: SiteMediaAsset[];
   founderProfile: FounderProfile;
   legalDocuments: LegalDocument[];
-  founderBetaCampaign: FounderBetaCampaign;
-  founderBetaClaims: FounderBetaClaim[];
   roadmapItems: RoadmapAdminItem[];
   databaseMetrics: OwnerDatabaseMetrics | null;
   contactRequests: ContactRequest[];

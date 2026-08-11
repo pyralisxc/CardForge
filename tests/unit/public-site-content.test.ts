@@ -11,8 +11,6 @@ describe('public site content rules', () => {
       'landing.hero.headline',
       'landing.hero.body',
       'landing.hero.support',
-      'landing.demo.heading',
-      'landing.demo.body',
       'about.hero.headline',
       'about.hero.body',
       'sharing.message',

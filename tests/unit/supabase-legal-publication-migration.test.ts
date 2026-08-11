@@ -8,6 +8,10 @@ const migrationPath = resolve(
   process.cwd(),
   'supabase/migrations/20260717010903_version_legal_publications.sql',
 );
+const retirementMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260811183544_retire_founder_beta.sql',
+);
 
 describe('versioned legal publication migration', () => {
   it('converts the existing registry to immutable composite versions', async () => {
@@ -48,8 +52,9 @@ describe('versioned legal publication migration', () => {
     expect(sql).toContain('on conflict (slug, version) do nothing');
   });
 
-  it('publishes the exact reviewed repository bodies in the migration', async () => {
+  it('publishes the exact reviewed repository bodies across the versioned migrations', async () => {
     const sql = await readFile(migrationPath, 'utf8');
+    const retirementSql = await readFile(retirementMigrationPath, 'utf8');
     const tagBySlug = {
       privacy: 'privacy_reviewed',
       terms: 'terms_reviewed',
@@ -64,8 +69,10 @@ describe('versioned legal publication migration', () => {
 
     for (const document of DEFAULT_LEGAL_DOCUMENTS) {
       if (document.slug === 'supporter-terms' || document.slug === 'refund') continue;
-      const tag = tagBySlug[document.slug];
-      const match = new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql);
+      const isRetirementPublication = document.slug === 'privacy' || document.slug === 'contact';
+      const tag = isRetirementPublication ? `${document.slug}_retired_demo` : tagBySlug[document.slug];
+      const source = isRetirementPublication ? retirementSql : sql;
+      const match = new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(source);
       expect(match?.[1], document.slug).toBe(document.body);
     }
   });

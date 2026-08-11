@@ -4,28 +4,9 @@ import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/acc
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess } from '@/domain/entitlements';
-import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 const CLERK_READ_TIMEOUT_MS = 3000;
-
-const getActiveFounderBetaAccessExpiresAt = async (userId: string): Promise<string | null> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return null;
-
-  const { data, error } = await supabase
-    .from('cardforge_founder_beta_claims')
-    .select('access_expires_at')
-    .eq('clerk_user_id', userId)
-    .eq('status', 'active')
-    .gt('access_expires_at', new Date().toISOString())
-    .order('access_expires_at', { ascending: false })
-    .limit(1);
-
-  if (error) return null;
-  const row = data?.[0] as { access_expires_at?: string | null } | undefined;
-  return row?.access_expires_at ?? null;
-};
 
 export async function GET() {
   try {
@@ -57,47 +38,22 @@ export async function GET() {
       },
     ) : null;
     const emailAddresses = user?.emailAddresses.map((email) => email.emailAddress) ?? [];
-    let privateMetadata = user?.privateMetadata;
+    const privateMetadata = user?.privateMetadata;
     const publicMetadata = user?.publicMetadata;
-    let ownerAccess = resolveOwnerAccess({
+    const ownerAccess = resolveOwnerAccess({
       authConfigured: true,
       isSignedIn: Boolean(user),
       emailAddresses,
       publicMetadata,
       privateMetadata,
     });
-    let entitlement = resolveAccountEntitlement({
+    const entitlement = resolveAccountEntitlement({
       authConfigured: true,
       isSignedIn: Boolean(user),
       emailAddresses,
       privateMetadata,
       ownerAccess,
     });
-
-    if (user && !entitlement.canExportClean) {
-      const founderBetaAccessExpiresAt = await getActiveFounderBetaAccessExpiresAt(user.id);
-      if (founderBetaAccessExpiresAt) {
-        privateMetadata = {
-          ...privateMetadata,
-          cardforgeAccess: 'paid',
-          cardforgeAccessExpiresAt: founderBetaAccessExpiresAt,
-        };
-        ownerAccess = resolveOwnerAccess({
-          authConfigured: true,
-          isSignedIn: true,
-          emailAddresses,
-          publicMetadata,
-          privateMetadata,
-        });
-        entitlement = resolveAccountEntitlement({
-          authConfigured: true,
-          isSignedIn: true,
-          emailAddresses,
-          privateMetadata,
-          ownerAccess,
-        });
-      }
-    }
 
     return createNoStoreJsonResponse({
       ...entitlement,

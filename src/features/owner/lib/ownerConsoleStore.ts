@@ -1,7 +1,3 @@
-import {
-  getFounderBetaCampaign,
-  getFounderBetaClaims,
-} from '@/features/account/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getContactRequests } from '@/features/contact/server';
 import { getLegalDocuments } from '@/features/legal/server';
@@ -16,6 +12,7 @@ import {
   getRoadmapAdminItems,
   getRoadmapSettings,
 } from '@/features/roadmap/server';
+import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => {
   const [
@@ -25,8 +22,6 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     siteMedia,
     founderProfile,
     legalDocuments,
-    founderBeta,
-    founderBetaClaims,
     roadmapItems,
     databaseMetrics,
     contactRequests,
@@ -37,23 +32,19 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     getSiteMedia(),
     getFounderProfile(),
     getLegalDocuments(),
-    getFounderBetaCampaign(),
-    getFounderBetaClaims(),
     getRoadmapAdminItems(),
     getOwnerDatabaseMetrics(),
     getContactRequests(),
   ]);
 
   return {
-    configured: founderBeta.configured,
+    configured: getSupabaseServerConfigStatus().configured,
     businessIdentity,
     siteMechanics,
     siteContentBlocks,
     siteMedia,
     founderProfile,
     legalDocuments,
-    founderBetaCampaign: founderBeta.campaign,
-    founderBetaClaims,
     roadmapItems,
     databaseMetrics,
     contactRequests,

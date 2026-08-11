@@ -39,11 +39,11 @@ const privacyBody = `${operatorDescription}
 
 CardForge is designed as a local-first card creation tool. Card projects, imported data, generated previews, personal uploads, export settings, and browser preferences are stored in browser IndexedDB. Portable exports and backups are downloaded project files that remain on the devices and storage locations you choose. This browser-local project data is not automatically uploaded to CardForge; it leaves your browser when you download, share, or intentionally submit it. Clearing site data, changing browsers or devices, or deleting downloaded files can remove copies that CardForge cannot recover.
 
-Clerk provides authentication, account identity, session management, and trusted access metadata. Stripe processes billing and maintains payment, checkout, customer, refund, and subscription records. Supabase stores operational records used for shared platform features, including entitlement status, billing events, Founder Beta claims, roadmap suggestions and votes, developer profiles, developer submissions and votes, asset registry records, contact requests, abuse-prevention records, legal publications, and owner settings. Resend sends communications for contact workflows and other transactional messages. Vercel hosts the site and server routes and may process standard request, device, network, and deployment log information needed to deliver and operate them. Each provider processes information for its role under its own terms and retention practices.
+Clerk provides authentication, account identity, session management, and trusted access metadata. Stripe processes billing and maintains payment, checkout, customer, refund, and subscription records. Supabase stores operational records used for shared platform features, including entitlement status, billing events, roadmap suggestions and votes, developer profiles, developer submissions and votes, asset registry records, contact requests, abuse-prevention records, legal publications, and owner settings. Resend sends communications for contact workflows and other transactional messages. Vercel hosts the site and server routes and may process standard request, device, network, and deployment log information needed to deliver and operate them. Each provider processes information for its role under its own terms and retention practices.
 
 CardForge and Clerk use cookies and similar authentication technologies to keep users signed in, maintain sessions, protect account workflows, and remember necessary authentication state. Blocking those technologies may prevent sign-in or other account features from working.
 
-Information you choose to provide may include an account identifier, email address, optional name, contact requests and their contents, Founder Beta participation, roadmap suggestions and votes, developer profile details, developer submissions, source files, and developer votes. Developer submissions, public source files, and published library assets are intentionally shared with the review pipeline and may become visible to other users. Do not upload confidential files, private client work, or content you do not have permission to share.
+Information you choose to provide may include an account identifier, email address, optional name, contact requests and their contents, roadmap suggestions and votes, developer profile details, developer submissions, source files, and developer votes. Developer submissions, public source files, and published library assets are intentionally shared with the review pipeline and may become visible to other users. Do not upload confidential files, private client work, or content you do not have permission to share.
 
 Browser IndexedDB data remains until you clear it or the browser removes it, and downloaded project files remain until you delete them from the places where you saved them. Platform and provider records are retained for periods that vary by record, operational need, security and abuse-prevention need, legal obligation, and provider setting. Some billing, legal, voting, attribution, published-asset, and security records may need to remain after an account is disabled or deleted to preserve accurate platform history and system integrity.
 
@@ -93,7 +93,7 @@ If you have a billing, cancellation, or export-access issue, contact support wit
 
 const contactBody = `${operatorDescription}
 
-${DEFAULT_BUSINESS_IDENTITY.legalOperatorName} handles support for ${DEFAULT_BUSINESS_IDENTITY.brandName} as its owner and legal operator. For support, beta access, developer account requests, legal questions, billing questions, account problems, or asset pipeline concerns, contact the support email listed on this site.
+${DEFAULT_BUSINESS_IDENTITY.legalOperatorName} handles support for ${DEFAULT_BUSINESS_IDENTITY.brandName} as its owner and legal operator. For support, developer account requests, legal questions, billing questions, account problems, or asset pipeline concerns, contact the support email listed on this site.
 
 For fastest help, include the account email, the page or workflow where the issue happened, what you expected, what actually happened, and whether the issue involves a local project, export, template, developer asset, or billing/access state.
 
@@ -132,24 +132,27 @@ const createDefaultDocument = (
   slug: LegalDocumentSlug,
   title: string,
   body: string,
+  publicationDate = DEFAULT_EFFECTIVE_DATE,
 ): LegalDocument => ({
   slug,
   version: 1,
   title,
-  effectiveDate: DEFAULT_EFFECTIVE_DATE,
-  publishedAt: DEFAULT_PUBLISHED_AT,
+  effectiveDate: publicationDate,
+  publishedAt: publicationDate === DEFAULT_EFFECTIVE_DATE
+    ? DEFAULT_PUBLISHED_AT
+    : `${publicationDate}T00:00:00.000Z`,
   body,
   businessIdentityVersion: DEFAULT_BUSINESS_IDENTITY.identityVersion,
 });
 
 export const DEFAULT_LEGAL_DOCUMENTS: LegalDocument[] = [
-  createDefaultDocument('privacy', 'Privacy Policy', privacyBody),
+  createDefaultDocument('privacy', 'Privacy Policy', privacyBody, '2026-08-11'),
   createDefaultDocument('terms', 'Terms of Service', termsBody),
   createDefaultDocument('creator-pass-terms', 'Creator Pass Terms', creatorPassTermsBody),
   createDefaultDocument('supporter-terms', 'Supporter Terms', supporterTermsBody),
   createDefaultDocument('refund', 'Refund and Cancellation Policy', refundBody),
   createDefaultDocument('developer-terms', 'Developer Contributor Terms', developerTermsBody),
-  createDefaultDocument('contact', 'Contact and Support', contactBody),
+  createDefaultDocument('contact', 'Contact and Support', contactBody, '2026-08-11'),
   createDefaultDocument('accessibility', 'Accessibility Statement', accessibilityBody),
   createDefaultDocument('creator-pool', 'Archived Creator Pool Notice', creatorPoolBody),
 ];

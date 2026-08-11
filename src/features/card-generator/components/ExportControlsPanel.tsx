@@ -191,7 +191,7 @@ export function ExportControlsPanel({
               >
                 {isCheckoutStarting ? 'Checking access...' : 'Unlock clean downloads'}
               </Button>
-              <p>Sign in to claim an open Founder Beta seat, or use Creator Pass when you are ready for clean downloads.</p>
+              <p>Use Creator Pass when you are ready for clean downloads.</p>
             </div>
           ) : null}
 

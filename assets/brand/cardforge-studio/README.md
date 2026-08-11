@@ -31,4 +31,14 @@ Set watermark opacity in the renderer rather than baking translucency into the s
 
 Keep this folder as repository starter/source material. Copy only required runtime derivatives into `public/` during implementation. Do not introduce a second runtime asset catalog or fallback path.
 
+## Raster exports
+
+Keep the SVG files in this folder as the editable source of truth. Generate transparent PNG derivatives for advertising tools and other raster-only consumers with:
+
+```sh
+npm run brand:export
+```
+
+The command writes the primary and compact lockups, brand mark, watermark, and common favicon sizes to `output/brand/cardforge-studio/png/`. Generated files are derivatives, not additional brand masters. Do not convert the logos to JPEG because that removes transparency and introduces compression artifacts.
+
 The SVGs intentionally use controlled geometry and common serif fallbacks for the current approved direction. Before a future trademark or large-format print package, replace the live text with licensed, outlined master typography while preserving these filenames and proportions.

@@ -32,6 +32,8 @@ describe('account administration', () => {
       existingMetadata: {
         cardforgeStripeCustomerId: 'cus_123',
         cardforgeStripeSubscriptionId: 'sub_123',
+        cardforgeAccessExpiresAt: '2026-08-22T00:00:00.000Z',
+        cardforgeFounderBetaClaimedAt: '2026-08-11T00:00:00.000Z',
       },
       input: { access: 'dev', owner: true, note: 'Lead tester' },
     })).toMatchObject({
@@ -41,6 +43,15 @@ describe('account administration', () => {
       cardforgeStripeCustomerId: 'cus_123',
       cardforgeStripeSubscriptionId: 'sub_123',
     });
+    const patch = buildOwnerAccountMetadataPatch({
+      existingMetadata: {
+        cardforgeAccessExpiresAt: '2026-08-22T00:00:00.000Z',
+        cardforgeFounderBetaClaimedAt: '2026-08-11T00:00:00.000Z',
+      },
+      input: { access: 'dev', owner: false, note: '' },
+    });
+    expect(patch).not.toHaveProperty('cardforgeAccessExpiresAt');
+    expect(patch).not.toHaveProperty('cardforgeFounderBetaClaimedAt');
   });
 
   it('clears owner role with an empty private metadata value Clerk will persist', () => {

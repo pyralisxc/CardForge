@@ -21,7 +21,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles }: { canUseProjectFile
         title: 'Project Save Failed',
         description: canUseProjectFiles
           ? 'Browser storage could not save the latest change. Download a project backup now, then free browser storage before continuing.'
-          : 'Browser storage could not save the latest change. Free browser storage before continuing. Portable project backups are available with Founder Beta or Creator Pass.',
+          : 'Browser storage could not save the latest change. Free browser storage before continuing. Portable project backups are available with Creator Pass.',
         variant: 'destructive',
         duration: 12_000,
       });
@@ -45,7 +45,7 @@ export function BrowserStorageAlerts({ canUseProjectFiles }: { canUseProjectFile
           title: 'Your work is saved in this browser',
           description: canUseProjectFiles
             ? 'Download a project backup periodically so you can reopen it on another device or recover after browser cleanup.'
-            : 'Portable project backups are available with Founder Beta or Creator Pass.',
+            : 'Portable project backups are available with Creator Pass.',
           duration: 10_000,
         });
       }, 20_000);

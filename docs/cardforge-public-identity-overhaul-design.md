@@ -73,7 +73,7 @@ Routes:
 
 - `/`: primary product landing and conversion
 - `/examples`: finished CardForge systems and template-to-set demonstrations
-- `/access`: free exploration, active Founder Beta, Creator Pass, and contributor distinction
+- `/account`: free exploration, Creator Pass, and contributor distinction
 - `/about`: product mission, local-first philosophy, and reusable-system workflow
 - `/cameron`: founder story and sole-proprietor identity
 - `/developer`: contributor program

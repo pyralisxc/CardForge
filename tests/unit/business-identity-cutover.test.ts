@@ -115,7 +115,6 @@ describe('business identity runtime cutover', () => {
 
     expect(homepage).toContain('getCachedBusinessIdentity');
     expect(homepage).toContain('Promise.all([');
-    expect(homepage).toContain("getCachedSiteContentBlocks('landing')");
     expect(homepage).toContain('getCachedBusinessIdentity()');
     expect(homepage).toContain('businessIdentity={businessIdentity}');
     expect(shell).toContain('<PublicSiteFooter businessIdentity={businessIdentity}');

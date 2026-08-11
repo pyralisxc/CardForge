@@ -38,6 +38,6 @@ describe('Studio first-session experience', () => {
   it('keeps backup guidance accurate for both project-file capability states', () => {
     expect(alerts).toContain('canUseProjectFiles');
     expect(alerts).toContain('Download a project backup periodically');
-    expect(alerts).toContain('Portable project backups are available with Founder Beta or Creator Pass.');
+    expect(alerts).toContain('Portable project backups are available with Creator Pass.');
   });
 });

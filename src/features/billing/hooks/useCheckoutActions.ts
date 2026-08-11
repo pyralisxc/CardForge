@@ -62,10 +62,10 @@ export function useCheckoutActions({
 
       if (!status?.billing?.productAccessConfigured) {
         toast({
-          title: 'Beta access is manual for now',
+          title: 'Creator Pass checkout is unavailable',
           description: withNextStep(
-            'Stripe checkout is not enabled yet. Early beta export access is granted by the CardForge team in Clerk.',
-            'Ask for beta access, then refresh your account after it is granted.'
+            'Stripe checkout is not enabled in this environment.',
+            'Contact CardForge support if you expected Creator Pass to be available.'
           ),
           variant: 'default',
         });

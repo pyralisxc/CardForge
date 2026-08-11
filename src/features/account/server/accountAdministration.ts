@@ -61,13 +61,18 @@ export const buildOwnerAccountMetadataPatch = ({
 }: {
   existingMetadata?: Record<string, unknown>;
   input: NormalizedOwnerAccountRole;
-}): Record<string, unknown> => ({
-  ...existingMetadata,
-  cardforgeAccess: input.access,
-  cardforgeRole: input.owner ? 'owner' : '',
-  cardforgeOwnerNote: input.note,
-  cardforgeOwnerUpdatedAt: new Date().toISOString(),
-});
+}): Record<string, unknown> => {
+  const nextMetadata = { ...existingMetadata };
+  delete nextMetadata.cardforgeAccessExpiresAt;
+  delete nextMetadata.cardforgeFounderBetaClaimedAt;
+  return {
+    ...nextMetadata,
+    cardforgeAccess: input.access,
+    cardforgeRole: input.owner ? 'owner' : '',
+    cardforgeOwnerNote: input.note,
+    cardforgeOwnerUpdatedAt: new Date().toISOString(),
+  };
+};
 
 export const mapOwnerAccountSummary = (user: {
   id: string;
