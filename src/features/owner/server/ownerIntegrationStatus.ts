@@ -2,6 +2,7 @@ import { isClerkAuthConfigured } from '@/features/account/server';
 import { getBillingConfigStatus } from '@/features/billing/server';
 import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/http/publicUrl';
+import { getAnalyticsConfigurationStatus } from '@/features/analytics/server';
 
 export const getOwnerIntegrationStatus = () => {
   const publicAppUrl = getPublicAppUrl();
@@ -12,6 +13,7 @@ export const getOwnerIntegrationStatus = () => {
     billing: getBillingConfigStatus(),
     supabase: getSupabaseServerConfigStatus(),
     ownerAllowlistConfigured: Boolean(process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS),
+    analytics: getAnalyticsConfigurationStatus(),
     email: {
       contactMode: process.env.RESEND_API_KEY ? 'ready_for_server_delivery' as const : 'mailto' as const,
       resendConfigured: Boolean(process.env.RESEND_API_KEY),
@@ -26,6 +28,8 @@ export const getOwnerIntegrationStatus = () => {
       { label: 'Resend Dashboard', href: 'https://resend.com/domains' },
       { label: 'Vercel Dashboard', href: 'https://vercel.com/dashboard' },
       { label: 'OpenAI Platform', href: 'https://platform.openai.com/' },
+      { label: 'Google Analytics', href: 'https://analytics.google.com/' },
+      { label: 'Search Console', href: 'https://search.google.com/search-console' },
     ],
   };
 };

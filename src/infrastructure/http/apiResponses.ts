@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 export type ApiErrorCode =
   | 'account_auth_unconfigured'
   | 'account_entitlement_unavailable'
+  | 'analytics_unavailable'
   | 'billing_checkout_failed'
   | 'billing_not_configured'
   | 'billing_portal_failed'

@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 
 import type { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
+import { trackCardCreated } from '@/features/analytics/client/tracking';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -32,11 +33,15 @@ export function useGeneratedOutputActions({
 
   const handleBulkCardsGenerated = useCallback((cards: DisplayCard[]) => {
     addGeneratedCards(cards);
-    if (cards.length > 0) toast({ title: 'Cards added to your set', description: `${cards.length} cards are ready for review.` });
+    if (cards.length > 0) {
+      trackCardCreated('bulk', cards.length);
+      toast({ title: 'Cards added to your set', description: `${cards.length} cards are ready for review.` });
+    }
   }, [addGeneratedCards, toast]);
 
   const handleSingleCardAdded = useCallback((card: DisplayCard) => {
     addGeneratedCards([card]);
+    trackCardCreated('single', 1);
   }, [addGeneratedCards]);
 
   const handleClearGeneratedCards = useCallback(() => {

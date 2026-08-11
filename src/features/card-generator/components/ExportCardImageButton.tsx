@@ -22,6 +22,7 @@ import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { renderCardToCanvas } from '@/features/card-generator/lib/cardPreviewExport';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
+import { trackExportCompleted } from '@/features/analytics/client/tracking';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;
@@ -83,6 +84,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
       link.download = `${String(cardName).replace(/\s+/g, '-').toLowerCase()}-${face}.${format === 'jpeg' ? 'jpg' : format}`;
       link.click();
       URL.revokeObjectURL(url);
+      trackExportCompleted('image', 1);
       const dimensions = getRasterExportDimensionsPx(card, exportMode, exportDpi);
       const quality = getRasterExportQualityOption(exportDpi);
       toast({
