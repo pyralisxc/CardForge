@@ -16,8 +16,7 @@ create table if not exists public.cardforge_social_campaigns (
   title text not null check (char_length(title) between 1 and 120),
   objective text not null check (char_length(objective) between 1 and 600),
   destination_url text not null default '',
-  source_reference text not null default '',
-  license_notes text not null default '',
+  production_note text not null default '',
   variants jsonb not null default '[]'::jsonb check (jsonb_typeof(variants) = 'array'),
   status text not null default 'draft' check (status in (
     'draft', 'submitted', 'changes_requested', 'approved', 'provider_draft',
@@ -70,7 +69,7 @@ create table if not exists public.cardforge_campaign_media (
   updated_at timestamptz not null default now(),
   check ((focal_x is null and focal_y is null) or (focal_x between 0 and 1 and focal_y between 0 and 1)),
   unique (ingesting_contributor_id, ingest_idempotency_key),
-  unique (ingesting_contributor_id, content_hash)
+  unique (content_hash)
 );
 
 create table if not exists public.cardforge_campaign_media_derivatives (

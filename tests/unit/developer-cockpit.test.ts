@@ -48,16 +48,14 @@ describe('developer contribution cockpit', () => {
       title: '  Founder workflow proof  ',
       objective: '  Show the full card-set workflow.  ',
       destinationUrl: 'https://cardforges.com/',
-      sourceReference: 'Jam 42',
-      licenseNotes: 'CardForge-owned capture.',
+      productionNote: 'Jam 42',
       requestedPublishAt: '2026-08-02T18:00:00.000Z',
       variants: [{
         service: 'facebook',
         text: '  Build one card, then forge the set.  ',
-        media: [{
-          sourceBucket: 'cardforge-social-sources',
-          sourcePath: 'dev-1/capture.webp',
-          alt: 'CardForge Studio showing a generated card set.',
+        attachments: [{
+          mediaId: '11111111-1111-4111-8111-111111111111',
+          altText: 'CardForge Studio showing a generated card set.',
         }],
       }],
     })).toEqual({
@@ -66,19 +64,21 @@ describe('developer contribution cockpit', () => {
         title: 'Founder workflow proof',
         objective: 'Show the full card-set workflow.',
         destinationUrl: 'https://cardforges.com/',
-        sourceReference: 'Jam 42',
-        licenseNotes: 'CardForge-owned capture.',
+        productionNote: 'Jam 42',
         requestedPublishAt: '2026-08-02T18:00:00.000Z',
         variants: [{
           service: 'facebook',
           text: 'Build one card, then forge the set.',
-          media: [{
-            sourceBucket: 'cardforge-social-sources',
-            sourcePath: 'dev-1/capture.webp',
-            publicUrl: null,
-            alt: 'CardForge Studio showing a generated card set.',
+          attachments: [{
+            mediaId: '11111111-1111-4111-8111-111111111111',
+            derivativeId: null,
+            displayOrder: 0,
+            captionOverride: '',
+            cropIntent: {},
+            altText: 'CardForge Studio showing a generated card set.',
           }],
         }],
+        associations: [],
       },
     });
   });
@@ -87,7 +87,7 @@ describe('developer contribution cockpit', () => {
     expect(normalizeCampaignInput({
       title: 'No channel copy',
       objective: 'Test',
-      variants: [],
+        variants: [],
     })).toEqual({ ok: false, message: 'Add at least one channel variant.' });
 
     expect(normalizeSiteProposalInput({
@@ -95,6 +95,19 @@ describe('developer contribution cockpit', () => {
       proposedBody: 'Copy',
       rationale: 'Reason',
     })).toEqual({ ok: false, message: 'Choose a supported public-site copy block.' });
+
+    expect(normalizeCampaignInput({
+      title: 'Legacy storage reference',
+      objective: 'A package must refer to canonical media rather than a storage object.',
+      variants: [{
+        service: 'facebook',
+        text: 'This must not preserve a raw storage path.',
+        media: [{ sourceBucket: 'campaign-media', sourcePath: 'legacy.png' }],
+      }],
+    } as never)).toEqual({
+      ok: false,
+      message: 'Attach CardForge media by ID; storage references are not accepted.',
+    });
   });
 
   it('allows contributors to submit but reserves approval and publishing for owners', () => {

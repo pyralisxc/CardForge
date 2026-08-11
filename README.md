@@ -74,7 +74,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/developer-access/`: the single owner of developer identity, profile status, contribution grants, and every runtime access to the `cardforge_developer_profiles` persistence boundary.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
 - `src/features/developer-program/`: public developer-program recruitment and explanation.
-- `src/features/developer-cockpit/`: protected cockpit composition, campaign packages, private-to-public media approval, site-copy proposals, and durable review/delivery ledgers.
+- `src/features/developer-cockpit/`: protected cockpit composition, canonical campaign media/derivatives/attachments, production packages, site-copy proposals, and durable review/delivery ledgers.
 - `src/features/social-publishing/`: server-only publishing-provider adapters. Buffer owns channel connections, scheduling, and delivery; it does not own CardForge contribution records or media sources.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.
@@ -93,7 +93,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 CardForge has three storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
-- Supabase-backed shared state for the Forge Pipeline, roadmap voting, Founder Beta claims, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
+- Supabase-backed shared state for the Forge Pipeline, roadmap voting, Founder Beta claims, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, canonical campaign media and derivatives, campaign packages/attachments/production associations, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
 - Repo starter/import files that can seed the pipeline with `npm run pipeline:sync-defaults`, but should not silently replace a missing database catalog at runtime.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.

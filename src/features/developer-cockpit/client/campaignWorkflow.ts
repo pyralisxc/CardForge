@@ -56,8 +56,7 @@ export const matchesCampaignQueueFilter = (
 type CampaignReadinessInput = {
   title: string;
   objective: string;
-  sourceReference: string;
-  licenseNotes: string;
+  productionNote: string;
   variants: SocialCampaignVariant[];
 };
 
@@ -76,7 +75,7 @@ export const getCampaignPackageReadiness = (
   total: number;
   readyToSave: boolean;
 } => {
-  const hasMedia = campaign.variants.some((variant) => variant.media.length > 0);
+  const hasMedia = campaign.variants.some((variant) => variant.attachments.length > 0);
   const items: CampaignReadinessItem[] = [
     {
       key: 'brief',
@@ -86,14 +85,14 @@ export const getCampaignPackageReadiness = (
     },
     {
       key: 'source',
-      label: 'Source or release',
-      complete: Boolean(campaign.sourceReference.trim()),
+      label: 'Production context',
+      complete: Boolean(campaign.productionNote.trim()),
       requiredToSave: false,
     },
     {
       key: 'rights',
-      label: 'Rights context',
-      complete: Boolean(campaign.licenseNotes.trim()),
+      label: 'Rights-aware media',
+      complete: hasMedia && campaign.variants.flatMap((variant) => variant.attachments).every((attachment) => Boolean(attachment.media.rightsBasis.trim())),
       requiredToSave: false,
     },
     {
@@ -107,7 +106,7 @@ export const getCampaignPackageReadiness = (
       key: 'media',
       label: 'Accessible media',
       complete: hasMedia && campaign.variants.every((variant) => (
-        variant.media.every((media) => Boolean(media.alt.trim()))
+        variant.attachments.every((attachment) => Boolean(attachment.altText.trim()))
       )),
       requiredToSave: false,
     },

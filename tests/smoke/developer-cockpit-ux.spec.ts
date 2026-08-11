@@ -14,7 +14,7 @@ const mediaFixture = resolve(
   'public/card-assets/images/arcane-landscape.svg',
 );
 
-const baseCampaign: SocialCampaign = {
+const baseCampaign = {
   id: 'campaign-1',
   contributorId: 'developer-1',
   contributorEmail: 'developer@example.com',
@@ -22,16 +22,14 @@ const baseCampaign: SocialCampaign = {
   title: 'Developer cockpit release proof',
   objective: 'Show how CardForge turns shipped work into a reviewable campaign package.',
   destinationUrl: 'https://cardforges.com/developer',
-  sourceReference: 'https://github.com/pyralisxc/CardForge/pull/88',
-  licenseNotes: 'CardForge-owned product capture by the contributing developer.',
+  productionNote: 'PR #88 proof and release context.',
   variants: [{
     service: 'facebook',
     text: 'Build the feature, preserve the proof, and prepare the story.',
-    media: [{
-      sourceBucket: 'cardforge-social-sources',
-      sourcePath: 'developer-1/2026-07-28/release-proof.webp',
-      publicUrl: null,
-      alt: 'CardForge Developer Cockpit showing a campaign package ready for owner review.',
+    attachments: [{
+      id: 'attachment-1', mediaId: '11111111-1111-4111-8111-111111111111', derivativeId: null, displayOrder: 0, captionOverride: '', cropIntent: {},
+      altText: 'CardForge Developer Cockpit showing a campaign package ready for owner review.',
+      media: { id: '11111111-1111-4111-8111-111111111111', previewUrl: '/api/developer-cockpit/media/11111111-1111-4111-8111-111111111111', reviewState: 'needs_review', creatorCredit: 'CardForge', rightsBasis: 'CardForge-owned capture.' },
     }],
   }],
   status: 'submitted',
@@ -42,8 +40,8 @@ const baseCampaign: SocialCampaign = {
   approvedAt: null,
   version: 1,
   createdAt: '2026-07-28T17:00:00.000Z',
-  updatedAt: '2026-07-28T18:00:00.000Z',
-};
+  updatedAt: '2026-07-28T18:00:00.000Z', associations: [],
+} as unknown as SocialCampaign;
 
 const makeCockpit = ({
   isOwner,
@@ -70,6 +68,8 @@ const makeCockpit = ({
     ]
     : ['assets.submit', 'assets.review', 'campaigns.draft'],
   campaigns,
+  campaignMedia: [],
+  campaignMediaSummary: { mediaCount: 0, protectedBytes: 0, derivativeBytes: 0, unusedMediaCount: 0 },
   publishJobs: [],
   siteProposals: [],
   siteContentBlocks: [],
@@ -85,20 +85,22 @@ const makeCockpit = ({
 });
 
 async function mockCockpit(page: Page, cockpit: DeveloperCockpitView) {
+  let activeCockpit = cockpit;
   await page.route('**/api/developer-cockpit', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ cockpit }),
+      body: JSON.stringify({ cockpit: activeCockpit }),
     });
   });
-  await page.route('**/api/developer-cockpit/media?*', async (route) => {
+  await page.route('**/api/developer-cockpit/media/**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'image/svg+xml',
       path: mediaFixture,
     });
   });
+  return (nextCockpit: DeveloperCockpitView) => { activeCockpit = nextCockpit; };
 }
 
 async function expectNoWcagViolations(page: Page) {
@@ -157,16 +159,13 @@ test.describe('developer cockpit UX audit', () => {
     await expect(page.getByText('2 of 5 production signals ready', { exact: true })).toBeVisible();
 
     await page
-      .getByPlaceholder('PR, release, feature, commit, asset, or Jam link', { exact: true })
-      .fill('PR #89');
-    await page
-      .getByPlaceholder('Who created the media, what it contains, and why CardForge may publish it.', { exact: true })
-      .fill('CardForge-owned copy and product proof.');
-    await expect(page.getByText('4 of 5 production signals ready', { exact: true })).toBeVisible();
+      .getByPlaceholder('Release, feature, proof, or review context.', { exact: true })
+      .fill('PR #89 proof for the release review.');
+    await expect(page.getByText('3 of 5 production signals ready', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Add channel variant', exact: true }).click();
     const copyStarter = page.getByRole('button', {
-      name: 'Start from Facebook copy',
+      name: 'Start from primary copy',
       exact: true,
     });
     await expect(copyStarter).toBeVisible();
@@ -195,25 +194,26 @@ test.describe('developer cockpit UX audit', () => {
       approvedAt: '2026-07-28T19:00:00.000Z',
       reviewedBy: 'owner-1',
       version: 2,
-      variants: [{
-        ...baseCampaign.variants[0],
-        media: [{
-          ...baseCampaign.variants[0].media[0],
-          publicUrl: '/card-assets/images/arcane-landscape.svg',
-        }],
-      }],
+      variants: baseCampaign.variants.map((variant) => ({
+        ...variant,
+        attachments: variant.attachments.map((attachment) => ({
+          ...attachment,
+          media: { ...attachment.media, reviewState: 'public' },
+        })),
+      })),
     };
     const approvedCockpit = makeCockpit({
       isOwner: true,
       campaigns: [approvedCampaign],
     });
 
-    await mockCockpit(page, submittedCockpit);
+    const setCockpit = await mockCockpit(page, submittedCockpit);
     await page.route('**/api/developer-cockpit/campaigns', async (route) => {
+      setCockpit(approvedCockpit);
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ cockpit: approvedCockpit }),
+        body: JSON.stringify({ campaign: approvedCampaign, allowedNextActions: ['provider_draft', 'scheduled'] }),
       });
     });
     await page.goto('/developer/cockpit', {
@@ -231,9 +231,8 @@ test.describe('developer cockpit UX audit', () => {
       name: 'CardForge Developer Cockpit showing a campaign package ready for owner review.',
       exact: true,
     })).toBeVisible();
-    await expect(page.getByText('Source or release', { exact: true })).toBeVisible();
-    await expect(page.getByText('Rights and ownership', { exact: true })).toBeVisible();
-    await expect(page.getByText('Protected source media', { exact: true })).toBeVisible();
+    await expect(page.getByText('Production note', { exact: true })).toBeVisible();
+    await expect(page.getByText('Development associations', { exact: true })).toBeVisible();
 
     await page.getByRole('button', {
       name: 'Approve package and media',
@@ -255,7 +254,7 @@ test.describe('developer cockpit UX audit', () => {
       { exact: true },
     )).toBeVisible();
     await expect(page.getByText('Owner publishing controls', { exact: true })).toBeVisible();
-    await expect(page.getByText('Approved public media', { exact: true })).toBeVisible();
+    await expect(page.getByText('public · CardForge', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Filter campaign packages', { exact: true })).toHaveValue('needs_action');
     await expectNoWcagViolations(page);
   });

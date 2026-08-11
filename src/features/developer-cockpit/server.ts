@@ -6,4 +6,4 @@ export * from './server/cockpitStore';
 export * from './server/media';
 export * from './server/providerStore';
 export * from './server/siteProposalStore';
-export { DeveloperCockpitStoreError } from './server/storeShared';
+export { DeveloperCockpitStoreError, getCampaignRecord } from './server/storeShared';

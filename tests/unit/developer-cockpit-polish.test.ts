@@ -90,9 +90,8 @@ describe('developer cockpit polish contract', () => {
     expect(getCampaignPackageReadiness({
       title: '',
       objective: '',
-      sourceReference: '',
-      licenseNotes: '',
-      variants: [{ service: 'facebook', text: '', media: [] }],
+      productionNote: '',
+      variants: [{ service: 'facebook', text: '', attachments: [] }],
     })).toMatchObject({
       completed: 0,
       total: 5,
@@ -102,16 +101,19 @@ describe('developer cockpit polish contract', () => {
     expect(getCampaignPackageReadiness({
       title: 'Release proof',
       objective: 'Show what changed.',
-      sourceReference: 'PR #88',
-      licenseNotes: 'CardForge-owned capture.',
+      productionNote: 'PR #88',
       variants: [{
         service: 'facebook',
         text: 'The cockpit is ready.',
-        media: [{
-          sourceBucket: 'cardforge-social-sources',
-          sourcePath: 'developer-1/capture.webp',
-          publicUrl: null,
-          alt: 'The CardForge Developer Cockpit campaign queue.',
+        attachments: [{
+          id: 'attachment-1',
+          mediaId: '11111111-1111-4111-8111-111111111111',
+          derivativeId: null,
+          displayOrder: 0,
+          captionOverride: '',
+          cropIntent: {},
+          altText: 'The CardForge Developer Cockpit campaign queue.',
+          media: { rightsBasis: 'CardForge-owned capture.' } as never,
         }],
       }],
     })).toMatchObject({
@@ -128,10 +130,10 @@ describe('developer cockpit polish contract', () => {
     );
 
     expect(details).toContain('Production context');
-    expect(details).toContain('Source or release');
-    expect(details).toContain('Rights and ownership');
+    expect(details).toContain('Production note');
+    expect(details).toContain('Development associations');
     expect(details).toContain('<Image');
-    expect(details).toContain('media.alt');
+    expect(details).toContain('attachment.altText');
   });
 
   it('confirms live site publication and supports proposal withdrawal', () => {
