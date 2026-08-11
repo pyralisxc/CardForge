@@ -30,10 +30,6 @@ const OwnerSiteMediaPanel = dynamic(
   () => import('./OwnerSiteMediaPanel').then((module) => module.OwnerSiteMediaPanel),
   { loading: panelFallback },
 );
-const OwnerAccessPanel = dynamic(
-  () => import('./OwnerAccessPanel').then((module) => module.OwnerAccessPanel),
-  { loading: panelFallback },
-);
 const OwnerLegalPanel = dynamic(
   () => import('./OwnerLegalPanel').then((module) => module.OwnerLegalPanel),
   { loading: panelFallback },
@@ -99,7 +95,6 @@ export function OwnerConsolePage() {
               <TabsTrigger value="media" className={tabClassName}>Site Media</TabsTrigger>
               <TabsTrigger value="founder" className={tabClassName}>Cameron Profile</TabsTrigger>
               <TabsTrigger value="site" className={tabClassName}>Site Mechanics</TabsTrigger>
-              <TabsTrigger value="access" className={tabClassName}>Access & Promos</TabsTrigger>
               <TabsTrigger value="developer" className={tabClassName}>Contributor Program</TabsTrigger>
               <TabsTrigger value="legal" className={tabClassName}>Legal & Secrets</TabsTrigger>
             </TabsList>
@@ -109,7 +104,6 @@ export function OwnerConsolePage() {
             <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="founder" className="mt-0"><OwnerFounderProfilePanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="site" className="mt-0"><OwnerPublicContentPanel consolePayload={payload.console} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
-            <TabsContent value="access" className="mt-0"><OwnerAccessPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="developer" className="mt-0"><OwnerDeveloperProgramPanel /></TabsContent>
             <TabsContent value="legal" className="mt-0"><OwnerLegalPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
           </Tabs>

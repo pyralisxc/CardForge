@@ -26,19 +26,25 @@ const collectTypeScriptFiles = async (directory: string): Promise<string[]> => {
 };
 
 describe('Account and Billing ownership', () => {
-  it('gives Account focused identity, early-access, and administration owners', async () => {
+  it('gives Account focused identity and administration owners', async () => {
     const requiredPaths = [
       ['src', 'features', 'account', 'components', 'AccountIdentitySection.tsx'],
-      ['src', 'features', 'account', 'components', 'AccountFounderBetaSection.tsx'],
       ['src', 'features', 'account', 'components', 'AccountDeveloperStatusSection.tsx'],
-      ['src', 'features', 'account', 'model', 'founderBeta.ts'],
-      ['src', 'features', 'account', 'server', 'founderBetaStore.ts'],
       ['src', 'features', 'account', 'server', 'accountAdministration.ts'],
     ];
 
     await Promise.all(requiredPaths.map(async (parts) => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
     }));
+
+    for (const retiredPath of [
+      ['src', 'features', 'account', 'components', 'AccountFounderBetaSection.tsx'],
+      ['src', 'features', 'account', 'model', 'founderBeta.ts'],
+      ['src', 'features', 'account', 'server', 'founderBetaStore.ts'],
+      ['src', 'app', 'api', 'founder-beta', 'claim', 'route.ts'],
+    ]) {
+      await expect(pathExists(...retiredPath), retiredPath.join('/')).resolves.toBe(false);
+    }
   });
 
   it('keeps the Account page as a focused coordinator without Owner or App Shell coupling', async () => {
@@ -82,9 +88,18 @@ describe('Account and Billing ownership', () => {
     }
   });
 
+  it('keeps the retired demo-seat program out of runtime source', async () => {
+    const runtimeFiles = await collectTypeScriptFiles(rootPath('src'));
+    for (const file of runtimeFiles) {
+      const source = await readFile(file, 'utf8');
+      const sourceWithoutRetiredMetadataCleanup = source.replaceAll('cardforgeFounderBetaClaimedAt', '');
+      expect(sourceWithoutRetiredMetadataCleanup, path.relative(process.cwd(), file)).not.toMatch(/founder[ _-]?beta/iu);
+      expect(source, path.relative(process.cwd(), file)).not.toContain('landing.demo');
+    }
+  });
+
   it('routes account and billing APIs through their owning server interfaces', async () => {
     const routeExpectations = [
-      ['src/app/api/founder-beta/claim/route.ts', '@/features/account/server'],
       ['src/app/api/owner/accounts/route.ts', '@/features/account/server'],
       ['src/app/api/owner/billing/summary/route.ts', '@/features/billing/server'],
       ['src/app/api/owner/billing/reconcile/route.ts', '@/features/billing/server'],

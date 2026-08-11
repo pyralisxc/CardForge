@@ -63,7 +63,6 @@ describe('authenticated smoke QA role metadata', () => {
     cardforgeAccess: 'paid',
     cardforgeRole: 'owner',
     cardforgeAccessExpiresAt: '2026-08-01T00:00:00.000Z',
-    cardforgeFounderBetaClaimedAt: '2026-07-15T00:00:00.000Z',
   };
 
   it('removes all CardForge role keys for free QA', () => {

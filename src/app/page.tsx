@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Gift } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
@@ -12,8 +12,6 @@ import {
 import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
   createCardForgeStructuredData,
-  createSiteContentMap,
-  getCachedSiteContentBlocks,
   getCachedSiteMedia,
   StructuredData,
 } from '@/features/public-site/server';
@@ -26,12 +24,10 @@ export const metadata = createPageMetadata({
 });
 
 export default async function LandingPage() {
-  const [siteContentBlocks, businessIdentity, siteMedia] = await Promise.all([
-    getCachedSiteContentBlocks('landing'),
+  const [businessIdentity, siteMedia] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedSiteMedia(),
   ]);
-  const siteCopy = createSiteContentMap(siteContentBlocks);
   const heroMedia = siteMedia.find((asset) => asset.slot === 'landing.hero');
   const layoutMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.layout');
   const generatorSingleMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-single');
@@ -50,29 +46,6 @@ export default async function LandingPage() {
         generatorBulkMedia={generatorBulkMedia}
       />
       <WorkflowProof />
-
-      <section aria-labelledby="founder-beta-heading" className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-7 md:px-8">
-        <div className="mx-auto grid max-w-7xl gap-5 border-l-2 border-[var(--public-brass)] bg-[var(--public-surface)] p-5 md:grid-cols-[1fr_auto] md:items-center">
-          <div>
-            <p className="flex items-center gap-2 text-base font-semibold text-[var(--public-brass)]">
-              <Gift className="h-5 w-5" aria-hidden="true" /> Founder Beta
-            </p>
-            <h2 id="founder-beta-heading" className="mt-2 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">
-              {siteCopy['landing.demo.heading']}
-            </h2>
-            <p className="mt-2 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">
-              {siteCopy['landing.demo.body']}
-            </p>
-          </div>
-          <Link
-            href="/account"
-            prefetch={false}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)]"
-          >
-            Check beta access <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </div>
-      </section>
 
       <AccessComparison />
       <FounderStrip />

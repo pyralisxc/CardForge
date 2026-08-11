@@ -34,7 +34,6 @@ const CLERK_API_PREFIXES = [
   '/api/billing/support/checkout',
   '/api/developer-assets',
   '/api/developer-cockpit',
-  '/api/founder-beta',
   '/api/owner',
   '/api/roadmap',
   '/api/roadmap/items',

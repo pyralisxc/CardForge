@@ -54,7 +54,6 @@ export const buildQaPrivateMetadata = (role, existingMetadata = {}) => {
   delete nextMetadata.cardforgeAccess;
   delete nextMetadata.cardforgeRole;
   delete nextMetadata.cardforgeAccessExpiresAt;
-  delete nextMetadata.cardforgeFounderBetaClaimedAt;
 
   if (role === 'free') return nextMetadata;
   if (role === 'paid') return { ...nextMetadata, cardforgeAccess: 'paid' };

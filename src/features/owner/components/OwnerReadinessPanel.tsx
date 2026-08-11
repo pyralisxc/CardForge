@@ -73,13 +73,12 @@ export function OwnerReadinessPanel({ consolePayload, onConsoleChange }: {
           <OwnerFieldHelp text="Database size comes from Postgres. Storage size comes from Supabase Storage metadata. Browser-local uploads do not count here." />
         </div>
         {metrics ? (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <OwnerMetricTile label="Database" value={formatOwnerBytes(metrics.databaseSizeBytes)} />
             <OwnerMetricTile label="CardForge tables" value={formatOwnerBytes(metrics.cardforgeTableSizeBytes)} />
             <OwnerMetricTile label="Storage objects" value={formatOwnerBytes(metrics.storageSizeBytes)} />
             <OwnerMetricTile label="Registry assets" value={String(metrics.assetRegistryCount)} />
             <OwnerMetricTile label="Dev submissions" value={String(metrics.developerSubmissionCount)} />
-            <OwnerMetricTile label="Promo users" value={String(metrics.founderBetaClaimCount)} />
           </div>
         ) : <p className="mt-5 border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">Database footprint metrics are not available yet.</p>}
       </section>

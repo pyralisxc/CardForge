@@ -7,7 +7,6 @@ type DatabaseMetricsRow = {
   storage_size_bytes: number | null;
   asset_registry_count: number | null;
   developer_submission_count: number | null;
-  founder_beta_claim_count: number | null;
 };
 
 export const getOwnerDatabaseMetrics = async (): Promise<OwnerDatabaseMetrics | null> => {
@@ -25,6 +24,5 @@ export const getOwnerDatabaseMetrics = async (): Promise<OwnerDatabaseMetrics | 
     storageSizeBytes: Number(row.storage_size_bytes ?? 0),
     assetRegistryCount: Number(row.asset_registry_count ?? 0),
     developerSubmissionCount: Number(row.developer_submission_count ?? 0),
-    founderBetaClaimCount: Number(row.founder_beta_claim_count ?? 0),
   } : null;
 };

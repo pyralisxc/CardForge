@@ -124,7 +124,7 @@ export function CardForgeStudioShell({
   const accessExpiresOn = formatAccessExpiration(accountEntitlement.accessExpiresAt);
   const exportEntitlementMessage = accountEntitlement.authConfigured
     ? accessExpiresOn
-      ? `${exportEntitlementCopy.panelMessage} Beta access is active through ${accessExpiresOn}.`
+      ? `${exportEntitlementCopy.panelMessage} Clean export access is active through ${accessExpiresOn}.`
       : exportEntitlementCopy.panelMessage
     : 'Clerk sign-in is not fully configured. Local development can still validate export behavior, but real free, paid, and dev account testing starts after adding CLERK_SECRET_KEY.';
   const canUploadCustomAssets = canUploadCustomLocalAssets({

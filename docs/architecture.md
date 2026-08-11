@@ -12,7 +12,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
 - Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
 - Email: Resend sends transactional messages to the configured support inbox and users.
-- Shared data: Supabase stores owner settings, editable homepage media, legal copy, the founder profile and public portrait object, roadmap/votes, Founder Beta claims, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles/scopes, asset submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider delivery jobs, and contact request history.
+- Shared data: Supabase stores owner settings, editable homepage media, legal copy, the founder profile and public portrait object, roadmap/votes, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles/scopes, asset submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider delivery jobs, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
 
 ## Source Lanes
@@ -37,7 +37,7 @@ CardForge has three storage lanes:
 
 - `src/app/page.tsx`: public landing page.
 - `src/app/studio/page.tsx`: Studio route.
-- `src/app/account/page.tsx`: access, Founder Beta, Creator Pass, roadmap, and profile entry.
+- `src/app/account/page.tsx`: account access, Creator Pass, developer status, and profile entry.
 - `src/app/developer/page.tsx`: public, indexable developer application.
 - `src/app/developer/cockpit/page.tsx`: protected, noindex contribution workspace.
 - `src/app/owner/page.tsx`: owner console.
@@ -56,7 +56,7 @@ CardForge has three storage lanes:
 - `src/features/card-rendering`: shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark presentation consumed through `client.ts`.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
 - `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
-- `src/features/account`: current-user resolution, access entitlement, profile surfaces, Founder Beta, and owner account administration behind explicit client/server interfaces.
+- `src/features/account`: current-user resolution, access entitlement, profile surfaces, and owner account administration behind explicit client/server interfaces.
 - `src/features/business-identity`: browser-safe operator contracts, normalization, owner editing, and the server-owned `cardforge_business_identity` record.
 - `src/features/public-site`: editable landing/about/sharing/founder content, the shared public header/footer, social and share controls, tagged public caches, server-side portrait processing, metadata-adjacent structured data, browser-safe contracts, and server-owned Supabase stores.
 - `src/features/legal`: immutable versioned legal-publication contracts, constrained Markdown presentation, tagged public caching, and server-owned Supabase publication.
@@ -67,7 +67,7 @@ CardForge has three storage lanes:
 - `src/features/developer-program`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit`: protected cockpit composition, CardForge-owned campaign/site proposal ledgers, media approval, and workflow state transitions.
 - `src/features/social-publishing`: server-only provider boundary. Buffer owns channel connections, post scheduling, and delivery status; CardForge owns package content, approval history, source media, and the durable mapping to provider post IDs.
-- `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Business identity, Founder Beta, account administration, billing, and public content remain owned by their product features.
+- `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Business identity, account administration, billing, and public content remain owned by their product features.
 - `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
 - `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.
 - `src/components/ui`: generic UI primitives and generic browser UI state such as toast delivery.
@@ -92,7 +92,6 @@ App routes compose the public-site-owned shared header. The Owner Console keeps 
 ## Current Access Model
 
 - Free users can design locally and generate previews.
-- Founder Beta users get time-limited clean export access while seats remain available.
 - Creator Pass users get paid clean export access through Stripe.
 - Developer access grants export plus pipeline tools.
 - Active developer access grants asset submission/review. Campaign drafting and site-copy proposals are separate owner-managed scopes and remain globally gated until updated contribution terms/privacy are published.

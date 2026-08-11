@@ -7,20 +7,25 @@ const migrationPath = resolve(
   process.cwd(),
   'supabase/migrations/202607140001_harden_privileged_functions.sql'
 );
+const retirementMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260811183544_retire_founder_beta.sql'
+);
 
 describe('privileged Supabase function hardening migration', () => {
-  it('removes public execution and keeps the Founder Beta RPC server-only', () => {
-    const sql = readFileSync(migrationPath, 'utf8').toLowerCase().replace(/\s+/g, ' ');
+  it('removes the retired promotion RPC and tables', () => {
+    const sql = readFileSync(retirementMigrationPath, 'utf8').toLowerCase().replace(/\s+/g, ' ');
 
     expect(sql).toContain(
-      'revoke execute on function public.cardforge_claim_founder_beta(text, text) from public, anon, authenticated'
+      'drop function if exists public.cardforge_claim_founder_beta(text, text)'
     );
     expect(sql).toContain(
-      'grant execute on function public.cardforge_claim_founder_beta(text, text) to service_role'
+      'drop table if exists public.cardforge_founder_beta_claims'
     );
     expect(sql).toContain(
-      'revoke execute on function public.rls_auto_enable() from public, anon, authenticated'
+      'drop table if exists public.cardforge_founder_beta_campaigns'
     );
+    expect(sql).toContain("raise exception 'cardforge_developer_contribution_cockpit_required'");
   });
 
   it('makes future public-schema functions private by default', () => {

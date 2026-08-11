@@ -2,7 +2,6 @@ import {
   getOwnerConsolePayload,
   getOwnerIntegrationStatus,
 } from '@/features/owner/server';
-import { FounderBetaStoreError, updateFounderBetaCampaign } from '@/features/account/server';
 import {
   BusinessIdentityStoreError,
   revalidatePublicIdentityCache,
@@ -95,7 +94,6 @@ export async function PUT(request: Request) {
         effectiveDate?: unknown;
         expectedBusinessIdentityVersion?: unknown;
       };
-      founderBetaCampaign?: Record<string, unknown>;
       roadmapItem?: { itemId?: unknown; status?: unknown };
     };
 
@@ -139,11 +137,6 @@ export async function PUT(request: Request) {
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 
-    if (body.kind === 'founderBeta') {
-      await updateFounderBetaCampaign(body.founderBetaCampaign ?? {});
-      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
-    }
-
     if (body.kind === 'roadmapStatus') {
       await updateRoadmapAdminItemStatus(body.roadmapItem ?? {});
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
@@ -156,8 +149,7 @@ export async function PUT(request: Request) {
     }
 
     if (
-      error instanceof FounderBetaStoreError
-      || error instanceof BusinessIdentityStoreError
+      error instanceof BusinessIdentityStoreError
       || error instanceof PublicSiteStoreError
       || error instanceof FounderProfileStoreError
       || error instanceof LegalDocumentStoreError

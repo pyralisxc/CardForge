@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createClerkClient } from '@clerk/backend';
 import { setupClerkTestingToken, clerk, clerkSetup } from '@clerk/testing/playwright';
-import { createClient } from '@supabase/supabase-js';
 
 type ClerkUserSummary = {
   id: string;
@@ -104,7 +103,6 @@ function withoutCardForgeRole(privateMetadata: Record<string, unknown>) {
   delete next.cardforgeAccess;
   delete next.cardforgeRole;
   delete next.cardforgeAccessExpiresAt;
-  delete next.cardforgeFounderBetaClaimedAt;
   return next;
 }
 
@@ -180,30 +178,10 @@ async function signInWithClerkTestingToken(page: Page, email: string, path: stri
   throw lastError;
 }
 
-async function removeFounderBetaClaim(userId: string) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
-
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: {
-      persistSession: false,
-    },
-  });
-
-  const { error } = await supabase
-    .from('cardforge_founder_beta_claims')
-    .delete()
-    .eq('clerk_user_id', userId);
-
-  if (error) {
-    throw new Error(`Unable to restore Founder Beta QA state: ${error.message}`);
-  }
-}
-
 async function cleanupCreatedUsers() {
   const clerkAdmin = process.env.CLERK_SECRET_KEY ? getClerkAdminClient() : null;
 
   for (const userId of createdUserIds) {
-    await removeFounderBetaClaim(userId);
     try {
       await clerkAdmin?.users.deleteUser(userId);
     } catch {
@@ -215,7 +193,6 @@ async function cleanupCreatedUsers() {
     try {
       const user = await findClerkUserByEmail(email);
       if (user) {
-        await removeFounderBetaClaim(user.id);
         await clerkAdmin?.users.deleteUser(user.id);
       }
     } catch {
@@ -346,45 +323,6 @@ test('reusable QA account matrix enforces entitlement, developer, and owner acce
       if (originalPrivateMetadata) {
         await setPrivateMetadata(qaUser.userId, originalPrivateMetadata);
       }
-    }
-  }
-});
-
-test('reusable free QA account can claim Founder Beta access', async ({ page }) => {
-  test.setTimeout(180_000);
-  test.skip(Boolean(authSetupError), authSetupError ?? 'Unable to prepare Clerk testing token.');
-  test.skip(!process.env.CLERK_SECRET_KEY, 'CLERK_SECRET_KEY is required for authenticated smoke tests.');
-  test.skip(!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required for authenticated smoke tests.');
-  const reusableFreeEmail = getReusableFreeEmail();
-  test.skip(!reusableFreeEmail && !allowDisposableUsers(), 'Set CARDFORGE_E2E_FREE_EMAIL for reusable QA, or opt into disposable users with CARDFORGE_E2E_ALLOW_DISPOSABLE_USERS=true.');
-
-  const qaUser = await resolveQaUser(reusableFreeEmail);
-  const originalPrivateMetadata = qaUser.reusable ? await getPrivateMetadata(qaUser.userId) : null;
-
-  try {
-    if (qaUser.reusable) {
-      await setPrivateMetadata(qaUser.userId, withoutCardForgeRole(originalPrivateMetadata!));
-    }
-    await removeFounderBetaClaim(qaUser.userId);
-
-    await signInWithClerkTestingToken(page, qaUser.email, '/account');
-    await expectEntitlement(page, { accessMode: 'free', canExportClean: false, isOwner: false });
-
-    await expect(page.getByRole('button', { name: /Claim Founder Beta/i })).toBeVisible({ timeout: 30_000 });
-    const claimResponsePromise = page.waitForResponse((response) => response.url().includes('/api/founder-beta/claim'));
-    await page.getByRole('button', { name: /Claim Founder Beta/i }).click();
-    const claimResponse = await claimResponsePromise;
-    expect(claimResponse.ok()).toBe(true);
-    const claimBody = await claimResponse.json() as { entitlement?: { accessMode?: string; canExportClean?: boolean } };
-    expect(claimBody.entitlement).toMatchObject({
-      accessMode: 'paid',
-      canExportClean: true,
-    });
-    await expectEntitlement(page, { accessMode: 'paid', canExportClean: true, isOwner: false });
-  } finally {
-    await removeFounderBetaClaim(qaUser.userId);
-    if (qaUser.reusable && originalPrivateMetadata) {
-      await setPrivateMetadata(qaUser.userId, originalPrivateMetadata);
     }
   }
 });

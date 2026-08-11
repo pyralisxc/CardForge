@@ -22,12 +22,12 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerOperationsPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerPublicContentPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx'],
-      ['src', 'features', 'owner', 'components', 'OwnerAccessPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
     ];
     await Promise.all(requiredPaths.map(async (parts) => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
     }));
+    await expect(pathExists('src', 'features', 'owner', 'components', 'OwnerAccessPanel.tsx')).resolves.toBe(false);
   });
 
   it('gives all public images one dedicated responsive owner workspace', async () => {
