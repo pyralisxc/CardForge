@@ -77,6 +77,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/developer-program/`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit/`: protected cockpit composition, canonical campaign media/derivatives/attachments, production packages, site-copy proposals, and durable review/delivery ledgers.
 - `src/features/social-publishing/`: server-only publishing-provider adapters. Buffer owns channel connections, scheduling, and delivery; it does not own CardForge contribution records or media sources.
+- `src/features/experience-settings/`: owner-controlled launch policy for portable project-file access and analytics-consent presentation, with one cached public projection.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.
 - `src/features/roadmap/`: Public roadmap, feature suggestions/votes, and owner roadmap operations.

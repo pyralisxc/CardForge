@@ -118,6 +118,7 @@ export function CardForgeStudioShell({
   const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
   const exportEntitlementCopy = accountEntitlement.copy;
   const exportGateMessage = accountEntitlement.copy.gateMessage;
+  const projectFileGateMessage = accountEntitlement.copy.projectFileGateMessage;
   const exportEntitlementLabel = accountEntitlement.authConfigured
     ? exportEntitlementCopy.modeLabel
     : 'Local setup mode';
@@ -252,9 +253,9 @@ export function CardForgeStudioShell({
     pendingProjectImport,
   } = useProjectFileActions({
     appearanceStyles,
-    canUseProjectFiles: projectCapabilities.canExportClean,
+    canUseProjectFiles: projectCapabilities.canUseProjectFiles,
     exportDpi,
-    projectFileGateMessage: exportGateMessage,
+    projectFileGateMessage,
     exportMode,
     fileInputRef,
     pdfCardSpacingMm,
@@ -412,7 +413,7 @@ export function CardForgeStudioShell({
 
           <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="data-[state=inactive]:hidden">
             <CardTemplateMaker
-              canUseProjectFiles={projectCapabilities.canExportClean}
+              canUseProjectFiles={projectCapabilities.canUseProjectFiles}
               showCardWatermark={showVisibleCardWatermark}
               isActive={effectiveActiveTab === 'template-maker'}
               onSaveTemplate={handleSaveTemplate}
@@ -430,7 +431,7 @@ export function CardForgeStudioShell({
               onImportProject={handleChooseImportProject}
               onLoadProject={handleImportProject}
               onStartCheckout={handleStartCheckout}
-              projectFileGateMessage={exportGateMessage}
+              projectFileGateMessage={projectFileGateMessage}
               selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}
               onSelectTemplateForEditing={setSingleCardGeneratorSelectedTemplateIdAction}
               canSavePipelineTemplate={projectCapabilities.canWriteShippedLibrary}
@@ -488,7 +489,7 @@ export function CardForgeStudioShell({
 
         </Tabs>
       </main>
-      <BrowserStorageAlerts canUseProjectFiles={projectCapabilities.canExportClean} />
+      <BrowserStorageAlerts canUseProjectFiles={projectCapabilities.canUseProjectFiles} />
       {isEditDialogOpen && editingCardFromStore && (
         <EditCardDialog
             isOpen={isEditDialogOpen}

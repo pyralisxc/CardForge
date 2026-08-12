@@ -191,7 +191,7 @@ export function ExportControlsPanel({
               >
                 {isCheckoutStarting ? 'Checking access...' : 'Get watermark-free downloads'}
               </Button>
-              <p>Creator Pass adds watermark-free downloads and portable project files.</p>
+              <p>Creator Pass adds watermark-free finished downloads.</p>
             </div>
           ) : null}
 

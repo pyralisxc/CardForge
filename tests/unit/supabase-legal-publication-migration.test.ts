@@ -12,9 +12,9 @@ const retirementMigrationPath = resolve(
   process.cwd(),
   'supabase/migrations/20260811183544_retire_founder_beta.sql',
 );
-const analyticsPrivacyMigrationPath = resolve(
+const experienceControlsMigrationPath = resolve(
   process.cwd(),
-  'supabase/migrations/20260812012508_analytics_privacy_publication.sql',
+  'supabase/migrations/20260812153632_owner_experience_controls.sql',
 );
 
 describe('versioned legal publication migration', () => {
@@ -59,7 +59,7 @@ describe('versioned legal publication migration', () => {
   it('publishes the exact reviewed repository bodies across the versioned migrations', async () => {
     const sql = await readFile(migrationPath, 'utf8');
     const retirementSql = await readFile(retirementMigrationPath, 'utf8');
-    const analyticsPrivacySql = await readFile(analyticsPrivacyMigrationPath, 'utf8');
+    const experienceControlsSql = await readFile(experienceControlsMigrationPath, 'utf8');
     const tagBySlug = {
       privacy: 'privacy_reviewed',
       terms: 'terms_reviewed',
@@ -74,15 +74,15 @@ describe('versioned legal publication migration', () => {
 
     for (const document of DEFAULT_LEGAL_DOCUMENTS) {
       if (document.slug === 'supporter-terms' || document.slug === 'refund') continue;
-      const isAnalyticsPrivacyPublication = document.slug === 'privacy';
+      const isExperienceControlsPrivacyPublication = document.slug === 'privacy';
       const isRetirementPublication = document.slug === 'contact';
-      const tag = isAnalyticsPrivacyPublication
-        ? 'privacy_analytics'
+      const tag = isExperienceControlsPrivacyPublication
+        ? 'privacy_consent_controls'
         : isRetirementPublication
           ? `${document.slug}_retired_demo`
           : tagBySlug[document.slug];
-      const source = isAnalyticsPrivacyPublication
-        ? analyticsPrivacySql
+      const source = isExperienceControlsPrivacyPublication
+        ? experienceControlsSql
         : isRetirementPublication
           ? retirementSql
           : sql;

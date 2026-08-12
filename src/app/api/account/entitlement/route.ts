@@ -4,6 +4,7 @@ import { isClerkAuthConfigured, resolveAccountEntitlement } from '@/features/acc
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess } from '@/domain/entitlements';
+import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 
 export const dynamic = 'force-dynamic';
 const CLERK_READ_TIMEOUT_MS = 3000;
@@ -11,9 +12,13 @@ const CLERK_READ_TIMEOUT_MS = 3000;
 export async function GET() {
   try {
     const authConfigured = isClerkAuthConfigured();
+    const experienceSettings = await getCachedExperienceSettings();
 
     if (!authConfigured) {
-      return createNoStoreJsonResponse(resolveAccountEntitlement({ authConfigured: false }));
+      return createNoStoreJsonResponse(resolveAccountEntitlement({
+        authConfigured: false,
+        projectFileAccess: experienceSettings.projectFileAccess,
+      }));
     }
 
     const [authState, sessionUser] = await Promise.all([
@@ -53,6 +58,7 @@ export async function GET() {
       emailAddresses,
       privateMetadata,
       ownerAccess,
+      projectFileAccess: experienceSettings.projectFileAccess,
     });
 
     return createNoStoreJsonResponse({

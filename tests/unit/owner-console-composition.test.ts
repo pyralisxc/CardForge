@@ -24,11 +24,27 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
       ['src', 'features', 'analytics', 'components', 'OwnerAnalyticsPanel.tsx'],
+      ['src', 'features', 'experience-settings', 'components', 'OwnerExperienceControlsPanel.tsx'],
     ];
     await Promise.all(requiredPaths.map(async (parts) => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
     }));
     await expect(pathExists('src', 'features', 'owner', 'components', 'OwnerAccessPanel.tsx')).resolves.toBe(false);
+  });
+
+  it('composes site controls without taking ownership from experience settings', async () => {
+    const page = await readFile(rootPath('src/features/owner/components/OwnerConsolePage.tsx'), 'utf8');
+    const model = await readFile(rootPath('src/features/owner/lib/ownerConsole.ts'), 'utf8');
+    const panel = await readFile(
+      rootPath('src/features/experience-settings/components/OwnerExperienceControlsPanel.tsx'),
+      'utf8',
+    );
+
+    expect(page).toContain("@/features/experience-settings/client/owner");
+    expect(page).toContain('>Experience Controls</TabsTrigger>');
+    expect(model).toContain('experienceSettings: ExperienceSettings');
+    expect(panel).not.toContain('@/features/owner');
+    expect(panel).toContain('/api/owner/experience-settings');
   });
 
   it('composes analytics as an owner-only workspace without taking over measurement ownership', async () => {

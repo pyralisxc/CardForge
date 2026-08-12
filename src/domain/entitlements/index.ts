@@ -1,9 +1,11 @@
 export type AccessMode = 'free' | 'paid' | 'dev';
+export type ProjectFileAccessPolicy = 'free' | 'creator_pass';
 
 export type ProjectCapabilities = {
   canPreview: boolean;
   canGenerate: boolean;
   canExportClean: boolean;
+  canUseProjectFiles: boolean;
   canWriteShippedLibrary: boolean;
 };
 
@@ -11,6 +13,7 @@ export type ExportEntitlementCopy = {
   modeLabel: string;
   canExportClean: boolean;
   gateMessage: string | null;
+  projectFileGateMessage: string | null;
   panelMessage: string;
 };
 
@@ -31,10 +34,14 @@ const readEnvironment = (env?: AccessEnvironment): AccessEnvironment => env ?? {
   CARDFORGE_ALLOW_LIBRARY_WRITES: process.env.CARDFORGE_ALLOW_LIBRARY_WRITES,
 };
 
-export const getProjectCapabilities = (mode: AccessMode): ProjectCapabilities => ({
+export const getProjectCapabilities = (
+  mode: AccessMode,
+  projectFileAccess: ProjectFileAccessPolicy = 'creator_pass',
+): ProjectCapabilities => ({
   canPreview: true,
   canGenerate: true,
   canExportClean: mode !== 'free',
+  canUseProjectFiles: mode !== 'free' || projectFileAccess === 'free',
   canWriteShippedLibrary: mode === 'dev',
 });
 
@@ -48,17 +55,29 @@ export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
 export const getExportGateMessage = (mode: AccessMode): string | null =>
   getProjectCapabilities(mode).canExportClean
     ? null
-    : 'Creator Pass unlocks watermark-free PNG, PDF, and ZIP downloads plus portable CardForge project files. You can keep designing and making preview cards for free.';
+    : 'Creator Pass unlocks watermark-free PNG, PDF, ZIP, and Tabletop Simulator downloads. You can keep designing and making preview cards for free.';
 
-export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCopy => {
+export const getProjectFileGateMessage = (
+  mode: AccessMode,
+  projectFileAccess: ProjectFileAccessPolicy = 'creator_pass',
+): string | null => getProjectCapabilities(mode, projectFileAccess).canUseProjectFiles
+  ? null
+  : 'Creator Pass lets you download and open portable CardForge project files.';
+
+export const getExportEntitlementCopy = (
+  mode: AccessMode,
+  projectFileAccess: ProjectFileAccessPolicy = 'creator_pass',
+): ExportEntitlementCopy => {
   const gateMessage = getExportGateMessage(mode);
-  const canExportClean = getProjectCapabilities(mode).canExportClean;
+  const projectFileGateMessage = getProjectFileGateMessage(mode, projectFileAccess);
+  const canExportClean = getProjectCapabilities(mode, projectFileAccess).canExportClean;
 
   if (mode === 'dev') {
     return {
       modeLabel: 'Contributor access',
       canExportClean,
       gateMessage,
+      projectFileGateMessage,
       panelMessage: 'Watermark-free downloads and portable project files are available for local validation. Projects stay on this device unless you download and move a project file.',
     };
   }
@@ -68,6 +87,7 @@ export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCop
       modeLabel: 'Creator Pass active',
       canExportClean,
       gateMessage,
+      projectFileGateMessage,
       panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads and portable project files are available. Projects remain local to this browser unless you download and move a project file; CardForge does not store your card designs.',
     };
   }
@@ -76,7 +96,10 @@ export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCop
     modeLabel: 'Free plan',
     canExportClean,
     gateMessage,
-    panelMessage: 'Design layouts, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
+    projectFileGateMessage,
+    panelMessage: projectFileAccess === 'free'
+      ? 'Design layouts, add card data, and move portable project files for free. Creator Pass adds watermark-free finished downloads.'
+      : 'Design layouts, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
   };
 };
 

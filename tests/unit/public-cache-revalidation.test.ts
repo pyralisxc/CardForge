@@ -32,6 +32,10 @@ import {
   legalDocumentTag,
   revalidateLegalDocumentCache,
 } from '@/features/legal/server';
+import {
+  EXPERIENCE_SETTINGS_TAG,
+  revalidateExperienceSettingsCache,
+} from '@/features/experience-settings/server';
 
 describe('public cache tags and publication invalidation', () => {
   beforeEach(() => revalidateTag.mockClear());
@@ -41,12 +45,16 @@ describe('public cache tags and publication invalidation', () => {
     expect(siteContentTag('landing')).toBe('public:site-content:landing');
     expect(FOUNDER_PROFILE_TAG).toBe('public:founder-profile');
     expect(legalDocumentTag('privacy')).toBe('public:legal:privacy');
+    expect(EXPERIENCE_SETTINGS_TAG).toBe('public:experience-settings');
 
     expect(cacheRegistrations.some(({ options }) => (
       options?.tags?.includes(FOUNDER_PROFILE_TAG) && options.revalidate === 3600
     ))).toBe(true);
     expect(cacheRegistrations.some(({ options }) => (
       options?.tags?.includes(PUBLIC_IDENTITY_TAG) && options.revalidate === 3600
+    ))).toBe(true);
+    expect(cacheRegistrations.some(({ options }) => (
+      options?.tags?.includes(EXPERIENCE_SETTINGS_TAG) && options.revalidate === 3600
     ))).toBe(true);
     expect(cacheRegistrations.some(({ options }) => (
       options?.tags?.includes(siteContentTag('about')) && options.revalidate === 3600
@@ -70,6 +78,9 @@ describe('public cache tags and publication invalidation', () => {
 
     revalidateLegalDocumentCache('refund');
     expect(revalidateTag).toHaveBeenLastCalledWith(legalDocumentTag('refund'));
+
+    revalidateExperienceSettingsCache();
+    expect(revalidateTag).toHaveBeenLastCalledWith(EXPERIENCE_SETTINGS_TAG);
   });
 
   it('runs invalidation only after successful owner mutations', () => {
@@ -89,6 +100,14 @@ describe('public cache tags and publication invalidation', () => {
     );
     expect(route.indexOf('await updateFounderProfile(')).toBeLessThan(
       route.indexOf('revalidateFounderProfile();'),
+    );
+
+    const experienceRoute = readFileSync(
+      join(process.cwd(), 'src/app/api/owner/experience-settings/route.ts'),
+      'utf8',
+    );
+    expect(experienceRoute.indexOf('await updateExperienceSettings(')).toBeLessThan(
+      experienceRoute.indexOf('revalidateExperienceSettingsCache();'),
     );
   });
 });
