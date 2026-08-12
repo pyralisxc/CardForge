@@ -64,7 +64,7 @@ function LiveView({ snapshot }: { snapshot: OwnerAnalyticsSnapshot }) {
     <div className="grid gap-4 lg:grid-cols-3">
       <RankedList title="Pages active now" rows={snapshot.realtime.pages} empty="No visitors are active right now." available={snapshot.availability.realtimePages} />
       <RankedList title="Events active now" rows={snapshot.realtime.events} empty="No consented events have arrived in the realtime window." available={snapshot.availability.realtimeEvents} />
-      <RankedList title="Sources active now" rows={snapshot.realtime.sources} empty="No active acquisition sources are available." available={snapshot.availability.realtimeSources} />
+      <RankedList title="Devices active now" rows={snapshot.realtime.devices} empty="No active devices are available." available={snapshot.availability.realtimeDevices} />
     </div>
   </div>;
 }
