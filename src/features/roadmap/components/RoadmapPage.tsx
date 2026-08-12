@@ -37,7 +37,7 @@ export function RoadmapPage({
         <div className="border border-[#6d4f2b] bg-[#15100a] p-4 md:p-5">
           <div className="flex items-center gap-3 text-[#e2aa4a]">
             <History className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Forge Chronicle</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Product roadmap</span>
           </div>
           <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[#fff1c7] md:text-4xl">
             Vote for the CardForge tools you want next.

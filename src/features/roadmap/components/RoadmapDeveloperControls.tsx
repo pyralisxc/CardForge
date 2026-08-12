@@ -33,7 +33,7 @@ export function RoadmapDeveloperControls({
     <form className="mt-6 border border-[#7d5a2e] bg-[#181009] p-4" onSubmit={onSubmit}>
       <div className="flex items-center gap-3 text-[#e2aa4a]">
         <Database className="h-5 w-5" />
-        <h3 className="font-serif text-xl text-[#fff1c7]">Developer level-up controls</h3>
+        <h3 className="font-serif text-xl text-[#fff1c7]">Roadmap publishing controls</h3>
       </div>
       <p className="mt-2 text-sm leading-6 text-[#c7b288]">
         {isOwner
@@ -65,8 +65,8 @@ export function RoadmapDeveloperControls({
             itemType: event.target.value as Exclude<RoadmapItemType, 'feature'>,
           }))}
         >
-          {isOwner ? <option value="roi_checkpoint">Level-up checkpoint</option> : null}
-          <option value="shipped_update">Chronicle shipped progress</option>
+          {isOwner ? <option value="roi_checkpoint">Planned service upgrade</option> : null}
+          <option value="shipped_update">Shipped product update</option>
         </select>
         <select
           className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
@@ -141,7 +141,7 @@ export function RoadmapDeveloperControls({
         disabled={isSaving || !isRoadmapDeveloperFormComplete(form)}
       >
         <Plus className="mr-2 h-4 w-4" />
-        Add level-up item
+        Add roadmap item
       </Button>
     </form>
   );

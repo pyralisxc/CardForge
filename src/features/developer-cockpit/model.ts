@@ -204,12 +204,12 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
   if (!objective) return { ok: false, message: 'Campaign objective is required.' };
   if (objective.length > CAMPAIGN_FIELD_LIMITS.objective) return { ok: false, message: 'Campaign objective must be 600 characters or fewer.' };
   const destinationUrl = normalizeHttpUrl(input.destinationUrl);
-  if (destinationUrl === null) return { ok: false, message: 'Destination URL must use HTTP or HTTPS.' };
-  if (destinationUrl.length > CAMPAIGN_FIELD_LIMITS.destinationUrl) return { ok: false, message: 'Destination URL must be 2,048 characters or fewer.' };
+  if (destinationUrl === null) return { ok: false, message: 'The link people should open must use HTTP or HTTPS.' };
+  if (destinationUrl.length > CAMPAIGN_FIELD_LIMITS.destinationUrl) return { ok: false, message: 'The link people should open must be 2,048 characters or fewer.' };
   const requestedPublishAt = normalizeRequestedPublishAt(input.requestedPublishAt);
-  if (requestedPublishAt === false) return { ok: false, message: 'Requested publish time is invalid.' };
+  if (requestedPublishAt === false) return { ok: false, message: 'The preferred publish time is invalid.' };
   const productionNote = longText(input.productionNote);
-  if (productionNote.length > CAMPAIGN_FIELD_LIMITS.productionNote) return { ok: false, message: 'Production note must be 1,000 characters or fewer.' };
+  if (productionNote.length > CAMPAIGN_FIELD_LIMITS.productionNote) return { ok: false, message: 'Release and review context must be 1,000 characters or fewer.' };
   if (!Array.isArray(input.variants) || !input.variants.length) return { ok: false, message: 'Add at least one channel variant.' };
   if (input.variants.length > 10) return { ok: false, message: 'A campaign can target at most 10 channels.' };
   const seenServices = new Set<SocialService>();

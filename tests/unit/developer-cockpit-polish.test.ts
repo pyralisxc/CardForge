@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getCampaignPackageReadiness,
+  getCampaignStatusLabel,
   isCampaignActionable,
   matchesCampaignQueueFilter,
 } from '@/features/developer-cockpit/client/campaignWorkflow';
@@ -113,7 +114,7 @@ describe('developer cockpit polish contract', () => {
     })).toBe(false);
   });
 
-  it('makes package readiness visible without making optional production signals persistence requirements', () => {
+  it('makes package readiness visible without making optional package sections persistence requirements', () => {
     expect(getCampaignPackageReadiness({
       title: '',
       objective: '',
@@ -156,11 +157,17 @@ describe('developer cockpit polish contract', () => {
       'utf8',
     );
 
-    expect(details).toContain('Production context');
-    expect(details).toContain('Production note');
+    expect(details).toContain('Release context');
+    expect(details).toContain('Release and review context');
     expect(details).toContain('Development associations');
     expect(details).toContain('<Image');
     expect(details).toContain('attachment.altText');
+  });
+
+  it('presents workflow states with provider-aware human labels', () => {
+    expect(getCampaignStatusLabel('provider_draft')).toBe('Buffer draft');
+    expect(getCampaignStatusLabel('changes_requested')).toBe('Changes requested');
+    expect(getCampaignStatusLabel('scheduled')).toBe('Scheduled');
   });
 
   it('confirms live site publication and supports proposal withdrawal', () => {

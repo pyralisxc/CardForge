@@ -28,7 +28,7 @@ import { DeveloperSiteProposalPanel } from '@/features/developer-cockpit/compone
 
 const tabClassName = 'min-h-11 rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]';
 const cockpitTabs: ReadonlyArray<{ value: string; label: string; ownerOnly?: boolean }> = [
-  { value: 'overview', label: 'Cockpit' },
+  { value: 'overview', label: 'Overview' },
   { value: 'library', label: 'Asset Contributions' },
   { value: 'campaigns', label: 'Campaigns' },
   { value: 'campaign-media', label: 'Campaign Media', ownerOnly: true },
@@ -42,7 +42,7 @@ const standards = [
   'Attach source and license notes. A reviewer should know who owns every image and why CardForge may publish it.',
   'Write channel-native variants. The campaign package is the source of truth; Buffer only handles connected channels and delivery.',
   'Never place secrets, customer data, private email, billing details, or unreleased account state in screenshots.',
-  'Site-copy proposals compare against the captured live text. If the live block changes first, rebase instead of overwriting it.',
+  'Site-copy proposals compare against the captured live text. If the live text changes first, update the proposal from the latest version instead of overwriting it.',
   'Owner approval is not ceremonial: it is the only boundary that can expose media, publish site copy, or schedule social posts.',
 ];
 
@@ -104,7 +104,7 @@ export function DeveloperCockpitPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className={`border px-3 py-2 text-xs ${cockpit.configured ? 'border-[#497352] text-[#a8e7b8]' : 'border-[#8c6436] text-[#f0bd75]'}`}>
-                {cockpit.configured ? 'Database ready' : 'Migration/config required'}
+                {cockpit.configured ? 'Workspace ready' : 'Setup required'}
               </span>
               <Button type="button" className="min-h-11" size="sm" variant="outline" onClick={() => void load()} disabled={loading}>
                 <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -139,17 +139,17 @@ export function DeveloperCockpitPage() {
             <div className="grid gap-3 md:grid-cols-3">
               <MetricCard icon={Megaphone} label="Campaign actions" value={actionableCampaigns} help={cockpit.isOwner ? 'Review, provider setup, or delivery recovery that needs you.' : 'Drafts or requested revisions ready for your attention.'} onOpen={() => setActiveTab('campaigns')} />
               <MetricCard icon={FileCheck2} label="Site review" value={submittedProposals} help={cockpit.isOwner ? 'Copy proposals waiting for an owner decision.' : 'Your copy proposals currently in owner review.'} onOpen={() => setActiveTab('site')} />
-              <MetricCard icon={Activity} label="Provider jobs" value={activeJobs} help="Buffer drafts and scheduled posts with durable CardForge records." onOpen={() => setActiveTab('campaigns')} />
+              <MetricCard icon={Activity} label="Buffer drafts & schedules" value={activeJobs} help="Buffer drafts and scheduled posts with durable CardForge records." onOpen={() => setActiveTab('campaigns')} />
             </div>
             <section className="grid gap-3 lg:grid-cols-2">
               <article className="border border-[#5f4526] bg-[#15100a] p-5">
-                <div className="flex items-center gap-3 text-[#e2aa4a]"><Boxes className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">Your enabled lanes</h2></div>
+                <div className="flex items-center gap-3 text-[#e2aa4a]"><Boxes className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">What you can contribute</h2></div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {cockpit.scopes.map((scope) => <span key={scope} className="border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs text-[#d8c49a]">{DEVELOPER_CONTRIBUTION_SCOPE_LABELS[scope]}</span>)}
                 </div>
               </article>
               <article className="border border-[#5f4526] bg-[#15100a] p-5">
-                <div className="flex items-center gap-3 text-[#e2aa4a]"><Settings2 className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">Publishing boundary</h2></div>
+                <div className="flex items-center gap-3 text-[#e2aa4a]"><Settings2 className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">Social publishing status</h2></div>
                 <p className="mt-3 text-sm leading-6 text-[#c7b288]">
                   Buffer is {cockpit.provider.configured ? 'configured' : 'not configured'} and live publishing is {cockpit.provider.publishingEnabled ? 'enabled' : 'hard-disabled'}.
                 </p>
@@ -164,7 +164,7 @@ export function DeveloperCockpitPage() {
           <TabsContent value="site" className="mt-3"><DeveloperSiteProposalPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>
           <TabsContent value="standards" className="mt-3">
             <section className="border border-[#5f4526] bg-[#15100a] p-5">
-              <div className="flex items-center gap-3 text-[#e2aa4a]"><BookOpenCheck className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Contribution standards</h2></div>
+              <div className="flex items-center gap-3 text-[#e2aa4a]"><BookOpenCheck className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Contribution guidelines</h2></div>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {standards.map((standard) => <p key={standard} className="border border-[#4a3823] bg-[#100c08] p-4 text-sm leading-6 text-[#d8c49a]">{standard}</p>)}
               </div>

@@ -369,7 +369,7 @@ export const validateCampaignPackage = (input: CampaignInput) => {
   const warnings = [
     normalized.value.productionNote
       ? ''
-      : 'Add a production note so reviewers understand the release context.',
+      : 'Add release and review context so reviewers understand the work behind this package.',
     normalized.value.variants.some((variant) => !variant.attachments.length)
       ? 'One or more channels are text-only.'
       : '',

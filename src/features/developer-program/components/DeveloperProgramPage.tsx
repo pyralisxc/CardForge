@@ -21,13 +21,13 @@ import { ContactRequestForm } from '@/features/contact/client/form';
 const contributionLanes = [
   {
     icon: UploadCloud,
-    title: 'Library craft',
-    copy: 'Submit templates, overlays, icons, textures, fonts, and reusable recipes into Forge Review.',
+    title: 'Shared library assets',
+    copy: 'Submit templates, overlays, icons, textures, fonts, and reusable design presets for owner review.',
   },
   {
     icon: Megaphone,
     title: 'Campaign packages',
-    copy: 'Turn screenshots, Jam walkthroughs, release notes, and product proof into channel-ready marketing drafts.',
+    copy: 'Combine post copy, media, rights details, and release context into reusable marketing drafts.',
   },
   {
     icon: Vote,
@@ -75,13 +75,13 @@ export function DeveloperProgramPage({
           <div className="border border-[#6d4f2b] bg-[#15100a] p-5 md:p-7">
             <div className="flex items-center gap-3 text-[#e2aa4a]">
               <Sparkles className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Forge community</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Developer Program</span>
             </div>
             <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-[#fff1c7] md:text-5xl">
-              Help operate the forge, not just admire it.
+              Help improve CardForge with reviewable contributions.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
-              CardForge contributors improve the shared library, prepare honest product marketing, and propose clearer site details from one protected cockpit. The work stays reviewable and durable; live public changes always remain owner-approved.
+              Approved contributors add shared assets, prepare marketing drafts, and propose clearer public-site text from one secure workspace. Every contribution keeps its source and review history, and the owner approves all public changes.
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               {contributionLanes.map(({ icon: Icon, title, copy }) => (
@@ -135,7 +135,7 @@ export function DeveloperProgramPage({
           <aside className="border border-[#5f4526] bg-[#100c08] p-4">
             <div className="flex items-center gap-2 text-[#e2aa4a]">
               <ShieldCheck className="h-4 w-4" />
-              <p className="text-xs uppercase tracking-[0.16em]">Approval-gated workspace</p>
+              <p className="text-xs uppercase tracking-[0.16em]">Scoped contributor access</p>
             </div>
             <p className="mt-3 break-words text-sm text-[#ffe7ad]">
               {accountEmail ?? 'No signed-in account'}
@@ -147,7 +147,7 @@ export function DeveloperProgramPage({
         </div>
 
         <section className="mt-5 border border-[#5f4526] bg-[#15100a] p-5">
-          <h2 className="font-serif text-2xl text-[#fff1c7]">The cockpit contract</h2>
+          <h2 className="font-serif text-2xl text-[#fff1c7]">Contribution rules</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {standards.map((standard) => (
               <div key={standard} className="flex gap-3 border border-[#4a3823] bg-[#100c08] p-3">

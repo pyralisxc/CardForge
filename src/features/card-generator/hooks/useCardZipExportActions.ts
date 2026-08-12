@@ -55,8 +55,8 @@ export function useCardZipExportActions({
     if (generatedDisplayCards.length === 0) return;
     if (!canExportClean) {
       toast({
-        title: 'Clean export locked',
-        description: exportGateMessage || 'Clean export requires Creator Pass.',
+        title: 'Watermark-free download locked',
+        description: exportGateMessage || 'Creator Pass is required for watermark-free downloads.',
         variant: 'default',
       });
       return;
@@ -116,8 +116,8 @@ export function useCardZipExportActions({
     if (generatedDisplayCards.length === 0) return;
     if (!canExportClean) {
       toast({
-        title: 'Clean export locked',
-        description: exportGateMessage || 'Clean export requires Creator Pass.',
+        title: 'Watermark-free download locked',
+        description: exportGateMessage || 'Creator Pass is required for watermark-free downloads.',
         variant: 'default',
       });
       return;

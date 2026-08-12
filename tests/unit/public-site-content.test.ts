@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createSiteContentMap,
   DEFAULT_SITE_CONTENT_BLOCKS,
   normalizeSiteContentBlockInput,
 } from '@/features/public-site/client';
@@ -15,6 +16,15 @@ describe('public site content rules', () => {
       'about.hero.body',
       'sharing.message',
     ]);
+  });
+
+  it('keeps the bundled public hero copy aligned with the polished live experience', () => {
+    const content = createSiteContentMap(DEFAULT_SITE_CONTENT_BLOCKS);
+
+    expect(content['landing.hero.support']).toBe('Build the card once. Let the set follow.');
+    expect(content['landing.hero.headline']).toBe('Design one card. Add your list. CardForge builds the set.');
+    expect(content['landing.hero.body']).toContain('keep your work on your device');
+    expect(content['about.hero.headline']).toBe('Give everyday creators room to make it their own.');
   });
 
   it('accepts only bounded known content blocks', () => {

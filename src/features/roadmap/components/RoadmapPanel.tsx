@@ -58,7 +58,7 @@ const statusLabels: Record<RoadmapStatus, string> = {
 };
 
 const itemTypeLabels: Record<RoadmapItemType, string> = {
-  roi_checkpoint: 'Level-up checkpoint',
+  roi_checkpoint: 'Service upgrade',
   feature: 'Feature goal',
   shipped_update: 'Shipped progress',
 };
@@ -325,8 +325,8 @@ function HorizontalTimeline({
     return (
       <div className="border border-[#5f4526] bg-[#0c0b09] p-4 text-sm leading-6 text-[#c7b288]">
         {isLoading
-          ? 'Loading level-up checkpoints...'
-          : 'Level-up checkpoints will appear here as they are published. For now, add or vote on a focused improvement above.'}
+          ? 'Loading planned service upgrades...'
+          : 'Planned service upgrades will appear here as they are published. For now, add or vote on a focused improvement above.'}
       </div>
     );
   }
@@ -470,7 +470,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
       setPayload(await response.json() as RoadmapPayload);
     } catch (error) {
       toast({
-        title: 'Chronicle unavailable',
+        title: 'Roadmap unavailable',
         description: error instanceof Error ? error.message : 'Unable to load roadmap.',
         variant: 'destructive',
       });
@@ -594,8 +594,8 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
         expenseSourceUrl: '',
       }));
       toast({
-        title: 'Chronicle updated',
-        description: 'The CardForge-authored timeline item has been added.',
+        title: 'Roadmap updated',
+        description: 'The CardForge-authored roadmap item has been added.',
       });
     } catch (error) {
       toast({
@@ -619,7 +619,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
       }
       setPayload(await response.json() as RoadmapPayload);
       toast({
-        title: 'Chronicle entry deleted',
+        title: 'Roadmap entry deleted',
         description: 'The timeline item has been removed from the public board.',
       });
     } catch (error) {
@@ -642,7 +642,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
               <History className="h-5 w-5" />
               <span className="text-xs font-semibold uppercase tracking-[0.18em]">Roadmap</span>
             </div>
-            <h2 className="mt-3 font-serif text-3xl text-[#fff1c7] md:text-4xl">Help choose what the forge makes easier next</h2>
+            <h2 className="mt-3 font-serif text-3xl text-[#fff1c7] md:text-4xl">Help choose what CardForge improves next</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
               Vote on focused improvements and follow the real service upgrades CardForge can plan around as Creator Pass grows.
             </p>
@@ -650,23 +650,23 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
           <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
             <a href={developerRequestMailto}>
               <Mail className="mr-2 h-4 w-4" />
-              Join the forge
+              Share detailed feedback
             </a>
           </Button>
         </div>
 
         {!payload?.configured && !isLoading ? (
           <div className="mt-6 border border-[#7d5a2e] bg-[#181009] p-4 text-sm leading-6 text-[#f0c27a]">
-            Supabase is connected in env, but the Chronicle tables are not ready yet. Run both Supabase migrations, then refresh this page.
+            The public roadmap is temporarily unavailable. Please try again later.
           </div>
         ) : null}
 
         <div className="mt-6 border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h3 className="font-serif text-2xl text-[#fff1c7]">Community priority queue</h3>
+              <h3 className="font-serif text-2xl text-[#fff1c7]">Feature requests</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
-                Signed-in makers add one compact request at a time. Votes keep the queue honest, and strong signals can graduate into level-up checkpoints.
+                Signed-in creators can suggest one focused improvement at a time and vote on the requests that matter most.
               </p>
             </div>
             <div className="grid grid-cols-3 border border-[#6d4f2b] bg-[#0c0b09] text-center">
@@ -772,7 +772,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
             <div className="flex items-start gap-3">
               <CalendarDays className="mt-1 h-5 w-5 text-[#e2aa4a]" />
               <div>
-                <h3 className="font-serif text-2xl text-[#fff1c7]">Level-up roadmap</h3>
+                <h3 className="font-serif text-2xl text-[#fff1c7]">Planned service upgrades</h3>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-[#c7b288]">
                   Verified service upgrades with their monthly cost, official pricing source, and the {ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER}× income buffer CardForge requires before taking on each increase.
                 </p>
@@ -797,7 +797,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
               value={revenueAvailable ? formatMonthlyCurrency(creatorPassIncome?.grossMonthlyRevenueCents ?? 0) ?? '$0/mo' : 'Unavailable'}
               detail={revenueAvailable && creatorPassIncome
                 ? `${creatorPassIncome.activeSubscriberCount} active Creator Pass subscription${creatorPassIncome.activeSubscriberCount === 1 ? '' : 's'} at current listed prices; trials and support excluded.`
-                : 'Stripe subscription data is currently unavailable.'}
+                : 'Current funding progress is temporarily unavailable.'}
               icon={<Target className="h-3.5 w-3.5" />}
             />
             <FinancialMetric

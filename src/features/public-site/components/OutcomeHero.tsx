@@ -19,7 +19,17 @@ const desktopHeightClass = {
   large: 'md:min-h-[48rem]',
 } as const;
 
-export function OutcomeHero({ media = getDefaultSiteMedia('landing.hero') }: { media?: SiteMediaAsset }) {
+export function OutcomeHero({
+  body,
+  headline,
+  media = getDefaultSiteMedia('landing.hero'),
+  support,
+}: {
+  body: string;
+  headline: string;
+  media?: SiteMediaAsset;
+  support: string;
+}) {
   return (
     <section className={`relative flex overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:px-8 md:py-16 ${mobileHeightClass[media.presentation.mobileSize]} ${desktopHeightClass[media.presentation.desktopSize]}`}>
       <ResponsiveSiteMediaImage
@@ -37,13 +47,13 @@ export function OutcomeHero({ media = getDefaultSiteMedia('landing.hero') }: { m
       <div className="relative mx-auto flex w-full max-w-7xl items-center">
         <div className="max-w-3xl">
           <p className="text-base font-semibold text-[var(--public-brass)]">
-            Build the card once. Let the set follow.
+            {support}
           </p>
           <h1 className="mt-4 font-[var(--public-font-display)] text-4xl font-semibold leading-[1.05] text-[var(--public-ivory)] drop-shadow-[0_3px_16px_rgba(0,0,0,0.75)] md:text-6xl">
-            Design one card. Add your list. CardForge builds the set.
+            {headline}
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-[#ddd2c2] drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
-            Make the look once, add the words and pictures for each card, and watch the whole set come together. Try it in your browser and keep your work on your device.
+            {body}
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link

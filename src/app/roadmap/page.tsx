@@ -11,7 +11,7 @@ import { createBreadcrumbStructuredData, StructuredData } from '@/features/publi
 
 export const metadata: Metadata = createPageMetadata({
   title: 'CardForge Roadmap',
-  description: 'Vote on CardForge feature priorities and follow the monthly level-up roadmap for the shared card-system studio.',
+  description: 'Vote on CardForge feature priorities and follow planned service upgrades for the shared card-system studio.',
   path: '/roadmap',
 });
 

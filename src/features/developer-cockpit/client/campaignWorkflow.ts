@@ -2,6 +2,7 @@ import type {
   SocialCampaign,
   SocialCampaignStatus,
   SocialCampaignVariant,
+  SocialPublishJobStatus,
 } from '@/features/developer-cockpit/model';
 
 export type CampaignQueueFilter =
@@ -30,6 +31,25 @@ const contributorActionStatuses = new Set<SocialCampaignStatus>([
   'draft',
   'changes_requested',
 ]);
+
+const workflowStatusLabels: Record<SocialCampaignStatus | SocialPublishJobStatus, string> = {
+  draft: 'Draft',
+  submitted: 'Awaiting review',
+  changes_requested: 'Changes requested',
+  approved: 'Approved',
+  provider_draft: 'Buffer draft',
+  scheduled: 'Scheduled',
+  published: 'Published',
+  failed: 'Delivery failed',
+  cancelled: 'Cancelled',
+  unknown: 'Status unavailable',
+};
+
+export const getCampaignStatusLabel = (status: SocialCampaignStatus): string =>
+  workflowStatusLabels[status];
+
+export const getPublishJobStatusLabel = (status: SocialPublishJobStatus): string =>
+  workflowStatusLabels[status];
 
 export const isCampaignActionable = (
   campaign: CampaignWorkflowSummary,
@@ -85,7 +105,7 @@ export const getCampaignPackageReadiness = (
     },
     {
       key: 'source',
-      label: 'Production context',
+      label: 'Release context',
       complete: Boolean(campaign.productionNote.trim()),
       requiredToSave: false,
     },
@@ -126,10 +146,10 @@ export const getCampaignStatusGuidance = (
   status: SocialCampaignStatus,
   isOwner: boolean,
 ): string => {
-  if (status === 'draft') return 'Complete the production package, then submit it for owner review.';
+  if (status === 'draft') return 'Complete the campaign package, then submit it for owner review.';
   if (status === 'submitted') {
     return isOwner
-      ? 'Review the proof, destination, rights, and channel deliverables before deciding.'
+      ? 'Review the proof, destination, rights, and social posts before deciding.'
       : 'The package is waiting for owner review.';
   }
   if (status === 'changes_requested') {

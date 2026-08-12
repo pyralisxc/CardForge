@@ -48,7 +48,7 @@ export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
 export const getExportGateMessage = (mode: AccessMode): string | null =>
   getProjectCapabilities(mode).canExportClean
     ? null
-    : 'Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports. You can keep designing and generating previews for free.';
+    : 'Creator Pass unlocks watermark-free PNG, PDF, and ZIP downloads plus portable CardForge project files. You can keep designing and making preview cards for free.';
 
 export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCopy => {
   const gateMessage = getExportGateMessage(mode);
@@ -56,27 +56,27 @@ export const getExportEntitlementCopy = (mode: AccessMode): ExportEntitlementCop
 
   if (mode === 'dev') {
     return {
-      modeLabel: 'Dev export entitlement active',
+      modeLabel: 'Contributor access',
       canExportClean,
       gateMessage,
-      panelMessage: 'Clean export is unlocked for local validation. Projects remain local unless you export a project file yourself.',
+      panelMessage: 'Watermark-free downloads and portable project files are available for local validation. Projects stay on this device unless you download and move a project file.',
     };
   }
 
   if (mode === 'paid') {
     return {
-      modeLabel: 'Paid export entitlement active',
+      modeLabel: 'Creator Pass active',
       canExportClean,
       gateMessage,
-      panelMessage: 'Clean PDF, PNG, and ZIP export are unlocked. Projects remain local to this browser and project files; CardForge does not store your designs.',
+      panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads and portable project files are available. Projects remain local to this browser unless you download and move a project file; CardForge does not store your card designs.',
     };
   }
 
   return {
-    modeLabel: 'Free preview mode',
+    modeLabel: 'Free plan',
     canExportClean,
     gateMessage,
-    panelMessage: 'Free mode can design layouts, import data, and generate previews. Buy Creator Pass when you are ready to export clean files and save portable project files.',
+    panelMessage: 'Design layouts, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
   };
 };
 

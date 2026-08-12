@@ -9,7 +9,7 @@ const accessOptions = [
   },
   {
     title: 'Creator Pass',
-    copy: 'When you are ready for clean downloads, Creator Pass gives you product access and supports the business behind CardForge.',
+    copy: 'Creator Pass adds watermark-free PNG, PDF, and ZIP downloads plus portable CardForge project files.',
     action: 'See Creator Pass',
     href: '/account',
   },
@@ -23,7 +23,7 @@ export function AccessComparison() {
           <div>
             <p className="text-base font-semibold text-[var(--public-brass)]">Choose your next step</p>
             <h2 id="access-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">
-              Start free. Upgrade only when clean downloads matter.
+              Start free. Upgrade when you need watermark-free downloads.
             </h2>
           </div>
           <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center text-base font-bold text-[var(--public-brass)] hover:text-[#f2d697]">

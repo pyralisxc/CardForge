@@ -9,12 +9,17 @@ import {
 
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteShell } from '@/features/public-site/client/shell';
-import { createBreadcrumbStructuredData, StructuredData } from '@/features/public-site/server';
+import {
+  createBreadcrumbStructuredData,
+  createSiteContentMap,
+  getCachedSiteContentBlocks,
+  StructuredData,
+} from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
   title: 'About CardForge',
-  description: 'See how CardForge Studio helps everyday creators build highly customized card sets today and grow toward reusable printable design systems.',
+  description: 'See how CardForge Studio helps creators build customized card sets and how contributors support its shared library, marketing, and public-site improvements.',
   path: '/about',
 });
 
@@ -26,7 +31,11 @@ const principles = [
 ] as const;
 
 export default async function AboutPage() {
-  const businessIdentity = await getCachedBusinessIdentity();
+  const [businessIdentity, siteContentBlocks] = await Promise.all([
+    getCachedBusinessIdentity(),
+    getCachedSiteContentBlocks('about'),
+  ]);
+  const siteContent = createSiteContentMap(siteContentBlocks);
 
   return (
     <PublicSiteShell businessIdentity={businessIdentity} currentPath="/about">
@@ -39,10 +48,10 @@ export default async function AboutPage() {
         <div className="mx-auto max-w-5xl">
           <p className="text-base font-semibold text-[var(--public-brass)]">About CardForge Studio</p>
           <h1 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)] md:text-5xl">
-            Give everyday creators room to make it their own.
+            {siteContent['about.hero.headline']}
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">
-            CardForge Studio turns a reusable design and structured content into a consistent set without taking the creative decisions away from you. It is built for people who want deep customization without rebuilding every item by hand.
+            {siteContent['about.hero.body']}
           </p>
           <div className="mt-6 flex flex-wrap gap-5">
             <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">
@@ -102,25 +111,6 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
-        <div className="mx-auto max-w-5xl">
-          <div className="border-l-2 border-[var(--public-brass)] bg-[var(--public-surface)] p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--public-brass)]">Independent brand notice</p>
-            <h2 className="mt-2 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">
-              Building openly in a competitive, fast-moving category
-            </h2>
-            <div className="mt-3 grid gap-3 text-base leading-7 text-[var(--public-muted-text)]">
-              <p>
-                Several products use similar forge-inspired names. CardForge Studio is independent and not affiliated with those products. We monitor naming and trademark obligations and will adapt the brand if a legal requirement makes that necessary.
-              </p>
-              <p>
-                Long term, we would like to acquire cardforge.com, currently listed for sale by a third party, if the timing and cost make business sense. Its availability and asking price can change; this is an ambition, not a commitment or a current operating expense.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-[1.3fr_0.7fr] md:items-start">
           <div>
@@ -128,10 +118,10 @@ export default async function AboutPage() {
               Growing with creators and developers
             </h2>
             <p className="mt-3 text-lg leading-8 text-[var(--public-muted-text)]">
-              Public roadmap voting helps creators influence priorities. CardForge is also exploring whether a future developer compensation program could share defined program revenue with qualified contributors to shared creation tools.
+              Public roadmap voting helps creators influence priorities. Qualified contributors can submit shared assets, marketing drafts, and site-copy proposals.
             </p>
             <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">
-              That program is not active today, is not committed or guaranteed, and may change or never launch. No current contribution creates a developer balance, profit right, payment promise, or payout entitlement. Any launch would still require billing reconciliation, refund and dispute handling, eligibility rules, final terms, and payout infrastructure.
+              All public changes remain owner-approved. Contributions follow the current Developer Terms and do not create guaranteed payment, ownership of CardForge, or revenue-sharing rights.
             </p>
           </div>
           <div className="grid gap-3 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">

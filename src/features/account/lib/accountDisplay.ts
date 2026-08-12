@@ -34,10 +34,10 @@ export function buildForgeTitle({
   isSetupIncomplete: boolean;
 }): string {
   if (isSetupIncomplete) return 'Connect Clerk to test accounts';
-  if (isAnonymous) return 'Your Forge is ready';
+  if (isAnonymous) return 'Your CardForge account';
 
   const name = getAccountDisplayName({ displayName, email });
-  if (!name) return `Your Forge: ${tierLabel}`;
+  if (!name) return `Your account: ${tierLabel}`;
 
-  return `${toPossessiveName(name)} Forge: ${tierLabel}`;
+  return `${toPossessiveName(name)} account: ${tierLabel}`;
 }

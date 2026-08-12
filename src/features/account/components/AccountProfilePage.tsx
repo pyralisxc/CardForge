@@ -105,9 +105,9 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
       : isDeveloper
         ? 'You can help review and contribute to shared CardForge assets.'
         : accessExpiresOn
-          ? `Clean export is active through ${accessExpiresOn}.`
+          ? `Creator Pass is active through ${accessExpiresOn}.`
           : entitlement.canExportClean
-            ? 'Clean export is active for your account.'
+            ? 'Watermark-free downloads are active for your account.'
             : 'Make cards in Studio, then come back here whenever you need your account or plan.';
 
   const planLabel = isOwner
@@ -115,9 +115,9 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
     : isDeveloper
       ? 'Contributor access'
       : accessExpiresOn
-        ? `Clean export through ${accessExpiresOn}`
+        ? `Creator Pass through ${accessExpiresOn}`
         : entitlement.canExportClean
-          ? 'Clean export'
+          ? 'Creator Pass'
           : 'Free';
 
   const accountActions = (
@@ -134,7 +134,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
         authConfigured={entitlement.authConfigured}
         canManageBilling={canManageBilling}
         effectiveSignedIn={effectiveSignedIn}
-        checkoutLabel="Unlock export"
+        checkoutLabel="Get Creator Pass"
         showCheckout={showCheckout}
       />
       {isClerkSetupIncomplete ? (
@@ -145,7 +145,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
           <SignUpButton mode="modal"><Button size="lg" variant="ghost" onClick={markSignUpIntent} className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">Create account</Button></SignUpButton>
         </>
       ) : !canStartCheckout ? (
-        <Button disabled size="lg" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]"><ShieldCheck className="mr-2 h-5 w-5" /> Export active</Button>
+        <Button disabled size="lg" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]"><ShieldCheck className="mr-2 h-5 w-5" /> Downloads active</Button>
       ) : null}
     </>
   );
