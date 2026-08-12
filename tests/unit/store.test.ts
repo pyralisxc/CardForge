@@ -463,6 +463,24 @@ describe('app store helpers', () => {
     ]);
   });
 
+  it('retargets only cards that used the protected source design', () => {
+    useProjectStore.setState({
+      storedCards: [
+        { uniqueId: 'source-1', templateId: 'protected-source', data: { cardName: 'One' } },
+        { uniqueId: 'source-2', templateId: 'protected-source', data: { cardName: 'Two' } },
+        { uniqueId: 'other', templateId: 'other-template', data: { cardName: 'Other' } },
+      ],
+    });
+
+    useProjectStore.getState().retargetGeneratedCardsTemplate('protected-source', 'personal-copy');
+
+    expect(useProjectStore.getState().storedCards.map((card) => card.templateId)).toEqual([
+      'personal-copy',
+      'personal-copy',
+      'other-template',
+    ]);
+  });
+
   it('merges bootstrap user templates without replacing browser-local templates', () => {
     const localTemplate = reconstructMinimalTemplateObject({
       id: 'local-template',

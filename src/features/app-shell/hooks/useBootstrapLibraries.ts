@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { loadBootstrapStyles, loadBootstrapTemplates } from '@/features/app-shell/lib/bootstrapLibraries';
 import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
@@ -17,18 +17,31 @@ export function useBootstrapLibraries({
   mergeUserTemplatesFromFiles,
 }: UseBootstrapLibrariesInput) {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
+  const [templateLibraryFailed, setTemplateLibraryFailed] = useState(false);
+  const [styleLibraryFailed, setStyleLibraryFailed] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const retryLibraries = useCallback(() => {
+    setReloadToken((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadPipelineTemplates = async () => {
+      setIsLoadingTemplates(true);
       try {
         const payload = await loadBootstrapTemplates();
         if (cancelled) return;
-        setDefaultTemplatesFromFiles(Array.isArray(payload.defaults) ? payload.defaults : []);
-        mergeUserTemplatesFromFiles(Array.isArray(payload.userTemplates) ? payload.userTemplates : []);
+        if (!Array.isArray(payload.defaults) || !Array.isArray(payload.userTemplates)) {
+          throw new Error('Template library response is incomplete.');
+        }
+        setTemplateLibraryFailed(false);
+        setDefaultTemplatesFromFiles(payload.defaults);
+        mergeUserTemplatesFromFiles(payload.userTemplates);
       } catch (error) {
         console.warn('Unable to load pipeline templates:', error);
+        if (!cancelled) setTemplateLibraryFailed(true);
       } finally {
         if (!cancelled) setIsLoadingTemplates(false);
       }
@@ -38,7 +51,7 @@ export function useBootstrapLibraries({
     return () => {
       cancelled = true;
     };
-  }, [setDefaultTemplatesFromFiles, mergeUserTemplatesFromFiles]);
+  }, [setDefaultTemplatesFromFiles, mergeUserTemplatesFromFiles, reloadToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,10 +59,13 @@ export function useBootstrapLibraries({
     const loadPipelineStyles = async () => {
       try {
         const payload = await loadBootstrapStyles() as Partial<AppearanceStyleLibrary>;
-        if (cancelled || !Array.isArray(payload.styles)) return;
+        if (cancelled) return;
+        if (!Array.isArray(payload.styles)) throw new Error('Style library response is incomplete.');
+        setStyleLibraryFailed(false);
         setAppearanceStylesFromFiles(payload.styles);
       } catch (error) {
         console.warn('Unable to load pipeline styles:', error);
+        if (!cancelled) setStyleLibraryFailed(true);
       }
     };
 
@@ -57,7 +73,12 @@ export function useBootstrapLibraries({
     return () => {
       cancelled = true;
     };
-  }, [setAppearanceStylesFromFiles]);
+  }, [reloadToken, setAppearanceStylesFromFiles]);
 
-  return { isLoadingTemplates };
+  return {
+    isLoadingTemplates,
+    retryLibraries,
+    styleLibraryFailed,
+    templateLibraryFailed,
+  };
 }

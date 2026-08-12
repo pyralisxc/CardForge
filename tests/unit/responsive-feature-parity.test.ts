@@ -22,7 +22,36 @@ describe('responsive feature parity', () => {
     expect(studioHeader).not.toContain('const studioNavItems');
     expect(studioHeader).toContain('aria-label="Open global navigation"');
     expect(studioHeader).toContain('lg:hidden');
+    expect(studioHeader).toContain('developerCockpitHref');
+    expect(studioHeader).toContain('Developer cockpit');
+    expect(studioHeader.match(/href=\{developerCockpitHref\}/g)).toHaveLength(2);
     expect(styles).not.toMatch(/\.cardforge-studio-nav\s*\{[\s\S]*?display:\s*none\s*!important;/);
+  });
+
+  it('shows the protected developer shortcut only from the safe access projection', () => {
+    const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
+    const publicHeader = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
+
+    expect(shell).toContain('developerCockpitHref={developerAccess.hasCockpitAccess ? developerAccess.cockpitHref : null}');
+    expect(publicHeader).toContain('useDeveloperAccess()');
+    expect(publicHeader).toContain('developerAccess.hasCockpitAccess');
+    expect(publicHeader).toContain('href={developerAccess.cockpitHref}');
+    expect(publicHeader).toContain('Developer cockpit');
+  });
+
+  it('makes library failures recoverable and asks before retargeting existing cards', () => {
+    const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
+    const bootstrap = readSource('src/features/app-shell/hooks/useBootstrapLibraries.ts');
+
+    expect(bootstrap).toContain('templateLibraryFailed');
+    expect(bootstrap).toContain('styleLibraryFailed');
+    expect(bootstrap).toContain('retryLibraries');
+    expect(shell).toContain('Some Studio library content did not load');
+    expect(shell).toContain('Retry library');
+    expect(shell).toContain('Use the saved design on existing cards?');
+    expect(shell).toContain('New cards only');
+    expect(shell).toContain('Update existing cards');
+    expect(shell).toContain('retargetGeneratedCardsTemplateAction');
   });
 
   it('renders one Studio mode switch at every supported width', () => {

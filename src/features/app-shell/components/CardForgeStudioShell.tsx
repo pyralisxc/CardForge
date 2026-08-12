@@ -31,6 +31,7 @@ import { useCardZipExportActions, useGeneratedOutputActions } from '@/features/c
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { useTemplateLibraryActions } from '@/features/template-editor/client';
 import type { TemplateCardFormatSource } from '@/domain/card-formats';
+import type { TCGCardTemplate } from '@/domain/templates';
 import {
   canUploadCustomLocalAssets,
   readProjectPreference,
@@ -151,6 +152,7 @@ export function CardForgeStudioShell({
       openEditDialogAction,
       replaceAppearanceStylesFromFilesAction,
       removeGeneratedCardAction,
+      retargetGeneratedCardsTemplateAction,
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
       setDefaultTemplatesFromFilesAction,
@@ -201,9 +203,20 @@ export function CardForgeStudioShell({
     key: number;
     formatSource: TemplateCardFormatSource;
   } | null>(null);
+  const [pendingTemplateRetarget, setPendingTemplateRetarget] = useState<{
+    count: number;
+    fromTemplateId: string;
+    name: string;
+    toTemplateId: string;
+  } | null>(null);
   const matchingBackSequenceRef = useRef(0);
 
-  const { isLoadingTemplates } = useBootstrapLibraries({
+  const {
+    isLoadingTemplates,
+    retryLibraries,
+    styleLibraryFailed,
+    templateLibraryFailed,
+  } = useBootstrapLibraries({
     setAppearanceStylesFromFiles: setAppearanceStylesFromFilesAction,
     setDefaultTemplatesFromFiles: setDefaultTemplatesFromFilesAction,
     mergeUserTemplatesFromFiles: mergeUserTemplatesFromFilesAction,
@@ -214,7 +227,7 @@ export function CardForgeStudioShell({
     handleConfirmDeleteTemplate,
     handleDeleteTemplate,
     handleSaveAppearanceStyle,
-    handleSaveTemplate,
+    handleSaveTemplate: saveTemplateToLibrary,
     setTemplatePendingDeleteId,
     templatePendingDeleteId,
   } = useTemplateLibraryActions({
@@ -233,6 +246,34 @@ export function CardForgeStudioShell({
     templates: templatesFromStore,
     toast,
   });
+  const handleSaveTemplate = useCallback(async (template: TCGCardTemplate) => {
+    const sourceTemplateId = template.id;
+    const savedTemplateId = await saveTemplateToLibrary(template);
+    if (sourceTemplateId && savedTemplateId !== sourceTemplateId) {
+      const dependentCardCount = storedCards.filter((card) => card.templateId === sourceTemplateId).length;
+      if (dependentCardCount > 0) {
+        setPendingTemplateRetarget({
+          count: dependentCardCount,
+          fromTemplateId: sourceTemplateId,
+          name: template.name || 'this card design',
+          toTemplateId: savedTemplateId,
+        });
+      }
+    }
+    return savedTemplateId;
+  }, [saveTemplateToLibrary, storedCards]);
+  const applyPendingTemplateRetarget = useCallback(() => {
+    if (!pendingTemplateRetarget) return;
+    retargetGeneratedCardsTemplateAction(
+      pendingTemplateRetarget.fromTemplateId,
+      pendingTemplateRetarget.toTemplateId,
+    );
+    toast({
+      title: 'Existing cards updated',
+      description: `${pendingTemplateRetarget.count} card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved design.`,
+    });
+    setPendingTemplateRetarget(null);
+  }, [pendingTemplateRetarget, retargetGeneratedCardsTemplateAction, toast]);
 
   const {
     handleBulkCardsGenerated,
@@ -375,6 +416,7 @@ export function CardForgeStudioShell({
         modeLabel={exportEntitlementLabel}
         saveStatus={workspaceSaveStatus}
         onRefreshEntitlement={accountEntitlement.refreshEntitlement}
+        developerCockpitHref={developerAccess.hasCockpitAccess ? developerAccess.cockpitHref : null}
       />
       <main className="cardforge-studio-main container mx-auto w-full max-w-full flex-grow p-4 md:p-6 lg:p-8">
         {isStudioReady ? (
@@ -382,6 +424,24 @@ export function CardForgeStudioShell({
         ) : (
           <div data-testid="studio-loading" className="sr-only">Preparing studio</div>
         )}
+        {templateLibraryFailed || styleLibraryFailed ? (
+          <div className="mb-4 flex flex-col gap-3 rounded-md border border-amber-500/45 bg-amber-500/10 p-3 text-sm text-[#f7ead0] sm:flex-row sm:items-center sm:justify-between" role="alert">
+            <div>
+              <p className="font-semibold">Some Studio library content did not load</p>
+              <p className="mt-1 text-xs leading-5 text-[#cbb58b]">
+                {templateLibraryFailed && styleLibraryFailed
+                  ? 'Card designs and appearance styles are temporarily unavailable.'
+                  : templateLibraryFailed
+                    ? 'Card designs are temporarily unavailable.'
+                    : 'Appearance styles are temporarily unavailable.'}{' '}
+                Your browser-saved work is unchanged.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={retryLibraries} disabled={isLoadingTemplates}>
+              {isLoadingTemplates ? 'Retrying…' : 'Retry library'}
+            </Button>
+          </div>
+        ) : null}
         {showFirstRunGuide ? (
           <section className="relative mb-4 border border-[#6d4f2b] bg-[#15100a] p-4 no-print md:p-5">
             <div className="pr-10">
@@ -535,6 +595,22 @@ export function CardForgeStudioShell({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDeleteTemplate} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete Card Design
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={pendingTemplateRetarget !== null} onOpenChange={(open) => !open && setPendingTemplateRetarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Use the saved design on existing cards?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{pendingTemplateRetarget?.name}” was saved as a personal copy. {pendingTemplateRetarget?.count ?? 0} existing card{pendingTemplateRetarget?.count === 1 ? '' : 's'} still use the protected built-in design.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingTemplateRetarget(null)}>New cards only</AlertDialogCancel>
+            <AlertDialogAction onClick={applyPendingTemplateRetarget}>
+              Update existing cards
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
