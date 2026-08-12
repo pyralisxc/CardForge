@@ -7,6 +7,7 @@ import type {
   SocialCampaign,
   SocialService,
 } from '@/features/developer-cockpit/model';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export interface BufferChannelView {
   id: string;
@@ -17,18 +18,9 @@ export interface BufferChannelView {
   isQueuePaused: boolean;
 }
 
-const readApiError = async (response: Response, fallback: string): Promise<string> => {
-  try {
-    const body = await response.json() as { error?: { message?: string } };
-    return body.error?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
-
 export const loadDeveloperCockpit = async (): Promise<DeveloperCockpitView> => {
   const response = await fetch('/api/developer-cockpit', { cache: 'no-store' });
-  if (!response.ok) throw new Error(await readApiError(response, 'Unable to load the developer cockpit.'));
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load the developer cockpit.'));
   const body = await response.json() as { cockpit: DeveloperCockpitView };
   return body.cockpit;
 };
@@ -43,14 +35,14 @@ export const mutateDeveloperCockpit = async (
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error(await readApiError(response, 'Unable to update the developer cockpit.'));
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update the developer cockpit.'));
   const body = await response.json() as { cockpit: DeveloperCockpitView };
   return body.cockpit;
 };
 
 export const loadBufferChannels = async (): Promise<BufferChannelView[]> => {
   const response = await fetch('/api/developer-cockpit/provider', { cache: 'no-store' });
-  if (!response.ok) throw new Error(await readApiError(response, 'Unable to load Buffer channels.'));
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load Buffer channels.'));
   const body = await response.json() as { channels: BufferChannelView[] };
   return body.channels;
 };
@@ -82,7 +74,7 @@ export const uploadCampaignMedia = async (
     method: 'POST',
     body: formData,
   });
-  if (!response.ok) throw new Error(await readApiError(response, 'Unable to upload campaign media.'));
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to upload campaign media.'));
   const body = await response.json() as { media: CampaignMedia };
   return body.media;
 };
@@ -92,13 +84,13 @@ export const mutateCampaign = async (
   payload: unknown,
 ): Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }> => {
   const response = await fetch('/api/developer-cockpit/campaigns', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  if (!response.ok) throw new Error(await readApiError(response, 'Unable to update the campaign package.'));
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update the campaign package.'));
   return response.json() as Promise<{ campaign: SocialCampaign; allowedNextActions: string[] }>;
 };
 
 export const validateCampaign = async (payload: unknown) => {
   const response = await fetch('/api/developer-cockpit/campaigns/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  if (!response.ok) throw new Error(await readApiError(response, 'Unable to validate the campaign package.'));
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to validate the campaign package.'));
   return response.json() as Promise<{ normalized: unknown; blockingErrors: string[]; readinessWarnings: string[]; allowedNextActions: string[] }>;
 };
 

@@ -182,15 +182,6 @@ export const getSubmissionNextStep = (
   return 'Gathering review signal. Votes, quality threshold, and open caps decide where it goes next.';
 };
 
-export const getApiErrorMessage = async (response: Response, fallback: string) => {
-  try {
-    const body = await response.json() as { error?: { message?: string } };
-    return body.error?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
-
 export const isEditableSubmission = (submission: DeveloperAssetSubmission, currentUserId: string) => (
   submission.developerId === currentUserId
   && submission.status !== 'published'

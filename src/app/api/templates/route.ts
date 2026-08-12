@@ -2,7 +2,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 import type { TCGCardTemplate } from '@/domain/templates';
-import { getDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
@@ -10,25 +9,19 @@ import {
   templatePayloadSchema,
 } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { canCurrentAccountWriteShippedLibrary } from '@/features/developer-assets/server';
-import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
+  archivePipelineRegistryAsset,
+  canCurrentAccountWriteShippedLibrary,
+  DeveloperAssetRegistryCommandError,
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
+  upsertPipelineRegistryAsset,
 } from '@/features/developer-assets/server';
 
 const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
-const USER_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'user-templates');
 const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
 const PIPELINE_CONTRIBUTOR_NAME = PIPELINE_OWNER_EMAIL || 'CardForge Studio';
 type TemplateWithRequiredIdentity = TCGCardTemplate & { id: string; name: string; aspectRatio: string };
-
-const ensureTemplateDirectory = async () => {
-  await Promise.all([
-    fs.mkdir(DEFAULT_TEMPLATE_LIBRARY_DIR, { recursive: true }),
-    fs.mkdir(USER_TEMPLATE_LIBRARY_DIR, { recursive: true }),
-  ]);
-};
 
 const toSafeFileName = (value: string): string => {
   const safe = value
@@ -156,30 +149,17 @@ const mergeTemplatesById = (
   });
 };
 
-const getTemplateDirectory = (source?: TCGCardTemplate['templateSource']) => (
-  source === 'default' ? DEFAULT_TEMPLATE_LIBRARY_DIR : USER_TEMPLATE_LIBRARY_DIR
-);
-
 const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
   if (!template.id || !template.name) return;
 
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return;
-  if (!PIPELINE_OWNER_EMAIL) {
-    throw new Error('CARDFORGE_PIPELINE_OWNER_EMAIL is required for shipped-library writes.');
-  }
-  const ownerProfile = await getDeveloperProfileReferenceByEmail(PIPELINE_OWNER_EMAIL);
-  const ownerDeveloperId = ownerProfile?.developerId || PIPELINE_OWNER_EMAIL;
-  const ownerEmail = ownerProfile?.email || PIPELINE_OWNER_EMAIL;
-
-  const registryPatch = {
+  await upsertPipelineRegistryAsset({
+    assetId: template.id,
     name: template.name,
-    asset_type: 'template',
+    submissionAssetType: 'templates',
+    registryAssetType: 'template',
     url: `/api/templates#${template.id}`,
-    preview_url: `/api/templates#${template.id}`,
-    status: 'published',
-    access_tier: 'free',
-    library_source: 'developer',
+    fileSizeBytes: Buffer.byteLength(JSON.stringify(template)),
+    description: template.templateDescription ?? 'Starter template maintained through the Forge Pipeline.',
     metadata: {
       sourceKind: 'pipeline-owner-edit',
       template: {
@@ -188,79 +168,21 @@ const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
         templateLibrarySource: 'pipeline' as const,
         templateAccessTier: 'free' as const,
         templateRegistryStatus: 'published' as const,
-        templateContributorName: ownerEmail,
+        templateContributorName: PIPELINE_CONTRIBUTOR_NAME,
       },
     },
-  };
-
-  const { data: existingSubmissions } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .select('id')
-    .eq('registry_asset_id', template.id)
-    .limit(1);
-  const submissionPatch = {
-    developer_id: ownerDeveloperId,
-    developer_email: ownerEmail,
-    asset_type: 'templates',
-    name: template.name,
-    preview_url: `/api/templates#${template.id}`,
-    source_url: `/api/templates#${template.id}`,
-    source_file_size_bytes: Buffer.byteLength(JSON.stringify(template)),
-    source_mime_type: 'application/json',
-    registry_asset_id: template.id,
-    status: 'published',
-    calculated_access_tier: 'free',
-    owner_access_tier_override: null,
-    description: template.templateDescription ?? 'Starter template maintained through the Forge Pipeline.',
-  };
-  let submissionId = existingSubmissions?.[0]?.id as string | undefined;
-  if (submissionId) {
-    const { error: submissionError } = await supabase
-      .from('cardforge_developer_asset_submissions')
-      .update(submissionPatch)
-      .eq('id', submissionId);
-    if (submissionError) {
-      console.error('Failed to sync template submission:', submissionError);
-    }
-  } else {
-    const { data: insertedSubmission, error: submissionError } = await supabase
-      .from('cardforge_developer_asset_submissions')
-      .insert(submissionPatch)
-      .select('id')
-      .single();
-    if (submissionError) {
-      console.error('Failed to create template submission:', submissionError);
-    } else {
-      submissionId = insertedSubmission.id;
-    }
-  }
-
-  const { error: registryError } = await supabase
-    .from('cardforge_asset_registry')
-    .upsert({
-      asset_id: template.id,
-      ...registryPatch,
-      developer_submission_id: submissionId,
-    }, { onConflict: 'asset_id' });
-
-  if (registryError) {
-    console.error('Failed to sync default template to asset registry:', registryError);
-    return;
-  }
-
+  });
 };
 
 export async function GET() {
   try {
-    await ensureTemplateDirectory();
-    const [localDefaults, registryDefaults, userTemplates] = await Promise.all([
+    const [localDefaults, registryDefaults] = await Promise.all([
       readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
       readTemplatesFromRegistry(),
-      readTemplatesFromDirectory(USER_TEMPLATE_LIBRARY_DIR, 'user'),
     ]);
     const visibleDefaults = mergeTemplatesById(localDefaults, registryDefaults)
       .filter((template) => !isLegacyRelicDemoTemplate(template));
-    return createNoStoreJsonResponse({ defaults: visibleDefaults, userTemplates });
+    return createNoStoreJsonResponse({ defaults: visibleDefaults, userTemplates: [] });
   } catch (error) {
     console.error('Failed to load template library:', error);
     return createApiErrorResponse(
@@ -281,7 +203,6 @@ export async function POST(request: Request) {
       );
     }
 
-    await ensureTemplateDirectory();
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
       return createApiErrorResponse(
@@ -300,16 +221,20 @@ export async function POST(request: Request) {
     const template = validation.data as TCGCardTemplate;
     const source = template.templateSource === 'default' ? 'default' : 'user';
     const fileName = `${toSafeFileName(template.id || template.name)}.json`;
-    if (source === 'default') {
-      await syncDefaultTemplateToRegistry({ ...template, templateSource: 'default' });
-    } else {
-      const directory = getTemplateDirectory(source);
-      const filePath = path.join(directory, fileName);
-      await fs.writeFile(filePath, `${JSON.stringify({ ...template, templateSource: source }, null, 2)}\n`, 'utf8');
+    if (source !== 'default') {
+      return createApiErrorResponse(
+        400,
+        'personal_library_is_local',
+        'Personal templates are saved in the browser library, not the server filesystem.',
+      );
     }
+    await syncDefaultTemplateToRegistry({ ...template, templateSource: 'default' });
 
     return createNoStoreJsonResponse({ ok: true, fileName, template: { ...template, templateSource: source } });
   } catch (error) {
+    if (error instanceof DeveloperAssetRegistryCommandError) {
+      return createApiErrorResponse(error.status, 'template_library_unavailable', error.message);
+    }
     console.error('Failed to save template:', error);
     return createApiErrorResponse(
       500,
@@ -329,7 +254,6 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await ensureTemplateDirectory();
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
       return createApiErrorResponse(
@@ -348,38 +272,20 @@ export async function DELETE(request: Request) {
     }
 
     const fileName = `${toSafeFileName(id)}.json`;
-    if (source === 'default') {
-      const supabase = getSupabaseServerClient();
-      if (!supabase) {
-        return createApiErrorResponse(503, 'template_library_unavailable', 'The Forge Pipeline database is not configured.');
-      }
-      await supabase
-        .from('cardforge_developer_asset_submissions')
-        .update({
-          status: 'archived',
-          calculated_access_tier: 'hidden',
-          decision_reason: 'owner_deleted_from_library',
-        })
-        .eq('registry_asset_id', id);
-      await supabase
-        .from('cardforge_asset_registry')
-        .update({
-          status: 'archived',
-          access_tier: 'hidden',
-        })
-        .eq('asset_id', id);
-    } else {
-      const filePath = path.join(getTemplateDirectory(source), fileName);
-      try {
-        await fs.unlink(filePath);
-      } catch (error) {
-        const nodeError = error as NodeJS.ErrnoException;
-        if (nodeError.code !== 'ENOENT') throw error;
-      }
+    if (source !== 'default') {
+      return createApiErrorResponse(
+        400,
+        'personal_library_is_local',
+        'Personal templates are deleted from the browser library, not the server filesystem.',
+      );
     }
+    await archivePipelineRegistryAsset(id);
 
     return createNoStoreJsonResponse({ ok: true, fileName });
   } catch (error) {
+    if (error instanceof DeveloperAssetRegistryCommandError) {
+      return createApiErrorResponse(error.status, 'template_library_unavailable', error.message);
+    }
     console.error('Failed to delete template:', error);
     return createApiErrorResponse(
       500,

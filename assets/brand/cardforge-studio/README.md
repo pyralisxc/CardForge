@@ -39,6 +39,6 @@ Keep the SVG files in this folder as the editable source of truth. Generate tran
 npm run brand:export
 ```
 
-The command writes the primary and compact lockups, brand mark, watermark, and common favicon sizes to `output/brand/cardforge-studio/png/`. Generated files are derivatives, not additional brand masters. Do not convert the logos to JPEG because that removes transparency and introduces compression artifacts.
+The command writes the primary and compact lockups, brand mark, watermark, and common favicon sizes to the ignored `output/brand/cardforge-studio/png/` scratch directory. Generated files are derivatives, not additional brand masters; regenerate them when needed instead of committing them. Do not convert the logos to JPEG because that removes transparency and introduces compression artifacts.
 
 The SVGs intentionally use controlled geometry and common serif fallbacks for the current approved direction. Before a future trademark or large-format print package, replace the live text with licensed, outlined master typography while preserving these filenames and proportions.

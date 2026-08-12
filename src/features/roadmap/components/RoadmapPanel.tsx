@@ -4,12 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import {
   CalendarDays,
-  Database,
   DollarSign,
   ExternalLink,
   History,
   Mail,
-  Plus,
   Send,
   Target,
   ThumbsDown,
@@ -20,6 +18,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { createRoadmapDeveloperRequestMailto } from '@/features/contact/client/links';
+import {
+  RoadmapDeveloperControls,
+} from '@/features/roadmap/components/RoadmapDeveloperControls';
+import {
+  createRoadmapDeveloperFormState,
+  type RoadmapDeveloperFormState,
+} from '@/features/roadmap/components/RoadmapDeveloperControlsModel';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import {
   ROADMAP_OPERATING_COST_COVERAGE_MULTIPLIER,
   buildRoadmapTimelineCheckpoints,
@@ -62,15 +68,6 @@ const sortLabels: Record<RoadmapSortMode, string> = {
   least_votes: 'Least votes',
   newest: 'Newest',
   oldest: 'Oldest',
-};
-
-const getApiErrorMessage = async (response: Response, fallback: string) => {
-  try {
-    const body = await response.json() as { error?: { message?: string } };
-    return body.error?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
 };
 
 const formatMonth = (value: string) => {
@@ -415,18 +412,9 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
   const [sortMode, setSortMode] = useState<RoadmapSortMode>('most_votes');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [devForm, setDevForm] = useState({
-    title: '',
-    description: '',
-    itemType: (isOwner ? 'roi_checkpoint' : 'shipped_update') as Exclude<RoadmapItemType, 'feature'>,
-    status: 'planned' as RoadmapStatus,
-    visibleMonth: '2026-06',
-    monthlyCostDollars: '',
-    expenseProvider: '',
-    expensePlan: '',
-    expenseSourceUrl: '',
-    expenseVerifiedAt: new Date().toISOString().slice(0, 10),
-  });
+  const [devForm, setDevForm] = useState<RoadmapDeveloperFormState>(() => (
+    createRoadmapDeveloperFormState(isOwner)
+  ));
   const developerRequestMailto = useMemo(
     () => createRoadmapDeveloperRequestMailto({ accountEmail, supportEmail }),
     [accountEmail, supportEmail]
@@ -472,19 +460,12 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
   const boardHasSpace = activeUserSuggestionCount < maxActiveUserSuggestions;
   const remainingSuggestionSlots = Math.max(0, maxActiveUserSuggestions - activeUserSuggestionCount);
   const featureVoteCount = featureBoardItems.reduce((total, item) => total + voteTotal(item), 0);
-  const expenseCheckpointIncomplete = devForm.itemType === 'roi_checkpoint' && (
-    !devForm.monthlyCostDollars
-    || !devForm.expenseProvider.trim()
-    || !devForm.expensePlan.trim()
-    || !devForm.expenseSourceUrl.trim()
-    || !devForm.expenseVerifiedAt
-  );
 
   const loadRoadmap = useCallback(async () => {
     try {
       const response = await fetch('/api/roadmap', { cache: 'no-store' });
       if (!response.ok) {
-        throw new Error(await getApiErrorMessage(response, 'Unable to load roadmap.'));
+        throw new Error(await readApiErrorMessage(response, 'Unable to load roadmap.'));
       }
       setPayload(await response.json() as RoadmapPayload);
     } catch (error) {
@@ -520,7 +501,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
         body: JSON.stringify({ itemId, vote }),
       });
       if (!response.ok) {
-        throw new Error(await getApiErrorMessage(response, 'Unable to save vote.'));
+        throw new Error(await readApiErrorMessage(response, 'Unable to save vote.'));
       }
       setPayload(await response.json() as RoadmapPayload);
     } catch (error) {
@@ -559,7 +540,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
         body: JSON.stringify({ title: suggestion }),
       });
       if (!response.ok) {
-        throw new Error(await getApiErrorMessage(response, 'Unable to create feature suggestion.'));
+        throw new Error(await readApiErrorMessage(response, 'Unable to create feature suggestion.'));
       }
       setPayload(await response.json() as RoadmapPayload);
       setSuggestion('');
@@ -600,7 +581,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
         }),
       });
       if (!response.ok) {
-        throw new Error(await getApiErrorMessage(response, 'Unable to add timeline item.'));
+        throw new Error(await readApiErrorMessage(response, 'Unable to add timeline item.'));
       }
       setPayload(await response.json() as RoadmapPayload);
       setDevForm((current) => ({
@@ -634,7 +615,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
         method: 'DELETE',
       });
       if (!response.ok) {
-        throw new Error(await getApiErrorMessage(response, 'Unable to delete timeline item.'));
+        throw new Error(await readApiErrorMessage(response, 'Unable to delete timeline item.'));
       }
       setPayload(await response.json() as RoadmapPayload);
       toast({
@@ -854,116 +835,14 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
           </div>
         </div>
 
-        {isDeveloper ? (
-          <form className="mt-6 border border-[#7d5a2e] bg-[#181009] p-4" onSubmit={submitDeveloperItem}>
-            <div className="flex items-center gap-3 text-[#e2aa4a]">
-              <Database className="h-5 w-5" />
-              <h3 className="font-serif text-xl text-[#fff1c7]">Developer level-up controls</h3>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              {isOwner
-                ? 'Expense checkpoints require the provider, plan, monthly cost, official pricing page, and verification date. Shipped progress carries no invented expense.'
-                : 'Publish shipped Chronicle progress here. Verified financial checkpoints remain owner-only.'}
-            </p>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <input
-                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                value={devForm.title}
-                placeholder="Timeline title"
-                aria-label="Timeline title"
-                maxLength={200}
-                onChange={(event) => setDevForm((current) => ({ ...current, title: event.target.value }))}
-              />
-              <input
-                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                value={devForm.visibleMonth}
-                placeholder="YYYY-MM"
-                aria-label="Visible month"
-                pattern="\d{4}-\d{2}"
-                onChange={(event) => setDevForm((current) => ({ ...current, visibleMonth: event.target.value }))}
-              />
-              <select
-                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                value={devForm.itemType}
-                onChange={(event) => setDevForm((current) => ({ ...current, itemType: event.target.value as Exclude<RoadmapItemType, 'feature'> }))}
-              >
-                {isOwner ? <option value="roi_checkpoint">Level-up checkpoint</option> : null}
-                <option value="shipped_update">Chronicle shipped progress</option>
-              </select>
-              <select
-                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                value={devForm.status}
-                onChange={(event) => setDevForm((current) => ({ ...current, status: event.target.value as RoadmapStatus }))}
-              >
-                <option value="planned">Planned</option>
-                <option value="in_progress">In progress</option>
-                <option value="testing">Testing</option>
-                <option value="shipped">Shipped</option>
-              </select>
-              <input
-                className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                value={devForm.monthlyCostDollars}
-                placeholder="New monthly operating cost dollars"
-                aria-label="New monthly operating cost in dollars"
-                inputMode="numeric"
-                disabled={devForm.itemType !== 'roi_checkpoint'}
-                onChange={(event) => setDevForm((current) => ({ ...current, monthlyCostDollars: event.target.value }))}
-              />
-              {devForm.itemType === 'roi_checkpoint' ? (
-                <>
-                  <input
-                    className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                    value={devForm.expenseProvider}
-                    placeholder="Provider, e.g. Supabase"
-                    aria-label="Expense provider"
-                    maxLength={80}
-                    onChange={(event) => setDevForm((current) => ({ ...current, expenseProvider: event.target.value }))}
-                  />
-                  <input
-                    className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                    value={devForm.expensePlan}
-                    placeholder="Plan, e.g. Pro"
-                    aria-label="Provider plan"
-                    maxLength={80}
-                    onChange={(event) => setDevForm((current) => ({ ...current, expensePlan: event.target.value }))}
-                  />
-                  <input
-                    className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365] md:col-span-2"
-                    value={devForm.expenseSourceUrl}
-                    placeholder="Official HTTPS pricing URL"
-                    aria-label="Official pricing URL"
-                    type="url"
-                    onChange={(event) => setDevForm((current) => ({ ...current, expenseSourceUrl: event.target.value }))}
-                  />
-                  <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-                    Pricing verified
-                    <input
-                      className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365]"
-                      value={devForm.expenseVerifiedAt}
-                      type="date"
-                      onChange={(event) => setDevForm((current) => ({ ...current, expenseVerifiedAt: event.target.value }))}
-                    />
-                  </label>
-                </>
-              ) : null}
-              <textarea
-                className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm text-[#ffe7ad] outline-none focus:border-[#d8b365] md:col-span-2"
-                value={devForm.description}
-                placeholder="What this unlocks for users and why the cost is worth it"
-                maxLength={420}
-                onChange={(event) => setDevForm((current) => ({ ...current, description: event.target.value }))}
-              />
-            </div>
-            <Button
-              type="submit"
-              className="mt-4 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
-              disabled={isSaving || devForm.title.trim().length === 0 || expenseCheckpointIncomplete}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add level-up item
-            </Button>
-          </form>
-        ) : null}
+        <RoadmapDeveloperControls
+          form={devForm}
+          isDeveloper={isDeveloper}
+          isOwner={isOwner}
+          isSaving={isSaving}
+          onChange={setDevForm}
+          onSubmit={submitDeveloperItem}
+        />
       </div>
     </section>
   );

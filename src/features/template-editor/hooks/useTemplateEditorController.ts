@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   arrangeCanvasSelection,
@@ -39,9 +39,11 @@ type TemplateUpdater = (template: TCGCardTemplate) => TCGCardTemplate;
 export function useTemplateEditorController(initialTemplate: TCGCardTemplate) {
   const [editorState, setEditorState] = useState(() => createTemplateEditorState(initialTemplate));
   const [checkedLayerIds, setCheckedLayerIds] = useState<string[]>([]);
+  const initialTemplateRef = useRef(initialTemplate);
+  initialTemplateRef.current = initialTemplate;
 
   useEffect(() => {
-    setEditorState(resetTemplateEditorState(initialTemplate));
+    setEditorState(resetTemplateEditorState(initialTemplateRef.current));
     setCheckedLayerIds([]);
   }, [initialTemplate.id]);
 

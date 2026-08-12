@@ -79,7 +79,7 @@ export function useCanvasPointerInteractions({
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
     dragStateRef.current = { mode: 'move', id: targetElement.id, startX: point.x, startY: point.y, original: targetElement, childOriginals, hasMoved: false, startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, getCanvasPoint, previewMode, selectElement, selectedElementId]);
+  }, [canvas.elements, getCanvasPoint, previewMode, selectElement, selectedElementId, zoom]);
 
   const handleResizePointerDown = useCallback((event: ReactPointerEvent, element: FreeformCardElement, handle: ResizeHandle) => {
     if (previewMode || element.locked) return;
@@ -91,7 +91,7 @@ export function useCanvasPointerInteractions({
     const childOriginals = new Map(canvas.elements.filter((item) => descendantIds.includes(item.id)).map((item) => [item.id, { ...item }]));
     dragStateRef.current = { mode: 'resize', id: element.id, handle, startX: point.x, startY: point.y, original: element, childOriginals, hasMoved: false, startSlop: event.pointerType === 'touch' ? TOUCH_DRAG_START_SLOP / zoom : MOUSE_DRAG_START_SLOP };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }, [canvas.elements, getCanvasPoint, previewMode, selectElement]);
+  }, [canvas.elements, getCanvasPoint, previewMode, selectElement, zoom]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent) => {
     const dragState = dragStateRef.current;

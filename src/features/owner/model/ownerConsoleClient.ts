@@ -1,5 +1,6 @@
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import type { AnalyticsConfigurationStatus } from '@/features/analytics/client';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export interface OwnerConsoleResponse {
   ownerAccess: {
@@ -53,14 +54,7 @@ export interface OwnerManagedAccount {
   note: string;
 }
 
-export const getOwnerApiErrorMessage = async (response: Response, fallback: string) => {
-  try {
-    const body = await response.json() as { error?: { message?: string } };
-    return body.error?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
+export const getOwnerApiErrorMessage = readApiErrorMessage;
 
 export const updateOwnerConsole = async (
   body: Record<string, unknown>,

@@ -44,6 +44,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
     displayName: null,
   });
   const [platformStatus, setPlatformStatus] = useState<PlatformStatusPayload | null>(null);
+  const refreshEntitlement = entitlement.refreshEntitlement;
   const effectiveSignedIn = entitlement.authConfigured && clerkIdentity.isLoaded
     ? clerkIdentity.isSignedIn || entitlement.isSignedIn
     : entitlement.isSignedIn;
@@ -53,7 +54,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
     const clerkEmail = clerkIdentity.email ?? null;
     const entitlementEmail = entitlement.accountEmail ?? null;
     if (clerkIdentity.isSignedIn !== entitlement.isSignedIn || clerkEmail !== entitlementEmail) {
-      void entitlement.refreshEntitlement({ force: true });
+      void refreshEntitlement({ force: true });
     }
   }, [
     clerkIdentity.email,
@@ -62,7 +63,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
     entitlement.accountEmail,
     entitlement.authConfigured,
     entitlement.isSignedIn,
-    entitlement.refreshEntitlement,
+    refreshEntitlement,
   ]);
 
   useEffect(() => {

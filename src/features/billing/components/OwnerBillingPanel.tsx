@@ -32,17 +32,9 @@ import {
   buildBillingReconciliationDescription,
   type BillingReconciliationResult,
 } from '@/features/billing/model/billingReconciliationResult';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 type OwnerBillingTab = typeof DEFAULT_OWNER_BILLING_TAB | 'history';
-
-const getApiErrorMessage = async (response: Response, fallback: string): Promise<string> => {
-  try {
-    const body = await response.json() as { error?: { message?: string } };
-    return body.error?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 const formatMoney = (cents: number | null, currency: string | null): string => {
   if (typeof cents !== 'number' || !currency) return 'n/a';
@@ -91,7 +83,7 @@ export function OwnerBillingPanel() {
         `/api/owner/billing/summary${includeHistory ? '?includeHistory=1' : ''}`,
         { cache: 'no-store', signal },
       );
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to load billing summary.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load billing summary.'));
       const nextSnapshot = await response.json() as OwnerBillingSnapshot;
       setBillingSnapshot((currentSnapshot) => (
         includeHistory || !currentSnapshot
@@ -144,7 +136,7 @@ export function OwnerBillingPanel() {
     setBillingError(null);
     try {
       const response = await fetch('/api/owner/billing/reconcile', { method: 'POST' });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to reconcile billing.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to reconcile billing.'));
       const result = await response.json() as BillingReconciliationResult;
       toast({
         title: 'Billing reconciled',
@@ -169,7 +161,7 @@ export function OwnerBillingPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ historyLimit: historyLimitDraft }),
       });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save checkout history limit.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save checkout history limit.'));
       const body = await response.json() as { historySettings: OwnerBillingHistorySettings };
       setBillingSnapshot((currentSnapshot) => currentSnapshot
         ? { ...currentSnapshot, historySettings: body.historySettings }
@@ -190,7 +182,7 @@ export function OwnerBillingPanel() {
     setBillingError(null);
     try {
       const response = await fetch('/api/owner/billing/summary', { method: 'DELETE' });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to clear displayed checkout history.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to clear displayed checkout history.'));
       const body = await response.json() as { historySettings: OwnerBillingHistorySettings };
       setBillingSnapshot((currentSnapshot) => currentSnapshot
         ? {
