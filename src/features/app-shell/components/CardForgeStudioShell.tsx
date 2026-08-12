@@ -21,6 +21,7 @@ import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
 import { useToast } from '@/components/ui/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
+import { useDeveloperAccess } from '@/features/developer-access/client';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
 import { BrowserStorageAlerts, useBrowserWorkspaceSaveStatus, useProjectFileActions } from '@/features/project/client';
@@ -113,6 +114,7 @@ export function CardForgeStudioShell({
 }) {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
+  const developerAccess = useDeveloperAccess();
   const projectCapabilities = accountEntitlement.capabilities;
   const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();
   const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
@@ -216,7 +218,10 @@ export function CardForgeStudioShell({
     cloneTemplate: cloneTemplateAction,
     deleteAppearanceStyle: deleteAppearanceStyleAction,
     deleteTemplate: deleteTemplateAction,
-    projectCapabilities,
+    projectCapabilities: {
+      canSubmitTemplateRevisions: developerAccess.canSubmitTemplateRevisions,
+      canPublishSharedLibrary: developerAccess.canPublishSharedLibrary,
+    },
     setSingleCardGeneratorSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
     storedCards,
     templates: templatesFromStore,
@@ -434,7 +439,7 @@ export function CardForgeStudioShell({
               projectFileGateMessage={projectFileGateMessage}
               selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}
               onSelectTemplateForEditing={setSingleCardGeneratorSelectedTemplateIdAction}
-              canSavePipelineTemplate={projectCapabilities.canWriteShippedLibrary}
+              canSubmitBaseRevision={developerAccess.canSubmitTemplateRevisions}
               canUploadCustomAssets={canUploadCustomAssets}
               onReturnToTemplateMaker={() => setActiveTabAction('template-maker')}
             />

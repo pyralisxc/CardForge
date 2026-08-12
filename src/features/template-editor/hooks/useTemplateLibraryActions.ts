@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 
 import { useProjectStore } from '@/features/project/client';
@@ -11,7 +11,8 @@ import { requireOkResponse } from '@/infrastructure/http/clientResponses';
 type ToastFn = (message: { title: string; description: string; variant?: 'default' | 'destructive' }) => unknown;
 
 interface TemplateLibraryCapabilities {
-  canWriteShippedLibrary: boolean;
+  canSubmitTemplateRevisions: boolean;
+  canPublishSharedLibrary: boolean;
 }
 
 interface UseTemplateLibraryActionsInput {
@@ -33,21 +34,23 @@ const mutateShippedLibrary = async (
   method: 'POST' | 'DELETE',
   body: unknown,
   fallback: string,
+  headers?: Record<string, string>,
 ) => {
   const response = await fetch(path, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
   await requireOkResponse(response, fallback);
+  return await response.json() as Record<string, unknown>;
 };
 
 export const prepareTemplateForLibrarySave = (
   template: TCGCardTemplate,
-  canWriteShippedLibrary: boolean,
+  canSubmitTemplateRevisions: boolean,
   createId: () => string = nanoid,
 ): TCGCardTemplate => {
-  if (template.templateSource !== 'default' || canWriteShippedLibrary) {
+  if (template.templateSource !== 'default' || canSubmitTemplateRevisions) {
     return {
       ...template,
       templateSource: template.templateSource === 'default' ? 'default' : 'user',
@@ -77,10 +80,11 @@ export function useTemplateLibraryActions({
   toast,
 }: UseTemplateLibraryActionsInput) {
   const [templatePendingDeleteId, setTemplatePendingDeleteId] = useState<string | null>(null);
+  const pendingRevisionKeysRef = useRef(new Map<string, { fingerprint: string; key: string }>());
 
   const handleSaveAppearanceStyle = useCallback((style: AppearanceStylePreset): string => {
     const savedId = addOrUpdateAppearanceStyle(style);
-    if (projectCapabilities.canWriteShippedLibrary) {
+    if (projectCapabilities.canPublishSharedLibrary) {
       toast({ title: 'Style staged', description: `Saving "${style.name}" to the Forge Pipeline.` });
       void mutateShippedLibrary('/api/styles', 'POST', style, 'Unable to save the style to the Forge Pipeline.')
         .then(() => toast({ title: 'Pipeline style saved', description: `"${style.name}" is live in Appearance Studio.` }))
@@ -93,11 +97,11 @@ export function useTemplateLibraryActions({
       toast({ title: 'Style Saved', description: `"${style.name}" is available in Appearance Studio.` });
     }
     return savedId;
-  }, [addOrUpdateAppearanceStyle, projectCapabilities.canWriteShippedLibrary, toast]);
+  }, [addOrUpdateAppearanceStyle, projectCapabilities.canPublishSharedLibrary, toast]);
 
   const handleDeleteAppearanceStyle = useCallback(async (styleId: string) => {
     const style = appearanceStyles.find((candidate) => candidate.id === styleId);
-    if (projectCapabilities.canWriteShippedLibrary) {
+    if (projectCapabilities.canPublishSharedLibrary) {
       try {
         await mutateShippedLibrary('/api/styles', 'DELETE', { id: styleId }, 'Unable to archive the Forge Pipeline style.');
       } catch (error) {
@@ -111,33 +115,54 @@ export function useTemplateLibraryActions({
     }
     deleteAppearanceStyle(styleId);
     toast({ title: 'Style deleted', description: `"${style?.name || styleId}" has been removed.` });
-  }, [appearanceStyles, deleteAppearanceStyle, projectCapabilities.canWriteShippedLibrary, toast]);
+  }, [appearanceStyles, deleteAppearanceStyle, projectCapabilities.canPublishSharedLibrary, toast]);
 
-  const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
-    const templateToSave = prepareTemplateForLibrarySave(template, projectCapabilities.canWriteShippedLibrary);
+  const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<string> => {
+    const templateToSave = prepareTemplateForLibrarySave(template, projectCapabilities.canSubmitTemplateRevisions);
     const savedTemplateId = addOrUpdateTemplate(templateToSave, templateToSave.templateSource);
     setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
     const templateForFile = selectAllTemplates(useProjectStore.getState()).find(t => t.id === savedTemplateId);
-    if (templateForFile?.templateSource === 'default' && projectCapabilities.canWriteShippedLibrary) {
-      toast({ title: 'Template staged', description: `Saving "${templateForFile.name || savedTemplateId}" to the Forge Pipeline.` });
-      void mutateShippedLibrary('/api/templates', 'POST', templateForFile, 'Unable to save the template to the Forge Pipeline.')
-        .then(() => toast({
-          title: 'Pipeline template saved',
-          description: `"${templateForFile.name || savedTemplateId}" is live in the Forge Pipeline.`,
-        }))
-        .catch((error) => toast({
-          title: 'Pipeline template not saved',
-          description: error instanceof Error ? error.message : 'Unable to save the template to the Forge Pipeline.',
+    if (templateForFile?.templateSource === 'default' && projectCapabilities.canSubmitTemplateRevisions) {
+      const fingerprint = JSON.stringify(templateForFile);
+      const pending = pendingRevisionKeysRef.current.get(savedTemplateId);
+      const submissionKey = pending?.fingerprint === fingerprint ? pending.key : nanoid(32);
+      pendingRevisionKeysRef.current.set(savedTemplateId, { fingerprint, key: submissionKey });
+      toast({
+        title: 'Draft saved in this browser',
+        description: `Submitting revision ${Number(templateForFile.templateRevision ?? 0) + 1} for owner review.`,
+      });
+      try {
+        const result = await mutateShippedLibrary(
+          '/api/templates',
+          'POST',
+          templateForFile,
+          'Unable to submit the base card design revision.',
+          { 'Idempotency-Key': submissionKey },
+        );
+        const revision = result.revision && typeof result.revision === 'object'
+          ? result.revision as { revisionNumber?: number }
+          : null;
+        toast({
+          title: 'Base revision submitted',
+          description: `Revision ${revision?.revisionNumber ?? Number(templateForFile.templateRevision ?? 0) + 1} is saved for owner review. It becomes shared after publication.`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Draft saved; revision not submitted',
+          description: error instanceof Error
+            ? `${error.message} Your browser draft is safe; save again to retry.`
+            : 'Your browser draft is safe; save again to retry submission.',
           variant: 'destructive',
-        }));
+        });
+      }
     } else {
       toast({
-        title: 'Template Saved',
-        description: `"${templateToSave.name || savedTemplateId}" has been saved to your Personal Library.`,
+        title: 'Card design saved in this browser',
+        description: `"${templateToSave.name || savedTemplateId}" is available in your personal library on this device.`,
       });
     }
     return savedTemplateId;
-  }, [addOrUpdateTemplate, projectCapabilities.canWriteShippedLibrary, setSingleCardGeneratorSelectedTemplateId, toast]);
+  }, [addOrUpdateTemplate, projectCapabilities.canSubmitTemplateRevisions, setSingleCardGeneratorSelectedTemplateId, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     setTemplatePendingDeleteId(templateId);
@@ -148,7 +173,7 @@ export function useTemplateLibraryActions({
     const templateId = templatePendingDeleteId;
     const templateToDelete = templates.find(t => t.id === templateId);
     const dependentCardCount = storedCards.filter(card => card.templateId === templateId).length;
-    if (projectCapabilities.canWriteShippedLibrary && templateToDelete?.templateSource === 'default') {
+    if (projectCapabilities.canPublishSharedLibrary && templateToDelete?.templateSource === 'default') {
       try {
         await mutateShippedLibrary(
           '/api/templates',
@@ -172,7 +197,7 @@ export function useTemplateLibraryActions({
       title: 'Template Deleted',
       description: `"${templateToDelete?.name || templateId}" and ${dependentCardCount} generated output${dependentCardCount === 1 ? '' : 's'} using it have been removed.`,
     });
-  }, [deleteTemplate, projectCapabilities.canWriteShippedLibrary, storedCards, templatePendingDeleteId, templates, toast]);
+  }, [deleteTemplate, projectCapabilities.canPublishSharedLibrary, storedCards, templatePendingDeleteId, templates, toast]);
 
   const handleCloneTemplate = useCallback((templateId: string): string | null => {
     const source = templates.find(t => t.id === templateId);

@@ -39,7 +39,7 @@ import { createTemplateEditorActions } from '@/features/template-editor/lib/temp
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
-  onSaveTemplate: (template: TCGCardTemplate) => string;
+  onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
   backFaceTemplates: TCGCardTemplate[];
@@ -54,7 +54,7 @@ interface CardTemplateMakerProps {
   onSaveAppearanceStyle: (style: AppearanceStylePreset) => string;
   selectedTemplateIdForEditing: string | null;
   onSelectTemplateForEditing: (templateId: string | null) => void;
-  canSavePipelineTemplate: boolean;
+  canSubmitBaseRevision: boolean;
   canUploadCustomAssets: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
   isCheckoutStarting: boolean;
@@ -80,7 +80,7 @@ export function CardTemplateMaker({
   onSaveAppearanceStyle,
   selectedTemplateIdForEditing,
   onSelectTemplateForEditing,
-  canSavePipelineTemplate,
+  canSubmitBaseRevision,
   canUploadCustomAssets,
   fileInputRef,
   isCheckoutStarting,
@@ -214,9 +214,9 @@ export function CardTemplateMaker({
     requestTemplateChange,
     toast,
   });
-  const saveAndContinue = useCallback(() => {
+  const saveAndContinue = useCallback(async () => {
     const templateToSave = { ...currentTemplate, name: saveName.trim() };
-    if (!commands.saveTemplate(templateToSave)) return;
+    if (!await commands.saveTemplate(templateToSave)) return;
     const action = pendingTemplateChange;
     setPendingTemplateChange(null);
     action?.();
@@ -445,9 +445,11 @@ export function CardTemplateMaker({
             <AlertDialogHeader>
               <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled card design'}”?</AlertDialogTitle>
               <AlertDialogDescription>
-                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate
-                  ? 'This is a built-in CardForge card design. Saving creates a new personal copy and keeps the original unchanged.'
-                  : 'Your changes are not saved yet.'}
+                {currentTemplate.templateSource === 'default'
+                  ? canSubmitBaseRevision
+                    ? 'Saving keeps this draft in your browser and submits a numbered base revision for owner review. The shared design changes only after publication.'
+                    : 'This is a built-in CardForge card design. Saving creates a new personal copy and keeps the original unchanged.'
+                  : 'Your changes are not saved in this browser yet.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-2">
@@ -462,8 +464,10 @@ export function CardTemplateMaker({
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel>
               <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
-              <AlertDialogAction onClick={saveAndContinue}>
-                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate ? 'Save as new card design' : 'Save changes'}
+              <AlertDialogAction onClick={() => void saveAndContinue()}>
+                {currentTemplate.templateSource === 'default'
+                  ? canSubmitBaseRevision ? 'Submit base revision' : 'Save as new card design'
+                  : 'Save changes'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

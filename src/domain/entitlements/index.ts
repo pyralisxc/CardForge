@@ -6,7 +6,6 @@ export type ProjectCapabilities = {
   canGenerate: boolean;
   canExportClean: boolean;
   canUseProjectFiles: boolean;
-  canWriteShippedLibrary: boolean;
 };
 
 export type ExportEntitlementCopy = {
@@ -18,7 +17,7 @@ export type ExportEntitlementCopy = {
 };
 
 type AccessEnvironment = Partial<Record<
-  'NODE_ENV' | 'NEXT_PUBLIC_CARDFORGE_ACCESS_MODE' | 'CARDFORGE_ACCESS_MODE' | 'CARDFORGE_ALLOW_LIBRARY_WRITES',
+  'NODE_ENV' | 'NEXT_PUBLIC_CARDFORGE_ACCESS_MODE' | 'CARDFORGE_ACCESS_MODE',
   string
 >>;
 
@@ -31,7 +30,6 @@ const readEnvironment = (env?: AccessEnvironment): AccessEnvironment => env ?? {
   NODE_ENV: process.env.NODE_ENV,
   NEXT_PUBLIC_CARDFORGE_ACCESS_MODE: process.env.NEXT_PUBLIC_CARDFORGE_ACCESS_MODE,
   CARDFORGE_ACCESS_MODE: process.env.CARDFORGE_ACCESS_MODE,
-  CARDFORGE_ALLOW_LIBRARY_WRITES: process.env.CARDFORGE_ALLOW_LIBRARY_WRITES,
 };
 
 export const getProjectCapabilities = (
@@ -42,7 +40,6 @@ export const getProjectCapabilities = (
   canGenerate: true,
   canExportClean: mode !== 'free',
   canUseProjectFiles: mode !== 'free' || projectFileAccess === 'free',
-  canWriteShippedLibrary: mode === 'dev',
 });
 
 export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
@@ -101,12 +98,6 @@ export const getExportEntitlementCopy = (
       ? 'Design layouts, add card data, and move portable project files for free. Creator Pass adds watermark-free finished downloads.'
       : 'Design layouts, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
   };
-};
-
-export const isShippedLibraryWriteEnabled = (env?: AccessEnvironment): boolean => {
-  const source = readEnvironment(env);
-  return getProjectCapabilities(resolveAccessMode(source)).canWriteShippedLibrary
-    && source.CARDFORGE_ALLOW_LIBRARY_WRITES === 'true';
 };
 
 export * from './ownerAccess';

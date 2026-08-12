@@ -28,7 +28,7 @@ interface UseTemplateEditorCommandsInput {
   duplicateSelected: () => void;
   isActive: boolean;
   onCloneTemplate: (templateId: string) => string | null;
-  onSaveTemplate: (template: TCGCardTemplate) => string;
+  onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
   onSelectTemplate: (templateId: string | null) => void;
   setAutoFitCanvas: Dispatch<SetStateAction<boolean>>;
   setPreviewMode: Dispatch<SetStateAction<boolean>>;
@@ -80,7 +80,7 @@ export function useTemplateEditorCommands({
     return createFrameKitPresetRecipes(kits);
   }, [currentTemplate.id]);
 
-  const saveTemplate = useCallback((templateOverride?: TCGCardTemplate) => {
+  const saveTemplate = useCallback(async (templateOverride?: TCGCardTemplate) => {
     const templateToSave = templateOverride?.aspectRatio ? templateOverride : currentTemplate;
     if (!templateToSave.name?.trim() || templateToSave.name === 'New Card Template') {
       toast({
@@ -105,7 +105,7 @@ export function useTemplateEditorCommands({
       });
       return false;
     }
-    const savedId = onSaveTemplate({
+    const savedId = await onSaveTemplate({
       ...templateToSave,
       freeformCanvas: reconstructFreeformCanvas(templateToSave.freeformCanvas),
     });
@@ -128,7 +128,7 @@ export function useTemplateEditorCommands({
       const key = event.key.toLowerCase();
       if (modifier && key === 's') {
         event.preventDefault();
-        saveTemplate();
+        void saveTemplate();
         return;
       }
       if (modifier && key === 'k') {

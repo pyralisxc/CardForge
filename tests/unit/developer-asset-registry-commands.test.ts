@@ -4,6 +4,7 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 import {
   archivePipelineRegistryAsset,
   DeveloperAssetRegistryCommandError,
+  submitTemplateRevision,
   transitionDeveloperAssetStatus,
   upsertPipelineRegistryAsset,
 } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
@@ -72,6 +73,66 @@ describe('developer asset registry commands', () => {
     expect(rpc).toHaveBeenCalledWith('cardforge_archive_pipeline_registry_asset', {
       p_asset_id: 'starter-template',
     });
+  });
+
+  it('submits a template revision with identity, expected version, and idempotency key', async () => {
+    const limit = vi.fn().mockResolvedValue({
+      data: [{
+        id: 'revision-1',
+        status: 'submitted',
+        base_revision_number: 2,
+        revision_number: 3,
+        target_registry_asset_id: 'starter-template',
+      }],
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ limit });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const rpc = vi.fn().mockResolvedValue({ data: 'revision-1', error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc, from } as never);
+
+    await expect(submitTemplateRevision({
+      template: {
+        id: 'starter-template',
+        name: 'Starter Template',
+        aspectRatio: '63:88',
+        templateSource: 'default',
+      },
+      developerId: 'developer-1',
+      developerEmail: 'developer@cardforges.com',
+      expectedRevision: 2,
+      submissionKey: 'save-attempt-1',
+    })).resolves.toEqual({
+      id: 'revision-1',
+      status: 'submitted',
+      baseRevision: 2,
+      revisionNumber: 3,
+      assetId: 'starter-template',
+    });
+
+    expect(rpc).toHaveBeenCalledWith('cardforge_submit_template_revision', expect.objectContaining({
+      p_asset_id: 'starter-template',
+      p_developer_id: 'developer-1',
+      p_expected_revision: 2,
+      p_submission_key: 'save-attempt-1',
+    }));
+  });
+
+  it('turns stale base revisions into a recoverable conflict', async () => {
+    mockedGetSupabaseServerClient.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({ data: null, error: { message: 'template_revision_conflict' } }),
+    } as never);
+
+    await expect(submitTemplateRevision({
+      template: { id: 'starter-template', name: 'Starter Template', aspectRatio: '63:88' },
+      developerId: 'developer-1',
+      developerEmail: null,
+      expectedRevision: 1,
+      submissionKey: 'save-attempt-2',
+    })).rejects.toEqual(expect.objectContaining<Partial<DeveloperAssetRegistryCommandError>>({
+      status: 409,
+    }));
   });
 
   it('uses the atomic transition RPC as the single status and registry write', async () => {

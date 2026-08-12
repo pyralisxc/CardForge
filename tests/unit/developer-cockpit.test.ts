@@ -16,7 +16,7 @@ describe('developer contribution cockpit', () => {
       profileStatus: 'active',
       canDraftCampaigns: false,
       canProposeSiteContent: false,
-    })).toEqual(['assets.submit', 'assets.review']);
+    })).toEqual(['assets.submit', 'assets.review', 'library.submit']);
 
     expect(resolveDeveloperContributionScopes({
       isOwner: false,
@@ -26,6 +26,7 @@ describe('developer contribution cockpit', () => {
     })).toEqual([
       'assets.submit',
       'assets.review',
+      'library.submit',
       'campaigns.draft',
       'site.propose',
     ]);

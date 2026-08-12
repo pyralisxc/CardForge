@@ -10,6 +10,8 @@ export type DeveloperProfileStatus = typeof DEVELOPER_PROFILE_STATUSES[number];
 export const DEVELOPER_CONTRIBUTION_SCOPES = [
   'assets.submit',
   'assets.review',
+  'library.submit',
+  'library.publish',
   'campaigns.draft',
   'campaigns.approve',
   'campaigns.publish',
@@ -23,6 +25,8 @@ export type DeveloperContributionScope = typeof DEVELOPER_CONTRIBUTION_SCOPES[nu
 export const DEVELOPER_CONTRIBUTION_SCOPE_LABELS: Record<DeveloperContributionScope, string> = {
   'assets.submit': 'Submit library assets',
   'assets.review': 'Review library assets',
+  'library.submit': 'Submit shared library revisions',
+  'library.publish': 'Publish shared library revisions',
   'campaigns.draft': 'Draft campaign packages',
   'campaigns.approve': 'Approve campaign packages',
   'campaigns.publish': 'Publish approved campaigns',
@@ -39,6 +43,20 @@ export interface DeveloperAccessProfile {
   canDraftCampaigns: boolean;
   canProposeSiteContent: boolean;
 }
+
+export interface DeveloperAccessProjection {
+  hasCockpitAccess: boolean;
+  cockpitHref: '/developer/cockpit';
+  canSubmitTemplateRevisions: boolean;
+  canPublishSharedLibrary: boolean;
+}
+
+export const EMPTY_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
+  hasCockpitAccess: false,
+  cockpitHref: '/developer/cockpit',
+  canSubmitTemplateRevisions: false,
+  canPublishSharedLibrary: false,
+};
 
 export const resolveDeveloperContributionScopes = ({
   isOwner,
@@ -57,6 +75,7 @@ export const resolveDeveloperContributionScopes = ({
   return [
     'assets.submit',
     'assets.review',
+    'library.submit',
     ...(canDraftCampaigns ? ['campaigns.draft' as const] : []),
     ...(canProposeSiteContent ? ['site.propose' as const] : []),
   ];

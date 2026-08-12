@@ -231,6 +231,8 @@ export interface TCGCardTemplate {
   templateAccessTier?: 'free' | 'paid' | 'developer' | 'hidden';
   templateRegistryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   templateContributorName?: string;
+  templateRevision?: number;
+  templateRevisionId?: string;
   templateUsage?: TemplateUsage;
   templateCategory?: string;
   templateDescription?: string;
