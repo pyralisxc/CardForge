@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   images: {
     localPatterns: [
       {
+        pathname: '/brand/**',
+      },
+      {
+        pathname: '/card-assets/**',
+      },
+      {
         pathname: '/api/public/site-media/**',
       },
     ],
