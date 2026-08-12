@@ -211,6 +211,7 @@ export function CardForgeStudioShell({
   } = useTemplateLibraryActions({
     addOrUpdateAppearanceStyle: addOrUpdateAppearanceStyleAction,
     addOrUpdateTemplate: addOrUpdateTemplateAction,
+    appearanceStyles,
     cloneTemplate: cloneTemplateAction,
     deleteAppearanceStyle: deleteAppearanceStyleAction,
     deleteTemplate: deleteTemplateAction,

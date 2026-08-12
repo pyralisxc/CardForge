@@ -26,7 +26,10 @@ import {
   updateDeveloperAssetProfileRules,
   type DeveloperProfileRow,
 } from '@/features/developer-access/server';
-import { developerAssetTypeToRegistryAssetKind } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import {
+  DeveloperAssetRegistryCommandError,
+  transitionDeveloperAssetStatus,
+} from '@/features/developer-assets/lib/developerAssetRegistryCommands';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 export type DeveloperAssetSubmissionInputResult =
@@ -149,6 +152,19 @@ export class DeveloperAssetStoreError extends Error {
     super(message);
   }
 }
+
+const runDeveloperAssetTransition = async (
+  input: Parameters<typeof transitionDeveloperAssetStatus>[0],
+): Promise<void> => {
+  try {
+    await transitionDeveloperAssetStatus(input);
+  } catch (error) {
+    if (error instanceof DeveloperAssetRegistryCommandError) {
+      throw new DeveloperAssetStoreError(error.message, error.status);
+    }
+    throw error;
+  }
+};
 
 const PROGRAM_SETTINGS_ID = 'default';
 
@@ -667,26 +683,22 @@ const rebalanceDeveloperAssetPipeline = async (settings: DeveloperProgramSetting
     });
   });
 
-  await Promise.all(updates.map(async (update) => {
-    const { error } = await supabase
-      .from('cardforge_developer_asset_submissions')
-      .update({
-        status: update.status,
-        calculated_access_tier: update.accessTier,
-        quality_score: update.qualityScore,
-        decision_reason: update.reason,
-        tier_decision_reason: update.tierReason,
-      })
-      .eq('id', update.submission.id);
-
-    if (!error) {
-      await syncPublishedSubmissionToAssetRegistry({
-        submissionId: update.submission.id,
-        status: update.status,
-        calculatedAccessTier: update.accessTier,
-      });
-    }
-  }));
+  await Promise.all(updates.map((update) => runDeveloperAssetTransition({
+    submissionId: update.submission.id,
+    status: update.status,
+    ownerNote: update.submission.ownerNote ?? '',
+    ownerAccessTierOverride: update.submission.ownerAccessTierOverride,
+    ownerAccessTierOverrideProvided: false,
+    calculatedAccessTier: update.accessTier,
+    qualityScore: update.qualityScore,
+    tierDecisionReason: update.tierReason,
+    registryMetadata: getRegistryMetadataForSubmission({
+      asset_type: update.submission.assetType,
+      source_mime_type: update.submission.sourceMimeType,
+      developer_id: update.submission.developerId,
+      developer_email: update.submission.developerEmail,
+    }),
+  })));
 };
 
 export const getDeveloperAssetProgramView = async (
@@ -889,7 +901,12 @@ export const createDeveloperAssetSubmission = async ({
     throw new DeveloperAssetStoreError('Unable to submit developer asset.', 500);
   }
 
-  return getDeveloperAssetProgramView(developerId, currentContributorIds);
+  try {
+    return await getDeveloperAssetProgramView(developerId, currentContributorIds);
+  } catch (error) {
+    console.error('Developer asset was submitted, but the refreshed program view was unavailable:', error);
+    return view;
+  }
 };
 
 const countPublishedThisPeriodForType = async (assetType: DeveloperAssetType): Promise<number> => {
@@ -1046,138 +1063,28 @@ export const mergeRegistryMetadataForSubmission = (
   };
 };
 
-const syncPublishedSubmissionToAssetRegistry = async ({
-  submissionId,
-  status,
-  calculatedAccessTier,
-}: {
-  submissionId: string;
-  status: DeveloperAssetStatus;
-  calculatedAccessTier: DeveloperAssetAccessTier;
-}) => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return;
-
-  const { data: rows, error } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .select('id,developer_id,developer_email,asset_type,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id')
-    .eq('id', submissionId)
-    .limit(1);
-
-  if (error || !rows?.[0]) {
-    if (error) console.error('Failed to load submission for asset registry sync:', error);
-    return;
-  }
-
-  const submission = rows[0] as {
-    id: string;
-    developer_id: string;
-    developer_email: string | null;
-    asset_type: unknown;
-    name: string;
-    description: string | null;
-    preview_url: string | null;
-    source_url: string | null;
-    source_file_size_bytes: number | null;
-    source_mime_type: string | null;
-    source_storage_bucket: string | null;
-    source_storage_path: string | null;
-    registry_asset_id: string | null;
-  };
-  if (!isDeveloperAssetType(submission.asset_type)) return;
-
-  const registryAssetId = submission.registry_asset_id || `developer-${submission.asset_type}-${submission.id}`;
-
-  if (status === 'archived' || status === 'rejected') {
-    await supabase
-      .from('cardforge_asset_registry')
-      .update({ status, access_tier: 'hidden' })
-      .eq('asset_id', registryAssetId);
-    return;
-  }
-
-  if (status !== 'published') {
-    await supabase
-      .from('cardforge_asset_registry')
-      .update({
-        status,
-        access_tier: calculatedAccessTier === 'hidden' ? 'hidden' : 'developer',
-      })
-      .eq('asset_id', registryAssetId);
-    return;
-  }
-  if (!submission.source_url) {
-    throw new DeveloperAssetStoreError('A source file is required before this asset can publish into the live library.', 400);
-  }
-
-  const { data: existingRegistryRows, error: existingRegistryError } = await supabase
-    .from('cardforge_asset_registry')
-    .select('metadata')
-    .eq('asset_id', registryAssetId)
-    .limit(1);
-
-  if (existingRegistryError) {
-    console.error('Failed to load existing registry metadata before publish sync:', existingRegistryError);
-  }
-
-  const submissionMetadata = getRegistryMetadataForSubmission({
-    asset_type: submission.asset_type,
-    source_mime_type: submission.source_mime_type,
-    developer_id: submission.developer_id,
-    developer_email: submission.developer_email,
-  });
-  const registryMetadata = mergeRegistryMetadataForSubmission(
-    existingRegistryRows?.[0]?.metadata,
-    submissionMetadata,
-  );
-
-  const { error: upsertError } = await supabase
-    .from('cardforge_asset_registry')
-    .upsert({
-      asset_id: registryAssetId,
-      name: submission.name,
-      asset_type: developerAssetTypeToRegistryAssetKind(submission.asset_type),
-      url: submission.source_url,
-      preview_url: submission.preview_url || submission.source_url,
-      status: 'published',
-      access_tier: getRegistryAccessTierForPublishedSubmission(calculatedAccessTier),
-      library_source: 'developer',
-      developer_submission_id: submission.id,
-      storage_bucket: submission.source_storage_bucket,
-      storage_path: submission.source_storage_path,
-      file_size_bytes: submission.source_file_size_bytes,
-      metadata: registryMetadata,
-    }, { onConflict: 'asset_id' });
-
-  if (upsertError) {
-    console.error('Failed to publish submission into asset registry:', upsertError);
-    throw new DeveloperAssetStoreError('Unable to publish this asset into the live library.', 500);
-  }
-
-  await supabase
-    .from('cardforge_developer_asset_submissions')
-    .update({ registry_asset_id: registryAssetId })
-    .eq('id', submission.id);
-};
-
 const refreshSubmissionVoteDecision = async (submissionId: string): Promise<void> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) return;
 
   const { data: submissionRows, error: submissionError } = await supabase
     .from('cardforge_developer_asset_submissions')
-    .select('asset_type,positive_votes,negative_votes,status,calculated_access_tier,owner_access_tier_override')
+    .select('developer_id,developer_email,asset_type,source_mime_type,positive_votes,negative_votes,status,calculated_access_tier,owner_access_tier_override,owner_note')
     .eq('id', submissionId)
     .limit(1);
 
   if (submissionError || !submissionRows?.[0]) return;
   const submission = submissionRows[0] as {
+    developer_id: string;
+    developer_email: string | null;
     asset_type: unknown;
+    source_mime_type: string | null;
     positive_votes: number | null;
     negative_votes: number | null;
     status: unknown;
     calculated_access_tier: unknown;
     owner_access_tier_override: unknown;
+    owner_note: string | null;
   };
   if (!isDeveloperAssetType(submission.asset_type) || submission.status === 'rejected') return;
 
@@ -1215,24 +1122,24 @@ const refreshSubmissionVoteDecision = async (submissionId: string): Promise<void
     ignoreTierCaps: currentStatus === 'published',
   });
 
-  const { error: updateError } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .update({
-      status: decision.nextStatus,
-      decision_reason: decision.reason,
-      calculated_access_tier: tierDecision.accessTier,
-      quality_score: tierDecision.qualityScore,
-      tier_decision_reason: tierDecision.reason,
-    })
-    .eq('id', submissionId);
-
-  if (!updateError) {
-    await syncPublishedSubmissionToAssetRegistry({
-      submissionId,
-      status: decision.nextStatus,
-      calculatedAccessTier: tierDecision.accessTier,
-    });
-  }
+  await runDeveloperAssetTransition({
+    submissionId,
+    status: decision.nextStatus,
+    ownerNote: submission.owner_note ?? '',
+    ownerAccessTierOverride: isDeveloperAssetAccessTierOverride(submission.owner_access_tier_override)
+      ? submission.owner_access_tier_override
+      : null,
+    ownerAccessTierOverrideProvided: false,
+    calculatedAccessTier: tierDecision.accessTier,
+    qualityScore: tierDecision.qualityScore,
+    tierDecisionReason: tierDecision.reason,
+    registryMetadata: getRegistryMetadataForSubmission({
+      asset_type: submission.asset_type,
+      source_mime_type: submission.source_mime_type,
+      developer_id: submission.developer_id,
+      developer_email: submission.developer_email,
+    }),
+  });
 };
 
 const refreshSubmissionVoteTotals = async (
@@ -1261,15 +1168,19 @@ const refreshSubmissionVoteTotals = async (
           { ownerDeveloperId, ownerVoteWeight: settings.ownerVoteWeight }
         );
 
-        await supabase
+        const { error: fallbackUpdateError } = await supabase
           .from('cardforge_developer_asset_submissions')
           .update({ positive_votes: positiveVotes, negative_votes: negativeVotes })
           .eq('id', submissionId);
+        if (fallbackUpdateError) {
+          console.error('Failed to save recalculated developer asset vote totals:', fallbackUpdateError);
+          throw new DeveloperAssetStoreError('Unable to save developer asset vote totals.', 500);
+        }
         return;
       }
     }
     console.error('Failed to recalculate developer asset vote totals:', countError);
-    return;
+    throw new DeveloperAssetStoreError('Unable to recalculate developer asset vote totals.', 500);
   }
 
   const { positiveVotes, negativeVotes } = calculateDeveloperAssetVoteTotals(
@@ -1280,10 +1191,14 @@ const refreshSubmissionVoteTotals = async (
     }
   );
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('cardforge_developer_asset_submissions')
     .update({ positive_votes: positiveVotes, negative_votes: negativeVotes })
     .eq('id', submissionId);
+  if (updateError) {
+    console.error('Failed to save recalculated developer asset vote totals:', updateError);
+    throw new DeveloperAssetStoreError('Unable to save developer asset vote totals.', 500);
+  }
 };
 
 const refreshAllSubmissionVoteTotals = async (
@@ -1465,13 +1380,27 @@ export const updateDeveloperAssetSubmissionStatus = async ({
     throw new DeveloperAssetStoreError('Choose a supported asset access override.', 400);
   }
 
-  const { data: rows } = await supabase
+  const { data: rows, error: loadError } = await supabase
     .from('cardforge_developer_asset_submissions')
-    .select('asset_type,positive_votes,negative_votes')
+    .select('developer_id,developer_email,asset_type,source_mime_type,positive_votes,negative_votes')
     .eq('id', submissionId)
     .limit(1);
-  const row = rows?.[0] as { asset_type?: unknown; positive_votes?: number | null; negative_votes?: number | null } | undefined;
-  const assetType = isDeveloperAssetType(row?.asset_type) ? row.asset_type : 'imageAssets';
+  if (loadError) {
+    console.error('Failed to load developer asset status target:', loadError);
+    throw new DeveloperAssetStoreError('Unable to load developer asset submission.', 500);
+  }
+  const row = rows?.[0] as {
+    developer_id?: string;
+    developer_email?: string | null;
+    asset_type?: unknown;
+    source_mime_type?: string | null;
+    positive_votes?: number | null;
+    negative_votes?: number | null;
+  } | undefined;
+  if (!row || !isDeveloperAssetType(row.asset_type)) {
+    throw new DeveloperAssetStoreError('Developer asset submission was not found.', 404);
+  }
+  const assetType = row.asset_type;
   const { settings } = await fetchDeveloperSettings();
   const [freeTieredThisPeriodForType, paidTieredThisPeriodForType] = await Promise.all([
     countTieredThisPeriodForType(assetType, 'free'),
@@ -1488,28 +1417,21 @@ export const updateDeveloperAssetSubmissionStatus = async ({
     ownerAccessTierOverride: normalizedTierOverride ?? null,
   });
 
-  const { error } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .update({
-      status,
-      owner_note: normalizeLongText(ownerNote, 280),
-      ...(ownerAccessTierOverride !== undefined ? { owner_access_tier_override: normalizedTierOverride } : {}),
-      calculated_access_tier: tierDecision.accessTier,
-      quality_score: tierDecision.qualityScore,
-      tier_decision_reason: tierDecision.reason,
-      decision_reason: status,
-    })
-    .eq('id', submissionId);
-
-  if (error) {
-    console.error('Failed to update developer asset status:', error);
-    throw new DeveloperAssetStoreError('Unable to update developer asset status.', 500);
-  }
-
-  await syncPublishedSubmissionToAssetRegistry({
+  await runDeveloperAssetTransition({
     submissionId,
     status,
+    ownerNote: normalizeLongText(ownerNote, 280),
+    ownerAccessTierOverride: normalizedTierOverride ?? null,
+    ownerAccessTierOverrideProvided: ownerAccessTierOverride !== undefined,
     calculatedAccessTier: tierDecision.accessTier,
+    qualityScore: tierDecision.qualityScore,
+    tierDecisionReason: tierDecision.reason,
+    registryMetadata: getRegistryMetadataForSubmission({
+      asset_type: assetType,
+      source_mime_type: row.source_mime_type ?? null,
+      developer_id: row.developer_id ?? '',
+      developer_email: row.developer_email ?? null,
+    }),
   });
 
   return getDeveloperAssetProgramView(currentUserId, currentContributorIds);

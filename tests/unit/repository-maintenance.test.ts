@@ -28,6 +28,12 @@ describe('repository maintenance policy', () => {
       ['config', 'architecture-baseline.json'],
       ['docs', 'architecture-refactor-design.md'],
       ['docs', 'architecture-refactor-plans'],
+      ['AGENTS-snippet.md'],
+      ['data', 'user-templates'],
+      ['docs', 'cardforge-public-identity-overhaul-design.md'],
+      ['docs', 'showcase-homepage-design.md'],
+      ['docs', 'stripe-support-rollout.md'],
+      ['output'],
     ];
 
     for (const retiredPath of retiredPaths) {
@@ -50,6 +56,7 @@ describe('repository maintenance policy', () => {
 
     expect(packageJson.scripts).toMatchObject({
       'architecture:check': 'node scripts/check-architecture.mjs',
+      'migrations:check': 'node scripts/check-migration-safety.mjs',
       'health:production': 'node scripts/check-production-health.mjs',
       'qa:bootstrap-authenticated-smoke': 'node scripts/bootstrap-authenticated-smoke-users.mjs',
       'pipeline:sync-defaults': 'node scripts/sync-pipeline-defaults.mjs',
@@ -67,6 +74,31 @@ describe('repository maintenance policy', () => {
 
     expect(ci).toContain('npm run architecture:check');
     await expect(pathExists('config', 'architecture-baseline.json')).resolves.toBe(false);
+  });
+
+  it('keeps shared-library persistence behind atomic feature commands', async () => {
+    const [templateRoute, styleRoute, pipelineSync] = await Promise.all([
+      readFile(rootPath('src', 'app', 'api', 'templates', 'route.ts'), 'utf8'),
+      readFile(rootPath('src', 'app', 'api', 'styles', 'route.ts'), 'utf8'),
+      readFile(rootPath('scripts', 'sync-pipeline-defaults.mjs'), 'utf8'),
+    ]);
+
+    for (const route of [templateRoute, styleRoute]) {
+      expect(route).not.toContain(".from('cardforge_asset_registry')");
+      expect(route).not.toContain(".from('cardforge_developer_asset_submissions')");
+    }
+    expect(templateRoute).not.toMatch(/fs\.(?:writeFile|unlink|mkdir)/u);
+    expect(pipelineSync).toContain("rpc('cardforge_upsert_pipeline_registry_asset'");
+    expect(pipelineSync).not.toContain(".from('cardforge_asset_registry')");
+  });
+
+  it('keeps developer upload and submission in one route', async () => {
+    await expect(pathExists('src', 'app', 'api', 'developer-assets', 'upload', 'route.ts')).resolves.toBe(false);
+    const developerAssetRoute = await readFile(
+      rootPath('src', 'app', 'api', 'developer-assets', 'route.ts'),
+      'utf8',
+    );
+    expect(developerAssetRoute).toContain('createUploadedDeveloperAssetSubmission');
   });
 
   it('makes unused TypeScript declarations a build failure', async () => {

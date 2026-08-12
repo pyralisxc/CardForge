@@ -33,6 +33,7 @@ import {
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
@@ -58,15 +59,6 @@ const profileStatusLabels: Record<DeveloperProfileDraft['status'], string> = {
   active: 'Active',
   inactive: 'Inactive',
   suspended: 'Suspended',
-};
-
-const getApiErrorMessage = async (response: Response, fallback: string) => {
-  try {
-    const body = await response.json() as { error?: { message?: string } };
-    return body.error?.message ?? fallback;
-  } catch {
-    return fallback;
-  }
 };
 
 const formatBytes = (value: number): string => {
@@ -101,7 +93,7 @@ export function OwnerDeveloperProgramPanel() {
     setLoadError(null);
     try {
       const response = await fetch('/api/developer-assets', { cache: 'no-store' });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to load developer program.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load developer program.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setSettings(body.program.settings);
@@ -149,7 +141,7 @@ export function OwnerDeveloperProgramPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings }),
       });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save developer program.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save developer program.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setSettings(body.program.settings);
@@ -178,7 +170,7 @@ export function OwnerDeveloperProgramPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, ownerNote, ownerAccessTierOverride }),
       });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to update asset status.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update asset status.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setLastSavedAt(new Date().toISOString());
@@ -232,7 +224,7 @@ export function OwnerDeveloperProgramPanel() {
           },
         }),
       });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to save developer profile rules.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save developer profile rules.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setSettings(body.program.settings);

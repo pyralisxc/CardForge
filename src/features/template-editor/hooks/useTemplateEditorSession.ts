@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   CARD_FONT_OPTIONS,
@@ -61,12 +61,14 @@ export function useTemplateEditorSession({
   const initialTemplate = useMemo(() => {
     return resolveTemplateEditorInitialTemplate({ recoveredDraft: null, selectedTemplateId, templates });
   }, [selectedTemplateId, templates]);
+  const initialTemplateRef = useRef(initialTemplate);
+  initialTemplateRef.current = initialTemplate;
 
   const controller = useTemplateEditorController(initialTemplate);
 
 
   useEffect(() => {
-    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(initialTemplate)));
+    setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(initialTemplateRef.current)));
   }, [initialTemplate.id]);
 
   const beginDraft = useCallback((template: TCGCardTemplate) => {

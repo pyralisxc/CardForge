@@ -163,83 +163,23 @@ const defaultAssetMetadata = (registryType, relativePath) => {
   };
 };
 
-const upsertSubmissionForRegistryAsset = async (supabase, item, ownerProfile) => {
-  const { data: existingRows, error: loadError } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .select('id')
-    .eq('registry_asset_id', item.asset_id)
-    .limit(1);
-
-  if (loadError) throw loadError;
-
-  const patch = {
-    developer_id: ownerProfile.clerk_user_id,
-    developer_email: ownerProfile.email,
-    asset_type: item.developer_asset_type,
-    name: item.name,
-    description: item.description,
-    preview_url: item.preview_url,
-    source_url: item.url,
-    source_file_size_bytes: item.file_size_bytes,
-    source_mime_type: item.source_mime_type,
-    source_storage_bucket: item.storage_bucket,
-    source_storage_path: item.storage_path,
-    registry_asset_id: item.asset_id,
-    status: 'published',
-    calculated_access_tier: 'free',
-    owner_access_tier_override: null,
-    quality_score: 0,
-    tier_decision_reason: 'free_candidate',
-    decision_reason: 'pipeline_owner_import',
-  };
-
-  const existing = existingRows?.[0];
-  if (existing) {
-    const { error } = await supabase
-      .from('cardforge_developer_asset_submissions')
-      .update(patch)
-      .eq('id', existing.id);
-    if (error) throw error;
-    return existing.id;
-  }
-
-  const { data, error } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .insert(patch)
-    .select('id')
-    .single();
-  if (error) throw error;
-  return data.id;
-};
-
 const upsertRegistryItem = async (supabase, item, ownerProfile) => {
-  const baseRegistryRow = {
-    asset_id: item.asset_id,
-    name: item.name,
-    asset_type: item.registry_asset_type,
-    url: item.url,
-    preview_url: item.preview_url,
-    status: 'published',
-    access_tier: 'free',
-    library_source: 'developer',
-    storage_bucket: item.storage_bucket,
-    storage_path: item.storage_path,
-    file_size_bytes: item.file_size_bytes,
-    metadata: item.metadata,
-  };
-
-  const { error: registrySeedError } = await supabase
-    .from('cardforge_asset_registry')
-    .upsert(baseRegistryRow, { onConflict: 'asset_id' });
-  if (registrySeedError) throw registrySeedError;
-
-  const submissionId = await upsertSubmissionForRegistryAsset(supabase, item, ownerProfile);
-  const { error } = await supabase
-    .from('cardforge_asset_registry')
-    .upsert({
-      ...baseRegistryRow,
-      developer_submission_id: submissionId,
-    }, { onConflict: 'asset_id' });
+  const { error } = await supabase.rpc('cardforge_upsert_pipeline_registry_asset', {
+    p_asset_id: item.asset_id,
+    p_name: item.name,
+    p_submission_asset_type: item.developer_asset_type,
+    p_registry_asset_type: item.registry_asset_type,
+    p_url: item.url,
+    p_preview_url: item.preview_url,
+    p_description: item.description,
+    p_developer_id: ownerProfile.clerk_user_id,
+    p_developer_email: ownerProfile.email,
+    p_file_size_bytes: item.file_size_bytes,
+    p_source_mime_type: item.source_mime_type,
+    p_storage_bucket: item.storage_bucket,
+    p_storage_path: item.storage_path,
+    p_metadata: item.metadata,
+  });
   if (error) throw error;
 };
 
@@ -546,7 +486,7 @@ const main = async () => {
   if (ownerError) throw ownerError;
 
   const ownerProfile = ownerProfiles?.[0] || { clerk_user_id: OWNER_EMAIL, email: OWNER_EMAIL };
-  await supabase
+  const { error: profileSyncError } = await supabase
     .from('cardforge_developer_profiles')
     .upsert({
       clerk_user_id: ownerProfile.clerk_user_id,
@@ -554,6 +494,7 @@ const main = async () => {
       status: 'active',
       eligible_for_profit_share: true,
     }, { onConflict: 'clerk_user_id' });
+  if (profileSyncError) throw profileSyncError;
 
   const items = [
     ...await collectStaticAssetItems(supabase),

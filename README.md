@@ -10,7 +10,7 @@ CardForge Studio is a software product created and operated by Cameron Locke, an
 - Product story and access explanation: `/` and `/about`
 - Founder identity and voluntary support: `/cameron` and its `#support` section
 - Studio: `/studio`
-- Account and Founder Beta status: `/account`
+- Account and Creator Pass status: `/account`
 - Profile management: `/profile`
 - Public roadmap and feature voting: `/roadmap`
 - Developer application: `/developer`
@@ -45,6 +45,7 @@ npm run lint       # ESLint
 npm run typecheck  # next typegen + TypeScript no-emit check
 npm run test       # Vitest unit suite
 npm run test:watch # Vitest watch mode
+npm run migrations:check # Reject edits to existing Supabase migrations
 npm run smoke           # Lean public Playwright release gate
 npm run smoke:protected # Protected auth/access/recovery suite (configured QA environment only)
 ```
@@ -84,7 +85,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/components/ui/`: Generic UI primitives and generic browser UI state.
 - `src/lib/`, `src/store/`, and `src/types/` are retired root ownership lanes and must not be recreated.
 - `data/default-templates/`, `data/styles/`, and `public/card-assets/`: starter/import material for the Forge Pipeline sync, not runtime fallback catalogs.
-- `supabase/migrations/`: Ordered database migrations for shared roadmap, owner, Founder Beta, asset registry, and developer pipeline state.
+- `supabase/migrations/`: Immutable, forward-only database migrations for shared product state.
 - `tests/unit/`: Vitest coverage for pure helpers and model behavior.
 - `tests/smoke/`: Playwright workflow and authenticated QA coverage.
 
@@ -93,7 +94,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 CardForge has three storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
-- Supabase-backed shared state for the Forge Pipeline, roadmap voting, Founder Beta claims, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, canonical campaign media and derivatives, campaign packages/attachments/production associations, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
+- Supabase-backed shared state for the Forge Pipeline, roadmap voting, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, canonical campaign media and derivatives, campaign packages/attachments/production associations, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
 - Repo starter/import files that can seed the pipeline with `npm run pipeline:sync-defaults`, but should not silently replace a missing database catalog at runtime.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.
@@ -122,7 +123,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_APP_URL=http://localhost:9002
 ```
 
-Stripe Checkout owns both payment lanes, but their metadata and entitlement behavior are separate. `product_access` uses the authenticated Creator Pass Price and may update CardForge entitlement. `creator_support` offers a server-bounded customer-selected one-time amount plus fixed $1, $5, $10, and $20 monthly Prices, may be used without a CardForge account, and never updates product entitlement. The server verifies each purpose, amount, currency, recurrence, and monthly Price before checkout or webhook processing. Follow [the provider rollout guide](docs/stripe-support-rollout.md) before merging or deploying billing-purpose changes.
+Stripe Checkout owns both payment lanes, but their metadata and entitlement behavior are separate. `product_access` uses the authenticated Creator Pass Price and may update CardForge entitlement. `creator_support` offers a server-bounded customer-selected one-time amount plus fixed $1, $5, $10, and $20 monthly Prices, may be used without a CardForge account, and never updates product entitlement. The server verifies each purpose, amount, currency, recurrence, and monthly Price before checkout or webhook processing. Use the billing reconciliation and rollback procedures in [docs/operations.md](docs/operations.md) before changing billing-purpose behavior.
 
 Reusable authenticated QA accounts are preferred over disposable user creation. Set the `CARDFORGE_E2E_*` values documented in `.env.example` when running the authenticated smoke suite.
 
@@ -133,6 +134,6 @@ Extended contributor campaigns/site proposals and Buffer publishing are separate
 - [docs/architecture.md](docs/architecture.md): current product architecture and source-of-truth behavior.
 - [docs/developer-cockpit-ux-media-audit.md](docs/developer-cockpit-ux-media-audit.md): contributor, owner, agent, media-package, and continuous-production workflow audit.
 - [docs/operations.md](docs/operations.md): live operations, env vars, provider checks, and launch-critical verification.
-- [docs/risk-register.md](docs/risk-register.md): open, accepted, and verified launch risks with review dates.
+- [docs/risk-register.md](docs/risk-register.md): unresolved and explicitly accepted operational risks.
 
 Keep the README and docs short. If a document stops describing the current product, update it or remove it.

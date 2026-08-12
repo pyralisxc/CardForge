@@ -1,7 +1,7 @@
 import { resolveAccountEntitlement } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
-  createDeveloperAssetSubmission,
+  createUploadedDeveloperAssetSubmission,
   DeveloperAssetStoreError,
   getDeveloperAssetProgramView,
   updateDeveloperProfileOverrides,
@@ -117,29 +117,23 @@ export async function POST(request: Request) {
     }
     await syncDeveloperProfile(access);
 
-    const body = await request.json() as {
-      assetType?: unknown;
-      name?: unknown;
-      description?: unknown;
-      previewUrl?: unknown;
-      sourceUrl?: unknown;
-      sourceFileSizeBytes?: unknown;
-      sourceMimeType?: unknown;
-      sourceStorageBucket?: unknown;
-      sourceStoragePath?: unknown;
-    };
-
-    const program = await createDeveloperAssetSubmission({
+    const formData = await request.formData();
+    const file = formData.get('file');
+    if (!(file instanceof File)) {
+      return createApiErrorResponse(400, 'developer_asset_request_invalid', 'Choose a source file to upload.');
+    }
+    const program = await createUploadedDeveloperAssetSubmission({
       developerId: access.user.id,
       developerEmail: access.email,
       currentContributorIds: getContributorIds(access.user.id),
-      input: body,
+      assetType: formData.get('assetType'),
+      name: formData.get('name'),
+      description: formData.get('description'),
+      previewUrl: formData.get('previewUrl'),
+      file,
     });
     return createNoStoreJsonResponse({ program }, { status: 201 });
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
-    }
     if (error instanceof RateLimitUnavailableError) {
       return createApiErrorResponse(503, 'developer_asset_unavailable', error.message);
     }

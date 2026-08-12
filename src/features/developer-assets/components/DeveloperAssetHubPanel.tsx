@@ -31,7 +31,6 @@ import {
   createJsonFile,
   assetTierOrder,
   developerAssetSubmissionGuidance,
-  getApiErrorMessage,
   getCandidateBrowseLabel,
   getCandidateSourceEmptyMessage,
   getExtensionForAssetUrl,
@@ -48,21 +47,12 @@ import {
   type PersonalLibraryItem,
   type VoteFilter,
 } from '@/features/developer-assets/components/DeveloperAssetHubModel';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { AssetRow, EditSubmissionForm, QueuePager, VoteButtons } from '@/features/developer-assets/components/DeveloperAssetRows';
 import { FieldHelp, GlossaryPanel, GuidanceCard, PipelineMetric, ProgramRule, QueueSelect, Stat } from '@/features/developer-assets/components/DeveloperAssetHubUi';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
-}
-
-interface UploadedDeveloperAsset {
-  bucket: string;
-  path: string;
-  sourceUrl: string;
-  previewUrl: string;
-  fileSizeBytes: number;
-  mimeType: string | null;
-  fileName: string;
 }
 
 interface TemplateLibraryResponse {
@@ -88,7 +78,6 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [description, setDescription] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadedAsset, setUploadedAsset] = useState<UploadedDeveloperAsset | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [isDragActive, setIsDragActive] = useState(false);
   const [personalLibraryFilter, setPersonalLibraryFilter] = useState<PersonalLibraryFilter>('all');
@@ -258,7 +247,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
     setLoadError(null);
     try {
       const response = await fetch('/api/developer-assets', { cache: 'no-store' });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to load developer asset hub.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load developer asset hub.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setIsLoading(false);
@@ -308,7 +297,6 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
 
   const selectCandidateFile = useCallback((file: File | null) => {
     setSelectedFile(file);
-    setUploadedAsset(null);
     if (file && !name.trim()) {
       setName(file.name.replace(/\.[^.]+$/, ''));
     }
@@ -337,7 +325,6 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
       setDescription((currentDescription) => currentDescription.trim() ? currentDescription : item.helperText);
       setPreviewUrl((currentPreviewUrl) => currentPreviewUrl.trim() ? currentPreviewUrl : item.previewUrl ?? '');
       setSelectedFile(file);
-      setUploadedAsset(null);
       setFileInputKey((key) => key + 1);
       toast({
         title: 'Personal library item selected',
@@ -352,58 +339,30 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
     }
   };
 
-  const uploadSelectedFile = async (): Promise<UploadedDeveloperAsset> => {
-    if (!selectedFile) {
-      throw new Error('Choose a source file before submitting.');
-    }
-
-    const formData = new FormData();
-    formData.set('assetType', assetType);
-    formData.set('file', selectedFile);
-
-    const response = await fetch('/api/developer-assets/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to upload source file.'));
-    return response.json() as Promise<UploadedDeveloperAsset>;
-  };
-
   const submitAsset = async () => {
     setIsSaving(true);
     try {
       if (!name.trim()) throw new Error('Name the asset before submitting.');
-      const uploaded = selectedFile ? await uploadSelectedFile() : uploadedAsset;
-      if (!uploaded) throw new Error('Choose a source file before submitting.');
-      setUploadedAsset(uploaded);
-      if (selectedFile) {
-        setSelectedFile(null);
-        setFileInputKey((key) => key + 1);
-      }
+      if (!selectedFile) throw new Error('Choose a source file before submitting.');
+
+      const formData = new FormData();
+      formData.set('assetType', assetType);
+      formData.set('name', name);
+      formData.set('description', description);
+      formData.set('previewUrl', previewUrl);
+      formData.set('file', selectedFile);
 
       const response = await fetch('/api/developer-assets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assetType,
-          name,
-          description,
-          previewUrl: previewUrl.trim() || uploaded.previewUrl,
-          sourceUrl: uploaded.sourceUrl,
-          sourceFileSizeBytes: uploaded.fileSizeBytes,
-          sourceMimeType: uploaded.mimeType,
-          sourceStorageBucket: uploaded.bucket,
-          sourceStoragePath: uploaded.path,
-        }),
+        body: formData,
       });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to submit asset.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to submit asset.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setName('');
       setDescription('');
       setPreviewUrl('');
       setSelectedFile(null);
-      setUploadedAsset(null);
       setFileInputKey((key) => key + 1);
       toast({ title: 'Asset submitted', description: 'Your asset is now in the developer voting pipeline.' });
     } catch (error) {
@@ -424,7 +383,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ voteValue }),
       });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to submit vote.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to submit vote.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       toast({ title: 'Vote recorded', description: 'The submission score has been updated.' });
@@ -464,7 +423,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
           previewUrl: editPreviewUrl,
         }),
       });
-      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Unable to edit asset.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to edit asset.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       cancelEdit();
@@ -769,9 +728,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                 <span className="text-xs text-[#a98a55]">
                   {selectedFile
                     ? `${selectedFile.name} - ${Math.ceil(selectedFile.size / 1024)} KB selected`
-                    : uploadedAsset
-                      ? `${uploadedAsset.fileName} uploaded`
-                      : 'No source selected yet.'}
+                    : 'No source selected yet.'}
                 </span>
               </div>
               <label htmlFor="developer-asset-preview-url" className="grid gap-2 text-sm text-[#c7b288]">

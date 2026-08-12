@@ -21,6 +21,7 @@
 /.next-smoke/
 /.next-dev/
 /out/
+/output/
 
 # production
 /build

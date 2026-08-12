@@ -2,7 +2,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/domain/templates';
-import { getDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
@@ -10,11 +9,13 @@ import {
   stylePresetPayloadSchema,
 } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { canCurrentAccountWriteShippedLibrary } from '@/features/developer-assets/server';
-import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
+  archivePipelineRegistryAsset,
+  canCurrentAccountWriteShippedLibrary,
+  DeveloperAssetRegistryCommandError,
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
+  upsertPipelineRegistryAsset,
 } from '@/features/developer-assets/server';
 
 const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
@@ -32,80 +33,27 @@ const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
 };
 
 const syncStylePresetToRegistry = async (style: AppearanceStylePreset) => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) throw new Error('The Forge Pipeline database is not configured.');
-  if (!PIPELINE_OWNER_EMAIL) {
-    throw new Error('CARDFORGE_PIPELINE_OWNER_EMAIL is required for shipped-library writes.');
-  }
-
-  const ownerProfile = await getDeveloperProfileReferenceByEmail(PIPELINE_OWNER_EMAIL);
-  const ownerDeveloperId = ownerProfile?.developerId || PIPELINE_OWNER_EMAIL;
-  const ownerEmail = ownerProfile?.email || PIPELINE_OWNER_EMAIL;
   const stylePayload: AppearanceStylePreset = {
     ...style,
     librarySource: 'developer',
     accessTier: 'free',
     registryStatus: 'published',
-    contributorName: ownerEmail,
+    contributorName: PIPELINE_CONTRIBUTOR_NAME,
   };
 
-  const { data: existingSubmissions } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .select('id')
-    .eq('registry_asset_id', style.id)
-    .limit(1);
-  const submissionPatch = {
-    developer_id: ownerDeveloperId,
-    developer_email: ownerEmail,
-    asset_type: 'elementPresets',
+  await upsertPipelineRegistryAsset({
+    assetId: style.id,
     name: style.name,
+    submissionAssetType: 'elementPresets',
+    registryAssetType: 'elementPreset',
+    url: `/api/styles#${style.id}`,
     description: `${style.name} starter style maintained through the Forge Pipeline.`,
-    preview_url: `/api/styles#${style.id}`,
-    source_url: `/api/styles#${style.id}`,
-    source_file_size_bytes: Buffer.byteLength(JSON.stringify(style)),
-    source_mime_type: 'application/json',
-    registry_asset_id: style.id,
-    status: 'published',
-    calculated_access_tier: 'free',
-    owner_access_tier_override: null,
-  };
-
-  let submissionId = existingSubmissions?.[0]?.id as string | undefined;
-  if (submissionId) {
-    const { error } = await supabase
-      .from('cardforge_developer_asset_submissions')
-      .update(submissionPatch)
-      .eq('id', submissionId);
-    if (error) throw error;
-  } else {
-    const { data, error } = await supabase
-      .from('cardforge_developer_asset_submissions')
-      .insert(submissionPatch)
-      .select('id')
-      .single();
-    if (error) throw error;
-    submissionId = data.id;
-  }
-
-  const { error } = await supabase
-    .from('cardforge_asset_registry')
-    .upsert({
-      asset_id: style.id,
-      name: style.name,
-      asset_type: 'elementPreset',
-      url: `/api/styles#${style.id}`,
-      preview_url: `/api/styles#${style.id}`,
-      status: 'published',
-      access_tier: 'free',
-      library_source: 'developer',
-      developer_submission_id: submissionId,
-      file_size_bytes: Buffer.byteLength(JSON.stringify(style)),
-      metadata: {
+    fileSizeBytes: Buffer.byteLength(JSON.stringify(style)),
+    metadata: {
         sourceKind: 'pipeline-owner-edit',
         style: stylePayload,
-      },
-    }, { onConflict: 'asset_id' });
-  if (error) throw error;
+    },
+  });
 };
 
 const readLibrary = async (): Promise<AppearanceStyleLibrary> => {
@@ -261,6 +209,9 @@ export async function POST(request: Request) {
     const next = { version: current.version || 1, styles: merged.sort((a, b) => a.name.localeCompare(b.name)) };
     return createNoStoreJsonResponse(next);
   } catch (error) {
+    if (error instanceof DeveloperAssetRegistryCommandError) {
+      return createApiErrorResponse(error.status, 'style_library_unavailable', error.message);
+    }
     console.error('Failed to save style library:', error);
     return createApiErrorResponse(
       500,
@@ -293,28 +244,13 @@ export async function DELETE(request: Request) {
     if (typeof body?.id !== 'string' || body.id.trim().length === 0) {
       return createApiErrorResponse(400, 'invalid_style_id', 'Style id is required.');
     }
-    const supabase = getSupabaseServerClient();
-    if (!supabase) {
-      return createApiErrorResponse(503, 'style_library_unavailable', 'The Forge Pipeline database is not configured.');
-    }
-    await supabase
-      .from('cardforge_developer_asset_submissions')
-      .update({
-        status: 'archived',
-        calculated_access_tier: 'hidden',
-        decision_reason: 'owner_deleted_from_library',
-      })
-      .eq('registry_asset_id', body.id);
-    await supabase
-      .from('cardforge_asset_registry')
-      .update({
-        status: 'archived',
-        access_tier: 'hidden',
-      })
-      .eq('asset_id', body.id);
+    await archivePipelineRegistryAsset(body.id);
     const next = await readLibrary();
     return createNoStoreJsonResponse(next);
   } catch (error) {
+    if (error instanceof DeveloperAssetRegistryCommandError) {
+      return createApiErrorResponse(error.status, 'style_library_unavailable', error.message);
+    }
     console.error('Failed to delete style:', error);
     return createApiErrorResponse(
       500,

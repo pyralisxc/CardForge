@@ -7,7 +7,8 @@ import { useProjectStore } from '@/features/project/client';
 import { selectAllTemplates } from '@/features/project/client';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
-type ToastFn = (message: { title: string; description: string }) => unknown;
+import { requireOkResponse } from '@/infrastructure/http/clientResponses';
+type ToastFn = (message: { title: string; description: string; variant?: 'default' | 'destructive' }) => unknown;
 
 interface TemplateLibraryCapabilities {
   canWriteShippedLibrary: boolean;
@@ -16,6 +17,7 @@ interface TemplateLibraryCapabilities {
 interface UseTemplateLibraryActionsInput {
   addOrUpdateAppearanceStyle: (style: AppearanceStylePreset) => string;
   addOrUpdateTemplate: (template: TCGCardTemplate, source?: TCGCardTemplate['templateSource']) => string;
+  appearanceStyles: AppearanceStylePreset[];
   cloneTemplate: (templateId: string) => string | null;
   deleteAppearanceStyle: (styleId: string) => void;
   deleteTemplate: (templateId: string, source?: TCGCardTemplate['templateSource']) => void;
@@ -25,6 +27,20 @@ interface UseTemplateLibraryActionsInput {
   templates: TCGCardTemplate[];
   toast: ToastFn;
 }
+
+const mutateShippedLibrary = async (
+  path: '/api/styles' | '/api/templates',
+  method: 'POST' | 'DELETE',
+  body: unknown,
+  fallback: string,
+) => {
+  const response = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  await requireOkResponse(response, fallback);
+};
 
 export const prepareTemplateForLibrarySave = (
   template: TCGCardTemplate,
@@ -50,6 +66,7 @@ export const prepareTemplateForLibrarySave = (
 export function useTemplateLibraryActions({
   addOrUpdateAppearanceStyle,
   addOrUpdateTemplate,
+  appearanceStyles,
   cloneTemplate,
   deleteAppearanceStyle,
   deleteTemplate,
@@ -64,49 +81,59 @@ export function useTemplateLibraryActions({
   const handleSaveAppearanceStyle = useCallback((style: AppearanceStylePreset): string => {
     const savedId = addOrUpdateAppearanceStyle(style);
     if (projectCapabilities.canWriteShippedLibrary) {
-      void fetch('/api/styles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(style),
-      }).catch((error) => {
-        console.warn('Unable to save style file:', error);
-      });
+      toast({ title: 'Style staged', description: `Saving "${style.name}" to the Forge Pipeline.` });
+      void mutateShippedLibrary('/api/styles', 'POST', style, 'Unable to save the style to the Forge Pipeline.')
+        .then(() => toast({ title: 'Pipeline style saved', description: `"${style.name}" is live in Appearance Studio.` }))
+        .catch((error) => toast({
+          title: 'Pipeline style not saved',
+          description: error instanceof Error ? error.message : 'Unable to save the style to the Forge Pipeline.',
+          variant: 'destructive',
+        }));
+    } else {
+      toast({ title: 'Style Saved', description: `"${style.name}" is available in Appearance Studio.` });
     }
-    toast({ title: 'Style Saved', description: `"${style.name}" is available in Appearance Studio.` });
     return savedId;
   }, [addOrUpdateAppearanceStyle, projectCapabilities.canWriteShippedLibrary, toast]);
 
-  const handleDeleteAppearanceStyle = useCallback((styleId: string) => {
-    deleteAppearanceStyle(styleId);
+  const handleDeleteAppearanceStyle = useCallback(async (styleId: string) => {
+    const style = appearanceStyles.find((candidate) => candidate.id === styleId);
     if (projectCapabilities.canWriteShippedLibrary) {
-      void fetch('/api/styles', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: styleId }),
-      }).catch((error) => {
-        console.warn('Unable to delete style file:', error);
-      });
+      try {
+        await mutateShippedLibrary('/api/styles', 'DELETE', { id: styleId }, 'Unable to archive the Forge Pipeline style.');
+      } catch (error) {
+        toast({
+          title: 'Style not deleted',
+          description: error instanceof Error ? error.message : 'Unable to archive the Forge Pipeline style.',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
-  }, [deleteAppearanceStyle, projectCapabilities.canWriteShippedLibrary]);
+    deleteAppearanceStyle(styleId);
+    toast({ title: 'Style deleted', description: `"${style?.name || styleId}" has been removed.` });
+  }, [appearanceStyles, deleteAppearanceStyle, projectCapabilities.canWriteShippedLibrary, toast]);
 
   const handleSaveTemplate = useCallback((template: TCGCardTemplate): string => {
     const templateToSave = prepareTemplateForLibrarySave(template, projectCapabilities.canWriteShippedLibrary);
     const savedTemplateId = addOrUpdateTemplate(templateToSave, templateToSave.templateSource);
     setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
-    toast({
-      title: 'Template Saved',
-      description: templateToSave.templateSource === 'default'
-        ? `"${templateToSave.name || savedTemplateId}" updated the Forge Pipeline template.`
-        : `"${templateToSave.name || savedTemplateId}" has been saved to your Personal Library.`,
-    });
     const templateForFile = selectAllTemplates(useProjectStore.getState()).find(t => t.id === savedTemplateId);
-    if (templateForFile && projectCapabilities.canWriteShippedLibrary) {
-      void fetch('/api/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templateForFile),
-      }).catch((error) => {
-        console.warn('Unable to save template to the Forge Pipeline:', error);
+    if (templateForFile?.templateSource === 'default' && projectCapabilities.canWriteShippedLibrary) {
+      toast({ title: 'Template staged', description: `Saving "${templateForFile.name || savedTemplateId}" to the Forge Pipeline.` });
+      void mutateShippedLibrary('/api/templates', 'POST', templateForFile, 'Unable to save the template to the Forge Pipeline.')
+        .then(() => toast({
+          title: 'Pipeline template saved',
+          description: `"${templateForFile.name || savedTemplateId}" is live in the Forge Pipeline.`,
+        }))
+        .catch((error) => toast({
+          title: 'Pipeline template not saved',
+          description: error instanceof Error ? error.message : 'Unable to save the template to the Forge Pipeline.',
+          variant: 'destructive',
+        }));
+    } else {
+      toast({
+        title: 'Template Saved',
+        description: `"${templateToSave.name || savedTemplateId}" has been saved to your Personal Library.`,
       });
     }
     return savedTemplateId;
@@ -116,21 +143,30 @@ export function useTemplateLibraryActions({
     setTemplatePendingDeleteId(templateId);
   }, []);
 
-  const handleConfirmDeleteTemplate = useCallback(() => {
+  const handleConfirmDeleteTemplate = useCallback(async () => {
     if (!templatePendingDeleteId) return;
     const templateId = templatePendingDeleteId;
     const templateToDelete = templates.find(t => t.id === templateId);
     const dependentCardCount = storedCards.filter(card => card.templateId === templateId).length;
-    deleteTemplate(templateId, templateToDelete?.templateSource);
-    if (projectCapabilities.canWriteShippedLibrary) {
-      void fetch('/api/templates', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: templateId, source: templateToDelete?.templateSource }),
-      }).catch((error) => {
-        console.warn('Unable to delete template from the Forge Pipeline:', error);
-      });
+    if (projectCapabilities.canWriteShippedLibrary && templateToDelete?.templateSource === 'default') {
+      try {
+        await mutateShippedLibrary(
+          '/api/templates',
+          'DELETE',
+          { id: templateId, source: 'default' },
+          'Unable to archive the Forge Pipeline template.',
+        );
+      } catch (error) {
+        setTemplatePendingDeleteId(null);
+        toast({
+          title: 'Template not deleted',
+          description: error instanceof Error ? error.message : 'Unable to archive the Forge Pipeline template.',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
+    deleteTemplate(templateId, templateToDelete?.templateSource);
     setTemplatePendingDeleteId(null);
     toast({
       title: 'Template Deleted',

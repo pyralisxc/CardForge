@@ -39,6 +39,7 @@ export type ApiErrorCode =
   | 'owner_account_unavailable'
   | 'owner_billing_unavailable'
   | 'owner_email_unavailable'
+  | 'personal_library_is_local'
   | 'portrait_invalid'
   | 'portrait_unavailable'
   | 'site_media_invalid'
