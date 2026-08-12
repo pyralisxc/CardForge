@@ -67,6 +67,7 @@ CardForge has three storage lanes:
 - `src/features/developer-program`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit`: protected cockpit composition, CardForge-owned campaign/site proposal ledgers, media approval, and workflow state transitions.
 - `src/features/social-publishing`: server-only provider boundary. Buffer owns channel connections, post scheduling, and delivery status; CardForge owns package content, approval history, source media, and the durable mapping to provider post IDs.
+- `src/features/analytics`: explicit-consent GA4 collection, anonymous creator-adoption events, organic UTM link policy, and server-only read access to GA4 and Search Console. Google owns measurement records; CardForge does not duplicate raw analytics in Supabase.
 - `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Business identity, account administration, billing, and public content remain owned by their product features.
 - `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
 - `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.
@@ -150,6 +151,8 @@ Each public route owns its title, description, self-referencing canonical, Open 
 The root public share settings combine the owner-edited `sharing.message` block with canonical homepage and Cameron URLs. Generated-card sharing consumes that message and the homepage URL. The Owner Console renders separate high-resolution QR PNGs for the homepage and Cameron page in the browser, so no duplicate QR files or storage registry can become stale.
 
 CardForge structured data represents CardForge Studio as a `Brand`, the product as `SoftwareApplication`, and Cameron Locke as a `Person` and the main entity of the `/cameron` `ProfilePage`. JSON-LD serialization escapes markup-significant characters before insertion.
+
+Organic promotion uses `utm_medium=organic_social` with normalized source, campaign, and post-content identities. GA4 collection is hard-disabled unless `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=true`, the measurement ID is present, and the visitor explicitly opts in. Advertising storage, Google Signals, ad personalization, and GA4 Enhanced Measurement remain disabled. CardForge emits only safe page context plus `open_studio`, `sign_up`, `card_created`, and `export_completed`; query strings are reduced to approved UTM fields. The owner-only Analytics Cockpit queries GA4 realtime/core reports and finalized Search Console data with read-only server credentials; it never exposes provider credentials or stores raw visitor events.
 
 Legal publication creates a new `(slug, version)` record bound to the current business-identity version. Existing versions are retained. CardForge does not currently track acceptance of revised terms; adding acceptance tracking, notice rules, and enforcement remains a separate product/legal decision.
 

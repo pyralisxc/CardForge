@@ -23,6 +23,7 @@ import {
 } from '@/features/card-generator/lib/zipExport';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
+import { trackExportCompleted } from '@/features/analytics/client/tracking';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 export type ZipExportKind = 'png-set' | 'tabletop-simulator';
@@ -95,6 +96,7 @@ export function useCardZipExportActions({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      trackExportCompleted('png_set', generatedDisplayCards.length);
       toast({
         title: 'ZIP Exported',
         description: `${exportItems.length} ${exportCopy.outputLabel} saved to ${exportCopy.fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality.`,
@@ -238,6 +240,7 @@ export function useCardZipExportActions({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      trackExportCompleted('tabletop_simulator', generatedDisplayCards.length);
       toast({
         title: 'Tabletop Simulator ZIP exported',
         description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} saved with a manifest. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,

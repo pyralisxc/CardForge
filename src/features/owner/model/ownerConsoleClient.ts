@@ -1,4 +1,5 @@
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
+import type { AnalyticsConfigurationStatus } from '@/features/analytics/client';
 
 export interface OwnerConsoleResponse {
   ownerAccess: {
@@ -26,6 +27,7 @@ export interface OwnerConsoleResponse {
       missing: string[];
     };
     ownerAllowlistConfigured: boolean;
+    analytics: AnalyticsConfigurationStatus;
     email: {
       contactMode: 'mailto' | 'ready_for_server_delivery';
       resendConfigured: boolean;

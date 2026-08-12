@@ -16,6 +16,7 @@ import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
 import { usePublicShareSettings } from './PublicShareSettingsContext';
+import { trackExportCompleted } from '@/features/analytics/client/tracking';
 
 
 const safeFileName = (card: DisplayCard, preset: SocialSharePreset) => {
@@ -65,6 +66,7 @@ export function ShareCardButton({
         downloadSocialShareImage(blob, file.name);
         toast({ title: 'Social image downloaded', description: 'This browser does not expose a share sheet, so the watermarked image was downloaded.' });
       }
+      trackExportCompleted('social_image', 1);
       setOpen(false);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -83,6 +85,7 @@ export function ShareCardButton({
     try {
       const blob = await createImage();
       downloadSocialShareImage(blob, safeFileName(card, preset));
+      trackExportCompleted('social_image', 1);
       toast({ title: 'Social image downloaded', description: `${SOCIAL_SHARE_PRESETS[preset].label} image saved with a centered CardForge watermark.` });
       setOpen(false);
     } catch (error) {

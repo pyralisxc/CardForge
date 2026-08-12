@@ -11,6 +11,7 @@ import { AccountIdentitySection } from '@/features/account/components/AccountIde
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import { AccountBillingActions } from '@/features/billing/client/account';
+import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
 
 interface PlatformStatusPayload {
   billing: { productAccessConfigured: boolean };
@@ -140,7 +141,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
       ) : !effectiveSignedIn ? (
         <>
           <SignInButton mode="modal"><Button size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">Sign in</Button></SignInButton>
-          <SignUpButton mode="modal"><Button size="lg" variant="ghost" className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">Create account</Button></SignUpButton>
+          <SignUpButton mode="modal"><Button size="lg" variant="ghost" onClick={markSignUpIntent} className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">Create account</Button></SignUpButton>
         </>
       ) : !canStartCheckout ? (
         <Button disabled size="lg" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]"><ShieldCheck className="mr-2 h-5 w-5" /> Export active</Button>
@@ -172,12 +173,13 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
 function ClerkIdentityBridge({ onChange }: { onChange: (identity: ClerkIdentity) => void }) {
   const { isLoaded, isSignedIn, user } = useUser();
   useEffect(() => {
+    if (isLoaded && isSignedIn) completeSignUpIntent(user?.createdAt);
     onChange({
       isLoaded,
       isSignedIn: Boolean(isSignedIn),
       email: user?.primaryEmailAddress?.emailAddress ?? null,
       displayName: user?.fullName ?? user?.firstName ?? null,
     });
-  }, [isLoaded, isSignedIn, onChange, user?.firstName, user?.fullName, user?.primaryEmailAddress?.emailAddress]);
+  }, [isLoaded, isSignedIn, onChange, user?.createdAt, user?.firstName, user?.fullName, user?.primaryEmailAddress?.emailAddress]);
   return null;
 }

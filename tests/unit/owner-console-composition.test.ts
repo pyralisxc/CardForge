@@ -23,11 +23,23 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerPublicContentPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
+      ['src', 'features', 'analytics', 'components', 'OwnerAnalyticsPanel.tsx'],
     ];
     await Promise.all(requiredPaths.map(async (parts) => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
     }));
     await expect(pathExists('src', 'features', 'owner', 'components', 'OwnerAccessPanel.tsx')).resolves.toBe(false);
+  });
+
+  it('composes analytics as an owner-only workspace without taking over measurement ownership', async () => {
+    const page = await readFile(rootPath('src/features/owner/components/OwnerConsolePage.tsx'), 'utf8');
+    const analyticsPanel = await readFile(rootPath('src/features/analytics/components/OwnerAnalyticsPanel.tsx'), 'utf8');
+    const analyticsHook = await readFile(rootPath('src/features/analytics/hooks/useOwnerAnalytics.ts'), 'utf8');
+
+    expect(page).toContain("@/features/analytics/client/owner");
+    expect(page).toContain('>Analytics</TabsTrigger>');
+    expect(analyticsHook).toContain('/api/owner/analytics');
+    expect(analyticsPanel).not.toContain('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
   });
 
   it('gives all public images one dedicated responsive owner workspace', async () => {

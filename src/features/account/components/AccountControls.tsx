@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { resolveAccountControlsState } from '@/features/account/lib/accountControlsState';
+import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
 
 interface AccountControlsProps {
   authConfigured: boolean;
@@ -63,13 +64,14 @@ function ClerkAccountControls({
   modeLabel: string;
   onRefreshEntitlement: () => void;
 }) {
-  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser();
   const effectiveSignedIn = isLoaded ? Boolean(isSignedIn) : fallbackSignedIn;
 
   useEffect(() => {
     if (!isLoaded) return;
     onRefreshEntitlement();
-  }, [isLoaded, isSignedIn, onRefreshEntitlement]);
+    if (isSignedIn) completeSignUpIntent(user?.createdAt);
+  }, [isLoaded, isSignedIn, onRefreshEntitlement, user?.createdAt]);
 
   return (
     <div className="ml-auto flex items-center gap-2">
@@ -85,7 +87,7 @@ function ClerkAccountControls({
           </Button>
         </SignInButton>
         <SignUpButton mode="modal">
-          <Button type="button" variant="outline" size="sm" className="hidden gap-2 border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7] sm:inline-flex">
+          <Button type="button" variant="outline" size="sm" onClick={markSignUpIntent} className="hidden gap-2 border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7] sm:inline-flex">
             <UserPlus className="h-4 w-4" /> Create account
           </Button>
         </SignUpButton>

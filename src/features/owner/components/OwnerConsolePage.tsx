@@ -38,6 +38,10 @@ const OwnerDeveloperProgramPanel = dynamic(
   () => import('@/features/developer-assets/client/owner').then((module) => module.OwnerDeveloperProgramPanel),
   { loading: panelFallback },
 );
+const OwnerAnalyticsPanel = dynamic(
+  () => import('@/features/analytics/client/owner').then((module) => module.OwnerAnalyticsPanel),
+  { loading: panelFallback },
+);
 
 const tabClassName = "rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]";
 
@@ -91,6 +95,7 @@ export function OwnerConsolePage() {
             <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
               <TabsTrigger value="readiness" className={tabClassName}>Launch Readiness</TabsTrigger>
               <TabsTrigger value="operations" className={tabClassName}>Operations</TabsTrigger>
+              <TabsTrigger value="analytics" className={tabClassName}>Analytics</TabsTrigger>
               <TabsTrigger value="copy" className={tabClassName}>Site Copy</TabsTrigger>
               <TabsTrigger value="media" className={tabClassName}>Site Media</TabsTrigger>
               <TabsTrigger value="founder" className={tabClassName}>Cameron Profile</TabsTrigger>
@@ -100,6 +105,7 @@ export function OwnerConsolePage() {
             </TabsList>
             <TabsContent value="readiness" className="mt-0"><OwnerReadinessPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="operations" className="mt-0"><OwnerOperationsPanel payload={payload} /></TabsContent>
+            <TabsContent value="analytics" className="mt-0"><OwnerAnalyticsPanel publicAppUrl={payload.integrationStatus.site.publicAppUrl} /></TabsContent>
             <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={payload.console} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="founder" className="mt-0"><OwnerFounderProfilePanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>

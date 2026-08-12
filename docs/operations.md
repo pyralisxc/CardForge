@@ -152,7 +152,23 @@ Cameron Locke is the named operator for launch-period incidents. Existing surfac
 - Persistence failures: the Studio save status, quota warning, recovery snapshot, and project import; reproduce in the affected browser before changing provider state.
 - Contact/email failures: the owner-console contact history and email-test result, then Resend delivery details.
 
-No separate analytics provider is enabled for launch. This is intentional: CardForge is operating with no product or marketing analytics by design. Reconsider measurement only when a concrete question, privacy disclosure, and approved provider justify the added data collection.
+Organic analytics code is present but browser collection remains hard-disabled until the privacy disclosure is current and `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=true`. GA4 answers anonymous acquisition and creator-journey questions; Search Console remains the organic Google discovery source. No paid-ad pixel, advertising storage, Google Signals, or ad-personalization signal is enabled.
+
+## Organic analytics rollout
+
+The Owner Console Analytics tab is useful before collection is enabled: it identifies missing configuration and builds consistent Facebook/Threads links. Google remains the measurement owner; CardForge queries reports read-only and does not copy raw visitor events into Supabase.
+
+1. Create one GA4 property and web stream for `https://cardforges.com`. Record its `G-` measurement ID and numeric property ID.
+2. Create a dedicated Google Cloud service account, enable the Google Analytics Data API and Search Console API, grant it Viewer access to the GA4 property, and add the same address as a read-only Search Console user for `sc-domain:cardforges.com`.
+3. Set `NEXT_PUBLIC_CARDFORGE_GA_MEASUREMENT_ID`, `CARDFORGE_GOOGLE_ANALYTICS_PROPERTY_ID`, `CARDFORGE_GOOGLE_SERVICE_ACCOUNT_EMAIL`, `CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`, and `CARDFORGE_GOOGLE_SEARCH_CONSOLE_SITE_URL`. Keep the private key server-only.
+4. Leave `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=false`. Verify `/owner` can read the GA4/Search Console setup state and Search report without revealing credentials.
+5. Publish a privacy version that accurately describes the opt-in measurements and retention choices. Then set `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=true` and deploy.
+6. In the GA4 web stream, disable Enhanced Measurement entirely. Confirm history changes, outbound clicks, form interactions, site search, downloads, video engagement, and scroll tracking are all off; CardForge owns its explicit event allowlist.
+7. In GA4 Admin, mark `sign_up` and `export_completed` as key events. Keep `open_studio` and `card_created` as adoption signals rather than conversions.
+8. In a signed-out browser, decline analytics and confirm no Google tag request, `_ga` cookie, or CardForge event. Reopen Analytics settings, allow it, and confirm only sanitized path/title/referrer context, approved UTM fields, and `open_studio`, `sign_up`, `card_created`, and `export_completed` appear. Confirm raw non-UTM query values never reach DebugView.
+9. Share one harmless tracked organic link. Confirm its `source`, `organic_social` medium, campaign, and post identity in the Owner Console after GA4 processing; confirm a forced API failure renders unavailable rather than zero traffic.
+
+Rollback by setting `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=false` and redeploying. This removes browser collection and the preference UI without deleting Google-owned history. Remove the service-account environment values separately only when read-only Owner Console reporting should also stop.
 
 ## Developer Cockpit and Buffer rollout
 
