@@ -30,6 +30,7 @@ import { useCheckoutActions } from '@/features/billing/client';
 import { useCardZipExportActions, useGeneratedOutputActions } from '@/features/card-generator/client';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { useTemplateLibraryActions } from '@/features/template-editor/client';
+import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import {
   canUploadCustomLocalAssets,
   readProjectPreference,
@@ -196,6 +197,11 @@ export function CardForgeStudioShell({
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
+  const [matchingBackRequest, setMatchingBackRequest] = useState<{
+    key: number;
+    formatSource: TemplateCardFormatSource;
+  } | null>(null);
+  const matchingBackSequenceRef = useRef(0);
 
   const { isLoadingTemplates } = useBootstrapLibraries({
     setAppearanceStylesFromFiles: setAppearanceStylesFromFilesAction,
@@ -336,6 +342,12 @@ export function CardForgeStudioShell({
   }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
 
   const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
+  const handleCreateMatchingBack = useCallback((formatSource: TemplateCardFormatSource) => {
+    matchingBackSequenceRef.current += 1;
+    setMatchingBackRequest({ key: matchingBackSequenceRef.current, formatSource });
+    setActiveTabAction('template-maker');
+  }, [setActiveTabAction]);
+  const clearMatchingBackRequest = useCallback(() => setMatchingBackRequest(null), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -442,6 +454,8 @@ export function CardForgeStudioShell({
               canSubmitBaseRevision={developerAccess.canSubmitTemplateRevisions}
               canUploadCustomAssets={canUploadCustomAssets}
               onReturnToTemplateMaker={() => setActiveTabAction('template-maker')}
+              requestedBackFormat={matchingBackRequest}
+              onRequestedBackFormatConsumed={clearMatchingBackRequest}
             />
           </TabsContent>
 
@@ -472,6 +486,7 @@ export function CardForgeStudioShell({
               exportEntitlementLabel={exportEntitlementLabel}
               exportEntitlementMessage={exportEntitlementMessage}
               onOpenTemplateMaker={() => setActiveTabAction('template-maker')}
+              onCreateMatchingBack={handleCreateMatchingBack}
               onSingleCardAdded={handleSingleCardAdded}
               onBulkCardsGenerated={handleBulkCardsGenerated}
               onTemplateSelectionChange={setActiveCardSetFrontTemplateIdAction}

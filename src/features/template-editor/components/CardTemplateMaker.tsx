@@ -3,6 +3,7 @@ import type { ChangeEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
+import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,6 +30,7 @@ import { TemplateEditorLibrarySidebar } from '@/features/template-editor/compone
 import { TemplateEditorInspectorSidebar } from '@/features/template-editor/components/TemplateEditorInspectorSidebar';
 import { MobileCanvasControls } from '@/features/template-editor/components/MobileCanvasControls';
 import { MobileElementActions } from '@/features/template-editor/components/MobileElementActions';
+import { NewCardDesignDialog } from '@/features/template-editor/components/NewCardDesignDialog';
 import { useTemplateEditorSession } from '@/features/template-editor/hooks/useTemplateEditorSession';
 import { useTemplateEditorVariables } from '@/features/template-editor/hooks/useTemplateEditorVariables';
 import { useTemplateEditorElements } from '@/features/template-editor/hooks/useTemplateEditorElements';
@@ -61,6 +63,8 @@ interface CardTemplateMakerProps {
   isActive: boolean;
   onReturnToTemplateMaker: () => void;
   projectFileGateMessage?: string | null;
+  requestedBackFormat?: { key: number; formatSource: TemplateCardFormatSource } | null;
+  onRequestedBackFormatConsumed?: () => void;
 }
 export function CardTemplateMaker({
   canUseProjectFiles,
@@ -87,6 +91,8 @@ export function CardTemplateMaker({
   isActive,
   onReturnToTemplateMaker,
   projectFileGateMessage,
+  requestedBackFormat,
+  onRequestedBackFormatConsumed,
 }: CardTemplateMakerProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -214,6 +220,12 @@ export function CardTemplateMaker({
     requestTemplateChange,
     toast,
   });
+  const requestNewTemplate = commands.requestNewTemplate;
+  useEffect(() => {
+    if (!isActive || !requestedBackFormat) return;
+    requestNewTemplate('back-preset', requestedBackFormat.formatSource);
+    onRequestedBackFormatConsumed?.();
+  }, [isActive, onRequestedBackFormatConsumed, requestNewTemplate, requestedBackFormat]);
   const saveAndContinue = useCallback(async () => {
     const templateToSave = { ...currentTemplate, name: saveName.trim() };
     if (!await commands.saveTemplate(templateToSave)) return;
@@ -440,6 +452,16 @@ export function CardTemplateMaker({
           <span>Esc Deselect</span>
         </div>
         <MobileElementActions element={contextElement} onDelete={() => { deleteSelected(); setContextElement(null); }} onDuplicate={() => { duplicateSelected(); setContextElement(null); }} onEdit={() => { if (contextElement) openElementInspector(contextElement); setContextElement(null); }} onOpenChange={(open) => !open && setContextElement(null)} />
+        <NewCardDesignDialog
+          open={commands.newTemplateRequest !== null}
+          usage={commands.newTemplateRequest?.usage ?? 'standard'}
+          initialFormat={commands.newTemplateRequest?.formatSource ?? currentTemplate}
+          canClone={Boolean(currentTemplate.id)}
+          onOpenChange={(open) => {
+            if (!open) commands.setNewTemplateRequest(null);
+          }}
+          onCreate={commands.createNewTemplate}
+        />
         <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>

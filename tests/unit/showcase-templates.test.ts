@@ -1,12 +1,18 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { CARDFORGE_EXAMPLES } from '@/features/public-site/client';
+import { CARD_FORMATS } from '@/domain/card-formats';
 
 interface ShippedTemplate {
   id: string;
+  formatId?: string;
+  templateUsage?: string;
+  trimWidthMm?: number;
+  trimHeightMm?: number;
+  cardBackgroundImageUrl?: string;
   fieldContracts?: Array<{ key?: string; type?: string; elementId?: string }>;
   freeformCanvas?: {
     elements?: Array<{
@@ -77,5 +83,23 @@ describe('showcase templates', () => {
     expect(example.rows).toHaveLength(4);
     expect(new Set(example.rows.map((row) => row.RoleColor)).size).toBe(4);
     expect(example.rows.every((row) => /^#[0-9a-f]{6}$/i.test(row.RoleColor))).toBe(true);
+  });
+
+  it('ships an official CardForge Studio back for every standard card format', () => {
+    const filenames = readdirSync(join(process.cwd(), 'data/default-templates'))
+      .filter((filename) => filename.startsWith('default-cardforge-studio-back-'));
+    const backs = filenames.map(readTemplate);
+
+    expect(backs).toHaveLength(CARD_FORMATS.length);
+    for (const format of CARD_FORMATS) {
+      const back = backs.find((candidate) => candidate.formatId === format.id);
+      expect(back, `Expected a CardForge Studio back for ${format.id}`).toMatchObject({
+        templateUsage: 'back-preset',
+        trimWidthMm: format.widthMm,
+        trimHeightMm: format.heightMm,
+      });
+      const imagePath = back?.cardBackgroundImageUrl?.replace(/^\//, '');
+      expect(imagePath && existsSync(join(process.cwd(), 'public', imagePath))).toBe(true);
+    }
   });
 });

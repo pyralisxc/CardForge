@@ -9,7 +9,11 @@ import {
 } from '@/domain/card-formats';
 import { getCardPhysicalSizeMm } from '@/domain/rendering';
 import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
-import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/lib/makerDimensions';
+import {
+  buildCardFormatTemplateUpdate,
+  buildCustomDimensionTemplateUpdate,
+} from '@/features/template-editor/lib/makerDimensions';
+import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 
 const makeCard = (template: TCGCardTemplate) => ({
   uniqueId: 'card-1',
@@ -135,6 +139,71 @@ describe('card format ownership', () => {
       trimWidthMm: 63,
       trimHeightMm: 88,
       freeformCanvas: { width: 630, height: 880 },
+    });
+  });
+
+  it('resizes into standard formats without distorting element proportions', () => {
+    const source = reconstructMinimalTemplateObject({
+      id: 'square-source',
+      name: 'Square source',
+      formatId: 'custom',
+      trimWidthMm: 100,
+      trimHeightMm: 100,
+      freeformCanvas: {
+        width: 1000,
+        height: 1000,
+        elements: [{
+          id: 'element',
+          type: 'shape',
+          name: 'Element',
+          x: 100,
+          y: 100,
+          width: 400,
+          height: 200,
+          zIndex: 1,
+        }],
+      },
+    });
+
+    const update = buildCardFormatTemplateUpdate({
+      formatId: 'poker',
+      resizeStrategy: 'fit',
+      template: source,
+    });
+    const element = update.freeformCanvas?.elements[0];
+    expect(update).toMatchObject({ formatId: 'poker', trimWidthMm: 63, trimHeightMm: 88 });
+    expect(update.freeformCanvas).toMatchObject({ width: 630, height: 880 });
+    expect(Number(element?.width) / Number(element?.height)).toBe(2);
+    expect(element?.x).toBe(63);
+    expect(element?.y).toBe(188);
+  });
+
+  it('creates a named standard design and a correctly oriented branded back', () => {
+    const front = makeNewFreeformTemplate({
+      name: 'Moonlit tarot',
+      formatId: 'tarot',
+      startingPoint: 'starter',
+    });
+    const back = makeNewFreeformTemplate({
+      name: 'Guild business back',
+      templateUsage: 'back-preset',
+      formatId: 'us-business',
+      startingPoint: 'branded-back',
+    });
+
+    expect(front).toMatchObject({
+      name: 'Moonlit tarot',
+      formatId: 'tarot',
+      trimWidthMm: 70,
+      trimHeightMm: 120,
+      freeformCanvas: { width: 700, height: 1200 },
+    });
+    expect(back).toMatchObject({
+      name: 'Guild business back',
+      formatId: 'us-business',
+      templateUsage: 'back-preset',
+      cardBackgroundImageUrl: '/card-assets/textures/arcane-forge/back-cardforge-studio-landscape.webp',
+      freeformCanvas: { width: 1050, height: 600 },
     });
   });
 });

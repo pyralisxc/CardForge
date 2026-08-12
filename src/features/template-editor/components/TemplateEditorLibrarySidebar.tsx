@@ -3,6 +3,8 @@
 import type { ChangeEvent, RefObject } from 'react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { getCompatibleCardBacks, getTemplateCardMeasurement } from '@/domain/card-formats';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { ElementLibraryPanel } from '@/features/template-editor/components/ElementLibraryPanel';
 import { LayerTreePanel } from '@/features/template-editor/components/LayerTreePanel';
@@ -62,6 +64,9 @@ export function TemplateEditorLibrarySidebar({
   userTemplates,
 }: TemplateEditorLibrarySidebarProps) {
   const { canvas, checkedLayerIds, clearCheckedLayers, currentTemplate, updateCanvas, updateTemplate } = controller;
+  const matchingBacks = currentTemplate.templateUsage === 'back-preset'
+    ? []
+    : getCompatibleCardBacks(currentTemplate, backFaceTemplates);
 
   return (
     <aside className="cardforge-maker-side cardforge-maker-library min-w-0 border-b border-[#252b35] bg-[#0d1117] lg:border-b-0 lg:border-r">
@@ -79,7 +84,7 @@ export function TemplateEditorLibrarySidebar({
             projectFileGateMessage={projectFileGateMessage}
             richTextHighlightColor={richTextHighlightColor}
             userTemplates={userTemplates}
-            onCreateNew={commands.createNewTemplate}
+            onCreateNew={commands.requestNewTemplate}
             onClone={commands.cloneTemplate}
             onDelete={() => currentTemplate.id && onDeleteTemplate(currentTemplate.id)}
             onExportProject={onExportProject}
@@ -103,6 +108,7 @@ export function TemplateEditorLibrarySidebar({
               customWidthValue={commands.customWidthValue}
               customHeightValue={commands.customHeightValue}
               customUnit={commands.customUnit}
+              resizeStrategy={commands.resizeStrategy}
               gridSize={canvas.gridSize || 20}
               frameKitRecipes={commands.frameKitRecipes}
               backgroundImageInputRef={commands.backgroundImageInputRef}
@@ -112,6 +118,8 @@ export function TemplateEditorLibrarySidebar({
               onCustomWidthValueChange={commands.setCustomWidthValue}
               onCustomHeightValueChange={commands.setCustomHeightValue}
               onCustomUnitChange={commands.setCustomUnit}
+              onResizeStrategyChange={commands.setResizeStrategy}
+              onApplyCardFormat={commands.applyCardFormat}
               onApplyCustomDimensions={commands.applyCustomDimensions}
               onResetGridToTemplateDefault={commands.resetGridToTemplateDefault}
               onApplyFrameStyle={commands.applyFrameStyle}
@@ -120,6 +128,23 @@ export function TemplateEditorLibrarySidebar({
               onUpdateCanvas={updateCanvas}
               onUpdateTemplate={updateTemplate}
             />
+            {currentTemplate.templateUsage !== 'back-preset' && matchingBacks.length === 0 ? (
+              <div className="mt-3 space-y-2 rounded-[6px] border border-[#6d4f2b] bg-[#15100a] p-2">
+                <p className="text-[11px] font-semibold text-[#f1dfb4]">This design has no matching card back</p>
+                <p className="text-[10px] leading-4 text-[#a99b82]">
+                  Its current size is {getTemplateCardMeasurement(currentTemplate, 'mm').label}. You can create a back with the same format now or continue designing the front.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-full text-xs"
+                  onClick={() => commands.requestNewTemplate('back-preset', currentTemplate)}
+                >
+                  Create matching card back
+                </Button>
+              </div>
+            ) : null}
           </WorkspaceSection>
 
           <ElementLibraryPanel
