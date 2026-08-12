@@ -41,8 +41,8 @@ function ConfigurationNotice({ snapshot }: { snapshot: OwnerAnalyticsSnapshot })
   if (configuration.collectionEnabled && configuration.reportingConfigured && configuration.searchConsoleConfigured) return null;
   return (
     <section className="border border-[#8c6436] bg-[#1b1209] p-4">
-      <h3 className="font-serif text-lg text-[#fff1c7]">Analytics rollout is safely gated</h3>
-      <p className="mt-2 text-sm leading-6 text-[#d8be8d]">The cockpit and event contracts are ready. Collection remains off until the privacy publication is current and the public measurement flag is enabled. Read-only reports activate independently when Google credentials are configured.</p>
+      <h3 className="font-serif text-lg text-[#fff1c7]">Consent-gated analytics is live</h3>
+      <p className="mt-2 text-sm leading-6 text-[#d8be8d]">The privacy publication, public measurement flag, and read-only Google reports are active. Google Analytics still loads only after a visitor chooses Allow analytics; Search Console reporting remains independent of that choice.</p>
       {configuration.missing.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{configuration.missing.map((name) => <code key={name} className="border border-[#5f4526] bg-[#0c0b09] px-2 py-1 text-xs text-[#f0bd75]">{name}</code>)}</div> : null}
     </section>
   );
