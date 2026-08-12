@@ -38,6 +38,37 @@ export const trackCardForgeEvent = (
   });
 };
 
+export const initializeGoogleAnalytics = (measurementId: string) => {
+  if (typeof window === 'undefined') return;
+  window.dataLayer = window.dataLayer ?? [];
+  window.gtag = window.gtag ?? function gtag(...args: unknown[]) { window.dataLayer?.push(args); };
+  window.gtag('consent', 'default', {
+    analytics_storage: 'granted',
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+  });
+  window.gtag('js', new Date());
+  const context = getSafeAnalyticsPageContext();
+  window.gtag('set', context);
+  window.gtag('config', measurementId, {
+    send_page_view: false,
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false,
+    ignore_referrer: true,
+    ...context,
+  });
+};
+
+export const trackAnalyticsPageView = (lastTrackedLocation: string | null = null) => {
+  if (typeof window === 'undefined' || getAnalyticsConsentPreference() !== 'granted' || !window.gtag) return null;
+  const context = getSafeAnalyticsPageContext();
+  if (!context.page_location || context.page_location === lastTrackedLocation) return null;
+  window.gtag('set', context);
+  window.gtag('event', 'page_view', context);
+  return context.page_location;
+};
+
 export const getSafeAnalyticsPageContext = () => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return {};
   const location = new URL(window.location.href);

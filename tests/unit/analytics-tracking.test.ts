@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   completeSignUpIntent,
+  initializeGoogleAnalytics,
+  trackAnalyticsPageView,
   trackCardCreated,
 } from '@/features/analytics/client/tracking';
 import {
@@ -62,5 +64,29 @@ describe('analytics tracking', () => {
     sessionStorage.setItem(ANALYTICS_SIGN_UP_INTENT_KEY, String(Date.now()));
     completeSignUpIntent(new Date());
     expect(gtag).toHaveBeenCalledWith('event', 'sign_up', expect.objectContaining({ method: 'clerk' }));
+  });
+
+  it('queues a privacy-safe first page view immediately after tag initialization', () => {
+    const sessionStorage = createStorage();
+    const gtag = vi.fn();
+    vi.stubGlobal('window', {
+      sessionStorage,
+      gtag,
+      location: { href: 'https://cardforges.com/studio?utm_source=threads&secret=value' },
+    });
+    setConsent('granted');
+
+    initializeGoogleAnalytics('G-TEST123');
+    const pageLocation = trackAnalyticsPageView();
+
+    expect(pageLocation).toBe('https://cardforges.com/studio?utm_source=threads');
+    expect(gtag).toHaveBeenCalledWith('config', 'G-TEST123', expect.objectContaining({
+      send_page_view: false,
+      page_location: 'https://cardforges.com/studio?utm_source=threads',
+    }));
+    expect(gtag).toHaveBeenCalledWith('event', 'page_view', expect.objectContaining({
+      page_location: 'https://cardforges.com/studio?utm_source=threads',
+      page_referrer: 'https://www.facebook.com/groups/example',
+    }));
   });
 });
