@@ -48,11 +48,8 @@ const parseArguments = (values) => {
 
 export const checkMigrationSafety = ({ root, base }) => {
   const resolvedBase = resolveBase(root, base);
-  const committed = runGit(root, [
-    'diff', '--name-status', '--find-renames', `${resolvedBase}...HEAD`, '--', MIGRATION_ROOT,
-  ]);
-  const workingTree = runGit(root, [
-    'diff', '--name-status', '--find-renames', 'HEAD', '--', MIGRATION_ROOT,
+  const tracked = runGit(root, [
+    'diff', '--name-status', '--find-renames', resolvedBase, '--', MIGRATION_ROOT,
   ]);
   const untracked = runGit(root, [
     'ls-files', '--others', '--exclude-standard', '--', MIGRATION_ROOT,
@@ -63,7 +60,7 @@ export const checkMigrationSafety = ({ root, base }) => {
     .map((filePath) => `??\t${filePath}`)
     .join('\n');
 
-  const changes = parseMigrationChanges([committed, workingTree, untracked].join('\n'));
+  const changes = parseMigrationChanges([tracked, untracked].join('\n'));
   const unsafeChanges = findUnsafeMigrationChanges(changes);
   if (unsafeChanges.length > 0) {
     const details = unsafeChanges

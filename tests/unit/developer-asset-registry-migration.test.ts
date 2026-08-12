@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20260812052026_consolidate_developer_asset_registry.sql'),
+  resolve(process.cwd(), 'supabase/migrations/20260812063536_consolidate_developer_asset_registry.sql'),
   'utf8',
 ).toLowerCase().replace(/\s+/g, ' ');
 

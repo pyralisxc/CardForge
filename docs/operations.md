@@ -62,7 +62,7 @@ Production migration history currently contains provider-generated timestamps th
 5. Run Supabase security and performance advisors and resolve relevant warning/error findings.
 6. Record the applied production version in the PR or release evidence. If the provider assigned a different version, align the unapplied repository filename before merge; do not rewrite recorded production history.
 
-For the repository-consolidation release, apply `20260812052026_consolidate_developer_asset_registry.sql` before deploying callers. Postflight must prove all three server-only RPCs exist: developer status transition, Pipeline registry upsert, and Pipeline registry archive. Exercise an invalid ID and confirm the transaction leaves both submission and registry unchanged.
+For the repository-consolidation release, apply `20260812063536_consolidate_developer_asset_registry.sql` before deploying callers. Postflight must prove all three server-only RPCs exist: developer status transition, Pipeline registry upsert, and Pipeline registry archive. Exercise an invalid ID and confirm the transaction leaves both submission and registry unchanged.
 
 ## Owner Console checks
 
