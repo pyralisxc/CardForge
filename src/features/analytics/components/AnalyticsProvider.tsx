@@ -2,11 +2,16 @@
 
 import Script from 'next/script';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ANALYTICS_CONSENT_COOKIE, type AnalyticsConsentPreference } from '../model';
-import { getAnalyticsConsentPreference, getSafeAnalyticsPageContext, trackCardForgeEvent } from '../client/tracking';
+import {
+  getAnalyticsConsentPreference,
+  initializeGoogleAnalytics,
+  trackAnalyticsPageView,
+  trackCardForgeEvent,
+} from '../client/tracking';
 
 const PRIVATE_PATH_PREFIXES = ['/owner', '/developer/cockpit'] as const;
 
@@ -35,6 +40,14 @@ export function AnalyticsProvider() {
   const [preferenceReady, setPreferenceReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [tagReady, setTagReady] = useState(false);
+  const lastTrackedLocation = useRef<string | null>(null);
+
+  const trackCurrentPage = useCallback(() => {
+    const location = trackAnalyticsPageView(lastTrackedLocation.current);
+    if (!location) return;
+    lastTrackedLocation.current = location;
+    if (pathname === '/studio') trackCardForgeEvent('open_studio', { placement: 'route_entry' });
+  }, [pathname]);
 
   useEffect(() => {
     if (enabled) setPreference(getAnalyticsConsentPreference());
@@ -42,12 +55,9 @@ export function AnalyticsProvider() {
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled || !trackablePath || preference !== 'granted' || !tagReady || !window.gtag) return;
-    const context = getSafeAnalyticsPageContext();
-    window.gtag('set', context);
-    window.gtag('event', 'page_view', context);
-    if (pathname === '/studio') trackCardForgeEvent('open_studio', { placement: 'route_entry' });
-  }, [enabled, pathname, preference, tagReady, trackablePath]);
+    if (!enabled || !trackablePath || preference !== 'granted' || !tagReady) return;
+    trackCurrentPage();
+  }, [enabled, preference, tagReady, trackablePath, trackCurrentPage]);
 
   if (!enabled || !preferenceReady) return null;
 
@@ -57,6 +67,8 @@ export function AnalyticsProvider() {
     setShowSettings(false);
     if (next === 'denied') {
       window.gtag?.('consent', 'update', { analytics_storage: 'denied' });
+      lastTrackedLocation.current = null;
+      setTagReady(false);
       deleteAnalyticsCookies();
     } else if (window.gtag) {
       window.gtag('consent', 'update', {
@@ -65,28 +77,14 @@ export function AnalyticsProvider() {
         ad_user_data: 'denied',
         ad_personalization: 'denied',
       });
+      lastTrackedLocation.current = null;
+      setTagReady(true);
     }
   };
 
   const initializeTag = () => {
-    window.dataLayer = window.dataLayer ?? [];
-    window.gtag = window.gtag ?? function gtag(...args: unknown[]) { window.dataLayer?.push(args); };
-    window.gtag('consent', 'default', {
-      analytics_storage: 'granted',
-      ad_storage: 'denied',
-      ad_user_data: 'denied',
-      ad_personalization: 'denied',
-    });
-    window.gtag('js', new Date());
-    const context = getSafeAnalyticsPageContext();
-    window.gtag('set', context);
-    window.gtag('config', measurementId, {
-      send_page_view: false,
-      allow_google_signals: false,
-      allow_ad_personalization_signals: false,
-      ignore_referrer: true,
-      ...context,
-    });
+    initializeGoogleAnalytics(measurementId);
+    trackCurrentPage();
     setTagReady(true);
   };
 
@@ -98,7 +96,7 @@ export function AnalyticsProvider() {
           id="cardforge-google-analytics"
           src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`}
           strategy="afterInteractive"
-          onLoad={initializeTag}
+          onReady={initializeTag}
         />
       ) : null}
       {decisionOpen ? (
