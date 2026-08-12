@@ -115,7 +115,7 @@ export interface OwnerAnalyticsSnapshot {
     activeUsers: number;
     pages: AnalyticsMetricRow[];
     events: AnalyticsMetricRow[];
-    sources: AnalyticsMetricRow[];
+    devices: AnalyticsMetricRow[];
   };
   overview: {
     users: number;
@@ -145,7 +145,7 @@ export interface OwnerAnalyticsSnapshot {
     realtime: boolean;
     realtimePages: boolean;
     realtimeEvents: boolean;
-    realtimeSources: boolean;
+    realtimeDevices: boolean;
     overview: boolean;
     campaigns: boolean;
     journey: boolean;

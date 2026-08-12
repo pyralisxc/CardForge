@@ -60,7 +60,7 @@ const emptySnapshot = (): OwnerAnalyticsSnapshot => ({
   capturedAt: new Date().toISOString(),
   rangeDays: REPORT_RANGE_DAYS,
   configuration: getAnalyticsConfigurationStatus(),
-  realtime: { activeUsers: 0, pages: [], events: [], sources: [] },
+  realtime: { activeUsers: 0, pages: [], events: [], devices: [] },
   overview: { users: 0, sessions: 0, pageViews: 0, events: 0, keyEvents: 0 },
   campaigns: [],
   journey: JOURNEY_EVENTS.map((step) => ({ ...step, users: 0, events: 0 })),
@@ -69,7 +69,7 @@ const emptySnapshot = (): OwnerAnalyticsSnapshot => ({
     realtime: false,
     realtimePages: false,
     realtimeEvents: false,
-    realtimeSources: false,
+    realtimeDevices: false,
     overview: false,
     campaigns: false,
     journey: false,
@@ -175,10 +175,10 @@ export const getOwnerAnalyticsSnapshot = async (): Promise<OwnerAnalyticsSnapsho
         .then((value) => ({ key: 'realtimeTotal', value })),
       analyticsReport(propertyId, accessToken, 'runRealtimeReport', realtimeBody(['unifiedScreenName'], ['activeUsers'], { limit: 8, orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] }))
         .then((value) => ({ key: 'realtimePages', value })),
-      analyticsReport(propertyId, accessToken, 'runRealtimeReport', realtimeBody(['eventName'], ['eventCount', 'activeUsers'], { limit: 10, orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }] }))
+      analyticsReport(propertyId, accessToken, 'runRealtimeReport', realtimeBody(['eventName'], ['eventCount'], { limit: 10, orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }] }))
         .then((value) => ({ key: 'realtimeEvents', value })),
-      analyticsReport(propertyId, accessToken, 'runRealtimeReport', realtimeBody(['source', 'medium'], ['activeUsers'], { limit: 8, orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] }))
-        .then((value) => ({ key: 'realtimeSources', value })),
+      analyticsReport(propertyId, accessToken, 'runRealtimeReport', realtimeBody(['deviceCategory'], ['activeUsers'], { limit: 8, orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] }))
+        .then((value) => ({ key: 'realtimeDevices', value })),
       analyticsReport(propertyId, accessToken, 'runReport', reportBody([], ['activeUsers', 'sessions', 'screenPageViews', 'eventCount', 'keyEvents']))
         .then((value) => ({ key: 'overview', value })),
       analyticsReport(propertyId, accessToken, 'runReport', reportBody(
@@ -233,15 +233,12 @@ export const getOwnerAnalyticsSnapshot = async (): Promise<OwnerAnalyticsSnapsho
         snapshot.availability.realtimePages = true;
         break;
       case 'realtimeEvents':
-        snapshot.realtime.events = toMetricRows(report as GoogleAnalyticsReport, 'eventName', 'eventCount', 'activeUsers');
+        snapshot.realtime.events = toMetricRows(report as GoogleAnalyticsReport, 'eventName', 'eventCount');
         snapshot.availability.realtimeEvents = true;
         break;
-      case 'realtimeSources':
-        snapshot.realtime.sources = mapGoogleRows(report as GoogleAnalyticsReport).map(({ dimensions, metrics }) => ({
-          label: `${dimensions.source || 'Direct'} / ${dimensions.medium || 'none'}`,
-          value: metrics.activeUsers ?? 0,
-        }));
-        snapshot.availability.realtimeSources = true;
+      case 'realtimeDevices':
+        snapshot.realtime.devices = toMetricRows(report as GoogleAnalyticsReport, 'deviceCategory', 'activeUsers');
+        snapshot.availability.realtimeDevices = true;
         break;
       case 'overview': {
         const metrics = mapGoogleRows(report as GoogleAnalyticsReport)[0]?.metrics ?? {};
