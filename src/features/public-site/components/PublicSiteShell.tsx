@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import { PublicSiteFooter } from './PublicSiteFooter';

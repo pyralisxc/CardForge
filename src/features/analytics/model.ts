@@ -2,13 +2,56 @@ export const ANALYTICS_CONSENT_COOKIE = 'cardforge_analytics_consent_v1';
 export const ANALYTICS_SESSION_CONSENT_KEY = 'cardforge.analytics.session-consent.v1';
 export const ANALYTICS_SIGN_UP_INTENT_KEY = 'cardforge.analytics.sign-up-intent.v1';
 
+export const isAllowedPostHogHost = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:'
+      && url.pathname === '/'
+      && !url.search
+      && !url.hash
+      && (url.hostname === 'posthog.com' || url.hostname.endsWith('.posthog.com'));
+  } catch {
+    return false;
+  }
+};
+
+export const isValidPostHogProjectId = (value: string): boolean => /^\d+$/u.test(value.trim());
+
 export type AnalyticsConsentPreference = 'granted' | 'granted_once' | 'denied';
 
 export type CardForgeAnalyticsEventName =
   | 'open_studio'
   | 'sign_up'
+  | 'navigation_selected'
+  | 'template_creation_started'
+  | 'template_created'
+  | 'card_format_changed'
+  | 'card_back_selected'
+  | 'matching_back_requested'
+  | 'generation_method_selected'
   | 'card_created'
+  | 'export_started'
+  | 'export_failed'
   | 'export_completed';
+
+export type ProductAnalyticsEventName = CardForgeAnalyticsEventName | 'page_viewed';
+
+export const PRODUCT_ANALYTICS_EVENT_NAMES: ProductAnalyticsEventName[] = [
+  'page_viewed',
+  'open_studio',
+  'sign_up',
+  'navigation_selected',
+  'template_creation_started',
+  'template_created',
+  'card_format_changed',
+  'card_back_selected',
+  'matching_back_requested',
+  'generation_method_selected',
+  'card_created',
+  'export_started',
+  'export_failed',
+  'export_completed',
+];
 
 export type AnalyticsEventParameter = string | number | boolean;
 export type AnalyticsEventParameters = Record<string, AnalyticsEventParameter>;
@@ -17,6 +60,16 @@ const ALLOWED_EVENT_PARAMETERS = new Set([
   'placement',
   'method',
   'creation_method',
+  'destination',
+  'failure_stage',
+  'format_id',
+  'format_kind',
+  'generation_method',
+  'has_matching_back',
+  'path',
+  'resize_strategy',
+  'side',
+  'starting_point',
   'export_kind',
   'card_count',
   'success',
@@ -73,6 +126,8 @@ export interface AnalyticsConfigurationStatus {
   measurementIdConfigured: boolean;
   reportingConfigured: boolean;
   searchConsoleConfigured: boolean;
+  interactionCollectionConfigured: boolean;
+  interactionReportingConfigured: boolean;
   missing: string[];
 }
 
@@ -106,6 +161,13 @@ export interface SearchPerformanceRow {
   impressions: number;
   ctr: number;
   position: number;
+}
+
+export interface ProductAnalyticsRecentEvent {
+  occurredAt: string;
+  eventName: ProductAnalyticsEventName;
+  path: string;
+  detail: string;
 }
 
 export interface OwnerAnalyticsSnapshot {
@@ -142,6 +204,13 @@ export interface OwnerAnalyticsSnapshot {
       warnings: number;
     } | null;
   };
+  interactions: {
+    activeVisitors: number;
+    recentEvents: ProductAnalyticsRecentEvent[];
+    events: AnalyticsMetricRow[];
+    paths: AnalyticsMetricRow[];
+    recordingsUrl: string | null;
+  };
   availability: {
     realtime: boolean;
     realtimePages: boolean;
@@ -154,6 +223,10 @@ export interface OwnerAnalyticsSnapshot {
     searchQueries: boolean;
     searchPages: boolean;
     sitemap: boolean;
+    interactionLive: boolean;
+    interactionRecent: boolean;
+    interactionEvents: boolean;
+    interactionPaths: boolean;
   };
   warnings: string[];
 }

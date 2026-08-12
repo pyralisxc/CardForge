@@ -16,7 +16,7 @@ import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
 import { usePublicShareSettings } from './PublicShareSettingsContext';
-import { trackExportCompleted } from '@/features/analytics/client/tracking';
+import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 
 
 const safeFileName = (card: DisplayCard, preset: SocialSharePreset) => {
@@ -51,6 +51,7 @@ export function ShareCardButton({
 
   const share = async () => {
     setWorking(true);
+    trackExportStarted('social_image', 1);
     try {
       const blob = await createImage();
       const file = new File([blob], safeFileName(card, preset), { type: 'image/png' });
@@ -70,6 +71,7 @@ export function ShareCardButton({
       setOpen(false);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
+      trackExportFailed('social_image', 'share', 1);
       toast({
         title: 'Unable to share card',
         description: error instanceof Error ? error.message : 'The social image could not be created.',
@@ -82,6 +84,7 @@ export function ShareCardButton({
 
   const download = async () => {
     setWorking(true);
+    trackExportStarted('social_image', 1);
     try {
       const blob = await createImage();
       downloadSocialShareImage(blob, safeFileName(card, preset));
@@ -89,6 +92,7 @@ export function ShareCardButton({
       toast({ title: 'Social image downloaded', description: `${SOCIAL_SHARE_PRESETS[preset].label} image saved with a centered CardForge watermark.` });
       setOpen(false);
     } catch (error) {
+      trackExportFailed('social_image', 'render_or_download', 1);
       toast({ title: 'Unable to create image', description: error instanceof Error ? error.message : 'The social image could not be created.', variant: 'destructive' });
     } finally {
       setWorking(false);

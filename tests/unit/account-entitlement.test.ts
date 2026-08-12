@@ -264,6 +264,5 @@ describe('accountEntitlement', () => {
         source: 'clerk_private_metadata',
       },
     });
-    expect(entitlement.capabilities.canWriteShippedLibrary).toBe(true);
   });
 });

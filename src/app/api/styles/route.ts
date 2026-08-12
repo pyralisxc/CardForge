@@ -11,12 +11,16 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   archivePipelineRegistryAsset,
-  canCurrentAccountWriteShippedLibrary,
   DeveloperAssetRegistryCommandError,
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
   upsertPipelineRegistryAsset,
 } from '@/features/developer-assets/server';
+import {
+  DeveloperCockpitAccessError,
+  getCurrentDeveloperCockpitAccess,
+  requireContributionScope,
+} from '@/features/developer-access/server';
 
 const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
 const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
@@ -150,13 +154,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    if (!await canCurrentAccountWriteShippedLibrary()) {
-      return createApiErrorResponse(
-        403,
-        'library_writes_disabled',
-        'Style library writes are disabled.'
-      );
-    }
+    const access = await getCurrentDeveloperCockpitAccess();
+    requireContributionScope(access, 'library.publish');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
@@ -209,6 +208,13 @@ export async function POST(request: Request) {
     const next = { version: current.version || 1, styles: merged.sort((a, b) => a.name.localeCompare(b.name)) };
     return createNoStoreJsonResponse(next);
   } catch (error) {
+    if (error instanceof DeveloperCockpitAccessError) {
+      return createApiErrorResponse(
+        error.status,
+        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.message,
+      );
+    }
     if (error instanceof DeveloperAssetRegistryCommandError) {
       return createApiErrorResponse(error.status, 'style_library_unavailable', error.message);
     }
@@ -223,13 +229,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (!await canCurrentAccountWriteShippedLibrary()) {
-      return createApiErrorResponse(
-        403,
-        'library_writes_disabled',
-        'Style library writes are disabled.'
-      );
-    }
+    const access = await getCurrentDeveloperCockpitAccess();
+    requireContributionScope(access, 'library.publish');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
@@ -248,6 +249,13 @@ export async function DELETE(request: Request) {
     const next = await readLibrary();
     return createNoStoreJsonResponse(next);
   } catch (error) {
+    if (error instanceof DeveloperCockpitAccessError) {
+      return createApiErrorResponse(
+        error.status,
+        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.message,
+      );
+    }
     if (error instanceof DeveloperAssetRegistryCommandError) {
       return createApiErrorResponse(error.status, 'style_library_unavailable', error.message);
     }

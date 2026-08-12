@@ -1,7 +1,7 @@
 import { getBillingConfigStatus } from '@/features/billing/server';
 import { isClerkAuthConfigured } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { isShippedLibraryWriteEnabled, resolveAccessMode } from '@/domain/entitlements';
+import { resolveAccessMode } from '@/domain/entitlements';
 import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,6 @@ export async function GET() {
       billing,
       authConfigured: isClerkAuthConfigured(),
       accessMode,
-      shippedLibraryWritesEnabled: isShippedLibraryWriteEnabled(),
       supabase: getSupabaseServerConfigStatus(),
     });
   } catch (error) {

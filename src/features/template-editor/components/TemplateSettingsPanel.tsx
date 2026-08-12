@@ -9,18 +9,25 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CARD_BORDER_STYLES, DIMENSION_UNITS, FRAME_STYLES } from '@/features/template-editor/lib/editorOptions';
-import { TCG_ASPECT_RATIO } from '@/domain/rendering';
+import {
+  resolveTemplateCardFormat,
+  type CardFormatId,
+  type CardMeasurementUnit,
+} from '@/domain/card-formats';
 import type { FreeformCanvas, TCGCardTemplate } from '@/domain/templates';
 import { cn } from '@/shared/classNames';
 import type { ElementPresetRecipe } from '@/features/template-editor/lib/elementPresetRecipes';
 import { ColorField } from '@/features/template-editor/components/ColorField';
 import { PipelineRecipeMeta, getPipelineRecipeTitle } from '@/features/template-editor/components/PipelineRecipeMeta';
+import { CardFormatSelect } from '@/features/template-editor/components/CardFormatSelect';
+import type { CanvasResizeStrategy } from '@/features/template-editor/lib/makerDimensions';
 
 interface TemplateSettingsPanelProps {
   currentTemplate: TCGCardTemplate;
   customWidthValue: string;
   customHeightValue: string;
-  customUnit: string;
+  customUnit: CardMeasurementUnit;
+  resizeStrategy: CanvasResizeStrategy;
   gridSize: number;
   frameKitRecipes: ElementPresetRecipe[];
   backgroundImageInputRef: { current: HTMLInputElement | null };
@@ -29,7 +36,9 @@ interface TemplateSettingsPanelProps {
   buttonClassName: string;
   onCustomWidthValueChange: (value: string) => void;
   onCustomHeightValueChange: (value: string) => void;
-  onCustomUnitChange: (value: string) => void;
+  onCustomUnitChange: (value: CardMeasurementUnit) => void;
+  onResizeStrategyChange: (value: CanvasResizeStrategy) => void;
+  onApplyCardFormat: (formatId: CardFormatId) => void;
   onApplyCustomDimensions: () => void;
   onResetGridToTemplateDefault: () => void;
   onApplyFrameStyle: (frameStyle: string) => void;
@@ -44,6 +53,7 @@ export function TemplateSettingsPanel({
   customWidthValue,
   customHeightValue,
   customUnit,
+  resizeStrategy,
   gridSize,
   frameKitRecipes,
   backgroundImageInputRef,
@@ -53,6 +63,8 @@ export function TemplateSettingsPanel({
   onCustomWidthValueChange,
   onCustomHeightValueChange,
   onCustomUnitChange,
+  onResizeStrategyChange,
+  onApplyCardFormat,
   onApplyCustomDimensions,
   onResetGridToTemplateDefault,
   onApplyFrameStyle,
@@ -61,14 +73,16 @@ export function TemplateSettingsPanel({
   onUpdateCanvas,
   onUpdateTemplate,
 }: TemplateSettingsPanelProps) {
+  const resolvedFormat = resolveTemplateCardFormat(currentTemplate);
+
   return (
     <>
       <div>
-        <Label htmlFor="maker-name" className="text-xs text-[#b7bdc9]">Template Name</Label>
+        <Label htmlFor="maker-name" className="text-xs text-[#b7bdc9]">Card design name</Label>
         <Input id="maker-name" className={controlClassName} value={currentTemplate.name || ''} onChange={event => onUpdateTemplate({ name: event.target.value }, false)} />
       </div>
       <div>
-        <Label htmlFor="maker-template-usage" className="text-xs text-[#b7bdc9]">Template Type</Label>
+        <Label htmlFor="maker-template-usage" className="text-xs text-[#b7bdc9]">Design side</Label>
         <Select
           value={currentTemplate.templateUsage === 'back-preset' ? 'back-preset' : 'standard'}
           onValueChange={(value) => {
@@ -83,14 +97,36 @@ export function TemplateSettingsPanel({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="standard">Front Template</SelectItem>
-            <SelectItem value="back-preset">Card Back</SelectItem>
+            <SelectItem value="standard">Card front</SelectItem>
+            <SelectItem value="back-preset">Card back</SelectItem>
           </SelectContent>
         </Select>
       </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs text-[#b7bdc9]">Card format</Label>
+        <CardFormatSelect
+          value={resolvedFormat.formatId}
+          unit={customUnit}
+          className={controlClassName}
+          onValueChange={onApplyCardFormat}
+        />
+      </div>
       <div>
-        <Label htmlFor="maker-ratio" className="text-xs text-[#b7bdc9]">Aspect Ratio</Label>
-        <Input id="maker-ratio" className={controlClassName} value={currentTemplate.aspectRatio || TCG_ASPECT_RATIO} onChange={event => onUpdateTemplate({ aspectRatio: event.target.value }, false)} />
+        <Label htmlFor="maker-resize-strategy" className="text-xs text-[#b7bdc9]">When size changes</Label>
+        <Select
+          value={resizeStrategy}
+          onValueChange={(value) => onResizeStrategyChange(value as CanvasResizeStrategy)}
+        >
+          <SelectTrigger id="maker-resize-strategy" className={controlClassName}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fit">Fit and center content (recommended)</SelectItem>
+            <SelectItem value="fill">Fill canvas and crop overflow</SelectItem>
+            <SelectItem value="canvas-only">Resize canvas only</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="mt-1 text-[10px] leading-4 text-[#818999]">
+          Content keeps its proportions. Fit adds breathing room; fill may crop at the edges.
+        </p>
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
@@ -103,13 +139,13 @@ export function TemplateSettingsPanel({
         </div>
         <div>
           <Label htmlFor="maker-unit" className="text-xs text-[#b7bdc9]">Unit</Label>
-          <Select value={customUnit} onValueChange={onCustomUnitChange}>
+          <Select value={customUnit} onValueChange={(value) => onCustomUnitChange(value as CardMeasurementUnit)}>
             <SelectTrigger id="maker-unit" className={controlClassName}><SelectValue /></SelectTrigger>
             <SelectContent>{DIMENSION_UNITS.map(unit => <SelectItem key={unit.value} value={unit.value}>{unit.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
-      <Button type="button" variant="outline" size="sm" onClick={onApplyCustomDimensions} className={cn(buttonClassName, 'w-full text-xs')}>Apply Dimensions</Button>
+      <Button type="button" variant="outline" size="sm" onClick={onApplyCustomDimensions} className={cn(buttonClassName, 'w-full text-xs')}>Apply custom size</Button>
       <div>
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="maker-grid-size" className="text-xs text-[#b7bdc9]">Grid Size (px)</Label>

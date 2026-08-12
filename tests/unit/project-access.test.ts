@@ -4,7 +4,6 @@ import {
   getExportEntitlementCopy,
   getExportGateMessage,
   getProjectCapabilities,
-  isShippedLibraryWriteEnabled,
   resolveAccessMode,
 } from '@/domain/entitlements';
 
@@ -15,7 +14,6 @@ describe('projectAccess', () => {
       canGenerate: true,
       canExportClean: false,
       canUseProjectFiles: false,
-      canWriteShippedLibrary: false,
     });
   });
 
@@ -25,7 +23,6 @@ describe('projectAccess', () => {
       canGenerate: true,
       canExportClean: false,
       canUseProjectFiles: true,
-      canWriteShippedLibrary: false,
     });
   });
 
@@ -35,17 +32,15 @@ describe('projectAccess', () => {
       canGenerate: true,
       canExportClean: true,
       canUseProjectFiles: true,
-      canWriteShippedLibrary: false,
     });
   });
 
-  it('maps dev access to every project capability', () => {
+  it('maps dev access to project and export capabilities without owning developer permissions', () => {
     expect(getProjectCapabilities('dev')).toEqual({
       canPreview: true,
       canGenerate: true,
       canExportClean: true,
       canUseProjectFiles: true,
-      canWriteShippedLibrary: true,
     });
   });
 
@@ -81,23 +76,6 @@ describe('projectAccess', () => {
       NODE_ENV: 'production',
       NEXT_PUBLIC_CARDFORGE_ACCESS_MODE: 'enterprise',
     })).toBe('free');
-  });
-
-  it('requires dev mode and an explicit server flag for shipped library writes', () => {
-    expect(isShippedLibraryWriteEnabled({
-      NODE_ENV: 'development',
-      CARDFORGE_ALLOW_LIBRARY_WRITES: 'true',
-    })).toBe(true);
-
-    expect(isShippedLibraryWriteEnabled({
-      NODE_ENV: 'development',
-    })).toBe(false);
-
-    expect(isShippedLibraryWriteEnabled({
-      NODE_ENV: 'production',
-      CARDFORGE_ACCESS_MODE: 'paid',
-      CARDFORGE_ALLOW_LIBRARY_WRITES: 'true',
-    })).toBe(false);
   });
 
   it('returns export gate copy only when clean export is unavailable', () => {

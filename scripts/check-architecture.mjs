@@ -80,7 +80,7 @@ const classifySourcePath = (relativePath) => {
   const parts = modulePath.split('/');
   const [root, featureName] = parts;
 
-  if (modulePath === 'middleware') return { kind: 'app', modulePath, parts };
+  if (modulePath === 'proxy') return { kind: 'app', modulePath, parts };
   if (root === 'app') return { kind: 'app', modulePath, parts };
   if (root === 'domain') return { kind: 'domain', modulePath, parts };
   if (root === 'infrastructure') return { kind: 'infrastructure', modulePath, parts };

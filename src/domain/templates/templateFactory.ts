@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 
+import { getCardFormat, resolveTemplateCardFormat } from '@/domain/card-formats';
 import { normalizeAppearanceForElement, normalizeTemplateAppearance } from './appearanceNormalization';
 import { TCG_ASPECT_RATIO } from './constants';
 import type { FreeformCanvas, FreeformCardElement, TCGCardTemplate } from './types';
@@ -232,11 +233,15 @@ export const scaleCanvasToSize = (
 export const reconstructMinimalTemplateObject = (partial: Partial<TCGCardTemplate>): TCGCardTemplate => {
   const loaded = { ...partial };
   const validatedId = loaded.id && loaded.id.trim() !== '' ? loaded.id : nanoid();
+  const resolvedFormat = resolveTemplateCardFormat(loaded);
 
   const base: Partial<TCGCardTemplate> = {
     id: validatedId,
     name: loaded.name || `Template ${validatedId.substring(0, 8)}`,
-    aspectRatio: loaded.aspectRatio || TCG_ASPECT_RATIO,
+    aspectRatio: `${resolvedFormat.widthMm}:${resolvedFormat.heightMm}`,
+    formatId: resolvedFormat.formatId,
+    trimWidthMm: resolvedFormat.widthMm,
+    trimHeightMm: resolvedFormat.heightMm,
     templateSource: loaded.templateSource === 'default' ? 'default' : 'user',
     templateLibrarySource: loaded.templateLibrarySource || (loaded.templateSource === 'default' ? 'base' : 'personal'),
     templateAccessTier: loaded.templateAccessTier,
@@ -303,10 +308,14 @@ export const getFreshDefaultTemplateObject = (id?: string | null, nameProp?: str
     newTemplateName = nameProp;
   }
 
+  const defaultFormat = getCardFormat('poker')!;
   return {
     id: newTemplateId,
     name: newTemplateName,
     aspectRatio: TCG_ASPECT_RATIO,
+    formatId: defaultFormat.id,
+    trimWidthMm: defaultFormat.widthMm,
+    trimHeightMm: defaultFormat.heightMm,
     templateSource: 'user',
     frameStyle: 'standard',
     cardBorderWidth: '4px',

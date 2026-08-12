@@ -1,31 +1,23 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  {
-    ignores: [
-      ".venv/**",
-      ".idx/**",
-      ".next/**",
-      ".next-smoke/**",
-      ".next-dev/**",
-      ".worktrees/**",
-      "next-env.d.ts",
-      "node_modules/**",
-      "coverage/**",
-      "playwright-report/**",
-      "test-results/**",
-    ],
-  },
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTypescript,
+  globalIgnores([
+    ".venv/**",
+    ".idx/**",
+    ".next/**",
+    ".next-smoke/**",
+    ".next-dev/**",
+    ".worktrees/**",
+    "next-env.d.ts",
+    "node_modules/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+  ]),
   {
     rules: {
       "@next/next/no-img-element": "off",
@@ -37,8 +29,12 @@ const eslintConfig = [
       "react/no-deprecated": "off",
       "react/no-unescaped-entities": "off",
       "react-hooks/exhaustive-deps": "error",
+      "react-hooks/immutability": "off",
+      "react-hooks/incompatible-library": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
     },
   },
-];
+]);
 
 export default eslintConfig;

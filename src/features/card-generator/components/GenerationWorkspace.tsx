@@ -16,11 +16,18 @@ import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card
 import { SingleCardGenerator } from '@/features/card-generator/components/SingleCardGenerator';
 import type { ZipExportKind } from '@/features/card-generator/hooks/useCardZipExportActions';
 import type { CardSet } from '@/domain/cards';
+import {
+  getCompatibleCardBacks,
+  getTemplateCardMeasurement,
+  resolveTemplateCardFormat,
+  type TemplateCardFormatSource,
+} from '@/domain/card-formats';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import type { TabletopSimulatorExportQuality } from '@/features/card-generator/lib/zipExport';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
+import { trackCardForgeEvent } from '@/features/analytics/client';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
@@ -48,6 +55,7 @@ interface GenerationWorkspaceProps {
   exportEntitlementLabel: string;
   exportEntitlementMessage: string;
   onOpenTemplateMaker: () => void;
+  onCreateMatchingBack: (formatSource: TemplateCardFormatSource) => void;
   onSingleCardAdded: (card: DisplayCard) => void;
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
@@ -93,6 +101,7 @@ export function GenerationWorkspace({
   exportEntitlementLabel,
   exportEntitlementMessage,
   onOpenTemplateMaker,
+  onCreateMatchingBack,
   onSingleCardAdded,
   onBulkCardsGenerated,
   onTemplateSelectionChange,
@@ -116,12 +125,17 @@ export function GenerationWorkspace({
     () => templates.find((template) => template.id === generatorSelectedTemplateId) || null,
     [generatorSelectedTemplateId, templates]
   );
+  const compatibleBackTemplates = useMemo(
+    () => selectedTemplate ? getCompatibleCardBacks(selectedTemplate, backFaceTemplates) : [],
+    [backFaceTemplates, selectedTemplate],
+  );
   const selectedBackingTemplate = useMemo(
     () => activeCardSet.backingTemplateId
-      ? backFaceTemplates.find((template) => template.id === activeCardSet.backingTemplateId) || null
+      ? compatibleBackTemplates.find((template) => template.id === activeCardSet.backingTemplateId) || null
       : null,
-    [activeCardSet.backingTemplateId, backFaceTemplates]
+    [activeCardSet.backingTemplateId, compatibleBackTemplates]
   );
+  const selectedFormat = selectedTemplate ? resolveTemplateCardFormat(selectedTemplate) : null;
   const deckPreviewCard = useMemo<DisplayCard | null>(() => (
     selectedTemplate
       ? {
@@ -209,7 +223,7 @@ export function GenerationWorkspace({
                 <SelectContent>
                   {templates.map((template) => (
                     <SelectItem key={template.id || template.name} value={template.id || template.name}>
-                      {template.name || template.id}
+                      {template.name || template.id} · {getTemplateCardMeasurement(template, 'mm').label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -219,20 +233,50 @@ export function GenerationWorkspace({
               <Label htmlFor="deck-backing-template">Card Back</Label>
               <Select
                 value={activeCardSet.backingTemplateId || '_none_'}
-                onValueChange={(value) => onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value)}
+                onValueChange={(value) => {
+                  onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value);
+                  trackCardForgeEvent('card_back_selected', {
+                    format_id: selectedFormat?.formatId ?? 'custom',
+                    has_matching_back: value !== '_none_',
+                  });
+                }}
               >
                 <SelectTrigger id="deck-backing-template">
                   <SelectValue placeholder="Choose card back" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none_">No card back</SelectItem>
-                  {backFaceTemplates.map((template) => (
+                  {compatibleBackTemplates.map((template) => (
                     <SelectItem key={template.id || template.name} value={template.id || template.name}>
-                      {template.name || template.id}
+                      {template.name || template.id} · {getTemplateCardMeasurement(template, 'mm').label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {selectedTemplate && compatibleBackTemplates.length === 0 ? (
+                <div className="mt-2 space-y-2 rounded-md border border-amber-500/35 bg-amber-500/10 p-3 text-xs">
+                  <p className="font-medium text-foreground">No matching card back yet</p>
+                  <p className="leading-5 text-muted-foreground">
+                    This design uses {selectedFormat ? `${selectedFormat.widthMm} × ${selectedFormat.heightMm} mm` : 'a custom size'}.
+                    Create a matching back now, or continue without one.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      trackCardForgeEvent('matching_back_requested', {
+                        format_id: selectedFormat?.formatId ?? 'custom',
+                        format_kind: selectedFormat?.formatId === 'custom' ? 'custom' : 'standard',
+                      });
+                      onCreateMatchingBack(selectedTemplate);
+                    }}
+                  >
+                    Create matching card back
+                  </Button>
+                </div>
+              ) : null}
             </div>
             {deckPreviewCard ? (
               <div className="grid grid-cols-2 gap-3 rounded-md border bg-background/70 p-3">
@@ -266,7 +310,11 @@ export function GenerationWorkspace({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Create cards</p>
           <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Fill one card or bring in a whole list</h2>
         </div>
-        <Tabs defaultValue="single" className="space-y-4">
+        <Tabs
+          defaultValue="single"
+          className="space-y-4"
+          onValueChange={(value) => trackCardForgeEvent('generation_method_selected', { generation_method: value })}
+        >
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border bg-card/70 p-1">
             <TabsTrigger value="single" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <FilePlus2 className="h-4 w-4" />

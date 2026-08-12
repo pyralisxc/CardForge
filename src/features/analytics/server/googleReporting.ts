@@ -65,6 +65,7 @@ const emptySnapshot = (): OwnerAnalyticsSnapshot => ({
   campaigns: [],
   journey: JOURNEY_EVENTS.map((step) => ({ ...step, users: 0, events: 0 })),
   search: { clicks: 0, impressions: 0, ctr: 0, position: 0, queries: [], pages: [], sitemap: null },
+  interactions: { activeVisitors: 0, recentEvents: [], events: [], paths: [], recordingsUrl: null },
   availability: {
     realtime: false,
     realtimePages: false,
@@ -77,6 +78,10 @@ const emptySnapshot = (): OwnerAnalyticsSnapshot => ({
     searchQueries: false,
     searchPages: false,
     sitemap: false,
+    interactionLive: false,
+    interactionRecent: false,
+    interactionEvents: false,
+    interactionPaths: false,
   },
   warnings: [],
 });
@@ -150,26 +155,29 @@ const toSearchRows = (report: SearchAnalyticsResponse): SearchPerformanceRow[] =
 
 const dateOnly = (date: Date) => date.toISOString().slice(0, 10);
 
-export const getOwnerAnalyticsSnapshot = async (): Promise<OwnerAnalyticsSnapshot> => {
+export const getGoogleOwnerAnalyticsSnapshot = async (): Promise<OwnerAnalyticsSnapshot> => {
   const snapshot = emptySnapshot();
   const propertyId = process.env.CARDFORGE_GOOGLE_ANALYTICS_PROPERTY_ID?.trim();
   const siteUrl = process.env.CARDFORGE_GOOGLE_SEARCH_CONSOLE_SITE_URL?.trim();
-  if (!snapshot.configuration.reportingConfigured && !snapshot.configuration.searchConsoleConfigured) {
+  if (!snapshot.configuration.reportingConfigured
+    && !snapshot.configuration.searchConsoleConfigured
+    && !snapshot.configuration.searchConsoleConfigured) {
     snapshot.warnings.push('Google read-only reporting is not configured yet.');
     return snapshot;
   }
 
-  let accessToken: string;
-  try {
-    accessToken = await getGoogleReadOnlyAccessToken();
-  } catch (error) {
-    console.error('Unable to authorize Google analytics reporting:', error instanceof Error ? error.message : error);
-    snapshot.warnings.push('Google reporting authorization is unavailable.');
-    return snapshot;
+  let accessToken: string | null = null;
+  if (snapshot.configuration.reportingConfigured || snapshot.configuration.searchConsoleConfigured) {
+    try {
+      accessToken = await getGoogleReadOnlyAccessToken();
+    } catch (error) {
+      console.error('Unable to authorize Google analytics reporting:', error instanceof Error ? error.message : error);
+      snapshot.warnings.push('Google reporting authorization is unavailable.');
+    }
   }
 
   const requests: Array<Promise<{ key: string; value: unknown }>> = [];
-  if (snapshot.configuration.reportingConfigured && propertyId) {
+  if (snapshot.configuration.reportingConfigured && propertyId && accessToken) {
     requests.push(
       analyticsReport(propertyId, accessToken, 'runRealtimeReport', realtimeBody([], ['activeUsers']))
         .then((value) => ({ key: 'realtimeTotal', value })),
@@ -198,7 +206,7 @@ export const getOwnerAnalyticsSnapshot = async (): Promise<OwnerAnalyticsSnapsho
     );
   }
 
-  if (snapshot.configuration.searchConsoleConfigured && siteUrl) {
+  if (snapshot.configuration.searchConsoleConfigured && siteUrl && accessToken) {
     const end = new Date();
     end.setUTCDate(end.getUTCDate() - 3);
     const start = new Date(end);

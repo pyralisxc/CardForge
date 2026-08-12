@@ -13,7 +13,7 @@ export const getCachedFounderProfile = unstable_cache(
 
 export const revalidateFounderProfile = (): void => {
   try {
-    revalidateTag(FOUNDER_PROFILE_TAG);
+    revalidateTag(FOUNDER_PROFILE_TAG, { expire: 0 });
   } catch (error) {
     console.error('Unable to invalidate founder profile cache:', error);
   }

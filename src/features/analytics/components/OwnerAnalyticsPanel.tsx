@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, BarChart3, Copy, ExternalLink, RefreshCw, Route, Search, Share2 } from 'lucide-react';
+import { Activity, BarChart3, Copy, ExternalLink, MousePointer2, RefreshCw, Route, Search, Share2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -21,12 +21,12 @@ function MetricTile({ label, value, note }: { label: string; value: string; note
   return <div className="border border-[#4a3823] bg-[#100c08] p-4"><span className="text-[10px] uppercase tracking-[0.16em] text-[#a98a55]">{label}</span><strong className="mt-2 block font-serif text-2xl text-[#ffe7ad]">{value}</strong>{note ? <span className="mt-1 block text-xs text-[#8f7b57]">{note}</span> : null}</div>;
 }
 
-function RankedList({ title, rows, empty, available }: { title: string; rows: AnalyticsMetricRow[]; empty: string; available: boolean }) {
+function RankedList({ title, rows, empty, available, source = 'Google' }: { title: string; rows: AnalyticsMetricRow[]; empty: string; available: boolean; source?: string }) {
   const maximum = Math.max(...rows.map(({ value }) => value), 1);
   return (
     <section className="border border-[#4a3823] bg-[#100c08] p-4">
       <h3 className="font-serif text-lg text-[#fff1c7]">{title}</h3>
-      {!available ? <p className="mt-3 text-sm text-[#f0bd75]">This Google report is temporarily unavailable.</p> : rows.length === 0 ? <p className="mt-3 text-sm text-[#8f7b57]">{empty}</p> : <ol className="mt-4 space-y-3">{rows.map((row) => (
+      {!available ? <p className="mt-3 text-sm text-[#f0bd75]">This {source} report is temporarily unavailable.</p> : rows.length === 0 ? <p className="mt-3 text-sm text-[#8f7b57]">{empty}</p> : <ol className="mt-4 space-y-3">{rows.map((row) => (
         <li key={row.label}>
           <div className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 truncate text-[#d9c6a1]">{row.label}</span><span className="text-[#ffe7ad]">{formatNumber(row.value)}</span></div>
           <div className="mt-1 h-1.5 bg-[#2a2015]"><div className="h-full bg-[#d8b365]" style={{ width: `${Math.max(3, row.value / maximum * 100)}%` }} /></div>
@@ -40,16 +40,36 @@ function ConfigurationNotice({ snapshot }: { snapshot: OwnerAnalyticsSnapshot })
   const { configuration } = snapshot;
   const isLive = configuration.collectionEnabled
     && configuration.reportingConfigured
-    && configuration.searchConsoleConfigured;
+    && configuration.searchConsoleConfigured
+    && configuration.interactionCollectionConfigured
+    && configuration.interactionReportingConfigured;
   return (
     <section className={`border p-4 ${isLive ? 'border-[#557a45] bg-[#10190d]' : 'border-[#8c6436] bg-[#1b1209]'}`}>
       <h3 className="font-serif text-lg text-[#fff1c7]">{isLive ? 'Consent-gated analytics is live' : 'Analytics setup incomplete'}</h3>
       <p className="mt-2 text-sm leading-6 text-[#d8be8d]">{isLive
-        ? 'The privacy publication, public measurement flag, and read-only Google reports are active. Google Analytics still loads only after a visitor chooses Accept or Accept once; Search Console reporting remains independent of that choice.'
-        : 'Collection remains gated until the privacy publication, public measurement flag, and read-only Google reporting configuration are all ready.'}</p>
+        ? 'Google acquisition and search reporting plus anonymous PostHog interaction reporting are active. Browser measurement still loads only after a visitor chooses Accept or Accept once; private workspaces are never replayed.'
+        : 'Collection remains gated until the privacy publication, public measurement flag, and read-only Google and PostHog reporting configuration are all ready.'}</p>
       {configuration.missing.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{configuration.missing.map((name) => <code key={name} className="border border-[#5f4526] bg-[#0c0b09] px-2 py-1 text-xs text-[#f0bd75]">{name}</code>)}</div> : null}
     </section>
   );
+}
+
+function InteractionView({ snapshot }: { snapshot: OwnerAnalyticsSnapshot }) {
+  const formatEventName = (value: string) => value.replaceAll('_', ' ').replace(/^./u, (letter) => letter.toUpperCase());
+  return <div className="space-y-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+      <MetricTile label="Interacting now" value={snapshot.availability.interactionLive ? formatNumber(snapshot.interactions.activeVisitors) : '—'} note="Anonymous visitors · previous 5 minutes" />
+      {snapshot.interactions.recordingsUrl ? <Button asChild variant="outline" className="h-full min-h-20"><a href={snapshot.interactions.recordingsUrl} target="_blank" rel="noreferrer">Open masked public replays <ExternalLink className="ml-2 h-4 w-4" /></a></Button> : null}
+    </div>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <RankedList title="Actions · previous 24 hours" rows={snapshot.interactions.events} empty="No consented interactions have arrived yet." available={snapshot.availability.interactionEvents} source="PostHog" />
+      <RankedList title="Active paths · previous 24 hours" rows={snapshot.interactions.paths} empty="No consented page activity has arrived yet." available={snapshot.availability.interactionPaths} source="PostHog" />
+    </div>
+    <section className="border border-[#4a3823] bg-[#100c08] p-4">
+      <div className="flex flex-wrap items-end justify-between gap-2"><div><h3 className="font-serif text-lg text-[#fff1c7]">Recent interaction stream</h3><p className="mt-1 text-sm text-[#8f7b57]">Allow-listed action, path, and non-sensitive context only. No names, emails, card content, or visitor identifiers.</p></div><span className="text-xs uppercase tracking-[0.12em] text-[#a98a55]">Previous 30 minutes</span></div>
+      {!snapshot.availability.interactionRecent ? <p className="mt-4 text-sm text-[#f0bd75]">The PostHog recent-activity report is temporarily unavailable.</p> : snapshot.interactions.recentEvents.length === 0 ? <p className="mt-4 text-sm text-[#8f7b57]">No consented interactions are in the live window.</p> : <ol className="mt-4 divide-y divide-[#352716] border border-[#352716] bg-[#0c0b09]">{snapshot.interactions.recentEvents.map((event, index) => <li key={`${event.occurredAt}:${event.eventName}:${index}`} className="grid gap-1 px-3 py-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)] sm:items-center"><time className="text-xs text-[#8f7b57]" dateTime={event.occurredAt}>{formatDate(event.occurredAt)}</time><strong className="text-[#ffe7ad]">{formatEventName(event.eventName)}</strong><span className="min-w-0 truncate text-[#c7b288]" title={`${event.path}${event.detail ? ` · ${event.detail}` : ''}`}>{event.path}{event.detail ? ` · ${event.detail}` : ''}</span></li>)}</ol>}
+    </section>
+  </div>;
 }
 
 function LiveView({ snapshot }: { snapshot: OwnerAnalyticsSnapshot }) {
@@ -127,7 +147,7 @@ export function OwnerAnalyticsPanel({ publicAppUrl }: { publicAppUrl: string }) 
     <div className="space-y-4">
       <section className="border border-[#6d4f2b] bg-[#15100a] p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><BarChart3 className="h-6 w-6 text-[#d8b365]" /><div><p className="text-xs uppercase tracking-[0.18em] text-[#a98a55]">Owner-only measurement</p><h2 className="font-serif text-2xl text-[#fff1c7]">Organic Analytics</h2><p className="mt-1 text-sm text-[#c7b288]">Review consented visitor activity, organic campaign results, creator actions, and Google Search performance.</p></div></div><div className="text-right"><Button type="button" variant="outline" onClick={() => void refresh()} disabled={isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />Refresh</Button><p className="mt-2 text-xs text-[#8f7b57]">Updated {formatDate(snapshot.capturedAt)} · auto-refreshes every minute</p></div></div>{error ? <p className="mt-3 border border-[#7d3d32] bg-[#1b0d09] p-3 text-sm text-[#ffd0c6]">{error}</p> : null}{snapshot.warnings.map((warning) => <p key={warning} className="mt-3 border border-[#8c6436] bg-[#1b1209] p-3 text-sm text-[#f0bd75]">{warning}</p>)}</section>
       <ConfigurationNotice snapshot={snapshot} />
-      <Tabs defaultValue="live" className="space-y-4"><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2"><TabsTrigger value="live" className={tabClassName}><Activity className="mr-2 h-4 w-4" />Live</TabsTrigger><TabsTrigger value="campaigns" className={tabClassName}><Share2 className="mr-2 h-4 w-4" />Campaigns</TabsTrigger><TabsTrigger value="journey" className={tabClassName}><Route className="mr-2 h-4 w-4" />Creator activity</TabsTrigger><TabsTrigger value="search" className={tabClassName}><Search className="mr-2 h-4 w-4" />Search</TabsTrigger></TabsList><TabsContent value="live" className="mt-0"><LiveView snapshot={snapshot} /></TabsContent><TabsContent value="campaigns" className="mt-0"><CampaignView snapshot={snapshot} publicAppUrl={publicAppUrl} /></TabsContent><TabsContent value="journey" className="mt-0"><JourneyView snapshot={snapshot} /></TabsContent><TabsContent value="search" className="mt-0"><SearchView snapshot={snapshot} /></TabsContent></Tabs>
+      <Tabs defaultValue="live" className="space-y-4"><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2"><TabsTrigger value="live" className={tabClassName}><Activity className="mr-2 h-4 w-4" />Live</TabsTrigger><TabsTrigger value="interactions" className={tabClassName}><MousePointer2 className="mr-2 h-4 w-4" />Interactions</TabsTrigger><TabsTrigger value="campaigns" className={tabClassName}><Share2 className="mr-2 h-4 w-4" />Campaigns</TabsTrigger><TabsTrigger value="journey" className={tabClassName}><Route className="mr-2 h-4 w-4" />Creator activity</TabsTrigger><TabsTrigger value="search" className={tabClassName}><Search className="mr-2 h-4 w-4" />Search</TabsTrigger></TabsList><TabsContent value="live" className="mt-0"><LiveView snapshot={snapshot} /></TabsContent><TabsContent value="interactions" className="mt-0"><InteractionView snapshot={snapshot} /></TabsContent><TabsContent value="campaigns" className="mt-0"><CampaignView snapshot={snapshot} publicAppUrl={publicAppUrl} /></TabsContent><TabsContent value="journey" className="mt-0"><JourneyView snapshot={snapshot} /></TabsContent><TabsContent value="search" className="mt-0"><SearchView snapshot={snapshot} /></TabsContent></Tabs>
     </div>
   );
 }

@@ -28,7 +28,7 @@ export const getCachedPublishedLegalDocument = (slug: LegalDocumentSlug) => read
 
 export const revalidateLegalDocumentCache = (slug: LegalDocumentSlug): void => {
   try {
-    revalidateTag(legalDocumentTag(slug));
+    revalidateTag(legalDocumentTag(slug), { expire: 0 });
   } catch (error) {
     console.error(`Unable to invalidate ${slug} legal publication cache:`, error);
   }

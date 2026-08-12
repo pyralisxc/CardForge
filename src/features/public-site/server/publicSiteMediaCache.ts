@@ -15,7 +15,7 @@ export const getCachedSiteMedia = (): Promise<SiteMediaAsset[]> => readCachedSit
 
 export const revalidateSiteMediaCache = (): void => {
   try {
-    revalidateTag(SITE_MEDIA_TAG);
+    revalidateTag(SITE_MEDIA_TAG, { expire: 0 });
   } catch (error) {
     console.error('Unable to invalidate public site media cache:', error);
   }

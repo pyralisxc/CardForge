@@ -23,7 +23,7 @@ import {
 } from '@/features/card-generator/lib/zipExport';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
-import { trackExportCompleted } from '@/features/analytics/client/tracking';
+import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 export type ZipExportKind = 'png-set' | 'tabletop-simulator';
@@ -67,6 +67,7 @@ export function useCardZipExportActions({
     setZipExportKind('png-set');
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: exportItems.length });
+    trackExportStarted('png_set', generatedDisplayCards.length);
 
     try {
       const exportProfile = getExportProfile(exportMode, exportDpi);
@@ -102,6 +103,7 @@ export function useCardZipExportActions({
         description: `${exportItems.length} ${exportCopy.outputLabel} saved to ${exportCopy.fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality.`,
       });
     } catch (err) {
+      trackExportFailed('png_set', 'render_or_archive', generatedDisplayCards.length);
       toast({ title: 'Export Failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);
@@ -129,6 +131,7 @@ export function useCardZipExportActions({
     setZipExportKind('tabletop-simulator');
     setIsZipExporting(true);
     setZipProgress({ done: 0, total: totalRenderJobs });
+    trackExportStarted('tabletop_simulator', generatedDisplayCards.length);
 
     try {
       const exportProfile = getTabletopSimulatorExportProfile(quality);
@@ -246,6 +249,7 @@ export function useCardZipExportActions({
         description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} saved with a manifest. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
       });
     } catch (err) {
+      trackExportFailed('tabletop_simulator', 'render_or_archive', generatedDisplayCards.length);
       toast({ title: 'Tabletop Simulator export failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
       setIsZipExporting(false);

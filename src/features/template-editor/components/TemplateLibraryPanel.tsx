@@ -11,6 +11,7 @@ import { getTemplateLibraryDescription, getTemplateLibraryLabel } from '@/domain
 import { cn } from '@/shared/classNames';
 import { WorkspaceSection } from '@/features/template-editor/components/WorkspaceSection';
 import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
+import { getTemplateCardMeasurement } from '@/domain/card-formats';
 
 interface TemplateLibraryPanelProps {
   canUseProjectFiles: boolean;
@@ -148,6 +149,7 @@ export function TemplateLibraryPanel({
               <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#f5d27b]">{template.name}</span>
                 <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || getTemplateLibraryDescription(template)}</span>
+                <span className="block text-[10px] text-[#9a8f7c]">{getTemplateCardMeasurement(template, 'mm').label}</span>
               </span>
             </button>
           ))}
@@ -168,6 +170,7 @@ export function TemplateLibraryPanel({
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold text-[#d8d1c4] group-hover:text-[#b9f3ff]">{template.name}</span>
                   <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-[#757d8c]">{template.templateCategory || 'Card back'}</span>
+                  <span className="block text-[10px] text-[#9a8f7c]">{getTemplateCardMeasurement(template, 'mm').label}</span>
                 </span>
               </button>
             ))}

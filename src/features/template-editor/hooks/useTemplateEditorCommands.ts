@@ -5,20 +5,35 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 
 import type { ToastFn } from '@/components/ui/use-toast';
+import {
+  getTemplateCardMeasurement,
+  type CardFormatId,
+  type CardMeasurementUnit,
+  type TemplateCardFormatSource,
+} from '@/domain/card-formats';
 import type { TCGCardTemplate, TemplateUsage } from '@/domain/templates';
 import {
   getDefaultGridSizeForCanvas,
   reconstructFreeformCanvas,
+  reconstructMinimalTemplate,
 } from '@/domain/templates';
 import type { TemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/features/template-editor/lib/cardFrameKits';
 import { createFrameKitPresetRecipes } from '@/features/template-editor/lib/elementPresetRecipes';
 import { PREDEFINED_FRAME_VISUAL_PROPERTIES } from '@/features/template-editor/lib/frameVisualPresets';
-import { buildCustomDimensionTemplateUpdate } from '@/features/template-editor/lib/makerDimensions';
-import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
+import {
+  buildCardFormatTemplateUpdate,
+  buildCustomDimensionTemplateUpdate,
+  type CanvasResizeStrategy,
+} from '@/features/template-editor/lib/makerDimensions';
+import {
+  makeNewFreeformTemplate,
+  type NewCardDesignInput,
+} from '@/features/template-editor/lib/makerTemplateFactory';
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { withNextStep } from '@/shared/userFacingErrors';
+import { trackCardForgeEvent } from '@/features/analytics/client';
 
 interface UseTemplateEditorCommandsInput {
   acceptTemplate: (template: TCGCardTemplate) => void;
@@ -28,7 +43,7 @@ interface UseTemplateEditorCommandsInput {
   duplicateSelected: () => void;
   isActive: boolean;
   onCloneTemplate: (templateId: string) => string | null;
-  onSaveTemplate: (template: TCGCardTemplate) => string;
+  onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
   onSelectTemplate: (templateId: string | null) => void;
   setAutoFitCanvas: Dispatch<SetStateAction<boolean>>;
   setPreviewMode: Dispatch<SetStateAction<boolean>>;
@@ -70,7 +85,30 @@ export function useTemplateEditorCommands({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [customWidthValue, setCustomWidthValue] = useState('');
   const [customHeightValue, setCustomHeightValue] = useState('');
-  const [customUnit, setCustomUnit] = useState('mm');
+  const [customUnit, setCustomUnit] = useState<CardMeasurementUnit>('mm');
+  const [resizeStrategy, setResizeStrategy] = useState<CanvasResizeStrategy>('fit');
+  const [newTemplateRequest, setNewTemplateRequest] = useState<{
+    usage: TemplateUsage;
+    formatSource: TemplateCardFormatSource;
+  } | null>(null);
+  const currentMeasurement = getTemplateCardMeasurement({
+    id: currentTemplate.id,
+    formatId: currentTemplate.formatId,
+    trimWidthMm: currentTemplate.trimWidthMm,
+    trimHeightMm: currentTemplate.trimHeightMm,
+    aspectRatio: currentTemplate.aspectRatio,
+    freeformCanvas: {
+      width: currentTemplate.freeformCanvas?.width,
+      height: currentTemplate.freeformCanvas?.height,
+    },
+  }, customUnit);
+  const currentMeasurementWidth = currentMeasurement.width;
+  const currentMeasurementHeight = currentMeasurement.height;
+
+  useEffect(() => {
+    setCustomWidthValue(String(currentMeasurementWidth));
+    setCustomHeightValue(String(currentMeasurementHeight));
+  }, [currentMeasurementHeight, currentMeasurementWidth]);
 
   const frameKitRecipes = useMemo(() => {
     const recommended = getFrameKitForTemplate(currentTemplate.id);
@@ -80,14 +118,15 @@ export function useTemplateEditorCommands({
     return createFrameKitPresetRecipes(kits);
   }, [currentTemplate.id]);
 
-  const saveTemplate = useCallback((templateOverride?: TCGCardTemplate) => {
+  const saveTemplate = useCallback(async (templateOverride?: TCGCardTemplate) => {
     const templateToSave = templateOverride?.aspectRatio ? templateOverride : currentTemplate;
-    if (!templateToSave.name?.trim() || templateToSave.name === 'New Card Template') {
+    const reservedNames = new Set(['New Card Template', 'New Card Back', 'New Front Template', 'Untitled card design']);
+    if (!templateToSave.name?.trim() || reservedNames.has(templateToSave.name.trim())) {
       toast({
-        title: 'Template name is required',
+        title: 'Card design name is required',
         description: withNextStep(
-          'Template name must be set before saving.',
-          'Enter a template name, then save again.',
+          'Give this design a meaningful name before saving.',
+          'Enter a card design name, then save again.',
         ),
         variant: 'destructive',
       });
@@ -96,16 +135,16 @@ export function useTemplateEditorCommands({
     const parts = templateToSave.aspectRatio.split(':').map(Number);
     if (parts.length !== 2 || parts.some((part) => !part || part <= 0 || Number.isNaN(part))) {
       toast({
-        title: 'Aspect ratio format is invalid',
+        title: 'Card format is invalid',
         description: withNextStep(
-          'Aspect Ratio must use W:H with positive numbers (example: 63:88).',
-          'Correct the Aspect Ratio field, then save again.',
+          'The design dimensions must use positive width and height values.',
+          'Choose a standard format or apply valid custom dimensions, then save again.',
         ),
         variant: 'destructive',
       });
       return false;
     }
-    const savedId = onSaveTemplate({
+    const savedId = await onSaveTemplate({
       ...templateToSave,
       freeformCanvas: reconstructFreeformCanvas(templateToSave.freeformCanvas),
     });
@@ -128,7 +167,7 @@ export function useTemplateEditorCommands({
       const key = event.key.toLowerCase();
       if (modifier && key === 's') {
         event.preventDefault();
-        saveTemplate();
+        void saveTemplate();
         return;
       }
       if (modifier && key === 'k') {
@@ -181,19 +220,64 @@ export function useTemplateEditorCommands({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [deleteSelected, duplicateSelected, isActive, redo, saveTemplate, selectedElementId, setAutoFitCanvas, setPreviewMode, setSelectedElementId, setShowGrid, setZoom, undo]);
 
-  const createNewTemplate = useCallback((usage: TemplateUsage = 'standard') => {
-    const template = {
-      ...makeNewFreeformTemplate(
-        usage === 'back-preset' ? 'New Card Back' : 'New Front Template',
-        usage,
-      ),
-      id: `draft-${nanoid()}`,
-    };
+  const requestNewTemplate = useCallback((
+    usage: TemplateUsage = 'standard',
+    formatSource: TemplateCardFormatSource = currentTemplate,
+  ) => {
     requestTemplateChange(() => {
-      beginDraft(template);
-      onSelectTemplate(template.id);
+      setNewTemplateRequest({ usage, formatSource });
+      trackCardForgeEvent('template_creation_started', {
+        side: usage === 'back-preset' ? 'back' : 'front',
+        format_id: formatSource.formatId ?? 'custom',
+      });
     });
-  }, [beginDraft, onSelectTemplate, requestTemplateChange]);
+  }, [currentTemplate, requestTemplateChange]);
+
+  const createNewTemplate = useCallback((input: NewCardDesignInput) => {
+    if (!newTemplateRequest) return;
+    const id = `draft-${nanoid()}`;
+    let template: TCGCardTemplate;
+    if (input.startingPoint === 'clone') {
+      const cloned = reconstructMinimalTemplate({
+        ...currentTemplate,
+        id,
+        name: input.name,
+        templateSource: 'user',
+        templateUsage: newTemplateRequest.usage,
+        templateCategory: newTemplateRequest.usage === 'back-preset' ? 'Card back' : 'Card front',
+      });
+      template = input.formatId === 'custom'
+        ? reconstructMinimalTemplate({ ...cloned, formatId: 'custom' })
+        : reconstructMinimalTemplate({
+            ...cloned,
+            ...buildCardFormatTemplateUpdate({
+              formatId: input.formatId,
+              resizeStrategy,
+              template: cloned,
+            }),
+          });
+    } else {
+      template = {
+        ...makeNewFreeformTemplate({
+          name: input.name,
+          templateUsage: newTemplateRequest.usage,
+          formatId: input.formatId,
+          formatSource: newTemplateRequest.formatSource,
+          startingPoint: input.startingPoint,
+        }),
+        id,
+      };
+    }
+    beginDraft(template);
+    onSelectTemplate(id);
+    setNewTemplateRequest(null);
+    trackCardForgeEvent('template_created', {
+      side: newTemplateRequest.usage === 'back-preset' ? 'back' : 'front',
+      format_id: input.formatId,
+      format_kind: input.formatId === 'custom' ? 'custom' : 'standard',
+      starting_point: input.startingPoint,
+    });
+  }, [beginDraft, currentTemplate, newTemplateRequest, onSelectTemplate, resizeStrategy]);
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;
@@ -222,6 +306,7 @@ export function useTemplateEditorCommands({
       heightValue: customHeightValue,
       unit: customUnit,
       template: currentTemplate,
+      resizeStrategy,
     });
     if (!update) {
       toast({
@@ -235,7 +320,30 @@ export function useTemplateEditorCommands({
       return;
     }
     updateTemplate(update);
-  }, [currentTemplate, customHeightValue, customUnit, customWidthValue, toast, updateTemplate]);
+    trackCardForgeEvent('card_format_changed', {
+      format_id: 'custom',
+      format_kind: 'custom',
+      resize_strategy: resizeStrategy,
+    });
+  }, [currentTemplate, customHeightValue, customUnit, customWidthValue, resizeStrategy, toast, updateTemplate]);
+
+  const applyCardFormat = useCallback((formatId: CardFormatId) => {
+    if (formatId === 'custom') {
+      updateTemplate({ formatId: 'custom' });
+      trackCardForgeEvent('card_format_changed', {
+        format_id: 'custom',
+        format_kind: 'custom',
+        resize_strategy: resizeStrategy,
+      });
+      return;
+    }
+    updateTemplate(buildCardFormatTemplateUpdate({ formatId, resizeStrategy, template: currentTemplate }));
+    trackCardForgeEvent('card_format_changed', {
+      format_id: formatId,
+      format_kind: 'standard',
+      resize_strategy: resizeStrategy,
+    });
+  }, [currentTemplate, resizeStrategy, updateTemplate]);
 
   const resetGridToTemplateDefault = useCallback(() => {
     updateCanvas({ gridSize: getDefaultGridSizeForCanvas(canvas.width, canvas.height) });
@@ -263,6 +371,7 @@ export function useTemplateEditorCommands({
 
   return {
     applyCustomDimensions,
+    applyCardFormat,
     applyFrameStyle,
     backgroundImageInputRef,
     borderImageInputRef,
@@ -275,12 +384,17 @@ export function useTemplateEditorCommands({
     frameKitRecipes,
     handleFileUpload,
     openTemplate,
+    newTemplateRequest,
+    requestNewTemplate,
     resetGridToTemplateDefault,
+    resizeStrategy,
     saveTemplate,
     setCommandPaletteOpen,
     setCustomHeightValue,
     setCustomUnit,
     setCustomWidthValue,
+    setNewTemplateRequest,
+    setResizeStrategy,
   };
 }
 

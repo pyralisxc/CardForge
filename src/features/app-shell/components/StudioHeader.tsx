@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Hammer, Menu } from 'lucide-react';
+import { Code2, Hammer, Menu } from 'lucide-react';
 import { AccountControls } from '@/features/account/client/auth';
 import type { BrowserStorageSaveStatus } from '@/features/project/client';
 import {
@@ -23,6 +23,7 @@ interface StudioHeaderProps {
   modeLabel: string;
   saveStatus: BrowserStorageSaveStatus;
   onRefreshEntitlement: () => void;
+  developerCockpitHref?: '/developer/cockpit' | null;
 }
 
 export function StudioHeader({
@@ -33,6 +34,7 @@ export function StudioHeader({
   modeLabel,
   saveStatus,
   onRefreshEntitlement,
+  developerCockpitHref,
 }: StudioHeaderProps) {
   return (
     <header className="cardforge-studio-header border-b border-[#5f4526] bg-[#120e09] px-4 py-4 text-[#f7ead0] shadow-[0_10px_30px_rgba(0,0,0,0.28)] no-print">
@@ -62,6 +64,15 @@ export function StudioHeader({
             );
           })}
         </nav>
+        {developerCockpitHref ? (
+          <Link
+            href={developerCockpitHref}
+            prefetch={false}
+            className="hidden min-h-10 items-center gap-2 border border-[#6d5323] bg-[#1c130b] px-3 text-sm font-semibold text-[#f5d27b] transition hover:border-[#d8b365] hover:text-[#fff3ca] xl:inline-flex"
+          >
+            <Code2 className="h-4 w-4" aria-hidden="true" /> Developer cockpit
+          </Link>
+        ) : null}
         <div className="cardforge-studio-account ml-auto">
           <AccountControls
             authConfigured={authConfigured}
@@ -87,6 +98,17 @@ export function StudioHeader({
               <SheetDescription className="text-[#cbb58b]">Move between the Studio, account, and public CardForge pages.</SheetDescription>
             </SheetHeader>
             <nav className="mt-6 grid gap-2" aria-label="Compact global navigation">
+              {developerCockpitHref ? (
+                <SheetClose asChild>
+                  <Link
+                    href={developerCockpitHref}
+                    prefetch={false}
+                    className="mb-2 inline-flex min-h-11 items-center gap-2 border border-[#6d5323] bg-[#1c130b] px-3 text-base font-semibold text-[#f5d27b] hover:border-[#d8b365] hover:text-[#fff3ca]"
+                  >
+                    <Code2 className="h-4 w-4" aria-hidden="true" /> Developer cockpit
+                  </Link>
+                </SheetClose>
+              ) : null}
               {STUDIO_NAVIGATION.map((item) => {
                 const isActive = currentPath === item.href;
                 return (

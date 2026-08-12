@@ -1,2 +1,2 @@
 export { getAnalyticsConfigurationStatus } from './server/configuration';
-export { getOwnerAnalyticsSnapshot } from './server/googleReporting';
+export { getOwnerAnalyticsSnapshot } from './server/ownerReporting';

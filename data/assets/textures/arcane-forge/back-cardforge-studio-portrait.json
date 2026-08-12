@@ -1,0 +1,10 @@
+{
+  "id": "arcane-forge-back-cardforge-studio-portrait",
+  "name": "CardForge Studio Fantasy Back · Portrait",
+  "tileMode": "contain",
+  "seamless": false,
+  "allowedTargets": ["template", "imageFrame"],
+  "defaultBlendMode": "normal",
+  "defaultOpacity": 100,
+  "defaultScale": 100
+}

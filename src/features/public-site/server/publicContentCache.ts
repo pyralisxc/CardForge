@@ -26,7 +26,7 @@ export const getCachedSiteContentBlocks = (
 
 export const revalidateSiteContentCache = (group: SiteContentGroup): void => {
   try {
-    revalidateTag(siteContentTag(group));
+    revalidateTag(siteContentTag(group), { expire: 0 });
   } catch (error) {
     console.error(`Unable to invalidate ${group} public content cache:`, error);
   }

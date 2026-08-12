@@ -1,8 +1,8 @@
 "use client";
-import type { ChangeEvent, RefObject } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { X } from 'lucide-react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
+import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,6 +29,7 @@ import { TemplateEditorLibrarySidebar } from '@/features/template-editor/compone
 import { TemplateEditorInspectorSidebar } from '@/features/template-editor/components/TemplateEditorInspectorSidebar';
 import { MobileCanvasControls } from '@/features/template-editor/components/MobileCanvasControls';
 import { MobileElementActions } from '@/features/template-editor/components/MobileElementActions';
+import { NewCardDesignDialog } from '@/features/template-editor/components/NewCardDesignDialog';
 import { useTemplateEditorSession } from '@/features/template-editor/hooks/useTemplateEditorSession';
 import { useTemplateEditorVariables } from '@/features/template-editor/hooks/useTemplateEditorVariables';
 import { useTemplateEditorElements } from '@/features/template-editor/hooks/useTemplateEditorElements';
@@ -39,7 +40,7 @@ import { createTemplateEditorActions } from '@/features/template-editor/lib/temp
 interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
-  onSaveTemplate: (template: TCGCardTemplate) => string;
+  onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
   backFaceTemplates: TCGCardTemplate[];
@@ -54,13 +55,15 @@ interface CardTemplateMakerProps {
   onSaveAppearanceStyle: (style: AppearanceStylePreset) => string;
   selectedTemplateIdForEditing: string | null;
   onSelectTemplateForEditing: (templateId: string | null) => void;
-  canSavePipelineTemplate: boolean;
+  canSubmitBaseRevision: boolean;
   canUploadCustomAssets: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
   isCheckoutStarting: boolean;
   isActive: boolean;
   onReturnToTemplateMaker: () => void;
   projectFileGateMessage?: string | null;
+  requestedBackFormat?: { key: number; formatSource: TemplateCardFormatSource } | null;
+  onRequestedBackFormatConsumed?: () => void;
 }
 export function CardTemplateMaker({
   canUseProjectFiles,
@@ -80,13 +83,15 @@ export function CardTemplateMaker({
   onSaveAppearanceStyle,
   selectedTemplateIdForEditing,
   onSelectTemplateForEditing,
-  canSavePipelineTemplate,
+  canSubmitBaseRevision,
   canUploadCustomAssets,
   fileInputRef,
   isCheckoutStarting,
   isActive,
   onReturnToTemplateMaker,
   projectFileGateMessage,
+  requestedBackFormat,
+  onRequestedBackFormatConsumed,
 }: CardTemplateMakerProps) {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -214,9 +219,15 @@ export function CardTemplateMaker({
     requestTemplateChange,
     toast,
   });
-  const saveAndContinue = useCallback(() => {
+  const requestNewTemplate = commands.requestNewTemplate;
+  useEffect(() => {
+    if (!isActive || !requestedBackFormat) return;
+    requestNewTemplate('back-preset', requestedBackFormat.formatSource);
+    onRequestedBackFormatConsumed?.();
+  }, [isActive, onRequestedBackFormatConsumed, requestNewTemplate, requestedBackFormat]);
+  const saveAndContinue = useCallback(async () => {
     const templateToSave = { ...currentTemplate, name: saveName.trim() };
-    if (!commands.saveTemplate(templateToSave)) return;
+    if (!await commands.saveTemplate(templateToSave)) return;
     const action = pendingTemplateChange;
     setPendingTemplateChange(null);
     action?.();
@@ -440,14 +451,26 @@ export function CardTemplateMaker({
           <span>Esc Deselect</span>
         </div>
         <MobileElementActions element={contextElement} onDelete={() => { deleteSelected(); setContextElement(null); }} onDuplicate={() => { duplicateSelected(); setContextElement(null); }} onEdit={() => { if (contextElement) openElementInspector(contextElement); setContextElement(null); }} onOpenChange={(open) => !open && setContextElement(null)} />
+        <NewCardDesignDialog
+          open={commands.newTemplateRequest !== null}
+          usage={commands.newTemplateRequest?.usage ?? 'standard'}
+          initialFormat={commands.newTemplateRequest?.formatSource ?? currentTemplate}
+          canClone={Boolean(currentTemplate.id)}
+          onOpenChange={(open) => {
+            if (!open) commands.setNewTemplateRequest(null);
+          }}
+          onCreate={commands.createNewTemplate}
+        />
         <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled card design'}”?</AlertDialogTitle>
               <AlertDialogDescription>
-                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate
-                  ? 'This is a built-in CardForge card design. Saving creates a new personal copy and keeps the original unchanged.'
-                  : 'Your changes are not saved yet.'}
+                {currentTemplate.templateSource === 'default'
+                  ? canSubmitBaseRevision
+                    ? 'Saving keeps this draft in your browser and submits a numbered base revision for owner review. The shared design changes only after publication.'
+                    : 'This is a built-in CardForge card design. Saving creates a new personal copy and keeps the original unchanged.'
+                  : 'Your changes are not saved in this browser yet.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-2">
@@ -462,8 +485,10 @@ export function CardTemplateMaker({
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel>
               <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
-              <AlertDialogAction onClick={saveAndContinue}>
-                {currentTemplate.templateSource === 'default' && !canSavePipelineTemplate ? 'Save as new card design' : 'Save changes'}
+              <AlertDialogAction onClick={() => void saveAndContinue()}>
+                {currentTemplate.templateSource === 'default'
+                  ? canSubmitBaseRevision ? 'Submit base revision' : 'Save as new card design'
+                  : 'Save changes'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

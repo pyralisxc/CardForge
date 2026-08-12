@@ -3,6 +3,17 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1', '192.168.1.159'],
   images: {
+    localPatterns: [
+      {
+        pathname: '/brand/**',
+      },
+      {
+        pathname: '/card-assets/**',
+      },
+      {
+        pathname: '/api/public/site-media/**',
+      },
+    ],
     remotePatterns: [
       {
         protocol: 'https',

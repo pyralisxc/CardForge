@@ -16,10 +16,16 @@ describe('analytics ownership', () => {
     expect(client).not.toContain('PRIVATE_KEY');
   });
 
-  it('keeps Google as measurement owner instead of duplicating raw events in Supabase', async () => {
+  it('keeps providers as measurement owners instead of duplicating raw events in Supabase', async () => {
     const reporting = await source('src', 'features', 'analytics', 'server', 'googleReporting.ts');
+    const interactions = await source('src', 'features', 'analytics', 'server', 'posthogReporting.ts');
+    const client = await source('src', 'features', 'analytics', 'client.ts');
     expect(reporting).toContain('analyticsdata.googleapis.com');
     expect(reporting).toContain('searchconsole.googleapis.com');
+    expect(reporting).not.toContain('posthogReporting');
     expect(reporting).not.toContain('supabase');
+    expect(interactions).toContain('/api/projects/');
+    expect(interactions).not.toContain('supabase');
+    expect(client).not.toContain('CARDFORGE_POSTHOG_PERSONAL_API_KEY');
   });
 });

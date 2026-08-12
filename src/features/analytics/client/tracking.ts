@@ -8,6 +8,7 @@ import {
   type AnalyticsConsentPreference,
   type CardForgeAnalyticsEventName,
 } from '../model';
+import { captureProductAnalyticsEvent } from './posthog';
 
 declare global {
   interface Window {
@@ -39,11 +40,31 @@ export const trackCardForgeEvent = (
   eventName: CardForgeAnalyticsEventName,
   parameters: Record<string, unknown> = {},
 ) => {
+  if (typeof window === 'undefined' || !isAnalyticsConsentGranted()) return;
+  trackGoogleCardForgeEvent(eventName, parameters);
+  trackProductCardForgeEvent(eventName, parameters);
+};
+
+export const trackGoogleCardForgeEvent = (
+  eventName: CardForgeAnalyticsEventName,
+  parameters: Record<string, unknown> = {},
+) => {
   if (typeof window === 'undefined' || !isAnalyticsConsentGranted() || !window.gtag) return;
   const context = getSafeAnalyticsPageContext();
-  window.gtag('event', eventName, {
-    ...sanitizeAnalyticsEventParameters(parameters),
-    ...context,
+  const sanitized = sanitizeAnalyticsEventParameters(parameters);
+  window.gtag('event', eventName, { ...sanitized, ...context });
+};
+
+export const trackProductCardForgeEvent = (
+  eventName: CardForgeAnalyticsEventName,
+  parameters: Record<string, unknown> = {},
+) => {
+  if (typeof window === 'undefined' || !isAnalyticsConsentGranted()) return;
+  const context = getSafeAnalyticsPageContext();
+  const sanitized = sanitizeAnalyticsEventParameters(parameters);
+  captureProductAnalyticsEvent(eventName, {
+    ...sanitized,
+    path: typeof context.page_path === 'string' ? context.page_path : '/',
   });
 };
 
@@ -88,6 +109,17 @@ export const trackAnalyticsPageView = (lastTrackedLocation: string | null = null
   return context.page_location;
 };
 
+export const trackProductAnalyticsPageView = (lastTrackedPath: string | null = null) => {
+  if (typeof window === 'undefined' || !isAnalyticsConsentGranted()) return null;
+  const context = getSafeAnalyticsPageContext();
+  const path = typeof context.page_path === 'string' ? context.page_path : '/';
+  if (path === lastTrackedPath) return null;
+  captureProductAnalyticsEvent('page_viewed', {
+    path,
+  });
+  return path;
+};
+
 export const getSafeAnalyticsPageContext = () => {
   if (typeof window === 'undefined' || typeof document === 'undefined') return {};
   const location = new URL(window.location.href);
@@ -114,7 +146,7 @@ export const getSafeAnalyticsPageContext = () => {
 };
 
 export const markSignUpIntent = () => {
-  if (typeof window === 'undefined' || !isAnalyticsConsentGranted() || !window.gtag) return;
+  if (typeof window === 'undefined' || !isAnalyticsConsentGranted()) return;
   window.sessionStorage.setItem(ANALYTICS_SIGN_UP_INTENT_KEY, String(Date.now()));
 };
 
@@ -133,8 +165,24 @@ export const completeSignUpIntent = (userCreatedAt?: Date | string | number | nu
 export const trackCardCreated = (creationMethod: 'single' | 'bulk', cardCount: number) =>
   trackCardForgeEvent('card_created', { creation_method: creationMethod, card_count: cardCount });
 
+export type AnalyticsExportKind = 'image' | 'png_set' | 'pdf' | 'tabletop_simulator' | 'project' | 'social_image';
+
+export const trackExportStarted = (exportKind: AnalyticsExportKind, cardCount?: number) =>
+  trackCardForgeEvent('export_started', {
+    export_kind: exportKind,
+    ...(cardCount === undefined ? {} : { card_count: cardCount }),
+  });
+
+export const trackExportFailed = (exportKind: AnalyticsExportKind, failureStage: string, cardCount?: number) =>
+  trackCardForgeEvent('export_failed', {
+    export_kind: exportKind,
+    failure_stage: failureStage,
+    ...(cardCount === undefined ? {} : { card_count: cardCount }),
+    success: false,
+  });
+
 export const trackExportCompleted = (
-  exportKind: 'image' | 'png_set' | 'pdf' | 'tabletop_simulator' | 'project' | 'social_image',
+  exportKind: AnalyticsExportKind,
   cardCount?: number,
 ) => trackCardForgeEvent('export_completed', {
   export_kind: exportKind,

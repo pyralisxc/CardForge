@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, type SVGProps } from 'react';
+import { useState, type SVGProps } from 'react';
 
 import type { FounderProfile } from '../model/founderProfile';
 

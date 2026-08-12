@@ -11,12 +11,16 @@ import {
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
   archivePipelineRegistryAsset,
-  canCurrentAccountWriteShippedLibrary,
   DeveloperAssetRegistryCommandError,
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
-  upsertPipelineRegistryAsset,
+  submitTemplateRevision,
 } from '@/features/developer-assets/server';
+import {
+  DeveloperCockpitAccessError,
+  getCurrentDeveloperCockpitAccess,
+  requireContributionScope,
+} from '@/features/developer-access/server';
 
 const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
 const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
@@ -109,6 +113,11 @@ const readTemplatesFromRegistry = async (): Promise<TCGCardTemplate[]> => {
     );
 
     if (!template) return;
+    const metadata = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+      ? row.metadata as Record<string, unknown>
+      : {};
+    const revisionNumber = Number(metadata.revisionNumber);
+    const revisionId = typeof metadata.revisionId === 'string' ? metadata.revisionId : undefined;
     templates.push({
       ...template,
       id: template.id || row.asset_id,
@@ -118,6 +127,8 @@ const readTemplatesFromRegistry = async (): Promise<TCGCardTemplate[]> => {
       templateAccessTier: row.access_tier,
       templateRegistryStatus: row.status,
       templateContributorName: template.templateContributorName || PIPELINE_CONTRIBUTOR_NAME,
+      templateRevision: Number.isInteger(revisionNumber) && revisionNumber >= 0 ? revisionNumber : 0,
+      templateRevisionId: revisionId,
     });
   }));
 
@@ -149,31 +160,6 @@ const mergeTemplatesById = (
   });
 };
 
-const syncDefaultTemplateToRegistry = async (template: TCGCardTemplate) => {
-  if (!template.id || !template.name) return;
-
-  await upsertPipelineRegistryAsset({
-    assetId: template.id,
-    name: template.name,
-    submissionAssetType: 'templates',
-    registryAssetType: 'template',
-    url: `/api/templates#${template.id}`,
-    fileSizeBytes: Buffer.byteLength(JSON.stringify(template)),
-    description: template.templateDescription ?? 'Starter template maintained through the Forge Pipeline.',
-    metadata: {
-      sourceKind: 'pipeline-owner-edit',
-      template: {
-        ...template,
-        templateSource: 'default' as const,
-        templateLibrarySource: 'pipeline' as const,
-        templateAccessTier: 'free' as const,
-        templateRegistryStatus: 'published' as const,
-        templateContributorName: PIPELINE_CONTRIBUTOR_NAME,
-      },
-    },
-  });
-};
-
 export async function GET() {
   try {
     const [localDefaults, registryDefaults] = await Promise.all([
@@ -195,13 +181,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    if (!await canCurrentAccountWriteShippedLibrary()) {
-      return createApiErrorResponse(
-        403,
-        'library_writes_disabled',
-        'Template library writes are disabled.'
-      );
-    }
+    const access = await getCurrentDeveloperCockpitAccess();
+    requireContributionScope(access, 'library.submit');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
@@ -228,10 +209,34 @@ export async function POST(request: Request) {
         'Personal templates are saved in the browser library, not the server filesystem.',
       );
     }
-    await syncDefaultTemplateToRegistry({ ...template, templateSource: 'default' });
+    const submissionKey = request.headers.get('Idempotency-Key')?.trim() || '';
+    if (!submissionKey || submissionKey.length > 160) {
+      return createApiErrorResponse(400, 'invalid_idempotency_key', 'A valid revision submission key is required.');
+    }
+    const revision = await submitTemplateRevision({
+      template: { ...template, id: template.id!, templateSource: 'default' },
+      developerId: access.user.id,
+      developerEmail: access.email,
+      expectedRevision: Number.isInteger(template.templateRevision) && Number(template.templateRevision) >= 0
+        ? Number(template.templateRevision)
+        : 0,
+      submissionKey,
+    });
 
-    return createNoStoreJsonResponse({ ok: true, fileName, template: { ...template, templateSource: source } });
+    return createNoStoreJsonResponse({
+      ok: true,
+      fileName,
+      revision,
+      template: { ...template, templateSource: source, templateRegistryStatus: 'submitted' },
+    }, { status: 202 });
   } catch (error) {
+    if (error instanceof DeveloperCockpitAccessError) {
+      return createApiErrorResponse(
+        error.status,
+        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.message,
+      );
+    }
     if (error instanceof DeveloperAssetRegistryCommandError) {
       return createApiErrorResponse(error.status, 'template_library_unavailable', error.message);
     }
@@ -246,13 +251,8 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (!await canCurrentAccountWriteShippedLibrary()) {
-      return createApiErrorResponse(
-        403,
-        'library_writes_disabled',
-        'Template library writes are disabled.'
-      );
-    }
+    const access = await getCurrentDeveloperCockpitAccess();
+    requireContributionScope(access, 'library.publish');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
@@ -283,6 +283,13 @@ export async function DELETE(request: Request) {
 
     return createNoStoreJsonResponse({ ok: true, fileName });
   } catch (error) {
+    if (error instanceof DeveloperCockpitAccessError) {
+      return createApiErrorResponse(
+        error.status,
+        error.status === 401 ? 'sign_in_required' : 'developer_access_required',
+        error.message,
+      );
+    }
     if (error instanceof DeveloperAssetRegistryCommandError) {
       return createApiErrorResponse(error.status, 'template_library_unavailable', error.message);
     }

@@ -12,7 +12,7 @@ export const getCachedExperienceSettings = unstable_cache(
 
 export const revalidateExperienceSettingsCache = (): void => {
   try {
-    revalidateTag(EXPERIENCE_SETTINGS_TAG);
+    revalidateTag(EXPERIENCE_SETTINGS_TAG, { expire: 0 });
   } catch (error) {
     console.error('Unable to invalidate public experience settings cache:', error);
   }
