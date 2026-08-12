@@ -1,9 +1,23 @@
 import type { StateCreator } from 'zustand';
 
+import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { PAPER_SIZES } from '@/domain/rendering';
 
+import { selectAllTemplates } from './selectors';
 import type { ProjectState, SettingsSlice } from './types';
 import { createDefaultActiveCardSet, normalizeActiveTab, WORKSPACE_TABS } from './workspaceDefaults';
+
+const getCompatibleBackingId = (
+  state: ProjectState,
+  frontTemplateId: string | null,
+  backingTemplateId: string | null,
+): string | null => {
+  if (!backingTemplateId) return null;
+  const templates = selectAllTemplates(state);
+  const front = templates.find((template) => template.id === frontTemplateId);
+  const back = templates.find((template) => template.id === backingTemplateId && template.templateUsage === 'back-preset');
+  return front && back && areTemplateFormatsCompatible(front, back) ? backingTemplateId : null;
+};
 
 export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSlice> = (set) => ({
   selectedPaperSize: PAPER_SIZES[0],
@@ -25,15 +39,26 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     activeCardSet: { ...state.activeCardSet, name: name.trim() || 'Untitled Set' },
   })),
   setActiveCardSetFrontTemplateId: (id) => set((state) => ({
-    activeCardSet: { ...state.activeCardSet, frontTemplateId: id },
+    activeCardSet: {
+      ...state.activeCardSet,
+      frontTemplateId: id,
+      backingTemplateId: getCompatibleBackingId(state, id, state.activeCardSet.backingTemplateId),
+    },
     singleCardGeneratorSelectedTemplateId: id,
   })),
   setActiveCardSetBackingTemplateId: (id) => set((state) => ({
-    activeCardSet: { ...state.activeCardSet, backingTemplateId: id },
+    activeCardSet: {
+      ...state.activeCardSet,
+      backingTemplateId: getCompatibleBackingId(state, state.activeCardSet.frontTemplateId, id),
+    },
   })),
   setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => ({
     singleCardGeneratorSelectedTemplateId: id,
-    activeCardSet: { ...state.activeCardSet, frontTemplateId: id },
+    activeCardSet: {
+      ...state.activeCardSet,
+      frontTemplateId: id,
+      backingTemplateId: getCompatibleBackingId(state, id, state.activeCardSet.backingTemplateId),
+    },
   })),
   setPdfOptions: (options) => set((state) => ({
     pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,

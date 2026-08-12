@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { StateCreator } from 'zustand';
 
 import type { CardSet } from '@/domain/cards';
+import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { reconstructMinimalTemplateObject, type TCGCardTemplate } from '@/domain/templates';
 
 import { selectAllTemplates } from './selectors';
@@ -29,7 +30,12 @@ const reconcileCardSet = (
   frontTemplateId: selectedId,
   backingTemplateId: activeCardSet.backingTemplateId
     && templates.some((template) => (
-      template.id === activeCardSet.backingTemplateId && template.templateUsage === 'back-preset'
+      template.id === activeCardSet.backingTemplateId
+      && template.templateUsage === 'back-preset'
+      && (!selectedId || areTemplateFormatsCompatible(
+        templates.find((candidate) => candidate.id === selectedId) || {},
+        template,
+      ))
     ))
     ? activeCardSet.backingTemplateId
     : null,

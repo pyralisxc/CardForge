@@ -19,13 +19,13 @@ describe('card preview export sizing', () => {
     expect(getCardExportHeightPx(makeCard('63:88'), 744)).toBe(1039);
   });
 
-  it('treats standard mm-like ratios as physical millimeters', () => {
+  it('uses the canonical trim size for legacy standard ratios', () => {
     expect(getCardPhysicalSizeMm(makeCard('63:88'))).toEqual({ widthMm: 63, heightMm: 88 });
   });
 
   it('derives raster dimensions from each template physical size at the requested dpi', () => {
     expect(getCardExportDimensionsPx(makeCard('63:88'), 300)).toEqual({ widthPx: 744, heightPx: 1039 });
-    expect(getCardExportDimensionsPx(makeCard('35:20'), 300)).toEqual({ widthPx: 413, heightPx: 236 });
+    expect(getCardExportDimensionsPx(makeCard('35:20'), 300)).toEqual({ widthPx: 1050, heightPx: 600 });
     expect(getCardExportDimensionsPx(makeCard('85:110'), 300)).toEqual({ widthPx: 1004, heightPx: 1299 });
   });
 

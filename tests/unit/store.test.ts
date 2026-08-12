@@ -156,6 +156,58 @@ describe('app store helpers', () => {
     expect(cards[0].backingTemplate?.freeformCanvas?.elements[0].content).toBe('Static Back');
   });
 
+  it('clears a selected back when the front changes to an incompatible format', () => {
+    const pokerFront = reconstructMinimalTemplateObject({ id: 'poker-front', name: 'Poker', formatId: 'poker' });
+    const tarotFront = reconstructMinimalTemplateObject({ id: 'tarot-front', name: 'Tarot', formatId: 'tarot' });
+    const pokerBack = reconstructMinimalTemplateObject({
+      id: 'poker-back',
+      name: 'Poker back',
+      formatId: 'poker',
+      templateUsage: 'back-preset',
+    });
+    useProjectStore.setState({
+      defaultTemplates: [pokerFront, tarotFront, pokerBack],
+      activeCardSet: {
+        id: 'active-card-set',
+        name: 'Set',
+        frontTemplateId: 'poker-front',
+        backingTemplateId: 'poker-back',
+      },
+      singleCardGeneratorSelectedTemplateId: 'poker-front',
+    });
+
+    useProjectStore.getState().setActiveCardSetFrontTemplateId('tarot-front');
+
+    expect(useProjectStore.getState().activeCardSet).toMatchObject({
+      frontTemplateId: 'tarot-front',
+      backingTemplateId: null,
+    });
+  });
+
+  it('rejects an incompatible back selection', () => {
+    const pokerFront = reconstructMinimalTemplateObject({ id: 'poker-front', name: 'Poker', formatId: 'poker' });
+    const tarotBack = reconstructMinimalTemplateObject({
+      id: 'tarot-back',
+      name: 'Tarot back',
+      formatId: 'tarot',
+      templateUsage: 'back-preset',
+    });
+    useProjectStore.setState({
+      defaultTemplates: [pokerFront, tarotBack],
+      activeCardSet: {
+        id: 'active-card-set',
+        name: 'Set',
+        frontTemplateId: 'poker-front',
+        backingTemplateId: null,
+      },
+      singleCardGeneratorSelectedTemplateId: 'poker-front',
+    });
+
+    useProjectStore.getState().setActiveCardSetBackingTemplateId('tarot-back');
+
+    expect(useProjectStore.getState().activeCardSet.backingTemplateId).toBeNull();
+  });
+
   it('selects generated cards that use a freeform template', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'freeform-template',

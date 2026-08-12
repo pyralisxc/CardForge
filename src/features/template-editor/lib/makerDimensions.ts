@@ -1,4 +1,5 @@
 import type { TCGCardTemplate } from '@/domain/templates';
+import { resolveTemplateCardFormat, type CardMeasurementUnit } from '@/domain/card-formats';
 import {
   createDefaultFreeformCanvas,
   getDefaultGridSizeForCanvas,
@@ -9,8 +10,8 @@ import { mmConversion } from '@/features/template-editor/lib/makerGeometry';
 interface BuildCustomDimensionUpdateInput {
   widthValue: string;
   heightValue: string;
-  unit: string;
-  template: Pick<TCGCardTemplate, 'freeformCanvas'>;
+  unit: CardMeasurementUnit | string;
+  template: Pick<TCGCardTemplate, 'formatId' | 'trimWidthMm' | 'trimHeightMm' | 'aspectRatio' | 'freeformCanvas'>;
 }
 
 export const buildCustomDimensionTemplateUpdate = ({
@@ -26,14 +27,20 @@ export const buildCustomDimensionTemplateUpdate = ({
     return null;
   }
 
+  const currentFormat = resolveTemplateCardFormat(template);
   const factor = mmConversion[unit] ?? 1;
-  const widthMm = Math.round(width * factor * 100) / 100;
-  const heightMm = Math.round(height * factor * 100) / 100;
-  const nextCanvasWidth = Math.round(widthMm * 10);
-  const nextCanvasHeight = Math.round(heightMm * 10);
+  const currentPixelsPerMmX = currentFormat.canvasWidthPx / currentFormat.widthMm;
+  const currentPixelsPerMmY = currentFormat.canvasHeightPx / currentFormat.heightMm;
+  const widthMm = Math.round((unit === 'px' ? width / currentPixelsPerMmX : width * factor) * 1000) / 1000;
+  const heightMm = Math.round((unit === 'px' ? height / currentPixelsPerMmY : height * factor) * 1000) / 1000;
+  const nextCanvasWidth = unit === 'px' ? Math.round(width) : Math.round(widthMm * currentPixelsPerMmX);
+  const nextCanvasHeight = unit === 'px' ? Math.round(height) : Math.round(heightMm * currentPixelsPerMmY);
   const nextGridSize = getDefaultGridSizeForCanvas(nextCanvasWidth, nextCanvasHeight);
 
   return {
+    formatId: 'custom',
+    trimWidthMm: widthMm,
+    trimHeightMm: heightMm,
     aspectRatio: `${widthMm}:${heightMm}`,
     freeformCanvas: reconstructFreeformCanvas({
       ...(template.freeformCanvas || createDefaultFreeformCanvas()),

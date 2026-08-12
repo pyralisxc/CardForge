@@ -1,4 +1,5 @@
 import type { CardData } from '@/domain/cards';
+import type { CardFormatId } from '@/domain/card-formats';
 
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
@@ -222,6 +223,9 @@ export interface TCGCardTemplate {
   id: string | null;
   name: string;
   aspectRatio: string;
+  formatId?: CardFormatId;
+  trimWidthMm?: number;
+  trimHeightMm?: number;
   templateSource?: TemplateSource;
   templateLibrarySource?: 'base' | 'pipeline' | 'personal';
   templateAccessTier?: 'free' | 'paid' | 'developer' | 'hidden';

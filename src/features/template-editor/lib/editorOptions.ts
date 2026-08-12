@@ -32,7 +32,5 @@ export const CARD_BORDER_STYLES: Array<{
 export const DIMENSION_UNITS: Array<{ label: string; value: string }> = [
   { label: 'Millimeters (mm)', value: 'mm' },
   { label: 'Inches (in)', value: 'in' },
-  { label: 'Centimeters (cm)', value: 'cm' },
-  { label: 'Pixels – screen (96 dpi)', value: 'px96' },
-  { label: 'Pixels – print (300 dpi)', value: 'px300' },
+  { label: 'Canvas pixels (px)', value: 'px' },
 ];
