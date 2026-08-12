@@ -7,8 +7,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ANALYTICS_CONSENT_COOKIE, type AnalyticsConsentPreference } from '../model';
 import {
+  bootstrapGoogleAnalytics,
+  configureGoogleAnalytics,
   getAnalyticsConsentPreference,
-  initializeGoogleAnalytics,
   trackAnalyticsPageView,
   trackCardForgeEvent,
 } from '../client/tracking';
@@ -39,6 +40,7 @@ export function AnalyticsProvider() {
   const [preference, setPreference] = useState<AnalyticsConsentPreference | null>(null);
   const [preferenceReady, setPreferenceReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [bootstrapReady, setBootstrapReady] = useState(false);
   const [tagReady, setTagReady] = useState(false);
   const lastTrackedLocation = useRef<string | null>(null);
 
@@ -53,6 +55,16 @@ export function AnalyticsProvider() {
     if (enabled) setPreference(getAnalyticsConsentPreference());
     setPreferenceReady(true);
   }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !trackablePath || preference !== 'granted') {
+      setBootstrapReady(false);
+      setTagReady(false);
+      return;
+    }
+    bootstrapGoogleAnalytics();
+    setBootstrapReady(true);
+  }, [enabled, preference, trackablePath]);
 
   useEffect(() => {
     if (!enabled || !trackablePath || preference !== 'granted' || !tagReady) return;
@@ -78,12 +90,11 @@ export function AnalyticsProvider() {
         ad_personalization: 'denied',
       });
       lastTrackedLocation.current = null;
-      setTagReady(true);
     }
   };
 
   const initializeTag = () => {
-    initializeGoogleAnalytics(measurementId);
+    configureGoogleAnalytics(measurementId);
     trackCurrentPage();
     setTagReady(true);
   };
@@ -91,7 +102,7 @@ export function AnalyticsProvider() {
   const decisionOpen = preference === null || showSettings;
   return (
     <>
-      {preference === 'granted' && trackablePath ? (
+      {preference === 'granted' && trackablePath && bootstrapReady ? (
         <Script
           id="cardforge-google-analytics"
           src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`}
