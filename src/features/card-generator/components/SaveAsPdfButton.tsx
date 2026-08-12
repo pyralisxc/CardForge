@@ -68,7 +68,7 @@ export function SaveAsPdfButton({
   const handleSaveAsPdf = async () => {
     if (gateMessage) {
       toast({
-        title: 'Clean export locked',
+        title: 'Watermark-free download locked',
         description: withNextStep(gateMessage, 'Open your account page and buy Creator Pass to export clean files.'),
         variant: 'default',
       });

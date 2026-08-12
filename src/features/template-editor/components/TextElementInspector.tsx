@@ -59,8 +59,8 @@ export function TextElementFieldModeControl({
   }) ? 'structuredRows' : 'text';
 
   const description = mode === 'structuredRows'
-    ? 'Use this text element as a repeatable list. In Generate, each item fills these variables and uses a chosen separator.'
-    : 'Use this text element as normal generator text. Static/base copy and inline variables compose into one authored text area.';
+    ? 'Use this text element as a repeatable list. In Make cards, each item fills these variables and uses a chosen separator.'
+    : 'Use this text element as normal card text. Base copy and inline variables combine into one editable field.';
   const baseTextCount = parseTemplateTextSegments(element.content)
     .filter((segment) => segment.type === 'text' && segment.text.trim().length > 0)
     .length;
@@ -80,11 +80,11 @@ export function TextElementFieldModeControl({
       <div className="flex flex-col gap-3">
         <div className="space-y-1">
           <Label htmlFor="text-element-field-mode" className="text-[10px] uppercase tracking-[0.16em] text-[#d5ad54]">
-            Text Element Generator Mode
+            Make cards field mode
           </Label>
           <p className="max-w-[360px] text-[11px] leading-4 text-[#aeb4c0]">{description}</p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Generator mode for this text element">
+        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Make cards field mode for this text element">
           {textContractTypeOptions.map((option) => {
             const selected = mode === option.value;
             const Icon = option.value === 'structuredRows' ? ListPlus : TextCursorInput;
@@ -119,7 +119,7 @@ export function TextElementFieldModeControl({
         </div>
         {variableFields.length > 0 && (
           <p className="text-[10px] leading-4 text-[#8f95a3]">
-            Save the template before moving to Generate so these field contracts are available for single and bulk output.
+            Save the card design before moving to Make cards so these fields are available for single and bulk output.
           </p>
         )}
         {mode === 'structuredRows' && (
@@ -128,7 +128,7 @@ export function TextElementFieldModeControl({
               <div className="min-w-0 space-y-1">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#f3ead7]">Repeating Text</p>
                 <p className="text-[10px] leading-4 text-[#8f95a3]">
-                  Add variables for the pieces users fill in. In Generate, users can add items and pick a separator like dash, slash, or line break.
+                  Add variables for the pieces users fill in. In Make cards, users can add items and pick a separator like dash, slash, or line break.
                 </p>
               </div>
               <Button
@@ -361,7 +361,7 @@ export function TextFieldSettingsList({
                   <div className="space-y-1">
                     <Label className="text-[10px] text-[#8f95a3]">Required</Label>
                     <div className="flex h-10 items-center justify-between rounded-[6px] border border-[#252b35] bg-[#090d13] px-3">
-                      <span className="text-[11px] text-[#d8d1c4]">Prompt in generator</span>
+                      <span className="text-[11px] text-[#d8d1c4]">Prompt in Make cards</span>
                       <Switch
                         aria-label={`Prompt ${field.label} in generator`}
                         checked={Boolean(contract?.required ?? field.required)}
@@ -417,7 +417,7 @@ export function TextFieldSettingsList({
                     <Label className="text-[10px] text-[#8f95a3]">Description</Label>
                     <Input
                       value={contract?.description || ''}
-                      placeholder="Generator guidance"
+                      placeholder="Make cards guidance"
                       onChange={(event) => onUpdateContract(field.key, {
                         elementId: element.id,
                         description: event.target.value || undefined,

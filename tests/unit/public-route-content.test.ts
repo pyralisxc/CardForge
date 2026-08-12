@@ -13,20 +13,17 @@ describe('public route stories', () => {
     const about = readRoute('about');
     const cameron = readRoute('cameron');
 
-    expect(about).toContain('Give everyday creators room to make it their own.');
+    expect(about).toContain('getCachedSiteContentBlocks');
+    expect(about).toContain('createSiteContentMap');
+    expect(about).toContain("siteContent['about.hero.headline']");
     expect(about).toContain('Your work stays with you');
     expect(about).toContain('Cards are the starting point');
     expect(about).toContain('future printable formats');
-    expect(about).toContain('competitive, fast-moving category');
-    expect(about).toContain('not affiliated with those products');
-    expect(about).toContain('will adapt the brand if a legal requirement makes that necessary');
-    expect(about).toContain('cardforge.com');
-    expect(about).toContain('currently listed for sale by a third party');
-    expect(about).toContain('asking price can change');
-    expect(about).toContain('future developer compensation program');
-    expect(about).toContain('That program is not active today, is not committed or guaranteed');
-    expect(about).toContain('may change or never launch');
-    expect(about).toContain('No current contribution creates a developer balance, profit right, payment promise, or payout entitlement');
+    expect(about).toContain('Qualified contributors can submit shared assets, marketing drafts, and site-copy proposals.');
+    expect(about).toContain('All public changes remain owner-approved.');
+    expect(about).not.toContain('Independent brand notice');
+    expect(about).not.toContain('cardforge.com');
+    expect(about).not.toContain('future developer compensation program');
     expect(cameron).toContain('getCachedFounderProfile');
     expect(cameron).toContain('profile.heroHeadline');
     expect(cameron).toContain('profile.roadBody');
@@ -46,6 +43,8 @@ describe('public route stories', () => {
     expect(access).toContain('Creator Pass');
     expect(access).toContain('Start free');
     expect(access).toContain('See Creator Pass');
+    expect(access).toContain('watermark-free downloads');
+    expect(access).not.toContain('clean downloads');
     expect(access).not.toContain('planned home');
   });
 

@@ -73,9 +73,6 @@ export function PublicLegalPage({
             </Link>
           ))}
         </nav>
-        <p className="mt-6 text-base leading-7 text-[var(--public-muted-text)]">
-          These pages are product-facing policy text for CardForge's beta launch and should be reviewed by a qualified attorney before paid production use.
-        </p>
       </article>
     </PublicSiteShell>
   );

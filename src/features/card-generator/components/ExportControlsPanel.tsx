@@ -189,9 +189,9 @@ export function ExportControlsPanel({
                 disabled={isCheckoutStarting}
                 className="w-full"
               >
-                {isCheckoutStarting ? 'Checking access...' : 'Unlock clean downloads'}
+                {isCheckoutStarting ? 'Checking access...' : 'Get watermark-free downloads'}
               </Button>
-              <p>Use Creator Pass when you are ready for clean downloads.</p>
+              <p>Creator Pass adds watermark-free downloads and portable project files.</p>
             </div>
           ) : null}
 

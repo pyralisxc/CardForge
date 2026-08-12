@@ -7,9 +7,16 @@ const readSource = (path: string): string => readFileSync(join(process.cwd(), pa
 
 describe('proof-led homepage', () => {
   it('leads with the product outcome and two intentional hero actions', () => {
+    const page = readSource('src/app/page.tsx');
     const hero = readSource('src/features/public-site/components/OutcomeHero.tsx');
 
-    expect(hero).toContain('Design one card. Add your list. CardForge builds the set.');
+    expect(page).toContain('getCachedSiteContentBlocks');
+    expect(page).toContain('createSiteContentMap');
+    expect(page).toContain("getCachedSiteContentBlocks('landing')");
+    expect(page).toContain('headline={siteContent[\'landing.hero.headline\']}');
+    expect(hero).toContain('{headline}');
+    expect(hero).toContain('{body}');
+    expect(hero).toContain('{support}');
     expect(hero).toContain('Try the Studio');
     expect(hero).toContain('href="/studio"');
     expect(hero).toContain('See what it makes');

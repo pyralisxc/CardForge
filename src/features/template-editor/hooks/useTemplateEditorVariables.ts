@@ -175,7 +175,7 @@ export function useTemplateEditorVariables({
     setActiveVariableKey(labelKey);
     toast({
       title: 'Structured row columns added',
-      description: `${labelKey} and ${valueKey} were added to this text element. Add actual rows in Generate.`,
+      description: `${labelKey} and ${valueKey} were added to this text element. Add actual rows in Make cards.`,
     });
     requestAnimationFrame(() => focusVariableCard(labelKey));
   }, [currentTemplate.fieldContracts, focusVariableCard, selectedElement, toast, updateElement, upsertFieldContract]);

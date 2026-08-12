@@ -35,9 +35,9 @@ export function ImageInspectorPanel({
   return (
     <>
       <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Image Source</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Image source</Label>
         <div>
-          <Label htmlFor="element-image-source" className="text-xs">URL, data key, or uploaded file</Label>
+          <Label htmlFor="element-image-source" className="text-xs">Image URL, card field, or uploaded file</Label>
           <div className="flex gap-2">
             <Input
               id="element-image-source"
@@ -57,7 +57,7 @@ export function ImageInspectorPanel({
             />
           </div>
         </div>
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Reviewed & Local Image Assets</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Library and personal images</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
           <Input

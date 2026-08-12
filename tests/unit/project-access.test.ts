@@ -88,35 +88,35 @@ describe('projectAccess', () => {
   });
 
   it('returns export gate copy only when clean export is unavailable', () => {
-    expect(getExportGateMessage('free')).toBe('Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports. You can keep designing and generating previews for free.');
+    expect(getExportGateMessage('free')).toBe('Creator Pass unlocks watermark-free PNG, PDF, and ZIP downloads plus portable CardForge project files. You can keep designing and making preview cards for free.');
     expect(getExportGateMessage('paid')).toBeNull();
     expect(getExportGateMessage('dev')).toBeNull();
   });
 
-  it('describes free access as local preview mode with clean export locked', () => {
+  it('describes free access without internal entitlement terminology', () => {
     expect(getExportEntitlementCopy('free')).toEqual({
-      modeLabel: 'Free preview mode',
+      modeLabel: 'Free plan',
       canExportClean: false,
-      gateMessage: 'Buy Creator Pass to unlock clean PNG, PDF, ZIP, and project-file exports. You can keep designing and generating previews for free.',
-      panelMessage: 'Free mode can design layouts, import data, and generate previews. Buy Creator Pass when you are ready to export clean files and save portable project files.',
+      gateMessage: 'Creator Pass unlocks watermark-free PNG, PDF, and ZIP downloads plus portable CardForge project files. You can keep designing and making preview cards for free.',
+      panelMessage: 'Design layouts, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
     });
   });
 
   it('describes paid access as export entitlement without cloud project storage', () => {
     expect(getExportEntitlementCopy('paid')).toEqual({
-      modeLabel: 'Paid export entitlement active',
+      modeLabel: 'Creator Pass active',
       canExportClean: true,
       gateMessage: null,
-      panelMessage: 'Clean PDF, PNG, and ZIP export are unlocked. Projects remain local to this browser and project files; CardForge does not store your designs.',
+      panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads and portable project files are available. Projects remain local to this browser unless you download and move a project file; CardForge does not store your card designs.',
     });
   });
 
   it('describes dev access as local validation entitlement without cloud project storage', () => {
     expect(getExportEntitlementCopy('dev')).toEqual({
-      modeLabel: 'Dev export entitlement active',
+      modeLabel: 'Contributor access',
       canExportClean: true,
       gateMessage: null,
-      panelMessage: 'Clean export is unlocked for local validation. Projects remain local unless you export a project file yourself.',
+      panelMessage: 'Watermark-free downloads and portable project files are available for local validation. Projects stay on this device unless you download and move a project file.',
     });
   });
 });

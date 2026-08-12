@@ -52,11 +52,11 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
   const saveMechanics = async () => {
     setIsSaving(true);
     try {
-      const next = await updateOwnerConsole({ kind: 'siteMechanics', siteMechanics: settings }, 'Unable to save site mechanics.');
+      const next = await updateOwnerConsole({ kind: 'siteMechanics', siteMechanics: settings }, 'Unable to save roadmap rules.');
       onConsoleChange(next);
-      toast({ title: 'Site mechanics saved', description: 'Feature voting and public board rules are updated.' });
+      toast({ title: 'Roadmap rules saved', description: 'Feature voting and public roadmap rules are updated.' });
     } catch (error) {
-      toast({ title: 'Site mechanics not saved', description: error instanceof Error ? error.message : 'Unable to save site mechanics.', variant: 'destructive' });
+      toast({ title: 'Roadmap rules not saved', description: error instanceof Error ? error.message : 'Unable to save roadmap rules.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
@@ -88,7 +88,7 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
 
   return (
     <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
-      <div className="flex items-center gap-3 text-[#e2aa4a]"><Settings2 className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Site mechanics</h2></div>
+      <div className="flex items-center gap-3 text-[#e2aa4a]"><Settings2 className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Roadmap rules</h2></div>
       <div className="mt-6 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         <MechanicsField label="Active suggestions cap" field="maxActiveUserRoadmapItems" value={settings.maxActiveUserRoadmapItems} settings={settings} setSettings={setSettings} help="Maximum user-created feature requests kept open before new suggestions are blocked." />
         <MechanicsField label="Suggestion length" field="maxRoadmapSuggestionLength" value={settings.maxRoadmapSuggestionLength} settings={settings} setSettings={setSettings} help="Maximum characters accepted for public feature suggestions." />
@@ -97,7 +97,7 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
         <MechanicsField label="Estimated tax %" field="roadmapEstimatedTaxPercent" value={settings.roadmapEstimatedTaxPercent} settings={settings} setSettings={setSettings} help="Planning estimate deducted from active Creator Pass listed-price MRR. This is not a filed tax result or tax advice." />
         <MechanicsField label="Operating reserve %" field="roadmapOperatingReservePercent" value={settings.roadmapOperatingReservePercent} settings={settings} setSettings={setSettings} help="Share of after-tax Creator Pass income held back before roadmap upgrades are considered funded." />
       </div>
-      <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveMechanics}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Saving site mechanics...' : 'Save site mechanics'}</Button>
+      <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveMechanics}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Saving roadmap rules...' : 'Save roadmap rules'}</Button>
     </section>
   );
 }

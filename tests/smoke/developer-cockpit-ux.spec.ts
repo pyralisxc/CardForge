@@ -139,7 +139,7 @@ test.describe('developer cockpit UX audit', () => {
 
     await page.getByRole('tab', { name: 'Campaigns', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Build a campaign package', exact: true })).toBeVisible();
-    await expect(page.getByText('0 of 5 production signals ready', { exact: true })).toBeVisible();
+    await expect(page.getByText('0 of 5 package sections ready', { exact: true })).toBeVisible();
 
     const saveDraft = page.getByRole('button', {
       name: 'Create campaign draft',
@@ -156,12 +156,12 @@ test.describe('developer cockpit UX audit', () => {
       .fill('Working code can naturally become an owner-reviewed CardForge story.');
 
     await expect(saveDraft).toBeEnabled();
-    await expect(page.getByText('2 of 5 production signals ready', { exact: true })).toBeVisible();
+    await expect(page.getByText('2 of 5 package sections ready', { exact: true })).toBeVisible();
 
     await page
       .getByPlaceholder('Release, feature, proof, or review context.', { exact: true })
       .fill('PR #89 proof for the release review.');
-    await expect(page.getByText('3 of 5 production signals ready', { exact: true })).toBeVisible();
+    await expect(page.getByText('3 of 5 package sections ready', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Add channel variant', exact: true }).click();
     const copyStarter = page.getByRole('button', {
@@ -174,7 +174,7 @@ test.describe('developer cockpit UX audit', () => {
       'Working code can naturally become an owner-reviewed CardForge story.',
     );
 
-    await expect(page.getByText('Approve package and media', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Approve package and make media public', { exact: true })).toHaveCount(0);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByLabel('Cockpit section', { exact: true })).toBeVisible();
@@ -231,11 +231,11 @@ test.describe('developer cockpit UX audit', () => {
       name: 'CardForge Developer Cockpit showing a campaign package ready for owner review.',
       exact: true,
     })).toBeVisible();
-    await expect(page.getByText('Production note', { exact: true })).toBeVisible();
+    await expect(page.getByText('Release and review context', { exact: true })).toBeVisible();
     await expect(page.getByText('Development associations', { exact: true })).toBeVisible();
 
     await page.getByRole('button', {
-      name: 'Approve package and media',
+      name: 'Approve package and make media public',
       exact: true,
     }).click();
     const approvalDialog = page.getByRole('alertdialog');

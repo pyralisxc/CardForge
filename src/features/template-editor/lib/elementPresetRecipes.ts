@@ -161,7 +161,7 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
   {
     id: 'shape-role-panel',
     label: 'Panel',
-    description: 'Developer-pipeline recipe for a reusable card panel.',
+    description: 'CardForge Library preset for a reusable card panel.',
     kind: 'shapeRole',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
@@ -195,7 +195,7 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
   {
     id: 'shape-role-art-frame',
     label: 'Art Frame',
-    description: 'Developer-pipeline recipe for an art window frame.',
+    description: 'CardForge Library preset for an art window frame.',
     kind: 'shapeRole',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
@@ -220,7 +220,7 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
   {
     id: 'shape-role-rules-box',
     label: 'Rules Box',
-    description: 'Developer-pipeline recipe for readable rules panels.',
+    description: 'CardForge Library preset for readable rules panels.',
     kind: 'shapeRole',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
@@ -254,7 +254,7 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
   {
     id: 'shape-role-title-plate',
     label: 'Title Plate',
-    description: 'Developer-pipeline recipe for title and type-line plates.',
+    description: 'CardForge Library preset for title and type-line plates.',
     kind: 'shapeRole',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
@@ -288,7 +288,7 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
   {
     id: 'shape-role-stat-gem',
     label: 'Stat Gem',
-    description: 'Developer-pipeline recipe for small stat diamonds.',
+    description: 'CardForge Library preset for small stat diamonds.',
     kind: 'shapeRole',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
@@ -321,7 +321,7 @@ export const SHAPE_ROLE_PRESET_RECIPES: ElementPresetRecipe[] = [
   {
     id: 'shape-role-cost-orb',
     label: 'Cost Orb',
-    description: 'Developer-pipeline recipe for circular counters.',
+    description: 'CardForge Library preset for circular counters.',
     kind: 'shapeRole',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
@@ -462,7 +462,7 @@ export const createFrameKitPresetRecipes = (frameKits: CardFrameKit[]): ElementP
   frameKits.map((kit) => ({
     id: `frame-kit-${kit.id}`,
     label: kit.name,
-    description: 'Template-canvas frame kit from the developer pipeline model.',
+    description: 'CardForge Library frame kit for the card canvas.',
     kind: 'frameKit',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',
@@ -523,10 +523,10 @@ export const createRecipesFromAppearanceStyles = (styles: AppearanceStylePreset[
       id: `style-${style.id}`,
       label: style.name,
       description: style.librarySource === 'developer'
-        ? 'Pipeline-published appearance preset.'
-        : 'Forge Pipeline starter appearance preset.',
+        ? 'Shared contributor appearance preset.'
+        : 'CardForge starter appearance preset.',
       kind: appearanceKindToRecipeKind(style.kind),
-      contributorName: style.contributorName || (style.librarySource === 'developer' ? 'Developer pipeline' : DEFAULT_OWNER_CONTRIBUTOR_NAME),
+      contributorName: style.contributorName || (style.librarySource === 'developer' ? 'CardForge contributor' : DEFAULT_OWNER_CONTRIBUTOR_NAME),
       status: appearanceStyleStatusToRecipeStatus(style.registryStatus),
       tier: appearanceStyleTierToRecipeTier(style.accessTier, style.librarySource),
       source: style.librarySource === 'developer' ? 'developer-pipeline' : 'registry-style',

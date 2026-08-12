@@ -206,7 +206,7 @@ export function DeveloperCampaignComposer({
             {editing ? editing.title : 'Build a campaign package'}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
-            Attach reusable CardForge media by identity. Storage objects never become part of the package.
+            Choose media from CardForge's approved library or upload a new source. The package stores durable media references, not storage paths.
           </p>
         </div>
         <Button
@@ -215,7 +215,7 @@ export function DeveloperCampaignComposer({
           variant="outline"
           onClick={onCancel}
         >
-          Close composer
+          Close editor
         </Button>
       </div>
 
@@ -246,7 +246,7 @@ export function DeveloperCampaignComposer({
             />
           </CountedField>
           <label className="grid gap-1 text-xs text-[#c7b288]">
-            Destination URL
+            Link people should open
             <input
               type="url"
               className={fieldClassName}
@@ -283,12 +283,12 @@ export function DeveloperCampaignComposer({
         disabled={disabled}
       >
         <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
-          2. Production context
+          2. Release context
         </legend>
         <div className="grid gap-3 md:grid-cols-2">
           <CountedField
             className="md:col-span-2"
-            label="Production note"
+            label="Release and review context"
             value={draft.productionNote}
             limit={CAMPAIGN_FIELD_LIMITS.productionNote}
           >
@@ -304,7 +304,7 @@ export function DeveloperCampaignComposer({
             />
           </CountedField>
           <label className="grid gap-1 text-xs text-[#c7b288]">
-            Requested publish time
+            Preferred publish time
             <input
               type="datetime-local"
               className={fieldClassName}
@@ -333,7 +333,7 @@ export function DeveloperCampaignComposer({
         disabled={disabled}
       >
         <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
-          3. Channel deliverables
+          3. Social posts
         </legend>
         <div className="space-y-3">
           {draft.variants.map((variant, index) => (
@@ -406,7 +406,7 @@ function PackageReadiness({
           Package readiness
         </h3>
         <p className="text-xs text-[#d8c49a]">
-          {readiness.completed} of {readiness.total} production signals ready
+          {readiness.completed} of {readiness.total} package sections ready
         </p>
       </div>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">

@@ -1,6 +1,9 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import {
+  getPublishJobStatusLabel,
+} from '@/features/developer-cockpit/client/campaignWorkflow';
+import {
   CalendarClock,
   ExternalLink,
   FileText,
@@ -37,7 +40,7 @@ export function DeveloperCampaignPackageDetails({
         <div className="flex items-center gap-2 text-[#e2aa4a]">
           <FileText className="h-4 w-4" />
           <h4 className="text-xs font-semibold uppercase tracking-[0.14em]">
-            Production context
+            Release context
           </h4>
         </div>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -57,7 +60,7 @@ export function DeveloperCampaignPackageDetails({
           <ContextItem icon={CalendarClock} label="Requested timing">
             {formatDateTime(campaign.requestedPublishAt)}
           </ContextItem>
-          <ContextItem icon={FileText} label="Production note">
+          <ContextItem icon={FileText} label="Release and review context">
             {campaign.productionNote || 'Not supplied'}
           </ContextItem>
           <ContextItem icon={Scale} label="Development associations">
@@ -95,7 +98,7 @@ export function DeveloperCampaignPackageDetails({
         <div className="flex items-center gap-2 text-[#e2aa4a]">
           <Images className="h-4 w-4" />
           <h4 className="text-xs font-semibold uppercase tracking-[0.14em]">
-            Channel deliverables
+            Social posts
           </h4>
         </div>
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
@@ -146,7 +149,7 @@ export function DeveloperCampaignPackageDetails({
                 </div>
               ) : (
                 <p className="mt-3 border border-dashed border-[#4a3823] p-3 text-xs text-[#a98a55]">
-                  Text-only channel deliverable
+                  Text-only social post
                 </p>
               )}
             </article>
@@ -171,7 +174,7 @@ function ProviderHistory({ jobs }: { jobs: SocialPublishJob[] }) {
             <span className="font-semibold text-[#e8d5ac]">
               {SOCIAL_SERVICE_LABELS[job.service]}
             </span>
-            {' / '}{job.status.replaceAll('_', ' ')}
+            {' / '}{getPublishJobStatusLabel(job.status)}
             {job.scheduledFor ? ` / ${formatDateTime(job.scheduledFor)}` : ''}
             {job.errorMessage ? ` / ${job.errorMessage}` : ''}
           </li>

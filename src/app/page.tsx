@@ -12,6 +12,8 @@ import {
 import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
   createCardForgeStructuredData,
+  createSiteContentMap,
+  getCachedSiteContentBlocks,
   getCachedSiteMedia,
   StructuredData,
 } from '@/features/public-site/server';
@@ -24,10 +26,12 @@ export const metadata = createPageMetadata({
 });
 
 export default async function LandingPage() {
-  const [businessIdentity, siteMedia] = await Promise.all([
+  const [businessIdentity, siteMedia, siteContentBlocks] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedSiteMedia(),
+    getCachedSiteContentBlocks('landing'),
   ]);
+  const siteContent = createSiteContentMap(siteContentBlocks);
   const heroMedia = siteMedia.find((asset) => asset.slot === 'landing.hero');
   const layoutMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.layout');
   const generatorSingleMedia = siteMedia.find((asset) => asset.slot === 'landing.showcase.generator-single');
@@ -39,7 +43,12 @@ export default async function LandingPage() {
       currentPath="/"
     >
       <StructuredData value={createCardForgeStructuredData(businessIdentity)} />
-      <OutcomeHero media={heroMedia} />
+      <OutcomeHero
+        body={siteContent['landing.hero.body']}
+        headline={siteContent['landing.hero.headline']}
+        media={heroMedia}
+        support={siteContent['landing.hero.support']}
+      />
       <InteractiveStudioShowcase
         layoutMedia={layoutMedia}
         generatorSingleMedia={generatorSingleMedia}

@@ -15,6 +15,7 @@ import {
 } from '@/features/developer-cockpit/client/api';
 import {
   getCampaignStatusGuidance,
+  getCampaignStatusLabel,
   matchesCampaignQueueFilter,
   type CampaignQueueFilter,
 } from '@/features/developer-cockpit/client/campaignWorkflow';
@@ -146,7 +147,7 @@ export function DeveloperCampaignQueue({
       <div className="border border-[#5f4526] bg-[#15100a] p-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Working queue</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Campaign packages</p>
             <h2 id="campaign-queue-heading" className="font-serif text-2xl text-[#fff1c7]">{cockpit.isOwner ? 'Campaign review and delivery' : 'Your campaign packages'}</h2>
           </div>
           <p className="text-sm text-[#c7b288]">{campaigns.length} shown / {cockpit.campaigns.length} total</p>
@@ -204,7 +205,7 @@ export function DeveloperCampaignQueue({
                   {' / '}
                   version {campaign.version}
                   {' / '}
-                  {campaign.variants.length} channel deliverable{campaign.variants.length === 1 ? '' : 's'}
+                  {campaign.variants.length} social post{campaign.variants.length === 1 ? '' : 's'}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-[#d2b77e]">
                   {getCampaignStatusGuidance(campaign.status, cockpit.isOwner)}
@@ -212,7 +213,7 @@ export function DeveloperCampaignQueue({
               </div>
               <div className="flex flex-wrap gap-2">
                 {canEdit ? <Button type="button" className="min-h-11" variant="outline" onClick={() => onEdit(campaign)}>Edit</Button> : null}
-                {canEdit ? <Button type="button" className="min-h-11" onClick={() => void workflow(campaign, 'submit', 'Campaign submitted for owner review.')} disabled={Boolean(busy)}><Send className="mr-2 h-4 w-4" />Submit</Button> : null}
+                {canEdit ? <Button type="button" className="min-h-11" onClick={() => void workflow(campaign, 'submit', 'Campaign submitted for owner review.')} disabled={Boolean(busy)}><Send className="mr-2 h-4 w-4" />Submit for review</Button> : null}
                 {canCancel ? (
                   <CockpitConfirmationDialog
                     trigger={<Button type="button" className="min-h-11" variant="ghost" disabled={Boolean(busy)}>{cancelLabel}</Button>}
@@ -235,7 +236,7 @@ export function DeveloperCampaignQueue({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" className="min-h-11" variant="outline" disabled={Boolean(busy) || !reviewNote.trim()} onClick={() => void workflow(campaign, 'request_changes', 'Campaign returned with requested changes.')}>Request changes</Button>
                   <CockpitConfirmationDialog
-                    trigger={<Button type="button" className="min-h-11" disabled={Boolean(busy)}><ShieldCheck className="mr-2 h-4 w-4" />Approve package and media</Button>}
+                    trigger={<Button type="button" className="min-h-11" disabled={Boolean(busy)}><ShieldCheck className="mr-2 h-4 w-4" />Approve package and make media public</Button>}
                     title="Approve this package and its media?"
                     description={<><p>This promotes {campaign.variants.reduce((count, variant) => count + variant.attachments.length, 0)} protected image attachment(s) through stable public derivatives and unlocks owner publishing controls.</p><p className="mt-2">It does not send anything to Buffer yet.</p></>}
                     actionLabel="Approve package"
@@ -289,5 +290,5 @@ export function DeveloperCampaignQueue({
 }
 
 function StatusBadge({ status }: { status: SocialCampaign['status'] }) {
-  return <span className="border border-[#6d4f2b] bg-[#100c08] px-2 py-1 text-xs uppercase tracking-[0.12em] text-[#e2aa4a]">{status.replace(/_/g, ' ')}</span>;
+  return <span className="border border-[#6d4f2b] bg-[#100c08] px-2 py-1 text-xs uppercase tracking-[0.12em] text-[#e2aa4a]">{getCampaignStatusLabel(status)}</span>;
 }

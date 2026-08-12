@@ -45,7 +45,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
   const handleExport = async (format: 'png' | 'webp' | 'jpeg', face: CardFace = 'front') => {
     if (gateMessage) {
       toast({
-        title: 'Clean export locked',
+        title: 'Watermark-free download locked',
         description: withNextStep(gateMessage, 'Open your account page and buy Creator Pass to export clean files.'),
         variant: 'default',
       });

@@ -28,8 +28,8 @@ const clerkAppearance = {
 
 function ProfileShell({
   children,
-  eyebrow = 'Profile vault',
-  title = 'Forge profile',
+  eyebrow = 'Account profile',
+  title = 'Profile and security',
   detail = 'Sign-in methods, profile details, and account controls in one focused place.',
 }: {
   children: React.ReactNode;
@@ -85,7 +85,7 @@ export function ProfileManagementPage() {
     return (
       <ProfileShell>
         <div className="border border-[#5f4526] bg-[#15100a] p-6 text-[#c7b288]">
-          Warming the profile vault...
+          Loading your profile...
         </div>
       </ProfileShell>
     );
@@ -93,7 +93,7 @@ export function ProfileManagementPage() {
 
   if (!isSignedIn) {
     return (
-      <ProfileShell title="Sign in for your forge profile" detail="Profile controls unlock once CardForge can connect your account.">
+      <ProfileShell title="Sign in to manage your profile" detail="Profile controls are available after CardForge connects your account.">
         <div className="border border-[#5f4526] bg-[#15100a] p-4">
           <h2 className="font-serif text-xl text-[#fff1c7]">Connect your account</h2>
           <p className="mt-3 text-sm leading-5 text-[#c7b288]">
@@ -145,7 +145,7 @@ export function ProfileManagementPage() {
             </div>
           </div>
           <Button asChild variant="outline" className="mt-4 w-full border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-            <Link href="/account" prefetch={false}>Open forge summary</Link>
+            <Link href="/account" prefetch={false}>Open account summary</Link>
           </Button>
         </aside>
         <div className="cardforge-clerk-profile min-w-0">

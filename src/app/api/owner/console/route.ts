@@ -116,7 +116,11 @@ export async function PUT(request: Request) {
       const updatedBlock = updatedBlocks.find(
         ({ slug }) => slug === body.siteContentBlock?.slug,
       );
-      if (updatedBlock) revalidateSiteContentCache(updatedBlock.group);
+      if (updatedBlock) {
+        revalidateSiteContentCache(updatedBlock.group);
+        if (updatedBlock.group === 'landing') revalidatePath('/');
+        if (updatedBlock.group === 'about') revalidatePath('/about');
+      }
       return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
     }
 

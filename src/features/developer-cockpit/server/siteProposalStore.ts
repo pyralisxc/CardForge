@@ -188,7 +188,7 @@ export const publishSiteContentProposal = async (
   if (error) {
     const message = error.message?.toLowerCase() ?? '';
     if (message.includes('changed') || message.includes('current site copy')) {
-      throw new DeveloperCockpitStoreError('The proposal or live site copy changed. Reload and rebase before publishing.', 409);
+      throw new DeveloperCockpitStoreError('The proposal or live site copy changed. Reload and update the proposal from the latest live copy before publishing.', 409);
     }
     throwCockpitDatabaseError('Unable to publish the site-copy proposal.', error);
   }

@@ -62,7 +62,7 @@ export function OwnerConsolePage() {
         <section className="mx-auto max-w-7xl px-5 py-6 md:px-8">
           <div className="border border-[#6d4f2b] bg-[#15100a] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-xs uppercase tracking-[0.18em] text-[#a98a55]">Owner console</p><h1 className="font-serif text-2xl text-[#fff1c7]">Loading workstation</h1></div>
+              <div><p className="text-xs uppercase tracking-[0.18em] text-[#a98a55]">Owner console</p><h1 className="font-serif text-2xl text-[#fff1c7]">Loading Owner Console</h1></div>
               <div className="h-2 w-32 animate-pulse bg-[#4a3823]" />
             </div>
             {isSlowLoad ? <p className="mt-4 border border-[#8c6436] bg-[#1b1209] p-3 text-sm leading-6 text-[#f0bd75]">This is taking longer than expected. The console should recover automatically.</p> : null}
@@ -93,15 +93,15 @@ export function OwnerConsolePage() {
           <OwnerConsoleSummary payload={payload} lastOwnerSaveAt={lastOwnerSaveAt} />
           <Tabs defaultValue="operations" className="space-y-4">
             <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
-              <TabsTrigger value="readiness" className={tabClassName}>Launch Readiness</TabsTrigger>
-              <TabsTrigger value="operations" className={tabClassName}>Operations</TabsTrigger>
+              <TabsTrigger value="readiness" className={tabClassName}>System Readiness</TabsTrigger>
+              <TabsTrigger value="operations" className={tabClassName}>Accounts &amp; Billing</TabsTrigger>
               <TabsTrigger value="analytics" className={tabClassName}>Analytics</TabsTrigger>
               <TabsTrigger value="copy" className={tabClassName}>Site Copy</TabsTrigger>
               <TabsTrigger value="media" className={tabClassName}>Site Media</TabsTrigger>
               <TabsTrigger value="founder" className={tabClassName}>Cameron Profile</TabsTrigger>
-              <TabsTrigger value="site" className={tabClassName}>Site Mechanics</TabsTrigger>
+              <TabsTrigger value="site" className={tabClassName}>Roadmap Rules</TabsTrigger>
               <TabsTrigger value="developer" className={tabClassName}>Contributor Program</TabsTrigger>
-              <TabsTrigger value="legal" className={tabClassName}>Legal & Secrets</TabsTrigger>
+              <TabsTrigger value="legal" className={tabClassName}>Legal &amp; Configuration</TabsTrigger>
             </TabsList>
             <TabsContent value="readiness" className="mt-0"><OwnerReadinessPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="operations" className="mt-0"><OwnerOperationsPanel payload={payload} /></TabsContent>

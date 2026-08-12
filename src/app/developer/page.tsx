@@ -11,7 +11,7 @@ import { createBreadcrumbStructuredData, StructuredData } from '@/features/publi
 
 export const metadata: Metadata = createPageMetadata({
   title: 'CardForge Developer Program',
-  description: 'Explore CardForge contribution standards, the application path, and the planned developer program for shared creation tools.',
+  description: 'Learn how approved CardForge contributors submit shared assets, prepare campaign drafts, and propose public-site improvements.',
   path: '/developer',
 });
 
