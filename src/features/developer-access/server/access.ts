@@ -11,6 +11,7 @@ import {
   type DeveloperContributionScope,
 } from '@/features/developer-access/model';
 import {
+  getDeveloperProfileIdentity,
   getDeveloperProfileCapabilities,
   upsertDeveloperProfile,
 } from '@/features/developer-access/server/profileStore';
@@ -36,11 +37,25 @@ export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockp
     throw new DeveloperCockpitAccessError('Sign in before using the developer cockpit.', 401);
   }
 
+  const storedIdentity = user.source === 'session_profile'
+    ? await getDeveloperProfileIdentity(user.id)
+    : null;
+  const resolvedEmail = user.email ?? storedIdentity?.email ?? null;
+  const resolvedUser: CardforgeServerUser = {
+    ...user,
+    email: resolvedEmail,
+    emailAddresses: user.emailAddresses.length > 0
+      ? user.emailAddresses
+      : resolvedEmail ? [resolvedEmail] : [],
+    firstName: user.firstName ?? storedIdentity?.firstName ?? null,
+    lastName: user.lastName ?? storedIdentity?.lastName ?? null,
+  };
+
   const entitlement = resolveAccountEntitlement({
     authConfigured,
     isSignedIn: true,
-    emailAddresses: user.emailAddresses,
-    privateMetadata: user.privateMetadata,
+    emailAddresses: resolvedUser.emailAddresses,
+    privateMetadata: resolvedUser.privateMetadata,
     ownerAccess,
   });
   const isDeveloper = entitlement.accessMode === 'dev';
@@ -49,20 +64,20 @@ export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockp
   }
 
   await upsertDeveloperProfile({
-    developerId: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
+    developerId: resolvedUser.id,
+    email: resolvedUser.email,
+    firstName: resolvedUser.firstName,
+    lastName: resolvedUser.lastName,
   });
-  const capabilities = await getDeveloperProfileCapabilities(user.id);
+  const capabilities = await getDeveloperProfileCapabilities(resolvedUser.id);
   const isOwner = ownerAccess.isOwner;
   const extendedContributionsEnabled = process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true';
   return {
-    user,
+    user: resolvedUser,
     isDeveloper,
     isOwner,
-    email: user.email,
-    displayName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
+    email: resolvedUser.email,
+    displayName: [resolvedUser.firstName, resolvedUser.lastName].filter(Boolean).join(' ').trim() || resolvedUser.email,
     scopes: resolveDeveloperContributionScopes({
       isOwner,
       profileStatus: capabilities.status,

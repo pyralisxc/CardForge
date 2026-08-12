@@ -19,7 +19,7 @@ import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { getCardPhysicalSizeMm } from '@/domain/rendering';
 import { renderCardToCanvasWithProfile } from '@/features/card-generator/lib/cardPreviewExport';
 import { hasCardBacking } from '@/domain/rendering';
-import { trackExportCompleted } from '@/features/analytics/client/tracking';
+import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 
 const MAX_PDF_CARDS_PER_FILE = 500;
 const MAX_TOTAL_PDF_EXPORT_CARDS = 10000;
@@ -148,6 +148,7 @@ export function SaveAsPdfButton({
           : `Using ${rasterQuality.label.toLowerCase()} raster quality${firstCardDimensions ? ` (${firstCardDimensions.widthPx} × ${firstCardDimensions.heightPx}px for the first template)` : ''}.`,
     });
 
+    trackExportStarted('pdf', generatedDisplayCards.length);
     try {
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
         const chunkStart = chunkIndex * MAX_PDF_CARDS_PER_FILE;
@@ -221,6 +222,7 @@ export function SaveAsPdfButton({
       }
 
     } catch (error) {
+      trackExportFailed('pdf', 'render_or_download', generatedDisplayCards.length);
       console.error("Error generating PDF:", error);
       toast({
         title: 'PDF export failed',

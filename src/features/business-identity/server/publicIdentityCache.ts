@@ -12,7 +12,7 @@ export const getCachedBusinessIdentity = unstable_cache(
 
 export const revalidatePublicIdentityCache = (): void => {
   try {
-    revalidateTag(PUBLIC_IDENTITY_TAG);
+    revalidateTag(PUBLIC_IDENTITY_TAG, { expire: 0 });
   } catch (error) {
     console.error('Unable to invalidate public business identity cache:', error);
   }

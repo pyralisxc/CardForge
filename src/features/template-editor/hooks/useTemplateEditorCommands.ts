@@ -33,6 +33,7 @@ import {
 import { CANVAS_ZOOM } from '@/features/template-editor/lib/canvasViewportConfig';
 import { clamp } from '@/features/template-editor/lib/makerGeometry';
 import { withNextStep } from '@/shared/userFacingErrors';
+import { trackCardForgeEvent } from '@/features/analytics/client';
 
 interface UseTemplateEditorCommandsInput {
   acceptTemplate: (template: TCGCardTemplate) => void;
@@ -223,7 +224,13 @@ export function useTemplateEditorCommands({
     usage: TemplateUsage = 'standard',
     formatSource: TemplateCardFormatSource = currentTemplate,
   ) => {
-    requestTemplateChange(() => setNewTemplateRequest({ usage, formatSource }));
+    requestTemplateChange(() => {
+      setNewTemplateRequest({ usage, formatSource });
+      trackCardForgeEvent('template_creation_started', {
+        side: usage === 'back-preset' ? 'back' : 'front',
+        format_id: formatSource.formatId ?? 'custom',
+      });
+    });
   }, [currentTemplate, requestTemplateChange]);
 
   const createNewTemplate = useCallback((input: NewCardDesignInput) => {
@@ -264,6 +271,12 @@ export function useTemplateEditorCommands({
     beginDraft(template);
     onSelectTemplate(id);
     setNewTemplateRequest(null);
+    trackCardForgeEvent('template_created', {
+      side: newTemplateRequest.usage === 'back-preset' ? 'back' : 'front',
+      format_id: input.formatId,
+      format_kind: input.formatId === 'custom' ? 'custom' : 'standard',
+      starting_point: input.startingPoint,
+    });
   }, [beginDraft, currentTemplate, newTemplateRequest, onSelectTemplate, resizeStrategy]);
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
@@ -307,14 +320,29 @@ export function useTemplateEditorCommands({
       return;
     }
     updateTemplate(update);
+    trackCardForgeEvent('card_format_changed', {
+      format_id: 'custom',
+      format_kind: 'custom',
+      resize_strategy: resizeStrategy,
+    });
   }, [currentTemplate, customHeightValue, customUnit, customWidthValue, resizeStrategy, toast, updateTemplate]);
 
   const applyCardFormat = useCallback((formatId: CardFormatId) => {
     if (formatId === 'custom') {
       updateTemplate({ formatId: 'custom' });
+      trackCardForgeEvent('card_format_changed', {
+        format_id: 'custom',
+        format_kind: 'custom',
+        resize_strategy: resizeStrategy,
+      });
       return;
     }
     updateTemplate(buildCardFormatTemplateUpdate({ formatId, resizeStrategy, template: currentTemplate }));
+    trackCardForgeEvent('card_format_changed', {
+      format_id: formatId,
+      format_kind: 'standard',
+      resize_strategy: resizeStrategy,
+    });
   }, [currentTemplate, resizeStrategy, updateTemplate]);
 
   const resetGridToTemplateDefault = useCallback(() => {

@@ -4,7 +4,8 @@ vi.mock('@/features/analytics/server/googleAccessToken', () => ({
   getGoogleReadOnlyAccessToken: vi.fn().mockResolvedValue('test-access-token'),
 }));
 
-import { getOwnerAnalyticsSnapshot } from '@/features/analytics/server/googleReporting';
+import { getGoogleOwnerAnalyticsSnapshot } from '@/features/analytics/server/googleReporting';
+import { getOwnerAnalyticsSnapshot } from '@/features/analytics/server/ownerReporting';
 
 describe('Google analytics reporting', () => {
   afterEach(() => {
@@ -19,13 +20,16 @@ describe('Google analytics reporting', () => {
     vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_EMAIL', 'analytics@example.test');
     vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'private-key');
     vi.stubEnv('CARDFORGE_GOOGLE_SEARCH_CONSOLE_SITE_URL', '');
+    vi.stubEnv('CARDFORGE_POSTHOG_PERSONAL_API_KEY', '');
+    vi.stubEnv('CARDFORGE_POSTHOG_PROJECT_ID', '');
+    vi.stubEnv('CARDFORGE_POSTHOG_APP_HOST', '');
     const fetchMock = vi.fn(async (_input: string | URL | Request, _options?: RequestInit) => new Response(JSON.stringify({ rows: [] }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const snapshot = await getOwnerAnalyticsSnapshot();
+    const snapshot = await getGoogleOwnerAnalyticsSnapshot();
     const realtimeBodies = fetchMock.mock.calls
       .filter(([url]) => String(url).includes(':runRealtimeReport'))
       .map(([, options]) => JSON.parse(String(options?.body)) as {
@@ -45,5 +49,46 @@ describe('Google analytics reporting', () => {
       realtimeEvents: true,
       realtimeDevices: true,
     });
+  });
+
+  it('returns anonymous PostHog interaction summaries without visitor identifiers', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED', 'true');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_GA_MEASUREMENT_ID', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_ANALYTICS_PROPERTY_ID', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_EMAIL', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', '');
+    vi.stubEnv('CARDFORGE_GOOGLE_SEARCH_CONSOLE_SITE_URL', '');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_POSTHOG_KEY', 'phc_test');
+    vi.stubEnv('NEXT_PUBLIC_CARDFORGE_POSTHOG_HOST', 'https://us.i.posthog.com');
+    vi.stubEnv('CARDFORGE_POSTHOG_PERSONAL_API_KEY', 'phx_read_only');
+    vi.stubEnv('CARDFORGE_POSTHOG_PROJECT_ID', '12345');
+    vi.stubEnv('CARDFORGE_POSTHOG_APP_HOST', 'https://us.posthog.com');
+    const fetchMock = vi.fn(async (_input: string | URL | Request, options?: RequestInit) => {
+      const body = JSON.parse(String(options?.body)) as { name: string; query: { query: string } };
+      const results = body.name.includes('active visitors') ? [[2]]
+        : body.name.includes('recent interaction') ? [['2026-08-12 19:10:00', 'card_created', '/studio', 'bulk']]
+          : body.name.includes('interaction counts') ? [['card_created', 4]]
+            : [['/studio', 6]];
+      return new Response(JSON.stringify({ results }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const snapshot = await getOwnerAnalyticsSnapshot();
+
+    expect(snapshot.interactions).toMatchObject({
+      activeVisitors: 2,
+      recentEvents: [{ eventName: 'card_created', path: '/studio', detail: 'bulk' }],
+      events: [{ label: 'card_created', value: 4 }],
+      paths: [{ label: '/studio', value: 6 }],
+      recordingsUrl: 'https://us.posthog.com/project/12345/replay',
+    });
+    expect(snapshot.availability).toMatchObject({
+      interactionLive: true,
+      interactionRecent: true,
+      interactionEvents: true,
+      interactionPaths: true,
+    });
+    expect(JSON.stringify(snapshot)).not.toContain('distinct_id');
+    expect(fetchMock.mock.calls.every(([url]) => String(url) === 'https://us.posthog.com/api/projects/12345/query/')).toBe(true);
   });
 });

@@ -16,6 +16,14 @@ const experienceControlsMigrationPath = resolve(
   process.cwd(),
   'supabase/migrations/20260812153632_owner_experience_controls.sql',
 );
+const posthogPrivacyMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260812190233_document_posthog_interaction_analytics.sql',
+);
+
+const extractDollarQuoted = (sql: string, tag: string): string | undefined => (
+  new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql)?.[1]
+);
 
 describe('versioned legal publication migration', () => {
   it('converts the existing registry to immutable composite versions', async () => {
@@ -60,6 +68,7 @@ describe('versioned legal publication migration', () => {
     const sql = await readFile(migrationPath, 'utf8');
     const retirementSql = await readFile(retirementMigrationPath, 'utf8');
     const experienceControlsSql = await readFile(experienceControlsMigrationPath, 'utf8');
+    const posthogPrivacySql = await readFile(posthogPrivacyMigrationPath, 'utf8');
     const tagBySlug = {
       privacy: 'privacy_reviewed',
       terms: 'terms_reviewed',
@@ -74,20 +83,27 @@ describe('versioned legal publication migration', () => {
 
     for (const document of DEFAULT_LEGAL_DOCUMENTS) {
       if (document.slug === 'supporter-terms' || document.slug === 'refund') continue;
-      const isExperienceControlsPrivacyPublication = document.slug === 'privacy';
+      if (document.slug === 'privacy') {
+        const previousBody = extractDollarQuoted(experienceControlsSql, 'privacy_consent_controls');
+        const oldMeasurement = extractDollarQuoted(posthogPrivacySql, 'old_measurement');
+        const newMeasurement = extractDollarQuoted(posthogPrivacySql, 'new_measurement');
+        const oldChoice = extractDollarQuoted(posthogPrivacySql, 'old_choice');
+        const newChoice = extractDollarQuoted(posthogPrivacySql, 'new_choice');
+        expect(previousBody, document.slug).toBeDefined();
+        expect(oldMeasurement, document.slug).toBeDefined();
+        expect(newMeasurement, document.slug).toBeDefined();
+        expect(oldChoice, document.slug).toBeDefined();
+        expect(newChoice, document.slug).toBeDefined();
+        const publishedBody = previousBody
+          ?.replace(oldMeasurement ?? '', newMeasurement ?? '')
+          .replace(oldChoice ?? '', newChoice ?? '');
+        expect(publishedBody, document.slug).toBe(document.body);
+        continue;
+      }
       const isRetirementPublication = document.slug === 'contact';
-      const tag = isExperienceControlsPrivacyPublication
-        ? 'privacy_consent_controls'
-        : isRetirementPublication
-          ? `${document.slug}_retired_demo`
-          : tagBySlug[document.slug];
-      const source = isExperienceControlsPrivacyPublication
-        ? experienceControlsSql
-        : isRetirementPublication
-          ? retirementSql
-          : sql;
-      const match = new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(source);
-      expect(match?.[1], document.slug).toBe(document.body);
+      const tag = isRetirementPublication ? `${document.slug}_retired_demo` : tagBySlug[document.slug];
+      const source = isRetirementPublication ? retirementSql : sql;
+      expect(extractDollarQuoted(source, tag), document.slug).toBe(document.body);
     }
   });
 

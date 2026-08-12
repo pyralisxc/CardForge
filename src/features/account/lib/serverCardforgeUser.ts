@@ -1,7 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 
 import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
-import { getDeveloperProfileIdentity } from '@/features/developer-access/server';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
 
@@ -106,21 +105,20 @@ const toCardforgeUserFromClerk = (user: ClerkUserLike): CardforgeServerUser => {
   };
 };
 
-const getProfileFallbackUser = async (
+const getSessionFallbackUser = (
   userId: string,
   claims: Metadata | null,
-): Promise<CardforgeServerUser> => {
+): CardforgeServerUser => {
   const fallbackEmailAddresses = readEmailClaims(claims);
   const fallbackPrivateMetadata = readMetadataClaims(claims);
-  const profile = await getDeveloperProfileIdentity(userId);
-  const email = profile?.email ?? fallbackEmailAddresses[0] ?? null;
+  const email = fallbackEmailAddresses[0] ?? null;
 
   return {
     id: userId,
     email,
     emailAddresses: email ? [email] : fallbackEmailAddresses,
-    firstName: profile?.firstName ?? null,
-    lastName: profile?.lastName ?? null,
+    firstName: null,
+    lastName: null,
     publicMetadata: {},
     privateMetadata: fallbackPrivateMetadata,
     source: 'session_profile',
@@ -151,7 +149,7 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
   const user = fullUser
     ? toCardforgeUserFromClerk(fullUser)
     : authState?.userId
-      ? await getProfileFallbackUser(authState.userId, isRecord(authState.sessionClaims) ? authState.sessionClaims : null)
+      ? getSessionFallbackUser(authState.userId, isRecord(authState.sessionClaims) ? authState.sessionClaims : null)
       : null;
 
   return {

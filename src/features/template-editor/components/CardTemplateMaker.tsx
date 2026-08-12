@@ -1,6 +1,5 @@
 "use client";
-import type { ChangeEvent, RefObject } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { X } from 'lucide-react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import type { TemplateCardFormatSource } from '@/domain/card-formats';

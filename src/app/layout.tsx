@@ -2,7 +2,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
-import { AnalyticsProvider } from '@/features/analytics/client';
+import { AnalyticsProvider, AnalyticsReplayBoundary } from '@/features/analytics/client';
 import {
   FounderProfileProvider,
 } from '@/features/public-site/client/context';
@@ -54,7 +54,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <div id="cardforge-app-content">{app}</div>
+        <AnalyticsReplayBoundary>{app}</AnalyticsReplayBoundary>
         <AnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} />
       </body>
     </html>

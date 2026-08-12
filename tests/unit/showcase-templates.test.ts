@@ -1,10 +1,14 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import { describe, expect, it } from 'vitest';
 
 import { CARDFORGE_EXAMPLES } from '@/features/public-site/client';
 import { CARD_FORMATS } from '@/domain/card-formats';
+import { TemplateThumbnail } from '@/features/card-rendering/client';
+import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 
 interface ShippedTemplate {
   id: string;
@@ -101,5 +105,21 @@ describe('showcase templates', () => {
       const imagePath = back?.cardBackgroundImageUrl?.replace(/^\//, '');
       expect(imagePath && existsSync(join(process.cwd(), 'public', imagePath))).toBe(true);
     }
+  });
+
+  it('renders branded-back thumbnails from their real artwork and orientation', () => {
+    const landscapeBack = makeNewFreeformTemplate({
+      name: 'CardForge Studio business back',
+      templateUsage: 'back-preset',
+      formatId: 'us-business',
+      startingPoint: 'branded-back',
+    });
+
+    const html = renderToStaticMarkup(createElement(TemplateThumbnail, { template: landscapeBack }));
+
+    expect(html).toContain('back-cardforge-studio-landscape.webp');
+    expect(html).toContain('background-size:100% 100%');
+    expect(html).toContain('width:112px');
+    expect(html).not.toContain('CF</span>');
   });
 });

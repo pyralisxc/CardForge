@@ -24,7 +24,7 @@ import {
   writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';
 import { withNextStep } from '@/shared/userFacingErrors';
-import { trackExportCompleted } from '@/features/analytics/client/tracking';
+import { trackExportCompleted, trackExportStarted } from '@/features/analytics/client/tracking';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 
@@ -230,6 +230,7 @@ export function useProjectFileActions({
       customImageAssets,
     });
 
+    trackExportStarted('project', storedCards.length);
     downloadJsonFile('cardforge-studio-project.json', JSON.stringify(projectDocument, null, 2));
     trackExportCompleted('project', storedCards.length);
     toast({ title: 'Project Exported', description: 'Local project downloaded as cardforge-studio-project.json.' });

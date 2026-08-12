@@ -68,19 +68,19 @@ describe('public cache tags and publication invalidation', () => {
 
   it('invalidates only the affected tag', () => {
     revalidatePublicIdentityCache();
-    expect(revalidateTag).toHaveBeenLastCalledWith(PUBLIC_IDENTITY_TAG);
+    expect(revalidateTag).toHaveBeenLastCalledWith(PUBLIC_IDENTITY_TAG, { expire: 0 });
 
     revalidateSiteContentCache('sharing');
-    expect(revalidateTag).toHaveBeenLastCalledWith(siteContentTag('sharing'));
+    expect(revalidateTag).toHaveBeenLastCalledWith(siteContentTag('sharing'), { expire: 0 });
 
     revalidateFounderProfile();
-    expect(revalidateTag).toHaveBeenLastCalledWith(FOUNDER_PROFILE_TAG);
+    expect(revalidateTag).toHaveBeenLastCalledWith(FOUNDER_PROFILE_TAG, { expire: 0 });
 
     revalidateLegalDocumentCache('refund');
-    expect(revalidateTag).toHaveBeenLastCalledWith(legalDocumentTag('refund'));
+    expect(revalidateTag).toHaveBeenLastCalledWith(legalDocumentTag('refund'), { expire: 0 });
 
     revalidateExperienceSettingsCache();
-    expect(revalidateTag).toHaveBeenLastCalledWith(EXPERIENCE_SETTINGS_TAG);
+    expect(revalidateTag).toHaveBeenLastCalledWith(EXPERIENCE_SETTINGS_TAG, { expire: 0 });
   });
 
   it('runs invalidation only after successful owner mutations', () => {

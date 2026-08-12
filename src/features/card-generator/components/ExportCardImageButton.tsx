@@ -22,7 +22,7 @@ import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { renderCardToCanvas } from '@/features/card-generator/lib/cardPreviewExport';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
-import { trackExportCompleted } from '@/features/analytics/client/tracking';
+import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;
@@ -53,6 +53,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
     }
 
     setIsLoading(true);
+    trackExportStarted('image', 1);
     try {
       const validation = validateCardExportQuality(card, exportMode, exportDpi);
       if (validation.critical.length > 0) {
@@ -92,6 +93,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
         description: `Saved as ${format.toUpperCase()} at ${dimensions.widthPx} × ${dimensions.heightPx}px using ${quality.label.toLowerCase()} raster quality. Enlarging beyond these pixels will soften the image.`,
       });
     } catch (err) {
+      trackExportFailed('image', 'render_or_download', 1);
       toast({
         title: ERROR_COPY.exportFailed.title,
         description: withNextStep(extractErrorMessage(err), 'Check quality warnings, then retry with PNG if the selected browser format is not supported.'),

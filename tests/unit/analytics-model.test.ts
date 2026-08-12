@@ -34,6 +34,9 @@ describe('organic analytics model', () => {
       export_kind: 'png_set',
       card_count: 4,
       success: true,
+      format_id: 'tarot',
+      resize_strategy: 'fit',
+      path: '/studio',
       email: 'visitor@example.test',
       card_title: 'Secret card title',
       oversized: 'x'.repeat(101),
@@ -41,6 +44,9 @@ describe('organic analytics model', () => {
       export_kind: 'png_set',
       card_count: 4,
       success: true,
+      format_id: 'tarot',
+      resize_strategy: 'fit',
+      path: '/studio',
     });
   });
 });

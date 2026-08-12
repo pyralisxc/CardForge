@@ -2,13 +2,14 @@
 
 import Script from 'next/script';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import type { AnalyticsConsentPresentation } from '@/features/experience-settings/client';
 import {
   ANALYTICS_CONSENT_COOKIE,
   ANALYTICS_SESSION_CONSENT_KEY,
+  isAllowedPostHogHost,
   type AnalyticsConsentPreference,
 } from '../model';
 import {
@@ -17,8 +18,17 @@ import {
   getAnalyticsConsentPreference,
   isAnalyticsConsentGranted,
   trackAnalyticsPageView,
+  trackGoogleCardForgeEvent,
+  trackProductAnalyticsPageView,
+  trackProductCardForgeEvent,
   trackCardForgeEvent,
 } from '../client/tracking';
+import {
+  disableProductAnalytics,
+  initializeProductAnalytics,
+  isPublicAnalyticsReplayPath,
+  setProductAnalyticsPath,
+} from '../client/posthog';
 
 const PRIVATE_PATH_PREFIXES = ['/owner', '/developer/cockpit'] as const;
 
@@ -50,22 +60,38 @@ export function AnalyticsProvider({
 }) {
   const pathname = usePathname();
   const measurementId = process.env.NEXT_PUBLIC_CARDFORGE_GA_MEASUREMENT_ID ?? '';
-  const enabled = process.env.NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED === 'true' && /^G-[A-Z0-9]+$/u.test(measurementId);
+  const posthogKey = process.env.NEXT_PUBLIC_CARDFORGE_POSTHOG_KEY ?? '';
+  const posthogHost = process.env.NEXT_PUBLIC_CARDFORGE_POSTHOG_HOST ?? '';
+  const collectionEnabled = process.env.NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED === 'true';
+  const googleEnabled = collectionEnabled && /^G-[A-Z0-9]+$/u.test(measurementId);
+  const productAnalyticsEnabled = collectionEnabled
+    && posthogKey.trim().length > 0
+    && isAllowedPostHogHost(posthogHost.trim());
+  const enabled = googleEnabled || productAnalyticsEnabled;
   const trackablePath = !PRIVATE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   const [preference, setPreference] = useState<AnalyticsConsentPreference | null>(null);
   const [preferenceReady, setPreferenceReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [bootstrapReady, setBootstrapReady] = useState(false);
   const [tagReady, setTagReady] = useState(false);
-  const lastTrackedLocation = useRef<string | null>(null);
+  const [productAnalyticsAttempted, setProductAnalyticsAttempted] = useState(!productAnalyticsEnabled);
+  const lastGoogleLocation = useRef<string | null>(null);
+  const lastProductPath = useRef<string | null>(null);
   const acceptButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
 
-  const trackCurrentPage = useCallback(() => {
-    const location = trackAnalyticsPageView(lastTrackedLocation.current);
+  const trackCurrentGooglePage = useCallback(() => {
+    const location = trackAnalyticsPageView(lastGoogleLocation.current);
     if (!location) return;
-    lastTrackedLocation.current = location;
-    if (pathname === '/studio') trackCardForgeEvent('open_studio', { placement: 'route_entry' });
+    lastGoogleLocation.current = location;
+    if (pathname === '/studio') trackGoogleCardForgeEvent('open_studio', { placement: 'route_entry' });
+  }, [pathname]);
+
+  const trackCurrentProductPage = useCallback(() => {
+    const path = trackProductAnalyticsPageView(lastProductPath.current);
+    if (!path) return;
+    lastProductPath.current = path;
+    if (pathname === '/studio') trackProductCardForgeEvent('open_studio', { placement: 'route_entry' });
   }, [pathname]);
 
   useEffect(() => {
@@ -74,19 +100,76 @@ export function AnalyticsProvider({
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled || !trackablePath || !isAnalyticsConsentGranted(preference)) {
+    if (!googleEnabled || !trackablePath || !isAnalyticsConsentGranted(preference)) {
       setBootstrapReady(false);
       setTagReady(false);
       return;
     }
     bootstrapGoogleAnalytics();
     setBootstrapReady(true);
-  }, [enabled, preference, trackablePath]);
+  }, [googleEnabled, preference, trackablePath]);
+
+  useLayoutEffect(() => {
+    setProductAnalyticsPath(pathname);
+  }, [pathname]);
 
   useEffect(() => {
-    if (!enabled || !trackablePath || !isAnalyticsConsentGranted(preference) || !tagReady) return;
-    trackCurrentPage();
-  }, [enabled, preference, tagReady, trackablePath, trackCurrentPage]);
+    let cancelled = false;
+    if (!productAnalyticsEnabled || !trackablePath || !isAnalyticsConsentGranted(preference)) {
+      setProductAnalyticsAttempted(!productAnalyticsEnabled || !isAnalyticsConsentGranted(preference));
+      setProductAnalyticsPath(pathname);
+      return;
+    }
+    setProductAnalyticsAttempted(false);
+    void initializeProductAnalytics({ apiHost: posthogHost, projectKey: posthogKey }).then((ready) => {
+      if (cancelled) return;
+      setProductAnalyticsAttempted(true);
+      if (ready) setProductAnalyticsPath(pathname);
+    });
+    return () => { cancelled = true; };
+  }, [pathname, posthogHost, posthogKey, preference, productAnalyticsEnabled, trackablePath]);
+
+  useEffect(() => {
+    if (!googleEnabled || !trackablePath || !isAnalyticsConsentGranted(preference) || !tagReady) return;
+    trackCurrentGooglePage();
+  }, [googleEnabled, preference, tagReady, trackablePath, trackCurrentGooglePage]);
+
+  useEffect(() => {
+    if (!productAnalyticsEnabled || !productAnalyticsAttempted || !trackablePath || !isAnalyticsConsentGranted(preference)) return;
+    trackCurrentProductPage();
+  }, [preference, productAnalyticsAttempted, productAnalyticsEnabled, trackablePath, trackCurrentProductPage]);
+
+  useEffect(() => {
+    if (!enabled || !trackablePath || !isAnalyticsConsentGranted(preference)) return;
+    const trackNavigation = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLAnchorElement>('a[href]');
+      if (!anchor) return;
+      let destination: URL;
+      try {
+        destination = new URL(anchor.href, window.location.origin);
+      } catch {
+        return;
+      }
+      if (destination.origin !== window.location.origin) return;
+      if (!isPublicAnalyticsReplayPath(destination.pathname)) {
+        setProductAnalyticsPath(destination.pathname);
+      }
+      const placement = anchor.closest('header') ? 'header'
+        : anchor.closest('footer') ? 'footer'
+          : anchor.closest('nav') ? 'navigation'
+            : 'content';
+      trackCardForgeEvent('navigation_selected', { destination: destination.pathname, placement });
+    };
+    const stopReplayBeforeHistoryNavigation = () => setProductAnalyticsPath(window.location.pathname);
+    document.addEventListener('click', trackNavigation, true);
+    window.addEventListener('popstate', stopReplayBeforeHistoryNavigation);
+    return () => {
+      document.removeEventListener('click', trackNavigation, true);
+      window.removeEventListener('popstate', stopReplayBeforeHistoryNavigation);
+    };
+  }, [enabled, preference, trackablePath]);
 
   const decisionOpen = preference === null || showSettings;
   const reviewingPrivacy = pathname === '/privacy';
@@ -143,9 +226,11 @@ export function AnalyticsProvider({
     setShowSettings(false);
     if (next === 'denied') {
       window.gtag?.('consent', 'update', { analytics_storage: 'denied' });
-      lastTrackedLocation.current = null;
+      lastGoogleLocation.current = null;
+      lastProductPath.current = null;
       setTagReady(false);
       deleteAnalyticsCookies();
+      disableProductAnalytics();
     } else if (window.gtag) {
       window.gtag('consent', 'update', {
         analytics_storage: 'granted',
@@ -154,13 +239,12 @@ export function AnalyticsProvider({
         ad_personalization: 'denied',
       });
       configureGoogleAnalytics(measurementId, { sessionOnly: next === 'granted_once' });
-      lastTrackedLocation.current = null;
+      lastGoogleLocation.current = null;
     }
   };
 
   const initializeTag = () => {
     configureGoogleAnalytics(measurementId, { sessionOnly: preference === 'granted_once' });
-    trackCurrentPage();
     setTagReady(true);
   };
 
@@ -174,7 +258,7 @@ export function AnalyticsProvider({
 
   return (
     <>
-      {isAnalyticsConsentGranted(preference) && trackablePath && bootstrapReady ? (
+      {googleEnabled && isAnalyticsConsentGranted(preference) && trackablePath && bootstrapReady ? (
         <Script
           id="cardforge-google-analytics"
           src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`}
@@ -195,7 +279,11 @@ export function AnalyticsProvider({
             aria-describedby="analytics-consent-description"
           >
             <p id="analytics-consent-title" className="font-serif text-lg text-[#fff1c7]">Help improve CardForge</p>
-            <p id="analytics-consent-description" className="mt-2 text-sm leading-6 text-[#c7b288]">Allow privacy-minimized Google Analytics measurement for page visits, Studio opens, account creation, card creation, and completed exports. Google uses a first-party identifier and basic device and approximate-location signals; card content, names, and email addresses are never sent. Advertising tracking stays disabled.</p>
+            <p id="analytics-consent-description" className="mt-2 text-sm leading-6 text-[#c7b288]">
+              {productAnalyticsEnabled
+                ? 'Allow privacy-minimized Google Analytics and PostHog measurement for page visits, basic browser and device context, and selected CardForge actions. Public marketing pages may be replayed with all text and inputs masked; Studio, account, owner, and developer pages are never recorded. Card content, names, and email addresses are never sent, and advertising tracking stays disabled.'
+                : 'Allow privacy-minimized Google Analytics measurement for page visits, basic browser and device context, and selected CardForge actions. Card content, names, and email addresses are never sent, and advertising tracking stays disabled.'}
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button ref={acceptButtonRef} type="button" onClick={() => choose('granted')}>Accept</Button>
               <Button type="button" variant="outline" onClick={() => choose('granted_once')}>Accept once</Button>

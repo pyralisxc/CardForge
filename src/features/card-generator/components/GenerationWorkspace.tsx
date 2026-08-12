@@ -27,6 +27,7 @@ import type { DisplayCard, PaperSize, PdfDuplexLayout } from '@/domain/rendering
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import type { TabletopSimulatorExportQuality } from '@/features/card-generator/lib/zipExport';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
+import { trackCardForgeEvent } from '@/features/analytics/client';
 
 interface GenerationWorkspaceProps {
   isLoadingTemplates: boolean;
@@ -232,7 +233,13 @@ export function GenerationWorkspace({
               <Label htmlFor="deck-backing-template">Card Back</Label>
               <Select
                 value={activeCardSet.backingTemplateId || '_none_'}
-                onValueChange={(value) => onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value)}
+                onValueChange={(value) => {
+                  onSetActiveCardSetBackingTemplateId(value === '_none_' ? null : value);
+                  trackCardForgeEvent('card_back_selected', {
+                    format_id: selectedFormat?.formatId ?? 'custom',
+                    has_matching_back: value !== '_none_',
+                  });
+                }}
               >
                 <SelectTrigger id="deck-backing-template">
                   <SelectValue placeholder="Choose card back" />
@@ -258,7 +265,13 @@ export function GenerationWorkspace({
                     size="sm"
                     variant="outline"
                     className="w-full"
-                    onClick={() => onCreateMatchingBack(selectedTemplate)}
+                    onClick={() => {
+                      trackCardForgeEvent('matching_back_requested', {
+                        format_id: selectedFormat?.formatId ?? 'custom',
+                        format_kind: selectedFormat?.formatId === 'custom' ? 'custom' : 'standard',
+                      });
+                      onCreateMatchingBack(selectedTemplate);
+                    }}
                   >
                     Create matching card back
                   </Button>
@@ -297,7 +310,11 @@ export function GenerationWorkspace({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Create cards</p>
           <h2 id="generator-entry-heading" className="mt-1 text-xl font-semibold">Fill one card or bring in a whole list</h2>
         </div>
-        <Tabs defaultValue="single" className="space-y-4">
+        <Tabs
+          defaultValue="single"
+          className="space-y-4"
+          onValueChange={(value) => trackCardForgeEvent('generation_method_selected', { generation_method: value })}
+        >
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border bg-card/70 p-1">
             <TabsTrigger value="single" className="h-auto flex-col gap-1 px-2 py-2 text-xs">
               <FilePlus2 className="h-4 w-4" />

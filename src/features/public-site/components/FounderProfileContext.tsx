@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 
 import { DEFAULT_FOUNDER_PROFILE, type FounderProfile } from '../model/founderProfile';
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type ReactNode, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Code2, LogIn, Menu } from 'lucide-react';
