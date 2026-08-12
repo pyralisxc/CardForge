@@ -1,7 +1,8 @@
 export const ANALYTICS_CONSENT_COOKIE = 'cardforge_analytics_consent_v1';
+export const ANALYTICS_SESSION_CONSENT_KEY = 'cardforge.analytics.session-consent.v1';
 export const ANALYTICS_SIGN_UP_INTENT_KEY = 'cardforge.analytics.sign-up-intent.v1';
 
-export type AnalyticsConsentPreference = 'granted' | 'denied';
+export type AnalyticsConsentPreference = 'granted' | 'granted_once' | 'denied';
 
 export type CardForgeAnalyticsEventName =
   | 'open_studio'

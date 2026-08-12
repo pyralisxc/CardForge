@@ -66,7 +66,9 @@ For the repository-consolidation release, apply `20260812063536_consolidate_deve
 
 ## Owner Console checks
 
-Use `/owner` for readiness, analytics, billing/reconciliation, email tests, support/contact history, site copy/media, founder profile, business identity, legal publications, developer program, campaign review, and account lookup. Feature modules own their data; Owner composes those feature-owned surfaces.
+Use `/owner` for readiness, analytics, experience controls, billing/reconciliation, email tests, support/contact history, site copy/media, founder profile, business identity, legal publications, developer program, campaign review, and account lookup. Feature modules own their data; Owner composes those feature-owned surfaces.
+
+Experience Controls can make portable project files free or Creator Pass-only without changing finished-output entitlement. It can also switch analytics consent among required choice, standard popup, and quiet banner. All three presentations must retain Accept, Accept once, and Decline. Refresh a public page or Studio session after saving to verify the new cached policy.
 
 ## Organic analytics
 
@@ -75,10 +77,12 @@ Analytics is opt-in and organic-only. Enhanced Measurement, advertising storage,
 After analytics, privacy, domain, or credential changes:
 
 1. Decline consent in a signed-out browser and confirm no Google tag request or `_ga` cookie.
-2. Allow consent and confirm DebugView receives only sanitized path/title/referrer plus approved UTM fields; raw non-UTM query values must not appear.
-3. Confirm the Owner Analytics screen distinguishes unavailable reports from real zero values.
-4. Open one normalized organic link and confirm its source, `organic_social` medium, campaign, and post identity after GA processing.
-5. Confirm Search Console reporting still works independently.
+2. Choose Accept once and confirm GA uses session cookies, measurement stops in a new tab session, and no persistent CardForge consent cookie remains.
+3. Choose Accept and confirm DebugView receives only sanitized path/title/referrer plus approved UTM fields; raw non-UTM query values must not appear.
+4. Confirm required choice blocks interaction only until Accept, Accept once, or Decline; confirm popup and banner remain non-blocking.
+5. Confirm the Owner Analytics screen distinguishes unavailable reports from real zero values.
+6. Open one normalized organic link and confirm its source, `organic_social` medium, campaign, and post identity after GA processing.
+7. Confirm Search Console reporting still works independently.
 
 Rollback collection with `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=false`; this preserves Google-owned history.
 

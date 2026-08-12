@@ -4,11 +4,13 @@ import {
   bootstrapGoogleAnalytics,
   completeSignUpIntent,
   configureGoogleAnalytics,
+  getAnalyticsConsentPreference,
   trackAnalyticsPageView,
   trackCardCreated,
 } from '@/features/analytics/client/tracking';
 import {
   ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_SESSION_CONSENT_KEY,
   ANALYTICS_SIGN_UP_INTENT_KEY,
 } from '@/features/analytics/model';
 
@@ -49,6 +51,26 @@ describe('analytics tracking', () => {
       card_count: 4,
       page_location: 'https://cardforges.com/studio?utm_source=threads',
       page_referrer: 'https://www.facebook.com/groups/example',
+    }));
+  });
+
+  it('accepts analytics once for the current browser session without a persistent cookie', () => {
+    const sessionStorage = createStorage();
+    const gtag = vi.fn();
+    vi.stubGlobal('window', {
+      sessionStorage,
+      gtag,
+      location: { href: 'https://cardforges.com/studio' },
+    });
+    setConsent('');
+
+    sessionStorage.setItem(ANALYTICS_SESSION_CONSENT_KEY, 'granted');
+    expect(getAnalyticsConsentPreference()).toBe('granted_once');
+    trackCardCreated('single', 1);
+
+    expect(gtag).toHaveBeenCalledWith('event', 'card_created', expect.objectContaining({
+      creation_method: 'single',
+      card_count: 1,
     }));
   });
 
@@ -98,6 +120,23 @@ describe('analytics tracking', () => {
       'set',
       'event',
     ]);
+  });
+
+  it('uses session cookies when analytics is accepted once', () => {
+    const gtag = vi.fn();
+    vi.stubGlobal('window', {
+      sessionStorage: createStorage(),
+      gtag,
+      location: { href: 'https://cardforges.com/' },
+    });
+    setConsent('granted');
+
+    configureGoogleAnalytics('G-TEST123', { sessionOnly: true });
+
+    expect(gtag).toHaveBeenCalledWith('config', 'G-TEST123', expect.objectContaining({
+      cookie_expires: 0,
+      send_page_view: false,
+    }));
   });
 
   it('uses the canonical Google arguments command shape', () => {

@@ -208,6 +208,20 @@ describe('accountEntitlement', () => {
     expect(entitlement.copy.panelMessage).toContain('Projects remain local');
   });
 
+  it('applies the owner project-file policy without changing finished export access', () => {
+    const entitlement = resolveAccountEntitlement({
+      authConfigured: true,
+      isSignedIn: false,
+      projectFileAccess: 'free',
+      env: {},
+    });
+
+    expect(entitlement.accessMode).toBe('free');
+    expect(entitlement.capabilities.canUseProjectFiles).toBe(true);
+    expect(entitlement.capabilities.canExportClean).toBe(false);
+    expect(entitlement.copy.projectFileGateMessage).toBeNull();
+  });
+
   it('does not expose billing management for non-Stripe paid grants', () => {
     expect(resolveAccountEntitlement({
       authConfigured: true,

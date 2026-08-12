@@ -2,6 +2,7 @@
 
 import {
   ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_SESSION_CONSENT_KEY,
   ANALYTICS_SIGN_UP_INTENT_KEY,
   sanitizeAnalyticsEventParameters,
   type AnalyticsConsentPreference,
@@ -23,14 +24,22 @@ export const getAnalyticsConsentPreference = (): AnalyticsConsentPreference | nu
     .split(';')
     .map((entry) => entry.trim().split('='))
     .find(([name]) => name === ANALYTICS_CONSENT_COOKIE)?.[1];
-  return value === 'granted' || value === 'denied' ? value : null;
+  if (value === 'granted' || value === 'denied') return value;
+  if (typeof window !== 'undefined' && window.sessionStorage?.getItem(ANALYTICS_SESSION_CONSENT_KEY) === 'granted') {
+    return 'granted_once';
+  }
+  return null;
 };
+
+export const isAnalyticsConsentGranted = (
+  preference: AnalyticsConsentPreference | null = getAnalyticsConsentPreference(),
+): boolean => preference === 'granted' || preference === 'granted_once';
 
 export const trackCardForgeEvent = (
   eventName: CardForgeAnalyticsEventName,
   parameters: Record<string, unknown> = {},
 ) => {
-  if (typeof window === 'undefined' || getAnalyticsConsentPreference() !== 'granted' || !window.gtag) return;
+  if (typeof window === 'undefined' || !isAnalyticsConsentGranted() || !window.gtag) return;
   const context = getSafeAnalyticsPageContext();
   window.gtag('event', eventName, {
     ...sanitizeAnalyticsEventParameters(parameters),
@@ -52,13 +61,17 @@ export const bootstrapGoogleAnalytics = () => {
   });
 };
 
-export const configureGoogleAnalytics = (measurementId: string) => {
+export const configureGoogleAnalytics = (
+  measurementId: string,
+  { sessionOnly = false }: { sessionOnly?: boolean } = {},
+) => {
   if (typeof window === 'undefined' || !window.gtag) return;
   window.gtag('js', new Date());
   const context = getSafeAnalyticsPageContext();
   window.gtag('set', context);
   window.gtag('config', measurementId, {
     send_page_view: false,
+    cookie_expires: sessionOnly ? 0 : 63_072_000,
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
     ignore_referrer: true,
@@ -67,7 +80,7 @@ export const configureGoogleAnalytics = (measurementId: string) => {
 };
 
 export const trackAnalyticsPageView = (lastTrackedLocation: string | null = null) => {
-  if (typeof window === 'undefined' || getAnalyticsConsentPreference() !== 'granted' || !window.gtag) return null;
+  if (typeof window === 'undefined' || !isAnalyticsConsentGranted() || !window.gtag) return null;
   const context = getSafeAnalyticsPageContext();
   if (!context.page_location || context.page_location === lastTrackedLocation) return null;
   window.gtag('set', context);
@@ -101,7 +114,7 @@ export const getSafeAnalyticsPageContext = () => {
 };
 
 export const markSignUpIntent = () => {
-  if (typeof window === 'undefined' || getAnalyticsConsentPreference() !== 'granted' || !window.gtag) return;
+  if (typeof window === 'undefined' || !isAnalyticsConsentGranted() || !window.gtag) return;
   window.sessionStorage.setItem(ANALYTICS_SIGN_UP_INTENT_KEY, String(Date.now()));
 };
 

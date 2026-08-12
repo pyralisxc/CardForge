@@ -5,11 +5,17 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { ANALYTICS_CONSENT_COOKIE, type AnalyticsConsentPreference } from '../model';
+import type { AnalyticsConsentPresentation } from '@/features/experience-settings/client';
+import {
+  ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_SESSION_CONSENT_KEY,
+  type AnalyticsConsentPreference,
+} from '../model';
 import {
   bootstrapGoogleAnalytics,
   configureGoogleAnalytics,
   getAnalyticsConsentPreference,
+  isAnalyticsConsentGranted,
   trackAnalyticsPageView,
   trackCardForgeEvent,
 } from '../client/tracking';
@@ -27,12 +33,21 @@ const deleteAnalyticsCookies = () => {
   }
 };
 
-const saveConsentPreference = (value: AnalyticsConsentPreference) => {
+const savePersistentConsentPreference = (value: 'granted' | 'denied') => {
   const secure = window.location.protocol === 'https:' ? '; Secure' : '';
   document.cookie = `${ANALYTICS_CONSENT_COOKIE}=${value}; Max-Age=15552000; path=/; SameSite=Lax${secure}`;
 };
 
-export function AnalyticsProvider() {
+const clearPersistentConsentPreference = () => {
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${ANALYTICS_CONSENT_COOKIE}=; Max-Age=0; path=/; SameSite=Lax${secure}`;
+};
+
+export function AnalyticsProvider({
+  presentation,
+}: {
+  presentation: AnalyticsConsentPresentation;
+}) {
   const pathname = usePathname();
   const measurementId = process.env.NEXT_PUBLIC_CARDFORGE_GA_MEASUREMENT_ID ?? '';
   const enabled = process.env.NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED === 'true' && /^G-[A-Z0-9]+$/u.test(measurementId);
@@ -43,6 +58,8 @@ export function AnalyticsProvider() {
   const [bootstrapReady, setBootstrapReady] = useState(false);
   const [tagReady, setTagReady] = useState(false);
   const lastTrackedLocation = useRef<string | null>(null);
+  const acceptButtonRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
 
   const trackCurrentPage = useCallback(() => {
     const location = trackAnalyticsPageView(lastTrackedLocation.current);
@@ -57,7 +74,7 @@ export function AnalyticsProvider() {
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled || !trackablePath || preference !== 'granted') {
+    if (!enabled || !trackablePath || !isAnalyticsConsentGranted(preference)) {
       setBootstrapReady(false);
       setTagReady(false);
       return;
@@ -67,14 +84,61 @@ export function AnalyticsProvider() {
   }, [enabled, preference, trackablePath]);
 
   useEffect(() => {
-    if (!enabled || !trackablePath || preference !== 'granted' || !tagReady) return;
+    if (!enabled || !trackablePath || !isAnalyticsConsentGranted(preference) || !tagReady) return;
     trackCurrentPage();
   }, [enabled, preference, tagReady, trackablePath, trackCurrentPage]);
+
+  const decisionOpen = preference === null || showSettings;
+  const reviewingPrivacy = pathname === '/privacy';
+  const requiredChoice = presentation === 'required_popup' && preference === null && !reviewingPrivacy;
+
+  useEffect(() => {
+    if (!enabled || !preferenceReady || !decisionOpen || !requiredChoice) return;
+    acceptButtonRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    const appContent = document.getElementById('cardforge-app-content');
+    const wasInert = appContent?.hasAttribute('inert') ?? false;
+    const previousAriaHidden = appContent?.getAttribute('aria-hidden') ?? null;
+    document.body.style.overflow = 'hidden';
+    appContent?.setAttribute('inert', '');
+    appContent?.setAttribute('aria-hidden', 'true');
+    const keepFocusInside = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', keepFocusInside);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (!wasInert) appContent?.removeAttribute('inert');
+      if (previousAriaHidden === null) appContent?.removeAttribute('aria-hidden');
+      else appContent?.setAttribute('aria-hidden', previousAriaHidden);
+      document.removeEventListener('keydown', keepFocusInside);
+    };
+  }, [decisionOpen, enabled, preferenceReady, requiredChoice]);
 
   if (!enabled || !preferenceReady) return null;
 
   const choose = (next: AnalyticsConsentPreference) => {
-    saveConsentPreference(next);
+    if (next === 'granted_once') {
+      clearPersistentConsentPreference();
+      deleteAnalyticsCookies();
+      window.sessionStorage.setItem(ANALYTICS_SESSION_CONSENT_KEY, 'granted');
+    } else {
+      savePersistentConsentPreference(next);
+      window.sessionStorage.removeItem(ANALYTICS_SESSION_CONSENT_KEY);
+    }
     setPreference(next);
     setShowSettings(false);
     if (next === 'denied') {
@@ -89,20 +153,28 @@ export function AnalyticsProvider() {
         ad_user_data: 'denied',
         ad_personalization: 'denied',
       });
+      configureGoogleAnalytics(measurementId, { sessionOnly: next === 'granted_once' });
       lastTrackedLocation.current = null;
     }
   };
 
   const initializeTag = () => {
-    configureGoogleAnalytics(measurementId);
+    configureGoogleAnalytics(measurementId, { sessionOnly: preference === 'granted_once' });
     trackCurrentPage();
     setTagReady(true);
   };
 
-  const decisionOpen = preference === null || showSettings;
+  const presentationClassName = requiredChoice
+    ? 'fixed inset-0 z-[100] grid place-items-center bg-black/75 p-4'
+    : presentation === 'popup'
+      ? 'fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-2xl'
+      : presentation === 'banner'
+        ? 'fixed inset-x-0 bottom-0 z-[100]'
+        : 'fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-2xl';
+
   return (
     <>
-      {preference === 'granted' && trackablePath && bootstrapReady ? (
+      {isAnalyticsConsentGranted(preference) && trackablePath && bootstrapReady ? (
         <Script
           id="cardforge-google-analytics"
           src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`}
@@ -111,15 +183,27 @@ export function AnalyticsProvider() {
         />
       ) : null}
       {decisionOpen ? (
-        <aside className="fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-2xl border border-[#8c6436] bg-[#15100a] p-4 text-[#f7ead0] shadow-2xl" role="dialog" aria-label="Analytics preference">
-          <p className="font-serif text-lg text-[#fff1c7]">Help improve CardForge</p>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">Allow privacy-minimized Google Analytics measurement for page visits, Studio opens, account creation, card creation, and completed exports. Google uses a first-party identifier and basic device and approximate-location signals; Card content, names, and email addresses are never sent. Advertising tracking stays disabled.</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button type="button" onClick={() => choose('granted')}>Allow analytics</Button>
-            <Button type="button" variant="outline" onClick={() => choose('denied')}>{preference === 'granted' ? 'Turn analytics off' : 'Not now'}</Button>
-            <Button asChild type="button" variant="ghost"><a href="/privacy">Privacy details</a></Button>
-          </div>
-        </aside>
+        <div className={presentationClassName}>
+          <aside
+            ref={dialogRef}
+            className={requiredChoice
+              ? 'w-full max-w-2xl border border-[#8c6436] bg-[#15100a] p-5 text-[#f7ead0] shadow-2xl'
+              : 'border border-[#8c6436] bg-[#15100a] p-4 text-[#f7ead0] shadow-2xl'}
+            role="dialog"
+            aria-modal={requiredChoice}
+            aria-labelledby="analytics-consent-title"
+            aria-describedby="analytics-consent-description"
+          >
+            <p id="analytics-consent-title" className="font-serif text-lg text-[#fff1c7]">Help improve CardForge</p>
+            <p id="analytics-consent-description" className="mt-2 text-sm leading-6 text-[#c7b288]">Allow privacy-minimized Google Analytics measurement for page visits, Studio opens, account creation, card creation, and completed exports. Google uses a first-party identifier and basic device and approximate-location signals; card content, names, and email addresses are never sent. Advertising tracking stays disabled.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button ref={acceptButtonRef} type="button" onClick={() => choose('granted')}>Accept</Button>
+              <Button type="button" variant="outline" onClick={() => choose('granted_once')}>Accept once</Button>
+              <Button type="button" variant="outline" onClick={() => choose('denied')}>Decline</Button>
+              <Button asChild type="button" variant="ghost"><a href="/privacy">Privacy details</a></Button>
+            </div>
+          </aside>
+        </div>
       ) : (
         <button type="button" onClick={() => setShowSettings(true)} className="fixed bottom-3 left-3 z-50 border border-[#5f4526] bg-[#100c08] px-3 py-2 text-xs text-[#c7b288] hover:border-[#d8b365] hover:text-[#fff1c7]">Analytics settings</button>
       )}

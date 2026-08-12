@@ -22,6 +22,8 @@ export type ApiErrorCode =
   | 'developer_asset_unavailable'
   | 'developer_cockpit_request_invalid'
   | 'developer_cockpit_unavailable'
+  | 'experience_controls_invalid'
+  | 'experience_controls_unavailable'
   | 'internal_server_error'
   | 'invalid_json'
   | 'invalid_style_id'

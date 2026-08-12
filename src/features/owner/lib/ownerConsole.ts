@@ -1,6 +1,7 @@
 import type { ContactRequest } from '@/features/contact/client';
 import type { BusinessIdentity } from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
+import type { ExperienceSettings } from '@/features/experience-settings/client';
 import type { FounderProfile, SiteContentBlock, SiteMediaAsset } from '@/features/public-site/client';
 import type {
   RoadmapAdminItem,
@@ -18,6 +19,7 @@ export interface OwnerDatabaseMetrics {
 export interface OwnerConsolePayload {
   configured: boolean;
   businessIdentity: BusinessIdentity;
+  experienceSettings: ExperienceSettings;
   siteMechanics: RoadmapSettings;
   siteContentBlocks: SiteContentBlock[];
   siteMedia: SiteMediaAsset[];

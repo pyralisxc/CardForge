@@ -7,6 +7,7 @@ import {
   FounderProfileProvider,
 } from '@/features/public-site/client/context';
 import { getCachedFounderProfile } from '@/features/public-site/server';
+import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
@@ -40,7 +41,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const founderProfile = await getCachedFounderProfile();
+  const [founderProfile, experienceSettings] = await Promise.all([
+    getCachedFounderProfile(),
+    getCachedExperienceSettings(),
+  ]);
   const app = (
     <FounderProfileProvider profile={founderProfile}>
       {children}
@@ -50,8 +54,8 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        {app}
-        <AnalyticsProvider />
+        <div id="cardforge-app-content">{app}</div>
+        <AnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} />
       </body>
     </html>
   );

@@ -45,7 +45,7 @@ function ConfigurationNotice({ snapshot }: { snapshot: OwnerAnalyticsSnapshot })
     <section className={`border p-4 ${isLive ? 'border-[#557a45] bg-[#10190d]' : 'border-[#8c6436] bg-[#1b1209]'}`}>
       <h3 className="font-serif text-lg text-[#fff1c7]">{isLive ? 'Consent-gated analytics is live' : 'Analytics setup incomplete'}</h3>
       <p className="mt-2 text-sm leading-6 text-[#d8be8d]">{isLive
-        ? 'The privacy publication, public measurement flag, and read-only Google reports are active. Google Analytics still loads only after a visitor chooses Allow analytics; Search Console reporting remains independent of that choice.'
+        ? 'The privacy publication, public measurement flag, and read-only Google reports are active. Google Analytics still loads only after a visitor chooses Accept or Accept once; Search Console reporting remains independent of that choice.'
         : 'Collection remains gated until the privacy publication, public measurement flag, and read-only Google reporting configuration are all ready.'}</p>
       {configuration.missing.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{configuration.missing.map((name) => <code key={name} className="border border-[#5f4526] bg-[#0c0b09] px-2 py-1 text-xs text-[#f0bd75]">{name}</code>)}</div> : null}
     </section>

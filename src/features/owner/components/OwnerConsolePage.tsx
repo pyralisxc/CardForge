@@ -42,6 +42,10 @@ const OwnerAnalyticsPanel = dynamic(
   () => import('@/features/analytics/client/owner').then((module) => module.OwnerAnalyticsPanel),
   { loading: panelFallback },
 );
+const OwnerExperienceControlsPanel = dynamic(
+  () => import('@/features/experience-settings/client/owner').then((module) => module.OwnerExperienceControlsPanel),
+  { loading: panelFallback },
+);
 
 const tabClassName = "rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]";
 
@@ -96,6 +100,7 @@ export function OwnerConsolePage() {
               <TabsTrigger value="readiness" className={tabClassName}>System Readiness</TabsTrigger>
               <TabsTrigger value="operations" className={tabClassName}>Accounts &amp; Billing</TabsTrigger>
               <TabsTrigger value="analytics" className={tabClassName}>Analytics</TabsTrigger>
+              <TabsTrigger value="experience" className={tabClassName}>Experience Controls</TabsTrigger>
               <TabsTrigger value="copy" className={tabClassName}>Site Copy</TabsTrigger>
               <TabsTrigger value="media" className={tabClassName}>Site Media</TabsTrigger>
               <TabsTrigger value="founder" className={tabClassName}>Cameron Profile</TabsTrigger>
@@ -106,6 +111,15 @@ export function OwnerConsolePage() {
             <TabsContent value="readiness" className="mt-0"><OwnerReadinessPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="operations" className="mt-0"><OwnerOperationsPanel payload={payload} /></TabsContent>
             <TabsContent value="analytics" className="mt-0"><OwnerAnalyticsPanel publicAppUrl={payload.integrationStatus.site.publicAppUrl} /></TabsContent>
+            <TabsContent value="experience" className="mt-0">
+              <OwnerExperienceControlsPanel
+                settings={payload.console.experienceSettings}
+                onSettingsChange={(experienceSettings) => updateConsole({
+                  ...payload.console,
+                  experienceSettings,
+                })}
+              />
+            </TabsContent>
             <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={payload.console} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
             <TabsContent value="founder" className="mt-0"><OwnerFounderProfilePanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
