@@ -41,7 +41,9 @@ export const trackCardForgeEvent = (
 export const bootstrapGoogleAnalytics = () => {
   if (typeof window === 'undefined') return;
   window.dataLayer = window.dataLayer ?? [];
-  window.gtag = window.gtag ?? function gtag(...args: unknown[]) { window.dataLayer?.push(args); };
+  // Google processes the canonical Arguments object differently from a rest-parameter array.
+  // eslint-disable-next-line prefer-rest-params
+  window.gtag = window.gtag ?? function gtag() { window.dataLayer?.push(arguments); };
   window.gtag('consent', 'default', {
     analytics_storage: 'granted',
     ad_storage: 'denied',

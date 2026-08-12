@@ -99,4 +99,25 @@ describe('analytics tracking', () => {
       'event',
     ]);
   });
+
+  it('uses the canonical Google arguments command shape', () => {
+    vi.stubGlobal('window', {
+      sessionStorage: createStorage(),
+      location: { href: 'https://cardforges.com/studio' },
+    });
+    setConsent('granted');
+
+    bootstrapGoogleAnalytics();
+    configureGoogleAnalytics('G-TEST123');
+    trackAnalyticsPageView();
+
+    expect(window.dataLayer?.map((command) => Array.from(command as ArrayLike<unknown>)[0])).toEqual([
+      'consent',
+      'js',
+      'set',
+      'config',
+      'set',
+      'event',
+    ]);
+  });
 });
