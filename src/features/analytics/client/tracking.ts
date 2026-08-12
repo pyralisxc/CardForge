@@ -38,7 +38,7 @@ export const trackCardForgeEvent = (
   });
 };
 
-export const initializeGoogleAnalytics = (measurementId: string) => {
+export const bootstrapGoogleAnalytics = () => {
   if (typeof window === 'undefined') return;
   window.dataLayer = window.dataLayer ?? [];
   window.gtag = window.gtag ?? function gtag(...args: unknown[]) { window.dataLayer?.push(args); };
@@ -48,6 +48,10 @@ export const initializeGoogleAnalytics = (measurementId: string) => {
     ad_user_data: 'denied',
     ad_personalization: 'denied',
   });
+};
+
+export const configureGoogleAnalytics = (measurementId: string) => {
+  if (typeof window === 'undefined' || !window.gtag) return;
   window.gtag('js', new Date());
   const context = getSafeAnalyticsPageContext();
   window.gtag('set', context);

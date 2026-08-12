@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  bootstrapGoogleAnalytics,
   completeSignUpIntent,
-  initializeGoogleAnalytics,
+  configureGoogleAnalytics,
   trackAnalyticsPageView,
   trackCardCreated,
 } from '@/features/analytics/client/tracking';
@@ -76,7 +77,8 @@ describe('analytics tracking', () => {
     });
     setConsent('granted');
 
-    initializeGoogleAnalytics('G-TEST123');
+    bootstrapGoogleAnalytics();
+    configureGoogleAnalytics('G-TEST123');
     const pageLocation = trackAnalyticsPageView();
 
     expect(pageLocation).toBe('https://cardforges.com/studio?utm_source=threads');
@@ -88,5 +90,13 @@ describe('analytics tracking', () => {
       page_location: 'https://cardforges.com/studio?utm_source=threads',
       page_referrer: 'https://www.facebook.com/groups/example',
     }));
+    expect(gtag.mock.calls.map(([command]) => command)).toEqual([
+      'consent',
+      'js',
+      'set',
+      'config',
+      'set',
+      'event',
+    ]);
   });
 });
