@@ -67,7 +67,7 @@ CardForge has three storage lanes:
 - `src/features/developer-program`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit`: protected cockpit composition, CardForge-owned campaign/site proposal ledgers, media approval, and workflow state transitions.
 - `src/features/social-publishing`: server-only provider boundary. Buffer owns channel connections, post scheduling, and delivery status; CardForge owns package content, approval history, source media, and the durable mapping to provider post IDs.
-- `src/features/analytics`: explicit-consent GA4 collection, anonymous creator-adoption events, organic UTM link policy, and server-only read access to GA4 and Search Console. Google owns measurement records; CardForge does not duplicate raw analytics in Supabase.
+- `src/features/analytics`: explicit-consent, privacy-minimized GA4 collection, creator-adoption events, organic UTM link policy, and server-only read access to GA4 and Search Console. Google owns measurement records; CardForge does not duplicate raw analytics in Supabase.
 - `src/features/owner`: owner authorization, integration/database health, and lazy operational panel composition. Business identity, account administration, billing, and public content remain owned by their product features.
 - `src/infrastructure`: Clerk middleware/configuration, Supabase service access, HTTP response/validation/timing, public URL resolution, and durable abuse throttling. Infrastructure depends only on Infrastructure, Domain, Shared, and external providers.
 - `src/shared`: framework-agnostic utilities such as timeout handling, text normalization, and user-facing error construction.

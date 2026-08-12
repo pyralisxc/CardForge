@@ -104,7 +104,7 @@ export function AnalyticsProvider() {
       {decisionOpen ? (
         <aside className="fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-2xl border border-[#8c6436] bg-[#15100a] p-4 text-[#f7ead0] shadow-2xl" role="dialog" aria-label="Analytics preference">
           <p className="font-serif text-lg text-[#fff1c7]">Help improve CardForge</p>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">Allow anonymous Google Analytics measurements for page visits, Studio opens, account creation, card creation, and completed exports. Card content, names, and email addresses are never sent. Advertising tracking stays disabled.</p>
+          <p className="mt-2 text-sm leading-6 text-[#c7b288]">Allow privacy-minimized Google Analytics measurement for page visits, Studio opens, account creation, card creation, and completed exports. Google uses a first-party identifier and basic device and approximate-location signals; Card content, names, and email addresses are never sent. Advertising tracking stays disabled.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button type="button" onClick={() => choose('granted')}>Allow analytics</Button>
             <Button type="button" variant="outline" onClick={() => choose('denied')}>{preference === 'granted' ? 'Turn analytics off' : 'Not now'}</Button>

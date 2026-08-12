@@ -43,6 +43,10 @@ Clerk provides authentication, account identity, session management, and trusted
 
 CardForge and Clerk use cookies and similar authentication technologies to keep users signed in, maintain sessions, protect account workflows, and remember necessary authentication state. Blocking those technologies may prevent sign-in or other account features from working.
 
+CardForge may also offer optional, privacy-minimized Google Analytics measurement to understand website acquisition and how visitors move into core creation activities. This measurement is off until you choose "Allow analytics," and you may turn it off later through the Analytics settings shown by CardForge. If allowed, Google Analytics uses a randomly generated client identifier in a first-party cookie to distinguish a browser and its sessions. Google may receive basic session, browser, device, language, and approximate-location information alongside a sanitized page path and title, limited referrer context, approved campaign parameters, and explicit events for opening Studio, signing up, creating a card, and completing an export. Card content, project names, account names, email addresses, non-campaign query values, and owner or developer-cockpit activity are not sent as analytics events. CardForge does not enable Google advertising storage, Google Signals, ad personalization, or Enhanced Measurement. Google controls the resulting analytics records and applies its own processing and retention practices; CardForge reads aggregated reports but does not copy raw visitor events into Supabase. You can learn more in Google's privacy policy at https://policies.google.com/privacy.
+
+The analytics choice is stored in a first-party cookie for up to 180 days so CardForge can remember it. Turning analytics off prevents future Google Analytics collection from that browser and removes Google Analytics cookies that CardForge can identify, but it does not retroactively delete aggregated or previously processed Google records. You can also block or clear cookies in your browser. Google Search Console separately provides CardForge with aggregated information about how pages appear and perform in Google Search; it does not depend on the optional CardForge analytics choice.
+
 Information you choose to provide may include an account identifier, email address, optional name, contact requests and their contents, roadmap suggestions and votes, developer profile details, developer submissions, source files, and developer votes. Developer submissions, public source files, and published library assets are intentionally shared with the review pipeline and may become visible to other users. Do not upload confidential files, private client work, or content you do not have permission to share.
 
 Browser IndexedDB data remains until you clear it or the browser removes it, and downloaded project files remain until you delete them from the places where you saved them. Platform and provider records are retained for periods that vary by record, operational need, security and abuse-prevention need, legal obligation, and provider setting. Some billing, legal, voting, attribution, published-asset, and security records may need to remain after an account is disabled or deleted to preserve accurate platform history and system integrity.
@@ -146,7 +150,7 @@ const createDefaultDocument = (
 });
 
 export const DEFAULT_LEGAL_DOCUMENTS: LegalDocument[] = [
-  createDefaultDocument('privacy', 'Privacy Policy', privacyBody, '2026-08-11'),
+  createDefaultDocument('privacy', 'Privacy Policy', privacyBody, '2026-08-12'),
   createDefaultDocument('terms', 'Terms of Service', termsBody),
   createDefaultDocument('creator-pass-terms', 'Creator Pass Terms', creatorPassTermsBody),
   createDefaultDocument('supporter-terms', 'Supporter Terms', supporterTermsBody),

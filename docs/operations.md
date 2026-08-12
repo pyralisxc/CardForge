@@ -152,7 +152,7 @@ Cameron Locke is the named operator for launch-period incidents. Existing surfac
 - Persistence failures: the Studio save status, quota warning, recovery snapshot, and project import; reproduce in the affected browser before changing provider state.
 - Contact/email failures: the owner-console contact history and email-test result, then Resend delivery details.
 
-Organic analytics code is present but browser collection remains hard-disabled until the privacy disclosure is current and `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=true`. GA4 answers anonymous acquisition and creator-journey questions; Search Console remains the organic Google discovery source. No paid-ad pixel, advertising storage, Google Signals, or ad-personalization signal is enabled.
+Organic analytics code is present but browser collection remains hard-disabled until the privacy disclosure is current and `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=true`. GA4 answers privacy-minimized acquisition and creator-journey questions; Search Console remains the organic Google discovery source. No paid-ad pixel, advertising storage, Google Signals, or ad-personalization signal is enabled.
 
 ## Organic analytics rollout
 
