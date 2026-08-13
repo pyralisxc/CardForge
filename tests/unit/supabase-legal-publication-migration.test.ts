@@ -20,6 +20,10 @@ const posthogPrivacyMigrationPath = resolve(
   process.cwd(),
   'supabase/migrations/20260812190233_document_posthog_interaction_analytics.sql',
 );
+const replayRemovalMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260813034733_remove_session_replay_from_privacy.sql',
+);
 
 const extractDollarQuoted = (sql: string, tag: string): string | undefined => (
   new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql)?.[1]
@@ -69,6 +73,7 @@ describe('versioned legal publication migration', () => {
     const retirementSql = await readFile(retirementMigrationPath, 'utf8');
     const experienceControlsSql = await readFile(experienceControlsMigrationPath, 'utf8');
     const posthogPrivacySql = await readFile(posthogPrivacyMigrationPath, 'utf8');
+    const replayRemovalSql = await readFile(replayRemovalMigrationPath, 'utf8');
     const tagBySlug = {
       privacy: 'privacy_reviewed',
       terms: 'terms_reviewed',
@@ -89,14 +94,19 @@ describe('versioned legal publication migration', () => {
         const newMeasurement = extractDollarQuoted(posthogPrivacySql, 'new_measurement');
         const oldChoice = extractDollarQuoted(posthogPrivacySql, 'old_choice');
         const newChoice = extractDollarQuoted(posthogPrivacySql, 'new_choice');
+        const oldReplayDisclosure = extractDollarQuoted(replayRemovalSql, 'old_replay_disclosure');
+        const newEventDisclosure = extractDollarQuoted(replayRemovalSql, 'new_event_disclosure');
         expect(previousBody, document.slug).toBeDefined();
         expect(oldMeasurement, document.slug).toBeDefined();
         expect(newMeasurement, document.slug).toBeDefined();
         expect(oldChoice, document.slug).toBeDefined();
         expect(newChoice, document.slug).toBeDefined();
+        expect(oldReplayDisclosure, document.slug).toBeDefined();
+        expect(newEventDisclosure, document.slug).toBeDefined();
         const publishedBody = previousBody
           ?.replace(oldMeasurement ?? '', newMeasurement ?? '')
-          .replace(oldChoice ?? '', newChoice ?? '');
+          .replace(oldChoice ?? '', newChoice ?? '')
+          .replace(oldReplayDisclosure ?? '', newEventDisclosure ?? '');
         expect(publishedBody, document.slug).toBe(document.body);
         continue;
       }

@@ -66,8 +66,6 @@ export const applyProductAnalyticsReporting = async (snapshot: OwnerAnalyticsSna
     snapshot.warnings.push('PostHog reporting configuration is invalid.');
     return;
   }
-  snapshot.interactions.recordingsUrl = `${appHost}/project/${encodeURIComponent(projectId)}/replay`;
-
   const queries = [
     {
       key: 'interactionLive',

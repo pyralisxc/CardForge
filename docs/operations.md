@@ -12,7 +12,7 @@ This is the current runbook for `https://cardforges.com`. Provider dashboards ow
 - Stripe owns Creator Pass, voluntary support checkout, subscriptions, webhooks, and the customer portal.
 - Supabase owns shared product state and approved public media. Browser-local creator projects remain in IndexedDB/project files.
 - Resend owns transactional email delivery.
-- GA4 owns consented acquisition/adoption reporting, PostHog owns anonymous interaction events and fully masked public-page replay, and Search Console independently owns Google discovery reporting.
+- GA4 owns consented acquisition/adoption reporting, PostHog owns anonymous allow-listed interaction events, and Search Console independently owns Google discovery reporting.
 - Buffer may own social scheduling/delivery only after its separate owner-controlled rollout gate is enabled.
 
 Secrets stay in Vercel or the owning provider. The Owner Console reports readiness and operational state; it must never render raw secret values.
@@ -72,22 +72,24 @@ Experience Controls can make portable project files free or Creator Pass-only wi
 
 ## Organic analytics
 
-Analytics is opt-in and organic-only. Enhanced Measurement, advertising storage, Google Signals, and ad personalization remain disabled. PostHog autocapture, heatmaps, exception capture, person profiles, and canvas capture also remain disabled. CardForge explicitly sends sanitized paths and allow-listed navigation, format, card-back, generation, card-creation, and export lifecycle events; `sign_up` and `export_completed` remain the GA4 key events. PostHog replay is limited to public informational routes, masks every text and input value in the browser, strips query strings, omits request/response bodies and headers, and never records Studio or private account/owner/developer routes.
+Analytics is opt-in and organic-only. Enhanced Measurement, advertising storage, Google Signals, and ad personalization remain disabled. PostHog autocapture, heatmaps, exception capture, person profiles, and session recording also remain disabled. CardForge explicitly sends sanitized paths and allow-listed navigation, format, card-back, generation, card-creation, and export lifecycle events; `sign_up` and `export_completed` remain the GA4 key events. PostHog receives those allow-listed CardForge properties plus the disclosed anonymous session identifier and basic browser/device context; it never records page content or session replay.
 
 After analytics, privacy, domain, or credential changes:
 
-1. Apply `20260812190233_document_posthog_interaction_analytics.sql` immediately adjacent to the deployment and confirm the latest published Privacy Policy names both Google and PostHog.
-2. Decline consent in a signed-out browser and confirm no Google tag, PostHog request, `_ga` cookie, or PostHog browser state.
-3. Choose Accept once and confirm GA uses session cookies, PostHog uses session storage, measurement stops in a new tab session, and no persistent CardForge consent cookie remains.
-4. Choose Accept and confirm GA DebugView receives only sanitized path/title/referrer plus approved UTM fields; raw non-UTM query values must not appear.
-5. On a public informational page, confirm PostHog receives only allow-listed events and sanitized `path`. Inspect one replay and prove text/inputs are masked, URLs omit queries, and canvas/network contents are absent.
-6. Enter Studio, sign-in, account, owner, and developer routes and confirm PostHog replay stops while approved semantic Studio events remain content-free.
-7. Confirm required choice blocks interaction only until Accept, Accept once, or Decline; confirm popup and banner remain non-blocking.
-8. Confirm the Owner Analytics Live and Interactions tabs distinguish unavailable reports from real zero values and never display visitor identifiers.
-9. Open one normalized organic link and confirm its source, `organic_social` medium, campaign, and post identity after GA processing.
-10. Confirm Search Console reporting still works independently.
+1. Disable Session Replay in the PostHog project before deploying any event-only privacy publication.
+2. Deploy and verify the bundle with `disable_session_recording: true`; an accepted public and Studio session must send no `$snapshot` or replay request.
+3. Apply all pending migrations and confirm the latest published Privacy Policy names both Google and PostHog and states that session replay is not used.
+4. Decline consent in a signed-out browser and confirm no Google tag, PostHog request, `_ga` cookie, or PostHog browser state.
+5. Choose Accept once and confirm GA uses session cookies, PostHog uses session storage, measurement stops in a new tab session, and no persistent CardForge consent cookie remains.
+6. Choose Accept and confirm GA DebugView receives only sanitized path/title/referrer plus approved UTM fields; raw non-UTM query values must not appear.
+7. On a public informational page and in Studio, confirm PostHog receives only allow-listed CardForge events with sanitized `path` plus the disclosed anonymous/basic technical context.
+8. Enter sign-in, account, owner, and developer routes and confirm no private content, names, email addresses, or returned visitor identifiers appear in PostHog events.
+9. Confirm required choice blocks interaction only until Accept, Accept once, or Decline; confirm popup and banner remain non-blocking.
+10. Confirm the Owner Analytics Live and Interactions tabs distinguish unavailable reports from real zero values and never display visitor identifiers.
+11. Open one normalized organic link and confirm its source, `organic_social` medium, campaign, and post identity after GA processing.
+12. Confirm Search Console reporting still works independently.
 
-Rollback all browser collection with `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=false`; this preserves provider-owned history and owner reporting access.
+Rollback all browser collection with a newly deployed `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=false` build; this preserves provider-owned history and owner reporting access. After the event-only Privacy Policy is published, never roll back to a replay-capable build unless browser collection has first been disabled and verified in production.
 
 ## Developer Cockpit and Buffer
 
