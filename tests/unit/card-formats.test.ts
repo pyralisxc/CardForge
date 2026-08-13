@@ -36,6 +36,15 @@ describe('card format ownership', () => {
     expect(getCardFormatMeasurement(poker, 'mm')).toMatchObject({ width: 63, height: 88, suffix: 'mm' });
     expect(getCardFormatMeasurement(poker, 'in')).toMatchObject({ width: 2.48, height: 3.46, suffix: 'in' });
     expect(getCardFormatMeasurement(poker, 'px')).toMatchObject({ width: 630, height: 880, suffix: 'px' });
+
+    const ttrpgSheet = CARD_FORMATS.find((format) => format.id === 'ttrpg-reference');
+    expect(ttrpgSheet).toMatchObject({
+      label: 'TTRPG sheet (US Letter)',
+      widthMm: 215.9,
+      heightMm: 279.4,
+      canvasWidthPx: 850,
+      canvasHeightPx: 1100,
+    });
   });
 
   it('normalizes legacy shipped formats without changing their authored canvas', () => {

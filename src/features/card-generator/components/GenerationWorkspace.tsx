@@ -253,6 +253,11 @@ export function GenerationWorkspace({
                   ))}
                 </SelectContent>
               </Select>
+              {selectedTemplate && compatibleBackTemplates.length > 0 ? (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {compatibleBackTemplates.length} matching {compatibleBackTemplates.length === 1 ? 'back' : 'backs'} available. Choose one to preview it.
+                </p>
+              ) : null}
               {selectedTemplate && compatibleBackTemplates.length === 0 ? (
                 <div className="mt-2 space-y-2 rounded-md border border-amber-500/35 bg-amber-500/10 p-3 text-xs">
                   <p className="font-medium text-foreground">No matching card back yet</p>

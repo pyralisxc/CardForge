@@ -205,11 +205,11 @@ export function SingleCardGenerator({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="p-4 sm:p-6">
         <CardTitle className="flex items-center gap-2"><FilePlus2 className="h-5 w-5" />Make One Card</CardTitle>
         <CardDescription>Add the details for one card. You can change them later.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
         {selectedTemplateIdProp && !hasAddedCardInSession && (
           <div className="rounded-md border p-3 text-xs bg-muted/20" role="status" aria-live="polite">
             <p className="font-medium">Your first card is ready</p>

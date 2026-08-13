@@ -26,7 +26,7 @@ export const CARD_FRAME_KITS: CardFrameKit[] = [
     id: 'arcane-ttrpg-premium',
     name: 'Arcane Sheet',
     assetUrl: '/card-assets/textures/arcane-forge/frame-ttrpg-premium.webp',
-    aspectRatio: '85:110',
+    aspectRatio: '8.5:11',
     templateIds: ['default-ttrpg-stat-sheet'],
     baseBackgroundColor: '#18130f',
     baseTextColor: '#25160b',

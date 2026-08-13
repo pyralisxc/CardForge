@@ -13,12 +13,3 @@ export const splitTemplatesForWorkspace = ({
   backFacePresetTemplates: allTemplates.filter((template) => template.templateUsage === 'back-preset'),
   freeformTemplatesForGenerator: allTemplates.filter((template) => template.templateUsage !== 'back-preset'),
 });
-
-export const getGeneratorSelectedTemplateId = (
-  freeformTemplatesForGenerator: TCGCardTemplate[],
-  selectedTemplateId: string | null,
-): string | null => (
-  freeformTemplatesForGenerator.some((template) => template.id === selectedTemplateId)
-    ? selectedTemplateId
-    : (freeformTemplatesForGenerator.find((template) => template.id)?.id || null)
-);

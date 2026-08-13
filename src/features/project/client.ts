@@ -57,6 +57,7 @@ export {
   selectAllTemplates,
   selectEditingCard,
   selectGeneratedDisplayCards,
+  resolveGeneratorFrontTemplateId,
 } from './store/selectors';
 export { useProjectStore } from './store/workspaceStore';
 export type { ProjectState } from './store/workspaceStore';

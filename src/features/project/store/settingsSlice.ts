@@ -3,7 +3,7 @@ import type { StateCreator } from 'zustand';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import { PAPER_SIZES } from '@/domain/rendering';
 
-import { selectAllTemplates } from './selectors';
+import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
 import type { ProjectState, SettingsSlice } from './types';
 import { createDefaultActiveCardSet, normalizeActiveTab, WORKSPACE_TABS } from './workspaceDefaults';
 
@@ -46,12 +46,20 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     },
     singleCardGeneratorSelectedTemplateId: id,
   })),
-  setActiveCardSetBackingTemplateId: (id) => set((state) => ({
-    activeCardSet: {
-      ...state.activeCardSet,
-      backingTemplateId: getCompatibleBackingId(state, state.activeCardSet.frontTemplateId, id),
-    },
-  })),
+  setActiveCardSetBackingTemplateId: (id) => set((state) => {
+    const frontTemplateId = resolveGeneratorFrontTemplateId(
+      selectAllTemplates(state),
+      state.singleCardGeneratorSelectedTemplateId,
+    );
+    return {
+      singleCardGeneratorSelectedTemplateId: frontTemplateId,
+      activeCardSet: {
+        ...state.activeCardSet,
+        frontTemplateId,
+        backingTemplateId: getCompatibleBackingId(state, frontTemplateId, id),
+      },
+    };
+  }),
   setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => ({
     singleCardGeneratorSelectedTemplateId: id,
     activeCardSet: {

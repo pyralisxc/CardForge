@@ -1,13 +1,13 @@
 {
   "id": "default-ttrpg-stat-sheet",
   "name": "Arcane TTRPG Stat Sheet",
-  "aspectRatio": "85:110",
+  "aspectRatio": "8.5:11",
   "formatId": "ttrpg-reference",
-  "trimWidthMm": 85,
-  "trimHeightMm": 110,
+  "trimWidthMm": 215.9,
+  "trimHeightMm": 279.4,
   "templateSource": "default",
   "templateUsage": "standard",
-  "templateCategory": "Full page",
+  "templateCategory": "Full page · US Letter",
   "templateDescription": "A premium full-page tabletop sheet with vellum panels, stat rails, and guild-slate framing.",
   "templateOrder": 3,
   "templatePreviewData": {

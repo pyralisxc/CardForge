@@ -26,7 +26,7 @@ describe('card preview export sizing', () => {
   it('derives raster dimensions from each template physical size at the requested dpi', () => {
     expect(getCardExportDimensionsPx(makeCard('63:88'), 300)).toEqual({ widthPx: 744, heightPx: 1039 });
     expect(getCardExportDimensionsPx(makeCard('35:20'), 300)).toEqual({ widthPx: 1050, heightPx: 600 });
-    expect(getCardExportDimensionsPx(makeCard('85:110'), 300)).toEqual({ widthPx: 1004, heightPx: 1299 });
+    expect(getCardExportDimensionsPx(makeCard('85:110'), 300)).toEqual({ widthPx: 2550, heightPx: 3300 });
   });
 
   it('normalizes proportion-only ratios to standard card height', () => {

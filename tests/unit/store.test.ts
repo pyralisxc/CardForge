@@ -208,6 +208,33 @@ describe('app store helpers', () => {
     expect(useProjectStore.getState().activeCardSet.backingTemplateId).toBeNull();
   });
 
+  it('repairs a stale card-set front when selecting a compatible visible back', () => {
+    const pokerFront = reconstructMinimalTemplateObject({ id: 'poker-front', name: 'Poker', formatId: 'poker' });
+    const pokerBack = reconstructMinimalTemplateObject({
+      id: 'poker-back',
+      name: 'Poker back',
+      formatId: 'poker',
+      templateUsage: 'back-preset',
+    });
+    useProjectStore.setState({
+      defaultTemplates: [pokerFront, pokerBack],
+      activeCardSet: {
+        id: 'active-card-set',
+        name: 'Set',
+        frontTemplateId: null,
+        backingTemplateId: null,
+      },
+      singleCardGeneratorSelectedTemplateId: 'poker-front',
+    });
+
+    useProjectStore.getState().setActiveCardSetBackingTemplateId('poker-back');
+
+    expect(useProjectStore.getState().activeCardSet).toMatchObject({
+      frontTemplateId: 'poker-front',
+      backingTemplateId: 'poker-back',
+    });
+  });
+
   it('selects generated cards that use a freeform template', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'freeform-template',
