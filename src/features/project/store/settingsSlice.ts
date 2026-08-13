@@ -25,6 +25,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
   richTextHighlightColor: '#ffd700',
   activeCardSet: createDefaultActiveCardSet(),
   singleCardGeneratorSelectedTemplateId: null,
+  templateEditorSelectedTemplateId: null,
   pdfMarginMm: 5,
   pdfCardSpacingMm: 0,
   pdfIncludeCutLines: false,
@@ -68,6 +69,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       backingTemplateId: getCompatibleBackingId(state, id, state.activeCardSet.backingTemplateId),
     },
   })),
+  setTemplateEditorSelectedTemplateId: (id) => set({ templateEditorSelectedTemplateId: id }),
   setPdfOptions: (options) => set((state) => ({
     pdfMarginMm: options.margin !== undefined ? Math.max(0, options.margin) : state.pdfMarginMm,
     pdfCardSpacingMm: options.spacing !== undefined ? Math.max(0, options.spacing) : state.pdfCardSpacingMm,

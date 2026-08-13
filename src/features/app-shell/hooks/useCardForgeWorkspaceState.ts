@@ -24,6 +24,7 @@ export function useCardForgeWorkspaceState() {
   const activeTab = useProjectStore((state) => state.activeTab);
   const activeCardSet = useProjectStore((state) => state.activeCardSet);
   const singleCardGeneratorSelectedTemplateId = useProjectStore((state) => state.singleCardGeneratorSelectedTemplateId);
+  const templateEditorSelectedTemplateId = useProjectStore((state) => state.templateEditorSelectedTemplateId);
   const pdfMarginMm = useProjectStore((state) => state.pdfMarginMm);
   const pdfCardSpacingMm = useProjectStore((state) => state.pdfCardSpacingMm);
   const pdfIncludeCutLines = useProjectStore((state) => state.pdfIncludeCutLines);
@@ -48,6 +49,7 @@ export function useCardForgeWorkspaceState() {
   const removeGeneratedCardAction = useProjectStore((state) => state.removeGeneratedCard);
   const updateGeneratedCardAction = useProjectStore((state) => state.updateGeneratedCard);
   const retargetGeneratedCardsTemplateAction = useProjectStore((state) => state.retargetGeneratedCardsTemplate);
+  const retargetGeneratedCardsBackingTemplateAction = useProjectStore((state) => state.retargetGeneratedCardsBackingTemplate);
   const setStoredCardsFromFileAction = useProjectStore((state) => state.setStoredCardsFromFile);
   const mergeStoredCardsFromFileAction = useProjectStore((state) => state.mergeStoredCardsFromFile);
   const setSelectedPaperSizeAction = useProjectStore((state) => state.setSelectedPaperSize);
@@ -56,6 +58,7 @@ export function useCardForgeWorkspaceState() {
   const setActiveCardSetFrontTemplateIdAction = useProjectStore((state) => state.setActiveCardSetFrontTemplateId);
   const setActiveCardSetBackingTemplateIdAction = useProjectStore((state) => state.setActiveCardSetBackingTemplateId);
   const setSingleCardGeneratorSelectedTemplateIdAction = useProjectStore((state) => state.setSingleCardGeneratorSelectedTemplateId);
+  const setTemplateEditorSelectedTemplateIdAction = useProjectStore((state) => state.setTemplateEditorSelectedTemplateId);
   const setPdfOptionsAction = useProjectStore((state) => state.setPdfOptions);
   const setExportModeAction = useProjectStore((state) => state.setExportMode);
   const setExportDpiAction = useProjectStore((state) => state.setExportDpi);
@@ -88,6 +91,7 @@ export function useCardForgeWorkspaceState() {
       deleteTemplateAction,
       openEditDialogAction,
       removeGeneratedCardAction,
+      retargetGeneratedCardsBackingTemplateAction,
       retargetGeneratedCardsTemplateAction,
       setActiveTabAction,
       setActiveCardSetBackingTemplateIdAction,
@@ -103,6 +107,7 @@ export function useCardForgeWorkspaceState() {
       setPdfOptionsAction,
       setSelectedPaperSizeAction,
       setSingleCardGeneratorSelectedTemplateIdAction,
+      setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
       updateGeneratedCardAction,
@@ -128,6 +133,7 @@ export function useCardForgeWorkspaceState() {
       singleCardGeneratorSelectedTemplateId,
       standardDefaultTemplates,
       storedCards,
+      templateEditorSelectedTemplateId,
       templatesFromStore,
       userTemplatesFromStore,
     },

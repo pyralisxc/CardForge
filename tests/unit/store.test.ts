@@ -21,6 +21,7 @@ describe('app store helpers', () => {
         backingTemplateId: null,
       },
       singleCardGeneratorSelectedTemplateId: null,
+      templateEditorSelectedTemplateId: null,
       editingCardUniqueId: null,
       isEditDialogOpen: false,
       pdfDuplexLayout: 'separate-pages',
@@ -235,6 +236,86 @@ describe('app store helpers', () => {
     });
   });
 
+  it('keeps the Generator set selection stable when Layout Studio opens a card back', () => {
+    const pokerFront = reconstructMinimalTemplateObject({ id: 'poker-front', name: 'Poker', formatId: 'poker' });
+    const pokerBack = reconstructMinimalTemplateObject({
+      id: 'poker-back',
+      name: 'Poker back',
+      formatId: 'poker',
+      templateUsage: 'back-preset',
+    });
+    useProjectStore.setState({
+      defaultTemplates: [pokerFront, pokerBack],
+      activeCardSet: {
+        id: 'active-card-set',
+        name: 'Set',
+        frontTemplateId: 'poker-front',
+        backingTemplateId: 'poker-back',
+      },
+      singleCardGeneratorSelectedTemplateId: 'poker-front',
+      templateEditorSelectedTemplateId: 'poker-front',
+    });
+
+    useProjectStore.getState().setTemplateEditorSelectedTemplateId('poker-back');
+
+    expect(useProjectStore.getState()).toMatchObject({
+      singleCardGeneratorSelectedTemplateId: 'poker-front',
+      templateEditorSelectedTemplateId: 'poker-back',
+      activeCardSet: {
+        frontTemplateId: 'poker-front',
+        backingTemplateId: 'poker-back',
+      },
+    });
+  });
+
+  it('repairs legacy persisted state that used a card back as the Generator front selection', () => {
+    const pokerFront = reconstructMinimalTemplateObject({ id: 'poker-front', name: 'Poker', formatId: 'poker' });
+    const pokerBack = reconstructMinimalTemplateObject({
+      id: 'poker-back',
+      name: 'Poker back',
+      formatId: 'poker',
+      templateUsage: 'back-preset',
+    });
+    useProjectStore.setState({
+      defaultTemplates: [pokerFront, pokerBack],
+      activeCardSet: {
+        id: 'active-card-set',
+        name: 'Set',
+        frontTemplateId: 'poker-back',
+        backingTemplateId: 'poker-back',
+      },
+      singleCardGeneratorSelectedTemplateId: 'poker-back',
+      templateEditorSelectedTemplateId: null,
+    });
+
+    useProjectStore.getState()._rehydrateCallback();
+
+    expect(useProjectStore.getState()).toMatchObject({
+      singleCardGeneratorSelectedTemplateId: 'poker-front',
+      templateEditorSelectedTemplateId: 'poker-front',
+      activeCardSet: {
+        frontTemplateId: 'poker-front',
+        backingTemplateId: 'poker-back',
+      },
+    });
+  });
+
+  it('retargets existing card backs without changing their front designs', () => {
+    useProjectStore.setState({
+      storedCards: [
+        { uniqueId: 'card-1', templateId: 'front-1', backingTemplateId: 'back-old', data: {} },
+        { uniqueId: 'card-2', templateId: 'front-2', backingTemplateId: null, data: {} },
+      ],
+    });
+
+    useProjectStore.getState().retargetGeneratedCardsBackingTemplate('back-old', 'back-new');
+
+    expect(useProjectStore.getState().storedCards).toEqual([
+      { uniqueId: 'card-1', templateId: 'front-1', backingTemplateId: 'back-new', data: {} },
+      { uniqueId: 'card-2', templateId: 'front-2', backingTemplateId: null, data: {} },
+    ]);
+  });
+
   it('selects generated cards that use a freeform template', () => {
     const template: TCGCardTemplate = reconstructMinimalTemplateObject({
       id: 'freeform-template',
@@ -429,6 +510,7 @@ describe('app store helpers', () => {
         { uniqueId: 'card-deleted', templateId: 'template-deleted', data: {} },
       ],
       singleCardGeneratorSelectedTemplateId: 'template-deleted',
+      templateEditorSelectedTemplateId: 'template-deleted',
       editingCardUniqueId: 'card-deleted',
       isEditDialogOpen: true,
     });
@@ -438,6 +520,7 @@ describe('app store helpers', () => {
     expect(selectAllTemplates(useProjectStore.getState()).map(t => t.id)).toEqual(['template-kept']);
     expect(useProjectStore.getState().storedCards.map(card => card.uniqueId)).toEqual(['card-kept']);
     expect(useProjectStore.getState().singleCardGeneratorSelectedTemplateId).toBe('template-kept');
+    expect(useProjectStore.getState().templateEditorSelectedTemplateId).toBe('template-kept');
     expect(useProjectStore.getState().editingCardUniqueId).toBeNull();
     expect(useProjectStore.getState().isEditDialogOpen).toBe(false);
   });

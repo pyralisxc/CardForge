@@ -60,6 +60,16 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     });
     return changed ? { storedCards } : state;
   }),
+  retargetGeneratedCardsBackingTemplate: (fromTemplateId, toTemplateId) => set((state) => {
+    if (!fromTemplateId || !toTemplateId || fromTemplateId === toTemplateId) return state;
+    let changed = false;
+    const storedCards = state.storedCards.map((card) => {
+      if (card.backingTemplateId !== fromTemplateId) return card;
+      changed = true;
+      return { ...card, backingTemplateId: toTemplateId };
+    });
+    return changed ? { storedCards } : state;
+  }),
   setStoredCardsFromFile: (loadedCards) => {
     const templates = selectAllTemplates(get());
     const activeCardSet = get().activeCardSet || createDefaultActiveCardSet();

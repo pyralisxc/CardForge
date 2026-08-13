@@ -23,15 +23,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { useDeveloperAccess } from '@/features/developer-access/client';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
+import { GeneratorBackWorkflowBanner } from '@/features/app-shell/components/GeneratorBackWorkflowBanner';
 import { useCardForgeWorkspaceState } from '@/features/app-shell/hooks/useCardForgeWorkspaceState';
+import { useTemplateStudioHandoffs } from '@/features/app-shell/hooks/useTemplateStudioHandoffs';
 import { BrowserStorageAlerts, useBrowserWorkspaceSaveStatus, useProjectFileActions } from '@/features/project/client';
 import { useBootstrapLibraries } from '@/features/app-shell/hooks/useBootstrapLibraries';
 import { useCheckoutActions } from '@/features/billing/client';
 import { useCardZipExportActions, useGeneratedOutputActions } from '@/features/card-generator/client';
 import { shouldShowVisibleCardWatermark } from '@/features/card-rendering/client';
 import { useTemplateLibraryActions } from '@/features/template-editor/client';
-import type { TemplateCardFormatSource } from '@/domain/card-formats';
-import type { TCGCardTemplate } from '@/domain/templates';
 import {
   canUploadCustomLocalAssets,
   readProjectPreference,
@@ -152,6 +152,7 @@ export function CardForgeStudioShell({
       openEditDialogAction,
       replaceAppearanceStylesFromFilesAction,
       removeGeneratedCardAction,
+      retargetGeneratedCardsBackingTemplateAction,
       retargetGeneratedCardsTemplateAction,
       setActiveTabAction,
       setAppearanceStylesFromFilesAction,
@@ -164,6 +165,7 @@ export function CardForgeStudioShell({
       setActiveCardSetFrontTemplateIdAction,
       setActiveCardSetNameAction,
       setSingleCardGeneratorSelectedTemplateIdAction,
+      setTemplateEditorSelectedTemplateIdAction,
       setStoredCardsFromFileAction,
       setUserTemplatesFromFilesAction,
       updateGeneratedCardAction,
@@ -186,9 +188,9 @@ export function CardForgeStudioShell({
       pdfMarginMm,
       richTextHighlightColor,
       selectedPaperSize,
-      singleCardGeneratorSelectedTemplateId,
       standardDefaultTemplates,
       storedCards,
+      templateEditorSelectedTemplateId,
       templatesFromStore,
       userTemplatesFromStore,
     },
@@ -199,18 +201,6 @@ export function CardForgeStudioShell({
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
-  const [matchingBackRequest, setMatchingBackRequest] = useState<{
-    key: number;
-    formatSource: TemplateCardFormatSource;
-  } | null>(null);
-  const [pendingTemplateRetarget, setPendingTemplateRetarget] = useState<{
-    count: number;
-    fromTemplateId: string;
-    name: string;
-    toTemplateId: string;
-  } | null>(null);
-  const matchingBackSequenceRef = useRef(0);
-
   const {
     isLoadingTemplates,
     retryLibraries,
@@ -242,39 +232,11 @@ export function CardForgeStudioShell({
       canPublishSharedLibrary: developerAccess.canPublishSharedLibrary,
     },
     setSingleCardGeneratorSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
     storedCards,
     templates: templatesFromStore,
     toast,
   });
-  const handleSaveTemplate = useCallback(async (template: TCGCardTemplate) => {
-    const sourceTemplateId = template.id;
-    const savedTemplateId = await saveTemplateToLibrary(template);
-    if (sourceTemplateId && savedTemplateId !== sourceTemplateId) {
-      const dependentCardCount = storedCards.filter((card) => card.templateId === sourceTemplateId).length;
-      if (dependentCardCount > 0) {
-        setPendingTemplateRetarget({
-          count: dependentCardCount,
-          fromTemplateId: sourceTemplateId,
-          name: template.name || 'this card design',
-          toTemplateId: savedTemplateId,
-        });
-      }
-    }
-    return savedTemplateId;
-  }, [saveTemplateToLibrary, storedCards]);
-  const applyPendingTemplateRetarget = useCallback(() => {
-    if (!pendingTemplateRetarget) return;
-    retargetGeneratedCardsTemplateAction(
-      pendingTemplateRetarget.fromTemplateId,
-      pendingTemplateRetarget.toTemplateId,
-    );
-    toast({
-      title: 'Existing cards updated',
-      description: `${pendingTemplateRetarget.count} card${pendingTemplateRetarget.count === 1 ? '' : 's'} now use the saved design.`,
-    });
-    setPendingTemplateRetarget(null);
-  }, [pendingTemplateRetarget, retargetGeneratedCardsTemplateAction, toast]);
-
   const {
     handleBulkCardsGenerated,
     handleClearGeneratedCards,
@@ -370,6 +332,32 @@ export function CardForgeStudioShell({
     });
   }, []);
 
+  const {
+    applyPendingTemplateRetarget,
+    clearMatchingBackRequest,
+    dismissPendingTemplateRetarget,
+    generatorBackWorkflow,
+    handleCreateMatchingBack,
+    handleEditCardBack,
+    handleManageCardBacks,
+    handleReturnToGenerator,
+    handleSaveTemplate,
+    handleStudioTabChange,
+    matchingBackRequest,
+    pendingTemplateRetarget,
+  } = useTemplateStudioHandoffs({
+    activeBackingTemplateId: activeCardSet.backingTemplateId,
+    focusStudioRegion,
+    retargetGeneratedCardsBackingTemplate: retargetGeneratedCardsBackingTemplateAction,
+    retargetGeneratedCardsTemplate: retargetGeneratedCardsTemplateAction,
+    saveTemplateToLibrary,
+    setActiveCardSetBackingTemplateId: setActiveCardSetBackingTemplateIdAction,
+    setActiveTab: setActiveTabAction,
+    setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
+    storedCards,
+    toast,
+  });
+
   const handleStartMakingCards = useCallback(() => {
     setActiveTabAction('generator');
     handleDismissFirstRunGuide();
@@ -383,13 +371,6 @@ export function CardForgeStudioShell({
   }, [focusStudioRegion, handleDismissFirstRunGuide, setActiveTabAction]);
 
   const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
-  const handleCreateMatchingBack = useCallback((formatSource: TemplateCardFormatSource) => {
-    matchingBackSequenceRef.current += 1;
-    setMatchingBackRequest({ key: matchingBackSequenceRef.current, formatSource });
-    setActiveTabAction('template-maker');
-  }, [setActiveTabAction]);
-  const clearMatchingBackRequest = useCallback(() => setMatchingBackRequest(null), []);
-
   useEffect(() => {
     let cancelled = false;
     void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => {
@@ -469,7 +450,7 @@ export function CardForgeStudioShell({
             </div>
           </section>
         ) : null}
-        <Tabs value={effectiveActiveTab} onValueChange={setActiveTabAction} className="w-full min-w-0">
+        <Tabs value={effectiveActiveTab} onValueChange={handleStudioTabChange} className="w-full min-w-0">
           <div className="cardforge-studio-context mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
             <p><span className="font-semibold text-[#fff1c7]">Design layouts</span> shapes card designs and their fields.</p>
             <p><span className="font-semibold text-[#fff1c7]">Make Cards</span> adds card details, then keeps every card ready for review and export.</p>
@@ -481,14 +462,16 @@ export function CardForgeStudioShell({
                 value={tab.value}
                 data-testid={`studio-tab-${tab.value}`}
                 className="flex min-h-11 items-center justify-center gap-2 px-2 text-xs text-[#c8b07f] data-[state=active]:bg-[#24180e] data-[state=active]:text-[#ffe7ad] sm:text-sm"
-                onClick={() => setActiveTabAction(tab.value)}
               >
                 <tab.icon className="mr-2 h-4 w-4" /> {tab.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="data-[state=inactive]:hidden">
+          <TabsContent value="template-maker" forceMount data-testid="layout-studio-panel" tabIndex={-1} className="space-y-3 data-[state=inactive]:hidden">
+            {generatorBackWorkflow ? (
+              <GeneratorBackWorkflowBanner mode={generatorBackWorkflow} onReturn={handleReturnToGenerator} />
+            ) : null}
             <CardTemplateMaker
               canUseProjectFiles={projectCapabilities.canUseProjectFiles}
               showCardWatermark={showVisibleCardWatermark}
@@ -509,8 +492,8 @@ export function CardForgeStudioShell({
               onLoadProject={handleImportProject}
               onStartCheckout={handleStartCheckout}
               projectFileGateMessage={projectFileGateMessage}
-              selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}
-              onSelectTemplateForEditing={setSingleCardGeneratorSelectedTemplateIdAction}
+              selectedTemplateIdForEditing={templateEditorSelectedTemplateId}
+              onSelectTemplateForEditing={setTemplateEditorSelectedTemplateIdAction}
               canSubmitBaseRevision={developerAccess.canSubmitTemplateRevisions}
               canUploadCustomAssets={canUploadCustomAssets}
               onReturnToTemplateMaker={() => setActiveTabAction('template-maker')}
@@ -547,6 +530,8 @@ export function CardForgeStudioShell({
               exportEntitlementMessage={exportEntitlementMessage}
               onOpenTemplateMaker={() => setActiveTabAction('template-maker')}
               onCreateMatchingBack={handleCreateMatchingBack}
+              onEditSelectedBack={handleEditCardBack}
+              onManageCardBacks={handleManageCardBacks}
               onSingleCardAdded={handleSingleCardAdded}
               onBulkCardsGenerated={handleBulkCardsGenerated}
               onTemplateSelectionChange={setActiveCardSetFrontTemplateIdAction}
@@ -599,18 +584,28 @@ export function CardForgeStudioShell({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={pendingTemplateRetarget !== null} onOpenChange={(open) => !open && setPendingTemplateRetarget(null)}>
+      <AlertDialog open={pendingTemplateRetarget !== null} onOpenChange={(open) => !open && dismissPendingTemplateRetarget()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Use the saved design on existing cards?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pendingTemplateRetarget?.side === 'back'
+                ? 'Use the saved back for this set?'
+                : 'Use the saved design on existing cards?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              “{pendingTemplateRetarget?.name}” was saved as a personal copy. {pendingTemplateRetarget?.count ?? 0} existing card{pendingTemplateRetarget?.count === 1 ? '' : 's'} still use the protected built-in design.
+              {pendingTemplateRetarget?.side === 'back'
+                ? pendingTemplateRetarget.count > 0
+                  ? `"${pendingTemplateRetarget.name}" is saved. Apply it to the current set and ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'}?`
+                  : `"${pendingTemplateRetarget.name}" is saved. Apply it to the current set?`
+                : `"${pendingTemplateRetarget?.name}" was saved as a personal copy. ${pendingTemplateRetarget?.count ?? 0} existing card${pendingTemplateRetarget?.count === 1 ? '' : 's'} still use the protected built-in design.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingTemplateRetarget(null)}>New cards only</AlertDialogCancel>
+            <AlertDialogCancel onClick={dismissPendingTemplateRetarget}>
+              {pendingTemplateRetarget?.side === 'back' ? 'Keep current back' : 'New cards only'}
+            </AlertDialogCancel>
             <AlertDialogAction onClick={applyPendingTemplateRetarget}>
-              Update existing cards
+              {pendingTemplateRetarget?.side === 'back' ? 'Use saved back' : 'Update existing cards'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

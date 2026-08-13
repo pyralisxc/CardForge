@@ -102,8 +102,8 @@ App routes compose the public-site-owned shared header. The Owner Console keeps 
 
 ## Card Creation Model
 
-- Layout Studio owns reusable front templates and separate back templates.
-- Generator owns card sets, the selected card design and card back, card details, cards in the set, and export settings.
+- Layout Studio owns reusable front templates, separate back templates, and its own editor selection. Opening a card back for editing must not change the Generator's selected front design.
+- Generator owns card sets, the selected front design and card back, card details, cards in the set, and export settings. It hands back editing and creation to Layout Studio, then explicitly offers to apply a newly saved back to the current set and its existing cards.
 - Card backs are not front-template fields.
 - Text variables use Field Contract v1.
 - Images have generator-side formatting controls for fit, position, scale, rotation, offset, and flips.

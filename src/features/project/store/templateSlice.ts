@@ -21,6 +21,21 @@ const selectFallbackTemplateId = (
     : (templates.find((template) => template.templateUsage !== 'back-preset')?.id ?? null);
 };
 
+const selectFallbackEditorTemplateId = (
+  templates: TCGCardTemplate[],
+  selectedId: string | null,
+  generatorTemplateId: string | null,
+): string | null => {
+  const selectedStillExists = selectedId
+    ? isDraftTemplateSelection(selectedId) || templates.some((template) => template.id === selectedId)
+    : false;
+  if (selectedStillExists) return selectedId;
+  if (generatorTemplateId && templates.some((template) => template.id === generatorTemplateId)) {
+    return generatorTemplateId;
+  }
+  return templates[0]?.id ?? null;
+};
+
 const reconcileCardSet = (
   activeCardSet: CardSet,
   templates: TCGCardTemplate[],
@@ -83,6 +98,11 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       return {
         defaultTemplates: reconstructed,
         singleCardGeneratorSelectedTemplateId: selectedId,
+        templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(
+          allTemplates,
+          state.templateEditorSelectedTemplateId,
+          selectedId,
+        ),
         activeCardSet: reconcileCardSet(state.activeCardSet, allTemplates, selectedId),
       };
     });
@@ -100,6 +120,11 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       return {
         userTemplates: reconstructed,
         singleCardGeneratorSelectedTemplateId: selectedId,
+        templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(
+          allTemplates,
+          state.templateEditorSelectedTemplateId,
+          selectedId,
+        ),
         activeCardSet: reconcileCardSet(state.activeCardSet, allTemplates, selectedId),
       };
     });
@@ -123,6 +148,11 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       return {
         userTemplates,
         singleCardGeneratorSelectedTemplateId: selectedId,
+        templateEditorSelectedTemplateId: selectFallbackEditorTemplateId(
+          allTemplates,
+          state.templateEditorSelectedTemplateId,
+          selectedId,
+        ),
         activeCardSet: reconcileCardSet(state.activeCardSet, allTemplates, selectedId),
       };
     });
@@ -159,6 +189,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     const selectedId = state.singleCardGeneratorSelectedTemplateId === templateId
       ? (allTemplates.find((template) => Boolean(template.id?.trim()))?.id ?? null)
       : state.singleCardGeneratorSelectedTemplateId;
+    const editorSelectedId = state.templateEditorSelectedTemplateId === templateId
+      ? selectFallbackEditorTemplateId(allTemplates, null, selectedId)
+      : state.templateEditorSelectedTemplateId;
     const activeCardSet: CardSet = {
       ...state.activeCardSet,
       frontTemplateId: state.activeCardSet.frontTemplateId === templateId
@@ -178,6 +211,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       userTemplates,
       storedCards,
       singleCardGeneratorSelectedTemplateId: selectedId,
+      templateEditorSelectedTemplateId: editorSelectedId,
       activeCardSet,
       editingCardUniqueId,
       isEditDialogOpen: editingCardUniqueId ? state.isEditDialogOpen : false,
