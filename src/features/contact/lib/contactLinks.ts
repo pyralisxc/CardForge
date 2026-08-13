@@ -37,7 +37,7 @@ export const createDeveloperRequestMailto = ({
   ],
 });
 
-export const createRoadmapDeveloperRequestMailto = ({
+export const createRoadmapFeedbackMailto = ({
   accountEmail,
   supportEmail,
 }: {
@@ -45,15 +45,15 @@ export const createRoadmapDeveloperRequestMailto = ({
   supportEmail?: string | null;
 }) => createSupportMailto({
   recipient: supportEmail,
-  subject: 'CardForge developer account request',
+  subject: 'CardForge roadmap feedback',
   lines: [
-    'CardForge developer account request',
+    'CardForge roadmap feedback',
     '',
     `Account email: ${accountEmail ?? ''}`,
-    'Reason for developer access:',
+    'Page or workflow:',
     '',
-    'What I want to help test or build:',
+    'What should improve:',
     '',
-    'Relevant links or notes:',
+    'Why it matters:',
   ],
 });

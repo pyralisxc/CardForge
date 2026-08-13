@@ -39,11 +39,11 @@ export function StudioHeader({
   return (
     <header className="cardforge-studio-header border-b border-[#5f4526] bg-[#120e09] px-4 py-4 text-[#f7ead0] shadow-[0_10px_30px_rgba(0,0,0,0.28)] no-print">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3">
-        <Link href="/" prefetch={false} className="flex min-w-0 flex-1 items-center gap-3 text-[#f9e7b7] lg:flex-none">
-          <span className="cardforge-studio-brand-mark grid h-10 w-10 shrink-0 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d] shadow-[0_0_24px_rgba(226,170,74,0.14)]">
+        <Link href="/" prefetch={false} className="flex min-w-0 flex-1 items-center gap-2 text-[#f9e7b7] sm:gap-3 lg:flex-none">
+          <span className="cardforge-studio-brand-mark grid h-9 w-9 shrink-0 place-items-center border border-[#d7b469]/70 bg-[#1c130b] text-[#f2c15d] shadow-[0_0_24px_rgba(226,170,74,0.14)] sm:h-10 sm:w-10">
             <Hammer className="h-5 w-5" />
           </span>
-          <h1 className="cardforge-studio-title truncate font-serif text-xl font-semibold tracking-wide md:text-2xl">CardForge Studio</h1>
+          <h1 className="cardforge-studio-title truncate font-serif text-base font-semibold sm:text-xl sm:tracking-wide md:text-2xl">CardForge Studio</h1>
         </Link>
         <nav className="cardforge-studio-nav ml-4 hidden flex-1 items-center gap-5 text-sm text-[#dbc79e] lg:flex" aria-label="Global navigation">
           {STUDIO_NAVIGATION.map((item) => {

@@ -93,7 +93,10 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     if (reconstructed.length === 0) return 0;
 
     set((state) => {
-      const allTemplates = [...reconstructed, ...state.userTemplates];
+      const allTemplates = selectAllTemplates({
+        defaultTemplates: reconstructed,
+        userTemplates: state.userTemplates,
+      });
       const selectedId = selectFallbackTemplateId(allTemplates, state.singleCardGeneratorSelectedTemplateId);
       return {
         defaultTemplates: reconstructed,
@@ -115,7 +118,10 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
       .filter((template) => Boolean(template.id?.trim()));
 
     set((state) => {
-      const allTemplates = [...state.defaultTemplates, ...reconstructed];
+      const allTemplates = selectAllTemplates({
+        defaultTemplates: state.defaultTemplates,
+        userTemplates: reconstructed,
+      });
       const selectedId = selectFallbackTemplateId(allTemplates, state.singleCardGeneratorSelectedTemplateId);
       return {
         userTemplates: reconstructed,
@@ -143,7 +149,10 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
         if (template.id) byId.set(template.id, template);
       });
       const userTemplates = Array.from(byId.values());
-      const allTemplates = [...state.defaultTemplates, ...userTemplates];
+      const allTemplates = selectAllTemplates({
+        defaultTemplates: state.defaultTemplates,
+        userTemplates,
+      });
       const selectedId = selectFallbackTemplateId(allTemplates, state.singleCardGeneratorSelectedTemplateId);
       return {
         userTemplates,
@@ -182,7 +191,7 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     const userTemplates = targetSource === 'user'
       ? state.userTemplates.filter((template) => template.id !== templateId)
       : state.userTemplates;
-    const allTemplates = [...defaultTemplates, ...userTemplates];
+    const allTemplates = selectAllTemplates({ defaultTemplates, userTemplates });
     const storedCards = state.storedCards
       .filter((card) => card.templateId !== templateId)
       .map((card) => card.backingTemplateId === templateId
