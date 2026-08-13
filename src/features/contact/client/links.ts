@@ -1,5 +1,5 @@
 export {
   createDeveloperRequestMailto,
-  createRoadmapDeveloperRequestMailto,
+  createRoadmapFeedbackMailto,
   createSupportMailto,
 } from '../lib/contactLinks';

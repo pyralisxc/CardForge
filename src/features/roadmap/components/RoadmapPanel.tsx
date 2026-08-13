@@ -13,7 +13,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { createRoadmapDeveloperRequestMailto } from '@/features/contact/client/links';
+import { createRoadmapFeedbackMailto } from '@/features/contact/client/links';
 import { RoadmapDeveloperControls } from '@/features/roadmap/components/RoadmapDeveloperControls';
 import {
   createRoadmapDeveloperFormState,
@@ -57,8 +57,8 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
   const [devForm, setDevForm] = useState<RoadmapDeveloperFormState>(() => (
     createRoadmapDeveloperFormState(isOwner)
   ));
-  const developerRequestMailto = useMemo(
-    () => createRoadmapDeveloperRequestMailto({ accountEmail, supportEmail }),
+  const roadmapFeedbackMailto = useMemo(
+    () => createRoadmapFeedbackMailto({ accountEmail, supportEmail }),
     [accountEmail, supportEmail]
   );
 
@@ -290,7 +290,7 @@ export function RoadmapPanel({ isDeveloper, isOwner, isSignedIn, accountEmail, s
             </p>
           </div>
           <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-            <a href={developerRequestMailto}>
+            <a href={roadmapFeedbackMailto}>
               <Mail className="mr-2 h-4 w-4" />
               Share detailed feedback
             </a>

@@ -2,10 +2,31 @@ import type { DisplayCard } from '@/domain/rendering';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { ProjectState } from './types';
 
-export const selectAllTemplates = (state: Pick<ProjectState, 'defaultTemplates' | 'userTemplates'>) => [
-  ...state.defaultTemplates,
-  ...state.userTemplates,
-];
+export const selectAllTemplates = (
+  state: Pick<ProjectState, 'defaultTemplates' | 'userTemplates'>,
+): TCGCardTemplate[] => {
+  const templates: TCGCardTemplate[] = [];
+  const positionById = new Map<string, number>();
+
+  [...state.defaultTemplates, ...state.userTemplates].forEach((template) => {
+    const id = template.id?.trim();
+    if (!id) {
+      templates.push(template);
+      return;
+    }
+
+    const existingPosition = positionById.get(id);
+    if (existingPosition === undefined) {
+      positionById.set(id, templates.length);
+      templates.push(template);
+      return;
+    }
+
+    templates[existingPosition] = template;
+  });
+
+  return templates;
+};
 
 export const resolveGeneratorFrontTemplateId = (
   templates: readonly TCGCardTemplate[],

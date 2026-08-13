@@ -40,6 +40,24 @@ describe('app store helpers', () => {
     expect(template.freeformCanvas?.elements.length).toBeGreaterThan(0);
   });
 
+  it('shows one locally owned template when a local design shares a Pipeline id', () => {
+    const pipelineTemplate = reconstructMinimalTemplateObject({
+      id: 'shared-template',
+      name: 'Pipeline design',
+      templateSource: 'default',
+    });
+    const localTemplate = reconstructMinimalTemplateObject({
+      id: 'shared-template',
+      name: 'Local design',
+      templateSource: 'user',
+    });
+
+    expect(selectAllTemplates({
+      defaultTemplates: [pipelineTemplate],
+      userTemplates: [localTemplate],
+    })).toEqual([localTemplate]);
+  });
+
   it('reconstructs a template preserving freeform canvas elements', () => {
     const template = reconstructMinimalTemplateObject({
       id: 'template-1',
