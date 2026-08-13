@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DeveloperAssetSubmission } from '@/features/developer-assets/lib/developerAssetStore';
+import type { DeveloperAssetSubmission } from '@/features/developer-assets/lib/developerAssetProgram';
 import { buildOwnerAssetLibraryPage } from '@/features/developer-assets/lib/ownerAssetLibrary';
 
 const submission = (

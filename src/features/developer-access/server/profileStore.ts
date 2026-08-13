@@ -3,10 +3,6 @@ import {
   type DeveloperAccessProfile,
   type DeveloperProfileStatus,
 } from '@/features/developer-access/model';
-import {
-  isMissingSupabaseColumnError,
-  isMissingSupabaseTableError,
-} from '@/infrastructure/database/supabaseErrors';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 export interface DeveloperProfileRow {
@@ -48,20 +44,6 @@ export class DeveloperAccessStoreError extends Error {
 
 const PROFILE_COLUMNS =
   'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,eligible_for_profit_share,owner_note,can_draft_campaigns,can_propose_site_content';
-const PROFILE_COLUMNS_WITHOUT_CONTRIBUTION_CAPABILITIES =
-  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,eligible_for_profit_share,owner_note';
-const PROFILE_BASE_COLUMNS = 'clerk_user_id,email,status,first_name,last_name';
-const CONTRIBUTION_CAPABILITY_COLUMNS = [
-  'can_draft_campaigns',
-  'can_propose_site_content',
-] as const;
-const ASSET_RULE_COLUMNS = [
-  'monthly_submission_limit_override',
-  'monthly_published_requirement_override',
-  'eligible_for_profit_share',
-  'owner_note',
-] as const;
-
 const normalizeShortText = (value: unknown, maxLength: number): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ').slice(0, maxLength) : '';
 
@@ -78,27 +60,7 @@ const readProfileRows = async (): Promise<DeveloperProfileRow[]> => {
     .from('cardforge_developer_profiles')
     .select(PROFILE_COLUMNS);
   if (!error) return (data ?? []) as DeveloperProfileRow[];
-
-  let lastError = error;
-  if (isMissingSupabaseColumnError(lastError, CONTRIBUTION_CAPABILITY_COLUMNS)) {
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('cardforge_developer_profiles')
-      .select(PROFILE_COLUMNS_WITHOUT_CONTRIBUTION_CAPABILITIES);
-    if (!fallbackError) return (fallbackData ?? []) as DeveloperProfileRow[];
-    lastError = fallbackError;
-  }
-
-  if (isMissingSupabaseColumnError(lastError, ASSET_RULE_COLUMNS)) {
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('cardforge_developer_profiles')
-      .select(PROFILE_BASE_COLUMNS);
-    if (!fallbackError) return (fallbackData ?? []) as DeveloperProfileRow[];
-    lastError = fallbackError;
-  }
-
-  if (!isMissingSupabaseTableError(lastError)) {
-    console.error('Failed to load developer profiles:', lastError);
-  }
+  console.error('Failed to load developer profiles:', error);
   return [];
 };
 
@@ -113,9 +75,7 @@ export const countActiveDevelopers = async (): Promise<number> => {
     .select('clerk_user_id', { count: 'exact', head: true })
     .eq('status', 'active');
   if (error) {
-    if (!isMissingSupabaseTableError(error)) {
-      console.error('Failed to count active developers:', error);
-    }
+    console.error('Failed to count active developers:', error);
     return 1;
   }
   return Math.max(1, count ?? 0);
@@ -133,9 +93,7 @@ export const getDeveloperProfileIdentity = async (
     .eq('clerk_user_id', developerId)
     .limit(1);
   if (error) {
-    if (!isMissingSupabaseTableError(error)) {
-      console.error('Failed to load developer identity profile:', error);
-    }
+    console.error('Failed to load developer identity profile:', error);
     return null;
   }
   const row = data?.[0] as DeveloperProfileRow | undefined;
@@ -161,9 +119,7 @@ export const getDeveloperProfileReferenceByEmail = async (
     .eq('email', normalizedEmail)
     .limit(1);
   if (error) {
-    if (!isMissingSupabaseTableError(error)) {
-      console.error('Failed to resolve developer profile by email:', error);
-    }
+    console.error('Failed to resolve developer profile by email:', error);
     return null;
   }
   const row = data?.[0] as DeveloperProfileRow | undefined;
@@ -188,21 +144,8 @@ export const getDeveloperProfileCapabilities = async (
     .select('status,can_draft_campaigns,can_propose_site_content')
     .eq('clerk_user_id', developerId)
     .limit(1);
-  if (error && isMissingSupabaseColumnError(error, CONTRIBUTION_CAPABILITY_COLUMNS)) {
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('cardforge_developer_profiles')
-      .select('status')
-      .eq('clerk_user_id', developerId)
-      .limit(1);
-    if (!fallbackError) {
-      const fallback = fallbackData?.[0] as DeveloperProfileRow | undefined;
-      return { ...failClosed, status: normalizeStatus(fallback?.status) };
-    }
-  }
   if (error) {
-    if (!isMissingSupabaseTableError(error)) {
-      console.error('Failed to read developer contribution capabilities:', error);
-    }
+    console.error('Failed to read developer contribution capabilities:', error);
     return failClosed;
   }
   const row = data?.[0] as DeveloperProfileRow | undefined;
@@ -253,7 +196,7 @@ export const upsertDeveloperProfile = async ({
       first_name: normalizeShortText(firstName, 80) || null,
       last_name: normalizeShortText(lastName, 80) || null,
     }, { onConflict: 'clerk_user_id' });
-  if (error && !isMissingSupabaseTableError(error)) {
+  if (error) {
     console.error('Failed to upsert developer profile:', error);
   }
 };

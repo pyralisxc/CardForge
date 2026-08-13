@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { ProfileOverrideField } from '@/features/developer-assets/components/OwnerDeveloperProgramControls';
-import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import type { DeveloperProgramSettings } from '@/features/developer-assets/lib/developerAssets';
 
 export interface DeveloperProfileDraft {

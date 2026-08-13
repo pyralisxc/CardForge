@@ -15,7 +15,6 @@ import {
   createFounderProfileStructuredData,
   getCachedFounderProfile,
   getCachedSiteMedia,
-  getFounderPortraitPublicUrl,
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
@@ -40,10 +39,6 @@ export default async function CameronPage() {
     getCachedSiteMedia(),
   ]);
   const supportOffers = getCreatorSupportOfferConfiguration();
-  const rawPortraitUrl = getFounderPortraitPublicUrl(profile.portraitStoragePath);
-  const legacyPortraitUrl = rawPortraitUrl
-    ? `${rawPortraitUrl}?v=${encodeURIComponent(profile.updatedAt ?? 'current')}`
-    : null;
   const portraitMedia = siteMedia.find((asset) => asset.slot === 'founder.portrait')
     ?? getDefaultSiteMedia('founder.portrait');
   const portraitUrl = getSiteMediaDisplaySrc(portraitMedia);
@@ -70,13 +65,12 @@ export default async function CameronPage() {
         <div className={`mx-auto grid max-w-5xl gap-8 md:items-center ${portraitDesktopGrid}`}>
           <div
             role="img"
-            aria-label={portraitMedia.alt || profile.portraitAlt}
+            aria-label={portraitMedia.alt}
             className={`relative grid aspect-[4/5] w-full place-items-center overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface)] bg-cover bg-center font-[var(--public-font-display)] text-5xl text-[var(--public-brass)] shadow-[0_0_40px_rgba(217,164,65,0.1)] md:max-w-none ${portraitMobileWidth}`}
-            style={!portraitUrl && legacyPortraitUrl ? { backgroundImage: `url(${legacyPortraitUrl})` } : undefined}
           >
             {portraitUrl ? (
               <ResponsiveSiteMediaImage media={portraitMedia} fill sizes="(min-width: 768px) 256px, 100vw" />
-            ) : legacyPortraitUrl ? null : 'CL'}
+            ) : 'CL'}
           </div>
           <div>
             <p className="text-base font-semibold text-[var(--public-brass)]">{profile.heroEyebrow}</p>

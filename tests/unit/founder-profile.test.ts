@@ -17,8 +17,6 @@ const validInput = {
   supportHeading: ' Help me keep building. ',
   supportIntroduction: ' Support creates room to keep working. ',
   supportUseSummary: ' Food, housing, transportation, and business costs. ',
-  portraitStoragePath: null,
-  portraitAlt: ' Portrait of Cameron Locke ',
   facebookUrl: 'https://www.facebook.com/cardforge',
   instagramUrl: '',
   discordUrl: 'https://discord.gg/cardforge',
@@ -30,7 +28,6 @@ describe('founder profile rules', () => {
     expect(DEFAULT_FOUNDER_PROFILE.introduction).toContain('Oregon');
     expect(DEFAULT_FOUNDER_PROFILE.roadBody).toContain('Hawaii');
     expect(DEFAULT_FOUNDER_PROFILE.roadBody).toContain('hitchhiking');
-    expect(DEFAULT_FOUNDER_PROFILE.portraitStoragePath).toBeNull();
     expect(DEFAULT_FOUNDER_PROFILE.facebookUrl).toBeNull();
     expect(DEFAULT_FOUNDER_PROFILE.instagramUrl).toBeNull();
     expect(DEFAULT_FOUNDER_PROFILE.discordUrl).toBeNull();
@@ -54,7 +51,6 @@ describe('founder profile rules', () => {
         supportHeading: 'Help me keep building.',
         supportIntroduction: 'Support creates room to keep working.',
         supportUseSummary: 'Food, housing, transportation, and business costs.',
-        portraitAlt: 'Portrait of Cameron Locke',
         instagramUrl: null,
       },
     });
@@ -62,6 +58,7 @@ describe('founder profile rules', () => {
 
   it('rejects unknown fields, malformed priorities, and unsafe or mismatched social URLs', () => {
     expect(normalizeFounderProfileInput({ ...validInput, surprise: true }).ok).toBe(false);
+    expect(normalizeFounderProfileInput({ ...validInput, portraitStoragePath: null }).ok).toBe(false);
     expect(normalizeFounderProfileInput({ ...validInput, priorities: [] }).ok).toBe(false);
     expect(normalizeFounderProfileInput({
       ...validInput,

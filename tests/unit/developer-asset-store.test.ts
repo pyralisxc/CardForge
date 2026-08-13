@@ -7,13 +7,15 @@ import {
 import {
   buildDeveloperAssetProgramView,
   calculateDeveloperAssetVoteTotals,
-  getRegistryAccessTierForPublishedSubmission,
-  mergeRegistryMetadataForSubmission,
   mapDeveloperAssetSubmissionRow,
   mapDeveloperProgramSettingsRow,
   normalizeDeveloperProfileOverrideInput,
   normalizeDeveloperAssetSubmissionEditInput,
   normalizeDeveloperAssetSubmissionInput,
+} from '@/features/developer-assets/lib/developerAssetProgram';
+import {
+  getRegistryAccessTierForPublishedSubmission,
+  mergeRegistryMetadataForSubmission,
 } from '@/features/developer-assets/lib/developerAssetStore';
 
 const settings: DeveloperProgramSettings = {

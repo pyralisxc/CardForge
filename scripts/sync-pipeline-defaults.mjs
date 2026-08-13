@@ -508,18 +508,6 @@ const main = async () => {
     console.log(`Synced ${item.registry_asset_type}: ${item.name}`);
   }
 
-  const { error: legacySubmissionError } = await supabase
-    .from('cardforge_developer_asset_submissions')
-    .update({
-      developer_id: ownerProfile.clerk_user_id,
-      developer_email: OWNER_EMAIL,
-      calculated_access_tier: 'free',
-      owner_access_tier_override: null,
-      status: 'published',
-    })
-    .eq('developer_id', 'cardforge-official');
-  if (legacySubmissionError) throw legacySubmissionError;
-
   console.log(`Synced ${items.length} starter entries into the Forge Pipeline as ${OWNER_EMAIL}.`);
 };
 

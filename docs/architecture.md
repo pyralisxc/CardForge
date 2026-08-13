@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: August 11, 2026
+Last updated: August 13, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one public developer application, one protected contribution cockpit, and one owner console.
 
@@ -29,9 +29,10 @@ CardForge has three storage lanes:
    - Browser-direct Supabase writes are not part of the product.
    - The live shared library comes from `cardforge_asset_registry`.
 
-3. **Repo starter material**
-   - `data/default-templates`, `data/styles`, and `public/card-assets` are import/source material for pipeline sync.
-   - They are not runtime fallback catalogs.
+3. **Repo-owned built-in catalog**
+   - `data/default-templates`, `data/styles`, and `public/card-assets` own the versioned built-ins shipped with every deployment.
+   - Template and style APIs load those built-ins, then overlay published Forge Pipeline records by stable ID. Supabase owns reviewed additions, publication state, and revisions; the repo owns the dependable starter set.
+   - `npm run pipeline:sync-defaults` imports built-ins into the reviewed registry for visibility and revision workflow. It does not create a second manually edited source.
 
 ## Core Routes
 
@@ -63,7 +64,7 @@ CardForge has three storage lanes:
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
 - `src/features/developer-access`: the single developer identity and authorization owner. It owns profile status, contribution-scope resolution, owner grant mutations, and every runtime access to `cardforge_developer_profiles`.
-- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls.
+- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls. `developerAssetProgram.ts` owns pure contracts, normalization, row mapping, and view construction; `developerAssetStore.ts` owns Supabase reads and mutations.
 - `src/features/developer-program`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit`: protected cockpit composition, CardForge-owned campaign/site proposal ledgers, media approval, and workflow state transitions.
 - `src/features/social-publishing`: server-only provider boundary. Buffer owns channel connections, post scheduling, and delivery status; CardForge owns package content, approval history, source media, and the durable mapping to provider post IDs.
@@ -139,7 +140,9 @@ Campaigns use the durable lifecycle:
 
 Provider errors remain recorded and retryable; cancellation is terminal. Site proposals capture the live block they were based on. The atomic owner publication function rejects stale proposals rather than overwriting newer live copy.
 
-The [Developer Cockpit media workflow document](developer-cockpit-ux-media-audit.md) records the current human and scoped-agent contract, including the owner-only Campaign Media Library and future derivative automation boundaries.
+Humans and scoped agents use the same contributor authorization and campaign normalization. The contributor API supports authorized media ingest/reuse, idempotent draft creation, optimistic revision, association replacement, validation without mutation, submission, revision, and resubmission. It never grants media approval, public exposure, provider configuration, scheduling, or publishing. The Campaign Media Library remains owner-only and exposes CardForge media records rather than raw Storage controls.
+
+Future derivative generation, screenshot capture, focal-crop suggestions, caption drafting, video processing, and Jam ingestion belong behind the existing campaign-media identity and owner-review boundary. They must not create a parallel media catalog or automate publishing.
 
 ## Public delivery and search identity
 

@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: August 11, 2026
+Last updated: August 13, 2026
 
 This is the current runbook for `https://cardforges.com`. Provider dashboards own live state; this document owns the safe operating sequence and the evidence required after a change. Do not preserve deployment IDs or completed rollout diaries here.
 
@@ -62,7 +62,11 @@ Production migration history currently contains provider-generated timestamps th
 5. Run Supabase security and performance advisors and resolve relevant warning/error findings.
 6. Record the applied production version in the PR or release evidence. If the provider assigned a different version, align the unapplied repository filename before merge; do not rewrite recorded production history.
 
-For the repository-consolidation release, apply `20260812063536_consolidate_developer_asset_registry.sql` before deploying callers. Postflight must prove all three server-only RPCs exist: developer status transition, Pipeline registry upsert, and Pipeline registry archive. Exercise an invalid ID and confirm the transaction leaves both submission and registry unchanged.
+## Operator identity and transfer
+
+CardForge Studio is currently operated by Cameron Locke as an Oregon sole proprietor. `business-identity` owns the application contract and the Supabase singleton owns the live record. Stripe, Resend, Clerk, Vercel, the domain registrar/DNS, GitHub, Search Console, structured data, public copy, and legal publications must agree with that record.
+
+Changing the operator is a legal and operational migration, not a copy edit. Require written confirmation covering intellectual property, domains, customer and contractual obligations, privacy-control responsibility, billing and tax treatment, support obligations, effective date, and customer notice before changing the canonical identity. Inventory every provider-owned record, migrate deliberately, deploy the exact reviewed commit, and verify public, owner, billing, email, and legal surfaces together. Git history alone does not establish a transfer, and no provider change is implied by repository documentation.
 
 ## Owner Console checks
 

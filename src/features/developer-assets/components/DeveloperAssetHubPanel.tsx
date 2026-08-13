@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
-import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,

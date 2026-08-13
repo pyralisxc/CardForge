@@ -12,7 +12,7 @@ import {
   type DeveloperAssetStatus,
   type DeveloperAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
-import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import { buildOwnerAssetLibraryPage } from '@/features/developer-assets/lib/ownerAssetLibrary';
 import {
   getDeveloperAssetStatusLabel,

@@ -4,7 +4,7 @@ import {
   type RoadmapSettings,
 } from '@/features/roadmap/model/roadmap';
 import { RoadmapStoreError } from '@/features/roadmap/server/RoadmapStoreError';
-import { isMissingSupabaseColumnError, isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
+import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -42,28 +42,11 @@ export const getRoadmapSettings = async (): Promise<RoadmapSettings> => {
     return DEFAULT_ROADMAP_SETTINGS;
   }
 
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from('cardforge_owner_settings')
     .select('max_active_user_roadmap_items,max_roadmap_suggestion_length,roadmap_negative_signal_min_total_votes,roadmap_negative_signal_min_downvote_percent,roadmap_estimated_tax_percent,roadmap_operating_reserve_percent')
     .eq('id', 'cardforge')
     .limit(1);
-
-  if (isMissingSupabaseColumnError(error, [
-    'roadmap_estimated_tax_percent',
-    'roadmap_operating_reserve_percent',
-  ])) {
-    const legacyResult = await supabase
-      .from('cardforge_owner_settings')
-      .select('max_active_user_roadmap_items,max_roadmap_suggestion_length,roadmap_negative_signal_min_total_votes,roadmap_negative_signal_min_downvote_percent')
-      .eq('id', 'cardforge')
-      .limit(1);
-    data = legacyResult.data?.map((row) => ({
-      ...row,
-      roadmap_estimated_tax_percent: null,
-      roadmap_operating_reserve_percent: null,
-    })) ?? null;
-    error = legacyResult.error;
-  }
 
   if (error) {
     if (!isMissingSupabaseTableError(error)) {
@@ -93,12 +76,6 @@ export const updateRoadmapSettings = async (
   }, { onConflict: 'id' });
 
   if (error) {
-    if (isMissingSupabaseColumnError(error, [
-      'roadmap_estimated_tax_percent',
-      'roadmap_operating_reserve_percent',
-    ])) {
-      throw new RoadmapStoreError('Roadmap financial settings are still deploying. Try again shortly.', 503);
-    }
     console.error('Failed to update roadmap settings:', error);
     throw new RoadmapStoreError('Unable to update roadmap settings.');
   }
