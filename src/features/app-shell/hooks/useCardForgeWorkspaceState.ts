@@ -2,12 +2,14 @@
 
 import { useMemo } from 'react';
 
-import { useProjectStore } from '@/features/project/client';
-import { selectAllTemplates, selectEditingCard, selectGeneratedDisplayCards } from '@/features/project/client';
 import {
-  getGeneratorSelectedTemplateId,
-  splitTemplatesForWorkspace,
-} from '@/features/app-shell/lib/workspaceState';
+  resolveGeneratorFrontTemplateId,
+  selectAllTemplates,
+  selectEditingCard,
+  selectGeneratedDisplayCards,
+  useProjectStore,
+} from '@/features/project/client';
+import { splitTemplatesForWorkspace } from '@/features/app-shell/lib/workspaceState';
 
 export function useCardForgeWorkspaceState() {
   const defaultTemplatesFromStore = useProjectStore((state) => state.defaultTemplates);
@@ -69,7 +71,7 @@ export function useCardForgeWorkspaceState() {
     defaultTemplates: defaultTemplatesFromStore,
   }), [defaultTemplatesFromStore, templatesFromStore]);
 
-  const generatorSelectedTemplateId = useMemo(() => getGeneratorSelectedTemplateId(
+  const generatorSelectedTemplateId = useMemo(() => resolveGeneratorFrontTemplateId(
     freeformTemplatesForGenerator,
     singleCardGeneratorSelectedTemplateId,
   ), [freeformTemplatesForGenerator, singleCardGeneratorSelectedTemplateId]);

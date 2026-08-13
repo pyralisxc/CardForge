@@ -68,11 +68,11 @@ export const CARD_FORMATS: readonly CardFormat[] = [
   },
   {
     id: 'ttrpg-reference',
-    label: 'TTRPG reference',
+    label: 'TTRPG sheet (US Letter)',
     category: 'Reference',
-    description: 'A larger rules, character, and encounter reference card.',
-    widthMm: 85,
-    heightMm: 110,
+    description: 'A full-page US Letter sheet for characters, encounters, and rules references.',
+    widthMm: 215.9,
+    heightMm: 279.4,
     canvasWidthPx: 850,
     canvasHeightPx: 1100,
     bleedMm: 3,
@@ -92,6 +92,8 @@ const LEGACY_RATIO_FORMATS: Readonly<Record<string, StandardCardFormatId>> = {
   '3:4': 'event-badge',
   '75:100': 'event-badge',
   '85:110': 'ttrpg-reference',
+  '8.5:11': 'ttrpg-reference',
+  '215.9:279.4': 'ttrpg-reference',
 };
 
 const round = (value: number, precision = 3): number => {

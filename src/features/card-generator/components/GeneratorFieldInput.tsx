@@ -278,7 +278,7 @@ export function GeneratorFieldInput({
         </div>
       ) : null}
 
-      {field.helperText && (
+      {field.helperText && (!canUseRichText || richTextExpanded) && (
         <p className="text-xs text-muted-foreground">{field.helperText}</p>
       )}
       {field.maxLength && (

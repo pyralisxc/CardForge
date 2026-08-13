@@ -189,7 +189,7 @@ function StructuredRowsEditor({
             {rowPreview ? (
               <p className="rounded border border-border/50 bg-muted/20 px-2 py-1 text-xs text-muted-foreground">{rowPreview}</p>
             ) : null}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {fields.map((field) => {
                 const inputId = `structured-row-${group.id}-${rowIndex}-${field.key}`;
                 return (
@@ -279,9 +279,9 @@ export function GeneratorFieldGroups({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {isStructuredRows ? (
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <StructuredRowsEditor
                     group={group}
                     fields={orderedFields}

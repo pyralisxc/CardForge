@@ -120,7 +120,9 @@ export function useTemplateLibraryActions({
   const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<string> => {
     const templateToSave = prepareTemplateForLibrarySave(template, projectCapabilities.canSubmitTemplateRevisions);
     const savedTemplateId = addOrUpdateTemplate(templateToSave, templateToSave.templateSource);
-    setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
+    if (templateToSave.templateUsage !== 'back-preset') {
+      setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
+    }
     const templateForFile = selectAllTemplates(useProjectStore.getState()).find(t => t.id === savedTemplateId);
     if (templateForFile?.templateSource === 'default' && projectCapabilities.canSubmitTemplateRevisions) {
       const fingerprint = JSON.stringify(templateForFile);

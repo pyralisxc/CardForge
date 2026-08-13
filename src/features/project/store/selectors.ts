@@ -1,10 +1,23 @@
 import type { DisplayCard } from '@/domain/rendering';
+import type { TCGCardTemplate } from '@/domain/templates';
 import type { ProjectState } from './types';
 
 export const selectAllTemplates = (state: Pick<ProjectState, 'defaultTemplates' | 'userTemplates'>) => [
   ...state.defaultTemplates,
   ...state.userTemplates,
 ];
+
+export const resolveGeneratorFrontTemplateId = (
+  templates: readonly TCGCardTemplate[],
+  selectedTemplateId: string | null,
+): string | null => (
+  templates.some((template) => (
+    template.id === selectedTemplateId
+    && template.templateUsage !== 'back-preset'
+  ))
+    ? selectedTemplateId
+    : (templates.find((template) => template.templateUsage !== 'back-preset')?.id ?? null)
+);
 
 export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] => {
   const templates = selectAllTemplates(state);
