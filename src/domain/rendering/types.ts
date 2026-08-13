@@ -5,6 +5,7 @@ export interface DisplayCard {
   template: TCGCardTemplate;
   backingTemplateId?: string | null;
   backingTemplate?: TCGCardTemplate | null;
+  backingData?: CardData;
   setId?: string;
   setName?: string;
   data: CardData;

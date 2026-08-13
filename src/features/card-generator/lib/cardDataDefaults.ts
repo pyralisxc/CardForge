@@ -2,7 +2,7 @@ import type { CardData } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { toTitleCase } from '@/shared/text';
 import { extractTemplateFieldDefinitions, type TemplateFieldDefinition } from '@/domain/templates';
-import { buildStructuredRowsDataKey, stringifyStructuredRowsValue } from '@/domain/rendering';
+import { buildStructuredRowsDataKey, parseStructuredRowsValue, stringifyStructuredRowsValue } from '@/domain/rendering';
 
 const imagePlaceholderForField = (fieldKey: string): string =>
   `https://placehold.co/600x400.png?text=${encodeURIComponent(toTitleCase(fieldKey))}`;
@@ -29,7 +29,7 @@ export const initializeCardDataFromTemplate = (
     const previewValue = template.templatePreviewData?.[field.key];
     acc[field.key] = valueForTemplateField(field, existingData ?? (previewValue !== undefined ? { [field.key]: previewValue } : null));
     return acc;
-  }, {});
+  }, { ...existingData });
 
   const structuredGroups = new Map<string, TemplateFieldDefinition[]>();
   fields.forEach((field) => {
@@ -83,3 +83,17 @@ export const completeCardDataWithTemplateDefaults = (
 
   return finalData;
 };
+
+export const getMissingRequiredFieldLabels = (
+  fields: TemplateFieldDefinition[],
+  data: CardData,
+): string[] => fields
+  .filter((field) => field.required)
+  .filter((field) => {
+    if (field.contentModel !== 'structuredRows' || !field.sourceElementId) {
+      return String(data[field.key] ?? '').trim().length === 0;
+    }
+    const rows = parseStructuredRowsValue(data[buildStructuredRowsDataKey(field.sourceElementId)]);
+    return rows.length === 0 || rows.every((row) => String(row[field.key] ?? '').trim().length === 0);
+  })
+  .map((field) => field.label || field.key);

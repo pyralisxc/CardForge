@@ -15,6 +15,7 @@ import {
   createBulkExampleCsv,
   createBulkExampleJson,
   createBulkExampleStructuredText,
+  createBulkFaceFieldDefinitions,
   createBulkPreview,
   getBulkGenerationBlockingIssues,
   getUnmappedRequiredFieldKeys,
@@ -96,24 +97,32 @@ export function BulkGenerator({
     [selectedTemplate]
   );
 
+  const backingFieldDefinitions = useMemo(
+    () => (backingTemplate ? extractTemplateFieldDefinitions(backingTemplate) : []),
+    [backingTemplate]
+  );
+
   const bulkFieldDefinitions = useMemo(
-    () => fieldDefinitions.filter((field) => !field.isStaticBaseText),
-    [fieldDefinitions]
+    () => createBulkFaceFieldDefinitions(
+      fieldDefinitions.filter((field) => !field.isStaticBaseText),
+      backingFieldDefinitions.filter((field) => !field.isStaticBaseText),
+    ),
+    [backingFieldDefinitions, fieldDefinitions]
   );
 
   const exampleCSV = useMemo(
-    () => createBulkExampleCsv({ template: selectedTemplate, fieldDefinitions: bulkFieldDefinitions }),
-    [bulkFieldDefinitions, selectedTemplate]
+    () => createBulkExampleCsv({ template: selectedTemplate, backingTemplate, fieldDefinitions: bulkFieldDefinitions }),
+    [backingTemplate, bulkFieldDefinitions, selectedTemplate]
   );
 
   const exampleJSON = useMemo(
-    () => createBulkExampleJson({ template: selectedTemplate, fieldDefinitions: bulkFieldDefinitions }),
-    [bulkFieldDefinitions, selectedTemplate]
+    () => createBulkExampleJson({ template: selectedTemplate, backingTemplate, fieldDefinitions: bulkFieldDefinitions }),
+    [backingTemplate, bulkFieldDefinitions, selectedTemplate]
   );
 
   const exampleStructuredText = useMemo(
-    () => createBulkExampleStructuredText({ template: selectedTemplate, fieldDefinitions: bulkFieldDefinitions }),
-    [bulkFieldDefinitions, selectedTemplate]
+    () => createBulkExampleStructuredText({ template: selectedTemplate, backingTemplate, fieldDefinitions: bulkFieldDefinitions }),
+    [backingTemplate, bulkFieldDefinitions, selectedTemplate]
   );
 
   const parsedCsv = useMemo(() => {
@@ -229,7 +238,7 @@ export function BulkGenerator({
     setShowAdvancedMapping(false);
     setShowUnmappedOnly(false);
     setConflictFocusField(null);
-  }, [bulkDataInput, selectedTemplateIdProp]);
+  }, [backingTemplate?.id, bulkDataInput, selectedTemplateIdProp]);
 
   useEffect(() => {
     if (!conflictFocusField) return;
@@ -315,6 +324,7 @@ export function BulkGenerator({
         backingTemplate,
         activeCardSet,
         fieldDefinitions,
+        backingFieldDefinitions,
         rows,
         columnMapping,
         previewOverrides: {},
@@ -492,6 +502,7 @@ export function BulkGenerator({
         <BulkTemplateSetupPanel
           selectedTemplateId={selectedTemplateIdProp}
           selectedTemplate={selectedTemplate}
+          backingTemplate={backingTemplate}
           bulkFieldDefinitions={bulkFieldDefinitions}
           onDownloadExampleCsv={handleDownloadTemplateCSV}
           onDownloadExampleJson={handleDownloadTemplateJSON}

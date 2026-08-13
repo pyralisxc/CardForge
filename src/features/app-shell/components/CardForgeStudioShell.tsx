@@ -584,32 +584,34 @@ export function CardForgeStudioShell({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={pendingTemplateRetarget !== null} onOpenChange={(open) => !open && dismissPendingTemplateRetarget()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingTemplateRetarget?.side === 'back'
-                ? 'Use the saved back for this set?'
-                : 'Use the saved design on existing cards?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingTemplateRetarget?.side === 'back'
-                ? pendingTemplateRetarget.count > 0
-                  ? `"${pendingTemplateRetarget.name}" is saved. Apply it to the current set and ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'}?`
-                  : `"${pendingTemplateRetarget.name}" is saved. Apply it to the current set?`
-                : `"${pendingTemplateRetarget?.name}" was saved as a personal copy. ${pendingTemplateRetarget?.count ?? 0} existing card${pendingTemplateRetarget?.count === 1 ? '' : 's'} still use the protected built-in design.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={dismissPendingTemplateRetarget}>
-              {pendingTemplateRetarget?.side === 'back' ? 'Keep current back' : 'New cards only'}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={applyPendingTemplateRetarget}>
-              {pendingTemplateRetarget?.side === 'back' ? 'Use saved back' : 'Update existing cards'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {pendingTemplateRetarget ? (
+        <AlertDialog open onOpenChange={(open) => !open && dismissPendingTemplateRetarget()}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingTemplateRetarget.side === 'back'
+                  ? 'Use the saved back for this set?'
+                  : 'Use the saved design on existing cards?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingTemplateRetarget.side === 'back'
+                  ? pendingTemplateRetarget.count > 0
+                    ? `"${pendingTemplateRetarget.name}" is saved. Apply it to the current set and ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'}?`
+                    : `"${pendingTemplateRetarget.name}" is saved. Apply it to the current set?`
+                  : `"${pendingTemplateRetarget.name}" was saved as a personal copy. ${pendingTemplateRetarget.count} existing card${pendingTemplateRetarget.count === 1 ? '' : 's'} still use the protected built-in design.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={dismissPendingTemplateRetarget}>
+                {pendingTemplateRetarget.side === 'back' ? 'Keep current back' : 'New cards only'}
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={applyPendingTemplateRetarget}>
+                {pendingTemplateRetarget.side === 'back' ? 'Use saved back' : 'Update existing cards'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
       <AlertDialog open={isClearCardsDialogOpen} onOpenChange={setIsClearCardsDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

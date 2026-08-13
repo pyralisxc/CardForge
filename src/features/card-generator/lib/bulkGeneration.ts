@@ -34,6 +34,7 @@ export interface BulkPreviewResult {
 
 export interface CreateBulkExampleCsvOptions {
   template: TCGCardTemplate | null | undefined;
+  backingTemplate?: TCGCardTemplate | null;
   fieldDefinitions: TemplateFieldDefinition[];
 }
 
@@ -66,16 +67,45 @@ export interface BulkContractSummary {
   structuredRowGroups: Array<{ id: string; label: string; columns: Array<{ key: string; label: string }> }>;
 }
 
+export const BACKING_BULK_FIELD_PREFIX = 'back.';
+
+export const isBackingBulkFieldKey = (key: string): boolean => key.startsWith(BACKING_BULK_FIELD_PREFIX);
+
+export const getBackingTemplateFieldKey = (key: string): string => (
+  isBackingBulkFieldKey(key) ? key.slice(BACKING_BULK_FIELD_PREFIX.length) : key
+);
+
+export const createBulkFaceFieldDefinitions = (
+  frontFields: TemplateFieldDefinition[],
+  backingFields: TemplateFieldDefinition[] = [],
+): TemplateFieldDefinition[] => [
+  ...frontFields,
+  ...backingFields.map((field) => ({
+    ...field,
+    key: `${BACKING_BULK_FIELD_PREFIX}${field.key}`,
+    label: `Back · ${field.label}`,
+    sourceElementId: field.sourceElementId
+      ? `${BACKING_BULK_FIELD_PREFIX}${field.sourceElementId}`
+      : undefined,
+    sourceElementName: field.sourceElementName
+      ? `Back · ${field.sourceElementName}`
+      : undefined,
+  })),
+];
+
 export const normalizeCsvHeaders = (headers: string[]): string[] =>
   headers.map((header) => header.replace(/^"|"$/g, '').trim());
 
 const createBulkExampleDataLine = (
   template: TCGCardTemplate,
-  fieldDefinitions: TemplateFieldDefinition[]
+  fieldDefinitions: TemplateFieldDefinition[],
+  backingTemplate?: TCGCardTemplate | null,
 ): string[] => fieldDefinitions.map((field) => {
-  const keyLower = field.key.toLowerCase();
+  const templateFieldKey = getBackingTemplateFieldKey(field.key);
+  const fieldTemplate = isBackingBulkFieldKey(field.key) ? backingTemplate : template;
+  const keyLower = templateFieldKey.toLowerCase();
   if (field.isImage) return 'https://placehold.co/600x400.png?text=Artwork';
-  const previewValue = template.templatePreviewData?.[field.key];
+  const previewValue = fieldTemplate?.templatePreviewData?.[templateFieldKey];
   if (previewValue !== undefined) return String(previewValue);
   if (field.defaultValue) return field.defaultValue;
   if (field.contentModel === 'structuredRows') return 'Row value';
@@ -89,22 +119,24 @@ const createBulkExampleDataLine = (
 
 export const createBulkExampleCsv = ({
   template,
+  backingTemplate,
   fieldDefinitions,
 }: CreateBulkExampleCsvOptions): string => {
   if (!template) return 'Select a template first.';
 
   const headers = fieldDefinitions.map((field) => field.key);
-  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions);
+  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions, backingTemplate);
 
   return unparseCSV([headers, exampleDataLine]);
 };
 
 export const createBulkExampleJson = ({
   template,
+  backingTemplate,
   fieldDefinitions,
 }: CreateBulkExampleCsvOptions): string => {
   if (!template) return '[]';
-  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions);
+  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions, backingTemplate);
   const row = fieldDefinitions.reduce<Record<string, string>>((accumulator, field, index) => {
     accumulator[field.key] = exampleDataLine[index] ?? '';
     return accumulator;
@@ -114,10 +146,11 @@ export const createBulkExampleJson = ({
 
 export const createBulkExampleStructuredText = ({
   template,
+  backingTemplate,
   fieldDefinitions,
 }: CreateBulkExampleCsvOptions): string => {
   if (!template) return 'Select a template first.';
-  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions);
+  const exampleDataLine = createBulkExampleDataLine(template, fieldDefinitions, backingTemplate);
   return fieldDefinitions
     .map((field, index) => `${field.key}: ${exampleDataLine[index] ?? ''}`)
     .join('\n');
@@ -613,6 +646,7 @@ export interface CreateBulkDisplayCardsOptions {
   backingTemplate?: TCGCardTemplate | null;
   activeCardSet?: CardSet;
   fieldDefinitions: TemplateFieldDefinition[];
+  backingFieldDefinitions?: TemplateFieldDefinition[];
   rows: string[][];
   columnMapping: Record<string, string>;
   previewOverrides?: Record<number, Record<string, string>>;
@@ -624,6 +658,7 @@ export const createBulkDisplayCards = ({
   backingTemplate = null,
   activeCardSet,
   fieldDefinitions,
+  backingFieldDefinitions = [],
   rows,
   columnMapping,
   previewOverrides = {},
@@ -633,16 +668,26 @@ export const createBulkDisplayCards = ({
 
   const headers = normalizeCsvHeaders(rows[0]);
   const generatedCards: DisplayCard[] = [];
-  const fieldKeySet = new Set(fieldDefinitions.map((field) => field.key));
+  const bulkFieldDefinitions = createBulkFaceFieldDefinitions(fieldDefinitions, backingFieldDefinitions);
+  const fieldKeySet = new Set(bulkFieldDefinitions.map((field) => field.key));
 
   for (let i = 1; i < rows.length; i += 1) {
     const values = rows[i];
     const cardData: CardData = {};
+    const backingData: CardData = {};
+
+    const assignMappedValue = (mappedKey: string, value: string | number) => {
+      if (isBackingBulkFieldKey(mappedKey)) {
+        backingData[getBackingTemplateFieldKey(mappedKey)] = value;
+      } else {
+        cardData[mappedKey] = value;
+      }
+    };
 
     headers.forEach((header: string, index: number) => {
       const mappedKey = columnMapping[header] || '';
       if (mappedKey) {
-        cardData[mappedKey] = values[index] ?? '';
+        assignMappedValue(mappedKey, values[index] ?? '');
         return;
       }
 
@@ -652,11 +697,13 @@ export const createBulkDisplayCards = ({
 
       const value = values[index] ?? '';
       if (String(value).trim() && styleColumn) {
-        cardData[buildFieldStyleDataKey(styleColumn.fieldKey, styleColumn.property)] = value;
+        const target = isBackingBulkFieldKey(styleColumn.fieldKey) ? backingData : cardData;
+        target[buildFieldStyleDataKey(getBackingTemplateFieldKey(styleColumn.fieldKey), styleColumn.property)] = value;
         return;
       }
       if (String(value).trim() && imageColumn) {
-        cardData[buildImageFieldOverrideDataKey(imageColumn.fieldKey, imageColumn.property)] = value;
+        const target = isBackingBulkFieldKey(imageColumn.fieldKey) ? backingData : cardData;
+        target[buildImageFieldOverrideDataKey(getBackingTemplateFieldKey(imageColumn.fieldKey), imageColumn.property)] = value;
       }
     });
 
@@ -664,7 +711,7 @@ export const createBulkDisplayCards = ({
     const rowOverrides = previewOverrides[rowNumber];
     if (rowOverrides) {
       Object.entries(rowOverrides).forEach(([key, value]) => {
-        cardData[key] = value;
+        assignMappedValue(key, value);
       });
     }
 
@@ -675,6 +722,9 @@ export const createBulkDisplayCards = ({
       setId: activeCardSet?.id,
       setName: activeCardSet?.name,
       data: completeCardDataWithTemplateDefaults(fieldDefinitions, cardData),
+      backingData: backingTemplate
+        ? completeCardDataWithTemplateDefaults(backingFieldDefinitions, backingData)
+        : undefined,
       uniqueId: createId(rowNumber),
     });
   }

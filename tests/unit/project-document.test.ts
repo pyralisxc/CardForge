@@ -30,6 +30,11 @@ const storedCard: StoredDisplayCard = {
     cardName: 'Rift Adept',
     '__cardforgeFieldStyle.cardName.textColor': '#00ffaa',
   },
+  backingTemplateId: 'back-template-1',
+  backingData: {
+    backTitle: 'Rift Adept sigil',
+    '__cardforgeImageField.backArtwork.fit': 'contain',
+  },
 };
 
 const paperSize: PaperSize = {
