@@ -1,7 +1,9 @@
 import { extractTemplateFieldDefinitions } from '@/domain/templates';
 import { validateCardDataAgainstFieldContracts } from '@/domain/templates';
+import type { CardData } from '@/domain/cards';
 import {
   AVAILABLE_FONTS,
+  getCardFaceData,
   getCardExportDimensionsPx,
   getCardFaceCanvas,
   hasCardBacking,
@@ -148,7 +150,6 @@ export const getRasterExportDimensionsPx = (
 export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, dpiOverride?: number): ExportValidationResult => {
   const critical: string[] = [];
   const warnings: string[] = [];
-  const fieldDefinitions = extractTemplateFieldDefinitions(card.template);
   const exportProfile = getExportProfile(mode, dpiOverride);
   const effectivePixelsPerInch = exportProfile.dpi * exportProfile.canvasPixelRatio;
 
@@ -186,31 +187,35 @@ export const validateCardExportQuality = (card: DisplayCard, mode: ExportMode, d
     });
   }
 
-  const contractValidation = validateCardDataAgainstFieldContracts(fieldDefinitions, card.data);
-  warnings.push(...contractValidation.issues);
-  warnings.push(...contractValidation.warnings);
+  const validateFace = (
+    template: DisplayCard['template'],
+    data: CardData,
+    faceLabel: 'Front' | 'Back',
+  ) => {
+    const fieldDefinitions = extractTemplateFieldDefinitions(template);
+    const contractValidation = validateCardDataAgainstFieldContracts(fieldDefinitions, data);
+    const prefix = faceLabel === 'Back' ? 'Back: ' : '';
+    warnings.push(...contractValidation.issues.map((issue) => `${prefix}${issue}`));
+    warnings.push(...contractValidation.warnings.map((warning) => `${prefix}${warning}`));
 
-  fieldDefinitions.forEach((field) => {
-    const value = String(card.data[field.key] ?? '').trim();
-
-    if (!field.isImage) return;
-
-    if (value.length === 0) {
-      return;
-    }
-
-    if (!isLikelyImageSource(value)) {
-      return;
-    }
-
-    if (isPlaceholderImage(value)) {
-      if (mode === 'physical') {
-        critical.push(`Image field ${field.key} is using a placeholder source.`);
-      } else {
-        warnings.push(`Image field ${field.key} is using a placeholder source.`);
+    fieldDefinitions.forEach((field) => {
+      const value = String(data[field.key] ?? '').trim();
+      if (!field.isImage || value.length === 0 || !isLikelyImageSource(value) || !isPlaceholderImage(value)) {
+        return;
       }
-    }
-  });
+      const message = `${faceLabel === 'Back' ? 'Back image' : 'Image'} field ${field.key} is using a placeholder source.`;
+      if (mode === 'physical') {
+        critical.push(message);
+      } else {
+        warnings.push(message);
+      }
+    });
+  };
+
+  validateFace(card.template, getCardFaceData(card, 'front'), 'Front');
+  if (card.backingTemplate) {
+    validateFace(card.backingTemplate, getCardFaceData(card, 'back'), 'Back');
+  }
 
   const customFontClasses = new Set(
     [

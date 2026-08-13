@@ -18,6 +18,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       uniqueId: card.uniqueId,
       templateId: card.template.id!,
       backingTemplateId: card.backingTemplateId ?? card.backingTemplate?.id ?? activeCardSet.backingTemplateId,
+      backingData: card.backingData,
       setId: card.setId ?? activeCardSet.id,
       setName: card.setName ?? activeCardSet.name,
       data: card.data,
@@ -44,6 +45,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
             ?? updatedCard.backingTemplate?.id
             ?? card.backingTemplateId
             ?? null,
+          backingData: updatedCard.backingData,
           setId: updatedCard.setId ?? card.setId,
           setName: updatedCard.setName ?? card.setName,
           data: updatedCard.data,
@@ -87,6 +89,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         uniqueId: card.uniqueId || nanoid(),
         templateId: template.id!,
         backingTemplateId: card.backingTemplateId ?? null,
+        backingData: card.backingData,
         setId: card.setId ?? activeCardSet.id,
         setName: card.setName ?? activeCardSet.name,
         data: card.data || {},
@@ -115,6 +118,7 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         uniqueId,
         templateId: template.id!,
         backingTemplateId: card.backingTemplateId ?? null,
+        backingData: card.backingData,
         setId: card.setId ?? activeCardSet.id,
         setName: card.setName ?? activeCardSet.name,
         data: card.data || {},

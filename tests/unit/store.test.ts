@@ -145,6 +145,7 @@ describe('app store helpers', () => {
         setId: 'set-1',
         setName: 'Arcane Deck',
         data: { cardName: 'Front Data' },
+        backingData: { backTitle: 'Generated Back Data' },
       }],
     } as unknown as Parameters<typeof selectGeneratedDisplayCards>[0]);
 
@@ -155,6 +156,7 @@ describe('app store helpers', () => {
     expect(cards[0].backingTemplateId).toBe('obsidian-back');
     expect(cards[0].backingTemplate?.id).toBe('obsidian-back');
     expect(cards[0].backingTemplate?.freeformCanvas?.elements[0].content).toBe('Static Back');
+    expect(cards[0].backingData).toEqual({ backTitle: 'Generated Back Data' });
   });
 
   it('clears a selected back when the front changes to an incompatible format', () => {

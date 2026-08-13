@@ -7,6 +7,7 @@ export interface CardData {
 export interface StoredDisplayCard {
   templateId: string;
   backingTemplateId?: string | null;
+  backingData?: CardData;
   setId?: string;
   setName?: string;
   data: CardData;

@@ -185,7 +185,9 @@ export const createTemplateSlice: StateCreator<ProjectState, [], [], TemplateSli
     const allTemplates = [...defaultTemplates, ...userTemplates];
     const storedCards = state.storedCards
       .filter((card) => card.templateId !== templateId)
-      .map((card) => card.backingTemplateId === templateId ? { ...card, backingTemplateId: null } : card);
+      .map((card) => card.backingTemplateId === templateId
+        ? { ...card, backingTemplateId: null, backingData: undefined }
+        : card);
     const selectedId = state.singleCardGeneratorSelectedTemplateId === templateId
       ? (allTemplates.find((template) => Boolean(template.id?.trim()))?.id ?? null)
       : state.singleCardGeneratorSelectedTemplateId;

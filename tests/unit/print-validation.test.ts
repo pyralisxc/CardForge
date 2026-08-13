@@ -97,6 +97,28 @@ describe('print validation', () => {
     expect(validation.warnings.some((message) => message.includes('placeholder'))).toBe(true);
   });
 
+  it('validates generated back values independently from the front', () => {
+    const backingTemplate: TCGCardTemplate = {
+      ...baseTemplate,
+      id: 'back-template',
+      name: 'Generated Back',
+      templateUsage: 'back-preset',
+    };
+    const card: DisplayCard = {
+      ...makeCard({ rulesText: 'Front text', artworkUrl: 'https://example.com/front.png' }),
+      backingTemplate,
+      backingTemplateId: backingTemplate.id,
+      backingData: {
+        rulesText: 'Back text',
+        artworkUrl: 'https://placehold.co/600x400.png?text=Back',
+      },
+    };
+
+    const validation = validateCardExportQuality(card, 'physical');
+
+    expect(validation.critical).toContain('Back image field artworkUrl is using a placeholder source.');
+  });
+
   it('treats missing required text fields as warnings, not blockers', () => {
     const card = makeCard({ rulesText: '', artworkUrl: 'https://example.com/image.png' });
     const validation = validateCardExportQuality(card, 'physical');

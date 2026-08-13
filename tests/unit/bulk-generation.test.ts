@@ -5,6 +5,7 @@ import {
   autoMapRequiredFields,
   createBulkContractSummary,
   createBulkDisplayCards,
+  createBulkFaceFieldDefinitions,
   createBulkExampleCsv,
   createBulkExampleJson,
   createBulkExampleStructuredText,
@@ -683,6 +684,73 @@ Transitions[1].Position: 421
       '__cardforgeFieldStyle.Stat.fontSizePx': '28',
     });
     expect(cards[0].data['__cardforgeFieldStyle.Ignored.textColor']).toBeUndefined();
+  });
+
+  it('generates independent front and back values from one list row', () => {
+    const frontTemplate: TCGCardTemplate = {
+      id: 'front-template',
+      name: 'Front',
+      aspectRatio: '63:88',
+    };
+    const backingTemplate: TCGCardTemplate = {
+      id: 'back-template',
+      name: 'Back',
+      aspectRatio: '63:88',
+      templateUsage: 'back-preset',
+    };
+    const frontFields = [{
+      key: 'Title',
+      label: 'Title',
+      control: 'input' as const,
+      editor: 'text-editor' as const,
+      contentModel: 'text' as const,
+      required: true,
+      isImage: false,
+      isMultiline: false,
+      supportsRichText: true,
+    }];
+    const backFields = [
+      { ...frontFields[0], key: 'Title', label: 'Back title' },
+      {
+        key: 'Artwork',
+        label: 'Back artwork',
+        control: 'input' as const,
+        editor: 'image-input' as const,
+        contentModel: 'image' as const,
+        required: false,
+        isImage: true,
+        isMultiline: false,
+        supportsRichText: false,
+      },
+    ];
+    const combinedFields = createBulkFaceFieldDefinitions(frontFields, backFields);
+
+    const cards = createBulkDisplayCards({
+      template: frontTemplate,
+      backingTemplate,
+      fieldDefinitions: frontFields,
+      backingFieldDefinitions: backFields,
+      rows: [
+        ['Title', 'back.Title', 'back.Artwork', 'back.Artwork.image.fit'],
+        ['Front value', 'Back value', 'data:image/png;base64,abc', 'contain'],
+      ],
+      columnMapping: {
+        Title: 'Title',
+        'back.Title': 'back.Title',
+        'back.Artwork': 'back.Artwork',
+      },
+      createId: () => 'two-face-card',
+    });
+
+    expect(combinedFields.map((field) => field.key)).toEqual(['Title', 'back.Title', 'back.Artwork']);
+    expect(combinedFields.map((field) => field.label)).toEqual(['Title', 'Back · Back title', 'Back · Back artwork']);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].data).toMatchObject({ Title: 'Front value' });
+    expect(cards[0].backingData).toMatchObject({
+      Title: 'Back value',
+      Artwork: 'data:image/png;base64,abc',
+      '__cardforgeImageField.Artwork.fit': 'contain',
+    });
   });
 
   it('accepts style override fields from JSON object arrays and structured text imports', () => {

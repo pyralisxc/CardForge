@@ -18,6 +18,7 @@ import { createBulkContractSummary } from '@/features/card-generator/lib/bulkGen
 interface BulkTemplateSetupPanelProps {
   selectedTemplateId: string | null;
   selectedTemplate?: TCGCardTemplate;
+  backingTemplate?: TCGCardTemplate | null;
   bulkFieldDefinitions: TemplateFieldDefinition[];
   onDownloadExampleCsv: () => void;
   onDownloadExampleJson: () => void;
@@ -27,6 +28,7 @@ interface BulkTemplateSetupPanelProps {
 export function BulkTemplateSetupPanel({
   selectedTemplateId,
   selectedTemplate,
+  backingTemplate,
   bulkFieldDefinitions,
   onDownloadExampleCsv,
   onDownloadExampleJson,
@@ -41,12 +43,15 @@ export function BulkTemplateSetupPanel({
     <Card>
       <CardHeader>
         <CardTitle className="text-base">1. Card design</CardTitle>
-        <CardDescription>Choose the card design these cards will use.</CardDescription>
+        <CardDescription>Confirm the front and back designs these cards will generate.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border bg-muted/30 p-3 text-sm">
           <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Selected card design</p>
           <p className="font-medium">{selectedTemplate?.name || selectedTemplateId || 'No front template selected'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Back: {backingTemplate?.name || 'No back selected'}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">Change this in Card setup above.</p>
         </div>
 
@@ -93,7 +98,7 @@ export function BulkTemplateSetupPanel({
                 Your card fields
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                These are the details your data can fill. Text or Markdown can use readable Field: value lines.
+                These are the details your data can fill. Back fields begin with “back.” so front and back can share field names.
               </p>
               <div className="mt-2 rounded bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-5 text-foreground break-words">
                 {exactHeaderLine || 'Select a card design to see fields.'}

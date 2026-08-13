@@ -32,6 +32,7 @@ export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] 
         template,
         backingTemplateId: storedCard.backingTemplateId ?? null,
         backingTemplate,
+        backingData: storedCard.backingData,
         setId: storedCard.setId,
         setName: storedCard.setName,
         data: storedCard.data,

@@ -98,6 +98,8 @@ describe('responsive feature parity', () => {
 
     expect(gallery).toContain("useState<GeneratedGalleryDensity>('comfortable')");
     expect(gallery).toContain('data-testid="generated-card-action-rail"');
+    expect(gallery).toContain('aria-label="Preview card face"');
+    expect(gallery).toContain('face={visiblePreviewFace}');
     expect(gallery).not.toContain('absolute bottom-2 right-2');
     expect(gallery).not.toContain('absolute right-2 top-2');
   });
@@ -120,6 +122,10 @@ describe('responsive feature parity', () => {
 
     expect(singleCard).toContain('<GeneratorFieldGroups');
     expect(editCard).toContain('<GeneratorFieldGroups');
+    expect(singleCard).toContain('Back Details');
+    expect(editCard).toContain('Back Details');
+    expect(singleCard).toContain('backingData: finalBackingData');
+    expect(editCard).toContain('backingData: finalBackingData');
     expect(bulkCards).toContain('onCardsGenerated(generatedCards)');
 
     for (const sharedWorkspaceOwner of [

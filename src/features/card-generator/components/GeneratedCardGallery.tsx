@@ -16,9 +16,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import type { CardFace } from '@/domain/cards';
 import type { TCGCardTemplate } from '@/domain/templates';
 import type { ExportMode } from '@/features/card-generator/lib/printValidation';
-import type { DisplayCard } from '@/domain/rendering';
+import { hasCardBacking, type DisplayCard } from '@/domain/rendering';
 
 export type GeneratedGallerySort = 'default' | 'name-asc' | 'name-desc' | 'template';
 type GeneratedGalleryDensity = 'compact' | 'comfortable' | 'large';
@@ -74,6 +75,7 @@ export function GeneratedCardGallery({
 }: GeneratedCardGalleryProps) {
   const [galleryDensity, setGalleryDensity] = useState<GeneratedGalleryDensity>('comfortable');
   const [galleryColumns, setGalleryColumns] = useState<GeneratedGalleryColumns>('auto');
+  const [previewFace, setPreviewFace] = useState<CardFace>('front');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const scrollParentRef = useRef<HTMLDivElement | null>(null);
   const gridMeasureRef = useRef<HTMLDivElement | null>(null);
@@ -89,7 +91,8 @@ export function GeneratedCardGallery({
         const query = gallerySearch.toLowerCase();
         return (
           card.template.name?.toLowerCase().includes(query) ||
-          Object.values(card.data).some((value) => String(value).toLowerCase().includes(query))
+          Object.values(card.data).some((value) => String(value).toLowerCase().includes(query)) ||
+          Object.values(card.backingData ?? {}).some((value) => String(value).toLowerCase().includes(query))
         );
       })
       .sort((a, b) => {
@@ -101,6 +104,11 @@ export function GeneratedCardGallery({
   ), [gallerySearch, gallerySort, generatedDisplayCards]);
 
   const densityConfig = GALLERY_DENSITY_OPTIONS[galleryDensity];
+  const hasBackedCards = useMemo(
+    () => generatedDisplayCards.some(hasCardBacking),
+    [generatedDisplayCards]
+  );
+  const visiblePreviewFace: CardFace = hasBackedCards ? previewFace : 'front';
   const columnCount = resolveGeneratedGalleryColumnCount({
     availableWidth: gridWidth,
     minimumItemWidth: densityConfig.gridMinWidthPx,
@@ -188,6 +196,26 @@ export function GeneratedCardGallery({
               ))}
             </SelectContent>
           </Select>
+          <div
+            className="col-span-2 flex h-10 items-center rounded-md border bg-background p-1 sm:col-span-1 sm:h-8"
+            role="group"
+            aria-label="Preview card face"
+          >
+            {(['front', 'back'] as const).map((face) => (
+              <Button
+                key={face}
+                type="button"
+                size="sm"
+                variant={visiblePreviewFace === face ? 'secondary' : 'ghost'}
+                className="h-full flex-1 px-3 text-xs capitalize"
+                disabled={face === 'back' && !hasBackedCards}
+                aria-pressed={visiblePreviewFace === face}
+                onClick={() => setPreviewFace(face)}
+              >
+                {face}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -209,6 +237,7 @@ export function GeneratedCardGallery({
               {filteredSortedCards.length !== generatedDisplayCards.length ? ` (${generatedDisplayCards.length} in this set)` : ''}
             </span>
             <span>{columnCount} per row</span>
+            <span className="capitalize">Viewing {visiblePreviewFace}s</span>
           </div>
           <div ref={gridMeasureRef}>
             <div
@@ -240,6 +269,7 @@ export function GeneratedCardGallery({
                           <div className="relative mx-auto w-fit">
                             <CardPreview
                               card={cardItem}
+                              face={visiblePreviewFace}
                               isPrintMode={false}
                               highlightColor={richTextHighlightColor}
                               className="mx-auto"

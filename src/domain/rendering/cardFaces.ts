@@ -27,7 +27,7 @@ export const getCardFaceData = (
   face: CardFace,
 ): CardData => {
   if (face === 'back' && card.backingTemplate) {
-    return card.backingTemplate.templatePreviewData || {};
+    return card.backingData ?? card.backingTemplate.templatePreviewData ?? {};
   }
   return card.data;
 };

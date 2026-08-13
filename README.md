@@ -1,6 +1,6 @@
 # CardForge
 
-CardForge helps creators turn card ideas into full, export-ready sets. The Studio combines reusable templates, structured data, bulk generation, and clean PNG, ZIP, PDF, or Tabletop Simulator exports, while approved developers help shape the shared library that powers the product. The fantasy forge is the doorway; underneath is a serious production workflow for creators building real card systems. User project work stays in browser storage or downloaded project files for the current launch.
+CardForge helps creators turn card ideas into full, export-ready sets. The Studio combines reusable front and back layouts, independent two-face card data, structured bulk generation, and clean PNG, ZIP, PDF, or Tabletop Simulator exports, while approved developers help shape the shared library that powers the product. The fantasy forge is the doorway; underneath is a serious production workflow for creators building real card systems. User project work stays in browser storage or downloaded project files for the current launch.
 
 CardForge Studio is a software product created and operated by Cameron Locke, an independent sole proprietor based in Oregon.
 
