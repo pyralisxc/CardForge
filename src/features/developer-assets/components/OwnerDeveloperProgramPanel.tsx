@@ -7,79 +7,38 @@ import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { FieldHelp } from '@/features/developer-assets/components/DeveloperAssetHubUi';
+import { OwnerAssetLibraryPanel } from '@/features/developer-assets/components/OwnerAssetLibraryPanel';
+import { OwnerAssetStorageForecast } from '@/features/developer-assets/components/OwnerAssetStorageForecast';
+import { OwnerDeveloperLedger, type DeveloperProfileDraft } from '@/features/developer-assets/components/OwnerDeveloperLedger';
+import { OwnerDeveloperProgramOverview } from '@/features/developer-assets/components/OwnerDeveloperProgramOverview';
 import {
   CompactNumberField,
   DecisionCard,
   NumberField,
-  ProfileOverrideField,
   ToggleField,
   VoteWeightSelector,
 } from '@/features/developer-assets/components/OwnerDeveloperProgramControls';
 import {
   DEVELOPER_ASSET_TYPES,
-  DEVELOPER_ASSET_STATUSES,
   buildDeveloperVotingPresetSettings,
-  estimateDeveloperAssetStorage,
   getDeveloperVotingPresetLabel,
-  type DeveloperAssetAccessTier,
   type DeveloperAssetAccessTierOverride,
   type DeveloperAssetStatus,
   type DeveloperProgramSettings,
   type DeveloperVotingPreset,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
-import {
-  getDeveloperAssetStatusLabel,
-  getDeveloperAssetTierLabel,
-  getDeveloperAssetTypeLabel,
-} from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import { getDeveloperAssetTypeLabel } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
 }
 
-interface DeveloperProfileDraft {
-  status: 'invited' | 'active' | 'inactive' | 'suspended';
-  monthlySubmissionLimitOverride: string;
-  monthlyPublishedRequirementOverride: string;
-  profitShareEligible: boolean;
-  ownerNote: string;
-}
-
-const tierClasses: Record<DeveloperAssetAccessTier, string> = {
-  hidden: 'border-[#4a3823] text-[#8f95a3]',
-  free: 'border-[#5f7f54] text-[#bde3a8]',
-  paid: 'border-[#8a642f] text-[#f0c568]',
-  developer: 'border-[#35445a] text-[#b9d5ff]',
-};
-
-const profileStatusLabels: Record<DeveloperProfileDraft['status'], string> = {
-  invited: 'Invited',
-  active: 'Active',
-  inactive: 'Inactive',
-  suspended: 'Suspended',
-};
-
-const formatBytes = (value: number): string => {
-  if (!Number.isFinite(value) || value <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const exponent = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
-  const amount = value / 1024 ** exponent;
-  return `${amount >= 10 || exponent === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[exponent]}`;
-};
-
-const getContributorLabel = (developerId: string, developerEmail: string | null, developerName?: string | null) => {
-  if (developerName) return developerName;
-  return developerEmail ?? developerId;
-};
-
 export function OwnerDeveloperProgramPanel() {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
   const [settings, setSettings] = useState<DeveloperProgramSettings | null>(null);
-  const [ownerNote, setOwnerNote] = useState('');
-  const [ownerStatusFilter, setOwnerStatusFilter] = useState<DeveloperAssetStatus | 'all'>('all');
   const [profileDrafts, setProfileDrafts] = useState<Record<string, DeveloperProfileDraft>>({});
   const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState<string | null>(null);
@@ -160,8 +119,9 @@ export function OwnerDeveloperProgramPanel() {
 
   const updateStatus = async (
     submissionId: string,
-    status: string,
+    status: DeveloperAssetStatus,
     ownerAccessTierOverride?: DeveloperAssetAccessTierOverride | null,
+    ownerNote = '',
   ) => {
     setUpdatingSubmissionId(submissionId);
     try {
@@ -273,18 +233,6 @@ export function OwnerDeveloperProgramPanel() {
     );
   }
 
-  const storageForecast = estimateDeveloperAssetStorage(settings, program.activeDeveloperCount);
-  const overCapSummaries = program.assetTypeSummaries.filter((summary) => summary.overPublishCapBy > 0);
-  const liveDefaultCount = program.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0);
-  const candidateCount = program.assetTypeSummaries.reduce((total, summary) => total + summary.candidateCount, 0);
-  const archiveCount = program.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0);
-  const ownerStatusCounts = DEVELOPER_ASSET_STATUSES.reduce<Record<DeveloperAssetStatus, number>>((counts, status) => {
-    counts[status] = program.submissions.filter((submission) => submission.status === status).length;
-    return counts;
-  }, {} as Record<DeveloperAssetStatus, number>);
-  const ownerVisibleSubmissions = ownerStatusFilter === 'all'
-    ? program.submissions
-    : program.submissions.filter((submission) => submission.status === ownerStatusFilter);
   const lastSavedLabel = lastSavedAt
     ? new Date(lastSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : 'No changes saved in this session';
@@ -292,45 +240,7 @@ export function OwnerDeveloperProgramPanel() {
   return (
     <TooltipProvider>
     <section className="border border-[#7d5a2e] bg-[#15100a] p-6">
-      <div className="flex items-center gap-3 text-[#e2aa4a]">
-        <Crown className="h-5 w-5" />
-        <h2 className="font-serif text-2xl text-[#fff1c7]">Asset Pipeline Command</h2>
-      </div>
-      <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-        Control developer slots, monthly contribution rules, vote thresholds, free/paid published visibility, archive visibility, and per-type caps before financial launch. Published assets are the only assets loaded into creator-facing Studio libraries; everything else remains managed in the pipeline.
-      </p>
-      <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#a98a55]">Owner control map</p>
-            <h3 className="mt-1 font-serif text-xl text-[#fff1c7]">These rules change the live pipeline after you save.</h3>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Saving updates developer limits, vote thresholds, self-voting, tier caps, and review behavior. It does not delete contribution history; assets move between pipeline-only, published free/paid, and archive states according to the same rules.
-            </p>
-          </div>
-          <div className="min-w-48 border border-[#3c2c1b] bg-[#15100a] p-3 text-sm text-[#c7b288]">
-            <p className="text-xs uppercase tracking-[0.14em] text-[#a98a55]">Save state</p>
-            <p className="mt-2 text-[#ffe7ad]">{lastSavedLabel}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-3 md:grid-cols-4">
-        <DecisionCard label="Program status" body={program.configured ? 'Supabase developer tables are connected and accepting submissions.' : 'Developer tables are not configured yet.'} />
-        <DecisionCard label="Submissions" body={`${program.submissions.length} total developer asset submission${program.submissions.length === 1 ? '' : 's'} in the review system.`} />
-        <DecisionCard label="Voting lane" body={`${program.votingQueue.length} active asset${program.votingQueue.length === 1 ? '' : 's'} remain open for developer voting, with owner archive/recover controls available below.`} />
-        <DecisionCard label="Active developers" body={`${program.activeDeveloperCount} active developer${program.activeDeveloperCount === 1 ? '' : 's'} currently count toward voting presets.`} />
-        <DecisionCard label="Published policy" body="Creator-facing assets are published pipeline rows with a free or paid tier. If voting or cap rules push them out, they move back through candidate/archive states." />
-        <DecisionCard label="Cap pressure" body={overCapSummaries.length === 0 ? 'All published asset types are inside current caps.' : `${overCapSummaries.length} asset type${overCapSummaries.length === 1 ? '' : 's'} are over cap; rebalance moves lowest-signal live assets back to candidates.`} />
-        <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads during solo/demo review.' : 'Only peer votes count; own assets stay out of the review queue for that contributor.'} />
-        <DecisionCard label="Owner vote mode" body={settings.ownerVoteWeight === 1 ? 'Owner votes count like one developer vote.' : `Owner votes count as ${settings.ownerVoteWeight}x signal in asset grading.`} />
-      </div>
-
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <DecisionCard label="Live library" body={`${liveDefaultCount} published assets currently feed creator-facing libraries and remain open to developer voting.`} />
-        <DecisionCard label="Waiting for signal" body={`${candidateCount} candidate assets are waiting for votes, owner review, or open caps before they become live library assets.`} />
-        <DecisionCard label="Recoverable archive" body={`${archiveCount} archived assets remain visible for owner review and can be recovered when signal improves.`} />
-      </div>
+      <OwnerDeveloperProgramOverview program={program} settings={settings} lastSavedLabel={lastSavedLabel} />
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
@@ -522,110 +432,14 @@ export function OwnerDeveloperProgramPanel() {
           </div>
         </div>
 
-        <div className="border border-[#5f4526] bg-[#100c08] p-4">
-          <h3 className="font-serif text-xl text-[#fff1c7]">Developer monthly ledger</h3>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-            Start with the base monthly contract, then adjust specific developer accounts when someone needs a different submission cap, published requirement, or future creator-pool eligibility.
-          </p>
-          <div className="mt-4 space-y-2">
-            {program.developerContributions.map((contribution) => {
-              const draft = profileDrafts[contribution.developerId] ?? {
-                status: contribution.profileStatus,
-                monthlySubmissionLimitOverride: contribution.submissionLimitOverride === null ? '' : String(contribution.submissionLimitOverride),
-                monthlyPublishedRequirementOverride: contribution.publishedRequirementOverride === null ? '' : String(contribution.publishedRequirementOverride),
-                profitShareEligible: contribution.profitShareEligible,
-                ownerNote: contribution.ownerNote ?? '',
-              };
-              const contributorLabel = getContributorLabel(contribution.developerId, contribution.developerEmail, contribution.developerName);
-
-              return (
-                <div key={contribution.developerId} className="border border-[#3c2c1b] bg-[#15100a] p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-[#ffe7ad]">{contributorLabel}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[#a98a55]">
-                        {profileStatusLabels[contribution.profileStatus]} - {contribution.profitShareEligible ? 'Future creator pool eligible' : 'Future creator pool paused'}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {contribution.submissionLimitOverride !== null || contribution.publishedRequirementOverride !== null ? (
-                        <span className="border border-[#5f7f54] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#bde3a8]">Account override</span>
-                      ) : (
-                        <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">Base contract</span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-[#c7b288]">
-                    {contribution.submitted} submitted / {contribution.remainingSubmissions} left from {contribution.effectiveSubmissionLimit} allowed - {contribution.published} published / {contribution.requiredPublished} required
-                  </p>
-                  {contribution.missingPublished > 0 ? (
-                    <p className="mt-1 text-xs text-[#f0bd75]">{contribution.missingPublished} more published asset{contribution.missingPublished === 1 ? '' : 's'} needed this month.</p>
-                  ) : (
-                    <p className="mt-1 text-xs text-[#bde3a8]">Monthly published requirement met.</p>
-                  )}
-                      <div className="mt-3 grid gap-2 border border-[#3c2c1b] bg-[#100c08] p-3">
-                      <label className="grid gap-1 text-xs text-[#c7b288]">
-                        Profile status
-                        <select
-                          className="border border-[#3c2c1b] bg-[#15100a] p-2 text-[#ffe7ad]"
-                          value={draft.status}
-                          onChange={(event) => updateProfileDraft(contribution.developerId, { status: event.target.value as DeveloperProfileDraft['status'] })}
-                        >
-                          {(['active', 'invited', 'inactive', 'suspended'] as const).map((status) => (
-                            <option key={status} value={status}>{profileStatusLabels[status]}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <ProfileOverrideField
-                          label="Submission override"
-                          ariaLabel={`Submission allowance override for ${contributorLabel}`}
-                          placeholder={`Base ${settings.monthlySubmissionLimit}`}
-                          value={draft.monthlySubmissionLimitOverride}
-                          onChange={(value) => updateProfileDraft(contribution.developerId, { monthlySubmissionLimitOverride: value })}
-                        />
-                        <ProfileOverrideField
-                          label="Published override"
-                          ariaLabel={`Required published override for ${contributorLabel}`}
-                          placeholder={`Base ${settings.monthlyPublishedRequirement}`}
-                          value={draft.monthlyPublishedRequirementOverride}
-                          onChange={(value) => updateProfileDraft(contribution.developerId, { monthlyPublishedRequirementOverride: value })}
-                        />
-                      </div>
-                      <label className="flex items-center justify-between gap-3 border border-[#3c2c1b] bg-[#15100a] p-2 text-xs text-[#ffe7ad]">
-                        <span>
-                          Future creator-pool eligible
-                          <span className="mt-1 block text-[#a98a55]">Planning flag only. No payout automation is live yet.</span>
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={draft.profitShareEligible}
-                          onChange={(event) => updateProfileDraft(contribution.developerId, { profitShareEligible: event.target.checked })}
-                        />
-                      </label>
-                      <label className="grid gap-1 text-xs text-[#c7b288]">
-                        Owner note
-                        <textarea
-                          className="min-h-16 border border-[#3c2c1b] bg-[#15100a] p-2 text-[#ffe7ad]"
-                          value={draft.ownerNote}
-                          onChange={(event) => updateProfileDraft(contribution.developerId, { ownerNote: event.target.value })}
-                        />
-                      </label>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="justify-self-start bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
-                        disabled={savingProfileId === contribution.developerId}
-                        onClick={() => void saveDeveloperProfile(contribution.developerId)}
-                      >
-                        {savingProfileId === contribution.developerId ? 'Saving...' : 'Save account contract'}
-                      </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <OwnerDeveloperLedger
+          program={program}
+          settings={settings}
+          profileDrafts={profileDrafts}
+          savingProfileId={savingProfileId}
+          onDraftChange={updateProfileDraft}
+          onSave={saveDeveloperProfile}
+        />
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
@@ -635,136 +449,18 @@ export function OwnerDeveloperProgramPanel() {
         <DecisionCard label="Creator Pass" body={`${settings.paidAssetMinimumPositiveVotePercent}%+ positive can enter Creator Pass Library.`} />
       </div>
 
-      <div className="mt-5 border border-[#5f4526] bg-[#100c08] p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="font-serif text-xl text-[#fff1c7]">Asset storage forecast</h3>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Estimate managed asset storage if published slots, one month of voting submissions, and visible archive capacity are all full.
-            </p>
-          </div>
-          <FieldHelp text="This is planning math, not a billing meter. Actual files should live in object storage; database rows store metadata and source pointers." />
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <DecisionCard label="Publish slots" body={`${storageForecast.publishSlotCount} slots / ${formatBytes(storageForecast.estimatedPublishedBytes)} estimated`} />
-          <DecisionCard label="Voting month" body={`${storageForecast.monthlyVotingSlotCount} possible uploads / ${formatBytes(storageForecast.estimatedMonthlyVotingBytes)}`} />
-          <DecisionCard label="Archive reserve" body={`${storageForecast.archiveSlotCount} visible archived assets / ${formatBytes(storageForecast.estimatedArchiveBytes)}`} />
-          <DecisionCard label="Max managed" body={`${formatBytes(storageForecast.estimatedMaximumManagedBytes)} at current settings`} />
-        </div>
-        <p className="mt-3 text-xs leading-5 text-[#a98a55]">
-          Average estimate: {formatBytes(storageForecast.averageAssetBytes)} per asset. Largest default estimate: {formatBytes(storageForecast.largestEstimatedAssetBytes)}.
-        </p>
-      </div>
+      <OwnerAssetStorageForecast settings={settings} activeDeveloperCount={program.activeDeveloperCount} />
 
       <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSettings}>
         <Save className="mr-2 h-4 w-4" />
         {isSaving ? 'Saving developer program...' : 'Save developer program'}
       </Button>
 
-      <div className="mt-7 grid gap-3 lg:grid-cols-[1fr_18rem]">
-        <div>
-          <h3 className="font-serif text-xl text-[#fff1c7]">Owner review lane</h3>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-            Use Archive as the normal remove-from-active-use path. Reject is for closed owner decisions, spam, rights problems, or unusable submissions.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className={`rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad] ${ownerStatusFilter === 'all' ? 'border-[#d8b365] bg-[#2a1b0d]' : ''}`}
-              onClick={() => setOwnerStatusFilter('all')}
-            >
-              All ({program.submissions.length})
-            </Button>
-            {DEVELOPER_ASSET_STATUSES.map((status) => (
-              <Button
-                key={status}
-                type="button"
-                size="sm"
-                variant="outline"
-                className={`rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad] ${ownerStatusFilter === status ? 'border-[#d8b365] bg-[#2a1b0d]' : ''}`}
-                onClick={() => setOwnerStatusFilter(status)}
-              >
-                {getDeveloperAssetStatusLabel(status)} ({ownerStatusCounts[status]})
-              </Button>
-            ))}
-          </div>
-          <div className="mt-4 space-y-3">
-            {ownerVisibleSubmissions.length === 0 ? (
-              <p className="text-sm text-[#c7b288]">No developer submissions match this owner review view.</p>
-            ) : ownerVisibleSubmissions.slice(0, 12).map((submission) => {
-              const isUpdatingSubmission = updatingSubmissionId === submission.id;
-
-              return (
-              <div key={submission.id} className="grid gap-3 border border-[#4a3823] bg-[#0c0b09] p-3 md:grid-cols-[1fr_auto] md:items-center">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-[#ffe7ad]">{submission.name}</p>
-                    <span className="border border-[#5f4526] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#d7b469]">
-                      {getDeveloperAssetStatusLabel(submission.status)}
-                    </span>
-                    <span className="border border-[#35445a] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#b9d5ff]">
-                      {getDeveloperAssetTypeLabel(submission.assetType, { plural: false })}
-                    </span>
-                    <span className={`border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${tierClasses[submission.calculatedAccessTier]}`}>
-                      {getDeveloperAssetTierLabel(submission.calculatedAccessTier)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-[#c7b288]">
-                    {submission.developerDisplayName ?? getContributorLabel(submission.developerId, submission.developerEmail)} - +{submission.positiveVotes} / -{submission.negativeVotes} - quality {submission.qualityScore}%
-                  </p>
-                  <p className="mt-1 text-xs text-[#a98a55]">
-                    {(submission.tierDecisionReason ?? submission.decisionReason ?? 'developer_review').replaceAll('_', ' ')}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {submission.status === 'archived' ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-[#5f7f54] bg-transparent text-[#bde3a8]"
-                      disabled={isUpdatingSubmission}
-                      onClick={() => updateStatus(submission.id, 'voting')}
-                      aria-label={`Recover ${submission.name} to review`}
-                    >
-                      {isUpdatingSubmission ? 'Updating...' : 'Recover to Review'}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-[#8c6436] bg-transparent text-[#f0bd75]"
-                      disabled={isUpdatingSubmission}
-                      onClick={() => updateStatus(submission.id, 'archived')}
-                      aria-label={`Archive ${submission.name}`}
-                    >
-                      {isUpdatingSubmission ? 'Updating...' : 'Archive'}
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, 'published')} aria-label={`Publish ${submission.name}`}>Publish Live</Button>
-                  <Button size="sm" variant="outline" className="border-[#7d3d32] bg-transparent text-[#ffd0c6]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, 'rejected')} aria-label={`Reject and close ${submission.name}`}>Reject / Close</Button>
-                  <Button size="sm" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, 'free')} aria-label={`Set ${submission.name} to Starter tier`}>Set Starter</Button>
-                  <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, 'paid')} aria-label={`Set ${submission.name} to Creator Pass tier`}>Set Creator Pass</Button>
-                  <Button size="sm" variant="outline" className="border-[#4a3823] bg-transparent text-[#8f95a3]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, 'hidden')} aria-label={`Set ${submission.name} to Not Live tier`}>Set Not Live</Button>
-                  {submission.ownerAccessTierOverride ? (
-                    <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#c7b288]" disabled={isUpdatingSubmission} onClick={() => updateStatus(submission.id, submission.status, null)} aria-label={`Clear tier override for ${submission.name}`}>Clear Override</Button>
-                  ) : null}
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        </div>
-        <label className="grid content-start gap-2 text-sm text-[#c7b288]">
-          Owner note for status changes
-          <textarea
-            className="min-h-32 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
-            value={ownerNote}
-            onChange={(event) => setOwnerNote(event.target.value)}
-          />
-        </label>
-      </div>
+      <OwnerAssetLibraryPanel
+        program={program}
+        updatingSubmissionId={updatingSubmissionId}
+        onUpdateStatus={updateStatus}
+      />
     </section>
     </TooltipProvider>
   );

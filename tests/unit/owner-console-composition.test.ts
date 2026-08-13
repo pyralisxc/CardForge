@@ -25,6 +25,7 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
       ['src', 'features', 'analytics', 'components', 'OwnerAnalyticsPanel.tsx'],
       ['src', 'features', 'experience-settings', 'components', 'OwnerExperienceControlsPanel.tsx'],
+      ['src', 'features', 'developer-assets', 'components', 'OwnerAssetLibraryPanel.tsx'],
     ];
     await Promise.all(requiredPaths.map(async (parts) => {
       await expect(pathExists(...parts), parts.join('/')).resolves.toBe(true);
@@ -41,7 +42,8 @@ describe('Owner Console composition', () => {
     );
 
     expect(page).toContain("@/features/experience-settings/client/owner");
-    expect(page).toContain('>Experience Controls</TabsTrigger>');
+    expect(page).toContain('>Site Controls</TabsTrigger>');
+    expect(page).toContain('>Experience</TabsTrigger>');
     expect(model).toContain('experienceSettings: ExperienceSettings');
     expect(panel).not.toContain('@/features/owner');
     expect(panel).toContain('/api/owner/experience-settings');
@@ -64,7 +66,7 @@ describe('Owner Console composition', () => {
     const founder = await readFile(rootPath('src/features/owner/components/OwnerFounderProfilePanel.tsx'), 'utf8');
 
     expect(page).toContain('OwnerSiteMediaPanel');
-    expect(page).toContain('>Site Media</TabsTrigger>');
+    expect(page).toContain('>Media</TabsTrigger>');
     expect(copy).not.toContain('OwnerHomepageMediaPanel');
     expect(founder).not.toContain('Upload portrait');
   });
@@ -74,6 +76,21 @@ describe('Owner Console composition', () => {
     expect(source.split(/\r?\n/u).length).toBeLessThanOrEqual(300);
     expect(source).not.toContain('@/features/app-shell');
     expect(source).toContain('dynamic(');
+  });
+
+  it('keeps the owner pipeline complete, filterable, and paged in a focused component', async () => {
+    const parent = await readFile(rootPath('src/features/developer-assets/components/OwnerDeveloperProgramPanel.tsx'), 'utf8');
+    const library = await readFile(rootPath('src/features/developer-assets/components/OwnerAssetLibraryPanel.tsx'), 'utf8');
+
+    expect(parent.split(/\r?\n/u).length).toBeLessThanOrEqual(500);
+    expect(parent).toContain('<OwnerAssetLibraryPanel');
+    expect(parent).not.toContain('.slice(0, 12)');
+    expect(library).toContain('buildOwnerAssetLibraryPage');
+    expect(library).toContain('Asset type');
+    expect(library).toContain('Pipeline status');
+    expect(library).toContain('Search library');
+    expect(library).toContain('Previous');
+    expect(library).toContain('Next');
   });
 
   it('splits owner integration and database operations from payload composition', async () => {

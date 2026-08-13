@@ -18,6 +18,7 @@ import {
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
+import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 
 export const metadata = createPageMetadata({
   title: 'Build Complete Card Sets',
@@ -26,10 +27,11 @@ export const metadata = createPageMetadata({
 });
 
 export default async function LandingPage() {
-  const [businessIdentity, siteMedia, siteContentBlocks] = await Promise.all([
+  const [businessIdentity, siteMedia, siteContentBlocks, experienceSettings] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedSiteMedia(),
     getCachedSiteContentBlocks('landing'),
+    getCachedExperienceSettings(),
   ]);
   const siteContent = createSiteContentMap(siteContentBlocks);
   const heroMedia = siteMedia.find((asset) => asset.slot === 'landing.hero');
@@ -56,7 +58,7 @@ export default async function LandingPage() {
       />
       <WorkflowProof />
 
-      <AccessComparison />
+      <AccessComparison projectFileAccess={experienceSettings.projectFileAccess} />
       <FounderStrip />
 
       <section className="bg-[radial-gradient(circle_at_center,#2a1a0c_0%,#0c0b09_62%)] px-5 py-11 text-center md:px-8 md:py-14">

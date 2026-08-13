@@ -203,6 +203,45 @@ describe('text tools', () => {
     expect(html).toContain('text-decoration:underline');
   });
 
+  it('renders contract typography when a text element contains only one variable', () => {
+    const element = {
+      id: 'single-variable-element',
+      type: 'text',
+      name: 'Card Name',
+      content: '{{Name:"Hero"}}',
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 80,
+      zIndex: 1,
+      fontSizePx: 16,
+    } as FreeformCardElement;
+    const template = {
+      id: 'template',
+      name: 'Template',
+      aspectRatio: '63:88',
+      frameStyle: 'freeform',
+      freeformCanvas: { width: 630, height: 880, elements: [element] },
+      fieldContracts: [{
+        key: 'Name',
+        elementId: 'single-variable-element',
+        type: 'text',
+        fontFamily: 'font-serif',
+        fontSizePx: 22,
+      }],
+    } as TCGCardTemplate;
+
+    const html = renderToStaticMarkup(createElement(CardTextContent, {
+      template,
+      element,
+      data: { Name: 'Kaela' },
+    }));
+
+    expect(html).toContain('Kaela');
+    expect(html).toContain('font-family:Georgia');
+    expect(html).toContain('font-size:22px');
+  });
+
   it('lets generated row data override each variable contract style independently', () => {
     const element = {
       id: 'styled-row-element',

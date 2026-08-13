@@ -66,9 +66,9 @@ For the repository-consolidation release, apply `20260812063536_consolidate_deve
 
 ## Owner Console checks
 
-Use `/owner` for readiness, analytics, experience controls, billing/reconciliation, email tests, support/contact history, site copy/media, founder profile, business identity, legal publications, developer program, campaign review, and account lookup. Feature modules own their data; Owner composes those feature-owned surfaces.
+Use `/owner` through five job-based workspaces: Overview, Audience & Revenue, Site Controls, Library & Contributors, and Governance. Feature modules still own their data; Owner only composes those feature-owned surfaces. The asset library shows the complete pipeline through type/status filters, search, and 12-item pages instead of silently truncating the review list.
 
-Experience Controls can make portable project files free or Creator Pass-only without changing finished-output entitlement. It can also switch analytics consent among required choice, standard popup, and quiet banner. All three presentations must retain Accept, Accept once, and Decline. Refresh a public page or Studio session after saving to verify the new cached policy.
+Site Controls > Experience can make portable project files free or Creator Pass-only without changing finished-output entitlement. It can also switch analytics consent among required choice, standard popup, and quiet banner. All three presentations must retain Accept, Accept once, and Decline. Refresh a public page or Studio session after saving to verify the new cached policy and its matching public access copy.
 
 ## Organic analytics
 
