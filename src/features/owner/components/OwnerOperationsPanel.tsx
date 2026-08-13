@@ -8,10 +8,10 @@ import { useToast } from '@/components/ui/use-toast';
 import { OwnerBillingPanel } from '@/features/billing/client/owner';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import {
-  getOwnerApiErrorMessage,
   type OwnerConsoleResponse,
   type OwnerManagedAccount,
 } from '@/features/owner/model/ownerConsoleClient';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { formatOwnerDateTime, OwnerMetricTile } from './OwnerPanelPrimitives';
 
 export function OwnerOperationsPanel({ payload }: { payload: OwnerConsoleResponse }) {
@@ -28,7 +28,7 @@ export function OwnerOperationsPanel({ payload }: { payload: OwnerConsoleRespons
     setIsSendingTestEmail(true);
     try {
       const response = await fetch('/api/owner/email/test', { method: 'POST' });
-      if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to send test email.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to send test email.'));
       const body = await response.json() as { to?: string };
       toast({ title: 'Test email sent', description: `Sent to ${body.to ?? payload.console.businessIdentity.supportEmail}.` });
     } catch (error) {
@@ -45,7 +45,7 @@ export function OwnerOperationsPanel({ payload }: { payload: OwnerConsoleRespons
       const response = await fetch('/api/owner/accounts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: accountSearchEmail }),
       });
-      if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to find account.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to find account.'));
       const account = ((await response.json()) as { account: OwnerManagedAccount }).account;
       setManagedAccount(account);
       setManagedAccountDraft({ access: account.access, owner: account.isOwner, note: account.note });
@@ -65,7 +65,7 @@ export function OwnerOperationsPanel({ payload }: { payload: OwnerConsoleRespons
       const response = await fetch('/api/owner/accounts', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: managedAccount.id, role: managedAccountDraft }),
       });
-      if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to update account.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update account.'));
       const account = ((await response.json()) as { account: OwnerManagedAccount }).account;
       setManagedAccount(account);
       setManagedAccountDraft({ access: account.access, owner: account.isOwner, note: account.note });

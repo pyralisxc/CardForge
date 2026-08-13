@@ -52,6 +52,6 @@ describe('provider infrastructure ownership', () => {
   it('keeps the Next proxy entry as thin composition', async () => {
     const proxy = await readFile(rootPath('src', 'proxy.ts'), 'utf8');
     expect(proxy).toContain("from '@/infrastructure/auth/middleware'");
-    expect(proxy.split(/\r?\n/u).length).toBeLessThanOrEqual(20);
+    expect(proxy).not.toContain('@clerk/nextjs/server');
   });
 });

@@ -1,6 +1,3 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-
 import type { TCGCardTemplate } from '@/domain/templates';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
@@ -12,9 +9,10 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 import {
   archivePipelineRegistryAsset,
   DeveloperAssetRegistryCommandError,
-  getPublishedRegistryContentRows,
-  readRegistryContentAsset,
+  getRepositoryTemplateLibrary,
+  isRepositoryTemplate,
   submitTemplateRevision,
+  toRepositoryAssetFileName,
 } from '@/features/developer-assets/server';
 import {
   DeveloperCockpitAccessError,
@@ -22,135 +20,12 @@ import {
   requireContributionScope,
 } from '@/features/developer-access/server';
 
-const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
-const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
-const PIPELINE_CONTRIBUTOR_NAME = PIPELINE_OWNER_EMAIL || 'CardForge Studio';
-type TemplateWithRequiredIdentity = TCGCardTemplate & { id: string; name: string; aspectRatio: string };
-
-const toSafeFileName = (value: string): string => {
-  const safe = value
-    .toLowerCase()
-    .replace(/[^a-z0-9-_]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-  return safe || 'template';
-};
-
-const isTemplateLike = (value: unknown): value is TemplateWithRequiredIdentity => {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<TCGCardTemplate>;
-  return typeof candidate.id === 'string'
-    && candidate.id.trim().length > 0
-    && typeof candidate.name === 'string'
-    && candidate.name.trim().length > 0
-    && typeof candidate.aspectRatio === 'string';
-};
-
-const readTemplatesFromDirectory = async (
-  directory: string,
-  templateSource: NonNullable<TCGCardTemplate['templateSource']>
-): Promise<TCGCardTemplate[]> => {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  const templates: TCGCardTemplate[] = [];
-
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-    const filePath = path.join(directory, entry.name);
-    try {
-      const contents = await fs.readFile(filePath, 'utf8');
-      const parsed = JSON.parse(contents);
-      if (isTemplateLike(parsed)) {
-        templates.push({
-          ...parsed,
-          templateSource,
-          templateLibrarySource: templateSource === 'default' ? 'base' : 'personal',
-          templateAccessTier: templateSource === 'default' ? 'free' : undefined,
-          templateRegistryStatus: templateSource === 'default' ? 'published' : 'localOnly',
-          templateContributorName: templateSource === 'default' ? PIPELINE_CONTRIBUTOR_NAME : undefined,
-        });
-      }
-    } catch (error) {
-      console.warn(`Skipping invalid template file ${entry.name}:`, error);
-    }
-  }
-
-  return templates.sort((a, b) => {
-    const orderA = typeof a.templateOrder === 'number' ? a.templateOrder : Number.MAX_SAFE_INTEGER;
-    const orderB = typeof b.templateOrder === 'number' ? b.templateOrder : Number.MAX_SAFE_INTEGER;
-    if (orderA !== orderB) return orderA - orderB;
-    return a.name.localeCompare(b.name);
-  });
-};
-
-const readTemplatesFromRegistry = async (): Promise<TCGCardTemplate[]> => {
-  const rows = await getPublishedRegistryContentRows('template');
-  if (rows.length === 0) return [];
-
-  const templates: TCGCardTemplate[] = [];
-
-  await Promise.all(rows.map(async (row) => {
-    const template = await readRegistryContentAsset<TCGCardTemplate>(
-      row,
-      ['template', 'payload'],
-      isTemplateLike,
-    );
-
-    if (!template) return;
-    const metadata = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
-      ? row.metadata as Record<string, unknown>
-      : {};
-    const revisionNumber = Number(metadata.revisionNumber);
-    const revisionId = typeof metadata.revisionId === 'string' ? metadata.revisionId : undefined;
-    templates.push({
-      ...template,
-      id: template.id || row.asset_id,
-      name: template.name || row.name,
-      templateSource: 'default' as const,
-      templateLibrarySource: 'pipeline' as const,
-      templateAccessTier: row.access_tier,
-      templateRegistryStatus: row.status,
-      templateContributorName: template.templateContributorName || PIPELINE_CONTRIBUTOR_NAME,
-      templateRevision: Number.isInteger(revisionNumber) && revisionNumber >= 0 ? revisionNumber : 0,
-      templateRevisionId: revisionId,
-    });
-  }));
-
-  return templates
-    .sort((a, b) => {
-      const orderA = typeof a.templateOrder === 'number' ? a.templateOrder : Number.MAX_SAFE_INTEGER;
-      const orderB = typeof b.templateOrder === 'number' ? b.templateOrder : Number.MAX_SAFE_INTEGER;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.name.localeCompare(b.name);
-    });
-};
-
-const mergeTemplatesById = (
-  baseTemplates: TCGCardTemplate[],
-  overrideTemplates: TCGCardTemplate[],
-): TCGCardTemplate[] => {
-  const merged = new Map<string, TCGCardTemplate>();
-
-  [...baseTemplates, ...overrideTemplates].forEach((template) => {
-    if (!template.id) return;
-    merged.set(template.id, template);
-  });
-
-  return Array.from(merged.values()).sort((a, b) => {
-    const orderA = typeof a.templateOrder === 'number' ? a.templateOrder : Number.MAX_SAFE_INTEGER;
-    const orderB = typeof b.templateOrder === 'number' ? b.templateOrder : Number.MAX_SAFE_INTEGER;
-    if (orderA !== orderB) return orderA - orderB;
-    return a.name.localeCompare(b.name);
-  });
-};
-
 export async function GET() {
   try {
-    const [localDefaults, registryDefaults] = await Promise.all([
-      readTemplatesFromDirectory(DEFAULT_TEMPLATE_LIBRARY_DIR, 'default'),
-      readTemplatesFromRegistry(),
-    ]);
-    const visibleDefaults = mergeTemplatesById(localDefaults, registryDefaults);
-    return createNoStoreJsonResponse({ defaults: visibleDefaults, userTemplates: [] });
+    return createNoStoreJsonResponse({
+      defaults: await getRepositoryTemplateLibrary(),
+      userTemplates: [],
+    });
   } catch (error) {
     console.error('Failed to load template library:', error);
     return createApiErrorResponse(
@@ -176,14 +51,14 @@ export async function POST(request: Request) {
     }
 
     const validation = templatePayloadSchema.safeParse(parsedBody.data);
-    if (!validation.success || !isTemplateLike(validation.data)) {
+    if (!validation.success || !isRepositoryTemplate(validation.data)) {
       const details = validation.success ? ['Template payload is missing required fields.'] : formatZodIssues(validation.error.issues);
       return createApiErrorResponse(400, 'invalid_template_payload', 'Invalid template payload.', details);
     }
 
     const template = validation.data as TCGCardTemplate;
     const source = template.templateSource === 'default' ? 'default' : 'user';
-    const fileName = `${toSafeFileName(template.id || template.name)}.json`;
+    const fileName = toRepositoryAssetFileName(template.id || template.name, 'template');
     if (source !== 'default') {
       return createApiErrorResponse(
         400,
@@ -253,7 +128,7 @@ export async function DELETE(request: Request) {
       return createApiErrorResponse(400, 'invalid_template_id', 'Template id is required.');
     }
 
-    const fileName = `${toSafeFileName(id)}.json`;
+    const fileName = toRepositoryAssetFileName(id, 'template');
     if (source !== 'default') {
       return createApiErrorResponse(
         400,

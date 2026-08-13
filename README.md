@@ -86,9 +86,9 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/shared/`: Framework-independent utilities.
 - `src/components/ui/`: Generic UI primitives and generic browser UI state.
 - `src/lib/`, `src/store/`, and `src/types/` are retired root ownership lanes and must not be recreated.
-- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: versioned built-in catalog sources. The library APIs load these built-ins and overlay published Forge Pipeline records by stable ID; Pipeline records own reviewed additions and revisions.
+- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: versioned built-in catalog sources. `data/styles/element-recipes.json` is the one authored shape/border/divider/icon recipe catalog. The shared repository-catalog loader overlays published Forge Pipeline records by stable ID; Pipeline records own reviewed additions and revisions.
 - `supabase/migrations/`: Immutable, forward-only database migrations for shared product state.
-- `tests/unit/`: Vitest coverage for pure helpers and model behavior.
+- `tests/unit/`: Vitest coverage for behavior, data contracts, security boundaries, and durable ownership rules. File-size policy belongs to `architecture:check`, not unit tests.
 - `tests/smoke/`: Playwright workflow and authenticated QA coverage.
 
 ## Product Architecture

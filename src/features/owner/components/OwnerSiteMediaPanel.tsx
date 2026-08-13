@@ -6,7 +6,7 @@ import { ImageUp, Monitor, RotateCcw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
-import { getOwnerApiErrorMessage } from '@/features/owner/model/ownerConsoleClient';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import {
   getSiteMediaDisplaySrc,
   getSiteMediaFrameAspectRatio,
@@ -76,7 +76,7 @@ export function OwnerSiteMediaPanel({
         body,
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
-      if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to publish the public image.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to publish the public image.'));
       const result = await response.json() as { console: OwnerConsolePayload };
       onConsoleChange(result.console);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));
@@ -101,7 +101,7 @@ export function OwnerSiteMediaPanel({
         method: 'POST',
         signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
-      if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to restore the previous image.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to restore the previous image.'));
       const result = await response.json() as { console: OwnerConsolePayload };
       onConsoleChange(result.console);
       setFiles((current) => ({ ...current, [asset.slot]: undefined }));

@@ -5,7 +5,8 @@ import { ExternalLink, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { getOwnerApiErrorMessage, type OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
+import type { OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export function OwnerConsoleSummary({ payload, lastOwnerSaveAt }: { payload: OwnerConsoleResponse; lastOwnerSaveAt: string | null }) {
   const { toast } = useToast();
@@ -15,7 +16,7 @@ export function OwnerConsoleSummary({ payload, lastOwnerSaveAt }: { payload: Own
     setIsSending(true);
     try {
       const response = await fetch('/api/owner/email/test', { method: 'POST' });
-      if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to send test email.'));
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to send test email.'));
       const body = await response.json() as { to?: string };
       toast({ title: 'Test email sent', description: `Sent to ${body.to ?? payload.console.businessIdentity.supportEmail}.` });
     } catch (error) {

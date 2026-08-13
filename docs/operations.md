@@ -134,7 +134,7 @@ Safe support rollback removes/disables support checkout environment values while
 - `npm run smoke:protected`: protected auth/access/recovery contract.
 - `npm run qa:bootstrap-authenticated-smoke`: align configured reusable QA identities.
 - `npm run pipeline:sync-defaults`: intentionally seed repository starter assets through the atomic reviewed Pipeline command.
-- `npm run brand:export`: regenerate ignored brand derivatives under `output/`.
+- `npm run brand:export`: synchronize canonical brand SVGs into the runtime `public/brand/cardforge-studio/` mirrors and regenerate ignored PNG derivatives under `output/`.
 
 ## Manual release checks
 

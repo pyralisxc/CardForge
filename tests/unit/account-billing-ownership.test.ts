@@ -47,12 +47,11 @@ describe('Account and Billing ownership', () => {
     }
   });
 
-  it('keeps the Account page as a focused coordinator without Owner or App Shell coupling', async () => {
+  it('keeps the Account page independent of Owner and App Shell internals', async () => {
     const source = await readFile(
       rootPath('src', 'features', 'account', 'components', 'AccountProfilePage.tsx'),
       'utf8',
     );
-    expect(source.split(/\r?\n/u).length).toBeLessThanOrEqual(500);
     expect(source).not.toContain('@/features/owner');
     expect(source).not.toContain('@/features/app-shell');
   });

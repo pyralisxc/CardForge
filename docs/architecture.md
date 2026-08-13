@@ -31,7 +31,8 @@ CardForge has three storage lanes:
 
 3. **Repo-owned built-in catalog**
    - `data/default-templates`, `data/styles`, and `public/card-assets` own the versioned built-ins shipped with every deployment.
-   - Template and style APIs load those built-ins, then overlay published Forge Pipeline records by stable ID. Supabase owns reviewed additions, publication state, and revisions; the repo owns the dependable starter set.
+   - `data/styles/element-recipes.json` is the single authored source for built-in shape, border, divider, and icon recipes. Studio derives editor recipes from that catalog instead of maintaining parallel TypeScript seeds.
+   - `src/features/developer-assets/lib/repositoryCatalog.ts` loads templates/styles and overlays published Forge Pipeline records by stable ID for both APIs. Supabase owns reviewed additions, publication state, and revisions; the repo owns the dependable starter set.
    - `npm run pipeline:sync-defaults` imports built-ins into the reviewed registry for visibility and revision workflow. It does not create a second manually edited source.
 
 ## Core Routes
@@ -48,23 +49,25 @@ CardForge has three storage lanes:
 - `src/app/api/developer-cockpit/*`: scoped campaign/site proposal/media operations plus owner-only provider and scope mutations.
 - `src/app/api/assets`, `src/app/api/fonts`, `src/app/api/templates`, `src/app/api/styles`: live catalog/bootstrap APIs.
 
+API route files own HTTP configuration and delegation. Provider or product workflows live under their feature server owner; for example, Stripe webhook processing and owner reconciliation live under `src/features/billing/server`.
+
 ## Feature Ownership
 
 - `src/features/app-shell`: Studio shell and workspace bootstrap.
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency. Template field contracts, generator/editor field interpretation, template display labels, pointer selection, and parent-resize geometry live here because multiple features consume them.
 - `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
 - `src/features/card-generator`: Single-card and bulk two-face generation, generated output gallery, image tools, and export tools. Each generated card owns independent `data` (front) and `backingData` (back) values; layouts remain reusable rendering blueprints. Bulk files use `back.<field>` headers for back values. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
-- `src/features/card-rendering`: shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark presentation consumed through `client.ts`.
+- `src/features/card-rendering`: shared card preview, rich-text, vector-shape, thumbnail, appearance, watermark presentation, and rendering-specific global CSS consumed through `client.ts`.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
-- `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
+- `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe webhook processing, subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
 - `src/features/account`: current-user resolution, access entitlement, profile surfaces, and owner account administration behind explicit client/server interfaces.
 - `src/features/business-identity`: browser-safe operator contracts, normalization, owner editing, and the server-owned `cardforge_business_identity` record.
-- `src/features/public-site`: editable landing/about/sharing/founder content, the shared public header/footer, social and share controls, tagged public caches, server-side portrait processing, metadata-adjacent structured data, browser-safe contracts, and server-owned Supabase stores.
+- `src/features/public-site`: editable landing/about/sharing/founder content, the shared public header/footer, social and share controls, responsive public-media presentation and CSS, tagged public caches, server-side portrait processing, metadata-adjacent structured data, browser-safe contracts, and server-owned Supabase stores.
 - `src/features/legal`: immutable versioned legal-publication contracts, constrained Markdown presentation, tagged public caching, and server-owned Supabase publication.
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
 - `src/features/developer-access`: the single developer identity and authorization owner. It owns profile status, contribution-scope resolution, owner grant mutations, and every runtime access to `cardforge_developer_profiles`.
-- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls. `developerAssetProgram.ts` owns pure contracts, normalization, row mapping, and view construction; `developerAssetStore.ts` owns Supabase reads and mutations.
+- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls. Personal browser-library and review-queue state have focused client hooks; `developerAssetProgram.ts` owns pure contracts, normalization, row mapping, and view construction; `developerAssetStore.ts` owns Supabase reads and mutations.
 - `src/features/developer-program`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit`: protected cockpit composition, CardForge-owned campaign/site proposal ledgers, media approval, and workflow state transitions.
 - `src/features/social-publishing`: server-only provider boundary. Buffer owns channel connections, post scheduling, and delivery status; CardForge owns package content, approval history, source media, and the durable mapping to provider post IDs.

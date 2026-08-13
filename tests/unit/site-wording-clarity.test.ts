@@ -10,13 +10,15 @@ describe('site wording clarity', () => {
     const templateDisplay = readSource('src/domain/templates/display.ts');
     const imageInspector = readSource('src/features/template-editor/components/ImageInspectorPanel.tsx');
     const textInspector = readSource('src/features/template-editor/components/TextElementInspector.tsx');
+    const textFieldMode = readSource('src/features/template-editor/components/TextElementFieldModeControl.tsx');
 
     expect(templateDisplay).toContain('CardForge Library');
     expect(templateDisplay).not.toContain("return 'Pipeline'");
     expect(imageInspector).toContain('Library and personal images');
     expect(imageInspector).not.toContain('Reviewed & Local Image Assets');
-    expect(textInspector).toContain('In Make cards');
+    expect(textFieldMode).toContain('In Make cards');
     expect(textInspector).not.toContain('In Generate');
+    expect(textFieldMode).not.toContain('In Generate');
   });
 
   it('uses direct owner and analytics navigation labels', () => {

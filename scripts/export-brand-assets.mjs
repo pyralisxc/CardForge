@@ -1,4 +1,4 @@
-import { mkdir, readFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +7,8 @@ import sharp from 'sharp';
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDirectory = path.join(repositoryRoot, 'assets', 'brand', 'cardforge-studio');
 const outputDirectory = path.join(repositoryRoot, 'output', 'brand', 'cardforge-studio', 'png');
+const runtimeDirectory = path.join(repositoryRoot, 'public', 'brand', 'cardforge-studio');
+const runtimeSvgFiles = ['brand-mark.svg', 'favicon.svg', 'watermark.svg'];
 
 const exportsToCreate = [
   {
@@ -36,7 +38,14 @@ const exportsToCreate = [
   })),
 ];
 
-await mkdir(outputDirectory, { recursive: true });
+await Promise.all([
+  mkdir(outputDirectory, { recursive: true }),
+  mkdir(runtimeDirectory, { recursive: true }),
+]);
+
+await Promise.all(runtimeSvgFiles.map((fileName) => (
+  copyFile(path.join(sourceDirectory, fileName), path.join(runtimeDirectory, fileName))
+)));
 
 for (const brandExport of exportsToCreate) {
   const sourcePath = path.join(sourceDirectory, brandExport.source);
@@ -60,4 +69,5 @@ for (const brandExport of exportsToCreate) {
   console.log(`${brandExport.output}: ${result.width}x${result.height}, ${result.size} bytes`);
 }
 
+console.log(`Synced ${runtimeSvgFiles.length} runtime SVG assets to ${runtimeDirectory}`);
 console.log(`Exported ${exportsToCreate.length} PNG assets to ${outputDirectory}`);

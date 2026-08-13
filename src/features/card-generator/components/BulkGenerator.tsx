@@ -30,6 +30,7 @@ import { BulkCsvInputPanel } from '@/features/card-generator/components/BulkCsvI
 import { BulkMappingReviewPanel } from '@/features/card-generator/components/BulkMappingReviewPanel';
 import { BulkGenerateActionBar } from '@/features/card-generator/components/BulkGenerateActionBar';
 import { BulkDataResolutionDialog } from '@/features/card-generator/components/BulkDataResolutionDialog';
+import { useBulkExampleDownloads } from '@/features/card-generator/hooks/useBulkExampleDownloads';
 import type { DisplayCard } from '@/domain/rendering';
 
 interface BulkGeneratorProps {
@@ -41,31 +42,6 @@ interface BulkGeneratorProps {
 }
 
 type SupportedFileType = 'auto';
-
-const downloadTextFile = ({
-  content,
-  fileName,
-  mimeType,
-}: {
-  content: string;
-  fileName: string;
-  mimeType: string;
-}) => {
-  const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', fileName);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
-const getSafeTemplateFileName = (template: TCGCardTemplate, fallback: string): string => (
-  (template.name || template.id || fallback).replace(/[^a-z0-9_]/gi, '_').substring(0, 20) || fallback
-);
 
 export function BulkGenerator({
   templates,
@@ -124,6 +100,17 @@ export function BulkGenerator({
     () => createBulkExampleStructuredText({ template: selectedTemplate, backingTemplate, fieldDefinitions: bulkFieldDefinitions }),
     [backingTemplate, bulkFieldDefinitions, selectedTemplate]
   );
+  const {
+    handleDownloadExampleCsv,
+    handleDownloadExampleJson,
+    handleDownloadStructuredText,
+  } = useBulkExampleDownloads({
+    selectedTemplate,
+    exampleCsv: exampleCSV,
+    exampleJson: exampleJSON,
+    exampleStructuredText,
+    toast,
+  });
 
   const parsedCsv = useMemo(() => {
     if (!bulkDataInput.trim() || !selectedTemplate) {
@@ -411,87 +398,6 @@ export function BulkGenerator({
     }
   };
 
-  const handleDownloadTemplateCSV = () => {
-    if (!selectedTemplate) {
-      toast({
-        title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('Choose a card design before downloading an example CSV.', 'Choose a card design above, then try again.'),
-        variant: 'default',
-      });
-      return;
-    }
-    const csvContent = exampleCSV;
-    if (!csvContent.trim() || !csvContent.includes('\n') || csvContent.startsWith('Select a template first.')) {
-      toast({
-        title: 'Example CSV unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'layout');
-    const fileName = `template_${safeTemplateName}.csv`;
-    downloadTextFile({ content: csvContent, fileName, mimeType: 'text/csv' });
-    toast({ title: 'Example CSV downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
-  };
-
-  const handleDownloadTemplateJSON = () => {
-    if (!selectedTemplate) {
-      toast({
-        title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('Choose a card design before downloading an example JSON file.', 'Choose a card design above, then try again.'),
-        variant: 'default',
-      });
-      return;
-    }
-    if (!exampleJSON.trim() || exampleJSON === '[]') {
-      toast({
-        title: 'Example JSON unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'layout');
-    const fileName = `template_${safeTemplateName || 'layout'}.json`;
-    downloadTextFile({ content: exampleJSON, fileName, mimeType: 'application/json' });
-    toast({ title: 'Example JSON downloaded', description: `${fileName} is ready. Next step: fill it with your data and upload.` });
-  };
-
-  const handleDownloadStructuredText = () => {
-    if (!selectedTemplate) {
-      toast({
-        title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('Choose a card design before downloading a text starter.', 'Choose a card design above, then try again.'),
-        variant: 'default',
-      });
-      return;
-    }
-    if (!exampleStructuredText.trim() || exampleStructuredText.startsWith('Select a template first.')) {
-      toast({
-        title: 'Text starter unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const safeTemplateName = getSafeTemplateFileName(selectedTemplate, 'layout');
-    const fileName = `template_${safeTemplateName}.md`;
-    const content = [
-      '# CardForge bulk text starter',
-      '',
-      'Duplicate this block for each card. Keep each value after its Field: label.',
-      'Separate cards with --- or a blank line between repeated field groups.',
-      '',
-      exampleStructuredText,
-    ].join('\n');
-    downloadTextFile({ content, fileName, mimeType: 'text/markdown' });
-    toast({ title: 'Text starter downloaded', description: `${fileName} is ready for a no-spreadsheet bulk workflow.` });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -504,8 +410,8 @@ export function BulkGenerator({
           selectedTemplate={selectedTemplate}
           backingTemplate={backingTemplate}
           bulkFieldDefinitions={bulkFieldDefinitions}
-          onDownloadExampleCsv={handleDownloadTemplateCSV}
-          onDownloadExampleJson={handleDownloadTemplateJSON}
+          onDownloadExampleCsv={handleDownloadExampleCsv}
+          onDownloadExampleJson={handleDownloadExampleJson}
           onDownloadStructuredText={handleDownloadStructuredText}
         />
 
