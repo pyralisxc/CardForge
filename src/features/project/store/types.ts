@@ -30,6 +30,7 @@ export interface OutputSlice {
   removeGeneratedCard: (cardUniqueId: string) => void;
   updateGeneratedCard: (updatedCard: DisplayCard) => void;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
+  retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   setStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
   mergeStoredCardsFromFile: (loadedCards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
   openEditDialog: (cardUniqueId: string) => void;
@@ -42,6 +43,7 @@ export interface SettingsSlice {
   richTextHighlightColor: string;
   activeCardSet: CardSet;
   singleCardGeneratorSelectedTemplateId: string | null;
+  templateEditorSelectedTemplateId: string | null;
   pdfMarginMm: number;
   pdfCardSpacingMm: number;
   pdfIncludeCutLines: boolean;
@@ -55,6 +57,7 @@ export interface SettingsSlice {
   setActiveCardSetFrontTemplateId: (id: string | null) => void;
   setActiveCardSetBackingTemplateId: (id: string | null) => void;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
+  setTemplateEditorSelectedTemplateId: (id: string | null) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   setExportMode: (mode: ExportMode) => void;
   setExportDpi: (dpi: number) => void;

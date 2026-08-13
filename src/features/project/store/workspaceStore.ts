@@ -2,10 +2,12 @@ import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 
+import { areTemplateFormatsCompatible } from '@/domain/card-formats';
+
 import { createIndexedDbStorage } from '../persistence/indexedDbStorage';
 import { createAppearanceSlice } from './appearanceSlice';
 import { createOutputSlice } from './outputSlice';
-import { selectAllTemplates } from './selectors';
+import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
 import { createSettingsSlice } from './settingsSlice';
 import { createTemplateSlice } from './templateSlice';
 import type { ProjectState, WorkspaceLifecycleSlice } from './types';
@@ -19,44 +21,37 @@ const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycl
   _rehydrateCallback: () => {
     const state = get();
     const activeCardSet = state.activeCardSet || createDefaultActiveCardSet();
-    const currentId = activeCardSet.frontTemplateId || state.singleCardGeneratorSelectedTemplateId;
     const templates = selectAllTemplates(state);
-    const selectedTemplateExists = currentId && templates.some((template) => template.id === currentId);
+    const currentId = resolveGeneratorFrontTemplateId(
+      templates,
+      activeCardSet.frontTemplateId || state.singleCardGeneratorSelectedTemplateId,
+    );
+    const frontTemplate = templates.find((template) => template.id === currentId);
+    const backTemplate = templates.find((template) => (
+      template.id === activeCardSet.backingTemplateId && template.templateUsage === 'back-preset'
+    ));
+    const backingTemplateId = frontTemplate && backTemplate && areTemplateFormatsCompatible(frontTemplate, backTemplate)
+      ? backTemplate.id ?? null
+      : null;
+    const templateEditorSelectedTemplateId = state.templateEditorSelectedTemplateId
+      && templates.some((template) => template.id === state.templateEditorSelectedTemplateId)
+      ? state.templateEditorSelectedTemplateId
+      : currentId ?? templates[0]?.id ?? null;
 
-    if (!selectedTemplateExists && templates.length > 0) {
-      const firstValid = templates.find((template) => (
-        template.templateUsage !== 'back-preset' && Boolean(template.id?.trim())
-      ));
-      if (firstValid) {
-        set({
-          singleCardGeneratorSelectedTemplateId: firstValid.id,
-          activeCardSet: {
-            ...activeCardSet,
-            frontTemplateId: firstValid.id,
-            backingTemplateId: activeCardSet.backingTemplateId
-              && templates.some((template) => (
-                template.id === activeCardSet.backingTemplateId && template.templateUsage === 'back-preset'
-              ))
-              ? activeCardSet.backingTemplateId
-              : null,
-          },
-        });
-      }
-    } else if (
+    if (
       state.activeCardSet !== activeCardSet
       || state.singleCardGeneratorSelectedTemplateId !== currentId
+      || activeCardSet.frontTemplateId !== currentId
+      || activeCardSet.backingTemplateId !== backingTemplateId
+      || state.templateEditorSelectedTemplateId !== templateEditorSelectedTemplateId
     ) {
       set({
         singleCardGeneratorSelectedTemplateId: currentId,
+        templateEditorSelectedTemplateId,
         activeCardSet: {
           ...activeCardSet,
           frontTemplateId: currentId,
-          backingTemplateId: activeCardSet.backingTemplateId
-            && templates.some((template) => (
-              template.id === activeCardSet.backingTemplateId && template.templateUsage === 'back-preset'
-            ))
-            ? activeCardSet.backingTemplateId
-            : null,
+          backingTemplateId,
         },
       });
     }
@@ -94,6 +89,7 @@ export const useProjectStore = create<ProjectState>()(
           richTextHighlightColor: state.richTextHighlightColor,
           activeCardSet: state.activeCardSet,
           singleCardGeneratorSelectedTemplateId: state.singleCardGeneratorSelectedTemplateId,
+          templateEditorSelectedTemplateId: state.templateEditorSelectedTemplateId,
           pdfMarginMm: state.pdfMarginMm,
           pdfCardSpacingMm: state.pdfCardSpacingMm,
           pdfIncludeCutLines: state.pdfIncludeCutLines,

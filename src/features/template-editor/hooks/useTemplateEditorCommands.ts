@@ -269,7 +269,6 @@ export function useTemplateEditorCommands({
       };
     }
     beginDraft(template);
-    onSelectTemplate(id);
     setNewTemplateRequest(null);
     trackCardForgeEvent('template_created', {
       side: newTemplateRequest.usage === 'back-preset' ? 'back' : 'front',
@@ -277,7 +276,7 @@ export function useTemplateEditorCommands({
       format_kind: input.formatId === 'custom' ? 'custom' : 'standard',
       starting_point: input.startingPoint,
     });
-  }, [beginDraft, currentTemplate, newTemplateRequest, onSelectTemplate, resizeStrategy]);
+  }, [beginDraft, currentTemplate, newTemplateRequest, resizeStrategy]);
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;

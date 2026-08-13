@@ -155,7 +155,7 @@ export function TemplateLibraryPanel({
           ))}
         </div>
         {backFaceTemplates.length > 0 ? (
-          <div className="space-y-1.5 border-t border-[#1b2029] pt-2">
+          <div data-card-back-library tabIndex={-1} className="scroll-mt-4 space-y-1.5 border-t border-[#1b2029] pt-2 outline-none">
             <p className="text-[10px] uppercase tracking-[0.14em] text-[#757d8c]">
               Card Backs
             </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from 'react';
-import { FilePlus2, Layers3, PackagePlus, PenTool } from 'lucide-react';
+import { FilePlus2, FolderOpen, Layers3, PackagePlus, Pencil, PenTool, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { CardPreview } from '@/features/card-rendering/client';
@@ -56,6 +56,8 @@ interface GenerationWorkspaceProps {
   exportEntitlementMessage: string;
   onOpenTemplateMaker: () => void;
   onCreateMatchingBack: (formatSource: TemplateCardFormatSource) => void;
+  onEditSelectedBack: (templateId: string) => void;
+  onManageCardBacks: () => void;
   onSingleCardAdded: (card: DisplayCard) => void;
   onBulkCardsGenerated: (cards: DisplayCard[]) => void;
   onTemplateSelectionChange: (templateId: string | null) => void;
@@ -102,6 +104,8 @@ export function GenerationWorkspace({
   exportEntitlementMessage,
   onOpenTemplateMaker,
   onCreateMatchingBack,
+  onEditSelectedBack,
+  onManageCardBacks,
   onSingleCardAdded,
   onBulkCardsGenerated,
   onTemplateSelectionChange,
@@ -165,6 +169,14 @@ export function GenerationWorkspace({
     onBulkCardsGenerated(cards);
     if (cards.length > 0) scrollGalleryIntoView();
   }, [onBulkCardsGenerated, scrollGalleryIntoView]);
+  const requestMatchingBack = useCallback(() => {
+    if (!selectedTemplate) return;
+    trackCardForgeEvent('matching_back_requested', {
+      format_id: selectedFormat?.formatId ?? 'custom',
+      format_kind: selectedFormat?.formatId === 'custom' ? 'custom' : 'standard',
+    });
+    onCreateMatchingBack(selectedTemplate);
+  }, [onCreateMatchingBack, selectedFormat?.formatId, selectedTemplate]);
 
   if (isLoadingTemplates) {
     return (
@@ -254,9 +266,30 @@ export function GenerationWorkspace({
                 </SelectContent>
               </Select>
               {selectedTemplate && compatibleBackTemplates.length > 0 ? (
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  {compatibleBackTemplates.length} matching {compatibleBackTemplates.length === 1 ? 'back' : 'backs'} available. Choose one to preview it.
-                </p>
+                <>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {compatibleBackTemplates.length} matching {compatibleBackTemplates.length === 1 ? 'back' : 'backs'} available. Choose one to preview it.
+                  </p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    {selectedBackingTemplate?.id ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => onEditSelectedBack(selectedBackingTemplate.id!)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" /> Edit selected back
+                      </Button>
+                    ) : null}
+                    <Button type="button" size="sm" variant="outline" className="w-full justify-start" onClick={requestMatchingBack}>
+                      <Plus className="mr-2 h-4 w-4" /> Create matching back
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" className="w-full justify-start" onClick={onManageCardBacks}>
+                      <FolderOpen className="mr-2 h-4 w-4" /> Manage card backs
+                    </Button>
+                  </div>
+                </>
               ) : null}
               {selectedTemplate && compatibleBackTemplates.length === 0 ? (
                 <div className="mt-2 space-y-2 rounded-md border border-amber-500/35 bg-amber-500/10 p-3 text-xs">
@@ -270,15 +303,12 @@ export function GenerationWorkspace({
                     size="sm"
                     variant="outline"
                     className="w-full"
-                    onClick={() => {
-                      trackCardForgeEvent('matching_back_requested', {
-                        format_id: selectedFormat?.formatId ?? 'custom',
-                        format_kind: selectedFormat?.formatId === 'custom' ? 'custom' : 'standard',
-                      });
-                      onCreateMatchingBack(selectedTemplate);
-                    }}
+                    onClick={requestMatchingBack}
                   >
                     Create matching card back
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" className="w-full" onClick={onManageCardBacks}>
+                    Manage card backs
                   </Button>
                 </div>
               ) : null}

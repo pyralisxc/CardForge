@@ -24,6 +24,7 @@ interface UseTemplateLibraryActionsInput {
   deleteTemplate: (templateId: string, source?: TCGCardTemplate['templateSource']) => void;
   projectCapabilities: TemplateLibraryCapabilities;
   setSingleCardGeneratorSelectedTemplateId: (id: string | null) => void;
+  setTemplateEditorSelectedTemplateId: (id: string | null) => void;
   storedCards: StoredDisplayCard[];
   templates: TCGCardTemplate[];
   toast: ToastFn;
@@ -75,6 +76,7 @@ export function useTemplateLibraryActions({
   deleteTemplate,
   projectCapabilities,
   setSingleCardGeneratorSelectedTemplateId,
+  setTemplateEditorSelectedTemplateId,
   storedCards,
   templates,
   toast,
@@ -120,6 +122,7 @@ export function useTemplateLibraryActions({
   const handleSaveTemplate = useCallback(async (template: TCGCardTemplate): Promise<string> => {
     const templateToSave = prepareTemplateForLibrarySave(template, projectCapabilities.canSubmitTemplateRevisions);
     const savedTemplateId = addOrUpdateTemplate(templateToSave, templateToSave.templateSource);
+    setTemplateEditorSelectedTemplateId(savedTemplateId);
     if (templateToSave.templateUsage !== 'back-preset') {
       setSingleCardGeneratorSelectedTemplateId(savedTemplateId);
     }
@@ -164,7 +167,7 @@ export function useTemplateLibraryActions({
       });
     }
     return savedTemplateId;
-  }, [addOrUpdateTemplate, projectCapabilities.canSubmitTemplateRevisions, setSingleCardGeneratorSelectedTemplateId, toast]);
+  }, [addOrUpdateTemplate, projectCapabilities.canSubmitTemplateRevisions, setSingleCardGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     setTemplatePendingDeleteId(templateId);

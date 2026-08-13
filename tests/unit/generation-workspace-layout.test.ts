@@ -7,6 +7,10 @@ const source = readFileSync(
   resolve(process.cwd(), 'src/features/card-generator/components/GenerationWorkspace.tsx'),
   'utf8',
 );
+const shellSource = readFileSync(
+  resolve(process.cwd(), 'src/features/app-shell/components/CardForgeStudioShell.tsx'),
+  'utf8',
+);
 
 describe('Generator workspace flow', () => {
   it('presents setup, generation, review, and export in top-to-bottom order', () => {
@@ -40,5 +44,17 @@ describe('Generator workspace flow', () => {
     expect(source).not.toContain('>Session<');
     expect(source).not.toContain('>Access<');
     expect(source).not.toContain('>Account<');
+  });
+
+  it('hands card-back editing to Layout Studio without coupling it to the Generator front', () => {
+    expect(source).toContain('Edit selected back');
+    expect(source).toContain('Create matching back');
+    expect(source).toContain('Manage card backs');
+    expect(source).toContain('onEditSelectedBack(selectedBackingTemplate.id!)');
+    expect(shellSource).toContain('selectedTemplateIdForEditing={templateEditorSelectedTemplateId}');
+    expect(shellSource).toContain('onSelectTemplateForEditing={setTemplateEditorSelectedTemplateIdAction}');
+    expect(shellSource).toContain('GeneratorBackWorkflowBanner');
+    expect(shellSource).toContain('handleStudioTabChange');
+    expect(shellSource).not.toContain('selectedTemplateIdForEditing={singleCardGeneratorSelectedTemplateId}');
   });
 });
