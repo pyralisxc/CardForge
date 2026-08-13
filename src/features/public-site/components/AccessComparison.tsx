@@ -1,21 +1,28 @@
 import Link from 'next/link';
 
-const accessOptions = [
+import type { ProjectFileAccessPolicy } from '@/domain/entitlements';
+
+export const getAccessComparisonOptions = (projectFileAccess: ProjectFileAccessPolicy) => [
   {
     title: 'Start free',
-    copy: 'Open the Studio, make cards, and see how your set comes together before you pay for anything.',
+    copy: projectFileAccess === 'free'
+      ? 'Open the Studio, make cards, and keep portable CardForge project files before you pay for anything.'
+      : 'Open the Studio, make cards, and see how your set comes together before you pay for anything.',
     action: 'Try the Studio',
     href: '/studio',
   },
   {
     title: 'Creator Pass',
-    copy: 'Creator Pass adds watermark-free PNG, PDF, and ZIP downloads plus portable CardForge project files.',
+    copy: projectFileAccess === 'free'
+      ? 'Creator Pass adds watermark-free PNG, PDF, and ZIP downloads. Portable CardForge project files remain free.'
+      : 'Creator Pass adds watermark-free PNG, PDF, and ZIP downloads plus portable CardForge project files.',
     action: 'See Creator Pass',
     href: '/account',
   },
 ] as const;
 
-export function AccessComparison() {
+export function AccessComparison({ projectFileAccess }: { projectFileAccess: ProjectFileAccessPolicy }) {
+  const accessOptions = getAccessComparisonOptions(projectFileAccess);
   return (
     <section aria-labelledby="access-heading" className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 text-[var(--public-ivory)] md:px-8 md:py-12">
       <div className="mx-auto max-w-7xl">

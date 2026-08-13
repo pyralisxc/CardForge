@@ -28,7 +28,7 @@ describe('owner-managed founder profile', () => {
     const page = source('src/features/owner/components/OwnerConsolePage.tsx');
 
     expect(page).toContain('OwnerFounderProfilePanel');
-    expect(page).toContain('Cameron Profile');
+    expect(page).toContain('Founder Profile');
     expect(panel).toContain("kind: 'founderProfile'");
     expect(panel).toContain('Save Cameron profile');
     expect(panel).toContain('Portrait controls now live in Site Media.');

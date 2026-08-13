@@ -233,7 +233,18 @@ export function CardTextContent({
   const contract = getPrimaryElementContract(template, element);
   const renderContentModel = resolveRenderContentModel(contentModel);
   const autoFit = shouldAutoFitTextElement(template, element);
-  const baseFontSizePx = textFontSizePx(element) * scale;
+  const singleSegment = processedSegments.length === 1 ? processedSegments[0] : undefined;
+  const singleSegmentStyle: React.CSSProperties | undefined = singleSegment && 'style' in singleSegment
+    ? singleSegment.style as React.CSSProperties | undefined
+    : undefined;
+  const singleSegmentFontSizePx = typeof singleSegmentStyle?.fontSize === 'string'
+    ? Number.parseFloat(singleSegmentStyle.fontSize)
+    : typeof singleSegmentStyle?.fontSize === 'number'
+      ? singleSegmentStyle.fontSize
+      : Number.NaN;
+  const baseFontSizePx = Number.isFinite(singleSegmentFontSizePx)
+    ? singleSegmentFontSizePx
+    : textFontSizePx(element) * scale;
   const minFontSizePx = (contract?.minFontSizePx ?? element.textMinFontSizePx ?? 8) * scale;
   const contentStyle: React.CSSProperties = {
     lineHeight: 'inherit',
@@ -242,6 +253,7 @@ export function CardTextContent({
     textDecoration: 'inherit',
     fontStyle: 'inherit',
     ...style,
+    ...singleSegmentStyle,
   };
 
   if (autoFit) {
