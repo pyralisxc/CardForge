@@ -14,10 +14,9 @@ import {
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import type { TCGCardTemplate } from '@/domain/templates';
+import { useDeveloperTemplatePreviews } from './useDeveloperTemplatePreviews';
 import {
   assetTierOrder,
-  getTemplatePreviewId,
   isCurrentContributorSubmission,
   isEditableSubmission,
   reviewQueueHelp,
@@ -34,11 +33,6 @@ import { DeveloperAssetSubmissionPanel } from '@/features/developer-assets/compo
 
 interface DeveloperAssetsResponse { program: DeveloperAssetProgramView }
 
-interface TemplateLibraryResponse {
-  defaults: TCGCardTemplate[];
-  userTemplates: TCGCardTemplate[];
-}
-
 export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
@@ -50,7 +44,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [editDescription, setEditDescription] = useState('');
   const [editPreviewUrl, setEditPreviewUrl] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [templatePreviews, setTemplatePreviews] = useState<Record<string, TCGCardTemplate>>({});
+  const templatePreviews = useDeveloperTemplatePreviews(program?.submissions);
   const {
     submissions: reviewQueueSubmissions,
     statusCounts: reviewStatusCounts,
@@ -106,32 +100,6 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   useEffect(() => {
     void loadProgram();
   }, [loadProgram]);
-
-  useEffect(() => {
-    if (!program?.submissions.some((submission) => getTemplatePreviewId(submission))) return;
-    let isMounted = true;
-
-    const loadTemplatePreviews = async () => {
-      try {
-        const response = await fetch('/api/templates', { cache: 'no-store' });
-        if (!response.ok) return;
-        const body = await response.json() as TemplateLibraryResponse;
-        if (!isMounted) return;
-        setTemplatePreviews(Object.fromEntries(
-          [...body.defaults, ...body.userTemplates]
-            .filter((template): template is TCGCardTemplate & { id: string } => Boolean(template.id))
-            .map((template) => [template.id, template])
-        ));
-      } catch {
-        if (isMounted) setTemplatePreviews({});
-      }
-    };
-
-    void loadTemplatePreviews();
-    return () => {
-      isMounted = false;
-    };
-  }, [program]);
 
   const vote = async (submissionId: string, voteValue: 'positive' | 'negative') => {
     try {
@@ -312,16 +280,15 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
           <div className="border border-[#5f4526] bg-[#100c08] p-4">
             <h3 className="font-serif text-xl text-[#fff1c7]">How assets move</h3>
             <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Votes create quality signal, owner rules set the thresholds, and publish caps decide how many assets can be live in each family. Published assets stay voteable, archived assets can still earn recovery signal, and owner overrides are visible as tier reasons.
+              Votes, thresholds, and live-library capacity move assets automatically. Published and retired assets stay voteable, while a visible owner override can pin a different status or tier until it is cleared.
             </p>
           </div>
           <div className="grid gap-2 border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">
             <PipelineMetric label="Votes to grade" value={program.settings.minimumVotesForGrading} body="Minimum votes before the pipeline can judge pass/fail signal." />
-            <PipelineMetric label="Positive threshold" value={`${program.settings.minimumPositiveVotePercent}%`} body="Quality score needed before an asset can become a publish candidate." />
-            <PipelineMetric label="Starter / Pass" value={`${program.settings.freeAssetMinimumPositiveVotePercent}% / ${program.settings.paidAssetMinimumPositiveVotePercent}%`} body="Tier thresholds after the minimum tier-vote count is met." />
+            <PipelineMetric label="Starter / Pass" value={`${program.settings.freeAssetMinimumPositiveVotePercent}% / ${program.settings.paidAssetMinimumPositiveVotePercent}%`} body="Automatic tier thresholds after the minimum vote count is met." />
             <PipelineMetric label="Owner vote" value={`${program.settings.ownerVoteWeight}x`} body="Owner signal weight when the owner votes." />
             <PipelineMetric label="Self voting" value={program.settings.allowContributorSelfVoting ? 'On' : 'Off'} body="Controls whether your own assets appear in your review queue." />
-            <PipelineMetric label="Owner review" value={program.settings.ownerFinalReviewRequired ? 'Required' : 'Automatic'} body="Controls whether passing candidates need final owner approval." />
+            <PipelineMetric label="Operation" value="Automatic" body="Owner overrides can pin a different result without stopping automatic scoring." />
           </div>
         </div>
 
@@ -480,7 +447,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             <div className="grid gap-3 md:grid-cols-3">
               <ProgramRule label="Submission allowance" value={program.effectiveMonthlySubmissionLimit} body="Site-library candidates you can submit this calendar month. This may be the base rule or an account-specific owner adjustment." />
               <ProgramRule label="Required published" value={program.effectiveMonthlyPublishedRequirement} body="Monthly published expectation currently assigned to your developer account." />
-              <ProgramRule label="Minimum tier votes" value={program.settings.minimumVotesForTierAssignment} body="Votes required before an asset can move beyond Forge Review." />
+              <ProgramRule label="Votes to decide" value={program.settings.minimumVotesForGrading} body="Votes required before automatic status and tier selection begins." />
             </div>
             <div className="mt-3 border border-[#5f4526] bg-[#100c08] p-4 text-sm leading-6 text-[#c7b288]">
               Shared library assets are part of the same review surface as every upload. Developer votes and owner cap settings can move them between live library, candidate review, and archive. The planned creator pool is {program.settings.profitSharePoolPercent}% of eligible profit, split evenly among eligible active developers after the financial launch systems are ready.

@@ -3,6 +3,7 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 import {
   DeveloperAssetStoreError,
   getDeveloperAssetVotePolicy,
+  projectDeveloperAssetProgramForViewer,
   voteOnDeveloperAssetSubmission,
 } from '@/features/developer-assets/server';
 import { upsertDeveloperProfile } from '@/features/developer-access/server';
@@ -72,7 +73,12 @@ export async function POST(
       ownerDeveloperId: ownerAccess.isOwner ? user.id : null,
     });
 
-    return createNoStoreJsonResponse({ program });
+    return createNoStoreJsonResponse({
+      program: projectDeveloperAssetProgramForViewer(program, {
+        currentUserId: user.id,
+        isOwner: ownerAccess.isOwner,
+      }),
+    });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');

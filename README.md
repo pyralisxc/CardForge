@@ -55,7 +55,7 @@ Maintained operational commands:
 ```bash
 npm run health:production                # Five-route production health check
 npm run qa:bootstrap-authenticated-smoke # Align the four protected Clerk QA identities
-npm run pipeline:sync-defaults            # Seed repo-owned starter assets into the reviewed pipeline
+npm run pipeline:sync-defaults            # Import missing bootstrap assets into the reviewed pipeline
 ```
 
 ## Source Map
@@ -86,20 +86,20 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/shared/`: Framework-independent utilities.
 - `src/components/ui/`: Generic UI primitives and generic browser UI state.
 - `src/lib/`, `src/store/`, and `src/types/` are retired root ownership lanes and must not be recreated.
-- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: versioned built-in catalog sources. `data/styles/element-recipes.json` is the one authored shape/border/divider/icon recipe catalog. The shared repository-catalog loader overlays published Forge Pipeline records by stable ID; Pipeline records own reviewed additions and revisions.
+- `data/default-templates/`, `data/styles/`, and Studio files under `public/card-assets/`: bootstrap import material only. Template Studio never reads these as a runtime catalog; the Forge Pipeline is the single live owner. The importer inserts missing stable IDs, preserves owner decisions, and respects permanent-deletion tombstones.
 - `supabase/migrations/`: Immutable, forward-only database migrations for shared product state.
 - `tests/unit/`: Vitest coverage for behavior, data contracts, security boundaries, and durable ownership rules. File-size policy belongs to `architecture:check`, not unit tests.
 - `tests/smoke/`: Playwright workflow and authenticated QA coverage.
 
 ## Product Architecture
 
-CardForge has three storage lanes:
+CardForge has three deliberately separate storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
 - Supabase-backed shared state for the Forge Pipeline, roadmap voting, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, canonical campaign media and derivatives, campaign packages/attachments/production associations, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
-- Repo-owned built-ins that remain available at runtime. Published Supabase records extend them or replace a matching stable ID; `npm run pipeline:sync-defaults` imports the built-ins into the reviewed Pipeline without creating a second hand-maintained catalog.
+- Repository deployment media for the public site plus bootstrap import material. These files are not a competing Template Studio catalog. `npm run pipeline:sync-defaults` copies missing Studio assets into managed storage and the registry; it never overwrites owner decisions or recreates an owner-deleted asset.
 
-The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.
+The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and deletion pipeline. Owners may permanently remove any lineage—including published or voted work—using exact-name confirmation; the deletion removes registry state, revisions, votes, and managed objects and leaves a private tombstone so bootstrap cannot restore it.
 
 ## Environment
 

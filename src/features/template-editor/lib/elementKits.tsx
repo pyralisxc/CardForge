@@ -2,7 +2,7 @@
  * elementKits.tsx
  *
  * Insertable element seeds for the template editor element rail.
- * These are local editor tools, not developer-pipeline assets.
+ * These are asset-free editor primitives. Visual recipes and media come from the Forge Pipeline.
  */
 
 import type { ElementType } from 'react';
@@ -45,7 +45,6 @@ export const CONSOLIDATED_ELEMENT_KITS: ElementKit[] = [
       borderWidth: '_none_',
       borderRadius: 'rounded-none',
       appearance: {
-        dividerAsset: '/card-assets/dividers/gilded-filigree.svg',
         assetKind: 'divider',
         shapeRole: 'divider',
         textureOpacity: 100,

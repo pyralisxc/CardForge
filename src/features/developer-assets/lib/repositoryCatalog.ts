@@ -1,6 +1,3 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-
 import type {
   AppearanceStyleLibrary,
   AppearanceStylePreset,
@@ -9,14 +6,11 @@ import type {
 import {
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
+  type RegistryViewerAccess,
 } from '@/features/developer-assets/lib/registryContentAssets';
 import { upsertPipelineRegistryAsset } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
 
-const DEFAULT_TEMPLATE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'default-templates');
-const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
-
-const getPipelineContributorName = (): string =>
-  process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || 'CardForge Studio';
+const getPipelineContributorName = (): string => 'CardForge Studio';
 
 type TemplateWithRequiredIdentity = TCGCardTemplate & {
   id: string;
@@ -51,47 +45,9 @@ const sortTemplates = (templates: TCGCardTemplate[]): TCGCardTemplate[] =>
     return leftOrder === rightOrder ? left.name.localeCompare(right.name) : leftOrder - rightOrder;
   });
 
-const mergeById = <T extends { id?: string | null; name: string }>(base: T[], overrides: T[]): T[] => {
-  const merged = new Map<string, T>();
-  [...base, ...overrides].forEach((entry) => {
-    if (entry.id) merged.set(entry.id, entry);
-  });
-  return Array.from(merged.values());
-};
-
-const readJsonFiles = async (directory: string): Promise<Array<{ fileName: string; value: unknown }>> => {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  const documents: Array<{ fileName: string; value: unknown }> = [];
-
-  await Promise.all(entries.map(async (entry) => {
-    if (!entry.isFile() || !entry.name.endsWith('.json')) return;
-    try {
-      const value = JSON.parse(await fs.readFile(path.join(directory, entry.name), 'utf8')) as unknown;
-      documents.push({ fileName: entry.name, value });
-    } catch (error) {
-      console.warn(`Skipping invalid repository catalog file ${entry.name}:`, error);
-    }
-  }));
-
-  return documents.sort((left, right) => left.fileName.localeCompare(right.fileName));
-};
-
-const readBuiltInTemplates = async (): Promise<TCGCardTemplate[]> => {
+const readPublishedTemplates = async (viewerAccess: RegistryViewerAccess): Promise<TCGCardTemplate[]> => {
   const contributorName = getPipelineContributorName();
-  const documents = await readJsonFiles(DEFAULT_TEMPLATE_LIBRARY_DIR);
-  return sortTemplates(documents.flatMap(({ value }) => isRepositoryTemplate(value) ? [{
-    ...value,
-    templateSource: 'default' as const,
-    templateLibrarySource: 'base' as const,
-    templateAccessTier: 'free' as const,
-    templateRegistryStatus: 'published' as const,
-    templateContributorName: contributorName,
-  }] : []));
-};
-
-const readPublishedTemplates = async (): Promise<TCGCardTemplate[]> => {
-  const contributorName = getPipelineContributorName();
-  const rows = await getPublishedRegistryContentRows('template');
+  const rows = await getPublishedRegistryContentRows('template', viewerAccess);
   const templates = await Promise.all(rows.map(async (row) => {
     const template = await readRegistryContentAsset<TCGCardTemplate>(
       row,
@@ -119,30 +75,9 @@ const readPublishedTemplates = async (): Promise<TCGCardTemplate[]> => {
   return sortTemplates(templates.flatMap((template) => template ? [template] : []));
 };
 
-const readStyleDocument = (value: unknown): AppearanceStylePreset[] => {
-  if (isRepositoryStyle(value)) return [value];
-  if (!value || typeof value !== 'object') return [];
-  const styles = (value as { styles?: unknown }).styles;
-  return Array.isArray(styles) ? styles.filter(isRepositoryStyle) : [];
-};
-
-const readBuiltInStyles = async (): Promise<AppearanceStylePreset[]> => {
+const readPublishedStyles = async (viewerAccess: RegistryViewerAccess): Promise<AppearanceStylePreset[]> => {
   const contributorName = getPipelineContributorName();
-  const documents = await readJsonFiles(DEFAULT_STYLE_LIBRARY_DIR);
-  return documents
-    .flatMap(({ value }) => readStyleDocument(value))
-    .map((style) => ({
-      ...style,
-      librarySource: 'official' as const,
-      accessTier: 'free' as const,
-      registryStatus: 'published' as const,
-      contributorName,
-    }));
-};
-
-const readPublishedStyles = async (): Promise<AppearanceStylePreset[]> => {
-  const contributorName = getPipelineContributorName();
-  const rows = await getPublishedRegistryContentRows('elementPreset');
+  const rows = await getPublishedRegistryContentRows('elementPreset', viewerAccess);
   const styles = await Promise.all(rows.map(async (row) => {
     const style = await readRegistryContentAsset<AppearanceStylePreset>(
       row,
@@ -162,16 +97,16 @@ const readPublishedStyles = async (): Promise<AppearanceStylePreset[]> => {
   return styles.flatMap((style) => style ? [style] : []);
 };
 
-export const getRepositoryTemplateLibrary = async (): Promise<TCGCardTemplate[]> => {
-  const [builtIn, published] = await Promise.all([readBuiltInTemplates(), readPublishedTemplates()]);
-  return sortTemplates(mergeById<TCGCardTemplate>(builtIn, published));
-};
+export const getRepositoryTemplateLibrary = async (
+  viewerAccess: RegistryViewerAccess = 'free',
+): Promise<TCGCardTemplate[]> => readPublishedTemplates(viewerAccess);
 
-export const getRepositoryStyleLibrary = async (): Promise<AppearanceStyleLibrary> => {
-  const [builtIn, published] = await Promise.all([readBuiltInStyles(), readPublishedStyles()]);
+export const getRepositoryStyleLibrary = async (
+  viewerAccess: RegistryViewerAccess = 'free',
+): Promise<AppearanceStyleLibrary> => {
   return {
     version: 1,
-    styles: mergeById<AppearanceStylePreset>(builtIn, published)
+    styles: (await readPublishedStyles(viewerAccess))
       .sort((left, right) => left.name.localeCompare(right.name)),
   };
 };

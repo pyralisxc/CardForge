@@ -99,6 +99,8 @@ Rollback all browser collection with a newly deployed `NEXT_PUBLIC_CARDFORGE_ANA
 
 `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_BUFFER_PUBLISHING_ENABLED` are independent and default false. Owner approval remains mandatory. Supabase owns CardForge media/campaign history; Buffer owns only provider scheduling and delivery.
 
+For a Pipeline-catalog release, preserve this order: apply and verify the forward Pipeline migrations; run `npm run pipeline:sync-defaults`; verify every expected shared template, standard-size CardForge Studio back, style, and referenced media record is published at the intended tier; then deploy the bundle that reads Pipeline records only. Never deploy the pipeline-only reader before the import is complete. A rollback may disable the new bundle, but must not restore deleted registry rows, managed files, or private deletion tombstones.
+
 Before extended contributors are enabled, verify protected source storage, approved-only public derivatives, canonical media/attachment/association integrity, private preview authorization, owner-only approval/provider mutations, legal publications, and scoped developer grants. A stale campaign version or invalid relationship must leave the campaign, attachments, exposure, and version unchanged.
 
 Before Buffer is enabled:
@@ -133,7 +135,7 @@ Safe support rollback removes/disables support checkout environment values while
 - `npm run smoke`: lean public browser contract.
 - `npm run smoke:protected`: protected auth/access/recovery contract.
 - `npm run qa:bootstrap-authenticated-smoke`: align configured reusable QA identities.
-- `npm run pipeline:sync-defaults`: intentionally seed repository starter assets through the atomic reviewed Pipeline command.
+- `npm run pipeline:sync-defaults`: import missing bootstrap templates, styles, and referenced Studio media through the atomic Pipeline command. Run only after Pipeline migrations. It preserves existing owner decisions and permanent-deletion tombstones; it is not a runtime fallback or overwrite command.
 - `npm run brand:export`: synchronize canonical brand SVGs into the runtime `public/brand/cardforge-studio/` mirrors and regenerate ignored PNG derivatives under `output/`.
 
 ## Manual release checks

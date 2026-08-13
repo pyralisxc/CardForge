@@ -63,7 +63,33 @@ describe('repository maintenance policy', () => {
     }
     expect(templateRoute).not.toMatch(/fs\.(?:writeFile|unlink|mkdir)/u);
     expect(pipelineSync).toContain("rpc('cardforge_upsert_pipeline_registry_asset'");
-    expect(pipelineSync).not.toContain(".from('cardforge_asset_registry')");
+    expect(pipelineSync).toContain(".from('cardforge_asset_registry')");
+    expect(pipelineSync).toContain(".from('cardforge_pipeline_asset_tombstones')");
+    expect(pipelineSync).toContain('existingRegistryByAssetId');
+    expect(pipelineSync).toContain('preserved ${items.length - newItems.length} existing owner decisions');
+    expect(pipelineSync).toContain("rpc('cardforge_migrate_pipeline_registry_storage'");
+    expect(pipelineSync).toContain("rpc('cardforge_migrate_pipeline_registry_metadata_urls'");
+    expect(pipelineSync).toContain('CARDFORGE_OWNER_ACCOUNT_EMAILS');
+    expect(pipelineSync).toContain('CARDFORGE_E2E_OWNER_EMAIL');
+    expect(pipelineSync).not.toContain('CARDFORGE_PIPELINE_OWNER_EMAIL');
+    expect(pipelineSync).toContain(".eq('decision_reason', 'pipeline_owner_edit')");
+    expect(pipelineSync).toContain('ownerEmails.length !== 1');
+    expect(pipelineSync).toContain('must already have an active Forge Pipeline developer profile');
+    expect(pipelineSync).not.toContain(".upsert({\n      clerk_user_id: ownerProfile.clerk_user_id");
+  });
+
+  it('uses the Forge Pipeline as the only runtime template and style catalog', async () => {
+    const catalog = await readFile(
+      rootPath('src', 'features', 'developer-assets', 'lib', 'repositoryCatalog.ts'),
+      'utf8',
+    );
+
+    expect(catalog).toContain('getPublishedRegistryContentRows');
+    expect(catalog).not.toContain("from 'fs'");
+    expect(catalog).not.toContain("from 'path'");
+    expect(catalog).not.toContain('data/default-templates');
+    expect(catalog).not.toContain('data/styles');
+    expect(catalog).not.toContain('readBuiltIn');
   });
 
   it('keeps developer upload and submission in one route', async () => {

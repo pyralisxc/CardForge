@@ -66,7 +66,7 @@ export function PublicSiteHeader({
           <Link
             href={developerAccess.cockpitHref}
             prefetch={false}
-            className="hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-brass)] px-4 text-base font-bold text-[var(--public-brass)] transition-colors hover:bg-[var(--public-surface-raised)] xl:inline-flex"
+            className="hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-brass)] px-4 text-base font-bold text-[var(--public-brass)] transition-colors hover:bg-[var(--public-surface-raised)] lg:inline-flex"
           >
             <Code2 className="h-4 w-4" aria-hidden="true" /> Developer cockpit
           </Link>

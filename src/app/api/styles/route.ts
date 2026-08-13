@@ -1,4 +1,5 @@
 import type { AppearanceStylePreset } from '@/domain/templates';
+import { getCurrentCardforgeEntitlement } from '@/features/account/server';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
@@ -21,7 +22,8 @@ import {
 
 export async function GET() {
   try {
-    return createNoStoreJsonResponse(await getRepositoryStyleLibrary());
+    const entitlement = await getCurrentCardforgeEntitlement();
+    return createNoStoreJsonResponse(await getRepositoryStyleLibrary(entitlement.accessMode));
   } catch (error) {
     console.error('Failed to load style library:', error);
     return createApiErrorResponse(
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     const body = parsedBody.data;
-    const current = await getRepositoryStyleLibrary();
+    const current = await getRepositoryStyleLibrary('dev');
     const bodyRecord = typeof body === 'object' && body !== null
       ? body as Record<string, unknown>
       : null;
@@ -126,7 +128,7 @@ export async function DELETE(request: Request) {
       return createApiErrorResponse(400, 'invalid_style_id', 'Style id is required.');
     }
     await archivePipelineRegistryAsset(body.id);
-    const next = await getRepositoryStyleLibrary();
+    const next = await getRepositoryStyleLibrary('dev');
     return createNoStoreJsonResponse(next);
   } catch (error) {
     if (error instanceof DeveloperCockpitAccessError) {

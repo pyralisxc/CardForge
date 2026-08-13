@@ -183,11 +183,11 @@ export function AssetRow({
 }) {
   const progressPercent = getReviewProgressPercent(
     submission,
-    Math.max(program.settings.minimumVotesForGrading, program.settings.minimumVotesForTierAssignment)
+    program.settings.minimumVotesForGrading
   );
   const progressLabel = getReviewProgressLabel(
     submission,
-    Math.max(program.settings.minimumVotesForGrading, program.settings.minimumVotesForTierAssignment)
+    program.settings.minimumVotesForGrading
   );
 
   return (
@@ -260,8 +260,8 @@ export function AssetRow({
             </div>
             <dl className="mt-3 grid gap-2 text-xs text-[#a98a55] sm:grid-cols-2">
               <div><dt className="uppercase tracking-[0.12em]">Contributor</dt><dd className="break-all text-[#c7b288]">{getContributorLabel(submission)}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Email</dt><dd className="break-all text-[#c7b288]">{submission.developerEmail ?? 'Not provided'}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Source</dt><dd className="break-all text-[#c7b288]">{submission.sourceUrl ?? 'Not attached'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Automatic result</dt><dd className="break-all text-[#c7b288]">{getDeveloperAssetStatusLabel(submission.automatedStatus)} / {getDeveloperAssetTierLabel(submission.automatedAccessTier)}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Owner override</dt><dd className="break-all text-[#c7b288]">{submission.ownerStatusOverride || submission.ownerAccessTierOverride ? [submission.ownerStatusOverride, submission.ownerAccessTierOverride].filter(Boolean).join(' / ') : 'None - automatic'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Live catalog id</dt><dd className="break-all text-[#c7b288]">{submission.registryAssetId ?? 'Not published'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Submitted</dt><dd className="text-[#c7b288]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Updated</dt><dd className="text-[#c7b288]">{submission.updatedAt ? new Date(submission.updatedAt).toLocaleDateString() : 'Not updated'}</dd></div>
@@ -286,17 +286,33 @@ function AssetPreview({
   const [imageFailed, setImageFailed] = useState(false);
   const templateId = getTemplatePreviewId(submission);
   const template = templateId ? templatePreviews[templateId] : undefined;
+  const proposedTemplate = submission.sourcePayload
+    && typeof submission.sourcePayload === 'object'
+    && !Array.isArray(submission.sourcePayload)
+    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).name === 'string'
+    && typeof (submission.sourcePayload as Partial<TCGCardTemplate>).aspectRatio === 'string'
+      ? submission.sourcePayload as TCGCardTemplate
+      : null;
 
   useEffect(() => {
     setImageFailed(false);
   }, [submission.previewUrl]);
 
-  if (template) {
-    if (!expanded) return <TemplateThumbnail template={template} />;
+  if (proposedTemplate || template) {
+    const primaryTemplate = proposedTemplate ?? template!;
+    if (!expanded) return <TemplateThumbnail template={primaryTemplate} />;
+    if (proposedTemplate && template) {
+      return (
+        <div className="grid w-full gap-4 p-4 sm:grid-cols-2">
+          <TemplateComparisonPreview label="Current live" template={template} id={`live-${submission.id}`} />
+          <TemplateComparisonPreview label={`Proposed revision ${submission.revisionNumber ?? ''}`.trim()} template={proposedTemplate} id={`proposed-${submission.id}`} />
+        </div>
+      );
+    }
     return (
       <div className="max-h-[26rem] w-full overflow-auto p-4">
         <CardPreview
-          card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `developer-preview-${template.id}` }}
+          card={{ template: primaryTemplate, data: primaryTemplate.templatePreviewData ?? {}, uniqueId: `developer-preview-${submission.id}` }}
           targetWidthPx={260}
           isEditorPreview
         />
@@ -365,6 +381,27 @@ function AssetPreview({
         {getDeveloperAssetTypeLabel(submission.assetType, { plural: false })}
       </p>
       {expanded ? <p className="text-xs leading-5 text-[#a98a55]">{message}</p> : null}
+    </div>
+  );
+}
+
+function TemplateComparisonPreview({
+  label,
+  template,
+  id,
+}: {
+  label: string;
+  template: TCGCardTemplate;
+  id: string;
+}) {
+  return (
+    <div className="grid content-start justify-items-center gap-2">
+      <p className="text-xs uppercase tracking-[0.12em] text-[#a98a55]">{label}</p>
+      <CardPreview
+        card={{ template, data: template.templatePreviewData ?? {}, uniqueId: `developer-preview-${id}` }}
+        targetWidthPx={240}
+        isEditorPreview
+      />
     </div>
   );
 }

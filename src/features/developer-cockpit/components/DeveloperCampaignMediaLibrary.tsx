@@ -2,11 +2,13 @@
 
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Archive, RotateCcw, Search, Trash2 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import type {
   CampaignMedia,
   CampaignMediaLibrarySummary,
+  DeveloperCockpitView,
 } from '@/features/developer-cockpit/model';
 
 const bytes = (value: number) => (
@@ -26,13 +28,17 @@ const mediaAlt = (item: CampaignMedia) => (
 export function DeveloperCampaignMediaLibrary({
   media,
   summary,
+  onChange,
 }: {
   media: CampaignMedia[];
   summary: CampaignMediaLibrarySummary;
+  onChange: (cockpit: DeveloperCockpitView) => void;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
+  const [message, setMessage] = useState('');
   const selected = media.find((item) => item.id === selectedId) ?? null;
   const visible = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -53,6 +59,49 @@ export function DeveloperCampaignMediaLibrary({
       return matchesQuery && matchesFilter;
     });
   }, [media, query, filter]);
+
+  const updateMedia = async (
+    item: CampaignMedia,
+    method: 'PATCH' | 'DELETE',
+    body: Record<string, unknown>,
+  ) => {
+    setWorking(true);
+    setMessage('');
+    try {
+      const response = await fetch(`/api/developer-cockpit/media/${item.id}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => null) as {
+        cockpit?: DeveloperCockpitView;
+        message?: string;
+        error?: { message?: string };
+      } | null;
+      if (!response.ok || !payload?.cockpit) {
+        throw new Error(payload?.error?.message || payload?.message || 'Unable to update campaign media.');
+      }
+      onChange(payload.cockpit);
+      setMessage(method === 'DELETE'
+        ? 'Campaign media and its managed files were permanently deleted.'
+        : item.reviewState === 'archived'
+          ? 'Campaign media restored.'
+          : 'Campaign media retired from active use.');
+      if (method === 'DELETE') setSelectedId(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to update campaign media.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const deleteMedia = async (item: CampaignMedia) => {
+    const confirmationFilename = window.prompt(
+      `This permanently removes the media, campaign attachments, derivatives, and managed files. Type the exact filename to continue:\n\n${item.originalFilename}`,
+    );
+    if (confirmationFilename === null) return;
+    await updateMedia(item, 'DELETE', { confirmationFilename });
+  };
 
   return (
     <section className="space-y-4">
@@ -104,6 +153,8 @@ export function DeveloperCampaignMediaLibrary({
         </div>
       </header>
 
+      {message ? <p role="status" className="border border-[#5f4526] bg-[#100c08] p-3 text-sm text-[#f1c875]">{message}</p> : null}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((item) => (
           <button
@@ -147,7 +198,13 @@ export function DeveloperCampaignMediaLibrary({
       ) : null}
 
       {selected ? (
-        <MediaDetail media={selected} onClose={() => setSelectedId(null)} />
+        <MediaDetail
+          media={selected}
+          working={working}
+          onArchive={() => void updateMedia(selected, 'PATCH', { archived: selected.reviewState !== 'archived' })}
+          onDelete={() => void deleteMedia(selected)}
+          onClose={() => setSelectedId(null)}
+        />
       ) : null}
     </section>
   );
@@ -155,9 +212,15 @@ export function DeveloperCampaignMediaLibrary({
 
 function MediaDetail({
   media,
+  working,
+  onArchive,
+  onDelete,
   onClose,
 }: {
   media: CampaignMedia;
+  working: boolean;
+  onArchive: () => void;
+  onDelete: () => void;
   onClose: () => void;
 }) {
   const rights = [media.rightsBasis, media.creatorCredit]
@@ -178,13 +241,35 @@ function MediaDetail({
             {media.originalFilename || media.id}
           </h3>
         </div>
-        <button
-          type="button"
-          className="min-h-11 px-3 text-sm text-[#f1c875] underline"
-          onClick={onClose}
-        >
-          Close
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={working}
+            className="rounded-none border-[#8a642f] bg-transparent text-[#f1c875]"
+            onClick={onArchive}
+          >
+            {media.reviewState === 'archived'
+              ? <><RotateCcw className="mr-2 h-4 w-4" /> Restore media</>
+              : <><Archive className="mr-2 h-4 w-4" /> Retire media</>}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={working}
+            className="rounded-none border-[#8f3e36] bg-transparent text-[#ffb8a8] hover:bg-[#2a120d]"
+            onClick={onDelete}
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Delete permanently
+          </Button>
+          <button
+            type="button"
+            className="min-h-11 px-3 text-sm text-[#f1c875] underline"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Image

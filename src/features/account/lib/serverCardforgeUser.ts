@@ -1,6 +1,10 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 
-import { isClerkAuthConfigured } from '@/features/account/lib/accountEntitlement';
+import {
+  isClerkAuthConfigured,
+  resolveAccountEntitlement,
+  type AccountEntitlement,
+} from '@/features/account/lib/accountEntitlement';
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { resolveOwnerAccess, type OwnerAccess } from '@/domain/entitlements';
 
@@ -157,4 +161,15 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
     user,
     ownerAccess: resolveOwnerAccessForServerUser(authConfigured, user),
   };
+};
+
+export const getCurrentCardforgeEntitlement = async (): Promise<AccountEntitlement> => {
+  const access = await getCurrentCardforgeUserAccess();
+  return resolveAccountEntitlement({
+    authConfigured: access.authConfigured,
+    isSignedIn: Boolean(access.user),
+    emailAddresses: access.user?.emailAddresses ?? [],
+    privateMetadata: access.user?.privateMetadata ?? {},
+    ownerAccess: access.ownerAccess,
+  });
 };

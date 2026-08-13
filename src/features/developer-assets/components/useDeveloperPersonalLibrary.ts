@@ -15,6 +15,7 @@ import {
 import {
   createAssetFile,
   createJsonFile,
+  deduplicatePersonalLibraryItems,
   getExtensionForAssetUrl,
   slugifyFileName,
   type PersonalLibraryFilter,
@@ -99,7 +100,7 @@ export function useDeveloperPersonalLibrary() {
       };
     }));
 
-    return [...templateItems, ...styleItems, ...assetItems];
+    return deduplicatePersonalLibraryItems([...templateItems, ...styleItems, ...assetItems]);
   }, [appearanceStyles, assets, userTemplates]);
 
   const visibleItems = useMemo(

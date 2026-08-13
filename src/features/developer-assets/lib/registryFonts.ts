@@ -1,5 +1,6 @@
 import { mapRegistryRowsToCardFontOptions, type CardFontOption } from '@/domain/rendering';
 import { getPublishedRegistryContentRows } from '@/features/developer-assets/lib/registryContentAssets';
+import type { RegistryViewerAccess } from '@/features/developer-assets/lib/registryContentAssets';
 import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
 export interface RegistryFontsPayload {
@@ -11,9 +12,11 @@ export interface RegistryFontsPayload {
   };
 }
 
-export const getRegistryFontsPayload = async (): Promise<RegistryFontsPayload> => {
+export const getRegistryFontsPayload = async (
+  viewerAccess: RegistryViewerAccess = 'free',
+): Promise<RegistryFontsPayload> => {
   const configured = getSupabaseServerConfigStatus().configured;
-  const rows = await getPublishedRegistryContentRows('font');
+  const rows = await getPublishedRegistryContentRows('font', viewerAccess);
   const fonts = mapRegistryRowsToCardFontOptions(rows.map((row) => ({
     asset_id: row.asset_id,
     name: row.name,

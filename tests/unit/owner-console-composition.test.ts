@@ -89,6 +89,8 @@ describe('Owner Console composition', () => {
     expect(library).toContain('Search library');
     expect(library).toContain('Previous');
     expect(library).toContain('Next');
+    expect(library).toContain('Delete permanently');
+    expect(library).toContain('Retire');
   });
 
   it('splits owner integration and database operations from payload composition', async () => {

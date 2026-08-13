@@ -34,6 +34,7 @@ export function NewCardDesignDialog({
   usage,
   initialFormat,
   canClone,
+  brandedBackFormatIds,
   onOpenChange,
   onCreate,
 }: {
@@ -41,6 +42,7 @@ export function NewCardDesignDialog({
   usage: TemplateUsage;
   initialFormat: TemplateCardFormatSource;
   canClone: boolean;
+  brandedBackFormatIds: CardFormatId[];
   onOpenChange: (open: boolean) => void;
   onCreate: (input: NewCardDesignInput) => void;
 }) {
@@ -61,6 +63,13 @@ export function NewCardDesignDialog({
 
   const customMeasurement = getTemplateCardMeasurement(initialFormat, unit);
   const trimmedName = name.trim();
+  const brandedBackAvailable = brandedBackFormatIds.includes(formatId);
+
+  useEffect(() => {
+    if (usage === 'back-preset' && startingPoint === 'branded-back' && !brandedBackAvailable) {
+      setStartingPoint('blank');
+    }
+  }, [brandedBackAvailable, startingPoint, usage]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,7 +117,7 @@ export function NewCardDesignDialog({
               <SelectTrigger aria-label="Choose starting point"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {usage === 'back-preset' ? (
-                  <SelectItem value="branded-back">CardForge Arcane Forge back</SelectItem>
+                  <SelectItem value="branded-back" disabled={!brandedBackAvailable}>CardForge Arcane Forge back</SelectItem>
                 ) : (
                   <SelectItem value="starter">CardForge starter frame</SelectItem>
                 )}
@@ -116,6 +125,11 @@ export function NewCardDesignDialog({
                 {canClone ? <SelectItem value="clone">Clone the current design</SelectItem> : null}
               </SelectContent>
             </Select>
+            {usage === 'back-preset' && !brandedBackAvailable ? (
+              <p className="text-xs leading-5 text-[#d9b06a]">
+                No published CardForge back matches this format yet. Start blank, then save and submit it to the Forge Pipeline if it should become reusable.
+              </p>
+            ) : null}
           </div>
         </div>
         <DialogFooter>

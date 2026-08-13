@@ -29,11 +29,12 @@ CardForge has three storage lanes:
    - Browser-direct Supabase writes are not part of the product.
    - The live shared library comes from `cardforge_asset_registry`.
 
-3. **Repo-owned built-in catalog**
-   - `data/default-templates`, `data/styles`, and `public/card-assets` own the versioned built-ins shipped with every deployment.
-   - `data/styles/element-recipes.json` is the single authored source for built-in shape, border, divider, and icon recipes. Studio derives editor recipes from that catalog instead of maintaining parallel TypeScript seeds.
-   - `src/features/developer-assets/lib/repositoryCatalog.ts` loads templates/styles and overlays published Forge Pipeline records by stable ID for both APIs. Supabase owns reviewed additions, publication state, and revisions; the repo owns the dependable starter set.
-   - `npm run pipeline:sync-defaults` imports built-ins into the reviewed registry for visibility and revision workflow. It does not create a second manually edited source.
+3. **Pipeline-owned Studio catalog**
+   - `cardforge_asset_registry` is the only runtime catalog for shared templates, card backs, visual presets, fonts, and media assets used by Template Studio.
+   - `src/features/developer-assets/lib/repositoryCatalog.ts` reads published Pipeline records only. An unavailable Pipeline produces an honest unavailable/empty shared catalog rather than silently switching to repository data.
+   - `data/default-templates`, `data/styles`, and referenced Studio files under `public/card-assets` are bootstrap import material, not live product truth. Rendering primitives in TypeScript remain asset-free.
+   - `npm run pipeline:sync-defaults` imports only missing stable IDs, copies referenced media into managed Supabase storage, preserves current owner/vote decisions, and skips durable owner-deletion tombstones.
+   - Owner permanent deletion is authoritative: it hides the asset at preparation, removes the registry entry, complete submission/revision/vote lineage, and managed storage, then retains only a private tombstone that prevents accidental recreation.
 
 ## Core Routes
 

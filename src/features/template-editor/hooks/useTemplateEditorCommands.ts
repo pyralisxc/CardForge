@@ -18,7 +18,6 @@ import {
   reconstructMinimalTemplate,
 } from '@/domain/templates';
 import type { TemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
-import { CARD_FRAME_KITS, getFrameKitForTemplate } from '@/features/template-editor/lib/cardFrameKits';
 import { createFrameKitPresetRecipes } from '@/features/template-editor/lib/elementPresetRecipes';
 import { PREDEFINED_FRAME_VISUAL_PROPERTIES } from '@/features/template-editor/lib/frameVisualPresets';
 import {
@@ -51,6 +50,7 @@ interface UseTemplateEditorCommandsInput {
   setZoom: Dispatch<SetStateAction<number>>;
   requestTemplateChange: (action: () => void) => void;
   toast: ToastFn;
+  templates: TCGCardTemplate[];
 }
 
 export function useTemplateEditorCommands({
@@ -69,6 +69,7 @@ export function useTemplateEditorCommands({
   setZoom,
   requestTemplateChange,
   toast,
+  templates,
 }: UseTemplateEditorCommandsInput) {
   const {
     canvas,
@@ -111,12 +112,12 @@ export function useTemplateEditorCommands({
   }, [currentMeasurementHeight, currentMeasurementWidth]);
 
   const frameKitRecipes = useMemo(() => {
-    const recommended = getFrameKitForTemplate(currentTemplate.id);
-    const kits = recommended
-      ? [recommended, ...CARD_FRAME_KITS.filter((kit) => kit.id !== recommended.id)]
-      : CARD_FRAME_KITS;
-    return createFrameKitPresetRecipes(kits);
-  }, [currentTemplate.id]);
+    const recipes = createFrameKitPresetRecipes(templates);
+    const recommendedId = `frame-kit-${currentTemplate.id}`;
+    return recipes.sort((left, right) => (
+      left.id === recommendedId ? -1 : right.id === recommendedId ? 1 : left.label.localeCompare(right.label)
+    ));
+  }, [currentTemplate.id, templates]);
 
   const saveTemplate = useCallback(async (templateOverride?: TCGCardTemplate) => {
     const templateToSave = templateOverride?.aspectRatio ? templateOverride : currentTemplate;
@@ -264,6 +265,13 @@ export function useTemplateEditorCommands({
           formatId: input.formatId,
           formatSource: newTemplateRequest.formatSource,
           startingPoint: input.startingPoint,
+          brandedBackTemplate: input.startingPoint === 'branded-back'
+            ? templates.find((candidate) => (
+                candidate.templateUsage === 'back-preset'
+                && candidate.formatId === input.formatId
+                && candidate.templateRegistryStatus === 'published'
+              ))
+            : undefined,
         }),
         id,
       };
@@ -276,7 +284,7 @@ export function useTemplateEditorCommands({
       format_kind: input.formatId === 'custom' ? 'custom' : 'standard',
       starting_point: input.startingPoint,
     });
-  }, [beginDraft, currentTemplate, newTemplateRequest, resizeStrategy]);
+  }, [beginDraft, currentTemplate, newTemplateRequest, resizeStrategy, templates]);
 
   const openTemplate = useCallback((template: TCGCardTemplate) => {
     if (!template.id) return;

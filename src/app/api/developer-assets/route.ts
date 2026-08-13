@@ -4,6 +4,7 @@ import {
   createUploadedDeveloperAssetSubmission,
   DeveloperAssetStoreError,
   getDeveloperAssetProgramView,
+  projectDeveloperAssetProgramForViewer,
   updateDeveloperProfileOverrides,
   updateDeveloperProgramSettings,
 } from '@/features/developer-assets/server';
@@ -88,7 +89,10 @@ export async function GET() {
       ownerAccess: access.ownerAccess,
       isDeveloper: access.isDeveloper,
       isOwner: access.isOwner,
-      program,
+      program: projectDeveloperAssetProgramForViewer(program, {
+        currentUserId: access.user.id,
+        isOwner: access.isOwner,
+      }),
     });
     response.headers.set('Server-Timing', timing.header());
     return response;
@@ -132,7 +136,12 @@ export async function POST(request: Request) {
       previewUrl: formData.get('previewUrl'),
       file,
     });
-    return createNoStoreJsonResponse({ program }, { status: 201 });
+    return createNoStoreJsonResponse({
+      program: projectDeveloperAssetProgramForViewer(program, {
+        currentUserId: access.user.id,
+        isOwner: access.isOwner,
+      }),
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof RateLimitUnavailableError) {
       return createApiErrorResponse(503, 'developer_asset_unavailable', error.message);
