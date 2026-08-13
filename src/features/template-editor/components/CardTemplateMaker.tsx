@@ -217,6 +217,7 @@ export function CardTemplateMaker({
     setShowGrid,
     setZoom,
     requestTemplateChange,
+    templates: defaultTemplates,
     toast,
   });
   const requestNewTemplate = commands.requestNewTemplate;
@@ -456,6 +457,10 @@ export function CardTemplateMaker({
           usage={commands.newTemplateRequest?.usage ?? 'standard'}
           initialFormat={commands.newTemplateRequest?.formatSource ?? currentTemplate}
           canClone={Boolean(currentTemplate.id)}
+          brandedBackFormatIds={defaultTemplates
+            .filter((template) => template.templateUsage === 'back-preset' && template.templateRegistryStatus === 'published')
+            .map((template) => template.formatId)
+            .filter((formatId): formatId is NonNullable<typeof formatId> => Boolean(formatId))}
           onOpenChange={(open) => {
             if (!open) commands.setNewTemplateRequest(null);
           }}

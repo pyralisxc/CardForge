@@ -175,7 +175,7 @@ export const reconstructFreeformCanvas = (canvas?: Partial<FreeformCanvas>): Fre
       const normalizedAppearance = isDivider
         ? {
             ...element.appearance,
-            dividerAsset: element.appearance?.dividerAsset || '/card-assets/dividers/gilded-filigree.svg',
+            dividerAsset: element.appearance?.dividerAsset,
             assetKind: 'divider' as const,
             shapeRole: 'divider' as const,
             material: { ...element.appearance?.material, baseColor: 'transparent', texture: { kind: 'none' as const } },

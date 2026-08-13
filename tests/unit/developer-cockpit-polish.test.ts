@@ -185,4 +185,21 @@ describe('developer cockpit polish contract', () => {
     expect(cockpitPage).toContain('hidden sm:flex');
     expect(cockpitPage).toContain("label: 'Asset Contributions'");
   });
+
+  it('gives owners reversible campaign-media retirement and guarded permanent deletion', () => {
+    const mediaLibrary = readFileSync(
+      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCampaignMediaLibrary.tsx'),
+      'utf8',
+    );
+    const mediaRoute = readFileSync(
+      sourcePath('app', 'api', 'developer-cockpit', 'media', '[mediaId]', 'route.ts'),
+      'utf8',
+    );
+
+    expect(mediaLibrary).toContain('Retire media');
+    expect(mediaLibrary).toContain('Restore media');
+    expect(mediaLibrary).toContain('Delete permanently');
+    expect(mediaRoute).toContain('export async function PATCH');
+    expect(mediaRoute).toContain('export async function DELETE');
+  });
 });

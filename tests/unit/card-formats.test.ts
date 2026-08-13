@@ -198,6 +198,37 @@ describe('card format ownership', () => {
       templateUsage: 'back-preset',
       formatId: 'us-business',
       startingPoint: 'branded-back',
+      brandedBackTemplate: reconstructMinimalTemplateObject({
+        id: 'pipeline-us-business-back',
+        name: 'Pipeline business back',
+        aspectRatio: '3.5:2',
+        formatId: 'us-business',
+        templateSource: 'default',
+        templateLibrarySource: 'pipeline',
+        templateRegistryStatus: 'published',
+        templateUsage: 'back-preset',
+        cardBackgroundImageUrl: 'https://assets.cardforges.com/back-business.webp',
+        fieldContracts: [
+          { key: 'guildName', label: 'Guild name', type: 'text', required: false, elementId: 'guild-name' },
+        ],
+        freeformCanvas: {
+          width: 1050,
+          height: 600,
+          elements: [
+            {
+              id: 'guild-name',
+              type: 'text',
+              name: 'Guild name',
+              x: 225,
+              y: 250,
+              width: 600,
+              height: 80,
+              zIndex: 1,
+              content: '{{guildName}}',
+            },
+          ],
+        },
+      }),
     });
 
     expect(front).toMatchObject({
@@ -211,8 +242,13 @@ describe('card format ownership', () => {
       name: 'Guild business back',
       formatId: 'us-business',
       templateUsage: 'back-preset',
-      cardBackgroundImageUrl: '/card-assets/textures/arcane-forge/back-cardforge-studio-landscape.webp',
-      freeformCanvas: { width: 1050, height: 600 },
+      cardBackgroundImageUrl: 'https://assets.cardforges.com/back-business.webp',
+      fieldContracts: [{ key: 'guildName', elementId: 'guild-name' }],
+      freeformCanvas: {
+        width: 1050,
+        height: 600,
+        elements: [{ id: 'guild-name', content: '{{guildName}}' }],
+      },
     });
   });
 });

@@ -1,4 +1,5 @@
 import type { TCGCardTemplate } from '@/domain/templates';
+import { getCurrentCardforgeEntitlement } from '@/features/account/server';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
@@ -22,8 +23,9 @@ import {
 
 export async function GET() {
   try {
+    const entitlement = await getCurrentCardforgeEntitlement();
     return createNoStoreJsonResponse({
-      defaults: await getRepositoryTemplateLibrary(),
+      defaults: await getRepositoryTemplateLibrary(entitlement.accessMode),
       userTemplates: [],
     });
   } catch (error) {

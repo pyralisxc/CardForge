@@ -34,7 +34,7 @@ npm run dev
 
 Open [http://localhost:9002](http://localhost:9002).
 
-If the visible local site looks stale, stop any old server on port `9002` and restart `npm run dev`. Playwright smoke tests also use `localhost:9002`, so avoid running multiple dev/prod servers against the same checkout.
+If the visible local site looks stale, stop any old server on port `9002` and restart `npm run dev`.
 
 ## Core Commands
 
@@ -46,7 +46,6 @@ npm run typecheck  # next typegen + TypeScript no-emit check
 npm run test       # Vitest unit suite
 npm run test:watch # Vitest watch mode
 npm run migrations:check # Reject edits to existing Supabase migrations
-npm run smoke           # Lean public Playwright release gate
 npm run smoke:protected # Protected auth/access/recovery suite (configured QA environment only)
 ```
 
@@ -55,7 +54,7 @@ Maintained operational commands:
 ```bash
 npm run health:production                # Five-route production health check
 npm run qa:bootstrap-authenticated-smoke # Align the four protected Clerk QA identities
-npm run pipeline:sync-defaults            # Seed repo-owned starter assets into the reviewed pipeline
+npm run pipeline:sync-defaults            # Import missing bootstrap assets into the reviewed pipeline
 ```
 
 ## Source Map
@@ -86,20 +85,20 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/shared/`: Framework-independent utilities.
 - `src/components/ui/`: Generic UI primitives and generic browser UI state.
 - `src/lib/`, `src/store/`, and `src/types/` are retired root ownership lanes and must not be recreated.
-- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: versioned built-in catalog sources. `data/styles/element-recipes.json` is the one authored shape/border/divider/icon recipe catalog. The shared repository-catalog loader overlays published Forge Pipeline records by stable ID; Pipeline records own reviewed additions and revisions.
+- `data/default-templates/`, `data/styles/`, and Studio files under `public/card-assets/`: bootstrap import material only. Template Studio never reads these as a runtime catalog; the Forge Pipeline is the single live owner. The importer inserts missing stable IDs, preserves owner decisions, and respects permanent-deletion tombstones.
 - `supabase/migrations/`: Immutable, forward-only database migrations for shared product state.
-- `tests/unit/`: Vitest coverage for behavior, data contracts, security boundaries, and durable ownership rules. File-size policy belongs to `architecture:check`, not unit tests.
-- `tests/smoke/`: Playwright workflow and authenticated QA coverage.
+- `tests/unit/`: focused Vitest protection for durable data contracts, security boundaries, high-risk behavior, and known regressions. File-size policy belongs to `architecture:check`, not unit tests.
+- `tests/smoke/`: protected authenticated QA coverage for provider-backed access and recovery paths only.
 
 ## Product Architecture
 
-CardForge has three storage lanes:
+CardForge has three deliberately separate storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
 - Supabase-backed shared state for the Forge Pipeline, roadmap voting, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, canonical campaign media and derivatives, campaign packages/attachments/production associations, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
-- Repo-owned built-ins that remain available at runtime. Published Supabase records extend them or replace a matching stable ID; `npm run pipeline:sync-defaults` imports the built-ins into the reviewed Pipeline without creating a second hand-maintained catalog.
+- Repository deployment media for the public site plus bootstrap import material. These files are not a competing Template Studio catalog. `npm run pipeline:sync-defaults` copies missing Studio assets into managed storage and the registry; it never overwrites owner decisions or recreates an owner-deleted asset.
 
-The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.
+The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and deletion pipeline. Owners may permanently remove any lineage—including published or voted work—using exact-name confirmation; the deletion removes registry state, revisions, votes, and managed objects and leaves a private tombstone so bootstrap cannot restore it.
 
 ## Environment
 
@@ -128,6 +127,12 @@ NEXT_PUBLIC_APP_URL=http://localhost:9002
 Stripe Checkout owns both payment lanes, but their metadata and entitlement behavior are separate. `product_access` uses the authenticated Creator Pass Price and may update CardForge entitlement. `creator_support` offers a server-bounded customer-selected one-time amount plus fixed $1, $5, $10, and $20 monthly Prices, may be used without a CardForge account, and never updates product entitlement. The server verifies each purpose, amount, currency, recurrence, and monthly Price before checkout or webhook processing. Use the billing reconciliation and rollback procedures in [docs/operations.md](docs/operations.md) before changing billing-purpose behavior.
 
 Reusable authenticated QA accounts are preferred over disposable user creation. Set the `CARDFORGE_E2E_*` values documented in `.env.example` when running the authenticated smoke suite.
+
+## Verification posture
+
+The deployed CardForge site owns user-experience truth. Every release must exercise the affected workflow on its Vercel preview, then verify the merged behavior on `cardforges.com`; localhost and a simulated public catalog are not substitutes for live data, provider state, responsive layout, or signed-in roles.
+
+Persistent automated tests are reserved for failures that are difficult or costly to detect through normal use: permissions, billing and entitlements, destructive operations, migration/data integrity, pure rendering or export contracts, and regressions that have already occurred. A test created only to guide development should be removed or consolidated after the behavior is proven unless it protects one of those durable boundaries. Tests support the product; they do not become a second implementation of it.
 
 Extended contributor campaigns/site proposals and Buffer publishing are separate release gates. Both default off. Follow the Developer Cockpit and Buffer checklist in [docs/operations.md](docs/operations.md); never expose `BUFFER_API_KEY` to a client bundle or enable publishing before the connected-channel allowlist and production owner flow are verified.
 

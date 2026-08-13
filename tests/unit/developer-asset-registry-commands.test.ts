@@ -3,11 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import {
   archivePipelineRegistryAsset,
+  castDeveloperAssetVote,
   DeveloperAssetRegistryCommandError,
+  saveDeveloperProgramSettings,
+  setDeveloperAssetOwnerOverride,
+  purgeDeveloperAssetSubmission,
   submitTemplateRevision,
-  transitionDeveloperAssetStatus,
   upsertPipelineRegistryAsset,
 } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
+import { DEFAULT_DEVELOPER_PROGRAM_SETTINGS } from '@/features/developer-assets/lib/developerAssets';
 import { getDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
@@ -24,7 +28,7 @@ describe('developer asset registry commands', () => {
   beforeEach(() => {
     mockedGetSupabaseServerClient.mockReset();
     mockedGetDeveloperProfileReferenceByEmail.mockReset();
-    process.env.CARDFORGE_PIPELINE_OWNER_EMAIL = 'owner@cardforges.com';
+    process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS = 'owner@cardforges.com';
   });
 
   it('upserts a pipeline asset through one atomic database command', async () => {
@@ -135,53 +139,104 @@ describe('developer asset registry commands', () => {
     }));
   });
 
-  it('uses the atomic transition RPC as the single status and registry write', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: 'developer-icons-asset-1', error: null });
+  it('casts a vote and applies automatic ranking through one atomic command', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
     mockedGetSupabaseServerClient.mockReturnValue({ rpc } as never);
 
-    await transitionDeveloperAssetStatus({
+    await castDeveloperAssetVote({
       submissionId: 'asset-1',
-      status: 'published',
-      ownerNote: 'Ready for creators',
-      ownerAccessTierOverride: 'free',
-      ownerAccessTierOverrideProvided: true,
-      calculatedAccessTier: 'free',
-      qualityScore: 92,
-      tierDecisionReason: 'free_candidate',
-      registryMetadata: { allowedTargets: ['template'] },
+      developerId: 'dev-1',
+      voteValue: 'positive',
+      ownerDeveloperId: null,
     });
 
-    expect(rpc).toHaveBeenCalledWith('cardforge_transition_developer_asset', {
+    expect(rpc).toHaveBeenCalledWith('cardforge_cast_developer_asset_vote', {
       p_submission_id: 'asset-1',
-      p_status: 'published',
-      p_owner_note: 'Ready for creators',
-      p_owner_access_tier_override: 'free',
-      p_has_owner_access_tier_override: true,
-      p_calculated_access_tier: 'free',
-      p_quality_score: 92,
-      p_tier_decision_reason: 'free_candidate',
-      p_registry_metadata: { allowedTargets: ['template'] },
+      p_developer_id: 'dev-1',
+      p_vote_value: 'positive',
+      p_owner_developer_id: null,
     });
   });
 
-  it('surfaces database failures instead of reporting a successful owner action', async () => {
+  it('saves normalized rules and rebalances through one atomic command', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 4, error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc } as never);
+
+    await saveDeveloperProgramSettings(DEFAULT_DEVELOPER_PROGRAM_SETTINGS, 'owner-1');
+
+    expect(rpc).toHaveBeenCalledWith('cardforge_update_developer_program_settings', {
+      p_settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS,
+      p_owner_developer_id: 'owner-1',
+    });
+  });
+
+  it('pins or clears owner overrides without replacing automatic state', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc } as never);
+
+    await setDeveloperAssetOwnerOverride({
+      submissionId: 'asset-1',
+      ownerStatusOverride: null,
+      ownerAccessTierOverride: 'free',
+      ownerNote: 'Keep Starter access.',
+      ownerDeveloperId: 'owner-1',
+    });
+
+    expect(rpc).toHaveBeenCalledWith('cardforge_set_developer_asset_owner_override', {
+      p_submission_id: 'asset-1',
+      p_update_status_override: true,
+      p_status_override: null,
+      p_update_tier_override: true,
+      p_tier_override: 'free',
+      p_owner_note: 'Keep Starter access.',
+      p_owner_developer_id: 'owner-1',
+    });
+  });
+
+  it('surfaces automatic pipeline failures instead of reporting a successful vote', async () => {
     mockedGetSupabaseServerClient.mockReturnValue({
       rpc: vi.fn().mockResolvedValue({ data: null, error: { message: 'registry update failed' } }),
     } as never);
 
-    await expect(transitionDeveloperAssetStatus({
+    await expect(castDeveloperAssetVote({
       submissionId: 'asset-1',
-      status: 'archived',
-      ownerNote: '',
-      ownerAccessTierOverride: null,
-      ownerAccessTierOverrideProvided: false,
-      calculatedAccessTier: 'hidden',
-      qualityScore: 0,
-      tierDecisionReason: 'archived',
-      registryMetadata: {},
+      developerId: 'dev-1',
+      voteValue: 'negative',
     })).rejects.toEqual(expect.objectContaining<Partial<DeveloperAssetRegistryCommandError>>({
-      message: 'Unable to update the developer submission and shared registry.',
+      message: 'Unable to save the vote and automatic pipeline decision.',
       status: 500,
     }));
+  });
+
+  it('permanently removes storage only between database prepare and finalize commands', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({
+        data: {
+          storageObjects: [{
+            storageBucket: 'cardforge-developer-assets',
+            storagePath: 'developer-1/icons/example.svg',
+          }],
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: true, error: null });
+    const remove = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn().mockReturnValue({ remove });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc, storage: { from } } as never);
+
+    await purgeDeveloperAssetSubmission({
+      submissionId: 'asset-1',
+      confirmationName: 'Example icon',
+    });
+
+    expect(rpc).toHaveBeenNthCalledWith(1, 'cardforge_prepare_developer_asset_purge', {
+      p_submission_id: 'asset-1',
+      p_expected_name: 'Example icon',
+    });
+    expect(from).toHaveBeenCalledWith('cardforge-developer-assets');
+    expect(remove).toHaveBeenCalledWith(['developer-1/icons/example.svg']);
+    expect(rpc).toHaveBeenNthCalledWith(2, 'cardforge_finalize_developer_asset_purge', {
+      p_submission_id: 'asset-1',
+    });
   });
 });

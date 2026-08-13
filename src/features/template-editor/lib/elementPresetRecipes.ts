@@ -10,8 +10,6 @@ import {
 } from '@/domain/templates';
 import { appearanceToElementRenderFields } from '@/features/card-rendering/client';
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
-import type { CardFrameKit } from '@/features/template-editor/lib/cardFrameKits';
-import { getFrameKitTemplateUpdates } from '@/features/template-editor/lib/cardFrameKits';
 
 const DEFAULT_OWNER_CONTRIBUTOR_NAME = DEFAULT_BUSINESS_IDENTITY.legalOperatorName
   || DEFAULT_BUSINESS_IDENTITY.supportEmail;
@@ -109,10 +107,14 @@ export const BLANK_SHAPE_PRIMITIVES: BlankShapePrimitive[] = [
   },
 ];
 
-export const createFrameKitPresetRecipes = (frameKits: CardFrameKit[]): ElementPresetRecipe[] =>
-  frameKits.map((kit) => ({
-    id: `frame-kit-${kit.id}`,
-    label: kit.name,
+export const createFrameKitPresetRecipes = (templates: TCGCardTemplate[]): ElementPresetRecipe[] =>
+  templates.filter((template) => (
+    Boolean(template.id)
+    && Boolean(template.cardBackgroundImageUrl)
+    && template.templateRegistryStatus === 'published'
+  )).map((template) => ({
+    id: `frame-kit-${template.id}`,
+    label: template.name,
     description: 'CardForge Library frame kit for the card canvas.',
     kind: 'frameKit',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
@@ -120,8 +122,22 @@ export const createFrameKitPresetRecipes = (frameKits: CardFrameKit[]): ElementP
     tier: 'free',
     source: 'developer-pipeline',
     appliesTo: { elementTypes: ['template'], surfaces: ['templateCanvas'] },
-    preview: { imageUrl: kit.assetUrl, background: kit.baseBackgroundColor },
-    templateUpdates: getFrameKitTemplateUpdates(kit),
+    preview: { imageUrl: template.cardBackgroundImageUrl, background: template.baseBackgroundColor },
+    templateUpdates: {
+      aspectRatio: template.aspectRatio,
+      formatId: template.formatId,
+      trimWidthMm: template.trimWidthMm,
+      trimHeightMm: template.trimHeightMm,
+      frameStyle: 'custom',
+      cardBackgroundImageUrl: template.cardBackgroundImageUrl,
+      baseBackgroundColor: template.baseBackgroundColor,
+      baseTextColor: template.baseTextColor,
+      cardBorderColor: template.cardBorderColor,
+      cardBorderWidth: template.cardBorderWidth,
+      cardBorderStyle: template.cardBorderStyle,
+      cardBorderRadius: template.cardBorderRadius,
+      cardBorderImageSource: template.cardBorderImageSource,
+    },
   }));
 
 const appearanceKindToRecipeKind = (kind: AppearanceStylePreset['kind']): ElementPresetKind => {

@@ -4,10 +4,13 @@ import {
   createDeveloperCockpitErrorResponse,
   getCampaignMediaRecord,
   getCurrentDeveloperCockpitAccess,
+  getDeveloperCockpitView,
+  purgeCampaignMedia,
   requireContributionScope,
+  setCampaignMediaArchived,
 } from '@/features/developer-cockpit/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
-import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,5 +74,47 @@ export async function GET(
       error,
       'Unable to load campaign media.',
     );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ mediaId: string }> },
+) {
+  try {
+    const access = await getCurrentDeveloperCockpitAccess();
+    if (!access.isOwner) {
+      return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required to manage campaign media retention.');
+    }
+    const { mediaId } = await params;
+    const body = await request.json() as { archived?: unknown };
+    if (typeof body.archived !== 'boolean') {
+      return createApiErrorResponse(400, 'developer_cockpit_request_invalid', 'Choose whether to retire or restore this media item.');
+    }
+    await setCampaignMediaArchived({ mediaId, archived: body.archived, ownerId: access.user.id });
+    return createNoStoreJsonResponse({ cockpit: await getDeveloperCockpitView(access) });
+  } catch (error) {
+    return createDeveloperCockpitErrorResponse(error, 'Unable to update campaign media retention.');
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ mediaId: string }> },
+) {
+  try {
+    const access = await getCurrentDeveloperCockpitAccess();
+    if (!access.isOwner) {
+      return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required to permanently delete campaign media.');
+    }
+    const { mediaId } = await params;
+    const body = await request.json() as { confirmationFilename?: unknown };
+    if (typeof body.confirmationFilename !== 'string' || !body.confirmationFilename.trim()) {
+      return createApiErrorResponse(400, 'developer_cockpit_request_invalid', 'Type the exact filename to confirm permanent deletion.');
+    }
+    await purgeCampaignMedia({ mediaId, confirmationFilename: body.confirmationFilename.trim() });
+    return createNoStoreJsonResponse({ cockpit: await getDeveloperCockpitView(access) });
+  } catch (error) {
+    return createDeveloperCockpitErrorResponse(error, 'Unable to permanently delete campaign media.');
   }
 }

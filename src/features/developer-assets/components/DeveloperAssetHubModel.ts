@@ -28,6 +28,18 @@ export interface PersonalLibraryItem {
   createFile: () => Promise<File>;
 }
 
+export const deduplicatePersonalLibraryItems = (
+  items: PersonalLibraryItem[],
+): PersonalLibraryItem[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const identity = `${item.assetType}:${item.id}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+};
+
 export interface DeveloperAssetSubmissionGuidance {
   destination: string;
   sourceLabel: string;
@@ -156,25 +168,26 @@ export const getSubmissionNextStep = (
   program: Pick<DeveloperAssetProgramView, 'settings'>,
 ) => {
   const totalVotes = Math.max(0, submission.positiveVotes) + Math.max(0, submission.negativeVotes);
-  const needsVotes = totalVotes < program.settings.minimumVotesForGrading
-    || totalVotes < program.settings.minimumVotesForTierAssignment;
+  const needsVotes = totalVotes < program.settings.minimumVotesForGrading;
 
   if (submission.status === 'published') {
-    return 'Live in the shared library. Developers can still vote, and future rule/cap changes can re-rank it.';
+    return submission.ownerStatusOverride
+      ? 'Live in the shared library under an owner override. Voting still updates the automatic recommendation underneath.'
+      : 'Live in the shared library through automatic ranking. Votes and capacity changes can re-rank it.';
   }
   if (submission.status === 'archived') {
-    return 'Archived from active use. Strong recovery voting can help the owner consider bringing it back.';
+    return submission.ownerStatusOverride
+      ? 'Retired by an owner override. Voting still updates the automatic recommendation until the override is cleared.'
+      : 'Automatically retired from active use. Stronger recovery voting can return it to the live library.';
   }
   if (submission.status === 'rejected') {
     return 'Closed by owner review. Use the notes and submit a stronger version if it still belongs in the library.';
   }
   if (needsVotes) {
-    return `Needs more developer signal before the pipeline can grade status and tier. ${getReviewProgressLabel(submission, Math.max(program.settings.minimumVotesForGrading, program.settings.minimumVotesForTierAssignment))}.`;
+    return `Needs more developer signal before the pipeline can grade status and tier. ${getReviewProgressLabel(submission, program.settings.minimumVotesForGrading)}.`;
   }
   if (submission.status === 'publish_candidate') {
-    return program.settings.ownerFinalReviewRequired
-      ? 'Meets vote signal and is waiting on owner review or an open library slot.'
-      : 'Meets vote signal and can publish when there is room in the matching library cap.';
+    return 'Meets vote signal and is waiting for room in the matching Starter or Creator Pass capacity.';
   }
   if (submission.calculatedAccessTier === 'hidden') {
     return 'Vote quality is below the current threshold, so it is not visible to creators yet.';
@@ -217,6 +230,8 @@ export const getSearchableSubmissionText = (submission: DeveloperAssetSubmission
   getDeveloperAssetTierLabel(submission.calculatedAccessTier),
   submission.tierDecisionReason ?? '',
   submission.decisionReason ?? '',
+  submission.automatedStatus,
+  submission.ownerStatusOverride ?? '',
 ].join(' ').toLowerCase();
 
 export const getContributorLabel = (submission: DeveloperAssetSubmission) => {

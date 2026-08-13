@@ -1,7 +1,8 @@
 import type {
-  DeveloperAssetAccessTier,
   DeveloperAssetAccessTierOverride,
   DeveloperAssetStatus,
+  DeveloperProgramSettings,
+  DeveloperVoteValue,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { TCGCardTemplate } from '@/domain/templates';
 import { getDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
@@ -14,16 +15,12 @@ export class DeveloperAssetRegistryCommandError extends Error {
   }
 }
 
-export interface TransitionDeveloperAssetStatusInput {
+export interface SetDeveloperAssetOwnerOverrideInput {
   submissionId: string;
-  status: DeveloperAssetStatus;
+  ownerStatusOverride?: DeveloperAssetStatus | null;
+  ownerAccessTierOverride?: DeveloperAssetAccessTierOverride | null;
   ownerNote: string;
-  ownerAccessTierOverride: DeveloperAssetAccessTierOverride | null;
-  ownerAccessTierOverrideProvided: boolean;
-  calculatedAccessTier: DeveloperAssetAccessTier;
-  qualityScore: number;
-  tierDecisionReason: string;
-  registryMetadata: Record<string, unknown>;
+  ownerDeveloperId: string;
 }
 
 export interface UpsertPipelineRegistryAssetInput {
@@ -57,6 +54,11 @@ export interface SubmittedTemplateRevision {
   assetId: string;
 }
 
+export interface PurgeDeveloperAssetSubmissionInput {
+  submissionId: string;
+  confirmationName: string;
+}
+
 const requireSupabase = () => {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
@@ -74,6 +76,12 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 };
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
+  if (errorMessage?.includes('pipeline_asset_deleted_by_owner')) {
+    throw new DeveloperAssetRegistryCommandError(
+      'This shared template was permanently deleted by the owner and cannot accept new revisions.',
+      409,
+    );
+  }
   if (errorMessage?.includes('template_revision_conflict')) {
     throw new DeveloperAssetRegistryCommandError(
       'This base card design changed after you opened it. Reload the shared library, review the latest version, and submit again.',
@@ -84,6 +92,22 @@ const throwTemplateRevisionError = (errorMessage?: string): never => {
     throw new DeveloperAssetRegistryCommandError('The template revision is incomplete or invalid.', 400);
   }
   throw new DeveloperAssetRegistryCommandError('Unable to submit the template revision.', 500);
+};
+
+const throwDeveloperAssetPurgeError = (errorMessage?: string): never => {
+  if (errorMessage?.includes('developer_asset_not_found')) {
+    throw new DeveloperAssetRegistryCommandError('Developer asset submission was not found.', 404);
+  }
+  if (errorMessage?.includes('developer_asset_purge_confirmation_mismatch')) {
+    throw new DeveloperAssetRegistryCommandError('Type the exact asset name to confirm permanent deletion.', 400);
+  }
+  if (errorMessage?.includes('developer_asset_storage_reference_incomplete')) {
+    throw new DeveloperAssetRegistryCommandError(
+      'This asset has an incomplete storage reference. Repair it before permanent deletion.',
+      409,
+    );
+  }
+  throw new DeveloperAssetRegistryCommandError('Unable to permanently delete this developer asset.', 500);
 };
 
 export const submitTemplateRevision = async ({
@@ -138,31 +162,24 @@ export const submitTemplateRevision = async ({
   };
 };
 
-export const transitionDeveloperAssetStatus = async ({
+export const castDeveloperAssetVote = async ({
   submissionId,
-  status,
-  ownerNote,
-  ownerAccessTierOverride,
-  ownerAccessTierOverrideProvided,
-  calculatedAccessTier,
-  qualityScore,
-  tierDecisionReason,
-  registryMetadata,
-}: TransitionDeveloperAssetStatusInput): Promise<void> => {
+  developerId,
+  voteValue,
+  ownerDeveloperId,
+}: {
+  submissionId: string;
+  developerId: string;
+  voteValue: DeveloperVoteValue;
+  ownerDeveloperId?: string | null;
+}): Promise<void> => {
   const supabase = requireSupabase();
-
-  const { error } = await supabase.rpc('cardforge_transition_developer_asset', {
+  const { error } = await supabase.rpc('cardforge_cast_developer_asset_vote', {
     p_submission_id: submissionId,
-    p_status: status,
-    p_owner_note: ownerNote,
-    p_owner_access_tier_override: ownerAccessTierOverride,
-    p_has_owner_access_tier_override: ownerAccessTierOverrideProvided,
-    p_calculated_access_tier: calculatedAccessTier,
-    p_quality_score: qualityScore,
-    p_tier_decision_reason: tierDecisionReason,
-    p_registry_metadata: registryMetadata,
+    p_developer_id: developerId,
+    p_vote_value: voteValue,
+    p_owner_developer_id: ownerDeveloperId ?? null,
   });
-
   if (error) {
     if (error.message?.includes('template_revision_conflict')) {
       throwTemplateRevisionError(error.message);
@@ -171,8 +188,103 @@ export const transitionDeveloperAssetStatus = async ({
     throw new DeveloperAssetRegistryCommandError(
       statusCode === 404
         ? 'Developer asset submission was not found.'
-        : 'Unable to update the developer submission and shared registry.',
+        : 'Unable to save the vote and automatic pipeline decision.',
       statusCode,
+    );
+  }
+};
+
+export const saveDeveloperProgramSettings = async (
+  settings: DeveloperProgramSettings,
+  ownerDeveloperId: string,
+): Promise<void> => {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('cardforge_update_developer_program_settings', {
+    p_settings: settings,
+    p_owner_developer_id: ownerDeveloperId,
+  });
+  if (error) {
+    throw new DeveloperAssetRegistryCommandError(
+      'Unable to save the automatic developer pipeline rules.',
+      500,
+    );
+  }
+};
+
+export const setDeveloperAssetOwnerOverride = async ({
+  submissionId,
+  ownerStatusOverride,
+  ownerAccessTierOverride,
+  ownerNote,
+  ownerDeveloperId,
+}: SetDeveloperAssetOwnerOverrideInput): Promise<void> => {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('cardforge_set_developer_asset_owner_override', {
+    p_submission_id: submissionId,
+    p_update_status_override: ownerStatusOverride !== undefined,
+    p_status_override: ownerStatusOverride ?? null,
+    p_update_tier_override: ownerAccessTierOverride !== undefined,
+    p_tier_override: ownerAccessTierOverride ?? null,
+    p_owner_note: ownerNote,
+    p_owner_developer_id: ownerDeveloperId,
+  });
+  if (error) {
+    if (error.message?.includes('template_revision_conflict')) {
+      throwTemplateRevisionError(error.message);
+    }
+    const statusCode = error.message?.includes('developer_asset_not_found') ? 404 : 500;
+    throw new DeveloperAssetRegistryCommandError(
+      statusCode === 404
+        ? 'Developer asset submission was not found.'
+        : 'Unable to save the owner override and shared library state.',
+      statusCode,
+    );
+  }
+};
+
+export const purgeDeveloperAssetSubmission = async ({
+  submissionId,
+  confirmationName,
+}: PurgeDeveloperAssetSubmissionInput): Promise<void> => {
+  const supabase = requireSupabase();
+  const { data, error: prepareError } = await supabase.rpc('cardforge_prepare_developer_asset_purge', {
+    p_submission_id: submissionId,
+    p_expected_name: confirmationName,
+  });
+  if (prepareError) throwDeveloperAssetPurgeError(prepareError.message);
+
+  const rawObjects = (data as { storageObjects?: unknown } | null)?.storageObjects;
+  const objects = Array.isArray(rawObjects)
+    ? rawObjects.filter((value): value is { storageBucket: string; storagePath: string } => {
+        if (!value || typeof value !== 'object') return false;
+        const candidate = value as { storageBucket?: unknown; storagePath?: unknown };
+        return typeof candidate.storageBucket === 'string' && typeof candidate.storagePath === 'string';
+      })
+    : [];
+  const pathsByBucket = new Map<string, Set<string>>();
+  for (const object of objects) {
+    const paths = pathsByBucket.get(object.storageBucket) ?? new Set<string>();
+    paths.add(object.storagePath);
+    pathsByBucket.set(object.storageBucket, paths);
+  }
+
+  for (const [storageBucket, storagePaths] of pathsByBucket) {
+    const { error: storageError } = await supabase.storage.from(storageBucket).remove([...storagePaths]);
+    if (storageError) {
+      throw new DeveloperAssetRegistryCommandError(
+        'Some asset storage still needs deletion. Retry this action; the asset lineage remains in a recoverable pending state.',
+        503,
+      );
+    }
+  }
+
+  const { error: finalizeError } = await supabase.rpc('cardforge_finalize_developer_asset_purge', {
+    p_submission_id: submissionId,
+  });
+  if (finalizeError) {
+    throw new DeveloperAssetRegistryCommandError(
+      'The file was removed, but the database cleanup still needs to finish. Retry permanent deletion for this asset.',
+      503,
     );
   }
 };
@@ -191,10 +303,13 @@ export const upsertPipelineRegistryAsset = async ({
   storagePath = null,
   metadata,
 }: UpsertPipelineRegistryAssetInput): Promise<void> => {
-  const ownerEmail = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim();
+  const ownerEmail = process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS
+    ?.split(',')
+    .map((email) => email.trim().toLowerCase())
+    .find(Boolean);
   if (!ownerEmail) {
     throw new DeveloperAssetRegistryCommandError(
-      'CARDFORGE_PIPELINE_OWNER_EMAIL is required for shipped-library writes.',
+      'CARDFORGE_OWNER_ACCOUNT_EMAILS must include the Pipeline owner for shared-library writes.',
       503,
     );
   }

@@ -37,6 +37,7 @@ describe('responsive feature parity', () => {
     expect(publicHeader).toContain('developerAccess.hasCockpitAccess');
     expect(publicHeader).toContain('href={developerAccess.cockpitHref}');
     expect(publicHeader).toContain('Developer cockpit');
+    expect(publicHeader).toContain('lg:inline-flex');
   });
 
   it('makes library failures recoverable and asks before retargeting existing cards', () => {

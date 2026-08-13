@@ -35,9 +35,9 @@ Use `.env.example` as the complete variable catalog.
 
 ## Release sequence
 
-1. Run the smallest focused checks while implementing.
-2. Before the PR, run `npm run lint`, `npm run typecheck`, `npm run architecture:check`, `npm run migrations:check`, `npm run test`, `npm run build`, and `git diff --check`.
-3. Require the GitHub `verify` and `public-smoke` checks on the exact PR head.
+1. Run the smallest focused checks while implementing. Temporary development tests should be removed or consolidated once the behavior is proven unless they protect a durable high-risk boundary or known regression.
+2. Before the PR, run `npm run lint`, `npm run typecheck`, `npm run architecture:check`, `npm run migrations:check`, the focused durable tests affected by the change, `npm run build`, and `git diff --check`. GitHub runs the maintained verification suite once on the exact PR head.
+3. Require the GitHub `verify` check and a successful Vercel preview deployment on the exact PR head. Exercise every changed public workflow on that preview at desktop and mobile widths; use the signed-in production browser for provider-backed roles that a preview cannot validly prove.
 4. Apply an additive production migration only after Cameron explicitly approves that exact provider mutation. Run the postflight below before merging code that depends on the new schema.
 5. Merge through the PR; do not force-push or bypass `main` protection.
 6. Confirm the Vercel production deployment is READY for the merged commit, then run `npm run health:production`.
@@ -47,7 +47,7 @@ Rollback application behavior with the relevant feature flag or a forward code f
 
 ### Solo-maintainer branch rule
 
-While `@pyralisxc` is the only trusted code owner, branch protection may require zero approvals because a PR author cannot approve their own change. Resolved review threads plus `verify` and `public-smoke` remain mandatory. Raise required approvals to one when a second trusted reviewer is added.
+While `@pyralisxc` is the only trusted code owner, branch protection may require zero approvals because a PR author cannot approve their own change. Resolved review threads plus `verify`, a successful Vercel deployment, and the live workflow check remain mandatory. Raise required approvals to one when a second trusted reviewer is added.
 
 ## Supabase migration and security procedure
 
@@ -99,6 +99,8 @@ Rollback all browser collection with a newly deployed `NEXT_PUBLIC_CARDFORGE_ANA
 
 `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_BUFFER_PUBLISHING_ENABLED` are independent and default false. Owner approval remains mandatory. Supabase owns CardForge media/campaign history; Buffer owns only provider scheduling and delivery.
 
+For a Pipeline-catalog release, preserve this order: apply and verify the forward Pipeline migrations; run `npm run pipeline:sync-defaults`; verify every expected shared template, standard-size CardForge Studio back, style, and referenced media record is published at the intended tier; then deploy the bundle that reads Pipeline records only. Never deploy the pipeline-only reader before the import is complete. A rollback may disable the new bundle, but must not restore deleted registry rows, managed files, or private deletion tombstones.
+
 Before extended contributors are enabled, verify protected source storage, approved-only public derivatives, canonical media/attachment/association integrity, private preview authorization, owner-only approval/provider mutations, legal publications, and scoped developer grants. A stale campaign version or invalid relationship must leave the campaign, attachments, exposure, and version unchanged.
 
 Before Buffer is enabled:
@@ -130,14 +132,14 @@ Safe support rollback removes/disables support checkout environment values while
 ## Maintained commands
 
 - `npm run health:production`: canonical public/API health.
-- `npm run smoke`: lean public browser contract.
 - `npm run smoke:protected`: protected auth/access/recovery contract.
 - `npm run qa:bootstrap-authenticated-smoke`: align configured reusable QA identities.
-- `npm run pipeline:sync-defaults`: intentionally seed repository starter assets through the atomic reviewed Pipeline command.
+- `npm run pipeline:sync-defaults`: import missing bootstrap templates, styles, and referenced Studio media through the atomic Pipeline command. Run only after Pipeline migrations. It preserves existing owner decisions and permanent-deletion tombstones; it is not a runtime fallback or overwrite command.
 - `npm run brand:export`: synchronize canonical brand SVGs into the runtime `public/brand/cardforge-studio/` mirrors and regenerate ignored PNG derivatives under `output/`.
 
 ## Manual release checks
 
+- Exercise every changed public workflow on the exact Vercel preview at desktop and mobile widths, then verify it once on the merged production deployment.
 - Canonical apex, `www` redirect, robots, sitemap, self-canonicals, Open Graph URLs, and protected-route noindex behavior.
 - One real production owner/developer flow affected by the release.
 - One customer-facing Stripe receipt and one reply-to round trip when billing/email identity changes.

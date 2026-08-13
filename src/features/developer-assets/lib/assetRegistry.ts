@@ -4,6 +4,10 @@ import {
   type CardAssetOption,
 } from '@/features/developer-assets/lib/cardAssets';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
+import {
+  getVisibleRegistryAccessTiers,
+  type RegistryViewerAccess,
+} from './registryContentAssets';
 
 type RegistryAssetKind = CardAssetOption['kind'];
 
@@ -132,15 +136,16 @@ export const mapAssetRegistryRowsToPayload = (
   };
 };
 
-const getDatabaseAssetRegistry = async (): Promise<AssetRegistryPayload | null> => {
+const getDatabaseAssetRegistry = async (viewerAccess: RegistryViewerAccess): Promise<AssetRegistryPayload | null> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return null;
 
+  const visibleTiers = getVisibleRegistryAccessTiers(viewerAccess);
   const { data, error } = await supabase
     .from('cardforge_asset_registry')
     .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata')
     .eq('status', 'published')
-    .neq('access_tier', 'hidden')
+    .in('access_tier', visibleTiers)
     .order('asset_type', { ascending: true })
     .order('name', { ascending: true });
 
@@ -154,8 +159,10 @@ const getDatabaseAssetRegistry = async (): Promise<AssetRegistryPayload | null> 
   return mapAssetRegistryRowsToPayload((data ?? []) as AssetRegistryRow[]);
 };
 
-export const getAssetRegistryPayload = async (): Promise<AssetRegistryPayload> => {
+export const getAssetRegistryPayload = async (
+  viewerAccess: RegistryViewerAccess = 'free',
+): Promise<AssetRegistryPayload> => {
   const configured = getSupabaseServerConfigStatus().configured;
-  const databaseRegistry = await getDatabaseAssetRegistry();
+  const databaseRegistry = await getDatabaseAssetRegistry(viewerAccess);
   return databaseRegistry ?? emptyAssetRegistryPayload(configured);
 };

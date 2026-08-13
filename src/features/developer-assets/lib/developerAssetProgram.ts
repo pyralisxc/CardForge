@@ -44,7 +44,10 @@ export interface DeveloperAssetSubmission {
   sourceStoragePath: string | null;
   registryAssetId: string | null;
   status: DeveloperAssetStatus;
+  automatedStatus: Extract<DeveloperAssetStatus, 'voting' | 'publish_candidate' | 'published' | 'archived'>;
+  ownerStatusOverride: DeveloperAssetStatus | null;
   calculatedAccessTier: DeveloperAssetAccessTier;
+  automatedAccessTier: DeveloperAssetAccessTier;
   ownerAccessTierOverride: DeveloperAssetAccessTierOverride | null;
   qualityScore: number;
   tierDecisionReason: string | null;
@@ -53,6 +56,12 @@ export interface DeveloperAssetSubmission {
   positiveVotes: number;
   negativeVotes: number;
   currentUserVote: DeveloperVoteValue | null;
+  sourcePayload: unknown | null;
+  targetRegistryAssetId: string | null;
+  baseRevisionNumber: number | null;
+  revisionNumber: number | null;
+  publishedAt: string | null;
+  purgeState: 'pending' | null;
   submittedAt: string;
   updatedAt: string | null;
 }
@@ -80,18 +89,11 @@ export interface DeveloperProgramSettingsRow {
   monthly_submission_limit?: unknown;
   monthly_published_requirement?: unknown;
   minimum_votes_for_grading?: unknown;
-  minimum_positive_vote_percent?: unknown;
   free_asset_minimum_positive_vote_percent?: unknown;
   paid_asset_minimum_positive_vote_percent?: unknown;
-  minimum_votes_for_tier_assignment?: unknown;
-  show_paid_preview_to_free_users?: unknown;
-  allow_paid_early_access_to_candidates?: unknown;
   allow_contributor_self_voting?: unknown;
   owner_vote_weight?: unknown;
-  archive_visible_limit?: unknown;
   profit_share_pool_percent?: unknown;
-  owner_final_review_required?: unknown;
-  publish_caps_by_type?: unknown;
   tier_caps_by_type?: unknown;
 }
 
@@ -110,7 +112,10 @@ export interface DeveloperAssetSubmissionRow {
   source_storage_path: string | null;
   registry_asset_id: string | null;
   status: unknown;
+  automated_status: unknown;
+  owner_status_override: unknown;
   calculated_access_tier: unknown;
+  automated_access_tier: unknown;
   owner_access_tier_override: unknown;
   quality_score: number | null;
   tier_decision_reason: string | null;
@@ -118,6 +123,12 @@ export interface DeveloperAssetSubmissionRow {
   decision_reason: string | null;
   positive_votes: number | null;
   negative_votes: number | null;
+  source_payload: unknown | null;
+  target_registry_asset_id: string | null;
+  base_revision_number: number | null;
+  revision_number: number | null;
+  published_at: string | null;
+  purge_state: unknown;
   submitted_at: string;
   updated_at: string | null;
 }
@@ -204,32 +215,6 @@ export const normalizeDeveloperProfileOverrideInput = (
   owner_note: normalizeDeveloperAssetLongText(input.ownerNote, 280),
 });
 
-export const calculateDeveloperAssetVoteTotals = (
-  voteRows: Array<{
-    developer_id?: string | null;
-    vote_value?: string | null;
-    vote_weight?: number | null;
-  }>,
-  {
-    ownerDeveloperId = '',
-    ownerVoteWeight = DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerVoteWeight,
-  }: {
-    ownerDeveloperId?: string | null;
-    ownerVoteWeight?: number;
-  } = {},
-) => voteRows.reduce(
-  (totals, row) => {
-    if (row.vote_value !== 'positive' && row.vote_value !== 'negative') return totals;
-    const weight = row.developer_id && ownerDeveloperId && row.developer_id === ownerDeveloperId
-      ? Math.min(3, Math.max(1, Math.round(ownerVoteWeight)))
-      : Math.min(3, Math.max(1, Math.round(row.vote_weight ?? 1)));
-    if (row.vote_value === 'positive') totals.positiveVotes += weight;
-    else totals.negativeVotes += weight;
-    return totals;
-  },
-  { positiveVotes: 0, negativeVotes: 0 },
-);
-
 export const normalizeDeveloperAssetSubmissionInput = (value: {
   assetType?: unknown;
   name?: unknown;
@@ -291,18 +276,11 @@ export const mapDeveloperProgramSettingsRow = (
       monthlySubmissionLimit: row.monthly_submission_limit,
       monthlyPublishedRequirement: row.monthly_published_requirement,
       minimumVotesForGrading: row.minimum_votes_for_grading,
-      minimumPositiveVotePercent: row.minimum_positive_vote_percent,
       freeAssetMinimumPositiveVotePercent: row.free_asset_minimum_positive_vote_percent,
       paidAssetMinimumPositiveVotePercent: row.paid_asset_minimum_positive_vote_percent,
-      minimumVotesForTierAssignment: row.minimum_votes_for_tier_assignment,
-      showPaidPreviewToFreeUsers: row.show_paid_preview_to_free_users,
-      allowPaidEarlyAccessToCandidates: row.allow_paid_early_access_to_candidates,
       allowContributorSelfVoting: row.allow_contributor_self_voting,
       ownerVoteWeight: row.owner_vote_weight,
-      archiveVisibleLimit: row.archive_visible_limit,
       profitSharePoolPercent: row.profit_share_pool_percent,
-      ownerFinalReviewRequired: row.owner_final_review_required,
-      publishCapsByType: row.publish_caps_by_type,
       tierCapsByType: row.tier_caps_by_type,
     }
   : DEFAULT_DEVELOPER_PROGRAM_SETTINGS);
@@ -329,7 +307,14 @@ export const mapDeveloperAssetSubmissionRow = (
   sourceStoragePath: row.source_storage_path,
   registryAssetId: row.registry_asset_id,
   status: isDeveloperAssetStatus(row.status) ? row.status : 'submitted',
+  automatedStatus: row.automated_status === 'publish_candidate'
+    || row.automated_status === 'published'
+    || row.automated_status === 'archived'
+    ? row.automated_status
+    : 'voting',
+  ownerStatusOverride: isDeveloperAssetStatus(row.owner_status_override) ? row.owner_status_override : null,
   calculatedAccessTier: isDeveloperAssetAccessTier(row.calculated_access_tier) ? row.calculated_access_tier : 'developer',
+  automatedAccessTier: isDeveloperAssetAccessTier(row.automated_access_tier) ? row.automated_access_tier : 'developer',
   ownerAccessTierOverride: isDeveloperAssetAccessTierOverride(row.owner_access_tier_override) ? row.owner_access_tier_override : null,
   qualityScore: row.quality_score ?? 0,
   tierDecisionReason: row.tier_decision_reason,
@@ -338,6 +323,12 @@ export const mapDeveloperAssetSubmissionRow = (
   positiveVotes: row.positive_votes ?? 0,
   negativeVotes: row.negative_votes ?? 0,
   currentUserVote: currentUserVotes[row.id] ?? null,
+  sourcePayload: row.source_payload,
+  targetRegistryAssetId: row.target_registry_asset_id,
+  baseRevisionNumber: row.base_revision_number,
+  revisionNumber: row.revision_number,
+  publishedAt: row.published_at,
+  purgeState: row.purge_state === 'pending' ? 'pending' : null,
   submittedAt: row.submitted_at,
   updatedAt: row.updated_at,
 });
@@ -451,5 +442,41 @@ export const buildDeveloperAssetProgramView = ({
     profitShareEligible: currentRules.profitShareEligible,
     developerOwnerNote: currentRules.ownerNote,
     remainingSubmissions: Math.max(0, currentRules.effectiveSubmissionLimit - developerStats.submitted),
+  };
+};
+
+export const projectDeveloperAssetProgramForViewer = (
+  program: DeveloperAssetProgramView,
+  {
+    currentUserId,
+    isOwner,
+  }: {
+    currentUserId: string;
+    isOwner: boolean;
+  },
+): DeveloperAssetProgramView => {
+  if (isOwner) return program;
+
+  const projectedById = new Map(program.submissions.map((submission) => {
+    const maySeeOwnSource = submission.developerId === currentUserId;
+    const projected = maySeeOwnSource ? submission : {
+      ...submission,
+      developerEmail: null,
+      sourceUrl: null,
+      sourceStorageBucket: null,
+      sourceStoragePath: null,
+    };
+    return [submission.id, projected] as const;
+  }));
+
+  return {
+    ...program,
+    submissions: program.submissions.map((submission) => projectedById.get(submission.id) ?? submission),
+    votingQueue: program.votingQueue.map((submission) => projectedById.get(submission.id) ?? submission),
+    developerContributions: program.developerContributions.map((contribution) => ({
+      ...contribution,
+      developerEmail: contribution.developerId === currentUserId ? contribution.developerEmail : null,
+      ownerNote: contribution.developerId === currentUserId ? contribution.ownerNote : null,
+    })),
   };
 };

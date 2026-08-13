@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { FieldHelp } from '@/features/developer-assets/components/DeveloperAssetHubUi';
-import { OwnerAssetLibraryPanel } from '@/features/developer-assets/components/OwnerAssetLibraryPanel';
-import { OwnerAssetStorageForecast } from '@/features/developer-assets/components/OwnerAssetStorageForecast';
+import {
+  OwnerAssetLibraryPanel,
+  type OwnerAssetOverrideInput,
+} from '@/features/developer-assets/components/OwnerAssetLibraryPanel';
 import { OwnerDeveloperLedger, type DeveloperProfileDraft } from '@/features/developer-assets/components/OwnerDeveloperLedger';
 import { OwnerDeveloperProgramOverview } from '@/features/developer-assets/components/OwnerDeveloperProgramOverview';
 import {
@@ -22,8 +24,6 @@ import {
   DEVELOPER_ASSET_TYPES,
   buildDeveloperVotingPresetSettings,
   getDeveloperVotingPresetLabel,
-  type DeveloperAssetAccessTierOverride,
-  type DeveloperAssetStatus,
   type DeveloperProgramSettings,
   type DeveloperVotingPreset,
 } from '@/features/developer-assets/lib/developerAssets';
@@ -117,28 +117,50 @@ export function OwnerDeveloperProgramPanel() {
     }
   };
 
-  const updateStatus = async (
+  const updateOverride = async (
     submissionId: string,
-    status: DeveloperAssetStatus,
-    ownerAccessTierOverride?: DeveloperAssetAccessTierOverride | null,
-    ownerNote = '',
+    input: OwnerAssetOverrideInput,
   ) => {
     setUpdatingSubmissionId(submissionId);
     try {
       const response = await fetch(`/api/developer-assets/${submissionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, ownerNote, ownerAccessTierOverride }),
+        body: JSON.stringify(input),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update asset status.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setLastSavedAt(new Date().toISOString());
-      toast({ title: 'Asset status updated', description: `Submission moved to ${status.replace('_', ' ')}.` });
+      toast({ title: 'Asset control saved', description: 'The owner override and automatic recommendation are now synchronized.' });
     } catch (error) {
       toast({
-        title: 'Asset status not updated',
-        description: error instanceof Error ? error.message : 'Unable to update asset status.',
+        title: 'Asset control not saved',
+        description: error instanceof Error ? error.message : 'Unable to update asset control.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingSubmissionId(null);
+    }
+  };
+
+  const deletePermanently = async (submissionId: string, confirmationName: string) => {
+    setUpdatingSubmissionId(submissionId);
+    try {
+      const response = await fetch(`/api/developer-assets/${submissionId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmationName }),
+      });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to permanently delete this asset.'));
+      const body = await response.json() as DeveloperAssetsResponse;
+      setProgram(body.program);
+      setLastSavedAt(new Date().toISOString());
+      toast({ title: 'Asset permanently deleted', description: 'The registry entry, revision lineage, votes, and managed storage were removed.' });
+    } catch (error) {
+      toast({
+        title: 'Asset was not deleted',
+        description: error instanceof Error ? error.message : 'Unable to permanently delete this asset.',
         variant: 'destructive',
       });
     } finally {
@@ -242,6 +264,13 @@ export function OwnerDeveloperProgramPanel() {
     <section className="border border-[#7d5a2e] bg-[#15100a] p-6">
       <OwnerDeveloperProgramOverview program={program} settings={settings} lastSavedLabel={lastSavedLabel} />
 
+      <OwnerAssetLibraryPanel
+        program={program}
+        updatingSubmissionId={updatingSubmissionId}
+        onUpdateOverride={updateOverride}
+        onDeletePermanently={deletePermanently}
+      />
+
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
           <div className="flex items-center justify-between gap-3">
@@ -259,7 +288,7 @@ export function OwnerDeveloperProgramPanel() {
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-serif text-xl text-[#fff1c7]">Voting impact</h3>
-            <FieldHelp text="These settings decide when peer votes are strong enough to grade, archive, or assign Starter and Creator Pass access tiers." />
+            <FieldHelp text="One vote threshold starts automatic ranking. Starter and Creator Pass percentages then decide the tier, while capacity decides whether the asset is live or waiting." />
           </div>
           <div className="mt-4 border border-[#342719] bg-[#15100a] p-3">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-[#a98a55]">
@@ -289,35 +318,14 @@ export function OwnerDeveloperProgramPanel() {
             onChange={(value) => setSettings({ ...settings, ownerVoteWeight: value })}
           />
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <NumberField label="Grading votes" help="Votes required before an asset can be graded for publish candidacy." value={settings.minimumVotesForGrading} onChange={(value) => setSettings({ ...settings, minimumVotesForGrading: value })} />
-            <NumberField label="Publish positive %" help="Positive vote percentage needed to become a publish candidate." value={settings.minimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, minimumPositiveVotePercent: value })} />
-            <NumberField label="Starter %" help="Positive vote percentage needed for the Starter Library candidate tier." value={settings.freeAssetMinimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, freeAssetMinimumPositiveVotePercent: value })} />
-            <NumberField label="Creator Pass %" help="Positive vote percentage needed for Creator Pass candidate tier." value={settings.paidAssetMinimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, paidAssetMinimumPositiveVotePercent: value })} />
-            <NumberField label="Tier votes" help="Votes required before a calculated access tier can be assigned." value={settings.minimumVotesForTierAssignment} onChange={(value) => setSettings({ ...settings, minimumVotesForTierAssignment: value })} />
-            <NumberField label="Archive visible" help="Maximum archived developer assets kept visible to owners for recent timeline review." value={settings.archiveVisibleLimit} onChange={(value) => setSettings({ ...settings, archiveVisibleLimit: value })} />
+            <NumberField label="Votes to decide" help="Votes required before automatic status and tier selection begins." value={settings.minimumVotesForGrading} onChange={(value) => setSettings({ ...settings, minimumVotesForGrading: value })} />
+            <NumberField label="Starter %" help="Minimum positive vote percentage for automatic Starter placement." value={settings.freeAssetMinimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, freeAssetMinimumPositiveVotePercent: value })} />
+            <NumberField label="Creator Pass %" help="Minimum positive vote percentage for automatic Creator Pass placement." value={settings.paidAssetMinimumPositiveVotePercent} onChange={(value) => setSettings({ ...settings, paidAssetMinimumPositiveVotePercent: value })} />
           </div>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <ToggleField
-          label="Owner final review"
-          help="Require owner review before a developer-voted asset can become published."
-          checked={settings.ownerFinalReviewRequired}
-          onChange={(checked) => setSettings({ ...settings, ownerFinalReviewRequired: checked })}
-        />
-        <ToggleField
-          label="Paid previews"
-          help="Allow free users to see tasteful Creator Pass previews without unlocking use."
-          checked={settings.showPaidPreviewToFreeUsers}
-          onChange={(checked) => setSettings({ ...settings, showPaidPreviewToFreeUsers: checked })}
-        />
-        <ToggleField
-          label="Paid early access"
-          help="Allow Creator Pass users to use paid-tier publish candidates before final publish."
-          checked={settings.allowPaidEarlyAccessToCandidates}
-          onChange={(checked) => setSettings({ ...settings, allowPaidEarlyAccessToCandidates: checked })}
-        />
+      <div className="mt-5 grid gap-3 md:max-w-xl">
         <ToggleField
           label="Contributor self-voting"
           help="Allow contributors, including the owner alias for site defaults, to vote on their own assets. Useful for solo testing and demo-time pipeline seeding."
@@ -443,24 +451,17 @@ export function OwnerDeveloperProgramPanel() {
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
-        <DecisionCard label="Pipeline only" body={`Under ${settings.minimumVotesForTierAssignment} votes stays out of creator-facing libraries.`} />
-        <DecisionCard label="Archive path" body={`Below ${settings.freeAssetMinimumPositiveVotePercent}% positive stays pipeline-only or moves to archive.`} />
-        <DecisionCard label="Starter" body={`${settings.freeAssetMinimumPositiveVotePercent}-${settings.paidAssetMinimumPositiveVotePercent - 1}% positive can enter Starter Library.`} />
-        <DecisionCard label="Creator Pass" body={`${settings.paidAssetMinimumPositiveVotePercent}%+ positive can enter Creator Pass Library.`} />
+        <DecisionCard label="Gathering signal" body={`Under ${settings.minimumVotesForGrading} votes stays in review.`} />
+        <DecisionCard label="Automatic retire" body={`Below ${settings.freeAssetMinimumPositiveVotePercent}% positive retires until stronger recovery votes arrive.`} />
+        <DecisionCard label="Automatic Starter" body={`${settings.freeAssetMinimumPositiveVotePercent}-${settings.paidAssetMinimumPositiveVotePercent - 1}% positive competes for Starter capacity.`} />
+        <DecisionCard label="Automatic Creator Pass" body={`${settings.paidAssetMinimumPositiveVotePercent}%+ positive competes for Creator Pass capacity.`} />
       </div>
-
-      <OwnerAssetStorageForecast settings={settings} activeDeveloperCount={program.activeDeveloperCount} />
 
       <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveSettings}>
         <Save className="mr-2 h-4 w-4" />
         {isSaving ? 'Saving developer program...' : 'Save developer program'}
       </Button>
 
-      <OwnerAssetLibraryPanel
-        program={program}
-        updatingSubmissionId={updatingSubmissionId}
-        onUpdateStatus={updateStatus}
-      />
     </section>
     </TooltipProvider>
   );

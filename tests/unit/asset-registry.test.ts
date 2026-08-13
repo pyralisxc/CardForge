@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getAssetRegistryPayload, mapAssetRegistryRowsToPayload } from '@/features/developer-assets/lib/assetRegistry';
+import { getVisibleRegistryAccessTiers } from '@/features/developer-assets/lib/registryContentAssets';
 
 describe('asset registry', () => {
   const originalSupabaseUrl = process.env.SUPABASE_URL;
@@ -28,6 +29,12 @@ describe('asset registry', () => {
     expect(Array.isArray(payload.imageAssets)).toBe(true);
     expect(Array.isArray(payload.templates)).toBe(true);
     expect(Array.isArray(payload.elementPresets)).toBe(true);
+  });
+
+  it('enforces free, Creator Pass, and developer visibility from one policy', () => {
+    expect(getVisibleRegistryAccessTiers('free')).toEqual(['free']);
+    expect(getVisibleRegistryAccessTiers('paid')).toEqual(['free', 'paid']);
+    expect(getVisibleRegistryAccessTiers('dev')).toEqual(['free', 'paid', 'developer']);
   });
 
   it('maps every developer registry asset class, preserving metadata with provenance fields', () => {

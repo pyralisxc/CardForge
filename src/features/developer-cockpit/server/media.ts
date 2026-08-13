@@ -252,6 +252,85 @@ export const getAuthorizedCampaignMedia = async (
   });
 };
 
+export const setCampaignMediaArchived = async ({
+  mediaId,
+  archived,
+  ownerId,
+}: {
+  mediaId: string;
+  archived: boolean;
+  ownerId: string;
+}): Promise<void> => {
+  const { error } = await requireCockpitDatabase().rpc('cardforge_set_campaign_media_archived', {
+    p_media_id: mediaId,
+    p_archived: archived,
+    p_owner_id: ownerId,
+  });
+  if (error) throwCockpitDatabaseError('Unable to update campaign media retention.', error);
+};
+
+export const purgeCampaignMedia = async ({
+  mediaId,
+  confirmationFilename,
+}: {
+  mediaId: string;
+  confirmationFilename: string;
+}): Promise<void> => {
+  const supabase = requireCockpitDatabase();
+  const { data, error: prepareError } = await supabase.rpc('cardforge_prepare_campaign_media_purge', {
+    p_media_id: mediaId,
+    p_expected_filename: confirmationFilename,
+  });
+  if (prepareError) {
+    const status = prepareError.message?.includes('confirmation_mismatch')
+      ? 400
+      : prepareError.message?.includes('not_found')
+        ? 404
+        : 500;
+    const message = prepareError.message?.includes('confirmation_mismatch')
+      ? 'Type the exact filename to confirm permanent deletion.'
+      : status === 404
+        ? 'Campaign media not found.'
+        : 'Unable to prepare campaign media for permanent deletion.';
+    throw new DeveloperCockpitStoreError(message, status);
+  }
+
+  const rawObjects = (data as { storageObjects?: unknown } | null)?.storageObjects;
+  const objects = Array.isArray(rawObjects)
+    ? rawObjects.filter((value): value is { storageBucket: string; storagePath: string } => {
+        if (!value || typeof value !== 'object') return false;
+        const candidate = value as { storageBucket?: unknown; storagePath?: unknown };
+        return typeof candidate.storageBucket === 'string' && typeof candidate.storagePath === 'string';
+      })
+    : [];
+  const pathsByBucket = new Map<string, Set<string>>();
+  for (const object of objects) {
+    const paths = pathsByBucket.get(object.storageBucket) ?? new Set<string>();
+    paths.add(object.storagePath);
+    pathsByBucket.set(object.storageBucket, paths);
+  }
+
+  for (const [bucket, paths] of pathsByBucket) {
+    const { error: storageError } = await supabase.storage.from(bucket).remove([...paths]);
+    if (storageError) {
+      throw new DeveloperCockpitStoreError(
+        'Some campaign media storage still needs deletion. Retry this action; the database record remains in a recoverable pending state.',
+        503,
+      );
+    }
+  }
+
+  const { error: finalizeError } = await supabase.rpc('cardforge_finalize_campaign_media_purge', {
+    p_media_id: mediaId,
+  });
+  if (finalizeError) {
+    throw new DeveloperCockpitStoreError(
+      'Campaign media files were removed, but database cleanup still needs to finish. Retry permanent deletion.',
+      503,
+    );
+  }
+};
+
 export const getPublicCampaignMediaUrl = async (
   mediaId: string,
   derivativeId: string | null,

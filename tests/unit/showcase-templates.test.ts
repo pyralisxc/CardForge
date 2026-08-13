@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { CARDFORGE_EXAMPLES } from '@/features/public-site/client';
 import { CARD_FORMATS } from '@/domain/card-formats';
 import { TemplateThumbnail } from '@/features/card-rendering/client';
+import type { TCGCardTemplate } from '@/domain/templates';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
 
 interface ShippedTemplate {
@@ -113,6 +114,14 @@ describe('showcase templates', () => {
       templateUsage: 'back-preset',
       formatId: 'us-business',
       startingPoint: 'branded-back',
+      brandedBackTemplate: {
+        ...readTemplate('default-cardforge-studio-back-us-business.json'),
+        name: 'CardForge Studio business back',
+        aspectRatio: '3.5:2',
+        templateSource: 'default',
+        templateLibrarySource: 'pipeline',
+        templateRegistryStatus: 'published',
+      } as TCGCardTemplate,
     });
 
     const html = renderToStaticMarkup(createElement(TemplateThumbnail, { template: landscapeBack }));

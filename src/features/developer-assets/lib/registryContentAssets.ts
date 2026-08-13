@@ -3,6 +3,16 @@ import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infras
 import type { PostgrestError } from '@supabase/supabase-js';
 
 export type RegistryContentAssetType = 'template' | 'elementPreset' | 'font';
+export type RegistryViewerAccess = 'free' | 'paid' | 'dev';
+export type RegistryVisibleAccessTier = 'free' | 'paid' | 'developer';
+
+export const getVisibleRegistryAccessTiers = (
+  viewerAccess: RegistryViewerAccess,
+): RegistryVisibleAccessTier[] => viewerAccess === 'dev'
+  ? ['free', 'paid', 'developer']
+  : viewerAccess === 'paid'
+    ? ['free', 'paid']
+    : ['free'];
 
 export interface RegistryContentAssetRow {
   asset_id: string;
@@ -77,10 +87,12 @@ export const readRegistryContentAsset = async <T>(
 
 export const getPublishedRegistryContentRows = async (
   assetType: RegistryContentAssetType,
+  viewerAccess: RegistryViewerAccess = 'free',
 ): Promise<RegistryContentAssetRow[]> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
 
+  const visibleTiers = getVisibleRegistryAccessTiers(viewerAccess);
   const { data, error } = await resolveWithTimeout(
     Promise.resolve(
       supabase
@@ -88,7 +100,7 @@ export const getPublishedRegistryContentRows = async (
         .select('asset_id,name,url,status,access_tier,library_source,metadata')
         .eq('asset_type', assetType)
         .eq('status', 'published')
-        .neq('access_tier', 'hidden')
+        .in('access_tier', visibleTiers)
         .order('name', { ascending: true }),
     ),
     {
