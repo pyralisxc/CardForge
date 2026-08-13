@@ -54,8 +54,6 @@ export interface OwnerManagedAccount {
   note: string;
 }
 
-export const getOwnerApiErrorMessage = readApiErrorMessage;
-
 export const updateOwnerConsole = async (
   body: Record<string, unknown>,
   fallback: string,
@@ -65,6 +63,6 @@ export const updateOwnerConsole = async (
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, fallback));
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, fallback));
   return ((await response.json()) as { console: OwnerConsolePayload }).console;
 };

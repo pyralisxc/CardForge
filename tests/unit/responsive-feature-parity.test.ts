@@ -41,6 +41,7 @@ describe('responsive feature parity', () => {
 
   it('makes library failures recoverable and asks before retargeting existing cards', () => {
     const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
+    const dialogs = readSource('src/features/app-shell/components/StudioConfirmationDialogs.tsx');
     const bootstrap = readSource('src/features/app-shell/hooks/useBootstrapLibraries.ts');
 
     expect(bootstrap).toContain('templateLibraryFailed');
@@ -48,9 +49,9 @@ describe('responsive feature parity', () => {
     expect(bootstrap).toContain('retryLibraries');
     expect(shell).toContain('Some Studio library content did not load');
     expect(shell).toContain('Retry library');
-    expect(shell).toContain('Use the saved design on existing cards?');
-    expect(shell).toContain('New cards only');
-    expect(shell).toContain('Update existing cards');
+    expect(dialogs).toContain('Use the saved design on existing cards?');
+    expect(dialogs).toContain('New cards only');
+    expect(dialogs).toContain('Update existing cards');
     expect(shell).toContain('retargetGeneratedCardsTemplateAction');
   });
 

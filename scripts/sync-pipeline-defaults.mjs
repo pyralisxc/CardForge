@@ -281,188 +281,37 @@ const collectStyleItems = async () => {
   const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
   const items = [];
   for (const file of files) {
-    const style = await readJson(path.join(directory, file));
-    if (!style?.id || !style?.name) continue;
-    items.push({
-      asset_id: style.id,
-      name: style.name,
-      registry_asset_type: 'elementPreset',
-      developer_asset_type: 'elementPresets',
-      url: `/api/styles#${style.id}`,
-      preview_url: `/api/styles#${style.id}`,
-      storage_bucket: null,
-      storage_path: null,
-      file_size_bytes: Buffer.byteLength(JSON.stringify(style)),
-      source_mime_type: 'application/json',
-      description: `${style.name} starter style imported into the Forge Pipeline.`,
-      metadata: {
-        sourceKind: 'pipeline-owner-import',
-        sourcePath: `data/styles/${file}`,
-        style: {
-          ...style,
-          librarySource: 'developer',
-          accessTier: 'free',
-          registryStatus: 'published',
-          contributorName: OWNER_EMAIL,
+    const document = await readJson(path.join(directory, file));
+    const styles = Array.isArray(document?.styles) ? document.styles : [document];
+    for (const style of styles) {
+      if (!style?.id || !style?.name) continue;
+      items.push({
+        asset_id: style.id,
+        name: style.name,
+        registry_asset_type: 'elementPreset',
+        developer_asset_type: 'elementPresets',
+        url: `/api/styles#${style.id}`,
+        preview_url: `/api/styles#${style.id}`,
+        storage_bucket: null,
+        storage_path: null,
+        file_size_bytes: Buffer.byteLength(JSON.stringify(style)),
+        source_mime_type: 'application/json',
+        description: `${style.name} starter style imported into the Forge Pipeline.`,
+        metadata: {
+          sourceKind: 'pipeline-owner-import',
+          sourcePath: `data/styles/${file}`,
+          style: {
+            ...style,
+            librarySource: 'developer',
+            accessTier: 'free',
+            registryStatus: 'published',
+            contributorName: OWNER_EMAIL,
+          },
         },
-      },
-    });
+      });
+    }
   }
   return items;
-};
-
-const borderAppearance = (background, border, backgroundImage) => ({
-  material: { baseColor: background },
-  border,
-  ...(backgroundImage ? { rawCss: { backgroundImage } } : {}),
-});
-
-const styleItem = (style, sourcePath = 'scripts/sync-pipeline-defaults.mjs#seeded-recipes') => ({
-  asset_id: style.id,
-  name: style.name,
-  registry_asset_type: 'elementPreset',
-  developer_asset_type: 'elementPresets',
-  url: `/api/styles#${style.id}`,
-  preview_url: `/api/styles#${style.id}`,
-  storage_bucket: null,
-  storage_path: null,
-  file_size_bytes: Buffer.byteLength(JSON.stringify(style)),
-  source_mime_type: 'application/json',
-  description: `${style.name} starter recipe imported into the Forge Pipeline.`,
-  metadata: {
-    sourceKind: 'pipeline-owner-import',
-    sourcePath,
-    style: {
-      ...style,
-      librarySource: 'developer',
-      accessTier: 'free',
-      registryStatus: 'published',
-      contributorName: OWNER_EMAIL,
-    },
-  },
-});
-
-const collectSeededRecipeItems = async () => {
-  const shapeRoles = [
-    {
-      id: 'shape-role-panel',
-      name: 'Panel',
-      kind: 'shapeRole',
-      targets: ['shape'],
-      appearance: {
-        shapeRole: 'panel',
-        material: { baseColor: 'rgba(18,15,11,0.72)', texture: { kind: 'uploaded', assetSource: '/card-assets/textures/dark-leather.svg', assetKind: 'texture', textureOpacity: 42, textureScale: 180, blendMode: 'overlay' } },
-        border: { kind: 'relic', color: '#d5ad54', width: 2, radius: 8 },
-        effects: { innerHighlight: 18, bevel: 20 },
-      },
-      updates: { shapeRole: 'panel', shapeKind: 'rectangle', width: 360, height: 140, borderRadius: 'rounded-md' },
-    },
-    {
-      id: 'shape-role-art-frame',
-      name: 'Art Frame',
-      kind: 'shapeRole',
-      targets: ['shape'],
-      appearance: { shapeRole: 'artFrame', material: { baseColor: 'rgba(0,0,0,0.04)', texture: { kind: 'none' } }, border: { kind: 'relic', color: '#d5ad54', secondaryColor: '#7a52cc', width: 4, radius: 10 }, effects: { glow: 10, innerHighlight: 16 } },
-      updates: { shapeRole: 'artFrame', shapeKind: 'corner-frame', width: 500, height: 330, fillColor: 'transparent', backgroundColor: 'transparent' },
-    },
-    {
-      id: 'shape-role-rules-box',
-      name: 'Rules Box',
-      kind: 'shapeRole',
-      targets: ['shape'],
-      appearance: {
-        shapeRole: 'rulesBox',
-        material: { baseColor: 'rgba(244,226,186,0.94)', textColor: '#20140a', texture: { kind: 'uploaded', assetSource: '/card-assets/textures/parchment-grain.svg', assetKind: 'texture', textureOpacity: 46, textureScale: 160, blendMode: 'multiply' } },
-        border: { kind: 'relic', color: '#4a2f12', secondaryColor: '#d5ad54', width: 4, radius: 8 },
-        effects: { innerHighlight: 28, bevel: 22 },
-      },
-      updates: { shapeRole: 'rulesBox', shapeKind: 'notch-panel', width: 500, height: 180 },
-    },
-    {
-      id: 'shape-role-title-plate',
-      name: 'Title Plate',
-      kind: 'shapeRole',
-      targets: ['shape'],
-      appearance: {
-        shapeRole: 'titlePlate',
-        material: { baseColor: '#17100b', textColor: '#f7df9d', texture: { kind: 'uploaded', assetSource: '/card-assets/textures/hammered-metal.svg', assetKind: 'texture', textureOpacity: 28, textureScale: 150, blendMode: 'overlay' } },
-        border: { kind: 'double', color: '#d5ad54', width: 2, radius: 6 },
-        effects: { glow: 8, bevel: 18 },
-      },
-      updates: { shapeRole: 'titlePlate', shapeKind: 'banner', width: 430, height: 48 },
-    },
-    {
-      id: 'shape-role-stat-gem',
-      name: 'Stat Gem',
-      kind: 'shapeRole',
-      targets: ['shape'],
-      appearance: { shapeRole: 'statGem', material: { baseColor: '#0b0f15', texture: { kind: 'uploaded', assetSource: '/card-assets/textures/purple-foil.svg', assetKind: 'texture', textureOpacity: 36, textureScale: 190, blendMode: 'screen' } }, border: { kind: 'foil', color: '#d5ad54', secondaryColor: '#7a52cc', width: 3, radius: 8 }, effects: { glow: 16 } },
-      updates: { shapeRole: 'statGem', shapeKind: 'diamond', width: 64, height: 64 },
-    },
-    {
-      id: 'shape-role-cost-orb',
-      name: 'Cost Orb',
-      kind: 'shapeRole',
-      targets: ['shape'],
-      appearance: { shapeRole: 'costOrb', material: { baseColor: '#0b0f15', texture: { kind: 'uploaded', assetSource: '/card-assets/textures/hammered-metal.svg', assetKind: 'texture', textureOpacity: 34, textureScale: 150, blendMode: 'overlay' } }, border: { kind: 'foil', color: '#d5ad54', secondaryColor: '#f5d27b', width: 3, radius: 999 }, effects: { glow: 14, innerHighlight: 20 } },
-      updates: { shapeRole: 'costOrb', shapeKind: 'ellipse', width: 64, height: 64, borderRadius: 'rounded-full' },
-    },
-  ];
-
-  const borders = [
-    ['border-none', 'None', '#111720', { kind: 'none', width: 0, radius: 0 }],
-    ['border-gold-hairline', 'Gold Hairline', '#111720', { kind: 'solid', color: '#d5ad54', width: 1, radius: 6 }],
-    ['border-heavy-relic', 'Heavy Relic', '#17100b', { kind: 'relic', color: '#9f742a', secondaryColor: '#d5ad54', width: 4, radius: 8, innerWidth: 1 }],
-    ['border-arcane-edge', 'Arcane Edge', '#160d25', { kind: 'foil', color: '#7a52cc', secondaryColor: '#bda2ff', width: 2, radius: 12 }],
-    ['border-circle-seal', 'Circle Seal', '#151008', { kind: 'double', color: '#d5ad54', width: 2, radius: 999 }],
-    ['border-etched-frame', 'Etched Frame', '#140f09', { kind: 'etched', color: '#d5ad54', secondaryColor: '#5f4216', width: 4, radius: 6, innerWidth: 1 }],
-    ['border-violet-relic', 'Violet Relic', '#160d25', { kind: 'relic', color: '#7a52cc', secondaryColor: '#d8c4ff', width: 4, radius: 12, innerWidth: 1 }],
-  ].map(([id, name, background, border]) => ({
-    id,
-    name,
-    kind: 'border',
-    targets: ['text', 'image', 'icon', 'shape'],
-    appearance: borderAppearance(background, border),
-  }));
-
-  const dividers = [
-    ['divider-gilded-filigree-seed', 'Gilded Filigree', '#d5ad54', 'linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)', 14],
-    ['divider-mana-thread-seed', 'Mana Thread', '#7a52cc', 'linear-gradient(90deg, transparent, #7a52cc 16%, #d5ad54 50%, #7a52cc 84%, transparent)', 10],
-    ['divider-double-gold-seed', 'Double Gold', '#d5ad54', 'linear-gradient(180deg, transparent 0 25%, #d5ad54 25% 38%, transparent 38% 62%, #d5ad54 62% 75%, transparent 75%)', 12],
-    ['divider-bloodline-seed', 'Bloodline', '#8c2718', 'linear-gradient(90deg, transparent, #8c2718 18%, #f0b15a 50%, #8c2718 82%, transparent)', 10],
-    ['divider-chevron-relic-seed', 'Chevron Relic', '#7a52cc', 'repeating-linear-gradient(120deg, transparent 0 10px, rgba(255,255,255,0.16) 10px 15px), linear-gradient(90deg, transparent, #4d2096 14%, #d5ad54 50%, #4d2096 86%, transparent)', 18],
-    ['divider-gem-center-seed', 'Gem Center', '#d5ad54', 'linear-gradient(90deg, transparent, #7f5d1f 20%, transparent 42%, #f5d27b 47%, #7a52cc 50%, #f5d27b 53%, transparent 58%, #7f5d1f 80%, transparent)', 20],
-  ].map(([id, name, color, backgroundImage, height]) => ({
-    id,
-    name,
-    kind: 'divider',
-    targets: ['divider', 'shape'],
-    appearance: { shapeRole: 'divider', material: { baseColor: color, texture: { kind: 'none' } }, border: { kind: 'none', width: 0, radius: 999 }, rawCss: { backgroundImage } },
-    updates: { shapeKind: 'rectangle', shapeRole: 'divider', width: 470, height, strokeWidth: 0, fillColor: color, backgroundImageUrl: backgroundImage, borderWidth: '_none_', borderRadius: 'rounded-full', appearance: { shapeRole: 'divider' } },
-  }));
-
-  const icons = [
-    ['icon-style-fire', 'Fire', 'Flame', '#210b06', '#ffb35f', '#d67425', 'rgba(132,37,15,0.72)'],
-    ['icon-style-water', 'Water', 'Droplets', '#071521', '#9ddcff', '#49a7df', 'rgba(47,125,185,0.45)'],
-    ['icon-style-arcane', 'Arcane', 'WandSparkles', '#190f2c', '#d8c4ff', '#7a52cc', 'rgba(122,82,204,0.42)'],
-    ['icon-style-nature', 'Nature', 'Leaf', '#0b1a0f', '#b9f2a1', '#6fb06a', 'rgba(62,137,78,0.48)'],
-    ['icon-style-shadow', 'Shadow', 'Skull', '#08070a', '#e6d8ff', '#8066a8', 'rgba(36,28,46,0.82)'],
-    ['icon-style-relic', 'Relic', 'Gem', '#151008', '#ffe09b', '#d5ad54', 'rgba(213,173,84,0.34)'],
-  ].map(([id, name, iconName, baseColor, strokeColor, borderColor, fillColor]) => ({
-    id,
-    name,
-    kind: 'icon',
-    targets: ['icon'],
-    appearance: { material: { baseColor, textColor: strokeColor, fillColor, strokeColor }, border: { kind: 'solid', color: borderColor, width: 1, radius: 999 }, effects: { glow: 14 } },
-    updates: { iconName, strokeColor, fillColor, backgroundColor: baseColor, borderColor, borderWidth: name === 'Arcane' || name === 'Relic' ? 'border-2' : 'border', borderRadius: 'rounded-full' },
-  }));
-
-  return [
-    ...shapeRoles,
-    ...borders,
-    ...dividers,
-    ...icons,
-  ].map((style) => styleItem(style));
 };
 
 const main = async () => {
@@ -500,7 +349,6 @@ const main = async () => {
     ...await collectStaticAssetItems(supabase),
     ...await collectTemplateItems(),
     ...await collectStyleItems(),
-    ...await collectSeededRecipeItems(),
   ];
 
   for (const item of items) {

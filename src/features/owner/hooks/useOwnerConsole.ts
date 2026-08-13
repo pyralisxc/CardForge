@@ -4,10 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useToast } from '@/components/ui/use-toast';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
-import {
-  getOwnerApiErrorMessage,
-  type OwnerConsoleResponse,
-} from '@/features/owner/model/ownerConsoleClient';
+import type { OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export function useOwnerConsole() {
   const { toast } = useToast();
@@ -29,7 +27,7 @@ export function useOwnerConsole() {
       setLoadError(null);
       try {
         const response = await fetch('/api/owner/console', { cache: 'no-store' });
-        if (!response.ok) throw new Error(await getOwnerApiErrorMessage(response, 'Unable to load owner console.'));
+        if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load owner console.'));
         const nextPayload = await response.json() as OwnerConsoleResponse;
         if (mounted) setPayload(nextPayload);
       } catch (error) {

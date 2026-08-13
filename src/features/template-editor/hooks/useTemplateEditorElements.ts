@@ -18,14 +18,9 @@ import {
   elementKits,
 } from '@/features/template-editor/lib/elementKits';
 import {
-  BORDER_PRESET_RECIPES,
-  DIVIDER_PRESET_RECIPES,
-  ICON_STYLE_PRESET_RECIPES,
-  SHAPE_ROLE_PRESET_RECIPES,
   buildElementPresetElementUpdates,
   createRecipesFromAppearanceStyles,
   isElementPresetApplicable,
-  mergeElementPresetRecipes,
   type ElementPresetRecipe,
 } from '@/features/template-editor/lib/elementPresetRecipes';
 import { buildLayerTree } from '@/features/template-editor/lib/layerTree';
@@ -127,25 +122,13 @@ export function useTemplateEditorElements({
       shapeRole: [] as ElementPresetRecipe[],
     };
     if (!selectedElement) return empty;
-    const registryRecipes = createRecipesFromAppearanceStyles(appearanceStyles)
+    const recipes = createRecipesFromAppearanceStyles(appearanceStyles)
       .filter((preset) => isElementPresetApplicable(preset, selectedElement));
     return {
-      border: mergeElementPresetRecipes(
-        BORDER_PRESET_RECIPES,
-        registryRecipes.filter((preset) => preset.kind === 'borderTreatment'),
-      ),
-      divider: mergeElementPresetRecipes(
-        DIVIDER_PRESET_RECIPES,
-        registryRecipes.filter((preset) => preset.kind === 'dividerRecipe'),
-      ),
-      icon: mergeElementPresetRecipes(
-        ICON_STYLE_PRESET_RECIPES,
-        registryRecipes.filter((preset) => preset.kind === 'iconStyle'),
-      ),
-      shapeRole: mergeElementPresetRecipes(
-        SHAPE_ROLE_PRESET_RECIPES,
-        registryRecipes.filter((preset) => preset.kind === 'shapeRole'),
-      ),
+      border: recipes.filter((preset) => preset.kind === 'borderTreatment'),
+      divider: recipes.filter((preset) => preset.kind === 'dividerRecipe'),
+      icon: recipes.filter((preset) => preset.kind === 'iconStyle'),
+      shapeRole: recipes.filter((preset) => preset.kind === 'shapeRole'),
     };
   }, [appearanceStyles, selectedElement]);
 

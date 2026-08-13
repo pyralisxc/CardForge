@@ -9,11 +9,16 @@ describe('billing webhook entitlement safety', () => {
       join(process.cwd(), 'src/app/api/billing/webhook/route.ts'),
       'utf8',
     );
-    const syncStart = route.indexOf('const syncSubscriptionAccess');
-    const handlerStart = route.indexOf('const handleStripeEvent');
-    const syncBody = route.slice(syncStart, handlerStart);
+    const processor = readFileSync(
+      join(process.cwd(), 'src/features/billing/server/processStripeWebhook.ts'),
+      'utf8',
+    );
+    const syncStart = processor.indexOf('const syncSubscriptionAccess');
+    const handlerStart = processor.indexOf('const handleStripeEvent');
+    const syncBody = processor.slice(syncStart, handlerStart);
 
     expect(route).toContain('export const maxDuration = 30;');
+    expect(route).toContain('export const POST = processStripeWebhook;');
     expect(syncBody).toContain('acquireBillingEntitlementLock({ clerkUserId: userId })');
     expect(syncBody).toContain('releaseBillingEntitlementLock({');
     expect(syncBody.indexOf('stripe.subscriptions.retrieve(subscriptionId)'))

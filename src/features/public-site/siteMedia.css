@@ -1,0 +1,25 @@
+.site-media-responsive-image {
+  object-position: var(--site-media-mobile-position);
+  transform: scale(var(--site-media-mobile-zoom));
+  transform-origin: var(--site-media-mobile-position);
+}
+
+.site-media-responsive-image[data-preview-viewport="desktop"] {
+  object-position: var(--site-media-desktop-position);
+  transform: scale(var(--site-media-desktop-zoom));
+  transform-origin: var(--site-media-desktop-position);
+}
+
+.site-media-responsive-image[data-preview-viewport="mobile"] {
+  object-position: var(--site-media-mobile-position);
+  transform: scale(var(--site-media-mobile-zoom));
+  transform-origin: var(--site-media-mobile-position);
+}
+
+@media (min-width: 768px) {
+  .site-media-responsive-image:not([data-preview-viewport]) {
+    object-position: var(--site-media-desktop-position);
+    transform: scale(var(--site-media-desktop-zoom));
+    transform-origin: var(--site-media-desktop-position);
+  }
+}

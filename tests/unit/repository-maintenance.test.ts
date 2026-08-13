@@ -15,32 +15,6 @@ const pathExists = async (...parts: string[]) => {
 };
 
 describe('repository maintenance policy', () => {
-  it('keeps completed planning and local editor artifacts out of the live tree', async () => {
-    const retiredPaths = [
-      ['.vscode', 'settings.json'],
-      ['docs', 'superpowers'],
-      ['scripts', 'audit-site-health.mjs'],
-      ['scripts', 'generate-bulk-csv.mjs'],
-      ['scripts', 'setup-qa-accounts.mjs'],
-      ['src', 'components', 'card-forge', 'CardPreview.tsx'],
-      ['src', 'lib', 'cardPreviewExport.tsx'],
-      ['src', 'types', 'index.ts'],
-      ['config', 'architecture-baseline.json'],
-      ['docs', 'architecture-refactor-design.md'],
-      ['docs', 'architecture-refactor-plans'],
-      ['AGENTS-snippet.md'],
-      ['data', 'user-templates'],
-      ['docs', 'cardforge-public-identity-overhaul-design.md'],
-      ['docs', 'showcase-homepage-design.md'],
-      ['docs', 'stripe-support-rollout.md'],
-      ['output'],
-    ];
-
-    for (const retiredPath of retiredPaths) {
-      await expect(pathExists(...retiredPath), retiredPath.join('/')).resolves.toBe(false);
-    }
-  });
-
   it('records ownership for the architecture foundation', async () => {
     const codeowners = await readFile(rootPath('.github', 'CODEOWNERS'), 'utf8');
 

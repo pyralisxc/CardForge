@@ -7,14 +7,15 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 
 describe('Studio first-session experience', () => {
   const shell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
+  const firstRunGuide = readSource('src/features/app-shell/components/StudioFirstRunGuide.tsx');
   const bulkInput = readSource('src/features/card-generator/components/BulkCsvInputPanel.tsx');
   const gallery = readSource('src/features/card-generator/components/GeneratedCardGallery.tsx');
   const alerts = readSource('src/features/project/components/BrowserStorageAlerts.tsx');
 
   it('uses actionable existing-Studio choices instead of the retired step list', () => {
-    expect(shell).toContain('Welcome to the forge');
-    expect(shell).toContain('Start making cards');
-    expect(shell).toContain('Design the layout first');
+    expect(firstRunGuide).toContain('Welcome to the forge');
+    expect(firstRunGuide).toContain('Start making cards');
+    expect(firstRunGuide).toContain('Design the layout first');
     expect(shell).toContain("setActiveTabAction('generator')");
     expect(shell).toContain("setActiveTabAction('template-maker')");
     expect(shell).not.toContain('const firstRunSteps');

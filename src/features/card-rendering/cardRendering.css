@@ -1,0 +1,42 @@
+.tcg-card-preview {
+  border-width: 4px;
+  border-style: solid;
+  border-color: hsl(var(--border));
+  border-radius: var(--radius);
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.tcg-card-preview.frame-standard {
+  background-color: white;
+  color: black;
+}
+
+.tcg-card-preview.frame-custom {
+  /* Template inline styles intentionally own this frame. */
+}
+
+.tcg-card-preview.frame-classic-gold {
+  border: 6px solid transparent;
+  border-image: linear-gradient(to bottom right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C) 1;
+  background-color: #fdf4d8;
+  color: #4a3b2a;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), inset 0 0 5px rgba(255, 223, 186, 0.5);
+}
+
+.tcg-card-preview.frame-minimal-dark {
+  border: 2px solid #4a4a4a;
+  background-color: #282828;
+  color: #c0c0c0;
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.tcg-card-preview.frame-arcane-purple {
+  border: 5px solid hsl(var(--primary-foreground));
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.9), hsl(var(--primary) / 0.6));
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.7), inset 0 0 15px hsl(var(--background) / 0.4);
+  color: hsl(var(--primary-foreground));
+  border-radius: 0.6rem;
+}

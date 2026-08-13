@@ -1,7 +1,4 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-
-import type { AppearanceStyleLibrary, AppearanceStylePreset } from '@/domain/templates';
+import type { AppearanceStylePreset } from '@/domain/templates';
 import {
   DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
@@ -12,9 +9,9 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 import {
   archivePipelineRegistryAsset,
   DeveloperAssetRegistryCommandError,
-  getPublishedRegistryContentRows,
-  readRegistryContentAsset,
-  upsertPipelineRegistryAsset,
+  getRepositoryStyleLibrary,
+  isRepositoryStyle,
+  publishRepositoryStyle,
 } from '@/features/developer-assets/server';
 import {
   DeveloperCockpitAccessError,
@@ -22,126 +19,9 @@ import {
   requireContributionScope,
 } from '@/features/developer-access/server';
 
-const DEFAULT_STYLE_LIBRARY_DIR = path.join(process.cwd(), 'data', 'styles');
-const PIPELINE_OWNER_EMAIL = process.env.CARDFORGE_PIPELINE_OWNER_EMAIL?.trim() || null;
-const PIPELINE_CONTRIBUTOR_NAME = PIPELINE_OWNER_EMAIL || 'CardForge Studio';
-
-const isStylePreset = (value: unknown): value is AppearanceStylePreset => {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<AppearanceStylePreset>;
-  return typeof candidate.id === 'string'
-    && typeof candidate.name === 'string'
-    && typeof candidate.kind === 'string'
-    && Array.isArray(candidate.targets)
-    && !!candidate.appearance;
-};
-
-const syncStylePresetToRegistry = async (style: AppearanceStylePreset) => {
-  const stylePayload: AppearanceStylePreset = {
-    ...style,
-    librarySource: 'developer',
-    accessTier: 'free',
-    registryStatus: 'published',
-    contributorName: PIPELINE_CONTRIBUTOR_NAME,
-  };
-
-  await upsertPipelineRegistryAsset({
-    assetId: style.id,
-    name: style.name,
-    submissionAssetType: 'elementPresets',
-    registryAssetType: 'elementPreset',
-    url: `/api/styles#${style.id}`,
-    description: `${style.name} starter style maintained through the Forge Pipeline.`,
-    fileSizeBytes: Buffer.byteLength(JSON.stringify(style)),
-    metadata: {
-        sourceKind: 'pipeline-owner-edit',
-        style: stylePayload,
-    },
-  });
-};
-
-const readLibrary = async (): Promise<AppearanceStyleLibrary> => {
-  const [localStyles, registryStyles] = await Promise.all([
-    readStylesFromDirectory(DEFAULT_STYLE_LIBRARY_DIR),
-    readStylesFromRegistry(),
-  ]);
-
-  return {
-    version: 1,
-    styles: mergeStylesById(localStyles, registryStyles),
-  };
-};
-
-const readStylesFromDirectory = async (directory: string): Promise<AppearanceStylePreset[]> => {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  const styles: AppearanceStylePreset[] = [];
-
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-    const filePath = path.join(directory, entry.name);
-    try {
-      const contents = await fs.readFile(filePath, 'utf8');
-      const parsed = JSON.parse(contents);
-      if (isStylePreset(parsed)) {
-        styles.push({
-          ...parsed,
-          librarySource: 'official',
-          accessTier: 'free',
-          registryStatus: 'published',
-          contributorName: PIPELINE_CONTRIBUTOR_NAME,
-        });
-      }
-    } catch (error) {
-      console.warn(`Skipping invalid style file ${entry.name}:`, error);
-    }
-  }
-
-  return styles;
-};
-
-const mergeStylesById = (
-  baseStyles: AppearanceStylePreset[],
-  overrideStyles: AppearanceStylePreset[],
-): AppearanceStylePreset[] => {
-  const merged = new Map<string, AppearanceStylePreset>();
-
-  [...baseStyles, ...overrideStyles].forEach((style) => {
-    if (!style.id) return;
-    merged.set(style.id, style);
-  });
-
-  return Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
-};
-
-const readStylesFromRegistry = async (): Promise<AppearanceStylePreset[]> => {
-  const rows = await getPublishedRegistryContentRows('elementPreset');
-  if (rows.length === 0) return [];
-
-  const styles: Array<AppearanceStylePreset | null> = await Promise.all(rows.map(async (row) => {
-    const style = await readRegistryContentAsset<AppearanceStylePreset>(
-      row,
-      ['style', 'elementPreset', 'payload'],
-      isStylePreset,
-    );
-
-    if (!style) return null;
-    return {
-      ...style,
-      id: style.id || row.asset_id,
-      name: style.name || row.name,
-      librarySource: row.library_source === 'developer' ? 'developer' as const : 'official' as const,
-      accessTier: row.access_tier,
-      registryStatus: row.status,
-      contributorName: style.contributorName || PIPELINE_CONTRIBUTOR_NAME,
-    };
-  }));
-
-  return styles.filter((style): style is AppearanceStylePreset => Boolean(style));
-};
-
 export async function GET() {
   try {
-    return createNoStoreJsonResponse(await readLibrary());
+    return createNoStoreJsonResponse(await getRepositoryStyleLibrary());
   } catch (error) {
     console.error('Failed to load style library:', error);
     return createApiErrorResponse(
@@ -167,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     const body = parsedBody.data;
-    const current = await readLibrary();
+    const current = await getRepositoryStyleLibrary();
     const bodyRecord = typeof body === 'object' && body !== null
       ? body as Record<string, unknown>
       : null;
@@ -183,7 +63,7 @@ export async function POST(request: Request) {
         invalidStyleDetails.push(...formatZodIssues(parsed.error.issues).map((message) => `styles[${index}].${message}`));
         return;
       }
-      if (isStylePreset(parsed.data)) {
+      if (isRepositoryStyle(parsed.data)) {
         validStyles.push(parsed.data);
       }
     });
@@ -204,7 +84,7 @@ export async function POST(request: Request) {
       else merged.push(style);
     });
 
-    await Promise.all(validStyles.map(syncStylePresetToRegistry));
+    await Promise.all(validStyles.map(publishRepositoryStyle));
     const next = { version: current.version || 1, styles: merged.sort((a, b) => a.name.localeCompare(b.name)) };
     return createNoStoreJsonResponse(next);
   } catch (error) {
@@ -246,7 +126,7 @@ export async function DELETE(request: Request) {
       return createApiErrorResponse(400, 'invalid_style_id', 'Style id is required.');
     }
     await archivePipelineRegistryAsset(body.id);
-    const next = await readLibrary();
+    const next = await getRepositoryStyleLibrary();
     return createNoStoreJsonResponse(next);
   } catch (error) {
     if (error instanceof DeveloperCockpitAccessError) {

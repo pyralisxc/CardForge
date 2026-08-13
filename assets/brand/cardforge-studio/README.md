@@ -29,7 +29,11 @@ Set watermark opacity in the renderer rather than baking translucency into the s
 
 ## Usage boundary
 
-Keep this folder as repository starter/source material. Copy only required runtime derivatives into `public/` during implementation. Do not introduce a second runtime asset catalog or fallback path.
+This folder is the only editable source. The matching SVG files under
+`public/brand/cardforge-studio/` are generated runtime mirrors, not independent
+masters. Run `npm run brand:export` after changing a source SVG; the command
+resynchronizes the required runtime files before producing PNG derivatives.
+Do not edit the `public/` copies directly or introduce a second asset catalog.
 
 ## Raster exports
 
