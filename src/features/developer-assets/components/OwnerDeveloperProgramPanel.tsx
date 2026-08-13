@@ -27,7 +27,7 @@ import {
   type DeveloperProgramSettings,
   type DeveloperVotingPreset,
 } from '@/features/developer-assets/lib/developerAssets';
-import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import { getDeveloperAssetTypeLabel } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 

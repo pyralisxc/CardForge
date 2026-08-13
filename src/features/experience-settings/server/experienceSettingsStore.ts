@@ -4,7 +4,6 @@ import {
   normalizeExperienceSettingsInput,
   type ExperienceSettings,
 } from '@/features/experience-settings/client';
-import { isMissingSupabaseColumnError, isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -30,9 +29,7 @@ export const getExperienceSettings = async (): Promise<ExperienceSettings> => {
     .limit(1);
 
   if (error) {
-    if (!isMissingSupabaseTableError(error) && !isMissingSupabaseColumnError(error, [...EXPERIENCE_SETTING_COLUMNS])) {
-      console.error('Failed to load experience settings:', error);
-    }
+    console.error('Failed to load experience settings:', error);
     return DEFAULT_EXPERIENCE_SETTINGS;
   }
 
@@ -61,9 +58,6 @@ export const updateExperienceSettings = async (
   }, { onConflict: 'id' });
 
   if (error) {
-    if (isMissingSupabaseColumnError(error, [...EXPERIENCE_SETTING_COLUMNS])) {
-      throw new ExperienceSettingsStoreError('Experience controls are still deploying. Try again shortly.', 503);
-    }
     console.error('Failed to update experience settings:', error);
     throw new ExperienceSettingsStoreError('Unable to update experience settings.', 500);
   }

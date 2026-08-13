@@ -1,6 +1,4 @@
 export const FOUNDER_PROFILE_ID = 'cameron-locke';
-export const FOUNDER_PORTRAIT_BUCKET = 'cardforge-public-media';
-export const FOUNDER_PORTRAIT_PATH = 'founder/cameron-locke/portrait.webp';
 
 export interface FounderProfile {
   heroEyebrow: string;
@@ -14,8 +12,6 @@ export interface FounderProfile {
   supportHeading: string;
   supportIntroduction: string;
   supportUseSummary: string;
-  portraitStoragePath: string | null;
-  portraitAlt: string;
   facebookUrl: string | null;
   instagramUrl: string | null;
   discordUrl: string | null;
@@ -40,15 +36,13 @@ export const DEFAULT_FOUNDER_PROFILE: FounderProfile = {
   supportHeading: 'Help me keep building.',
   supportIntroduction: 'Voluntary support helps pay for food, housing, transportation, development time, and the ordinary business costs behind the work.',
   supportUseSummary: 'Food and daily life; housing and stability; transportation; hosting, software, testing, design resources, and independent development time.',
-  portraitStoragePath: null,
-  portraitAlt: 'Portrait of Cameron Locke',
   facebookUrl: null,
   instagramUrl: null,
   discordUrl: null,
   updatedAt: null,
 };
 
-const fieldLimits: Record<Exclude<keyof FounderProfileInput, 'priorities' | 'portraitStoragePath' | 'facebookUrl' | 'instagramUrl' | 'discordUrl'>, number> = {
+const fieldLimits: Record<Exclude<keyof FounderProfileInput, 'priorities' | 'facebookUrl' | 'instagramUrl' | 'discordUrl'>, number> = {
   heroEyebrow: 80,
   heroHeadline: 120,
   introduction: 1200,
@@ -59,13 +53,11 @@ const fieldLimits: Record<Exclude<keyof FounderProfileInput, 'priorities' | 'por
   supportHeading: 120,
   supportIntroduction: 1200,
   supportUseSummary: 1200,
-  portraitAlt: 200,
 };
 
 const allowedKeys = new Set<keyof FounderProfileInput>([
   ...Object.keys(fieldLimits) as Array<keyof FounderProfileInput>,
   'priorities',
-  'portraitStoragePath',
   'facebookUrl',
   'instagramUrl',
   'discordUrl',
@@ -126,11 +118,6 @@ export const normalizeFounderProfileInput = (value: unknown): FounderProfileInpu
     return { ok: false, message: 'Each founder priority must be between 1 and 200 characters.' };
   }
 
-  const portraitStoragePath = record.portraitStoragePath;
-  if (portraitStoragePath !== null && portraitStoragePath !== FOUNDER_PORTRAIT_PATH) {
-    return { ok: false, message: 'Founder portrait path is invalid.' };
-  }
-
   const facebookUrl = normalizeSocialUrl(record.facebookUrl, ['facebook.com', 'fb.com']);
   const instagramUrl = normalizeSocialUrl(record.instagramUrl, ['instagram.com']);
   const discordUrl = normalizeSocialUrl(record.discordUrl, ['discord.com', 'discord.gg']);
@@ -141,9 +128,8 @@ export const normalizeFounderProfileInput = (value: unknown): FounderProfileInpu
   return {
     ok: true,
     value: {
-      ...(normalizedText as Omit<FounderProfileInput, 'priorities' | 'portraitStoragePath' | 'facebookUrl' | 'instagramUrl' | 'discordUrl'>),
+      ...(normalizedText as Omit<FounderProfileInput, 'priorities' | 'facebookUrl' | 'instagramUrl' | 'discordUrl'>),
       priorities,
-      portraitStoragePath: portraitStoragePath as string | null,
       facebookUrl,
       instagramUrl,
       discordUrl,

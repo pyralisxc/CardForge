@@ -1,12 +1,12 @@
 # CardForge Risk Register
 
-Last updated: August 11, 2026
+Last updated: August 13, 2026
 
 Only unresolved or explicitly accepted risks belong here. Closed work belongs in Git/provider history and current operating instructions belong in `docs/operations.md`.
 
 | Area | Risk | Priority | Status / next proof |
 | --- | --- | --- | --- |
-| Migration provenance | Older provider migration timestamps do not consistently match repository filenames, so an edited historical migration could be skipped. | P1 | Open. CI now enforces immutable, forward-only migrations. Apply the repository-consolidation migration with explicit approval, record its production version, and keep all future filenames aligned before merge. Do not rewrite provider history. |
+| Migration provenance | Older provider migration timestamps do not consistently match repository filenames, so an edited historical migration could be skipped. | P1 | Controlled. Production includes the repository-consolidation schema and CI enforces immutable, forward-only migrations. Keep every future change additive, compare the production tail before rollout, and never rewrite provider history. |
 | Social publishing | A credential, wrong channel, or partial approval could expose media or publish an unapproved post. | P1 | Open; hard-disabled. Keep both contribution/publishing flags false until protected-media, scoped-developer, exact-channel, Buffer draft/schedule, and durable delivery postflight in `docs/operations.md` pass. |
 | Large local projects | Long artwork sessions can exceed browser quota or degrade recovery despite IndexedDB, limits, warnings, snapshots, and project export/import. | P1 | Accepted. Revisit after a real quota/recovery report or when durable cloud project storage is intentionally designed. |
 | Print prepress | Browser export does not provide CMYK, PDF/X, or printer-specific duplex certification. | P1 | Accepted. CardForge does not claim those capabilities; revisit with a dedicated print-production release. |

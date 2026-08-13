@@ -3,7 +3,7 @@ import {
   type RoadmapStatus,
 } from '@/features/roadmap/model/roadmap';
 import { RoadmapStoreError } from '@/features/roadmap/server/RoadmapStoreError';
-import { isMissingSupabaseColumnError, isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
+import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import {
   getSupabaseServerClient,
   getSupabaseServerConfigStatus,
@@ -18,10 +18,10 @@ type RoadmapAdminItemRow = {
   source: RoadmapAdminItem['source'];
   visible_month: string | null;
   monthly_cost_cents: number | null;
-  expense_provider?: string | null;
-  expense_plan?: string | null;
-  expense_source_url?: string | null;
-  expense_verified_at?: string | null;
+  expense_provider: string | null;
+  expense_plan: string | null;
+  expense_source_url: string | null;
+  expense_verified_at: string | null;
   shipped_at: string | null;
 };
 
@@ -56,34 +56,12 @@ export const getRoadmapAdminItems = async (): Promise<RoadmapAdminItem[]> => {
   const supabase = getSupabaseServerClient();
   if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
 
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from('cardforge_roadmap_items')
     .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at')
     .eq('source', 'official')
     .order('visible_month', { ascending: true })
     .order('sort_order', { ascending: true });
-
-  if (isMissingSupabaseColumnError(error, [
-    'expense_provider',
-    'expense_plan',
-    'expense_source_url',
-    'expense_verified_at',
-  ])) {
-    const legacyResult = await supabase
-      .from('cardforge_roadmap_items')
-      .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,shipped_at')
-      .eq('source', 'official')
-      .order('visible_month', { ascending: true })
-      .order('sort_order', { ascending: true });
-    data = legacyResult.data?.map((row) => ({
-      ...row,
-      expense_provider: null,
-      expense_plan: null,
-      expense_source_url: null,
-      expense_verified_at: null,
-    })) ?? null;
-    error = legacyResult.error;
-  }
 
   if (error) {
     if (!isMissingSupabaseTableError(error)) {

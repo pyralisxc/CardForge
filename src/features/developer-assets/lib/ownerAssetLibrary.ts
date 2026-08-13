@@ -1,5 +1,5 @@
 import type { DeveloperAssetType, DeveloperAssetStatus } from './developerAssets';
-import type { DeveloperAssetSubmission } from './developerAssetStore';
+import type { DeveloperAssetSubmission } from './developerAssetProgram';
 
 export const OWNER_ASSET_LIBRARY_PAGE_SIZE = 12;
 

@@ -24,7 +24,7 @@ The current product is in controlled public beta and first-customer operation on
 
 Requirements:
 
-- Node.js 20 or newer
+- Node.js 22 or newer
 - npm
 
 ```bash
@@ -77,7 +77,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/features/developer-program/`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit/`: protected cockpit composition, canonical campaign media/derivatives/attachments, production packages, site-copy proposals, and durable review/delivery ledgers.
 - `src/features/social-publishing/`: server-only publishing-provider adapters. Buffer owns channel connections, scheduling, and delivery; it does not own CardForge contribution records or media sources.
-- `src/features/analytics/`: the single consent boundary, safe semantic event contract, masked public-page replay policy, and owner-only composition of provider-owned GA4, PostHog, and Search Console reports.
+- `src/features/analytics/`: the single consent boundary, safe allow-listed event contract, and owner-only composition of provider-owned GA4, PostHog, and Search Console reports. Session replay is not used.
 - `src/features/experience-settings/`: owner-controlled launch policy for portable project-file access and analytics-consent presentation, with one cached public projection.
 - `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
 - `src/features/contact/`: Contact forms and support email routing.
@@ -86,7 +86,7 @@ npm run pipeline:sync-defaults            # Seed repo-owned starter assets into 
 - `src/shared/`: Framework-independent utilities.
 - `src/components/ui/`: Generic UI primitives and generic browser UI state.
 - `src/lib/`, `src/store/`, and `src/types/` are retired root ownership lanes and must not be recreated.
-- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: starter/import material for the Forge Pipeline sync, not runtime fallback catalogs.
+- `data/default-templates/`, `data/styles/`, and `public/card-assets/`: versioned built-in catalog sources. The library APIs load these built-ins and overlay published Forge Pipeline records by stable ID; Pipeline records own reviewed additions and revisions.
 - `supabase/migrations/`: Immutable, forward-only database migrations for shared product state.
 - `tests/unit/`: Vitest coverage for pure helpers and model behavior.
 - `tests/smoke/`: Playwright workflow and authenticated QA coverage.
@@ -97,7 +97,7 @@ CardForge has three storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
 - Supabase-backed shared state for the Forge Pipeline, roadmap voting, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, canonical campaign media and derivatives, campaign packages/attachments/production associations, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
-- Repo starter/import files that can seed the pipeline with `npm run pipeline:sync-defaults`, but should not silently replace a missing database catalog at runtime.
+- Repo-owned built-ins that remain available at runtime. Published Supabase records extend them or replace a matching stable ID; `npm run pipeline:sync-defaults` imports the built-ins into the reviewed Pipeline without creating a second hand-maintained catalog.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and recovery pipeline.
 
@@ -134,7 +134,6 @@ Extended contributor campaigns/site proposals and Buffer publishing are separate
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md): current product architecture and source-of-truth behavior.
-- [docs/developer-cockpit-ux-media-audit.md](docs/developer-cockpit-ux-media-audit.md): contributor, owner, agent, media-package, and continuous-production workflow audit.
 - [docs/operations.md](docs/operations.md): live operations, env vars, provider checks, and launch-critical verification.
 - [docs/risk-register.md](docs/risk-register.md): unresolved and explicitly accepted operational risks.
 

@@ -3,7 +3,7 @@ import {
   type DeveloperAssetAccessTier,
   type DeveloperAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
-import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
 import {
   getDeveloperAssetStatusDescription,

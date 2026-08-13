@@ -30,8 +30,6 @@ type SiteMediaRow = {
   updated_at: string | null;
 };
 
-type LegacySiteMediaRow = Pick<SiteMediaRow, 'slot' | 'storage_path' | 'alt' | 'updated_at'>;
-
 export class SiteMediaStoreError extends Error {
   constructor(message: string, public readonly status = 500) {
     super(message);
@@ -69,18 +67,6 @@ const mapRow = (row: SiteMediaRow): SiteMediaAsset => {
   };
 };
 
-const mapLegacyRow = (row: LegacySiteMediaRow): SiteMediaAsset => {
-  const fallback = getDefaultSiteMedia(row.slot);
-  return {
-    ...fallback,
-    storagePath: row.storage_path,
-    alt: row.alt,
-    width: row.storage_path ? null : fallback.width,
-    height: row.storage_path ? null : fallback.height,
-    updatedAt: row.updated_at,
-  };
-};
-
 const mergeRowsWithDefaults = <Row extends { slot: SiteMediaSlot }>(
   rows: Row[],
   mapper: (row: Row) => SiteMediaAsset,
@@ -105,17 +91,8 @@ export const getSiteMedia = async (): Promise<SiteMediaAsset[]> => {
     return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
   }
 
-  // The additive migration and application can roll out independently. Preserve current
-  // media while the new presentation columns are not available yet.
-  const legacy = await supabase
-    .from('cardforge_site_media')
-    .select('slot,storage_path,alt,updated_at')
-    .order('slot', { ascending: true });
-  if (legacy.error) {
-    console.error('Failed to load public site media:', error);
-    return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
-  }
-  return mergeRowsWithDefaults((legacy.data ?? []) as LegacySiteMediaRow[], mapLegacyRow);
+  console.error('Failed to load public site media:', error);
+  return DEFAULT_SITE_MEDIA.map((asset) => getDefaultSiteMedia(asset.slot));
 };
 
 const validateDimensions = (width: unknown, height: unknown): { width: number | null; height: number | null } => {

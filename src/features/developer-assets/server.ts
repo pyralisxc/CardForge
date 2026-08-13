@@ -1,5 +1,6 @@
 export * from './lib/assetRegistry';
 export * from './lib/developerAssets';
+export * from './lib/developerAssetProgram';
 export * from './lib/developerAssetStore';
 export * from './lib/developerAssetRegistryCommands';
 export * from './lib/developerAssetUploadPolicy';

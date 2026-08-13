@@ -1,5 +1,4 @@
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
-import { isMissingSupabaseColumnError } from '@/infrastructure/database/supabaseErrors';
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/client';
 import { getCurrentCreatorPassRevenue } from '@/features/billing/server';
 import {
@@ -30,10 +29,10 @@ type RoadmapItemRow = {
   source: RoadmapSource;
   visible_month: string | null;
   monthly_cost_cents: number | null;
-  expense_provider?: string | null;
-  expense_plan?: string | null;
-  expense_source_url?: string | null;
-  expense_verified_at?: string | null;
+  expense_provider: string | null;
+  expense_plan: string | null;
+  expense_source_url: string | null;
+  expense_verified_at: string | null;
   shipped_at: string | null;
   created_at: string;
   sort_order: number;
@@ -216,36 +215,13 @@ export const getRoadmapForUser = async (userId: string | null): Promise<RoadmapP
   const creatorPassIncome = await loadCreatorPassIncome(settings);
   if (!config.configured || !supabase) return createUnavailablePayload(settings, creatorPassIncome);
 
-  let { data: rows, error: rowsError } = await supabase
+  const { data: rows, error: rowsError } = await supabase
     .from('cardforge_roadmap_items')
     .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,expense_provider,expense_plan,expense_source_url,expense_verified_at,shipped_at,created_at,sort_order')
     .neq('status', 'archived_negative_signal')
     .order('visible_month', { ascending: true })
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
-
-  if (isMissingSupabaseColumnError(rowsError, [
-    'expense_provider',
-    'expense_plan',
-    'expense_source_url',
-    'expense_verified_at',
-  ])) {
-    const legacyResult = await supabase
-      .from('cardforge_roadmap_items')
-      .select('id,title,description,item_type,status,source,visible_month,monthly_cost_cents,shipped_at,created_at,sort_order')
-      .neq('status', 'archived_negative_signal')
-      .order('visible_month', { ascending: true })
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: false });
-    rows = legacyResult.data?.map((row) => ({
-      ...row,
-      expense_provider: null,
-      expense_plan: null,
-      expense_source_url: null,
-      expense_verified_at: null,
-    })) ?? null;
-    rowsError = legacyResult.error;
-  }
 
   if (rowsError) {
     console.error('Failed to load roadmap items:', rowsError);
@@ -436,14 +412,6 @@ export const createDeveloperRoadmapItem = async ({
     });
 
   if (insertError) {
-    if (isMissingSupabaseColumnError(insertError, [
-      'expense_provider',
-      'expense_plan',
-      'expense_source_url',
-      'expense_verified_at',
-    ])) {
-      throw new RoadmapStoreError('Verified roadmap expenses are still deploying. Try again shortly.', 503);
-    }
     console.error('Failed to create developer roadmap item:', insertError);
     throw new RoadmapStoreError('Unable to create roadmap item.', 500);
   }

@@ -38,8 +38,6 @@ export {
 } from './model/examples';
 export {
   DEFAULT_FOUNDER_PROFILE,
-  FOUNDER_PORTRAIT_BUCKET,
-  FOUNDER_PORTRAIT_PATH,
   FOUNDER_PROFILE_ID,
   normalizeFounderProfileInput,
   type FounderProfile,

@@ -5,8 +5,10 @@ import {
   type DeveloperAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
 import {
-  createDeveloperAssetSubmission,
   type DeveloperAssetProgramView,
+} from '@/features/developer-assets/lib/developerAssetProgram';
+import {
+  createDeveloperAssetSubmission,
   DeveloperAssetStoreError,
 } from '@/features/developer-assets/lib/developerAssetStore';
 import {

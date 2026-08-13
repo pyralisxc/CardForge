@@ -24,7 +24,7 @@ import {
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetStore';
+import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import type { TCGCardTemplate } from '@/domain/templates';
 
 const getFontPreviewFormat = (url: string): string => {

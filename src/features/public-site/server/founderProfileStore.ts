@@ -20,8 +20,6 @@ interface FounderProfileRow {
   support_heading: string;
   support_introduction: string;
   support_use_summary: string;
-  portrait_storage_path: string | null;
-  portrait_alt: string;
   facebook_url: string | null;
   instagram_url: string | null;
   discord_url: string | null;
@@ -46,8 +44,6 @@ const rowToInput = (row: FounderProfileRow): FounderProfileInput => ({
   supportHeading: row.support_heading,
   supportIntroduction: row.support_introduction,
   supportUseSummary: row.support_use_summary,
-  portraitStoragePath: row.portrait_storage_path,
-  portraitAlt: row.portrait_alt,
   facebookUrl: row.facebook_url,
   instagramUrl: row.instagram_url,
   discordUrl: row.discord_url,
@@ -66,8 +62,6 @@ const inputToRow = (profile: FounderProfileInput) => ({
   support_heading: profile.supportHeading,
   support_introduction: profile.supportIntroduction,
   support_use_summary: profile.supportUseSummary,
-  portrait_storage_path: profile.portraitStoragePath,
-  portrait_alt: profile.portraitAlt,
   facebook_url: profile.facebookUrl,
   instagram_url: profile.instagramUrl,
   discord_url: profile.discordUrl,
@@ -80,7 +74,7 @@ export const getFounderProfile = async (): Promise<FounderProfile> => {
 
   const { data, error } = await supabase
     .from('cardforge_founder_profile')
-    .select('hero_eyebrow,hero_headline,introduction,road_heading,road_body,current_heading,current_body,priorities,support_heading,support_introduction,support_use_summary,portrait_storage_path,portrait_alt,facebook_url,instagram_url,discord_url,updated_at')
+    .select('hero_eyebrow,hero_headline,introduction,road_heading,road_body,current_heading,current_body,priorities,support_heading,support_introduction,support_use_summary,facebook_url,instagram_url,discord_url,updated_at')
     .eq('id', FOUNDER_PROFILE_ID)
     .maybeSingle<FounderProfileRow>();
 
@@ -114,11 +108,4 @@ export const updateFounderProfile = async (value: unknown): Promise<FounderProfi
   }
 
   return { ...normalized.value, updatedAt: row.updated_at };
-};
-
-export const getFounderPortraitPublicUrl = (storagePath: string | null): string | null => {
-  if (!storagePath) return null;
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return null;
-  return supabase.storage.from('cardforge-public-media').getPublicUrl(storagePath).data.publicUrl;
 };
