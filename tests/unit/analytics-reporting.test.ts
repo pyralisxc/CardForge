@@ -80,8 +80,8 @@ describe('Google analytics reporting', () => {
       recentEvents: [{ eventName: 'card_created', path: '/studio', detail: 'bulk' }],
       events: [{ label: 'card_created', value: 4 }],
       paths: [{ label: '/studio', value: 6 }],
-      recordingsUrl: 'https://us.posthog.com/project/12345/replay',
     });
+    expect(snapshot.interactions).not.toHaveProperty('recordingsUrl');
     expect(snapshot.availability).toMatchObject({
       interactionLive: true,
       interactionRecent: true,

@@ -209,7 +209,6 @@ export interface OwnerAnalyticsSnapshot {
     recentEvents: ProductAnalyticsRecentEvent[];
     events: AnalyticsMetricRow[];
     paths: AnalyticsMetricRow[];
-    recordingsUrl: string | null;
   };
   availability: {
     realtime: boolean;

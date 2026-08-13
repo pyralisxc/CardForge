@@ -2,7 +2,7 @@
 
 import Script from 'next/script';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import type { AnalyticsConsentPresentation } from '@/features/experience-settings/client';
@@ -26,8 +26,6 @@ import {
 import {
   disableProductAnalytics,
   initializeProductAnalytics,
-  isPublicAnalyticsReplayPath,
-  setProductAnalyticsPath,
 } from '../client/posthog';
 
 const PRIVATE_PATH_PREFIXES = ['/owner', '/developer/cockpit'] as const;
@@ -109,25 +107,19 @@ export function AnalyticsProvider({
     setBootstrapReady(true);
   }, [googleEnabled, preference, trackablePath]);
 
-  useLayoutEffect(() => {
-    setProductAnalyticsPath(pathname);
-  }, [pathname]);
-
   useEffect(() => {
     let cancelled = false;
     if (!productAnalyticsEnabled || !trackablePath || !isAnalyticsConsentGranted(preference)) {
       setProductAnalyticsAttempted(!productAnalyticsEnabled || !isAnalyticsConsentGranted(preference));
-      setProductAnalyticsPath(pathname);
       return;
     }
     setProductAnalyticsAttempted(false);
-    void initializeProductAnalytics({ apiHost: posthogHost, projectKey: posthogKey }).then((ready) => {
+    void initializeProductAnalytics({ apiHost: posthogHost, projectKey: posthogKey }).then(() => {
       if (cancelled) return;
       setProductAnalyticsAttempted(true);
-      if (ready) setProductAnalyticsPath(pathname);
     });
     return () => { cancelled = true; };
-  }, [pathname, posthogHost, posthogKey, preference, productAnalyticsEnabled, trackablePath]);
+  }, [posthogHost, posthogKey, preference, productAnalyticsEnabled, trackablePath]);
 
   useEffect(() => {
     if (!googleEnabled || !trackablePath || !isAnalyticsConsentGranted(preference) || !tagReady) return;
@@ -153,21 +145,15 @@ export function AnalyticsProvider({
         return;
       }
       if (destination.origin !== window.location.origin) return;
-      if (!isPublicAnalyticsReplayPath(destination.pathname)) {
-        setProductAnalyticsPath(destination.pathname);
-      }
       const placement = anchor.closest('header') ? 'header'
         : anchor.closest('footer') ? 'footer'
           : anchor.closest('nav') ? 'navigation'
             : 'content';
       trackCardForgeEvent('navigation_selected', { destination: destination.pathname, placement });
     };
-    const stopReplayBeforeHistoryNavigation = () => setProductAnalyticsPath(window.location.pathname);
     document.addEventListener('click', trackNavigation, true);
-    window.addEventListener('popstate', stopReplayBeforeHistoryNavigation);
     return () => {
       document.removeEventListener('click', trackNavigation, true);
-      window.removeEventListener('popstate', stopReplayBeforeHistoryNavigation);
     };
   }, [enabled, preference, trackablePath]);
 
@@ -281,7 +267,7 @@ export function AnalyticsProvider({
             <p id="analytics-consent-title" className="font-serif text-lg text-[#fff1c7]">Help improve CardForge</p>
             <p id="analytics-consent-description" className="mt-2 text-sm leading-6 text-[#c7b288]">
               {productAnalyticsEnabled
-                ? 'Allow privacy-minimized Google Analytics and PostHog measurement for page visits, basic browser and device context, and selected CardForge actions. Public marketing pages may be replayed with all text and inputs masked; Studio, account, owner, and developer pages are never recorded. Card content, names, and email addresses are never sent, and advertising tracking stays disabled.'
+                ? 'Allow privacy-minimized Google Analytics and PostHog measurement for page visits, basic browser and device context, and selected CardForge actions. PostHog receives only these allow-listed events—no session replay or page content. Card content, names, and email addresses are never sent, and advertising tracking stays disabled.'
                 : 'Allow privacy-minimized Google Analytics measurement for page visits, basic browser and device context, and selected CardForge actions. Card content, names, and email addresses are never sent, and advertising tracking stays disabled.'}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">

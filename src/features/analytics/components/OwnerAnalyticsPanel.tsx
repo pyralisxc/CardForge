@@ -47,7 +47,7 @@ function ConfigurationNotice({ snapshot }: { snapshot: OwnerAnalyticsSnapshot })
     <section className={`border p-4 ${isLive ? 'border-[#557a45] bg-[#10190d]' : 'border-[#8c6436] bg-[#1b1209]'}`}>
       <h3 className="font-serif text-lg text-[#fff1c7]">{isLive ? 'Consent-gated analytics is live' : 'Analytics setup incomplete'}</h3>
       <p className="mt-2 text-sm leading-6 text-[#d8be8d]">{isLive
-        ? 'Google acquisition and search reporting plus anonymous PostHog interaction reporting are active. Browser measurement still loads only after a visitor chooses Accept or Accept once; private workspaces are never replayed.'
+        ? 'Google acquisition and search reporting plus anonymous PostHog interaction reporting are active. Browser measurement still loads only after a visitor chooses Accept or Accept once; PostHog receives selected events, never page recordings.'
         : 'Collection remains gated until the privacy publication, public measurement flag, and read-only Google and PostHog reporting configuration are all ready.'}</p>
       {configuration.missing.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{configuration.missing.map((name) => <code key={name} className="border border-[#5f4526] bg-[#0c0b09] px-2 py-1 text-xs text-[#f0bd75]">{name}</code>)}</div> : null}
     </section>
@@ -57,9 +57,8 @@ function ConfigurationNotice({ snapshot }: { snapshot: OwnerAnalyticsSnapshot })
 function InteractionView({ snapshot }: { snapshot: OwnerAnalyticsSnapshot }) {
   const formatEventName = (value: string) => value.replaceAll('_', ' ').replace(/^./u, (letter) => letter.toUpperCase());
   return <div className="space-y-4">
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-3 sm:max-w-md">
       <MetricTile label="Interacting now" value={snapshot.availability.interactionLive ? formatNumber(snapshot.interactions.activeVisitors) : '—'} note="Anonymous visitors · previous 5 minutes" />
-      {snapshot.interactions.recordingsUrl ? <Button asChild variant="outline" className="h-full min-h-20"><a href={snapshot.interactions.recordingsUrl} target="_blank" rel="noreferrer">Open masked public replays <ExternalLink className="ml-2 h-4 w-4" /></a></Button> : null}
     </div>
     <div className="grid gap-4 lg:grid-cols-2">
       <RankedList title="Actions · previous 24 hours" rows={snapshot.interactions.events} empty="No consented interactions have arrived yet." available={snapshot.availability.interactionEvents} source="PostHog" />

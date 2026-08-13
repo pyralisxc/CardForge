@@ -65,7 +65,7 @@ const emptySnapshot = (): OwnerAnalyticsSnapshot => ({
   campaigns: [],
   journey: JOURNEY_EVENTS.map((step) => ({ ...step, users: 0, events: 0 })),
   search: { clicks: 0, impressions: 0, ctr: 0, position: 0, queries: [], pages: [], sitemap: null },
-  interactions: { activeVisitors: 0, recentEvents: [], events: [], paths: [], recordingsUrl: null },
+  interactions: { activeVisitors: 0, recentEvents: [], events: [], paths: [] },
   availability: {
     realtime: false,
     realtimePages: false,

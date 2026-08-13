@@ -1,5 +1,4 @@
 export { AnalyticsProvider } from './components/AnalyticsProvider';
-export { AnalyticsReplayBoundary } from './components/AnalyticsReplayBoundary';
 export {
   completeSignUpIntent,
   markSignUpIntent,
