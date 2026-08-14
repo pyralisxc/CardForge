@@ -16,6 +16,21 @@ export interface OwnerDatabaseMetrics {
   developerSubmissionCount: number;
 }
 
+export type OwnerConnectedServiceStatus = 'ready' | 'attention' | 'disabled' | 'reference';
+
+export interface OwnerConnectedService {
+  id: string;
+  name: string;
+  category: string;
+  identifier: string;
+  status: OwnerConnectedServiceStatus;
+  statusLabel: string;
+  purpose: string;
+  ownership: string;
+  removalImpact: string;
+  dashboardUrl: string;
+}
+
 export interface OwnerConsolePayload {
   configured: boolean;
   businessIdentity: BusinessIdentity;

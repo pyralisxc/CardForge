@@ -14,6 +14,10 @@ const OwnerReadinessPanel = dynamic(
   () => import('./OwnerReadinessPanel').then((module) => module.OwnerReadinessPanel),
   { loading: panelFallback },
 );
+const OwnerConnectedServicesPanel = dynamic(
+  () => import('./OwnerConnectedServicesPanel').then((module) => module.OwnerConnectedServicesPanel),
+  { loading: panelFallback },
+);
 const OwnerOperationsPanel = dynamic(
   () => import('./OwnerOperationsPanel').then((module) => module.OwnerOperationsPanel),
   { loading: panelFallback },
@@ -152,6 +156,7 @@ export function OwnerConsolePage() {
                 title="See what needs attention before changing anything"
                 body="Review service readiness, the current data footprint, business identity, and roadmap execution from one starting point."
               />
+              <OwnerConnectedServicesPanel services={payload.integrationStatus.connectedServices} />
               <OwnerReadinessPanel consolePayload={payload.console} onConsoleChange={updateConsole} />
             </TabsContent>
             <TabsContent value="audience" className="mt-0 space-y-4">

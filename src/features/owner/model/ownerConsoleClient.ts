@@ -1,4 +1,7 @@
-import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
+import type {
+  OwnerConnectedService,
+  OwnerConsolePayload,
+} from '@/features/owner/lib/ownerConsole';
 import type { AnalyticsConfigurationStatus } from '@/features/analytics/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -36,7 +39,7 @@ export interface OwnerConsoleResponse {
       replyToConfigured: boolean;
       missing: string[];
     };
-    links: Array<{ label: string; href: string }>;
+    connectedServices: OwnerConnectedService[];
   };
   console: OwnerConsolePayload;
 }

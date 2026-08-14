@@ -26,6 +26,10 @@ describe('owner integration status', () => {
       'CARDFORGE_EMAIL_FROM',
       'CARDFORGE_EMAIL_REPLY_TO',
     ]);
+    expect(status.connectedServices.find((service) => service.id === 'resend')).toMatchObject({
+      status: 'attention',
+      statusLabel: 'Mailto fallback',
+    });
   });
 
   it('reports server delivery readiness when transactional email env vars are present', () => {
@@ -45,5 +49,48 @@ describe('owner integration status', () => {
     expect(status.email.fromConfigured).toBe(true);
     expect(status.email.replyToConfigured).toBe(true);
     expect(status.email.missing).toEqual([]);
+    expect(status.connectedServices.find((service) => service.id === 'resend')).toMatchObject({
+      status: 'ready',
+      statusLabel: 'Delivery ready',
+    });
+  });
+
+  it('does not attribute Google reporting readiness to the wrong Cloud project', () => {
+    vi.stubEnv('CARDFORGE_GOOGLE_ANALYTICS_PROPERTY_ID', '123456');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_EMAIL', 'reports@another-project.iam.gserviceaccount.com');
+    vi.stubEnv('CARDFORGE_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'test-private-key');
+    vi.stubEnv('CARDFORGE_GOOGLE_SEARCH_CONSOLE_SITE_URL', 'sc-domain:cardforges.com');
+
+    const status = getOwnerIntegrationStatus();
+
+    expect(status.connectedServices.find((service) => service.id === 'google-analytics-cloud')).toMatchObject({
+      identifier: 'cardforge-analytics',
+      status: 'attention',
+      statusLabel: 'Service identity mismatch',
+    });
+  });
+
+  it('keeps provider ownership and destructive-impact links visible to the owner', () => {
+    const status = getOwnerIntegrationStatus();
+    const googleAuthentication = status.connectedServices.find((service) => service.id === 'google-authentication');
+
+    expect(googleAuthentication).toMatchObject({
+      identifier: 'cardforge-authentication',
+      dashboardUrl: 'https://console.cloud.google.com/auth/overview?project=cardforge-authentication',
+      status: 'reference',
+    });
+    expect(googleAuthentication?.removalImpact).toContain('Google sign-in fails');
+    expect(status.connectedServices.map((service) => service.id)).toEqual(expect.arrayContaining([
+      'vercel',
+      'clerk',
+      'supabase',
+      'stripe',
+      'google-analytics-cloud',
+      'google-analytics',
+      'search-console',
+      'posthog',
+      'buffer',
+      'github',
+    ]));
   });
 });
