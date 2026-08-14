@@ -5,6 +5,7 @@ import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/htt
 import { getAnalyticsConfigurationStatus } from '@/features/analytics/server';
 import type { OwnerConnectedService } from '@/features/owner/lib/ownerConsole';
 import { getBufferConfiguration } from '@/features/social-publishing/server';
+import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 
 const buildConnectedServices = ({
   analytics,
@@ -202,7 +203,7 @@ export const getOwnerIntegrationStatus = () => {
     authConfigured,
     billing,
     supabase,
-    ownerAllowlistConfigured: Boolean(process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS),
+    canonicalOwnerConfigured: Boolean(getCanonicalOwnerAccountEmail()),
     analytics,
     email: {
       contactMode: process.env.RESEND_API_KEY ? 'ready_for_server_delivery' as const : 'mailto' as const,

@@ -34,6 +34,8 @@ CardForge has three storage lanes:
    - `src/features/developer-assets/lib/repositoryCatalog.ts` reads published Pipeline records only. An unavailable Pipeline produces an honest unavailable/empty shared catalog rather than silently switching to repository data.
    - `data/default-templates`, `data/styles`, and referenced Studio files under `public/card-assets` are bootstrap import material, not live product truth. Rendering primitives in TypeScript remain asset-free.
    - `npm run pipeline:sync-defaults` imports only missing stable IDs, copies referenced media into managed Supabase storage, preserves current owner/vote decisions, and skips durable owner-deletion tombstones.
+   - `CARDFORGE_OWNER_ACCOUNT_EMAILS` must contain exactly one canonical Pipeline publisher. Owner and AI-assisted maintenance publish through that real Clerk developer identity; development proxies are never separate attribution owners.
+   - Retired development identities are durable aliases, not deleted audit facts: Pipeline ownership transfers to the canonical profile, raw owner activity remains append-only, the Owner Console resolves the alias for display, and a database trigger prevents a retired profile from being recreated.
    - Owner permanent deletion is authoritative: it hides the asset at preparation, removes the registry entry, complete submission/revision/vote lineage, and managed storage, then retains only a private tombstone that prevents accidental recreation.
 
 ## Core Routes

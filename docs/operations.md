@@ -26,7 +26,7 @@ Billing: Stripe publishable/secret/webhook keys, Creator Pass Price, the four su
 
 Email: `RESEND_API_KEY`, `CARDFORGE_EMAIL_FROM`, and `CARDFORGE_EMAIL_REPLY_TO`.
 
-Access: `CARDFORGE_OWNER_ACCOUNT_EMAILS`, `CARDFORGE_DEV_ACCOUNT_EMAILS`, and `CARDFORGE_PAID_ACCOUNT_EMAILS`.
+Access: `CARDFORGE_OWNER_ACCOUNT_EMAILS`, `CARDFORGE_DEV_ACCOUNT_EMAILS`, and `CARDFORGE_PAID_ACCOUNT_EMAILS`. Configure exactly one owner email: it is both the environment owner and the canonical Pipeline publisher. Additional developers belong in Clerk entitlement metadata or the developer allowlist, never in the owner publisher setting.
 
 Analytics: the public enable flag, GA measurement ID, PostHog project token/ingestion host, plus the server-only GA property/service account, Search Console site URL, and PostHog project ID/app host/personal key. Limit the PostHog personal key to Query Read for the one CardForge project.
 
@@ -63,6 +63,17 @@ Production migration history currently contains provider-generated timestamps th
 5. Run Supabase security and performance advisors and resolve relevant warning/error findings.
 6. Record the applied production version in the PR or release evidence. If the provider assigned a different version, align the unapplied repository filename before merge; do not rewrite recorded production history.
 
+### Canonical owner identity consolidation
+
+The prelaunch proxy cleanup is a provider-and-database cutover, not a display rename. Preserve this order for `20260814220651_consolidate_owner_identity.sql`:
+
+1. Verify every proxy email listed in the migration has no Stripe customer, subscription, payment, or entitlement history. Stop on any match.
+2. Set `CARDFORGE_OWNER_ACCOUNT_EMAILS` to only `pyraliscameron@gmail.com` in Vercel Production and Preview, remove proxy emails from developer allowlists, deploy that configuration, and verify the old account no longer has owner authority.
+3. Delete the remaining `cameron.r.locke96@gmail.com` Clerk account and verify every migration-listed proxy Clerk ID is absent. The database retirement trigger is defense in depth; it is not a substitute for revoking provider sessions and roles.
+4. Copy the one managed template object from its old user-ID path to the canonical Pyralis user-ID path with the Supabase Storage API. Verify destination size and SHA-256 against the source, and retain the source through migration postflight.
+5. Apply the forward migration. Verify one canonical active profile, transferred submission/vote/roadmap counts, zero proxy profiles or active attribution references, fifteen identity aliases, unchanged raw owner-activity rows plus one consolidation event, and the new storage URL.
+6. Deploy the reviewed application, verify People, Change History, Library, Template Studio, and a canonical owner Pipeline save, then remove the unreferenced old storage object. Never restore a proxy allowlist or Clerk role during rollback; forward-recover by copying the canonical object back and applying a new migration if the storage reference must be reversed.
+
 ## Operator identity and transfer
 
 CardForge Studio is currently operated by Cameron Locke as an Oregon sole proprietor. `business-identity` owns the application contract and the Supabase singleton owns the live record. Stripe, Resend, Clerk, Vercel, the domain registrar/DNS, GitHub, Search Console, structured data, public copy, and legal publications must agree with that record.
@@ -75,7 +86,7 @@ Use `/owner` through five job-based workspaces: Overview, Growth & People, Site 
 
 Overview > Integrations is the owner-facing provider inventory. Every production dependency must name its purpose, identifier, authoritative owner, removal impact, and exact dashboard destination. Runtime readiness is shown only when CardForge can derive it from configuration; provider-managed entries are labeled honestly instead of being treated as application settings. Add, replace, or retire a provider in this inventory and this topology together. Never render credentials, secret values, or recovery material.
 
-Growth & People > People joins Clerk accounts to retained Supabase developer profiles. Revoke developer access by removing Clerk developer entitlement, marking the CardForge profile inactive, and clearing campaign/site scopes; preserve submissions, votes, and attribution. A deleted Clerk identity appears as History only and must not count as an active developer. Environment-owned owner access is read-only in the console and must be changed in the Vercel owner-email allowlist. The retired Creator Pool is an archived legal record, so the console exposes no payout eligibility or pool-percentage control.
+Growth & People > People joins Clerk accounts to retained Supabase developer profiles. Revoke developer access by removing Clerk developer entitlement, marking the CardForge profile inactive, and clearing campaign/site scopes; preserve genuine submissions, votes, and attribution. A deleted Clerk identity appears as History only and must not count as an active developer. Environment-owned owner access is read-only in the console and must be changed in the Vercel owner-email allowlist. The prelaunch Cameron/QA identities were development proxies, so their owner-authored records are consolidated once into the canonical Pyralis Cameron profile rather than retained as fictitious contributors. The retired Creator Pool is an archived legal record, so the console exposes no payout eligibility or pool-percentage control.
 
 Site Controls > Pages & SEO owns the allowlisted primary-navigation labels/order/visibility, homepage section order/visibility, public announcement, homepage action, homepage search metadata and search phrases, and public promotion visibility. Copy owns the grouped shared-shell, landing, About, founder, developer-program, roadmap, and sharing catalog. Media owns the brand mark, favicon, watermark, default social image, homepage imagery, Studio screenshots, live-example artwork, and founder portrait; it also controls watermark opacity/size while entitlement code owns when the mark is required. Experience & Access can make portable project files free or Creator Pass-only and can switch analytics consent among required choice, standard popup, and quiet banner. Code still owns allowed routes/sections, validation, permissions, capability claims, and the three-choice consent contract.
 

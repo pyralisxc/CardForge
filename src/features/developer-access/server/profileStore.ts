@@ -125,7 +125,7 @@ export const getDeveloperProfileIdentity = async (
     : null;
 };
 
-export const getDeveloperProfileReferenceByEmail = async (
+export const getUniqueActiveDeveloperProfileReferenceByEmail = async (
   email: string,
 ): Promise<DeveloperProfileReference | null> => {
   const supabase = getSupabaseServerClient();
@@ -136,12 +136,14 @@ export const getDeveloperProfileReferenceByEmail = async (
     .from('cardforge_developer_profiles')
     .select('clerk_user_id,email')
     .eq('email', normalizedEmail)
-    .limit(1);
+    .eq('status', 'active')
+    .limit(2);
   if (error) {
-    console.error('Failed to resolve developer profile by email:', error);
-    return null;
+    throw new DeveloperAccessStoreError('Unable to verify the active Pipeline owner profile.', 503);
   }
-  const row = data?.[0] as DeveloperProfileRow | undefined;
+  const rows = (data ?? []) as DeveloperProfileRow[];
+  if (rows.length !== 1) return null;
+  const [row] = rows;
   return row
     ? { developerId: row.clerk_user_id, email: row.email }
     : null;

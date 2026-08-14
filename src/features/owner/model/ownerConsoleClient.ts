@@ -31,7 +31,7 @@ export interface OwnerConsoleResponse {
       configured: boolean;
       missing: string[];
     };
-    ownerAllowlistConfigured: boolean;
+    canonicalOwnerConfigured: boolean;
     analytics: AnalyticsConfigurationStatus;
     email: {
       contactMode: 'mailto' | 'ready_for_server_delivery';

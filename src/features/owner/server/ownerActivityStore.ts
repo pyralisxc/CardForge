@@ -17,13 +17,27 @@ type OwnerActivityRow = {
   created_at: string;
 };
 
-const mapRow = (row: OwnerActivityRow): OwnerActivityEvent => ({
+type IdentityAliasRow = {
+  source_user_id: string;
+  canonical_name: string;
+};
+
+const mapRow = (
+  row: OwnerActivityRow,
+  aliases: ReadonlyMap<string, IdentityAliasRow>,
+): OwnerActivityEvent => ({
   id: row.id,
   actorUserId: row.actor_user_id,
   actorEmail: row.actor_email,
+  actorLabel: aliases.has(row.actor_user_id)
+    ? `${aliases.get(row.actor_user_id)?.canonical_name} (retired development proxy)`
+    : row.actor_email ?? row.actor_user_id,
   action: row.action,
   targetType: row.target_type,
   targetId: row.target_id,
+  targetLabel: row.target_id && aliases.has(row.target_id)
+    ? `${aliases.get(row.target_id)?.canonical_name} (retired development proxy)`
+    : null,
   summary: row.summary,
   outcome: row.outcome,
   metadata: row.metadata ?? {},
@@ -93,8 +107,25 @@ export const getOwnerActivity = async ({
     console.error('Failed to load owner activity:', error);
     throw new Error('Unable to load owner activity.');
   }
+  const rows = (data ?? []) as OwnerActivityRow[];
+  const identityIds = [...new Set(rows.flatMap((row) => [
+    row.actor_user_id,
+    row.target_type === 'person' ? row.target_id : null,
+  ]).filter((value): value is string => Boolean(value)))];
+  const aliases = new Map<string, IdentityAliasRow>();
+  if (identityIds.length > 0) {
+    const { data: aliasRows, error: aliasError } = await supabase
+      .from('cardforge_identity_aliases')
+      .select('source_user_id,canonical_name')
+      .in('source_user_id', identityIds);
+    if (aliasError) {
+      console.error('Failed to resolve owner activity identity aliases:', aliasError);
+    } else {
+      for (const alias of (aliasRows ?? []) as IdentityAliasRow[]) aliases.set(alias.source_user_id, alias);
+    }
+  }
   return {
-    items: (data ?? []).map((row) => mapRow(row as OwnerActivityRow)),
+    items: rows.map((row) => mapRow(row, aliases)),
     total: count ?? 0,
     page: safePage,
     pageSize: safePageSize,

@@ -2,12 +2,18 @@ import { createClient } from '@supabase/supabase-js';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const firstOwnerEmail = (value) => value
-  ?.split(',')
-  .map((email) => email.trim().toLowerCase())
-  .find(Boolean) || null;
+const configuredOwnerEmail = (value) => {
+  const emails = [...new Set((value || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean))];
+  if (emails.length > 1) {
+    throw new Error('CARDFORGE_OWNER_ACCOUNT_EMAILS must contain exactly one Pipeline owner.');
+  }
+  return emails[0] || null;
+};
 
-let OWNER_EMAIL = firstOwnerEmail(process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS);
+let OWNER_EMAIL = null;
 const ASSET_BUCKET = process.env.CARDFORGE_DEVELOPER_ASSET_BUCKET || 'cardforge-developer-assets';
 
 const projectRoot = process.cwd();
@@ -378,7 +384,7 @@ const collectTemplateItems = async (publicUrlByLocalPath) => {
           templateLibrarySource: 'pipeline',
           templateAccessTier: 'free',
           templateRegistryStatus: 'published',
-          templateContributorName: 'CardForge Studio',
+          templateContributorName: 'Pyralis Cameron',
         },
       },
     });
@@ -418,7 +424,7 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
             librarySource: 'developer',
             accessTier: 'free',
             registryStatus: 'published',
-            contributorName: 'CardForge Studio',
+            contributorName: 'Pyralis Cameron',
           },
         },
       });
@@ -429,8 +435,13 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
 
 const main = async () => {
   const envFile = await parseEnvFile();
-  OWNER_EMAIL = OWNER_EMAIL
-    || firstOwnerEmail(envFile.CARDFORGE_OWNER_ACCOUNT_EMAILS);
+  OWNER_EMAIL = configuredOwnerEmail(
+    process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS
+      || envFile.CARDFORGE_OWNER_ACCOUNT_EMAILS,
+  );
+  if (!OWNER_EMAIL) {
+    throw new Error('Configure exactly one CARDFORGE_OWNER_ACCOUNT_EMAILS identity for Pipeline publication.');
+  }
   const supabaseUrl = process.env.SUPABASE_URL || envFile.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || envFile.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
@@ -438,39 +449,18 @@ const main = async () => {
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-  if (!OWNER_EMAIL) {
-    const { data: ownerHistory, error: ownerHistoryError } = await supabase
-      .from('cardforge_developer_asset_submissions')
-      .select('developer_email')
-      .eq('decision_reason', 'pipeline_owner_edit')
-      .not('developer_email', 'is', null)
-      .limit(100);
-    if (ownerHistoryError) throw ownerHistoryError;
-    const ownerEmails = [...new Set(
-      (ownerHistory || [])
-        .map((row) => row.developer_email?.trim().toLowerCase())
-        .filter(Boolean),
-    )];
-    if (ownerEmails.length !== 1) {
-      throw new Error(
-        'Configure one CARDFORGE_OWNER_ACCOUNT_EMAILS identity; existing Pipeline ownership is absent or ambiguous.',
-      );
-    }
-    [OWNER_EMAIL] = ownerEmails;
-  }
-
   const { data: ownerProfiles, error: ownerError } = await supabase
     .from('cardforge_developer_profiles')
     .select('clerk_user_id,email,first_name,last_name')
     .eq('email', OWNER_EMAIL)
     .eq('status', 'active')
-    .limit(1);
+    .limit(2);
   if (ownerError) throw ownerError;
 
-  const ownerProfile = ownerProfiles?.[0];
-  if (!ownerProfile) {
-    throw new Error('The configured owner identity must already have an active Forge Pipeline developer profile.');
+  if (ownerProfiles?.length !== 1) {
+    throw new Error('The configured owner identity must match exactly one active Forge Pipeline developer profile.');
   }
+  const [ownerProfile] = ownerProfiles;
 
   const { data: existingRegistry, error: registryError } = await supabase
     .from('cardforge_asset_registry')
