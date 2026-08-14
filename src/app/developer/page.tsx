@@ -1,31 +1,32 @@
-import type { Metadata } from 'next';
-
 import { PublicAuthControls } from '@/features/account/client/auth';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperProgramPage } from '@/features/developer-program/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
-import { createBreadcrumbStructuredData, PublicSiteShell, StructuredData } from '@/features/public-site/server';
+import { ConfiguredPublicSiteShell, createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, StructuredData } from '@/features/public-site/server';
 
-export const metadata: Metadata = createPageMetadata({
-  title: 'CardForge Developer Program',
-  description: 'Learn how approved CardForge contributors submit shared assets, prepare campaign drafts, and propose public-site improvements.',
-  path: '/developer',
-});
+export async function generateMetadata() {
+  const content = createSiteContentMap(await getCachedSiteContentBlocks('developer'));
+  return createPageMetadata({
+    title: content['developer.meta.title'],
+    description: content['developer.meta.description'],
+    path: '/developer',
+  });
+}
 
 export default async function DeveloperPage() {
   const authConfigured = isClerkServerConfigPresent();
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <CardForgeAppProviders>
-      <PublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <PublicAuthControls /> : undefined} currentPath="/developer">
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <PublicAuthControls /> : undefined} currentPath="/developer">
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Developers', path: '/developer' },
         ])} />
         <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
-      </PublicSiteShell>
+      </ConfiguredPublicSiteShell>
     </CardForgeAppProviders>
   );
 }

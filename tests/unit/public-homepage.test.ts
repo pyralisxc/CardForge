@@ -17,9 +17,9 @@ describe('proof-led homepage', () => {
     expect(hero).toContain('{headline}');
     expect(hero).toContain('{body}');
     expect(hero).toContain('{support}');
-    expect(hero).toContain('Try the Studio');
-    expect(hero).toContain('href="/studio"');
-    expect(hero).toContain('See what it makes');
+    expect(hero).toContain("primaryActionHref = '/studio'");
+    expect(hero).toContain('href={primaryActionHref}');
+    expect(hero).toContain("secondaryActionLabel = 'See what it makes'");
     expect(hero).toContain('href="#interactive-showcase"');
     expect(hero).toContain("getDefaultSiteMedia('landing.hero')");
     expect(hero).toContain('fetchPriority="high"');
@@ -29,7 +29,12 @@ describe('proof-led homepage', () => {
   it('shows the four-step workflow in ordinary language', () => {
     const workflow = readSource('src/features/public-site/components/WorkflowProof.tsx');
 
-    const steps = ['Make the look once', 'Add your card list', 'Build the whole set', 'Check and download'];
+    const steps = [
+      "siteContent['landing.workflow.step1.title']",
+      "siteContent['landing.workflow.step2.title']",
+      "siteContent['landing.workflow.step3.title']",
+      "siteContent['landing.workflow.step4.title']",
+    ];
     let previousIndex = -1;
     for (const step of steps) {
       const index = workflow.indexOf(step);
@@ -85,8 +90,9 @@ describe('proof-led homepage', () => {
 
     expect(page).toContain('<AccessComparison');
     expect(page).toContain('<FounderStrip');
-    expect(page).toContain('Build your first set.');
-    expect(founder).toContain('Built independently by Cameron Locke');
+    expect(page).toContain("siteContent['landing.final.headline']");
+    expect(founder).toContain("siteContent['landing.founder.headline']");
+    expect(founder).toContain('initialsFor(founderName)');
     expect(founder).toContain('href="/cameron"');
     expect(founder).not.toContain('href="/cameron#support"');
   });

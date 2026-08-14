@@ -66,7 +66,7 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
     return { configured: false, settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS };
   }
 
-  const settingsColumns = 'max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,allow_contributor_self_voting,owner_vote_weight,profit_share_pool_percent,tier_caps_by_type';
+  const settingsColumns = 'max_active_developers,monthly_submission_limit,monthly_published_requirement,minimum_votes_for_grading,free_asset_minimum_positive_vote_percent,paid_asset_minimum_positive_vote_percent,allow_contributor_self_voting,owner_vote_weight,tier_caps_by_type';
   const { data, error } = await supabase
     .from('cardforge_developer_program_settings')
     .select(settingsColumns)
@@ -221,7 +221,6 @@ export const updateDeveloperProfileOverrides = async ({
   const updateRow = {
     monthly_submission_limit_override: normalized.monthly_submission_limit_override,
     monthly_published_requirement_override: normalized.monthly_published_requirement_override,
-    eligible_for_profit_share: normalized.eligible_for_profit_share,
     owner_note: normalized.owner_note,
     ...(normalized.status ? { status: normalized.status } : {}),
   };

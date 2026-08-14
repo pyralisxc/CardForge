@@ -261,20 +261,11 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
           </div>
         </div>
 
-        <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
-          <h3 className="font-serif text-xl text-[#fff1c7]">Future creator pool</h3>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-            CardForge plans to reserve {program.settings.profitSharePoolPercent}% of eligible profit for approved active developers once the platform, payout systems, and terms are ready. The current plan is an even split among eligible contributors for the payout period; this is a roadmap commitment, not an active payout system yet.
+        {program.developerOwnerNote ? (
+          <p className="mt-4 border border-[#3c2c1b] bg-[#15100a] p-3 text-xs leading-5 text-[#a98a55]">
+            Owner note: {program.developerOwnerNote}
           </p>
-          <p className={`mt-2 text-xs ${program.profitShareEligible ? 'text-[#bde3a8]' : 'text-[#f0bd75]'}`}>
-            Your current planning flag: {program.profitShareEligible ? 'eligible for future creator-pool tracking' : 'paused from future creator-pool tracking'}.
-          </p>
-          {program.developerOwnerNote ? (
-            <p className="mt-2 border border-[#3c2c1b] bg-[#15100a] p-2 text-xs leading-5 text-[#a98a55]">
-              Owner note: {program.developerOwnerNote}
-            </p>
-          ) : null}
-        </div>
+        ) : null}
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="border border-[#5f4526] bg-[#100c08] p-4">
@@ -450,7 +441,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
               <ProgramRule label="Votes to decide" value={program.settings.minimumVotesForGrading} body="Votes required before automatic status and tier selection begins." />
             </div>
             <div className="mt-3 border border-[#5f4526] bg-[#100c08] p-4 text-sm leading-6 text-[#c7b288]">
-              Shared library assets are part of the same review surface as every upload. Developer votes and owner cap settings can move them between live library, candidate review, and archive. The planned creator pool is {program.settings.profitSharePoolPercent}% of eligible profit, split evenly among eligible active developers after the financial launch systems are ready.
+              Shared library assets are part of the same review surface as every upload. Developer votes and owner cap settings can move them between the live library, candidate review, and archive. Contribution history remains attributed to its developer; CardForge does not currently operate a payout program.
             </div>
             <div className="mt-3 grid gap-3 lg:grid-cols-2">
               <GlossaryPanel title="Statuses" items={statusGlossary} />

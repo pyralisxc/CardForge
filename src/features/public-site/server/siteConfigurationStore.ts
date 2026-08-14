@@ -24,7 +24,10 @@ const SITE_CONFIGURATION_COLUMNS = [
   'support_offer_visible',
   'homepage_title',
   'homepage_description',
-  'homepage_share_image_url',
+  'search_keywords',
+  'watermark_preview_opacity',
+  'watermark_share_opacity',
+  'watermark_width_percent',
   'primary_navigation',
   'homepage_sections',
 ].join(',');
@@ -65,7 +68,10 @@ export const updatePublicSiteConfiguration = async (
     support_offer_visible: normalized.supportOfferVisible,
     homepage_title: normalized.homepageTitle,
     homepage_description: normalized.homepageDescription,
-    homepage_share_image_url: normalized.homepageShareImageUrl,
+    search_keywords: normalized.searchKeywords,
+    watermark_preview_opacity: normalized.watermarkPreviewOpacity,
+    watermark_share_opacity: normalized.watermarkShareOpacity,
+    watermark_width_percent: normalized.watermarkWidthPercent,
     primary_navigation: normalized.primaryNavigation,
     homepage_sections: normalized.homepageSections,
   }, { onConflict: 'id' });

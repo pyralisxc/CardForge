@@ -23,7 +23,7 @@ describe('public site configuration', () => {
     ]);
   });
 
-  it('rejects external actions and non-HTTPS share images', () => {
+  it('rejects external actions and invalid owner presentation values', () => {
     const base = {
       ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
       primaryNavigation: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryNavigation],
@@ -42,13 +42,13 @@ describe('public site configuration', () => {
 
     expect(() => normalizePublicSiteConfigurationInput({
       ...base,
-      homepageShareImageUrl: 'http://example.com/share.png',
-    })).toThrow('HTTPS URL');
+      watermarkPreviewOpacity: 0,
+    })).toThrow('Preview watermark opacity');
 
-    expect(normalizePublicSiteConfigurationInput({
+    expect(() => normalizePublicSiteConfigurationInput({
       ...base,
-      homepageShareImageUrl: '  https://cardforges.com/share.png  ',
-    }).homepageShareImageUrl).toBe('https://cardforges.com/share.png');
+      searchKeywords: [],
+    })).toThrow('search phrases');
   });
 
   it('restores missing allowed sections and never admits unknown section ids', () => {

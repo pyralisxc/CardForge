@@ -12,7 +12,7 @@ export {
   getCachedPublicSiteConfiguration,
   revalidatePublicSiteConfiguration,
 } from './server/publicSiteConfigurationCache';
-export { PublicSiteShell } from './server/PublicSiteShell';
+export { ConfiguredPublicSiteShell } from './server/ConfiguredPublicSiteShell';
 export {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   isHomepageSectionVisible,
@@ -21,8 +21,9 @@ export {
 export { createSiteContentMap } from './model/siteContent';
 export {
   getCachedSiteContentBlocks,
+  getCachedAllSiteContentBlocks,
   revalidateSiteContentCache,
-  siteContentTag,
+  SITE_CONTENT_TAG,
 } from './server/publicContentCache';
 export type {
   SiteContentBlock,
@@ -34,6 +35,7 @@ export {
   SITE_MEDIA_SLOTS,
   getDefaultSiteMedia,
   getSiteMediaDisplaySrc,
+  getSiteMediaContentType,
   getSiteMediaStoragePath,
   isSiteMediaSlot,
   normalizeSiteMediaAlt,

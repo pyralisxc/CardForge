@@ -24,11 +24,17 @@ export function OutcomeHero({
   headline,
   media = getDefaultSiteMedia('landing.hero'),
   support,
+  primaryActionHref = '/studio',
+  primaryActionLabel = 'Try the Studio',
+  secondaryActionLabel = 'See what it makes',
 }: {
   body: string;
   headline: string;
   media?: SiteMediaAsset;
   support: string;
+  primaryActionHref?: string;
+  primaryActionLabel?: string;
+  secondaryActionLabel?: string;
 }) {
   return (
     <section className={`relative flex overflow-hidden border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-12 md:px-8 md:py-16 ${mobileHeightClass[media.presentation.mobileSize]} ${desktopHeightClass[media.presentation.desktopSize]}`}>
@@ -57,18 +63,18 @@ export function OutcomeHero({
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/studio"
+              href={primaryActionHref}
               prefetch={false}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-6 text-base font-bold text-[var(--public-obsidian)] shadow-[var(--public-shadow)] hover:bg-[#f0bd58]"
             >
-              Try the Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {primaryActionLabel} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link
               href="#interactive-showcase"
               prefetch={false}
               className="inline-flex min-h-11 items-center justify-center rounded-[var(--public-radius)] border border-[#8b6631] bg-[rgba(18,14,10,0.82)] px-6 text-base font-bold text-[var(--public-ivory)] backdrop-blur-sm hover:border-[var(--public-brass)]"
             >
-              See what it makes
+              {secondaryActionLabel}
             </Link>
           </div>
         </div>

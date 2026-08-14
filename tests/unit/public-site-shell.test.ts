@@ -81,9 +81,9 @@ describe('public site shell source contract', () => {
     expect(headerSource).toContain('accountSlot?: ReactNode');
     expect(headerSource).not.toContain('PublicAuthControls');
     expect(headerSource).not.toContain("@/features/account");
-    expect(headerSource).toContain('Check out our developer');
+    expect(headerSource).toContain("siteContent['shell.mobile.developer.body']");
     expect(headerSource).toContain('PUBLIC_NAVIGATION.founder.href');
-    expect(headerSource).toContain('Follow CardForge Studio');
+    expect(headerSource).toContain('Follow {businessIdentity.brandName}');
   });
 
   it('opts the portaled mobile menu into public tokens and reduced motion', () => {

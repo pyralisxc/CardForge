@@ -1,4 +1,5 @@
 import type { BusinessIdentity } from '@/features/business-identity/client';
+import { getSiteMediaDisplaySrc, type SiteMediaAsset } from '../model/siteMedia';
 
 type StructuredDataValue = Record<string, unknown>;
 
@@ -15,6 +16,7 @@ const personId = (identity: BusinessIdentity): string =>
 
 export const createCardForgeStructuredData = (
   identity: BusinessIdentity,
+  brandMark?: SiteMediaAsset,
 ): StructuredDataValue => ({
   '@context': 'https://schema.org',
   '@graph': [
@@ -35,7 +37,7 @@ export const createCardForgeStructuredData = (
       name: identity.brandName,
       url: identity.websiteUrl,
       founder: { '@id': personId(identity) },
-      logo: absoluteUrl(identity, '/brand/cardforge-studio/brand-mark.svg'),
+      logo: absoluteUrl(identity, brandMark ? (getSiteMediaDisplaySrc(brandMark) ?? '/brand/cardforge-studio/brand-mark.svg') : '/brand/cardforge-studio/brand-mark.svg'),
     },
     {
       '@type': 'SoftwareApplication',

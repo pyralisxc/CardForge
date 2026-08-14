@@ -6,6 +6,7 @@ import type { BusinessIdentity } from '@/features/business-identity/client';
 import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
 import { FounderSocialLinks } from './FounderSocialLinks';
 import { useFounderProfile } from './FounderProfileContext';
+import { useSiteContent } from './PublicSitePresentationContext';
 
 export interface PublicSiteFooterProps {
   businessIdentity: BusinessIdentity;
@@ -13,6 +14,7 @@ export interface PublicSiteFooterProps {
 
 export function PublicSiteFooter({ businessIdentity }: PublicSiteFooterProps) {
   const founderProfile = useFounderProfile();
+  const siteContent = useSiteContent();
   return (
     <footer className="border-t border-[var(--public-border)] bg-[#090806] px-5 py-6 text-[var(--public-muted-text)] md:px-8">
       <div className="mx-auto max-w-7xl">
@@ -21,7 +23,7 @@ export function PublicSiteFooter({ businessIdentity }: PublicSiteFooterProps) {
             <p className="font-[var(--public-font-display)] text-lg font-semibold text-[var(--public-ivory)]">{businessIdentity.brandName}</p>
             <p className="mt-1 text-sm">Operated by {businessIdentity.legalOperatorName} in {businessIdentity.jurisdictionState}.</p>
           </div>
-          <FounderSocialLinks profile={founderProfile} compact />
+          <FounderSocialLinks profile={founderProfile} brandName={businessIdentity.brandName} compact />
         </div>
 
         <nav aria-label="Footer links" className="grid grid-cols-2 gap-x-6 gap-y-5 py-5 sm:grid-cols-4">
@@ -45,7 +47,7 @@ export function PublicSiteFooter({ businessIdentity }: PublicSiteFooterProps) {
         </nav>
 
         <p className="border-t border-[#352716] pt-4 text-sm">
-          &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}. CardForge Studio is an independent product built with care.
+          &copy; {new Date().getFullYear()} {businessIdentity.copyrightHolder}. {siteContent['shell.footer.independent']}
         </p>
       </div>
     </footer>

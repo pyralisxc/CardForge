@@ -58,7 +58,7 @@ describe('showcase templates', () => {
     const example = findExample(template.id);
     expect(example.rows).toHaveLength(4);
     expect(new Set(example.rows.map((row) => row.Artwork)).size).toBe(4);
-    expect(example.rows.every((row) => row.Artwork.startsWith('/card-assets/showcase/playing-cards/'))).toBe(true);
+    expect(example.rows.every((row) => row.Artwork.startsWith('/api/public/site-media/landing.showcase.art.playing.'))).toBe(true);
     expect(example.rows.every((row) => row.CardTitle.trim().length > 0)).toBe(true);
   });
 
@@ -68,7 +68,7 @@ describe('showcase templates', () => {
 
     expect(example.rows).toHaveLength(4);
     expect(new Set(example.rows.map((row) => row.Artwork)).size).toBe(4);
-    expect(example.rows.every((row) => row.Artwork.startsWith('/card-assets/showcase/creatures/'))).toBe(true);
+    expect(example.rows.every((row) => row.Artwork.startsWith('/api/public/site-media/landing.showcase.art.creature.'))).toBe(true);
     for (const row of example.rows) {
       for (const key of ['CardName', 'TypeLine', 'Ability', 'Power', 'Toughness']) {
         expect(row[key]?.trim(), `${key} should be populated`).not.toBe('');

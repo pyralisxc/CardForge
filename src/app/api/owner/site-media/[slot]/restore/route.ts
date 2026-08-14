@@ -38,6 +38,7 @@ export async function POST(
     await restorePreviousSiteMedia(slot);
     revalidateSiteMediaCache();
     revalidatePath('/');
+    if (slot.startsWith('brand.')) revalidatePath('/', 'layout');
     if (slot === 'founder.portrait') revalidatePath('/cameron');
     await recordOwnerActivity({ actorUserId: owner.userId, actorEmail: owner.email, action: 'site.media.restore', targetType: 'site_media', targetId: slot, summary: 'Restored the previous public site image version.' });
     return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });

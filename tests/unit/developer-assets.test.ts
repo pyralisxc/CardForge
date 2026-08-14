@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -116,7 +119,6 @@ describe('developer asset program rules', () => {
       paidAssetMinimumPositiveVotePercent: '80',
       allowContributorSelfVoting: false,
       ownerVoteWeight: '3',
-      profitSharePoolPercent: '15',
       tierCapsByType: { templates: { free: '12', paid: '6' }, icons: { free: -1, paid: 'abc' } },
     });
 
@@ -128,10 +130,24 @@ describe('developer asset program rules', () => {
     expect(settings.paidAssetMinimumPositiveVotePercent).toBe(80);
     expect(settings.allowContributorSelfVoting).toBe(false);
     expect(settings.ownerVoteWeight).toBe(3);
-    expect(settings.profitSharePoolPercent).toBe(15);
     expect(settings.tierCapsByType.templates).toEqual({ free: 12, paid: 6 });
     expect(settings.tierCapsByType.icons).toEqual(DEFAULT_DEVELOPER_PROGRAM_SETTINGS.tierCapsByType.icons);
     expect(settings.publishCapsByType.templates).toBe(18);
+  });
+
+  it('keeps the retired Creator Pool outside the live pipeline contract', () => {
+    const migration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260814153745_complete_owner_site_content_and_brand_media.sql'),
+      'utf8',
+    );
+
+    expect(DEFAULT_DEVELOPER_PROGRAM_SETTINGS).not.toHaveProperty('profitSharePoolPercent');
+    expect(migration).toContain('set profit_share_pool_percent = 0');
+    expect(migration).toContain('set eligible_for_profit_share = false');
+    expect(migration).toContain('alter column profit_share_pool_percent set default 0');
+    expect(migration).toContain('alter column eligible_for_profit_share set default false');
+    expect(migration).toContain('cardforge_freeze_archived_creator_pool_fields');
+    expect(migration).not.toContain("profit_share_pool_percent = (p_settings ->> 'profitSharePoolPercent')");
   });
 
   it('derives publish capacity from Starter plus Creator Pass capacity', () => {

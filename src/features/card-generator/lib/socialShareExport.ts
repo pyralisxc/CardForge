@@ -16,14 +16,32 @@ export const SOCIAL_SHARE_PRESETS = {
 export type SocialSharePreset = keyof typeof SOCIAL_SHARE_PRESETS;
 export const SOCIAL_SHARE_WATERMARK_URL = CARD_WATERMARK_URL;
 
+export interface SocialShareWatermark {
+  url: string;
+  width: number;
+  height: number;
+  widthPercent: number;
+  opacity: number;
+}
+
+export const DEFAULT_SOCIAL_SHARE_WATERMARK: SocialShareWatermark = {
+  url: SOCIAL_SHARE_WATERMARK_URL,
+  width: 1000,
+  height: 260,
+  widthPercent: GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT,
+  opacity: SOCIAL_SHARE_WATERMARK_OPACITY,
+};
+
 export const getSocialShareLayout = ({
   preset,
   cardWidth,
   cardHeight,
+  watermark = DEFAULT_SOCIAL_SHARE_WATERMARK,
 }: {
   preset: SocialSharePreset;
   cardWidth: number;
   cardHeight: number;
+  watermark?: SocialShareWatermark;
 }) => {
   const output = SOCIAL_SHARE_PRESETS[preset];
   const horizontalMargin = 92;
@@ -42,22 +60,22 @@ export const getSocialShareLayout = ({
     cardY: Math.round(topMargin + (contentHeight - renderedCardHeight) / 2),
     cardWidth: renderedCardWidth,
     cardHeight: renderedCardHeight,
-    watermarkUrl: SOCIAL_SHARE_WATERMARK_URL,
+    watermark,
   };
 };
 
 export type SocialShareLayout = ReturnType<typeof getSocialShareLayout>;
 
 export const getSocialShareWatermarkPlacement = (layout: SocialShareLayout) => {
-  const width = Math.round(layout.cardWidth * GENERATED_PREVIEW_WATERMARK_WIDTH_PERCENT / 100);
-  const height = Math.round(width * 260 / 1000);
+  const width = Math.round(layout.cardWidth * layout.watermark.widthPercent / 100);
+  const height = Math.round(width * layout.watermark.height / layout.watermark.width);
 
   return {
     x: Math.round(layout.cardX + (layout.cardWidth - width) / 2),
     y: Math.round(layout.cardY + (layout.cardHeight - height) / 2),
     width,
     height,
-    opacity: SOCIAL_SHARE_WATERMARK_OPACITY,
+    opacity: layout.watermark.opacity,
   };
 };
 
@@ -81,18 +99,21 @@ export const renderSocialShareImage = async ({
   exportMode,
   exportDpi,
   richTextHighlightColor,
+  watermark = DEFAULT_SOCIAL_SHARE_WATERMARK,
 }: {
   card: DisplayCard;
   preset: SocialSharePreset;
   exportMode: ExportMode;
   exportDpi: number;
   richTextHighlightColor: string;
+  watermark?: SocialShareWatermark;
 }): Promise<Blob> => {
   const cardCanvas = await renderCardToCanvas(card, exportMode, exportDpi, 'front', richTextHighlightColor);
   const layout = getSocialShareLayout({
     preset,
     cardWidth: cardCanvas.width,
     cardHeight: cardCanvas.height,
+    watermark,
   });
   const canvas = document.createElement('canvas');
   canvas.width = layout.width;
@@ -117,12 +138,12 @@ export const renderSocialShareImage = async ({
   context.strokeStyle = 'rgba(226, 170, 74, 0.48)';
   context.lineWidth = 2;
   context.strokeRect(38, 38, layout.width - 76, layout.height - 76);
-  const watermark = await loadImage(layout.watermarkUrl);
+  const watermarkImage = await loadImage(layout.watermark.url);
   const watermarkPlacement = getSocialShareWatermarkPlacement(layout);
   context.save();
   context.globalAlpha = watermarkPlacement.opacity;
   context.drawImage(
-    watermark,
+    watermarkImage,
     watermarkPlacement.x,
     watermarkPlacement.y,
     watermarkPlacement.width,

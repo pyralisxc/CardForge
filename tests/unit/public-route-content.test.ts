@@ -12,15 +12,19 @@ describe('public route stories', () => {
   it('separates the product story from the founder story', () => {
     const about = readRoute('about');
     const cameron = readRoute('cameron');
+    const contentCatalog = readFileSync(
+      join(process.cwd(), 'src/features/public-site/model/siteContent.ts'),
+      'utf8',
+    );
 
     expect(about).toContain('getCachedSiteContentBlocks');
     expect(about).toContain('createSiteContentMap');
     expect(about).toContain("siteContent['about.hero.headline']");
-    expect(about).toContain('Your work stays with you');
-    expect(about).toContain('Cards are the starting point');
-    expect(about).toContain('future printable formats');
-    expect(about).toContain('Qualified contributors can submit shared assets, marketing drafts, and site-copy proposals.');
-    expect(about).toContain('All public changes remain owner-approved.');
+    expect(contentCatalog).toContain('Your work stays with you');
+    expect(contentCatalog).toContain('Cards are the starting point');
+    expect(contentCatalog).toContain('future printable formats');
+    expect(contentCatalog).toContain('Qualified contributors can submit shared assets, marketing drafts, and site-copy proposals.');
+    expect(contentCatalog).toContain('All public changes remain owner-approved.');
     expect(about).not.toContain('Independent brand notice');
     expect(about).not.toContain('cardforge.com');
     expect(about).not.toContain('future developer compensation program');
@@ -38,12 +42,17 @@ describe('public route stories', () => {
       join(process.cwd(), 'src/features/public-site/components/AccessComparison.tsx'),
       'utf8',
     );
+    const contentCatalog = readFileSync(
+      join(process.cwd(), 'src/features/public-site/model/siteContent.ts'),
+      'utf8',
+    );
 
     expect(landing).toContain('<AccessComparison');
     expect(access).toContain('Creator Pass');
     expect(access).toContain('Start free');
     expect(access).toContain('See Creator Pass');
-    expect(access).toContain('watermark-free downloads');
+    expect(contentCatalog).toContain('watermark-free downloads');
+    expect(access).toContain("siteContent['landing.access.headline']");
     expect(access).not.toContain('clean downloads');
     expect(access).not.toContain('planned home');
   });
@@ -54,6 +63,10 @@ describe('public route stories', () => {
       join(process.cwd(), 'src/features/billing/components/SupportCheckoutActions.tsx'),
       'utf8',
     );
+    const contentCatalog = readFileSync(
+      join(process.cwd(), 'src/features/public-site/model/siteContent.ts'),
+      'utf8',
+    );
 
     for (const disclosure of [
       'voluntary',
@@ -62,11 +75,12 @@ describe('public route stories', () => {
       'not a charitable donation or tax-deductible',
       'does not provide equity',
       'Payments are not active yet',
-      'Creator Pass is the best way to support CardForge as a business',
-      'food, housing, transportation',
     ]) {
       expect(cameron).toContain(disclosure);
     }
+    expect(contentCatalog).toContain('Creator Pass is the best way to support CardForge as a business');
+    expect(contentCatalog).toContain('food, housing, transportation');
+    expect(cameron).toContain("siteContent['founder.creator-pass.body']");
     expect(cameron).toContain('supportOffers ?');
     expect(cameron).toContain('<SupportCheckoutActions');
     expect(existsSync(join(process.cwd(), 'src/app/support/page.tsx'))).toBe(false);
@@ -80,7 +94,7 @@ describe('public route stories', () => {
 
   it('uses the shared public shell across public marketing routes', () => {
     for (const route of ['about', 'cameron', 'developer', 'roadmap']) {
-      expect(readRoute(route), route).toContain('<PublicSiteShell');
+      expect(readRoute(route), route).toMatch(/<(?:Configured)?PublicSiteShell/u);
     }
   });
 });

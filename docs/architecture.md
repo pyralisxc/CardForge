@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: August 13, 2026
+Last updated: August 14, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one public developer application, one protected contribution cockpit, and one owner console.
 
@@ -12,7 +12,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
 - Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
 - Email: Resend sends transactional messages to the configured support inbox and users.
-- Shared data: Supabase stores owner settings, editable homepage media, legal copy, the founder profile and public portrait object, roadmap/votes, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles/scopes, asset submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider delivery jobs, and contact request history.
+- Shared data: Supabase stores owner settings, canonical public brand and marketing media, legal copy, the founder profile, roadmap/votes, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles/scopes, asset submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider delivery jobs, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
 
 ## Source Lanes
@@ -58,7 +58,8 @@ API route files own HTTP configuration and delegation. Provider or product workf
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency. Template field contracts, generator/editor field interpretation, template display labels, pointer selection, and parent-resize geometry live here because multiple features consume them.
 - `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
 - `src/features/card-generator`: Single-card and bulk two-face generation, generated output gallery, image tools, and export tools. Each generated card owns independent `data` (front) and `backingData` (back) values; layouts remain reusable rendering blueprints. Bulk files use `back.<field>` headers for back values. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
-- `src/features/card-rendering`: shared card preview, rich-text, vector-shape, thumbnail, appearance, watermark presentation, and rendering-specific global CSS consumed through `client.ts`.
+- `src/features/brand-presentation`: dependency-free runtime contract for the owner-approved brand name, mark, favicon, social image, and watermark presentation assembled by the app root.
+- `src/features/card-rendering`: shared card preview, rich-text, vector-shape, thumbnail, appearance, watermark rendering, and rendering-specific global CSS consumed through `client.ts`.
 - `src/features/project`: browser workspace state, selectors, IndexedDB persistence, recovery, local project assets, and portable project files.
 - `src/features/billing`: customer checkout/portal actions plus owner billing panels, Stripe webhook processing, subscription/event storage, settings, and reconciliation behind explicit client/server interfaces.
 - `src/features/account`: current-user resolution, access entitlement, profile surfaces, and owner account administration behind explicit client/server interfaces.
@@ -121,7 +122,7 @@ Developer submissions and CardForge starter assets use one lifecycle:
 
 Assets can also be `archived` or `rejected`. Published creator-facing tiers are `free` and `paid`; internal `developer` and `hidden` values are pipeline states, not extra customer library tiers.
 
-The current developer pipeline is operational infrastructure, not an active payout system. The former Creator Pool page is an archived, noindex notice and is not promoted as an access tier or active program.
+The current developer pipeline is operational infrastructure, not an active payout system. It has no payout eligibility or pool-percentage application controls. The former Creator Pool page is an archived, noindex legal notice and is not promoted as an access tier or active program.
 
 ## Developer Contribution Cockpit
 
@@ -136,7 +137,7 @@ Non-owner developers never gain approval, site publication, provider configurati
 
 The Owner Console People directory is the single human-facing composition of Clerk account entitlement and `developer-access` profile status/scopes. Revocation is fail-safe across providers: Clerk entitlement is removed first, then the retained profile is deactivated and extended scopes are cleared. Contribution and voting history remains attributed. Provider/DB partial completion is reported and retryable; a missing Clerk account is history, not active access.
 
-`public-site` owns the constrained live site-configuration model. Owner settings may reorder or hide only code-allowlisted navigation destinations and homepage sections, adjust homepage metadata/action/announcement, and hide public offer promotions. They cannot introduce arbitrary routes, scripts, provider credentials, or unreviewed product behavior. `owner` owns the append-only operational history projection, while each feature continues to own its mutation.
+`public-site` owns the constrained live site-configuration, public-copy catalog, and public brand/marketing-media catalog. Owner settings may reorder or hide only code-allowlisted navigation destinations and homepage sections; adjust homepage metadata, search phrases, actions, announcements, offers, and watermark presentation; edit the allowlisted shell, landing, About, founder, developer-program, roadmap, and sharing copy; and replace the brand mark, favicon, watermark, default social image, homepage imagery, Studio screenshots, live-example artwork, and founder portrait. They cannot introduce arbitrary routes, scripts, provider credentials, unreviewed capability claims, or product behavior. `owner` owns the append-only operational history projection, while each feature continues to own its mutation.
 
 Campaign media has one canonical CardForge UUID. Ingestion retains an immutable protected original and a protected normalized WebP master; storage bucket/object references stay server-only. Campaign JSON retains only channel copy. Relational attachments reference media IDs and own display order, contextual alt text, crop intent, caption overrides, and an optional chosen derivative. Media owns intrinsic metadata, content hash, rights/credit, focal point, lifecycle, and its approved derivatives. A public URL is delivery output, never application identity.
 
@@ -154,11 +155,11 @@ Future derivative generation, screenshot capture, focal-crop suggestions, captio
 
 ## Public delivery and search identity
 
-Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, founder-profile, homepage-media, content-group, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
+Marketing and legal reads use one-hour bounded Next.js caches. Owner mutations invalidate the exact business-identity, founder-profile, public-site-media, public-site-content, configuration, or legal-document tag only after the corresponding database write succeeds. Account-specific and API routes remain dynamic.
 
-`cardforge_founder_profile` is a private single-row service-role record. The public shell reads its cached copy for Facebook, Instagram, and Discord controls; blank links announce a coming-soon state. Owner portrait uploads are decoded and normalized by Sharp, stored as metadata-free WebP at `cardforge-public-media/founder/cameron-locke/portrait.webp`, and only become the active portrait after Storage succeeds.
+`cardforge_founder_profile` is a private single-row service-role record. The public shell reads its cached copy for Facebook, Instagram, and Discord controls; blank links announce a coming-soon state. Public brand and marketing uploads are decoded and normalized by Sharp, stored as immutable versioned objects in `cardforge-public-media`, and only become active after Storage succeeds. Brand marks, favicons, and watermarks become transparent PNG; social images become 1600x900 WebP; page imagery and live-example artwork become bounded metadata-free WebP. The prior live version remains restorable, and the older superseded object is removed after a successful publication.
 
-Each public route owns its title, description, self-referencing canonical, Open Graph URL, social image, and robots decision through `src/shared/siteMetadata.ts`. The XML sitemap contains only canonical marketing pages; public legal pages are canonical and indexable but intentionally excluded from the marketing sitemap. `/studio`, `/account`, `/profile`, `/owner`, and the Creator Pool archive are noindex. The removed `/access` and `/examples` routes intentionally return 404 instead of retaining redirects or duplicate page code.
+Code owns canonical paths, robots decisions, and the allowlisted metadata renderer through `src/shared/siteMetadata.ts`. The owner controls the homepage title/description/search phrases and the marketing-page title/description catalog; the managed default social image supplies Open Graph and Twitter previews. The XML sitemap contains only canonical marketing pages; public legal pages are canonical and indexable but intentionally excluded from the marketing sitemap. `/studio`, `/account`, `/profile`, `/owner`, and the Creator Pool archive are noindex. The removed `/access` and `/examples` routes intentionally return 404 instead of retaining redirects or duplicate page code.
 
 The root public share settings combine the owner-edited `sharing.message` block with canonical homepage and Cameron URLs. Generated-card sharing consumes that message and the homepage URL. The Owner Console renders separate high-resolution QR PNGs for the homepage and Cameron page in the browser, so no duplicate QR files or storage registry can become stale.
 

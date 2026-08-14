@@ -63,12 +63,13 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/features/app-shell/`: Studio shell, workspace bootstrap, and route-level composition.
 - `src/features/template-editor/`: Layout Studio panels, inspector tools, canvas commands, and editor controller hooks.
 - `src/features/card-generator/`: One-card and list-based creation, card review, editing, sharing, downloads, and print/export settings.
-- `src/features/card-rendering/`: Shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark presentation.
+- `src/features/brand-presentation/`: Dependency-free runtime projection of the owner-approved brand name, mark, favicon, social image, and watermark presentation.
+- `src/features/card-rendering/`: Shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark rendering.
 - `src/features/project/`: Local project files, project asset persistence, and project access rules.
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
 - `src/features/business-identity/`: canonical operator identity, owner editing, and server-owned Supabase persistence.
-- `src/features/public-site/`: owner-editable marketing/sharing/founder content, constrained live navigation/homepage/SEO configuration, public social/share controls, tagged public caching, portrait processing, and structured search identity.
+- `src/features/public-site/`: owner-editable public copy, constrained navigation/homepage/SEO configuration, canonical public brand and marketing media (including favicon, watermark, and live-example artwork), social/share controls, tagged public caching, image processing, and structured search identity.
 - `src/features/legal/`: immutable versioned legal publication, constrained document rendering, and public legal caching.
 - `src/features/developer-access/`: the single owner of developer identity, profile status, contribution grants, and every runtime access to the `cardforge_developer_profiles` persistence boundary.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
@@ -95,7 +96,7 @@ CardForge has three deliberately separate storage lanes:
 
 - Browser-local workspace state for user templates, generated cards, custom local assets, and project files.
 - Supabase-backed shared state for the Forge Pipeline, roadmap voting, owner settings, the founder profile/public portrait, asset registry metadata, developer submissions/votes, canonical campaign media and derivatives, campaign packages/attachments/production associations, site-copy proposals, provider-delivery history, and published shared-library assets including reviewed fonts.
-- Repository deployment media for the public site plus bootstrap import material. These files are not a competing Template Studio catalog. `npm run pipeline:sync-defaults` copies missing Studio assets into managed storage and the registry; it never overwrites owner decisions or recreates an owner-deleted asset.
+- Repository fallback media for a safe first render plus bootstrap import material. Supabase Site Media owns the live public brand and marketing selections, including the favicon; repository files are not a competing owner or Template Studio catalog. `npm run pipeline:sync-defaults` copies missing Studio assets into managed storage and the registry; it never overwrites owner decisions or recreates an owner-deleted asset.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and deletion pipeline. Owners may permanently remove any lineage—including published or voted work—using exact-name confirmation; the deletion removes registry state, revisions, votes, and managed objects and leaves a private tombstone so bootstrap cannot restore it.
 

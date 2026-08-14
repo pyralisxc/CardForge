@@ -97,7 +97,6 @@ export async function PATCH(request: Request) {
         canProposeSiteContent: false,
         monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
         monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
-        profitShareEligible: false,
         ownerNote: profile.owner_note ?? '',
       });
     } else {
@@ -144,7 +143,6 @@ export async function PATCH(request: Request) {
             canProposeSiteContent: action !== 'revoke' && body.developer?.canProposeSiteContent === true,
             monthlySubmissionLimitOverride: normalizeNullableOverride(body.developer?.monthlySubmissionLimitOverride ?? profile?.monthly_submission_limit_override, 1, 250),
             monthlyPublishedRequirementOverride: normalizeNullableOverride(body.developer?.monthlyPublishedRequirementOverride ?? profile?.monthly_published_requirement_override, 0, 100),
-            profitShareEligible: action !== 'revoke' && body.developer?.profitShareEligible === true,
             ownerNote: typeof body.developer?.ownerNote === 'string' ? body.developer.ownerNote : profile?.owner_note ?? '',
           });
         } catch (error) {
@@ -207,7 +205,6 @@ export async function DELETE(request: Request) {
           canProposeSiteContent: false,
           monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
           monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
-          profitShareEligible: false,
           ownerNote: profile.owner_note ?? '',
         });
       } catch (error) {

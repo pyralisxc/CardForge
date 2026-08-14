@@ -226,7 +226,6 @@ export async function PATCH(request: Request) {
         status?: unknown;
         monthlySubmissionLimitOverride?: unknown;
         monthlyPublishedRequirementOverride?: unknown;
-        profitShareEligible?: unknown;
         ownerNote?: unknown;
       };
     };

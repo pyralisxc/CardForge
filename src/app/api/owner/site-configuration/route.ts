@@ -28,7 +28,7 @@ export async function PUT(request: Request) {
       action: 'site.configuration.update',
       targetType: 'public_site',
       targetId: 'cardforge',
-      summary: 'Updated public navigation, homepage presentation, offer visibility, announcement, or homepage metadata.',
+      summary: 'Updated public navigation, homepage presentation, offer visibility, announcement, search metadata, or watermark presentation.',
       metadata: {
         announcementEnabled: settings.announcementEnabled,
         visibleNavigation: settings.primaryNavigation.filter((item) => item.visible).map((item) => item.id),

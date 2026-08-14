@@ -89,10 +89,10 @@ export function OwnerSiteConfigurationPanel({
 
         <article className="border border-[#5f4526] bg-[#15100a] p-5">
           <div className="flex items-center gap-3 text-[#e2aa4a]"><Search className="h-5 w-5" aria-hidden="true" /><h2 className="font-serif text-2xl text-[#fff1c7]">Homepage search &amp; sharing</h2></div>
-          <p className="mt-2 text-sm leading-6 text-[#c7b288]">These fields own the homepage title, search description, and optional social-share image. Other pages keep code-reviewed metadata.</p>
+          <p className="mt-2 text-sm leading-6 text-[#c7b288]">These fields own the homepage title and search description. The default social-share image is managed beside the other brand media.</p>
           <label className="mt-4 grid gap-2 text-sm text-[#c7b288]">Page title<input className={inputClassName} maxLength={80} value={draft.homepageTitle} onChange={(event) => setDraft((current) => ({ ...current, homepageTitle: event.target.value }))} /></label>
           <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">Search description<textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" maxLength={200} value={draft.homepageDescription} onChange={(event) => setDraft((current) => ({ ...current, homepageDescription: event.target.value }))} /></label>
-          <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">Share image HTTPS URL (optional)<input className={inputClassName} type="url" value={draft.homepageShareImageUrl} onChange={(event) => setDraft((current) => ({ ...current, homepageShareImageUrl: event.target.value }))} /></label>
+          <label className="mt-3 grid gap-2 text-sm text-[#c7b288]">Search phrases (one per line)<textarea className="min-h-32 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={draft.searchKeywords.join('\n')} onChange={(event) => setDraft((current) => ({ ...current, searchKeywords: event.target.value.split('\n').map((keyword) => keyword.trim()).filter(Boolean) }))} /></label>
         </article>
       </div>
 

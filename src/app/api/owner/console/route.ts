@@ -129,9 +129,8 @@ export async function PUT(request: Request) {
         ({ slug }) => slug === body.siteContentBlock?.slug,
       );
       if (updatedBlock) {
-        revalidateSiteContentCache(updatedBlock.group);
-        if (updatedBlock.group === 'landing') revalidatePath('/');
-        if (updatedBlock.group === 'about') revalidatePath('/about');
+        revalidateSiteContentCache();
+        revalidatePath('/', 'layout');
       }
       return respond({ action: 'site.copy.publish', targetType: 'site_content', targetId: typeof body.siteContentBlock?.slug === 'string' ? body.siteContentBlock.slug : null, summary: 'Published an owner-authored public site copy block.' });
     }

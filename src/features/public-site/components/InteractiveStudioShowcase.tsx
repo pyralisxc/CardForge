@@ -14,6 +14,8 @@ import {
   getShowcaseAdvanceDelay,
   INTERACTION_PAUSE_MS,
 } from '../model/showcaseTiming';
+import { useSiteContent } from './PublicSitePresentationContext';
+import { useBrandPresentation } from '@/features/brand-presentation/client';
 
 const stages = [
   { label: 'Design layouts', icon: LayoutTemplate },
@@ -78,6 +80,8 @@ export function InteractiveStudioShowcase({
   generatorSingleMedia?: SiteMediaAsset;
   generatorBulkMedia?: SiteMediaAsset;
 }) {
+  const siteContent = useSiteContent();
+  const brand = useBrandPresentation();
   const [activeStage, setActiveStage] = useState(0);
   const [activeExample, setActiveExample] = useState(0);
   const [activeGeneratorView, setActiveGeneratorView] = useState<'single' | 'bulk'>('single');
@@ -138,12 +142,12 @@ export function InteractiveStudioShowcase({
     >
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">
-          <p className="text-base font-semibold text-[var(--public-brass)]">Look inside CardForge</p>
+          <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.showcase.eyebrow']}</p>
           <h2 id="interactive-showcase-heading" className="mt-2 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
-            Design the look, build the set, and see every finished card.
+            {siteContent['landing.showcase.headline']}
           </h2>
           <p className="mt-3 text-lg leading-8 text-[var(--public-muted-text)]">
-            This walkthrough uses CardForge’s real templates, sample rows, and card renderer. Choose any step or set inside the Studio frame.
+            {siteContent['landing.showcase.body']}
           </p>
         </div>
 
@@ -158,7 +162,7 @@ export function InteractiveStudioShowcase({
               <span className="h-2.5 w-2.5 rounded-full bg-[#d7643b]" aria-hidden="true" />
               <span className="h-2.5 w-2.5 rounded-full bg-[var(--public-brass)]" aria-hidden="true" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#78965b]" aria-hidden="true" />
-              <strong className="ml-1 font-[var(--public-font-display)] text-base text-[var(--public-ivory)]">CardForge Studio</strong>
+              <strong className="ml-1 font-[var(--public-font-display)] text-base text-[var(--public-ivory)]">{brand.brandName}</strong>
             </div>
             <div role="tablist" aria-label="CardForge product walkthrough" className="grid grid-cols-3 gap-1 rounded-[var(--public-radius)] border border-[#3b2b19] bg-[#0f0c08] p-1">
               {stages.map((stage, index) => (
@@ -255,7 +259,7 @@ export function InteractiveStudioShowcase({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--public-border)] bg-[var(--public-surface)] px-4 py-3 text-base text-[var(--public-muted-text)]">
-            <span>{activeStage === 2 ? 'Real CardForge templates and rendering' : 'Actual CardForge Studio screenshot'}</span>
+            <span>{activeStage === 2 ? `Real ${brand.brandName} templates and rendering` : `Actual ${brand.brandName} screenshot`}</span>
             <span>{reducedMotion ? 'Click to move between views' : 'Moves every 12 seconds · interaction pauses for one minute'}</span>
           </div>
         </div>

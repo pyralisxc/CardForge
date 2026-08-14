@@ -4,6 +4,7 @@ export {
   normalizeSiteContentBlockInput,
   type SiteContentBlock,
   type SiteContentBlockSlug,
+  type SiteContentMap,
 } from './model/siteContent';
 export { PUBLIC_NAVIGATION, STUDIO_NAVIGATION } from './model/publicNavigation';
 export {
@@ -35,6 +36,10 @@ export {
   useFounderProfile,
 } from './components/FounderProfileContext';
 export {
+  SiteContentProvider,
+  useSiteContent,
+} from './components/PublicSitePresentationContext';
+export {
   AUTO_ADVANCE_MS,
   getNextShowcaseStage,
   getShowcaseAdvanceDelay,
@@ -56,6 +61,7 @@ export {
   DEFAULT_SITE_MEDIA,
   getDefaultSiteMedia,
   getSiteMediaDisplaySrc,
+  getSiteMediaContentType,
   getSiteMediaStoragePath,
   normalizeSiteMediaPresentation,
   SITE_MEDIA_SLOTS,
@@ -63,6 +69,7 @@ export {
   type SiteMediaFit,
   type SiteMediaFrame,
   type SiteMediaKind,
+  type SiteMediaGroup,
   type SiteMediaPresentation,
   type SiteMediaSize,
   type SiteMediaSlot,

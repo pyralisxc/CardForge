@@ -79,7 +79,6 @@ export interface DeveloperAssetProgramView {
   developerStats: DeveloperAssetMonthlyStats;
   effectiveMonthlySubmissionLimit: number;
   effectiveMonthlyPublishedRequirement: number;
-  profitShareEligible: boolean;
   developerOwnerNote: string | null;
   remainingSubmissions: number;
 }
@@ -93,7 +92,6 @@ export interface DeveloperProgramSettingsRow {
   paid_asset_minimum_positive_vote_percent?: unknown;
   allow_contributor_self_voting?: unknown;
   owner_vote_weight?: unknown;
-  profit_share_pool_percent?: unknown;
   tier_caps_by_type?: unknown;
 }
 
@@ -141,7 +139,6 @@ export interface DeveloperAssetProfile {
   last_name?: string | null;
   monthly_submission_limit_override?: number | null;
   monthly_published_requirement_override?: number | null;
-  eligible_for_profit_share?: boolean | null;
   owner_note?: string | null;
 }
 
@@ -149,7 +146,6 @@ export interface DeveloperProfileOverrideInput {
   status?: unknown;
   monthlySubmissionLimitOverride?: unknown;
   monthlyPublishedRequirementOverride?: unknown;
-  profitShareEligible?: unknown;
   ownerNote?: unknown;
 }
 
@@ -181,7 +177,6 @@ const resolveEffectiveDeveloperRules = (
   effectivePublishedRequirement: profile?.monthly_published_requirement_override ?? settings.monthlyPublishedRequirement,
   submissionLimitOverride: profile?.monthly_submission_limit_override ?? null,
   publishedRequirementOverride: profile?.monthly_published_requirement_override ?? null,
-  profitShareEligible: profile?.eligible_for_profit_share ?? true,
   ownerNote: profile?.owner_note ?? null,
 });
 
@@ -199,7 +194,6 @@ export const normalizeDeveloperProfileOverrideInput = (
   status?: 'invited' | 'active' | 'inactive' | 'suspended';
   monthly_submission_limit_override: number | null;
   monthly_published_requirement_override: number | null;
-  eligible_for_profit_share: boolean;
   owner_note: string;
 } => ({
   status:
@@ -211,7 +205,6 @@ export const normalizeDeveloperProfileOverrideInput = (
       : undefined,
   monthly_submission_limit_override: normalizeOptionalInteger(input.monthlySubmissionLimitOverride, 1, 250),
   monthly_published_requirement_override: normalizeOptionalInteger(input.monthlyPublishedRequirementOverride, 0, 100),
-  eligible_for_profit_share: input.profitShareEligible !== false,
   owner_note: normalizeDeveloperAssetLongText(input.ownerNote, 280),
 });
 
@@ -280,7 +273,6 @@ export const mapDeveloperProgramSettingsRow = (
       paidAssetMinimumPositiveVotePercent: row.paid_asset_minimum_positive_vote_percent,
       allowContributorSelfVoting: row.allow_contributor_self_voting,
       ownerVoteWeight: row.owner_vote_weight,
-      profitSharePoolPercent: row.profit_share_pool_percent,
       tierCapsByType: row.tier_caps_by_type,
     }
   : DEFAULT_DEVELOPER_PROGRAM_SETTINGS);
@@ -422,7 +414,6 @@ export const buildDeveloperAssetProgramView = ({
         remainingSubmissions: Math.max(0, rules.effectiveSubmissionLimit - stats.submitted),
         requiredPublished: rules.effectivePublishedRequirement,
         missingPublished: Math.max(0, rules.effectivePublishedRequirement - stats.published),
-        profitShareEligible: rules.profitShareEligible,
         ownerNote: rules.ownerNote,
         isOwnerDefaultContributor: false,
       };
@@ -445,7 +436,6 @@ export const buildDeveloperAssetProgramView = ({
     developerStats,
     effectiveMonthlySubmissionLimit: currentRules.effectiveSubmissionLimit,
     effectiveMonthlyPublishedRequirement: currentRules.effectivePublishedRequirement,
-    profitShareEligible: currentRules.profitShareEligible,
     developerOwnerNote: currentRules.ownerNote,
     remainingSubmissions: Math.max(0, currentRules.effectiveSubmissionLimit - developerStats.submitted),
   };

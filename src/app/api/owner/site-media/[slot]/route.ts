@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getOwnerConsolePayload, getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import {
   getSiteMediaStoragePath,
+  getSiteMediaContentType,
   getSiteMedia,
   isSiteMediaSlot,
   normalizeSiteMediaAlt,
@@ -26,6 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ slot: string }> },
 ) {
   let uploadedPath: string | null = null;
+  let mediaCommitted = false;
   try {
     const owner = await getCurrentOwnerAccess();
     if (!owner.isOwner || !owner.userId) {
@@ -62,6 +64,7 @@ export async function POST(
 
     const current = (await getSiteMedia()).find((asset) => asset.slot === slot);
     if (!current) return createApiErrorResponse(404, 'site_media_not_found', 'Public image not found.');
+    const obsoleteStoragePath = current.previousVersion?.storagePath ?? null;
     let storagePath = current.storagePath;
     let width = current.width;
     let height = current.height;
@@ -81,7 +84,7 @@ export async function POST(
         .from(SITE_MEDIA_BUCKET)
         .upload(uploadedPath, processed.buffer, {
           cacheControl: '31536000',
-          contentType: 'image/webp',
+          contentType: getSiteMediaContentType(slot),
           upsert: false,
         });
       if (uploadError) {
@@ -94,14 +97,23 @@ export async function POST(
     }
 
     await updateSiteMedia({ slot, storagePath, alt, width, height, presentation });
+    mediaCommitted = true;
+    if (obsoleteStoragePath && obsoleteStoragePath !== current.storagePath && obsoleteStoragePath !== storagePath) {
+      const supabase = getSupabaseServerClient();
+      const { error: cleanupError } = supabase
+        ? await supabase.storage.from(SITE_MEDIA_BUCKET).remove([obsoleteStoragePath])
+        : { error: null };
+      if (cleanupError) console.error('Failed to remove superseded public image version:', cleanupError);
+    }
     revalidateSiteMediaCache();
     revalidatePath('/');
+    if (slot.startsWith('brand.')) revalidatePath('/', 'layout');
     if (slot === 'founder.portrait') revalidatePath('/cameron');
     await recordOwnerActivity({ actorUserId: owner.userId, actorEmail: owner.email, action: 'site.media.publish', targetType: 'site_media', targetId: slot, summary: image ? 'Published a new public site image and presentation.' : 'Updated public image presentation and accessibility text.' });
 
     return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() }, { status: image ? 201 : 200 });
   } catch (error) {
-    if (uploadedPath) {
+    if (uploadedPath && !mediaCommitted) {
       const supabase = getSupabaseServerClient();
       if (supabase) await supabase.storage.from(SITE_MEDIA_BUCKET).remove([uploadedPath]);
     }

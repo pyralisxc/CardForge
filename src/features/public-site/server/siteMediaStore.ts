@@ -110,6 +110,10 @@ const validateStoragePath = (slot: SiteMediaSlot, storagePath: unknown): string 
   if (storagePath === null) return null;
   const expectedPrefix = slot === 'founder.portrait'
     ? 'founder/portrait/'
+    : slot === 'brand.social'
+      ? 'brand/social/'
+      : slot.startsWith('brand.')
+        ? `brand/${slot.replace('brand.', '')}/`
     : `landing/${slot.replace('landing.', '')}/`;
   if (typeof storagePath !== 'string' || !storagePath.startsWith(expectedPrefix)) {
     throw new SiteMediaStoreError('Public image storage path is invalid.', 400);

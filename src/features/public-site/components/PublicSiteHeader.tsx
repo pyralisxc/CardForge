@@ -17,6 +17,8 @@ import type { BusinessIdentity } from '@/features/business-identity/client';
 import { DEFAULT_PUBLIC_SITE_CONFIGURATION, type PublicSiteConfiguration } from '../model/siteConfiguration';
 import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
 import { FounderSocialLinks } from './FounderSocialLinks';
+import { useSiteContent } from './PublicSitePresentationContext';
+import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { useFounderProfile } from './FounderProfileContext';
 import { useDeveloperAccess } from '@/features/developer-access/client';
 
@@ -39,6 +41,8 @@ export function PublicSiteHeader({
   siteConfiguration = DEFAULT_PUBLIC_SITE_CONFIGURATION,
 }: PublicSiteHeaderProps) {
   const founderProfile = useFounderProfile();
+  const brand = useBrandPresentation();
+  const siteContent = useSiteContent();
   const developerAccess = useDeveloperAccess();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -50,14 +54,14 @@ export function PublicSiteHeader({
           prefetch={false}
           className="inline-flex min-h-11 min-w-0 items-center gap-3 rounded-[var(--public-radius)] text-[var(--public-ivory)]"
         >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface-raised)] shadow-[0_0_22px_rgba(217,164,65,0.1)]">
+          <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-surface-raised)] shadow-[0_0_22px_rgba(217,164,65,0.1)]">
             <Image
-              src="/brand/cardforge-studio/brand-mark.svg"
+              src={brand.markUrl}
               alt=""
-              width={24}
-              height={32}
+              fill
               priority
-              className="h-7 w-auto"
+              unoptimized
+              className="object-contain p-1.5"
             />
           </span>
           <span className="truncate font-[var(--public-font-display)] text-lg font-semibold tracking-wide md:text-xl">
@@ -90,7 +94,7 @@ export function PublicSiteHeader({
         </nav>
 
         <div className="hidden xl:block">
-          <FounderSocialLinks profile={founderProfile} compact />
+          <FounderSocialLinks profile={founderProfile} brandName={businessIdentity.brandName} compact />
         </div>
 
         <Link
@@ -140,7 +144,7 @@ export function PublicSiteHeader({
                 Navigation
               </DialogTitle>
               <DialogDescription className="mt-2 text-base text-[var(--public-muted-text)]">
-                Explore CardForge Studio and its public resources.
+                {siteContent['shell.mobile.description']}
               </DialogDescription>
             </div>
             <nav aria-label="Mobile navigation" className="grid content-start gap-1">
@@ -197,10 +201,10 @@ export function PublicSiteHeader({
             ) : null}
             <section className="border-t border-[var(--public-border)] pt-5" aria-labelledby="mobile-developer-heading">
               <h2 id="mobile-developer-heading" className="text-base font-semibold text-[var(--public-ivory)]">
-                Check out our developer
+                {siteContent['shell.mobile.developer.heading']}
               </h2>
               <p className="mt-2 text-sm leading-6 text-[var(--public-muted-text)]">
-                Meet Cameron Locke, the independent developer building CardForge Studio.
+                {siteContent['shell.mobile.developer.body']}
               </p>
               <DialogClose asChild>
                 <Link
@@ -213,8 +217,8 @@ export function PublicSiteHeader({
               </DialogClose>
             </section>
             <div className="border-t border-[var(--public-border)] pt-5">
-              <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Follow CardForge Studio</p>
-              <FounderSocialLinks profile={founderProfile} />
+              <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Follow {businessIdentity.brandName}</p>
+              <FounderSocialLinks profile={founderProfile} brandName={businessIdentity.brandName} />
             </div>
           </DialogContent>
         </Dialog>

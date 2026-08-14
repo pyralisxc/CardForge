@@ -31,14 +31,6 @@ export async function generateMetadata() {
     title: siteConfiguration.homepageTitle,
     description: siteConfiguration.homepageDescription,
     path: '/',
-    ...(siteConfiguration.homepageShareImageUrl ? {
-      image: {
-        url: siteConfiguration.homepageShareImageUrl,
-        width: 1600,
-        height: 900,
-        alt: `${siteConfiguration.homepageTitle} — CardForge Studio`,
-      },
-    } : {}),
   });
 }
 
@@ -60,12 +52,12 @@ export default async function LandingPage() {
     showcase: <InteractiveStudioShowcase layoutMedia={layoutMedia} generatorSingleMedia={generatorSingleMedia} generatorBulkMedia={generatorBulkMedia} />,
     workflow: <WorkflowProof />,
     access: <AccessComparison projectFileAccess={experienceSettings.projectFileAccess} creatorPassVisible={siteConfiguration.creatorPassOfferVisible} />,
-    founder: <FounderStrip />,
+    founder: <FounderStrip founderName={businessIdentity.legalOperatorName} />,
     final_cta: (
       <section className="bg-[radial-gradient(circle_at_center,#2a1a0c_0%,#0c0b09_62%)] px-5 py-11 text-center md:px-8 md:py-14">
         <div className="mx-auto max-w-3xl">
-          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">Build your first set.</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-lg leading-8 text-[var(--public-muted-text)]">Open the Studio, choose a starting point, and make something that feels like yours.</p>
+          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">{siteContent['landing.final.headline']}</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['landing.final.body']}</p>
           <Link href={siteConfiguration.primaryCtaHref} prefetch={false} className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-6 text-base font-bold text-[var(--public-obsidian)] shadow-[var(--public-shadow)] hover:bg-[#f0bd58]">
             {siteConfiguration.primaryCtaLabel} <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
@@ -82,11 +74,17 @@ export default async function LandingPage() {
         currentPath="/"
         siteConfiguration={siteConfiguration}
       >
-        <StructuredData value={createCardForgeStructuredData(businessIdentity)} />
+        <StructuredData value={createCardForgeStructuredData(
+          businessIdentity,
+          siteMedia.find((asset) => asset.slot === 'brand.mark'),
+        )} />
         <OutcomeHero
           body={siteContent['landing.hero.body']}
           headline={siteContent['landing.hero.headline']}
           media={heroMedia}
+          primaryActionHref={siteConfiguration.primaryCtaHref}
+          primaryActionLabel={siteConfiguration.primaryCtaLabel}
+          secondaryActionLabel={siteContent['landing.hero.secondary-action']}
           support={siteContent['landing.hero.support']}
         />
         {siteConfiguration.homepageSections.filter((section) => section.visible).map((section) => (

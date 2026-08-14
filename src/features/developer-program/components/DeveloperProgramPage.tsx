@@ -17,24 +17,7 @@ import { Button } from '@/components/ui/button';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { createDeveloperRequestMailto } from '@/features/contact/client/links';
 import { ContactRequestForm } from '@/features/contact/client/form';
-
-const contributionLanes = [
-  {
-    icon: UploadCloud,
-    title: 'Shared library assets',
-    copy: 'Submit templates, overlays, icons, textures, fonts, and reusable design presets for owner review.',
-  },
-  {
-    icon: Megaphone,
-    title: 'Campaign packages',
-    copy: 'Combine post copy, media, rights details, and release context into reusable marketing drafts.',
-  },
-  {
-    icon: Vote,
-    title: 'Site improvements',
-    copy: 'Propose clearer public-site copy against the current live text, with rationale and owner review.',
-  },
-];
+import { useSiteContent } from '@/features/public-site/client/context';
 
 const standards = [
   'Every contribution has a named owner, source notes, and a visible review state.',
@@ -50,6 +33,12 @@ export function DeveloperProgramPage({
   initialAuthConfigured?: boolean;
   supportEmail?: string | null;
 }) {
+  const siteContent = useSiteContent();
+  const contributionLanes = [
+    { icon: UploadCloud, title: siteContent['developer.lane.assets.title'], copy: siteContent['developer.lane.assets.body'] },
+    { icon: Megaphone, title: siteContent['developer.lane.campaigns.title'], copy: siteContent['developer.lane.campaigns.body'] },
+    { icon: Vote, title: siteContent['developer.lane.site.title'], copy: siteContent['developer.lane.site.body'] },
+  ];
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [identity, setIdentity] = useState({
     isLoaded: false,
@@ -75,13 +64,13 @@ export function DeveloperProgramPage({
           <div className="border border-[#6d4f2b] bg-[#15100a] p-5 md:p-7">
             <div className="flex items-center gap-3 text-[#e2aa4a]">
               <Sparkles className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em]">Developer Program</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['developer.hero.eyebrow']}</span>
             </div>
             <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-[#fff1c7] md:text-5xl">
-              Help improve CardForge with reviewable contributions.
+              {siteContent['developer.hero.headline']}
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-6 text-[#c7b288]">
-              Approved contributors add shared assets, prepare marketing drafts, and propose clearer public-site text from one secure workspace. Every contribution keeps its source and review history, and the owner approves all public changes.
+              {siteContent['developer.hero.body']}
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               {contributionLanes.map(({ icon: Icon, title, copy }) => (
@@ -147,7 +136,7 @@ export function DeveloperProgramPage({
         </div>
 
         <section className="mt-5 border border-[#5f4526] bg-[#15100a] p-5">
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Contribution rules</h2>
+          <h2 className="font-serif text-2xl text-[#fff1c7]">{siteContent['developer.rules.heading']}</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {standards.map((standard) => (
               <div key={standard} className="flex gap-3 border border-[#4a3823] bg-[#100c08] p-3">

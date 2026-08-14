@@ -20,10 +20,22 @@ import {
 describe('owner-managed homepage media', () => {
   it('keeps every owner-managed public image in one explicit media catalog', () => {
     expect(DEFAULT_SITE_MEDIA.map((asset) => asset.slot)).toEqual([
+      'brand.mark',
+      'brand.favicon',
+      'brand.watermark',
+      'brand.social',
       'landing.hero',
       'landing.showcase.layout',
       'landing.showcase.generator-single',
       'landing.showcase.generator-bulk',
+      'landing.showcase.art.playing.ace',
+      'landing.showcase.art.playing.king',
+      'landing.showcase.art.playing.queen',
+      'landing.showcase.art.playing.jack',
+      'landing.showcase.art.creature.emberclaw',
+      'landing.showcase.art.creature.mossback',
+      'landing.showcase.art.creature.moonveil',
+      'landing.showcase.art.creature.stormglass',
       'founder.portrait',
     ]);
     const hero = getDefaultSiteMedia('landing.hero');
@@ -32,10 +44,13 @@ describe('owner-managed homepage media', () => {
       .toContain('/api/public/site-media/landing.hero?v=');
     expect(getSiteMediaStoragePath('landing.hero', 'upload-id')).toBe('landing/hero/upload-id.webp');
     expect(getSiteMediaStoragePath('founder.portrait', 'upload-id')).toBe('founder/portrait/upload-id.webp');
+    expect(getSiteMediaStoragePath('brand.favicon', 'upload-id')).toBe('brand/favicon/upload-id.png');
     expect(getSiteMediaDisplaySrc(getDefaultSiteMedia('founder.portrait'))).toBeNull();
     expect(hero.presentation).toMatchObject({ frame: 'wide', fit: 'cover', desktopFocalX: 62 });
     expect(getDefaultSiteMedia('landing.showcase.layout').presentation.frame).toBe('natural');
     expect(getDefaultSiteMedia('landing.showcase.layout')).toMatchObject({ width: 1119, height: 1536 });
+    expect(getSiteMediaDisplaySrc(getDefaultSiteMedia('landing.showcase.art.creature.emberclaw')))
+      .toBe('/card-assets/showcase/creatures/emberclaw-whelp.webp');
     expect(getDefaultSiteMedia('founder.portrait').presentation.frame).toBe('portrait');
     expect(hero.previousVersion).toBeNull();
   });
@@ -58,6 +73,10 @@ describe('owner-managed homepage media', () => {
     expect(normalizeSiteMediaPresentation('founder.portrait', {
       ...getDefaultSiteMedia('founder.portrait').presentation,
       desktopZoom: 4,
+    })).toMatchObject({ ok: false });
+    expect(normalizeSiteMediaPresentation('landing.showcase.art.playing.ace', {
+      ...getDefaultSiteMedia('landing.showcase.art.playing.ace').presentation,
+      frame: 'wide',
     })).toMatchObject({ ok: false });
   });
 
@@ -87,13 +106,17 @@ describe('owner-managed homepage media', () => {
     const portrait = await processSiteMediaImage(portraitSource, 'founder.portrait');
     expect(portrait.width).toBeLessThanOrEqual(1600);
     expect(portrait.height).toBeLessThanOrEqual(2000);
+
+    const favicon = await processSiteMediaImage(source, 'brand.favicon');
+    const faviconMetadata = await sharp(favicon.buffer).metadata();
+    expect(faviconMetadata).toMatchObject({ format: 'png', width: 512, height: 512 });
   });
 
   it('keeps owner authorization and successful storage ahead of publishing media state', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/owner/site-media/[slot]/route.ts'), 'utf8');
     const restoreRoute = readFileSync(join(process.cwd(), 'src/app/api/owner/site-media/[slot]/restore/route.ts'), 'utf8');
     const panel = readFileSync(join(process.cwd(), 'src/features/owner/components/OwnerSiteMediaPanel.tsx'), 'utf8');
-    const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260721233000_unify_site_media_presentation.sql'), 'utf8');
+    const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260814153745_complete_owner_site_content_and_brand_media.sql'), 'utf8');
 
     expect(route.indexOf('await getCurrentOwnerAccess()')).toBeLessThan(route.indexOf('await request.formData()'));
     expect(route.indexOf('.upload(uploadedPath')).toBeLessThan(route.indexOf('await updateSiteMedia('));
@@ -106,6 +129,6 @@ describe('owner-managed homepage media', () => {
     expect(panel).toContain('AbortSignal.timeout(UPLOAD_TIMEOUT_MS)');
     expect(panel).toContain('setDetectedDimensions');
     expect(migration).toContain("'founder.portrait'");
-    expect(migration).toContain('previous_presentation jsonb');
+    expect(migration).toContain("'brand.favicon'");
   });
 });

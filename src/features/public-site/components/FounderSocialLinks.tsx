@@ -20,7 +20,15 @@ function DiscordIcon(props: SVGProps<SVGSVGElement>) {
   return <svg viewBox="0 0 24 24" aria-hidden="true" {...props}><path d="M19.55 5.33A18.8 18.8 0 0 0 14.9 3.9l-.57 1.16a17.2 17.2 0 0 0-4.66 0L9.1 3.9a18.9 18.9 0 0 0-4.66 1.43C1.5 9.72.7 14 .99 18.22a18.9 18.9 0 0 0 5.71 2.86l1.4-1.9a12.4 12.4 0 0 1-2.2-1.06l.54-.42c4.25 1.97 8.87 1.97 13.06 0l.55.42c-.7.41-1.44.77-2.2 1.06l1.4 1.9a18.8 18.8 0 0 0 5.7-2.86c.35-4.9-.82-9.14-3.4-12.89ZM8.52 15.65c-1.28 0-2.33-1.18-2.33-2.63s1.02-2.64 2.33-2.64c1.32 0 2.36 1.19 2.33 2.64 0 1.45-1.02 2.63-2.33 2.63Zm6.96 0c-1.28 0-2.33-1.18-2.33-2.63s1.02-2.64 2.33-2.64c1.32 0 2.36 1.19 2.33 2.64 0 1.45-1.01 2.63-2.33 2.63Z" /></svg>;
 }
 
-export function FounderSocialLinks({ profile, compact = false }: { profile: SocialProfile; compact?: boolean }) {
+export function FounderSocialLinks({
+  profile,
+  brandName,
+  compact = false,
+}: {
+  profile: SocialProfile;
+  brandName: string;
+  compact?: boolean;
+}) {
   const [announcement, setAnnouncement] = useState('');
   const networks = [
     { label: 'Facebook', url: profile.facebookUrl, Icon: FacebookIcon },
@@ -30,7 +38,7 @@ export function FounderSocialLinks({ profile, compact = false }: { profile: Soci
   const controlClassName = `${compact ? 'h-10 w-10' : 'h-11 w-11'} inline-flex items-center justify-center rounded-[var(--public-radius)] border border-[var(--public-border)] text-[var(--public-muted-text)] transition-colors hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]`;
 
   return (
-    <div className="flex items-center gap-2" aria-label="Follow CardForge Studio">
+    <div className="flex items-center gap-2" aria-label={`Follow ${brandName}`}>
       {networks.map((network) => network.url ? (
         <a
           key={network.label}

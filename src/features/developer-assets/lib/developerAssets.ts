@@ -37,7 +37,6 @@ export interface DeveloperProgramSettings {
   paidAssetMinimumPositiveVotePercent: number;
   allowContributorSelfVoting: boolean;
   ownerVoteWeight: number;
-  profitSharePoolPercent: number;
   publishCapsByType: DeveloperPublishCapsByType;
   tierCapsByType: DeveloperTierCapsByType;
 }
@@ -91,7 +90,6 @@ export interface DeveloperContributionSummary {
   remainingSubmissions: number;
   requiredPublished: number;
   missingPublished: number;
-  profitShareEligible: boolean;
   ownerNote: string | null;
   isOwnerDefaultContributor: boolean;
 }
@@ -126,7 +124,6 @@ export const DEFAULT_DEVELOPER_PROGRAM_SETTINGS: DeveloperProgramSettings = {
   paidAssetMinimumPositiveVotePercent: 80,
   allowContributorSelfVoting: true,
   ownerVoteWeight: 1,
-  profitSharePoolPercent: 10,
   publishCapsByType: DEFAULT_DEVELOPER_PUBLISH_CAPS_BY_TYPE,
   tierCapsByType: DEFAULT_DEVELOPER_TIER_CAPS_BY_TYPE,
 };
@@ -150,7 +147,7 @@ export const getDeveloperVotingPresetLabel = (
   activeDeveloperCount: number
 ): string => {
   const activeCount = Math.max(1, Math.round(activeDeveloperCount));
-  if (preset === 'solo') return 'Solo owner test';
+  if (preset === 'solo') return 'Solo owner review';
   if (preset === 'currentRoster') return `${activeCount} developer roster`;
   if (preset === 'launchRoster') return 'Launch roster';
   return 'Full council';
@@ -254,7 +251,6 @@ export const normalizeDeveloperProgramSettingsInput = (
     paidAssetMinimumPositiveVotePercent: normalizeInteger(value.paidAssetMinimumPositiveVotePercent, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.paidAssetMinimumPositiveVotePercent, 1, 100),
     allowContributorSelfVoting: normalizeBoolean(value.allowContributorSelfVoting, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.allowContributorSelfVoting),
     ownerVoteWeight: normalizeInteger(value.ownerVoteWeight, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.ownerVoteWeight, 1, 3),
-    profitSharePoolPercent: normalizeInteger(value.profitSharePoolPercent, DEFAULT_DEVELOPER_PROGRAM_SETTINGS.profitSharePoolPercent, 0, 50),
     publishCapsByType: deriveDeveloperPublishCapsByType(tierCapsByType),
     tierCapsByType,
   };

@@ -1,6 +1,9 @@
+"use client";
+
 import Link from 'next/link';
 
 import type { ProjectFileAccessPolicy } from '@/domain/entitlements';
+import { useSiteContent } from './PublicSitePresentationContext';
 
 export const getAccessComparisonOptions = (projectFileAccess: ProjectFileAccessPolicy, creatorPassVisible = true) => [
   {
@@ -22,15 +25,16 @@ export const getAccessComparisonOptions = (projectFileAccess: ProjectFileAccessP
 ].filter((option) => creatorPassVisible || option.title !== 'Creator Pass');
 
 export function AccessComparison({ projectFileAccess, creatorPassVisible = true }: { projectFileAccess: ProjectFileAccessPolicy; creatorPassVisible?: boolean }) {
+  const siteContent = useSiteContent();
   const accessOptions = getAccessComparisonOptions(projectFileAccess, creatorPassVisible);
   return (
     <section aria-labelledby="access-heading" className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 text-[var(--public-ivory)] md:px-8 md:py-12">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-base font-semibold text-[var(--public-brass)]">Choose your next step</p>
+            <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.access.eyebrow']}</p>
             <h2 id="access-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold md:text-4xl">
-              Start free. Upgrade when you need watermark-free downloads.
+              {siteContent['landing.access.headline']}
             </h2>
           </div>
           <Link href="/account" prefetch={false} className="inline-flex min-h-11 items-center text-base font-bold text-[var(--public-brass)] hover:text-[#f2d697]">
@@ -49,7 +53,7 @@ export function AccessComparison({ projectFileAccess, creatorPassVisible = true 
           ))}
         </div>
         <p className="mt-4 text-sm leading-6 text-[var(--public-muted-text)]">
-          Developers can help improve shared CardForge tools and artwork through the Developer Program.
+          {siteContent['landing.access.developer-note']}
         </p>
       </div>
     </section>

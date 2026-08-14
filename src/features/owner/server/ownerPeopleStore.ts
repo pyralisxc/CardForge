@@ -132,7 +132,6 @@ export const getOwnerPeople = async ({
       canProposeSiteContent: Boolean(profile?.can_propose_site_content),
       monthlySubmissionLimitOverride: profile?.monthly_submission_limit_override ?? null,
       monthlyPublishedRequirementOverride: profile?.monthly_published_requirement_override ?? null,
-      profitShareEligible: Boolean(profile?.eligible_for_profit_share),
       developerNote: profile?.owner_note ?? '',
       submissions: getSubmissionCounts(submissionsByDeveloper.get(user.id) ?? []),
     };
@@ -156,7 +155,6 @@ export const getOwnerPeople = async ({
     canProposeSiteContent: Boolean(profile.can_propose_site_content),
     monthlySubmissionLimitOverride: profile.monthly_submission_limit_override ?? null,
     monthlyPublishedRequirementOverride: profile.monthly_published_requirement_override ?? null,
-    profitShareEligible: Boolean(profile.eligible_for_profit_share),
     developerNote: profile.owner_note ?? '',
     submissions: getSubmissionCounts(submissionsByDeveloper.get(profile.clerk_user_id) ?? []),
   }));

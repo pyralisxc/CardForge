@@ -11,6 +11,7 @@ const SHIPPED_TEMPLATE_IDS = new Set([
   'default-playing-card-theme',
   'default-mtg-theme',
   'default-event-badge-theme',
+  'default-cardforge-studio-back-poker',
   'default-obsidian-neon-card-back',
 ]);
 
@@ -51,7 +52,7 @@ describe('public examples', () => {
     }
 
     expect(CARDFORGE_EXAMPLES.some((example) => (
-      example.backTemplateId === 'default-obsidian-neon-card-back'
+      example.backTemplateId === 'default-cardforge-studio-back-poker'
     ))).toBe(true);
   });
 

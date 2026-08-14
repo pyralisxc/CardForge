@@ -7,7 +7,9 @@ export interface CardForgeExample {
   readonly cardCount: number;
   readonly systemType: string;
   readonly frontTemplateId: string;
+  readonly frontTemplateName?: string;
   readonly backTemplateId?: string;
+  readonly backTemplateName?: string;
   readonly rows: readonly CardForgeExampleRow[];
   readonly sourceFormat: string;
   readonly outputFormats: readonly string[];
@@ -32,25 +34,25 @@ const ARCANE_PLAYING_CARD_ROWS = Object.freeze([
   Object.freeze({
     Rank: 'A',
     Suit: '♠',
-    Artwork: '/card-assets/showcase/playing-cards/ace-of-spades.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.playing.ace',
     CardTitle: 'The Night Sentinel',
   }),
   Object.freeze({
     Rank: 'K',
     Suit: '♥',
-    Artwork: '/card-assets/showcase/playing-cards/king-of-hearts.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.playing.king',
     CardTitle: 'The Rosebound King',
   }),
   Object.freeze({
     Rank: 'Q',
     Suit: '♦',
-    Artwork: '/card-assets/showcase/playing-cards/queen-of-diamonds.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.playing.queen',
     CardTitle: 'The Prism Sovereign',
   }),
   Object.freeze({
     Rank: 'J',
     Suit: '♣',
-    Artwork: '/card-assets/showcase/playing-cards/jack-of-clubs.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.playing.jack',
     CardTitle: 'The Greenwood Tinker',
   }),
 ]);
@@ -59,7 +61,7 @@ const ARCANE_CREATURE_ROWS = Object.freeze([
   Object.freeze({
     CardName: 'Emberclaw Whelp',
     Cost: '2',
-    Artwork: '/card-assets/showcase/creatures/emberclaw-whelp.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.creature.emberclaw',
     TypeLine: 'Creature — Forge Dragon',
     Ability: 'Kindleflight — When Emberclaw enters, another creature gains +1 power this turn.',
     SubText: 'Small sparks still remember the mountain.',
@@ -69,7 +71,7 @@ const ARCANE_CREATURE_ROWS = Object.freeze([
   Object.freeze({
     CardName: 'Mossback Guardian',
     Cost: '5',
-    Artwork: '/card-assets/showcase/creatures/mossback-guardian.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.creature.mossback',
     TypeLine: 'Creature — Ancient Tortoise',
     Ability: 'Sanctuary Shell — Allies beside Mossback gain +1 toughness.',
     SubText: 'Whole villages have grown beneath its patient watch.',
@@ -79,7 +81,7 @@ const ARCANE_CREATURE_ROWS = Object.freeze([
   Object.freeze({
     CardName: 'Moonveil Stag',
     Cost: '4',
-    Artwork: '/card-assets/showcase/creatures/moonveil-stag.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.creature.moonveil',
     TypeLine: 'Creature — Astral Stag',
     Ability: 'Quiet Passage — Moonveil cannot be blocked on the turn it arrives.',
     SubText: 'Follow the silver tracks, but never call its name.',
@@ -89,7 +91,7 @@ const ARCANE_CREATURE_ROWS = Object.freeze([
   Object.freeze({
     CardName: 'Stormglass Siren',
     Cost: '6',
-    Artwork: '/card-assets/showcase/creatures/stormglass-siren.webp',
+    Artwork: '/api/public/site-media/landing.showcase.art.creature.stormglass',
     TypeLine: 'Creature — Tempest Siren',
     Ability: 'Breaking Tide — Return one opposing creature to its keeper’s hand.',
     SubText: 'Her wings carry the sea farther than any shore.',
@@ -100,7 +102,7 @@ const ARCANE_CREATURE_ROWS = Object.freeze([
 
 const EVENT_BADGE_ROWS = Object.freeze([
   Object.freeze({
-    EventLogo: '/brand/cardforge-studio/brand-mark.svg',
+    EventLogo: '/api/public/site-media/brand.mark',
     EventName: 'Card Systems Workshop',
     AttendeeName: 'Morgan Lee',
     BadgeType: 'Facilitator',
@@ -108,10 +110,10 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Template Lab',
     Room: 'Foundry A',
-    AccessCode: 'DEMO-01',
+    AccessCode: 'FORGE-01',
   }),
   Object.freeze({
-    EventLogo: '/brand/cardforge-studio/brand-mark.svg',
+    EventLogo: '/api/public/site-media/brand.mark',
     EventName: 'Card Systems Workshop',
     AttendeeName: 'Riley Chen',
     BadgeType: 'Participant',
@@ -119,10 +121,10 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Data Review',
     Room: 'Foundry B',
-    AccessCode: 'DEMO-02',
+    AccessCode: 'FORGE-02',
   }),
   Object.freeze({
-    EventLogo: '/brand/cardforge-studio/brand-mark.svg',
+    EventLogo: '/api/public/site-media/brand.mark',
     EventName: 'Card Systems Workshop',
     AttendeeName: 'Avery Patel',
     BadgeType: 'Participant',
@@ -130,10 +132,10 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Export Proof',
     Room: 'Foundry C',
-    AccessCode: 'DEMO-03',
+    AccessCode: 'FORGE-03',
   }),
   Object.freeze({
-    EventLogo: '/brand/cardforge-studio/brand-mark.svg',
+    EventLogo: '/api/public/site-media/brand.mark',
     EventName: 'Card Systems Workshop',
     AttendeeName: 'Jordan Rivera',
     BadgeType: 'Event Crew',
@@ -141,7 +143,7 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Welcome Desk',
     Room: 'Foundry Hall',
-    AccessCode: 'DEMO-04',
+    AccessCode: 'FORGE-04',
   }),
 ]);
 
@@ -152,7 +154,9 @@ export const CARDFORGE_EXAMPLES: readonly CardForgeExample[] = Object.freeze([
     description: 'A CardForge demonstration where every playing card receives its own artwork and title while the shared frame, corners, and back keep the set together.',
     systemType: 'Playing-card system',
     frontTemplateId: 'default-playing-card-theme',
-    backTemplateId: 'default-obsidian-neon-card-back',
+    frontTemplateName: 'Arcane Playing Card',
+    backTemplateId: 'default-cardforge-studio-back-poker',
+    backTemplateName: 'CardForge Studio Poker Back',
     rows: ARCANE_PLAYING_CARD_ROWS,
     sourceFormat: 'CSV rows',
     outputFormats: Object.freeze(['Individual PNG', 'PNG ZIP', 'PDF', 'Tabletop Simulator ZIP']),

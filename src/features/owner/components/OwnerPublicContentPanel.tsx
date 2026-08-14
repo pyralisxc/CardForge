@@ -13,10 +13,15 @@ import { OwnerFieldHelp } from './OwnerPanelPrimitives';
 import { OwnerShareToolkit } from './OwnerShareToolkit';
 
 const groupLabels: Record<SiteContentBlock['group'], string> = {
+  shell: 'Shared header & footer',
   landing: 'Landing page',
   about: 'About page',
+  founder: 'Founder page',
+  developer: 'Developer program',
+  roadmap: 'Roadmap',
   sharing: 'Sharing',
 };
+const contentGroups: Array<SiteContentBlock['group']> = ['shell', 'landing', 'about', 'founder', 'developer', 'roadmap', 'sharing'];
 
 export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange }: {
   consolePayload: OwnerConsolePayload;
@@ -26,19 +31,26 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
   const { toast } = useToast();
   const [blocks, setBlocks] = useState(consolePayload.siteContentBlocks);
   const [settings, setSettings] = useState(consolePayload.siteMechanics);
-  const [isSaving, setIsSaving] = useState(false);
+  const [busyBlock, setBusyBlock] = useState<SiteContentBlockSlug | null>(null);
+  const [isSavingMechanics, setIsSavingMechanics] = useState(false);
   useEffect(() => {
     setBlocks(consolePayload.siteContentBlocks);
     setSettings(consolePayload.siteMechanics);
   }, [consolePayload]);
-  const groups = useMemo(() => (['landing', 'about', 'sharing'] as Array<SiteContentBlock['group']>).map((group) => ({ group, blocks: blocks.filter((block) => block.group === group) })), [blocks]);
+  const groups = useMemo(() => contentGroups.map((group) => ({
+    group,
+    sections: [...new Set(blocks.filter((block) => block.group === group).map((block) => block.section))].map((section) => ({
+      section,
+      blocks: blocks.filter((block) => block.group === group && block.section === section),
+    })),
+  })), [blocks]);
   const shareMessage = blocks.find((block) => block.slug === 'sharing.message')?.body ?? '';
 
   const updateBlock = (slug: SiteContentBlockSlug, body: string) => {
     setBlocks((current) => current.map((block) => block.slug === slug ? { ...block, body } : block));
   };
   const saveBlock = async (block: SiteContentBlock) => {
-    setIsSaving(true);
+    setBusyBlock(block.slug);
     try {
       const next = await updateOwnerConsole({ kind: 'siteContent', siteContentBlock: { slug: block.slug, body: block.body } }, 'Unable to save site copy.');
       onConsoleChange(next);
@@ -46,11 +58,11 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
     } catch (error) {
       toast({ title: 'Site copy not saved', description: error instanceof Error ? error.message : 'Unable to save site copy.', variant: 'destructive' });
     } finally {
-      setIsSaving(false);
+      setBusyBlock(null);
     }
   };
   const saveMechanics = async () => {
-    setIsSaving(true);
+    setIsSavingMechanics(true);
     try {
       const next = await updateOwnerConsole({ kind: 'siteMechanics', siteMechanics: settings }, 'Unable to save roadmap rules.');
       onConsoleChange(next);
@@ -58,7 +70,7 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
     } catch (error) {
       toast({ title: 'Roadmap rules not saved', description: error instanceof Error ? error.message : 'Unable to save roadmap rules.', variant: 'destructive' });
     } finally {
-      setIsSaving(false);
+      setIsSavingMechanics(false);
     }
   };
 
@@ -67,18 +79,23 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
       <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
         <div className="flex items-center gap-3 text-[#e2aa4a]"><FileText className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Public site copy</h2></div>
         <div className="mt-6 grid gap-4">
-          {groups.map(({ group, blocks: groupBlocks }) => (
-            <div key={group} className="border border-[#4a3823] bg-[#100c08] p-4">
-              <h3 className="font-serif text-xl text-[#ffe7ad]">{groupLabels[group]}</h3>
-              <div className="mt-4 grid gap-3">
-                {groupBlocks.map((block) => (
+          {groups.map(({ group, sections }) => (
+            <details key={group} className="border border-[#4a3823] bg-[#100c08]" open={group === 'landing'}>
+              <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[#ffe7ad]">{groupLabels[group]} <span className="ml-2 text-xs font-sans text-[#8f7b57]">{sections.reduce((total, section) => total + section.blocks.length, 0)} editable fields</span></summary>
+              <div className="grid gap-3 border-t border-[#4a3823] p-4">
+                {sections.map(({ section, blocks: sectionBlocks }) => <details key={section} className="border border-[#3a2d1d] bg-[#0c0b09]" open={sections.length === 1}>
+                  <summary className="cursor-pointer px-3 py-2 font-semibold text-[#d8c49a]">{section} <span className="ml-2 text-xs font-normal text-[#8f7b57]">{sectionBlocks.length}</span></summary>
+                  <div className="grid gap-3 border-t border-[#3a2d1d] p-3">
+                  {sectionBlocks.map((block) => (
                   <div key={block.slug} className="border border-[#3a2d1d] bg-[#0c0b09] p-3">
-                    <label className="grid gap-2 text-sm text-[#c7b288]"><span className="flex justify-between gap-2">{block.label}<span className="text-xs text-[#8f7b57]">{block.body.length}/800</span></span><textarea className="min-h-24 border border-[#5f4526] bg-[#100c08] p-3 text-sm leading-6 text-[#ffe7ad]" maxLength={800} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} /></label>
-                    <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-[#8f7b57]">{block.updatedAt ? `Last saved ${new Date(block.updatedAt).toLocaleDateString()}` : 'Using bundled default'}</span><Button size="sm" disabled={isSaving} onClick={() => saveBlock(block)}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Publishing...' : 'Publish block'}</Button></div>
+                    <label className="grid gap-2 text-sm text-[#c7b288]"><span className="flex justify-between gap-2">{block.label}<span className="text-xs text-[#8f7b57]">{block.body.length}/{block.maxLength}</span></span>{block.kind === 'long' ? <textarea className="min-h-24 border border-[#5f4526] bg-[#100c08] p-3 text-sm leading-6 text-[#ffe7ad]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} /> : <input className="min-h-11 border border-[#5f4526] bg-[#100c08] px-3 text-sm text-[#ffe7ad]" maxLength={block.maxLength} value={block.body} onChange={(event) => updateBlock(block.slug, event.target.value)} />}</label>
+                    <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-[#8f7b57]">{block.updatedAt ? `Last saved ${new Date(block.updatedAt).toLocaleDateString()}` : 'Using bundled default'}</span><Button size="sm" disabled={busyBlock !== null} onClick={() => saveBlock(block)}><Save className="mr-2 h-4 w-4" />{busyBlock === block.slug ? 'Publishing...' : 'Publish block'}</Button></div>
                   </div>
-                ))}
+                  ))}
+                  </div>
+                </details>)}
               </div>
-            </div>
+            </details>
           ))}
           <OwnerShareToolkit message={shareMessage} />
         </div>
@@ -97,7 +114,7 @@ export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange 
         <MechanicsField label="Estimated tax %" field="roadmapEstimatedTaxPercent" value={settings.roadmapEstimatedTaxPercent} settings={settings} setSettings={setSettings} help="Planning estimate deducted from active Creator Pass listed-price MRR. This is not a filed tax result or tax advice." />
         <MechanicsField label="Operating reserve %" field="roadmapOperatingReservePercent" value={settings.roadmapOperatingReservePercent} settings={settings} setSettings={setSettings} help="Share of after-tax Creator Pass income held back before roadmap upgrades are considered funded." />
       </div>
-      <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={saveMechanics}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Saving roadmap rules...' : 'Save roadmap rules'}</Button>
+      <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSavingMechanics} onClick={saveMechanics}><Save className="mr-2 h-4 w-4" />{isSavingMechanics ? 'Saving roadmap rules...' : 'Save roadmap rules'}</Button>
     </section>
   );
 }

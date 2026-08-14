@@ -26,7 +26,7 @@ import {
   FOUNDER_PROFILE_TAG,
   revalidateFounderProfile,
   revalidateSiteContentCache,
-  siteContentTag,
+  SITE_CONTENT_TAG,
 } from '@/features/public-site/server';
 import {
   legalDocumentTag,
@@ -42,7 +42,7 @@ describe('public cache tags and publication invalidation', () => {
 
   it('registers bounded public caches with exact feature-owned tags', () => {
     expect(PUBLIC_IDENTITY_TAG).toBe('public:business-identity');
-    expect(siteContentTag('landing')).toBe('public:site-content:landing');
+    expect(SITE_CONTENT_TAG).toBe('public:site-content');
     expect(FOUNDER_PROFILE_TAG).toBe('public:founder-profile');
     expect(legalDocumentTag('privacy')).toBe('public:legal:privacy');
     expect(EXPERIENCE_SETTINGS_TAG).toBe('public:experience-settings');
@@ -57,7 +57,7 @@ describe('public cache tags and publication invalidation', () => {
       options?.tags?.includes(EXPERIENCE_SETTINGS_TAG) && options.revalidate === 3600
     ))).toBe(true);
     expect(cacheRegistrations.some(({ options }) => (
-      options?.tags?.includes(siteContentTag('about')) && options.revalidate === 3600
+      options?.tags?.includes(SITE_CONTENT_TAG) && options.revalidate === 3600
     ))).toBe(true);
     expect(cacheRegistrations.some(({ options }) => (
       options?.tags?.includes(legalDocumentTag('terms'))
@@ -70,8 +70,8 @@ describe('public cache tags and publication invalidation', () => {
     revalidatePublicIdentityCache();
     expect(revalidateTag).toHaveBeenLastCalledWith(PUBLIC_IDENTITY_TAG, { expire: 0 });
 
-    revalidateSiteContentCache('sharing');
-    expect(revalidateTag).toHaveBeenLastCalledWith(siteContentTag('sharing'), { expire: 0 });
+    revalidateSiteContentCache();
+    expect(revalidateTag).toHaveBeenLastCalledWith(SITE_CONTENT_TAG, { expire: 0 });
 
     revalidateFounderProfile();
     expect(revalidateTag).toHaveBeenLastCalledWith(FOUNDER_PROFILE_TAG, { expire: 0 });

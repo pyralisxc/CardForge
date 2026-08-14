@@ -32,16 +32,32 @@ export const processSiteMediaImage = async (
   try {
     const isScreenshot = slot.startsWith('landing.showcase.');
     const isPortrait = slot === 'founder.portrait';
+    const isFavicon = slot === 'brand.favicon';
+    const isSocialImage = slot === 'brand.social';
+    const isBrandRaster = slot === 'brand.mark' || isFavicon || slot === 'brand.watermark';
     const pipeline = sharp(source, { failOn: 'error' }).rotate();
     await pipeline.metadata();
-    const { data, info } = await pipeline
-      .resize({
-        width: isScreenshot || isPortrait ? 1600 : 2400,
-        height: isScreenshot || isPortrait ? (isPortrait ? 2000 : 2400) : 1600,
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .webp({ quality: 90 })
+    const resized = pipeline.resize(isFavicon ? {
+      width: 512,
+      height: 512,
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      withoutEnlargement: false,
+    } : isSocialImage ? {
+      width: 1600,
+      height: 900,
+      fit: 'cover',
+      position: 'centre',
+      withoutEnlargement: false,
+    } : {
+      width: isScreenshot || isPortrait ? 1600 : isBrandRaster ? 1800 : 2400,
+      height: isScreenshot || isPortrait ? (isPortrait ? 2000 : 2400) : isBrandRaster ? 1800 : 1600,
+      fit: 'inside',
+      withoutEnlargement: true,
+    });
+    const { data, info } = await (isBrandRaster
+      ? resized.png({ compressionLevel: 9 })
+      : resized.webp({ quality: 90 }))
       .toBuffer({ resolveWithObject: true });
     return { buffer: data, width: info.width, height: info.height };
   } catch {
