@@ -12,6 +12,7 @@ This is the current runbook for `https://cardforges.com`. Provider dashboards ow
 - Stripe owns Creator Pass, voluntary support checkout, subscriptions, webhooks, and the customer portal.
 - Supabase owns shared product state and approved public media. Browser-local creator projects remain in IndexedDB/project files.
 - Resend owns transactional email delivery.
+- Google Cloud project `cardforge-authentication` owns the production OAuth client used by Clerk. Google Cloud project `cardforge-analytics` owns the least-privilege service identity used for GA4 and Search Console owner reports.
 - GA4 owns consented acquisition/adoption reporting, PostHog owns anonymous allow-listed interaction events, and Search Console independently owns Google discovery reporting.
 - Buffer may own social scheduling/delivery only after its separate owner-controlled rollout gate is enabled.
 
@@ -71,6 +72,8 @@ Changing the operator is a legal and operational migration, not a copy edit. Req
 ## Owner Console checks
 
 Use `/owner` through five job-based workspaces: Overview, Audience & Revenue, Site Controls, Library & Contributors, and Governance. Feature modules still own their data; Owner only composes those feature-owned surfaces. The asset library shows the complete pipeline through type/status filters, search, and 12-item pages instead of silently truncating the review list.
+
+Overview > Connected services is the owner-facing provider inventory. Every production dependency must name its purpose, identifier, authoritative owner, removal impact, and exact dashboard destination. Runtime readiness is shown only when CardForge can derive it from configuration; provider-managed entries are labeled honestly instead of being treated as application settings. Add, replace, or retire a provider in this inventory and this topology together. Never render credentials, secret values, or recovery material.
 
 Site Controls > Experience can make portable project files free or Creator Pass-only without changing finished-output entitlement. It can also switch analytics consent among required choice, standard popup, and quiet banner. All three presentations must retain Accept, Accept once, and Decline. Refresh a public page or Studio session after saving to verify the new cached policy and its matching public access copy.
 
