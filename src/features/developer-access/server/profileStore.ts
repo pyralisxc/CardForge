@@ -66,6 +66,26 @@ const readProfileRows = async (): Promise<DeveloperProfileRow[]> => {
 
 export const fetchDeveloperProfileRows = readProfileRows;
 
+export const fetchDeveloperProfileRowsForOwner = async (): Promise<DeveloperProfileRow[]> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new DeveloperAccessStoreError('Developer profile storage is not configured.', 503);
+  const rows: DeveloperProfileRow[] = [];
+  const pageSize = 1_000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('cardforge_developer_profiles')
+      .select(PROFILE_COLUMNS)
+      .range(from, from + pageSize - 1);
+    if (error) {
+      console.error('Failed to load developer profiles for owner people:', error);
+      throw new DeveloperAccessStoreError('Unable to load developer profiles.');
+    }
+    const page = (data ?? []) as unknown as DeveloperProfileRow[];
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+};
+
 export const countActiveDevelopers = async (): Promise<number> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) return 1;
@@ -254,4 +274,51 @@ export const updateDeveloperAssetProfileRules = async ({
     console.error('Failed to update developer profile rules:', error);
     throw new DeveloperAccessStoreError('Unable to update developer profile rules.');
   }
+};
+
+export const updateDeveloperProfileControl = async ({
+  developerId,
+  status,
+  canDraftCampaigns,
+  canProposeSiteContent,
+  monthlySubmissionLimitOverride,
+  monthlyPublishedRequirementOverride,
+  profitShareEligible,
+  ownerNote,
+}: {
+  developerId: string;
+  status: DeveloperProfileStatus;
+  canDraftCampaigns: boolean;
+  canProposeSiteContent: boolean;
+  monthlySubmissionLimitOverride: number | null;
+  monthlyPublishedRequirementOverride: number | null;
+  profitShareEligible: boolean;
+  ownerNote: string;
+}): Promise<void> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new DeveloperAccessStoreError('Developer access database is not configured yet.', 503);
+  const normalizedId = normalizeShortText(developerId, 160);
+  if (!normalizedId) throw new DeveloperAccessStoreError('Choose a developer profile.', 400);
+  const normalizeOverride = (value: number | null, minimum: number, maximum: number): number | null => (
+    value === null ? null : Math.min(maximum, Math.max(minimum, Math.trunc(value)))
+  );
+  const { data, error } = await supabase
+    .from('cardforge_developer_profiles')
+    .update({
+      status,
+      can_draft_campaigns: status === 'active' && canDraftCampaigns,
+      can_propose_site_content: status === 'active' && canProposeSiteContent,
+      monthly_submission_limit_override: normalizeOverride(monthlySubmissionLimitOverride, 1, 250),
+      monthly_published_requirement_override: normalizeOverride(monthlyPublishedRequirementOverride, 0, 100),
+      eligible_for_profit_share: profitShareEligible,
+      owner_note: normalizeShortText(ownerNote, 500),
+    })
+    .eq('clerk_user_id', normalizedId)
+    .select('clerk_user_id')
+    .limit(1);
+  if (error) {
+    console.error('Failed to update consolidated developer control:', error);
+    throw new DeveloperAccessStoreError('Unable to update developer controls.');
+  }
+  if (!data?.[0]) throw new DeveloperAccessStoreError('Developer profile not found.', 404);
 };

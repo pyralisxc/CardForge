@@ -6,6 +6,15 @@ export {
   type SiteContentBlockSlug,
 } from './model/siteContent';
 export { PUBLIC_NAVIGATION, STUDIO_NAVIGATION } from './model/publicNavigation';
+export {
+  DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  HOMEPAGE_SECTION_IDS,
+  PRIMARY_NAVIGATION_IDS,
+  type HomepageSectionId,
+  type HomepageSectionSetting,
+  type PrimaryNavigationItem,
+  type PublicSiteConfiguration,
+} from './model/siteConfiguration';
 export { PublicSiteHeader } from './components/PublicSiteHeader';
 export { PublicSiteFooter } from './components/PublicSiteFooter';
 export { PublicSiteShell } from './components/PublicSiteShell';

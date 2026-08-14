@@ -27,13 +27,13 @@ describe('site wording clarity', () => {
     const analytics = readSource('src/features/analytics/components/OwnerAnalyticsPanel.tsx');
 
     expect(owner).toContain('>Overview</TabsTrigger>');
-    expect(owner).toContain('>Audience &amp; Revenue</TabsTrigger>');
+    expect(owner).toContain('>Growth &amp; People</TabsTrigger>');
     expect(owner).toContain('>Site Controls</TabsTrigger>');
-    expect(owner).toContain('>Library &amp; Contributors</TabsTrigger>');
+    expect(owner).toContain('>Library &amp; Production</TabsTrigger>');
     expect(owner).toContain('>Governance</TabsTrigger>');
-    expect(owner).toContain('Accounts &amp; Billing');
-    expect(owner).toContain('Roadmap Rules');
-    expect(owner).toContain('Policy and configuration');
+    expect(owner).toContain('>People</TabsTrigger>');
+    expect(owner).toContain('>Roadmap</TabsTrigger>');
+    expect(owner).toContain('>Roles &amp; Permissions</TabsTrigger>');
     expect(summary).toContain('CardForge Owner Console');
     expect(analytics).toContain('Organic Analytics');
     expect(analytics).toContain('Impressions');

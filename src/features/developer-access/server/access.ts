@@ -71,6 +71,9 @@ export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockp
   });
   const capabilities = await getDeveloperProfileCapabilities(resolvedUser.id);
   const isOwner = ownerAccess.isOwner;
+  if (!isOwner && capabilities.status !== 'active') {
+    throw new DeveloperCockpitAccessError('This developer profile is not active. Contact the CardForge owner if access should be restored.', 403);
+  }
   const extendedContributionsEnabled = process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true';
   return {
     user: resolvedUser,

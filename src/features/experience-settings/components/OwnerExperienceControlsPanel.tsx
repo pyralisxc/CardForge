@@ -37,11 +37,12 @@ export function OwnerExperienceControlsPanel({
       if (!response.ok) {
         throw new Error(await readApiErrorMessage(response, 'Unable to save experience controls.'));
       }
-      const result = await response.json() as { settings: ExperienceSettings };
+      const result = await response.json() as { settings: ExperienceSettings; activityRecorded?: boolean };
       onSettingsChange(result.settings);
       toast({
         title: 'Experience controls saved',
-        description: 'New visits and refreshed Studio sessions now use the updated policy.',
+        description: result.activityRecorded === false ? 'The policy changed, but owner change history was unavailable.' : 'New visits and refreshed Studio sessions now use the updated policy.',
+        variant: result.activityRecorded === false ? 'destructive' : 'default',
       });
     } catch (error) {
       toast({

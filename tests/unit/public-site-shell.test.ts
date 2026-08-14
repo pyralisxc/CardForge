@@ -168,7 +168,8 @@ describe('public site shell source contract', () => {
     expect(publicInterface).toContain("export { PublicSiteHeader }");
     expect(publicInterface).toContain("export { PublicSiteFooter }");
     expect(publicInterface).toContain('PUBLIC_NAVIGATION');
-    expect(legalPageSource).toContain("import { PublicSiteShell } from '@/features/public-site/client/shell'");
+    expect(legalPageSource).toContain("from '@/features/public-site/client'");
+    expect(legalPageSource).toContain('siteConfiguration: PublicSiteConfiguration');
     expect(legalPageSource).toContain('<PublicSiteShell');
     expect(legalPageSource).toContain('aria-label="Trust center pages"');
     expect(legalPageSource).toContain('formatBusinessIdentityDescription(businessIdentity)');

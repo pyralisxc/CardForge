@@ -430,8 +430,7 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
 const main = async () => {
   const envFile = await parseEnvFile();
   OWNER_EMAIL = OWNER_EMAIL
-    || firstOwnerEmail(envFile.CARDFORGE_OWNER_ACCOUNT_EMAILS)
-    || firstOwnerEmail(envFile.CARDFORGE_E2E_OWNER_EMAIL);
+    || firstOwnerEmail(envFile.CARDFORGE_OWNER_ACCOUNT_EMAILS);
   const supabaseUrl = process.env.SUPABASE_URL || envFile.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || envFile.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {

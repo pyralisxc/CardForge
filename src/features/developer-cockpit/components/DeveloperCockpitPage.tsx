@@ -23,7 +23,6 @@ import {
 import { isCampaignActionable } from '@/features/developer-cockpit/client/campaignWorkflow';
 import { DeveloperCampaignPanel } from '@/features/developer-cockpit/components/DeveloperCampaignPanel';
 import { DeveloperCampaignMediaLibrary } from '@/features/developer-cockpit/components/DeveloperCampaignMediaLibrary';
-import { DeveloperScopePanel } from '@/features/developer-cockpit/components/DeveloperScopePanel';
 import { DeveloperSiteProposalPanel } from '@/features/developer-cockpit/components/DeveloperSiteProposalPanel';
 
 const tabClassName = 'min-h-11 rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]';
@@ -34,7 +33,6 @@ const cockpitTabs: ReadonlyArray<{ value: string; label: string; ownerOnly?: boo
   { value: 'campaign-media', label: 'Campaign Media', ownerOnly: true },
   { value: 'site', label: 'Site Proposals' },
   { value: 'standards', label: 'Standards' },
-  { value: 'access', label: 'Contributor Access', ownerOnly: true },
 ];
 
 const standards = [
@@ -170,7 +168,6 @@ export function DeveloperCockpitPage() {
               </div>
             </section>
           </TabsContent>
-          {cockpit.isOwner ? <TabsContent value="access" className="mt-3"><DeveloperScopePanel cockpit={cockpit} onChange={setCockpit} /></TabsContent> : null}
         </Tabs>
       </section>
     </main>

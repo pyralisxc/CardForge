@@ -71,11 +71,15 @@ Changing the operator is a legal and operational migration, not a copy edit. Req
 
 ## Owner Console checks
 
-Use `/owner` through five job-based workspaces: Overview, Audience & Revenue, Site Controls, Library & Contributors, and Governance. Feature modules still own their data; Owner only composes those feature-owned surfaces. The asset library shows the complete pipeline through type/status filters, search, and 12-item pages instead of silently truncating the review list.
+Use `/owner` through five job-based workspaces: Overview, Growth & People, Site Controls, Library & Production, and Governance. Feature modules still own their data; Owner composes their controls and never becomes a duplicate persistence layer. The asset library shows the complete pipeline through type/status filters, search, and 12-item pages instead of silently truncating the review list.
 
-Overview > Connected services is the owner-facing provider inventory. Every production dependency must name its purpose, identifier, authoritative owner, removal impact, and exact dashboard destination. Runtime readiness is shown only when CardForge can derive it from configuration; provider-managed entries are labeled honestly instead of being treated as application settings. Add, replace, or retire a provider in this inventory and this topology together. Never render credentials, secret values, or recovery material.
+Overview > Integrations is the owner-facing provider inventory. Every production dependency must name its purpose, identifier, authoritative owner, removal impact, and exact dashboard destination. Runtime readiness is shown only when CardForge can derive it from configuration; provider-managed entries are labeled honestly instead of being treated as application settings. Add, replace, or retire a provider in this inventory and this topology together. Never render credentials, secret values, or recovery material.
 
-Site Controls > Experience can make portable project files free or Creator Pass-only without changing finished-output entitlement. It can also switch analytics consent among required choice, standard popup, and quiet banner. All three presentations must retain Accept, Accept once, and Decline. Refresh a public page or Studio session after saving to verify the new cached policy and its matching public access copy.
+Growth & People > People joins Clerk accounts to retained Supabase developer profiles. Revoke developer access by removing Clerk developer entitlement, marking the CardForge profile inactive, and clearing campaign/site scopes; preserve submissions, votes, and attribution. A deleted Clerk identity appears as History only and must not count as an active developer. Environment-owned owner access is read-only in the console and must be changed in the Vercel owner-email allowlist.
+
+Site Controls > Pages & SEO owns the allowlisted primary-navigation labels/order/visibility, homepage section order/visibility, public announcement, homepage action, homepage search/share metadata, and public promotion visibility. Code still owns allowed routes, allowed sections, validation, security, and product capability claims. Experience & Access can make portable project files free or Creator Pass-only and can switch analytics consent among required choice, standard popup, and quiet banner. All three consent presentations retain Accept, Accept once, and Decline.
+
+Governance > Change History is append-only and must never contain credentials or raw provider payloads. Legal rollback loads an older immutable version as a new draft; publishing always creates a new version. Apply `20260814085401_owner_control_plane.sql` before deploying the control-plane UI, then verify one harmless site setting produces both the public change and an owner-history row.
 
 ## Organic analytics
 
@@ -118,9 +122,9 @@ Rollback new provider mutations by disabling `CARDFORGE_BUFFER_PUBLISHING_ENABLE
 
 ## Authenticated production smoke
 
-Run **Actions -> Authenticated smoke -> Run workflow** against a candidate when auth, billing, provider-domain, entitlement, or protected recovery behavior changes, then run it again on `main` after merge. A valid run uses the configured reusable free, paid, developer, and owner QA accounts and passes without skipped protected outcomes. Retain the artifact and run URL with release evidence.
+The former reusable QA accounts were retired. Do not recreate them merely to satisfy a broad suite. For auth, billing, provider-domain, entitlement, or protected recovery changes, verify the exact flow on production with the real signed-in owner/developer account. Re-enable a dedicated authenticated smoke identity only when a specific recurring provider regression justifies its maintenance cost.
 
-The suite proves the signed-out `/sign-in` entry and Clerk bootstrap, role/entitlement authorization, and paid project export/import recovery. It does not replace a real production browser check for the specific owner/developer workflow changed by a release.
+The remaining automated suite protects focused data contracts and known regressions. It does not replace a real production browser check for the specific owner/developer workflow changed by a release.
 
 ## Billing reconciliation
 
@@ -135,8 +139,7 @@ Safe support rollback removes/disables support checkout environment values while
 ## Maintained commands
 
 - `npm run health:production`: canonical public/API health.
-- `npm run smoke:protected`: protected auth/access/recovery contract.
-- `npm run qa:bootstrap-authenticated-smoke`: align configured reusable QA identities.
+- `npm run smoke:ui`: focused mocked browser regression for the Developer Cockpit and accessibility contract. It does not prove signed-in provider behavior.
 - `npm run pipeline:sync-defaults`: import missing bootstrap templates, styles, and referenced Studio media through the atomic Pipeline command. Run only after Pipeline migrations. It preserves existing owner decisions and permanent-deletion tombstones; it is not a runtime fallback or overwrite command.
 - `npm run brand:export`: synchronize canonical brand SVGs into the runtime `public/brand/cardforge-studio/` mirrors and regenerate ignored PNG derivatives under `output/`.
 

@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  hydratePublicSiteConfiguration,
+  normalizePublicSiteConfigurationInput,
+} from '@/features/public-site/model/siteConfiguration';
+
+describe('public site configuration', () => {
+  it('keeps navigation routes code-owned while preserving owner order and labels', () => {
+    const configuration = hydratePublicSiteConfiguration({
+      primary_navigation: [
+        { id: 'account', label: 'Your cards', href: 'https://example.com', visible: false },
+        { id: 'about', label: 'Learn', href: '/owner', visible: true },
+        { id: 'unknown', label: 'Unsafe', href: '/unsafe', visible: true },
+      ],
+    });
+
+    expect(configuration.primaryNavigation).toEqual([
+      { id: 'account', label: 'Your cards', href: '/account', visible: false },
+      { id: 'about', label: 'Learn', href: '/about', visible: true },
+      { id: 'roadmap', label: 'Roadmap', href: '/roadmap', visible: true },
+    ]);
+  });
+
+  it('rejects external actions and non-HTTPS share images', () => {
+    const base = {
+      ...DEFAULT_PUBLIC_SITE_CONFIGURATION,
+      primaryNavigation: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryNavigation],
+      homepageSections: [...DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageSections],
+    };
+
+    expect(() => normalizePublicSiteConfigurationInput({
+      ...base,
+      primaryCtaHref: 'https://example.com',
+    })).toThrow('safe CardForge path');
+
+    expect(() => normalizePublicSiteConfigurationInput({
+      ...base,
+      primaryCtaHref: '//example.com',
+    })).toThrow('safe CardForge path');
+
+    expect(() => normalizePublicSiteConfigurationInput({
+      ...base,
+      homepageShareImageUrl: 'http://example.com/share.png',
+    })).toThrow('HTTPS URL');
+
+    expect(normalizePublicSiteConfigurationInput({
+      ...base,
+      homepageShareImageUrl: '  https://cardforges.com/share.png  ',
+    }).homepageShareImageUrl).toBe('https://cardforges.com/share.png');
+  });
+
+  it('restores missing allowed sections and never admits unknown section ids', () => {
+    const configuration = hydratePublicSiteConfiguration({
+      homepage_sections: [
+        { id: 'workflow', visible: false },
+        { id: 'unknown', visible: false },
+      ],
+    });
+
+    expect(configuration.homepageSections).toEqual([
+      { id: 'workflow', visible: false },
+      { id: 'showcase', visible: true },
+      { id: 'access', visible: true },
+      { id: 'founder', visible: true },
+      { id: 'final_cta', visible: true },
+    ]);
+  });
+});

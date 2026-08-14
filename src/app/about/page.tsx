@@ -10,11 +10,11 @@ import {
 import { PublicAuthControls } from '@/features/account/client/auth';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
   createBreadcrumbStructuredData,
   createSiteContentMap,
   getCachedSiteContentBlocks,
+  PublicSiteShell,
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';

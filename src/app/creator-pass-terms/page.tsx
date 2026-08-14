@@ -1,5 +1,6 @@
 import { PublicLegalPage } from '@/features/legal/client';
 import { getCachedPublishedLegalDocument } from '@/features/legal/server';
+import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
@@ -9,6 +10,9 @@ export const metadata = createPageMetadata({
 });
 
 export default async function CreatorPassTermsPage() {
-  const { businessIdentity, document } = await getCachedPublishedLegalDocument('creator-pass-terms');
-  return <PublicLegalPage businessIdentity={businessIdentity} document={document} />;
+  const [{ businessIdentity, document }, siteConfiguration] = await Promise.all([
+    getCachedPublishedLegalDocument('creator-pass-terms'),
+    getCachedPublicSiteConfiguration(),
+  ]);
+  return <PublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration} />;
 }

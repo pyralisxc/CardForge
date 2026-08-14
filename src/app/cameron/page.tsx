@@ -16,6 +16,7 @@ import {
   createBreadcrumbStructuredData,
   createFounderProfileStructuredData,
   getCachedFounderProfile,
+  getCachedPublicSiteConfiguration,
   getCachedSiteMedia,
   StructuredData,
 } from '@/features/public-site/server';
@@ -37,10 +38,11 @@ const supportUses = [
 
 export default async function CameronPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, profile, siteMedia] = await Promise.all([
+  const [businessIdentity, profile, siteMedia, siteConfiguration] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedFounderProfile(),
     getCachedSiteMedia(),
+    getCachedPublicSiteConfiguration(),
   ]);
   const supportOffers = getCreatorSupportOfferConfiguration();
   const portraitMedia = siteMedia.find((asset) => asset.slot === 'founder.portrait')
@@ -59,7 +61,7 @@ export default async function CameronPage() {
 
   return (
     <CardForgeAppProviders>
-      <PublicSiteShell accountSlot={authConfigured ? <PublicAuthControls /> : undefined} businessIdentity={businessIdentity} currentPath="/cameron">
+      <PublicSiteShell accountSlot={authConfigured ? <PublicAuthControls /> : undefined} businessIdentity={businessIdentity} currentPath="/cameron" siteConfiguration={siteConfiguration}>
       <StructuredData value={createFounderProfileStructuredData(businessIdentity)} />
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
@@ -84,7 +86,7 @@ export default async function CameronPage() {
             <div className="mt-6 flex flex-wrap gap-5">
               <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">See what I’m building <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
               <Link href="/contact" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">Contact me</Link>
-              <Link href="#support" className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">Support the work</Link>
+              {siteConfiguration.supportOfferVisible ? <Link href="#support" className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">Support the work</Link> : null}
             </div>
           </div>
         </div>
@@ -109,6 +111,7 @@ export default async function CameronPage() {
         </div>
       </section>
 
+      {siteConfiguration.supportOfferVisible ? <>
       <section id="support" className="scroll-mt-6 border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_80%_15%,#30200f_0%,#0c0b09_42%)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-5xl">
           <HeartHandshake className="h-7 w-7 text-[var(--public-brass)]" aria-hidden="true" />
@@ -116,11 +119,11 @@ export default async function CameronPage() {
           <h2 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)]">{profile.supportHeading}</h2>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{profile.supportIntroduction}</p>
 
-          <div className="mt-7 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
+          {siteConfiguration.creatorPassOfferVisible ? <div className="mt-7 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
             <h3 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">Want CardForge too?</h3>
             <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">Creator Pass is the best way to support CardForge as a business. It is a product subscription that includes CardForge access and gives the business dependable support to keep growing.</p>
             <Link href="/account" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See Creator Pass</Link>
-          </div>
+          </div> : null}
 
           {supportOffers ? (
             <SupportCheckoutActions
@@ -168,6 +171,7 @@ export default async function CameronPage() {
           </div>
         </div>
       </section>
+      </> : null}
       </PublicSiteShell>
     </CardForgeAppProviders>
   );

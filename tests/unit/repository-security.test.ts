@@ -1,7 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { accessSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+const exists = (path: string): boolean => {
+  try {
+    accessSync(join(process.cwd(), path));
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 describe('repository security defaults', () => {
   it('does not publish the retired privileged owner identity', () => {
@@ -18,70 +27,23 @@ describe('repository security defaults', () => {
     }
   });
 
-  it('fails authenticated production smoke when protected configuration is incomplete', () => {
-    const workflow = readFileSync(
-      join(process.cwd(), '.github/workflows/authenticated-smoke.yml'),
-      'utf8',
-    );
-    const requiredSecrets = [
-      'CARDFORGE_E2E_FREE_EMAIL',
-      'CARDFORGE_E2E_PAID_EMAIL',
-      'CARDFORGE_E2E_DEV_EMAIL',
-      'CARDFORGE_E2E_OWNER_EMAIL',
-      'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
-      'CLERK_SECRET_KEY',
-      'SUPABASE_URL',
-      'SUPABASE_SERVICE_ROLE_KEY',
-    ];
-
-    expect(workflow).toContain('Verify required protected secrets');
-    expect(workflow).toContain('CARDFORGE_E2E_REQUIRE_AUTH: "true"');
-    expect(workflow).toContain('Missing required protected secrets');
-    for (const secret of requiredSecrets) {
-      expect(workflow).toContain(secret);
+  it('keeps the retired reusable-QA identity system out of the repository', () => {
+    for (const path of [
+      '.github/workflows/authenticated-smoke.yml',
+      'scripts/bootstrap-authenticated-smoke-users.mjs',
+      'scripts/lib/authenticated-smoke-qa.mjs',
+      'tests/smoke/auth-account.spec.ts',
+      'tests/smoke/paid-project-import.spec.ts',
+      'tests/unit/authenticated-smoke-qa.test.ts',
+    ]) {
+      expect(exists(path), path).toBe(false);
     }
-  });
 
-  it('retains reviewable authenticated smoke evidence on success and failure', () => {
-    const workflow = readFileSync(
-      join(process.cwd(), '.github/workflows/authenticated-smoke.yml'),
+    const entitlement = readFileSync(
+      join(process.cwd(), 'src/features/account/lib/accountEntitlement.ts'),
       'utf8',
     );
-
-    expect(workflow).toContain('Upload authenticated smoke evidence');
-    expect(workflow).toContain('if: always()');
-    expect(workflow).toContain('actions/upload-artifact@v4');
-    expect(workflow).toContain('playwright-report');
-    expect(workflow).toContain('test-results');
-  });
-
-  it('bootstraps protected reusable QA identities before authenticated browser tests', () => {
-    const workflow = readFileSync(
-      join(process.cwd(), '.github/workflows/authenticated-smoke.yml'),
-      'utf8',
-    );
-    const packageJson = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as {
-      scripts?: Record<string, string>;
-    };
-    const bootstrapScript = readFileSync(
-      join(process.cwd(), 'scripts/bootstrap-authenticated-smoke-users.mjs'),
-      'utf8',
-    );
-    const verifyIndex = workflow.indexOf('Verify required protected secrets');
-    const bootstrapIndex = workflow.indexOf('Ensure reusable Clerk QA accounts');
-    const playwrightIndex = workflow.indexOf('npx playwright install --with-deps chromium');
-
-    expect(packageJson.scripts?.['qa:bootstrap-authenticated-smoke']).toBe(
-      'node scripts/bootstrap-authenticated-smoke-users.mjs',
-    );
-    expect(workflow).toContain('npm run qa:bootstrap-authenticated-smoke');
-    expect(verifyIndex).toBeGreaterThanOrEqual(0);
-    expect(bootstrapIndex).toBeGreaterThan(verifyIndex);
-    expect(playwrightIndex).toBeGreaterThan(bootstrapIndex);
-    expect(bootstrapScript).toContain('summarizeQaBootstrap');
-    expect(bootstrapScript).not.toContain('console.error(error)');
-    expect(bootstrapScript).not.toContain('account.email');
-    expect(bootstrapScript).not.toContain('account.userId');
+    expect(entitlement).not.toContain('CARDFORGE_E2E_');
   });
 
   it('keeps routine Dependabot updates below major versions', () => {
@@ -93,10 +55,12 @@ describe('repository security defaults', () => {
     expect(dependabot.match(/version-update:semver-major/g)).toHaveLength(2);
   });
 
-  it('documents the provider-owned launch closure procedure', () => {
+  it('documents live-provider verification without claiming automated auth proof', () => {
     const operations = readFileSync(join(process.cwd(), 'docs/operations.md'), 'utf8');
 
     expect(operations).toContain('Authenticated production smoke');
+    expect(operations).toContain('former reusable QA accounts were retired');
+    expect(operations).toContain('real signed-in owner/developer account');
     expect(operations).toContain('ledgerCreated');
     expect(operations).toContain('Stripe Workbench');
     expect(operations).toContain('Solo-maintainer branch rule');

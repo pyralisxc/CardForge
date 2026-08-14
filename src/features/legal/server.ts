@@ -1,5 +1,6 @@
 export {
   getLegalDocuments,
+  getLegalDocumentHistory,
   getPublishedLegalDocument,
   LegalDocumentStoreError,
   publishLegalDocument,

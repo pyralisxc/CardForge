@@ -43,10 +43,10 @@ export function OwnerDeveloperProgramOverview({
       <div className="mt-5 grid gap-3 md:grid-cols-4">
         <DecisionCard label="Program status" body={program.configured ? 'Supabase developer tables are connected and accepting submissions.' : 'Developer tables are not configured yet.'} />
         <DecisionCard label="Submissions" body={`${program.submissions.length} total developer asset submission${program.submissions.length === 1 ? '' : 's'} in the review system.`} />
-        <DecisionCard label="Voting lane" body={`${program.votingQueue.length} active asset${program.votingQueue.length === 1 ? '' : 's'} remain open for developer voting.`} />
+        <DecisionCard label="Voteable assets" body={`${program.votingQueue.length} asset${program.votingQueue.length === 1 ? '' : 's'} can still receive developer votes, including live assets whose automatic signal remains active.`} />
         <DecisionCard label="Active developers" body={`${program.activeDeveloperCount} active developer${program.activeDeveloperCount === 1 ? '' : 's'} currently count toward voting presets.`} />
         <DecisionCard label="Published policy" body="Creator-facing assets are published pipeline rows with a free or paid tier." />
-        <DecisionCard label="Cap pressure" body={overCapCount === 0 ? 'All published asset types are inside current caps.' : `${overCapCount} asset type${overCapCount === 1 ? '' : 's'} are over cap.`} />
+        <DecisionCard label="Cap pressure" body={overCapCount === 0 ? 'All published asset types are inside current caps.' : `${overCapCount} asset ${overCapCount === 1 ? 'type is' : 'types are'} over cap.`} />
         <DecisionCard label="Self voting" body={settings.allowContributorSelfVoting ? 'Contributors can vote on their own uploads.' : "Only peer votes count for a contributor's assets."} />
         <DecisionCard label="Owner vote mode" body={settings.ownerVoteWeight === 1 ? 'Owner votes count like one developer vote.' : `Owner votes count as ${settings.ownerVoteWeight}x signal.`} />
       </div>

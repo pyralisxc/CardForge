@@ -94,14 +94,14 @@ Feature-specific rules stay under their owning feature and cross-feature consume
 - The feature graph must remain acyclic.
 - Retired root `src/lib`, `src/store`, and `src/types` lanes must not return.
 
-App routes compose the public-site-owned shared header. The Owner Console keeps its coordinator small and lazy-loads operational panels behind tabs.
+App routes compose the public-site-owned shared header. The Owner Console keeps its coordinator small and lazy-loads feature-owned controls behind five workspaces. Code defines which public controls are safe; the Owner Console owns their live values.
 
 ## Current Access Model
 
 - Free users can design locally and generate previews. Portable project-file access follows the owner-controlled experience policy.
 - Creator Pass users get paid clean finished-output access through Stripe. Project-file policy cannot unlock watermark-free PNG, PDF, ZIP, or Tabletop Simulator exports.
 - Developer access grants export plus pipeline tools.
-- Active developer access grants asset submission/review. Campaign drafting and site-copy proposals are separate owner-managed scopes and remain globally gated until updated contribution terms/privacy are published.
+- Active developer access requires both Clerk developer entitlement and an active CardForge developer profile. Campaign drafting and site-copy proposals are separate owner-managed scopes and remain globally gated until updated contribution terms/privacy are published.
 - Owner access grants owner console plus developer-grade tools.
 - Public Clerk metadata is display-only and must not grant paid/dev/owner access.
 
@@ -133,6 +133,10 @@ The current developer pipeline is operational infrastructure, not an active payo
 - `social-publishing` owns the Buffer protocol adapter. The API key is server-only and provider mutations require both owner access and `CARDFORGE_BUFFER_PUBLISHING_ENABLED=true`.
 
 Non-owner developers never gain approval, site publication, provider configuration, or scheduling powers. New campaign/site scopes default false in Supabase and are additionally hidden behind `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED`.
+
+The Owner Console People directory is the single human-facing composition of Clerk account entitlement and `developer-access` profile status/scopes. Revocation is fail-safe across providers: Clerk entitlement is removed first, then the retained profile is deactivated and extended scopes are cleared. Contribution and voting history remains attributed. Provider/DB partial completion is reported and retryable; a missing Clerk account is history, not active access.
+
+`public-site` owns the constrained live site-configuration model. Owner settings may reorder or hide only code-allowlisted navigation destinations and homepage sections, adjust homepage metadata/action/announcement, and hide public offer promotions. They cannot introduce arbitrary routes, scripts, provider credentials, or unreviewed product behavior. `owner` owns the append-only operational history projection, while each feature continues to own its mutation.
 
 Campaign media has one canonical CardForge UUID. Ingestion retains an immutable protected original and a protected normalized WebP master; storage bucket/object references stay server-only. Campaign JSON retains only channel copy. Relational attachments reference media IDs and own display order, contextual alt text, crop intent, caption overrides, and an optional chosen derivative. Media owns intrinsic metadata, content hash, rights/credit, focal point, lifecycle, and its approved derivatives. A public URL is delivery output, never application identity.
 

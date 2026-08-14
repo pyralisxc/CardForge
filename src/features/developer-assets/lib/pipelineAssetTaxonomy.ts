@@ -19,7 +19,7 @@ const assetKindLabels: Record<CardAssetOption['kind'] | 'font', { singular: stri
   icon: { singular: 'Icon', plural: 'Icons' },
   image: { singular: 'Image', plural: 'Images' },
   template: { singular: 'Template', plural: 'Templates' },
-  elementPreset: { singular: 'Pipeline Recipe', plural: 'Pipeline Recipes' },
+  elementPreset: { singular: 'Style Recipe', plural: 'Style Recipes' },
   font: { singular: 'Font', plural: 'Fonts' },
 };
 

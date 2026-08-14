@@ -8,7 +8,7 @@ import {
   updateDeveloperProfileOverrides,
   updateDeveloperProgramSettings,
 } from '@/features/developer-assets/server';
-import { upsertDeveloperProfile } from '@/features/developer-access/server';
+import { getDeveloperProfileCapabilities, upsertDeveloperProfile } from '@/features/developer-access/server';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
@@ -72,6 +72,12 @@ const syncDeveloperProfile = async (access: Awaited<ReturnType<typeof getDevelop
     firstName: access.user.firstName,
     lastName: access.user.lastName,
   });
+  if (!access.isOwner) {
+    const profile = await getDeveloperProfileCapabilities(access.user.id);
+    if (profile.status !== 'active') {
+      throw new DeveloperAssetStoreError('This developer profile is not active. Contact the CardForge owner if access should be restored.', 403);
+    }
+  }
 };
 
 export async function GET() {

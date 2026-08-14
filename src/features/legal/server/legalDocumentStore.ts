@@ -136,6 +136,32 @@ export const getPublishedLegalDocument = async (
   };
 };
 
+export const getLegalDocumentHistory = async (
+  slug: LegalDocumentSlug,
+): Promise<LegalDocument[]> => {
+  if (!DEFAULT_LEGAL_DOCUMENTS.some((document) => document.slug === slug)) return [];
+  const supabase = getSupabaseServerClient();
+  if (!getSupabaseServerConfigStatus().configured || !supabase) {
+    throw new LegalDocumentStoreError('Legal publication storage is not configured yet.', 503);
+  }
+  const { data, error } = await supabase
+    .from('cardforge_legal_documents')
+    .select(LEGAL_DOCUMENT_COLUMNS)
+    .eq('slug', slug)
+    .order('version', { ascending: false })
+    .limit(50);
+  if (error) {
+    if (!isMissingLegalStorageError(error)) console.error('Failed to load legal publication history:', error);
+    throw new LegalDocumentStoreError(
+      isMissingLegalStorageError(error)
+        ? 'Legal publication storage is not ready. Apply the prepared database migration first.'
+        : 'Unable to load legal publication history.',
+      isMissingLegalStorageError(error) ? 503 : 500,
+    );
+  }
+  return (data ?? []).map((row) => mapLegalDocumentRow(row as LegalDocumentRow));
+};
+
 export const publishLegalDocument = async (
   input: {
     slug?: unknown;

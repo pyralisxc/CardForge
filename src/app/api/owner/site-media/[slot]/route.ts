@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { revalidatePath } from 'next/cache';
 
-import { getOwnerConsolePayload, getCurrentOwnerAccess } from '@/features/owner/server';
+import { getOwnerConsolePayload, getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import {
   getSiteMediaStoragePath,
   getSiteMedia,
@@ -97,6 +97,7 @@ export async function POST(
     revalidateSiteMediaCache();
     revalidatePath('/');
     if (slot === 'founder.portrait') revalidatePath('/cameron');
+    await recordOwnerActivity({ actorUserId: owner.userId, actorEmail: owner.email, action: 'site.media.publish', targetType: 'site_media', targetId: slot, summary: image ? 'Published a new public site image and presentation.' : 'Updated public image presentation and accessibility text.' });
 
     return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() }, { status: image ? 201 : 200 });
   } catch (error) {

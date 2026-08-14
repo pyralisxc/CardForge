@@ -6,6 +6,7 @@ import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMetrics';
 import {
   getFounderProfile,
+  getPublicSiteConfiguration,
   getSiteMedia,
   getSiteContentBlocks,
 } from '@/features/public-site/server';
@@ -19,6 +20,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
   const [
     businessIdentity,
     experienceSettings,
+    siteConfiguration,
     siteMechanics,
     siteContentBlocks,
     siteMedia,
@@ -30,6 +32,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
   ] = await Promise.all([
     getBusinessIdentity(),
     getExperienceSettings(),
+    getPublicSiteConfiguration(),
     getRoadmapSettings(),
     getSiteContentBlocks(),
     getSiteMedia(),
@@ -44,6 +47,7 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     configured: getSupabaseServerConfigStatus().configured,
     businessIdentity,
     experienceSettings,
+    siteConfiguration,
     siteMechanics,
     siteContentBlocks,
     siteMedia,

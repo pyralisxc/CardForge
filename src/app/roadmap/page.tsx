@@ -3,11 +3,10 @@ import type { Metadata } from 'next';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
-import { PublicSiteShell } from '@/features/public-site/client/shell';
 import { RoadmapPage } from '@/features/roadmap/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
-import { createBreadcrumbStructuredData, StructuredData } from '@/features/public-site/server';
+import { createBreadcrumbStructuredData, PublicSiteShell, StructuredData } from '@/features/public-site/server';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'CardForge Roadmap',

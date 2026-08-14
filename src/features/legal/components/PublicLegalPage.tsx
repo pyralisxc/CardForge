@@ -6,7 +6,10 @@ import {
   type BusinessIdentity,
 } from '@/features/business-identity/client';
 import type { LegalDocument } from '@/features/legal/client';
-import { PublicSiteShell } from '@/features/public-site/client/shell';
+import {
+  PublicSiteShell,
+  type PublicSiteConfiguration,
+} from '@/features/public-site/client';
 import { LegalDocumentBody } from './LegalDocumentBody';
 
 const trustLinks = [
@@ -31,16 +34,19 @@ export function PublicLegalPage({
   children,
   businessIdentity,
   document,
+  siteConfiguration,
 }: {
   children?: React.ReactNode;
   businessIdentity: BusinessIdentity;
   document: LegalDocument;
+  siteConfiguration: PublicSiteConfiguration;
 }) {
   return (
     <PublicSiteShell
       businessIdentity={businessIdentity}
       currentPath={`/${document.slug}`}
       mainClassName="bg-[var(--public-obsidian)] text-[var(--public-text)]"
+      siteConfiguration={siteConfiguration}
     >
       <article className="mx-auto max-w-5xl px-5 py-[var(--public-space)] md:px-8">
         <p className="text-base font-bold text-[var(--public-brass)]">CardForge trust center</p>

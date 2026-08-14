@@ -6,6 +6,7 @@ import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteHeader } from '@/features/public-site/client/shell';
+import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
@@ -16,9 +17,10 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default async function AccountPage() {
-  const [{ authConfigured }, businessIdentity] = await Promise.all([
+  const [{ authConfigured }, businessIdentity, siteConfiguration] = await Promise.all([
     getCurrentCardforgeUserAccess(),
     getCachedBusinessIdentity(),
+    getCachedPublicSiteConfiguration(),
   ]);
   return (
     <CardForgeAppProviders>
@@ -27,6 +29,7 @@ export default async function AccountPage() {
           accountSlot={authConfigured ? <PublicAuthControls /> : undefined}
           businessIdentity={businessIdentity}
           currentPath="/account"
+          siteConfiguration={siteConfiguration}
         />
       </div>
       <AccountProfilePage initialAuthConfigured={authConfigured} />
