@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveOwnerAccess } from '@/domain/entitlements';
+import { getCanonicalOwnerAccountEmail, resolveOwnerAccess } from '@/domain/entitlements';
 
 describe('owner access', () => {
   it('trusts Clerk private metadata for owner access', () => {
@@ -34,5 +34,15 @@ describe('owner access', () => {
       isOwner: true,
       source: 'environment',
     });
+  });
+
+  it('exposes a canonical publishing identity only for one configured owner email', () => {
+    expect(getCanonicalOwnerAccountEmail({
+      CARDFORGE_OWNER_ACCOUNT_EMAILS: ' PYRALISCAMERON@gmail.com ',
+    })).toBe('pyraliscameron@gmail.com');
+    expect(getCanonicalOwnerAccountEmail({
+      CARDFORGE_OWNER_ACCOUNT_EMAILS: 'owner@example.com,legacy@example.com',
+    })).toBeNull();
+    expect(getCanonicalOwnerAccountEmail({ CARDFORGE_OWNER_ACCOUNT_EMAILS: '' })).toBeNull();
   });
 });

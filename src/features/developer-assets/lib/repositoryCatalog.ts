@@ -14,7 +14,7 @@ import {
   isRepositoryTemplate,
 } from '@/features/developer-assets/lib/registryContentValidation';
 
-const getPipelineContributorName = (): string => 'CardForge Studio';
+const getPipelineContributorName = (): string => 'Pyralis Cameron';
 
 const sortTemplates = (templates: TCGCardTemplate[]): TCGCardTemplate[] =>
   templates.sort((left, right) => {

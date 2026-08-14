@@ -38,7 +38,7 @@ export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse
     ['Billing', billingReady ? 'Stripe' : (creatorPassReady ? 'Creator Pass' : 'Setup'), billingReady],
     ['Email', emailReady ? 'Resend' : (payload.integrationStatus.email.resendConfigured ? 'Setup' : 'Mailto'), emailReady],
     ['Domain', payload.integrationStatus.site.usingLocalFallback ? 'Local' : 'Configured', !payload.integrationStatus.site.usingLocalFallback],
-    ['Owner', payload.integrationStatus.ownerAllowlistConfigured ? 'Allowed' : 'Setup', payload.integrationStatus.ownerAllowlistConfigured],
+    ['Publisher', payload.integrationStatus.canonicalOwnerConfigured ? 'Canonical' : 'Setup', payload.integrationStatus.canonicalOwnerConfigured],
     ['Analytics', payload.integrationStatus.analytics.reportingConfigured ? (payload.integrationStatus.analytics.collectionEnabled ? 'Live' : 'Reports') : 'Setup', payload.integrationStatus.analytics.reportingConfigured],
   ] as const;
   return (

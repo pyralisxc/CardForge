@@ -12,17 +12,17 @@ import {
   upsertPipelineRegistryAsset,
 } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
 import { DEFAULT_DEVELOPER_PROGRAM_SETTINGS } from '@/features/developer-assets/lib/developerAssets';
-import { getDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
+import { getUniqueActiveDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 
 vi.mock('@/infrastructure/database/supabaseServer', () => ({
   getSupabaseServerClient: vi.fn(),
 }));
 vi.mock('@/features/developer-access/server', () => ({
-  getDeveloperProfileReferenceByEmail: vi.fn(),
+  getUniqueActiveDeveloperProfileReferenceByEmail: vi.fn(),
 }));
 
 const mockedGetSupabaseServerClient = vi.mocked(getSupabaseServerClient);
-const mockedGetDeveloperProfileReferenceByEmail = vi.mocked(getDeveloperProfileReferenceByEmail);
+const mockedGetDeveloperProfileReferenceByEmail = vi.mocked(getUniqueActiveDeveloperProfileReferenceByEmail);
 
 describe('developer asset registry commands', () => {
   beforeEach(() => {
@@ -66,6 +66,42 @@ describe('developer asset registry commands', () => {
       p_storage_path: null,
       p_metadata: { template: { id: 'starter-template' } },
     });
+  });
+
+  it('refuses shared-library writes when the owner publishing identity is ambiguous', async () => {
+    process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS = 'owner@cardforges.com,legacy@cardforges.com';
+
+    await expect(upsertPipelineRegistryAsset({
+      assetId: 'starter-template',
+      name: 'Starter Template',
+      submissionAssetType: 'templates',
+      registryAssetType: 'template',
+      url: '/api/templates#starter-template',
+      description: 'Maintained in the Forge Pipeline.',
+      fileSizeBytes: 420,
+      metadata: { template: { id: 'starter-template' } },
+    })).rejects.toEqual(expect.objectContaining<Partial<DeveloperAssetRegistryCommandError>>({
+      status: 503,
+    }));
+
+    expect(mockedGetDeveloperProfileReferenceByEmail).not.toHaveBeenCalled();
+  });
+
+  it('refuses shared-library writes without one active matching owner profile', async () => {
+    mockedGetDeveloperProfileReferenceByEmail.mockResolvedValue(null);
+
+    await expect(upsertPipelineRegistryAsset({
+      assetId: 'starter-template',
+      name: 'Starter Template',
+      submissionAssetType: 'templates',
+      registryAssetType: 'template',
+      url: '/api/templates#starter-template',
+      description: 'Maintained in the Forge Pipeline.',
+      fileSizeBytes: 420,
+      metadata: { template: { id: 'starter-template' } },
+    })).rejects.toEqual(expect.objectContaining<Partial<DeveloperAssetRegistryCommandError>>({
+      status: 503,
+    }));
   });
 
   it('archives pipeline submissions and registry visibility together', async () => {

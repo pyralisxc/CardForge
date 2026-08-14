@@ -5,7 +5,8 @@ import type {
   DeveloperVoteValue,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { TCGCardTemplate } from '@/domain/templates';
-import { getDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
+import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
+import { getUniqueActiveDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 export class DeveloperAssetRegistryCommandError extends Error {
@@ -303,18 +304,21 @@ export const upsertPipelineRegistryAsset = async ({
   storagePath = null,
   metadata,
 }: UpsertPipelineRegistryAssetInput): Promise<void> => {
-  const ownerEmail = process.env.CARDFORGE_OWNER_ACCOUNT_EMAILS
-    ?.split(',')
-    .map((email) => email.trim().toLowerCase())
-    .find(Boolean);
+  const ownerEmail = getCanonicalOwnerAccountEmail();
   if (!ownerEmail) {
     throw new DeveloperAssetRegistryCommandError(
-      'CARDFORGE_OWNER_ACCOUNT_EMAILS must include the Pipeline owner for shared-library writes.',
+      'CARDFORGE_OWNER_ACCOUNT_EMAILS must contain exactly one Pipeline owner for shared-library writes.',
       503,
     );
   }
 
-  const ownerProfile = await getDeveloperProfileReferenceByEmail(ownerEmail);
+  const ownerProfile = await getUniqueActiveDeveloperProfileReferenceByEmail(ownerEmail);
+  if (!ownerProfile?.developerId || !ownerProfile.email) {
+    throw new DeveloperAssetRegistryCommandError(
+      'The configured Pipeline owner must match exactly one active developer profile.',
+      503,
+    );
+  }
   const supabase = requireSupabase();
   const { error } = await supabase.rpc('cardforge_upsert_pipeline_registry_asset', {
     p_asset_id: assetId,
@@ -324,8 +328,8 @@ export const upsertPipelineRegistryAsset = async ({
     p_url: url,
     p_preview_url: previewUrl,
     p_description: description,
-    p_developer_id: ownerProfile?.developerId || ownerEmail,
-    p_developer_email: ownerProfile?.email || ownerEmail,
+    p_developer_id: ownerProfile.developerId,
+    p_developer_email: ownerProfile.email,
     p_file_size_bytes: fileSizeBytes,
     p_source_mime_type: sourceMimeType,
     p_storage_bucket: storageBucket,

@@ -70,6 +70,14 @@ describe('owner integration status', () => {
     });
   });
 
+  it('reports one unambiguous owner publisher instead of mere allowlist presence', () => {
+    vi.stubEnv('CARDFORGE_OWNER_ACCOUNT_EMAILS', 'owner@example.com,legacy@example.com');
+    expect(getOwnerIntegrationStatus().canonicalOwnerConfigured).toBe(false);
+
+    vi.stubEnv('CARDFORGE_OWNER_ACCOUNT_EMAILS', 'pyraliscameron@gmail.com');
+    expect(getOwnerIntegrationStatus().canonicalOwnerConfigured).toBe(true);
+  });
+
   it('keeps provider ownership and destructive-impact links visible to the owner', () => {
     const status = getOwnerIntegrationStatus();
     const googleAuthentication = status.connectedServices.find((service) => service.id === 'google-authentication');

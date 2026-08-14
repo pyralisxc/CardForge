@@ -72,9 +72,9 @@ describe('repository maintenance policy', () => {
     expect(pipelineSync).toContain('CARDFORGE_OWNER_ACCOUNT_EMAILS');
     expect(pipelineSync).not.toContain('CARDFORGE_E2E_OWNER_EMAIL');
     expect(pipelineSync).not.toContain('CARDFORGE_PIPELINE_OWNER_EMAIL');
-    expect(pipelineSync).toContain(".eq('decision_reason', 'pipeline_owner_edit')");
-    expect(pipelineSync).toContain('ownerEmails.length !== 1');
-    expect(pipelineSync).toContain('must already have an active Forge Pipeline developer profile');
+    expect(pipelineSync).not.toContain(".eq('decision_reason', 'pipeline_owner_edit')");
+    expect(pipelineSync).toContain('configuredOwnerEmail');
+    expect(pipelineSync).toContain('must match exactly one active Forge Pipeline developer profile');
     expect(pipelineSync).not.toContain(".upsert({\n      clerk_user_id: ownerProfile.clerk_user_id");
   });
 
