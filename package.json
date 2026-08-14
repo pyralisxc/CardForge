@@ -69,14 +69,14 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.10",
+    "@clerk/testing": "^2.2.21",
     "@next/eslint-plugin-next": "^16.3.0",
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.18.0",
     "@types/papaparse": "5.5.2",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "axe-core": "^4.12.1",
+    "axe-core": "^4.13.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.3.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
