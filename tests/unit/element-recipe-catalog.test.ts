@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { AppearanceStylePreset } from '@/domain/templates';
+import { isRepositoryStyle } from '@/features/developer-assets/lib/registryContentValidation';
 import { createRecipesFromAppearanceStyles } from '@/features/template-editor/lib/elementPresetRecipes';
 
 describe('element recipe catalog', () => {
@@ -26,5 +27,29 @@ describe('element recipe catalog', () => {
       'dividerRecipe',
       'iconStyle',
     ]));
+  });
+
+  it('recognizes the text-frame recipes already owned by the live Pipeline contract', () => {
+    expect(isRepositoryStyle({
+      id: 'text-frame-rules',
+      name: 'Rules Frame',
+      kind: 'textFrame',
+      targets: ['text'],
+      appearance: { material: { baseColor: '#17100b' } },
+    })).toBe(true);
+    expect(isRepositoryStyle({
+      id: 'unknown-recipe',
+      name: 'Unknown',
+      kind: 'mystery',
+      targets: ['text'],
+      appearance: {},
+    })).toBe(false);
+    expect(isRepositoryStyle({
+      id: 'broken-gradient',
+      name: 'Broken Gradient',
+      kind: 'material',
+      targets: ['element'],
+      appearance: { material: { gradient: { type: 'linear', stops: 'not-an-array' } } },
+    })).toBe(false);
   });
 });

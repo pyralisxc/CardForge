@@ -7,6 +7,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { PublicAuthControls } from '@/features/account/client/auth';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { PublicSiteShell } from '@/features/public-site/client/shell';
 import {
@@ -16,6 +18,7 @@ import {
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
 export const metadata = createPageMetadata({
   title: 'About CardForge',
@@ -31,6 +34,7 @@ const principles = [
 ] as const;
 
 export default async function AboutPage() {
+  const authConfigured = isClerkServerConfigPresent();
   const [businessIdentity, siteContentBlocks] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedSiteContentBlocks('about'),
@@ -38,7 +42,8 @@ export default async function AboutPage() {
   const siteContent = createSiteContentMap(siteContentBlocks);
 
   return (
-    <PublicSiteShell businessIdentity={businessIdentity} currentPath="/about">
+    <CardForgeAppProviders>
+      <PublicSiteShell accountSlot={authConfigured ? <PublicAuthControls /> : undefined} businessIdentity={businessIdentity} currentPath="/about">
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
         { name: 'About CardForge Studio', path: '/about' },
@@ -152,6 +157,7 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
-    </PublicSiteShell>
+      </PublicSiteShell>
+    </CardForgeAppProviders>
   );
 }

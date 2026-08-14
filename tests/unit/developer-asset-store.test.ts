@@ -12,6 +12,7 @@ import {
   normalizeDeveloperAssetSubmissionEditInput,
   normalizeDeveloperAssetSubmissionInput,
   projectDeveloperAssetProgramForViewer,
+  resolveDeveloperAssetSourcePayload,
   type DeveloperAssetSubmission,
 } from '@/features/developer-assets/lib/developerAssetProgram';
 
@@ -62,6 +63,15 @@ const submission = (
 });
 
 describe('developer asset store helpers', () => {
+  it('uses authoritative registry content only when a submission has no proposed payload', () => {
+    const proposed = { id: 'proposed-recipe' };
+    const registry = { id: 'published-recipe' };
+
+    expect(resolveDeveloperAssetSourcePayload(proposed, registry)).toBe(proposed);
+    expect(resolveDeveloperAssetSourcePayload(null, registry)).toBe(registry);
+    expect(resolveDeveloperAssetSourcePayload(null)).toBeNull();
+  });
+
   it('maps database settings into the compact automatic-pipeline contract', () => {
     expect(mapDeveloperProgramSettingsRow({
       max_active_developers: 25,

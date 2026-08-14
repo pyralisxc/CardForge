@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { ArrowRight, Caravan, Compass, HeartHandshake, Home, ServerCog, Sparkles, Utensils } from 'lucide-react';
 
+import { PublicAuthControls } from '@/features/account/client/auth';
+import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { SupportCheckoutActions } from '@/features/billing/client';
 import { getCreatorSupportOfferConfiguration, SUPPORT_MONTHLY_AMOUNTS_CENTS } from '@/features/billing/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
@@ -18,6 +20,7 @@ import {
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
 export const metadata = createPageMetadata({
   title: 'Cameron Locke — Founder of CardForge Studio',
@@ -33,6 +36,7 @@ const supportUses = [
 ] as const;
 
 export default async function CameronPage() {
+  const authConfigured = isClerkServerConfigPresent();
   const [businessIdentity, profile, siteMedia] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedFounderProfile(),
@@ -54,7 +58,8 @@ export default async function CameronPage() {
   }[portraitMedia.presentation.mobileSize];
 
   return (
-    <PublicSiteShell businessIdentity={businessIdentity} currentPath="/cameron">
+    <CardForgeAppProviders>
+      <PublicSiteShell accountSlot={authConfigured ? <PublicAuthControls /> : undefined} businessIdentity={businessIdentity} currentPath="/cameron">
       <StructuredData value={createFounderProfileStructuredData(businessIdentity)} />
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
@@ -163,6 +168,7 @@ export default async function CameronPage() {
           </div>
         </div>
       </section>
-    </PublicSiteShell>
+      </PublicSiteShell>
+    </CardForgeAppProviders>
   );
 }

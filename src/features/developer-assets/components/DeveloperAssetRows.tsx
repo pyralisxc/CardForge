@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Archive, Check, ChevronLeft, ChevronRight, Eye, Save, ThumbsDown, ThumbsUp, X } from 'lucide-react';
+import { Archive, Check, ChevronLeft, ChevronRight, Eye, Save, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { CardPreview } from '@/features/card-rendering/client';
-import { TemplateThumbnail } from '@/features/card-rendering/client';
+import {
+  appearanceToStyle,
+  CardPreview,
+  shapeClipPath,
+  TemplateThumbnail,
+} from '@/features/card-rendering/client';
 import {
   canRenderImagePreview,
   getContributorLabel,
@@ -25,7 +29,8 @@ import {
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
-import type { TCGCardTemplate } from '@/domain/templates';
+import { isRepositoryStyle } from '@/features/developer-assets/lib/registryContentValidation';
+import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 
 const getFontPreviewFormat = (url: string): string => {
   const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase();
@@ -286,6 +291,9 @@ function AssetPreview({
   const [imageFailed, setImageFailed] = useState(false);
   const templateId = getTemplatePreviewId(submission);
   const template = templateId ? templatePreviews[templateId] : undefined;
+  const pipelineRecipe = isRepositoryStyle(submission.sourcePayload)
+    ? submission.sourcePayload
+    : null;
   const proposedTemplate = submission.sourcePayload
     && typeof submission.sourcePayload === 'object'
     && !Array.isArray(submission.sourcePayload)
@@ -297,6 +305,10 @@ function AssetPreview({
   useEffect(() => {
     setImageFailed(false);
   }, [submission.previewUrl]);
+
+  if (pipelineRecipe) {
+    return <PipelineRecipePreview recipe={pipelineRecipe} expanded={expanded} />;
+  }
 
   if (proposedTemplate || template) {
     const primaryTemplate = proposedTemplate ?? template!;
@@ -384,6 +396,71 @@ function AssetPreview({
     </div>
   );
 }
+
+function PipelineRecipePreview({
+  recipe,
+  expanded,
+}: {
+  recipe: AppearanceStylePreset;
+  expanded: boolean;
+}) {
+  const isDivider = recipe.kind === 'divider';
+  const isIcon = recipe.kind === 'icon';
+  const isTextSurface = recipe.kind === 'textFrame'
+    || recipe.targets.includes('text')
+    || recipe.targets.includes('element');
+  const visualStyle = {
+    ...appearanceToStyle(recipe.appearance),
+    clipPath: shapeClipPath(recipe.updates?.shapeKind),
+  };
+  const visualClassName = isDivider
+    ? expanded ? 'h-5 w-full max-w-sm rounded-full' : 'h-3 w-12 rounded-full'
+    : isIcon
+      ? expanded ? 'grid h-24 w-24 place-items-center rounded-full' : 'grid h-11 w-11 place-items-center rounded-full'
+      : expanded ? 'grid h-28 w-full max-w-60 place-items-center' : 'grid h-11 w-12 place-items-center';
+  const glyphColor = recipe.appearance.material?.textColor
+    || recipe.appearance.material?.strokeColor
+    || recipe.appearance.border?.secondaryColor
+    || recipe.appearance.border?.color
+    || '#ffe7ad';
+
+  return (
+    <div
+      className={`grid h-full w-full place-items-center ${expanded ? 'gap-4 p-5' : 'p-1'}`}
+      role="img"
+      aria-label={`${recipe.name} Pipeline recipe preview`}
+    >
+      <div className={visualClassName} style={visualStyle}>
+        {isIcon ? (
+          <Sparkles className={expanded ? 'h-11 w-11' : 'h-5 w-5'} style={{ color: glyphColor }} aria-hidden="true" />
+        ) : isTextSurface && !isDivider ? (
+          <span className={expanded ? 'font-serif text-3xl font-semibold' : 'font-serif text-sm font-semibold'} style={{ color: glyphColor }} aria-hidden="true">
+            Aa
+          </span>
+        ) : null}
+      </div>
+      {expanded ? (
+        <div className="text-center">
+          <p className="font-serif text-lg text-[#ffe7ad]">{recipe.name}</p>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[#a98a55]">
+            {getPipelineRecipeKindLabel(recipe.kind)} · {recipe.targets.join(', ')}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const getPipelineRecipeKindLabel = (kind: AppearanceStylePreset['kind']): string => ({
+  border: 'Border treatment',
+  divider: 'Divider',
+  frameKit: 'Frame kit',
+  icon: 'Icon style',
+  material: 'Material',
+  shapeRole: 'Shape role',
+  textFrame: 'Text frame',
+  theme: 'Theme',
+})[kind];
 
 function TemplateComparisonPreview({
   label,

@@ -82,7 +82,11 @@ export async function GET() {
     await timing.track('profile_sync', () => syncDeveloperProfile(access));
     const program = await timing.track(
       'program_view',
-      () => getDeveloperAssetProgramView(access.user.id, getContributorIds(access.user.id)),
+      () => getDeveloperAssetProgramView(
+        access.user.id,
+        getContributorIds(access.user.id),
+        { includeRegistryRecipePayloads: access.isOwner },
+      ),
     );
 
     const response = createNoStoreJsonResponse({
@@ -130,6 +134,7 @@ export async function POST(request: Request) {
       developerId: access.user.id,
       developerEmail: access.email,
       currentContributorIds: getContributorIds(access.user.id),
+      includeRegistryRecipePayloads: access.isOwner,
       assetType: formData.get('assetType'),
       name: formData.get('name'),
       description: formData.get('description'),

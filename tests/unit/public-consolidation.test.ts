@@ -32,10 +32,20 @@ describe('consolidated public routes and account navigation', () => {
       expect(source).toContain("from '@/features/public-site/client/shell'");
       expect(source).toContain('getCachedBusinessIdentity');
       expect(source).toContain('<PublicSiteHeader');
-      expect(source).toContain('accountSlot={<PublicAuthControls />}');
+      expect(source).toContain('accountSlot={authConfigured ? <PublicAuthControls /> : undefined}');
       expect(source).toContain('className="cardforge-public-tokens"');
       expect(source).not.toContain('className="cardforge-public"');
       expect(source).not.toContain('StudioHeader');
+    }
+  });
+
+  it('shows live account state on every public marketing shell', () => {
+    for (const path of ['src/app/page.tsx', 'src/app/about/page.tsx', 'src/app/cameron/page.tsx']) {
+      const source = readSource(path);
+      expect(source).toContain('<CardForgeAppProviders>');
+      expect(source).toContain('<PublicAuthControls />');
+      expect(source).toContain('isClerkServerConfigPresent');
+      expect(source).toContain('accountSlot={authConfigured ? <PublicAuthControls /> : undefined}');
     }
   });
 

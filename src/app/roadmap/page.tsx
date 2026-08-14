@@ -16,15 +16,16 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default async function ForgeChroniclePage() {
+  const authConfigured = isClerkServerConfigPresent();
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <CardForgeAppProviders>
-      <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/roadmap">
+      <PublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <PublicAuthControls /> : undefined} currentPath="/roadmap">
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Roadmap', path: '/roadmap' },
         ])} />
-        <RoadmapPage initialAuthConfigured={isClerkServerConfigPresent()} supportEmail={businessIdentity.supportEmail} />
+        <RoadmapPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
       </PublicSiteShell>
     </CardForgeAppProviders>
   );

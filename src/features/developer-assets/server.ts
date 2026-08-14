@@ -6,5 +6,6 @@ export * from './lib/developerAssetRegistryCommands';
 export * from './lib/developerAssetUploadPolicy';
 export * from './lib/developerAssetUploadSubmission';
 export * from './lib/registryContentAssets';
+export * from './lib/registryContentValidation';
 export * from './lib/registryFonts';
 export * from './lib/repositoryCatalog';

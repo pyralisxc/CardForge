@@ -20,6 +20,7 @@ import {
   saveDeveloperProgramSettings,
   setDeveloperAssetOwnerOverride,
 } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
+import { isRepositoryStyle } from '@/features/developer-assets/lib/registryContentValidation';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import {
   buildDeveloperAssetProgramView,
@@ -86,11 +87,15 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
 const fetchSubmissionRows = async (
   currentUserId: string,
   profileRows: DeveloperProfileRow[] = [],
+  includeRegistryRecipePayloads = false,
 ): Promise<DeveloperAssetSubmission[]> => {
   const supabase = getSupabaseServerClient();
   if (!supabase) return [];
 
-  const [{ data: rows, error: rowsError }, { data: voteRows, error: votesError }] = await Promise.all([
+  const [
+    { data: rows, error: rowsError },
+    { data: voteRows, error: votesError },
+  ] = await Promise.all([
     supabase
       .from('cardforge_developer_asset_submissions')
       .select('id,developer_id,developer_email,asset_type,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at')
@@ -106,6 +111,35 @@ const fetchSubmissionRows = async (
     return [];
   }
 
+  const submissionRows = (rows ?? []) as DeveloperAssetSubmissionRow[];
+  const registryStylesById = new Map<string, unknown>();
+  if (includeRegistryRecipePayloads) {
+    const recipeAssetIds = [...new Set(submissionRows.flatMap((row) => {
+      if (row.asset_type !== 'elementPresets') return [];
+      const assetId = row.registry_asset_id ?? row.target_registry_asset_id;
+      return assetId ? [assetId] : [];
+    }))];
+
+    if (recipeAssetIds.length > 0) {
+      const { data: registryRows, error: registryRowsError } = await supabase
+        .from('cardforge_asset_registry')
+        .select('asset_id,style:metadata->style')
+        .eq('asset_type', 'elementPreset')
+        .in('asset_id', recipeAssetIds);
+
+      if (registryRowsError) {
+        console.error('Failed to load Pipeline recipe content for owner previews:', registryRowsError);
+      } else {
+        (registryRows ?? []).forEach((row) => {
+          const registryRow = row as { asset_id?: unknown; style?: unknown };
+          if (typeof registryRow.asset_id === 'string' && isRepositoryStyle(registryRow.style)) {
+            registryStylesById.set(registryRow.asset_id, registryRow.style);
+          }
+        });
+      }
+    }
+  }
+
   const currentUserVotes = Object.fromEntries((voteRows ?? []).map((row) => [
     String((row as { submission_id: string }).submission_id),
     (row as { vote_value: DeveloperVoteValue }).vote_value,
@@ -115,22 +149,28 @@ const fetchSubmissionRows = async (
     row as DeveloperProfileRow,
   ]));
 
-  return (rows ?? []).map((row) => {
-    const submissionRow = row as DeveloperAssetSubmissionRow;
-    return mapDeveloperAssetSubmissionRow(submissionRow, currentUserVotes, profilesById.get(submissionRow.developer_id));
+  return submissionRows.map((submissionRow) => {
+    const registryAssetId = submissionRow.registry_asset_id ?? submissionRow.target_registry_asset_id;
+    return mapDeveloperAssetSubmissionRow(
+      submissionRow,
+      currentUserVotes,
+      profilesById.get(submissionRow.developer_id),
+      registryAssetId ? registryStylesById.get(registryAssetId) : undefined,
+    );
   });
 };
 
 export const getDeveloperAssetProgramView = async (
   currentUserId: string,
   currentContributorIds: string[] = [currentUserId],
+  { includeRegistryRecipePayloads = false }: { includeRegistryRecipePayloads?: boolean } = {},
 ): Promise<DeveloperAssetProgramView> => {
   const { configured, settings } = await fetchDeveloperSettings();
   const [profiles, activeDeveloperCount] = await Promise.all([
     fetchDeveloperProfileRows(),
     countActiveDevelopers(),
   ]);
-  const submissions = await fetchSubmissionRows(currentUserId, profiles);
+  const submissions = await fetchSubmissionRows(currentUserId, profiles, includeRegistryRecipePayloads);
   return buildDeveloperAssetProgramView({ configured, settings, currentUserId, currentContributorIds, submissions, profiles, activeDeveloperCount });
 };
 
@@ -197,7 +237,7 @@ export const updateDeveloperProfileOverrides = async ({
     throw error;
   }
 
-  return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
+  return getDeveloperAssetProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
 export const updateDeveloperProgramSettings = async (
@@ -211,7 +251,7 @@ export const updateDeveloperProgramSettings = async (
   const normalized = normalizeDeveloperProgramSettingsInput(input);
   if (!currentUserId) throw new DeveloperAssetStoreError('Owner identity is required to update pipeline rules.', 403);
   await runRegistryCommand(() => saveDeveloperProgramSettings(normalized, currentUserId));
-  return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
+  return getDeveloperAssetProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
 export const createDeveloperAssetSubmission = async ({
@@ -219,10 +259,12 @@ export const createDeveloperAssetSubmission = async ({
   developerEmail,
   input,
   currentContributorIds = [developerId],
+  includeRegistryRecipePayloads = false,
 }: {
   developerId: string;
   developerEmail: string | null;
   currentContributorIds?: string[];
+  includeRegistryRecipePayloads?: boolean;
   input: {
     assetType?: unknown;
     name?: unknown;
@@ -238,7 +280,7 @@ export const createDeveloperAssetSubmission = async ({
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
 
-  const view = await getDeveloperAssetProgramView(developerId, currentContributorIds);
+  const view = await getDeveloperAssetProgramView(developerId, currentContributorIds, { includeRegistryRecipePayloads });
   if (view.remainingSubmissions <= 0) {
     throw new DeveloperAssetStoreError('This developer has reached the monthly submission limit.', 400);
   }
@@ -278,7 +320,7 @@ export const createDeveloperAssetSubmission = async ({
   }
 
   try {
-    return await getDeveloperAssetProgramView(developerId, currentContributorIds);
+    return await getDeveloperAssetProgramView(developerId, currentContributorIds, { includeRegistryRecipePayloads });
   } catch (error) {
     console.error('Developer asset was submitted, but the refreshed program view was unavailable:', error);
     return view;
@@ -307,7 +349,9 @@ export const voteOnDeveloperAssetSubmission = async ({
     voteValue,
     ownerDeveloperId,
   }));
-  return getDeveloperAssetProgramView(developerId, currentContributorIds);
+  return getDeveloperAssetProgramView(developerId, currentContributorIds, {
+    includeRegistryRecipePayloads: Boolean(ownerDeveloperId),
+  });
 };
 
 export const updateDeveloperAssetSubmissionDetails = async ({
@@ -368,7 +412,9 @@ export const updateDeveloperAssetSubmissionDetails = async ({
     throw new DeveloperAssetStoreError('Unable to edit developer asset submission.', 500);
   }
 
-  return getDeveloperAssetProgramView(developerId, currentContributorIds);
+  return getDeveloperAssetProgramView(developerId, currentContributorIds, {
+    includeRegistryRecipePayloads: allowOwnerEdit,
+  });
 };
 
 export const updateDeveloperAssetSubmissionStatus = async ({
@@ -411,7 +457,7 @@ export const updateDeveloperAssetSubmissionStatus = async ({
     ...(ownerAccessTierOverride !== undefined ? { ownerAccessTierOverride: normalizedTierOverride ?? null } : {}),
   }));
 
-  return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
+  return getDeveloperAssetProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
 
 export const permanentlyDeleteDeveloperAssetSubmission = async ({
@@ -434,5 +480,5 @@ export const permanentlyDeleteDeveloperAssetSubmission = async ({
     submissionId,
     confirmationName: normalizedConfirmation,
   }));
-  return getDeveloperAssetProgramView(currentUserId, currentContributorIds);
+  return getDeveloperAssetProgramView(currentUserId, currentContributorIds, { includeRegistryRecipePayloads: true });
 };
