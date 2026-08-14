@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import type { BusinessIdentity } from '@/features/business-identity/client';
+import { DEFAULT_PUBLIC_SITE_CONFIGURATION, type PublicSiteConfiguration } from '../model/siteConfiguration';
 import { PUBLIC_NAVIGATION } from '../model/publicNavigation';
 import { FounderSocialLinks } from './FounderSocialLinks';
 import { useFounderProfile } from './FounderProfileContext';
@@ -23,6 +24,7 @@ export interface PublicSiteHeaderProps {
   accountSlot?: ReactNode;
   businessIdentity: Pick<BusinessIdentity, 'brandName'>;
   currentPath?: string;
+  siteConfiguration?: PublicSiteConfiguration;
 }
 
 const linkClassName = (active: boolean) => [
@@ -34,6 +36,7 @@ export function PublicSiteHeader({
   accountSlot,
   businessIdentity,
   currentPath,
+  siteConfiguration = DEFAULT_PUBLIC_SITE_CONFIGURATION,
 }: PublicSiteHeaderProps) {
   const founderProfile = useFounderProfile();
   const developerAccess = useDeveloperAccess();
@@ -73,7 +76,7 @@ export function PublicSiteHeader({
         ) : null}
 
         <nav aria-label="Primary navigation" className="ml-auto hidden items-center gap-5 xl:flex">
-          {PUBLIC_NAVIGATION.primary.map((item) => (
+          {siteConfiguration.primaryNavigation.filter((item) => item.visible).map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -91,11 +94,11 @@ export function PublicSiteHeader({
         </div>
 
         <Link
-          href={PUBLIC_NAVIGATION.studio.href}
+          href={siteConfiguration.primaryCtaHref}
           prefetch={false}
           className="ml-auto hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)] shadow-[var(--public-shadow)] transition-colors hover:bg-[#e4bd68] xl:inline-flex"
         >
-          {PUBLIC_NAVIGATION.studio.label}
+          {siteConfiguration.primaryCtaLabel}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
 
@@ -152,7 +155,7 @@ export function PublicSiteHeader({
                   </Link>
                 </DialogClose>
               ) : null}
-              {PUBLIC_NAVIGATION.primary.map((item) => (
+              {siteConfiguration.primaryNavigation.filter((item) => item.visible).map((item) => (
                 <DialogClose key={item.href} asChild>
                   <Link
                     href={item.href}
@@ -177,11 +180,11 @@ export function PublicSiteHeader({
               ) : null}
               <DialogClose asChild>
                 <Link
-                  href={PUBLIC_NAVIGATION.studio.href}
+                  href={siteConfiguration.primaryCtaHref}
                   prefetch={false}
                   className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] bg-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-charcoal)]"
                 >
-                  {PUBLIC_NAVIGATION.studio.label}
+                  {siteConfiguration.primaryCtaLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </DialogClose>

@@ -21,9 +21,10 @@ const roadmapStatusLabels: Record<OwnerConsolePayload['roadmapItems'][number]['s
   archived_negative_signal: 'Archived',
 };
 
-export function OwnerReadinessPanel({ consolePayload, onConsoleChange }: {
+export function OwnerReadinessPanel({ consolePayload, onConsoleChange, view = 'all' }: {
   consolePayload: OwnerConsolePayload;
   onConsoleChange: (payload: OwnerConsolePayload) => void;
+  view?: 'all' | 'identity' | 'health' | 'roadmap';
 }) {
   const { toast } = useToast();
   const [roadmapItems, setRoadmapItems] = useState(consolePayload.roadmapItems);
@@ -62,15 +63,15 @@ export function OwnerReadinessPanel({ consolePayload, onConsoleChange }: {
   const officialCheckpointCount = roadmapItems.length - officialFeatureCount;
   return (
     <div className="grid gap-6">
-      <OwnerBusinessIdentityPanel
+      {view === 'all' || view === 'identity' ? <OwnerBusinessIdentityPanel
         businessIdentity={consolePayload.businessIdentity}
         onSave={saveBusinessIdentity}
-      />
+      /> : null}
 
-      <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
+      {view === 'all' || view === 'health' ? <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 text-[#e2aa4a]"><Database className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Data footprint</h2></div>
-          <OwnerFieldHelp text="Database size comes from Postgres. Storage size comes from Supabase Storage metadata. Browser-local uploads do not count here." />
+          <OwnerFieldHelp label="How data-footprint metrics are calculated" text="Database size comes from Postgres. Storage size comes from Supabase Storage metadata. Browser-local uploads do not count here." />
         </div>
         {metrics ? (
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -81,9 +82,9 @@ export function OwnerReadinessPanel({ consolePayload, onConsoleChange }: {
             <OwnerMetricTile label="Dev submissions" value={String(metrics.developerSubmissionCount)} />
           </div>
         ) : <p className="mt-5 border border-[#5f4526] bg-[#100c08] p-4 text-sm text-[#c7b288]">Database footprint metrics are not available yet.</p>}
-      </section>
+      </section> : null}
 
-      <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
+      {view === 'all' || view === 'roadmap' ? <section className="border border-[#6d4f2b] bg-[#15100a] p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3 text-[#e2aa4a]"><Rocket className="h-5 w-5" /><h2 className="font-serif text-2xl text-[#fff1c7]">Roadmap operations</h2></div>
           <div className="border border-[#5f4526] bg-[#100c08] px-4 py-3 text-sm text-[#ffe7ad]">{officialFeatureCount} goals / {officialCheckpointCount} checkpoints</div>
@@ -101,7 +102,7 @@ export function OwnerReadinessPanel({ consolePayload, onConsoleChange }: {
             </div>
           ))}
         </div>
-      </section>
+      </section> : null}
     </div>
   );
 }

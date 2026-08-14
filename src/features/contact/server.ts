@@ -7,5 +7,6 @@ export {
   getContactRequests,
   markContactRequestEmailResult,
   recordContactRequest,
+  updateContactRequestStatus,
 } from './server/contactRequestStore';
 export type { ContactRequest } from './model/contactRequest';

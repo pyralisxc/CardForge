@@ -190,10 +190,13 @@ export function AssetRow({
     submission,
     program.settings.minimumVotesForGrading
   );
-  const progressLabel = getReviewProgressLabel(
+  const automaticProgressLabel = getReviewProgressLabel(
     submission,
     program.settings.minimumVotesForGrading
   );
+  const progressLabel = submission.ownerStatusOverride
+    ? `Automatic signal: ${automaticProgressLabel}`
+    : automaticProgressLabel;
 
   return (
     <div className="border border-[#4a3823] bg-[#0c0b09] p-3">

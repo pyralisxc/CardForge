@@ -47,8 +47,8 @@ describe('proof-led homepage', () => {
     expect(page).toContain('<PublicSiteShell');
     expect(page).toContain('<OutcomeHero');
     expect(page).toContain('<InteractiveStudioShowcase');
-    expect(page.indexOf('<OutcomeHero')).toBeLessThan(page.indexOf('<InteractiveStudioShowcase'));
-    expect(page.indexOf('<InteractiveStudioShowcase')).toBeLessThan(page.indexOf('<WorkflowProof'));
+    expect(page.indexOf('<OutcomeHero')).toBeLessThan(page.indexOf('{siteConfiguration.homepageSections'));
+    expect(page).toContain('homepageSections[section.id]');
     expect(page).not.toContain('cardforge-hero-workbench.png');
     expect(hero).toContain('ResponsiveSiteMediaImage');
     expect(showcase).toContain('Design layouts');

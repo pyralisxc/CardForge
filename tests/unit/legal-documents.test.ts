@@ -12,6 +12,7 @@ import {
   normalizeLegalDocumentInput,
   parseLegalBody,
 } from '@/features/legal/client';
+import { DEFAULT_PUBLIC_SITE_CONFIGURATION } from '@/features/public-site/client';
 
 describe('legal document rules', () => {
   it('ships every public legal document', () => {
@@ -177,6 +178,7 @@ Use the service responsibly.
     const html = renderToStaticMarkup(React.createElement(PublicLegalPage, {
       businessIdentity: DEFAULT_BUSINESS_IDENTITY,
       document: document!,
+      siteConfiguration: DEFAULT_PUBLIC_SITE_CONFIGURATION,
     }));
     expect(html).toContain(formatBusinessIdentityDescription(DEFAULT_BUSINESS_IDENTITY));
     expect(html).toContain('Legal operator: Cameron Locke');

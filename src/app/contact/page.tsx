@@ -1,6 +1,7 @@
 import { PublicLegalPage } from '@/features/legal/client';
 import { ContactRequestForm } from '@/features/contact/client/form';
 import { getCachedPublishedLegalDocument } from '@/features/legal/server';
+import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
@@ -10,9 +11,12 @@ export const metadata = createPageMetadata({
 });
 
 export default async function ContactPage() {
-  const { businessIdentity, document } = await getCachedPublishedLegalDocument('contact');
+  const [{ businessIdentity, document }, siteConfiguration] = await Promise.all([
+    getCachedPublishedLegalDocument('contact'),
+    getCachedPublicSiteConfiguration(),
+  ]);
   return (
-    <PublicLegalPage businessIdentity={businessIdentity} document={document}>
+    <PublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration}>
       <ContactRequestForm kind="support" defaultEmail="" defaultSubject="CardForge support request" />
     </PublicLegalPage>
   );

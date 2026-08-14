@@ -8,10 +8,9 @@ import { useToast } from '@/components/ui/use-toast';
 import type { OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export function OwnerConsoleSummary({ payload, lastOwnerSaveAt }: { payload: OwnerConsoleResponse; lastOwnerSaveAt: string | null }) {
+export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse }) {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
-  const lastSave = lastOwnerSaveAt ? new Date(lastOwnerSaveAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'No owner edits saved in this session';
   const sendTestEmail = async () => {
     setIsSending(true);
     try {
@@ -44,7 +43,7 @@ export function OwnerConsoleSummary({ payload, lastOwnerSaveAt }: { payload: Own
   ] as const;
   return (
     <section className="border border-[#6d4f2b] bg-[#15100a] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.18em] text-[#a98a55]">Owner workspace</p><h1 className="font-serif text-2xl text-[#fff1c7] md:text-3xl">CardForge Owner Console</h1></div><div className="flex flex-wrap gap-2 text-xs text-[#c7b288]"><span className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2">{payload.ownerAccess.email ?? 'Owner session'}</span><a className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2 text-[#ffe7ad]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">{payload.integrationStatus.site.publicAppUrl}</a><span className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2">{lastSave}</span></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.18em] text-[#a98a55]">Owner control plane</p><h1 className="font-serif text-2xl text-[#fff1c7] md:text-3xl">CardForge Owner Console</h1></div><div className="flex flex-wrap gap-2 text-xs text-[#c7b288]"><span className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2">{payload.ownerAccess.email ?? 'Owner session'}</span><a className="border border-[#3c2c1b] bg-[#100c08] px-3 py-2 text-[#ffe7ad]" href={payload.integrationStatus.site.publicAppUrl} target="_blank" rel="noreferrer">Open production <ExternalLink className="ml-1 inline h-3.5 w-3.5" /></a></div></div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">{status.map(([label, value, ready]) => <div key={label} className="flex min-h-14 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] px-3 py-2"><div><span className="block text-[10px] uppercase tracking-[0.14em] text-[#8f7b57]">{label}</span><span className="block text-sm font-semibold text-[#ffe7ad]">{value}</span></div><span className={`h-2.5 w-2.5 ${ready ? 'bg-[#8fca72]' : 'bg-[#e2aa4a]'}`} /></div>)}</div>
       <div className="mt-4 flex flex-wrap gap-2"><Button type="button" size="sm" onClick={sendTestEmail} disabled={isSending}><Mail className="mr-2 h-4 w-4" />{isSending ? 'Sending...' : 'Test email'}</Button>{[{ label: 'Sitemap', href: payload.integrationStatus.site.sitemapUrl }, { label: 'Robots', href: payload.integrationStatus.site.robotsUrl }].map((link) => <Button key={link.href} asChild size="sm" variant="outline"><a href={link.href} target="_blank" rel="noreferrer">{link.label} <ExternalLink className="h-4 w-4" /></a></Button>)}</div>
     </section>

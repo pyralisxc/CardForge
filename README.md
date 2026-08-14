@@ -46,14 +46,13 @@ npm run typecheck  # next typegen + TypeScript no-emit check
 npm run test       # Vitest unit suite
 npm run test:watch # Vitest watch mode
 npm run migrations:check # Reject edits to existing Supabase migrations
-npm run smoke:protected # Protected auth/access/recovery suite (configured QA environment only)
+npm run smoke:ui    # Focused mocked browser regression with accessibility checks
 ```
 
 Maintained operational commands:
 
 ```bash
 npm run health:production                # Five-route production health check
-npm run qa:bootstrap-authenticated-smoke # Align the four protected Clerk QA identities
 npm run pipeline:sync-defaults            # Import missing bootstrap assets into the reviewed pipeline
 ```
 
@@ -69,7 +68,7 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/features/billing/`: Stripe checkout, subscription, portal, and billing config helpers.
 - `src/features/account/`: Account overview, entitlement, roadmap panels, profile surface, and user access helpers.
 - `src/features/business-identity/`: canonical operator identity, owner editing, and server-owned Supabase persistence.
-- `src/features/public-site/`: owner-editable marketing/sharing/founder content, shared public navigation, public social/share controls, tagged public caching, portrait processing, and structured search identity.
+- `src/features/public-site/`: owner-editable marketing/sharing/founder content, constrained live navigation/homepage/SEO configuration, public social/share controls, tagged public caching, portrait processing, and structured search identity.
 - `src/features/legal/`: immutable versioned legal publication, constrained document rendering, and public legal caching.
 - `src/features/developer-access/`: the single owner of developer identity, profile status, contribution grants, and every runtime access to the `cardforge_developer_profiles` persistence boundary.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
@@ -78,7 +77,7 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/features/social-publishing/`: server-only publishing-provider adapters. Buffer owns channel connections, scheduling, and delivery; it does not own CardForge contribution records or media sources.
 - `src/features/analytics/`: the single consent boundary, safe allow-listed event contract, and owner-only composition of provider-owned GA4, PostHog, and Search Console reports. Session replay is not used.
 - `src/features/experience-settings/`: owner-controlled launch policy for portable project-file access and analytics-consent presentation, with one cached public projection.
-- `src/features/owner/`: Owner authorization, integration/database health, and lazy composition of feature-owned operational panels.
+- `src/features/owner/`: Owner authorization, integration/database health, consolidated Clerk/developer people projection, append-only owner activity, and lazy composition of feature-owned operational controls.
 - `src/features/contact/`: Contact forms and support email routing.
 - `src/features/roadmap/`: Public roadmap, feature suggestions/votes, and owner roadmap operations.
 - `src/infrastructure/`: Clerk, Supabase, HTTP, public-URL, and abuse-throttling infrastructure.
@@ -125,8 +124,6 @@ NEXT_PUBLIC_APP_URL=http://localhost:9002
 ```
 
 Stripe Checkout owns both payment lanes, but their metadata and entitlement behavior are separate. `product_access` uses the authenticated Creator Pass Price and may update CardForge entitlement. `creator_support` offers a server-bounded customer-selected one-time amount plus fixed $1, $5, $10, and $20 monthly Prices, may be used without a CardForge account, and never updates product entitlement. The server verifies each purpose, amount, currency, recurrence, and monthly Price before checkout or webhook processing. Use the billing reconciliation and rollback procedures in [docs/operations.md](docs/operations.md) before changing billing-purpose behavior.
-
-Reusable authenticated QA accounts are preferred over disposable user creation. Set the `CARDFORGE_E2E_*` values documented in `.env.example` when running the authenticated smoke suite.
 
 ## Verification posture
 

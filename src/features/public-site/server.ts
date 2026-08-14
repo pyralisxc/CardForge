@@ -3,6 +3,21 @@ export {
   PublicSiteStoreError,
   updateSiteContentBlock,
 } from './server/contentStore';
+export {
+  getPublicSiteConfiguration,
+  PublicSiteConfigurationStoreError,
+  updatePublicSiteConfiguration,
+} from './server/siteConfigurationStore';
+export {
+  getCachedPublicSiteConfiguration,
+  revalidatePublicSiteConfiguration,
+} from './server/publicSiteConfigurationCache';
+export { PublicSiteShell } from './server/PublicSiteShell';
+export {
+  DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  isHomepageSectionVisible,
+  type PublicSiteConfiguration,
+} from './model/siteConfiguration';
 export { createSiteContentMap } from './model/siteContent';
 export {
   getCachedSiteContentBlocks,

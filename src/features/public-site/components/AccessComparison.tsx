@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import type { ProjectFileAccessPolicy } from '@/domain/entitlements';
 
-export const getAccessComparisonOptions = (projectFileAccess: ProjectFileAccessPolicy) => [
+export const getAccessComparisonOptions = (projectFileAccess: ProjectFileAccessPolicy, creatorPassVisible = true) => [
   {
     title: 'Start free',
     copy: projectFileAccess === 'free'
@@ -19,10 +19,10 @@ export const getAccessComparisonOptions = (projectFileAccess: ProjectFileAccessP
     action: 'See Creator Pass',
     href: '/account',
   },
-] as const;
+].filter((option) => creatorPassVisible || option.title !== 'Creator Pass');
 
-export function AccessComparison({ projectFileAccess }: { projectFileAccess: ProjectFileAccessPolicy }) {
-  const accessOptions = getAccessComparisonOptions(projectFileAccess);
+export function AccessComparison({ projectFileAccess, creatorPassVisible = true }: { projectFileAccess: ProjectFileAccessPolicy; creatorPassVisible?: boolean }) {
+  const accessOptions = getAccessComparisonOptions(projectFileAccess, creatorPassVisible);
   return (
     <section aria-labelledby="access-heading" className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 text-[var(--public-ivory)] md:px-8 md:py-12">
       <div className="mx-auto max-w-7xl">
@@ -37,7 +37,7 @@ export function AccessComparison({ projectFileAccess }: { projectFileAccess: Pro
             Check your access
           </Link>
         </div>
-        <div className="mt-7 grid gap-px overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2">
+        <div className={`mt-7 grid gap-px overflow-hidden rounded-[var(--public-radius)] border border-[var(--public-border)] bg-[var(--public-border)] ${accessOptions.length > 1 ? 'md:grid-cols-2' : ''}`}>
           {accessOptions.map((option) => (
             <article key={option.title} className="bg-[var(--public-surface)] p-5">
               <h3 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{option.title}</h3>

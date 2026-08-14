@@ -158,28 +158,6 @@ describe('accountEntitlement', () => {
       },
     })).toBe('dev');
 
-    expect(resolveAccountAccessMode({
-      authConfigured: true,
-      isSignedIn: true,
-      emailAddresses: ['fresh-paid@example.com'],
-      publicMetadata: {},
-      privateMetadata: {},
-      env: {
-        CARDFORGE_E2E_PAID_EMAIL: 'fresh-paid@example.com',
-      },
-    })).toBe('paid');
-
-    expect(resolveAccountAccessMode({
-      authConfigured: true,
-      isSignedIn: true,
-      emailAddresses: ['fresh-owner@example.com'],
-      publicMetadata: {},
-      privateMetadata: {},
-      env: {
-        CARDFORGE_E2E_DEV_EMAIL: 'fresh-dev@example.com',
-        CARDFORGE_E2E_OWNER_EMAIL: 'fresh-owner@example.com',
-      },
-    })).toBe('dev');
   });
 
   it('returns full entitlement copy and capabilities for a paid account', () => {

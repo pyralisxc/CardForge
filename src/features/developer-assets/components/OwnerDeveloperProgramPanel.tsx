@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Crown, Save, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { FieldHelp } from '@/features/developer-assets/components/DeveloperAssetHubUi';
@@ -11,7 +12,6 @@ import {
   OwnerAssetLibraryPanel,
   type OwnerAssetOverrideInput,
 } from '@/features/developer-assets/components/OwnerAssetLibraryPanel';
-import { OwnerDeveloperLedger, type DeveloperProfileDraft } from '@/features/developer-assets/components/OwnerDeveloperLedger';
 import { OwnerDeveloperProgramOverview } from '@/features/developer-assets/components/OwnerDeveloperProgramOverview';
 import {
   CompactNumberField,
@@ -39,8 +39,6 @@ export function OwnerDeveloperProgramPanel() {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
   const [settings, setSettings] = useState<DeveloperProgramSettings | null>(null);
-  const [profileDrafts, setProfileDrafts] = useState<Record<string, DeveloperProfileDraft>>({});
-  const [savingProfileId, setSavingProfileId] = useState<string | null>(null);
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -72,24 +70,6 @@ export function OwnerDeveloperProgramPanel() {
   useEffect(() => {
     void loadProgram();
   }, [loadProgram]);
-
-  useEffect(() => {
-    if (!program) return;
-    setProfileDrafts(Object.fromEntries(program.developerContributions.map((contribution) => [
-      contribution.developerId,
-      {
-        status: contribution.profileStatus,
-        monthlySubmissionLimitOverride: contribution.submissionLimitOverride === null
-          ? ''
-          : String(contribution.submissionLimitOverride),
-        monthlyPublishedRequirementOverride: contribution.publishedRequirementOverride === null
-          ? ''
-          : String(contribution.publishedRequirementOverride),
-        profitShareEligible: contribution.profitShareEligible,
-        ownerNote: contribution.ownerNote ?? '',
-      },
-    ])));
-  }, [program]);
 
   const saveSettings = async () => {
     if (!settings) return;
@@ -173,56 +153,6 @@ export function OwnerDeveloperProgramPanel() {
     setSettings(buildDeveloperVotingPresetSettings(settings, preset, program?.activeDeveloperCount ?? 1));
   };
 
-  const updateProfileDraft = (developerId: string, patch: Partial<DeveloperProfileDraft>) => {
-    const emptyDraft: DeveloperProfileDraft = {
-      status: 'active',
-      monthlySubmissionLimitOverride: '',
-      monthlyPublishedRequirementOverride: '',
-      profitShareEligible: true,
-      ownerNote: '',
-    };
-    setProfileDrafts((drafts) => ({
-      ...drafts,
-      [developerId]: { ...(drafts[developerId] ?? emptyDraft), ...patch },
-    }));
-  };
-
-  const saveDeveloperProfile = async (developerId: string) => {
-    const draft = profileDrafts[developerId];
-    if (!draft) return;
-    setSavingProfileId(developerId);
-    try {
-      const response = await fetch('/api/developer-assets', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          developerId,
-          profile: {
-            status: draft.status,
-            monthlySubmissionLimitOverride: draft.monthlySubmissionLimitOverride,
-            monthlyPublishedRequirementOverride: draft.monthlyPublishedRequirementOverride,
-            profitShareEligible: draft.profitShareEligible,
-            ownerNote: draft.ownerNote,
-          },
-        }),
-      });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save developer profile rules.'));
-      const body = await response.json() as DeveloperAssetsResponse;
-      setProgram(body.program);
-      setSettings(body.program.settings);
-      setLastSavedAt(new Date().toISOString());
-      toast({ title: 'Developer profile saved', description: 'This contributor now uses the updated account-specific contract.' });
-    } catch (error) {
-      toast({
-        title: 'Developer profile not saved',
-        description: error instanceof Error ? error.message : 'Unable to save developer profile rules.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingProfileId(null);
-    }
-  };
-
   if (isLoading) {
     return (
       <section className="border border-[#5f4526] bg-[#15100a] p-6 text-[#c7b288]">
@@ -264,12 +194,20 @@ export function OwnerDeveloperProgramPanel() {
     <section className="border border-[#7d5a2e] bg-[#15100a] p-6">
       <OwnerDeveloperProgramOverview program={program} settings={settings} lastSavedLabel={lastSavedLabel} />
 
-      <OwnerAssetLibraryPanel
-        program={program}
-        updatingSubmissionId={updatingSubmissionId}
-        onUpdateOverride={updateOverride}
-        onDeletePermanently={deletePermanently}
-      />
+      <Tabs defaultValue="library" className="mt-5 space-y-5">
+        <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1">
+          <TabsTrigger value="library" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Asset library</TabsTrigger>
+          <TabsTrigger value="rules" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Pipeline rules</TabsTrigger>
+        </TabsList>
+        <TabsContent value="library" className="mt-0">
+          <OwnerAssetLibraryPanel
+            program={program}
+            updatingSubmissionId={updatingSubmissionId}
+            onUpdateOverride={updateOverride}
+            onDeletePermanently={deletePermanently}
+          />
+        </TabsContent>
+        <TabsContent value="rules" className="mt-0">
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
@@ -404,7 +342,7 @@ export function OwnerDeveloperProgramPanel() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+      <div className="mt-5 grid gap-5">
         <div className="border border-[#5f4526] bg-[#100c08] p-4">
           <h3 className="font-serif text-xl text-[#fff1c7]">Live library cap pressure</h3>
           <p className="mt-2 text-sm leading-6 text-[#c7b288]">
@@ -440,14 +378,6 @@ export function OwnerDeveloperProgramPanel() {
           </div>
         </div>
 
-        <OwnerDeveloperLedger
-          program={program}
-          settings={settings}
-          profileDrafts={profileDrafts}
-          savingProfileId={savingProfileId}
-          onDraftChange={updateProfileDraft}
-          onSave={saveDeveloperProfile}
-        />
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
@@ -461,6 +391,8 @@ export function OwnerDeveloperProgramPanel() {
         <Save className="mr-2 h-4 w-4" />
         {isSaving ? 'Saving developer program...' : 'Save developer program'}
       </Button>
+        </TabsContent>
+      </Tabs>
 
     </section>
     </TooltipProvider>

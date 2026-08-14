@@ -99,7 +99,7 @@ describe('Account and Billing ownership', () => {
 
   it('routes account and billing APIs through their owning server interfaces', async () => {
     const routeExpectations = [
-      ['src/app/api/owner/accounts/route.ts', '@/features/account/server'],
+      ['src/app/api/owner/people/route.ts', '@/features/account/server'],
       ['src/app/api/owner/billing/summary/route.ts', '@/features/billing/server'],
       ['src/app/api/owner/billing/reconcile/route.ts', '@/features/billing/server'],
       ['src/app/api/billing/status/route.ts', '@/features/account/server'],

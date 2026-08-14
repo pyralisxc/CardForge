@@ -1,6 +1,6 @@
 import { revalidatePath } from 'next/cache';
 
-import { getCurrentOwnerAccess, getOwnerConsolePayload } from '@/features/owner/server';
+import { getCurrentOwnerAccess, getOwnerConsolePayload, recordOwnerActivity } from '@/features/owner/server';
 import {
   isSiteMediaSlot,
   restorePreviousSiteMedia,
@@ -39,6 +39,7 @@ export async function POST(
     revalidateSiteMediaCache();
     revalidatePath('/');
     if (slot === 'founder.portrait') revalidatePath('/cameron');
+    await recordOwnerActivity({ actorUserId: owner.userId, actorEmail: owner.email, action: 'site.media.restore', targetType: 'site_media', targetId: slot, summary: 'Restored the previous public site image version.' });
     return createNoStoreJsonResponse({ console: await getOwnerConsolePayload() });
   } catch (error) {
     if (error instanceof RateLimitUnavailableError) {

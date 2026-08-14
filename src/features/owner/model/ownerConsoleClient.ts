@@ -10,6 +10,7 @@ export interface OwnerConsoleResponse {
     isOwner: boolean;
     source: string;
     email: string | null;
+    userId: string | null;
   };
   integrationStatus: {
     site: {
@@ -44,17 +45,46 @@ export interface OwnerConsoleResponse {
   console: OwnerConsolePayload;
 }
 
-export interface OwnerManagedAccount {
+export type OwnerPersonIdentityState = 'connected' | 'history_only' | 'account_only';
+
+export interface OwnerPerson {
   id: string;
   email: string | null;
   name: string;
+  identityState: OwnerPersonIdentityState;
   access: 'free' | 'paid' | 'dev';
   isOwner: boolean;
+  ownerSource: 'clerk_private_metadata' | 'environment' | 'none';
   createdAt: string | null;
   lastSignInAt: string | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
-  note: string;
+  accountNote: string;
+  profileStatus: 'invited' | 'active' | 'inactive' | 'suspended' | null;
+  canDraftCampaigns: boolean;
+  canProposeSiteContent: boolean;
+  monthlySubmissionLimitOverride: number | null;
+  monthlyPublishedRequirementOverride: number | null;
+  profitShareEligible: boolean;
+  developerNote: string;
+  submissions: {
+    total: number;
+    published: number;
+    inReview: number;
+  };
+}
+
+export interface OwnerPeoplePage {
+  items: OwnerPerson[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: {
+    accounts: number;
+    activeDevelopers: number;
+    historyOnly: number;
+    needsAttention: number;
+  };
 }
 
 export const updateOwnerConsole = async (

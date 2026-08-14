@@ -11,11 +11,11 @@ export function OwnerMetricTile({ label, value }: { label: string; value: string
   );
 }
 
-export function OwnerFieldHelp({ text }: { text: string }) {
+export function OwnerFieldHelp({ text, label }: { text: string; label?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className="grid h-6 w-6 place-items-center border border-[#5f4526] text-[#d7b469] hover:border-[#d8b365] hover:text-[#fff1c7]" aria-label="More information">
+        <button type="button" className="grid h-6 w-6 place-items-center border border-[#5f4526] text-[#d7b469] hover:border-[#d8b365] hover:text-[#fff1c7]" aria-label={label ?? `More information: ${text.slice(0, 80)}`}>
           <Info className="h-3.5 w-3.5" />
         </button>
       </TooltipTrigger>

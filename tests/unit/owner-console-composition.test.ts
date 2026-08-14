@@ -19,7 +19,11 @@ describe('Owner Console composition', () => {
     const requiredPaths = [
       ['src', 'features', 'owner', 'hooks', 'useOwnerConsole.ts'],
       ['src', 'features', 'owner', 'components', 'OwnerReadinessPanel.tsx'],
-      ['src', 'features', 'owner', 'components', 'OwnerOperationsPanel.tsx'],
+      ['src', 'features', 'owner', 'components', 'OwnerPeoplePanel.tsx'],
+      ['src', 'features', 'owner', 'components', 'OwnerInboxPanel.tsx'],
+      ['src', 'features', 'owner', 'components', 'OwnerSiteConfigurationPanel.tsx'],
+      ['src', 'features', 'owner', 'components', 'OwnerProductionPanel.tsx'],
+      ['src', 'features', 'owner', 'components', 'OwnerGovernancePanels.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerPublicContentPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerLegalPanel.tsx'],
@@ -43,7 +47,7 @@ describe('Owner Console composition', () => {
 
     expect(page).toContain("@/features/experience-settings/client/owner");
     expect(page).toContain('>Site Controls</TabsTrigger>');
-    expect(page).toContain('>Experience</TabsTrigger>');
+    expect(page).toContain('>Experience &amp; Access</TabsTrigger>');
     expect(model).toContain('experienceSettings: ExperienceSettings');
     expect(panel).not.toContain('@/features/owner');
     expect(panel).toContain('/api/owner/experience-settings');
@@ -141,7 +145,7 @@ describe('Owner Console composition', () => {
       'src/app/roadmap/page.tsx',
     ]) {
       const source = await readFile(rootPath(appPath), 'utf8');
-      expect(source, appPath).toContain('@/features/public-site/client/shell');
+      expect(source, appPath).toContain('@/features/public-site/server');
       expect(source, appPath).toContain('<PublicSiteShell');
     }
   });

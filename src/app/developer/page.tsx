@@ -4,10 +4,9 @@ import { PublicAuthControls } from '@/features/account/client/auth';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperProgramPage } from '@/features/developer-program/client';
-import { PublicSiteShell } from '@/features/public-site/client/shell';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
-import { createBreadcrumbStructuredData, StructuredData } from '@/features/public-site/server';
+import { createBreadcrumbStructuredData, PublicSiteShell, StructuredData } from '@/features/public-site/server';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'CardForge Developer Program',

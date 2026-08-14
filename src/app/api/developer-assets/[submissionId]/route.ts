@@ -8,7 +8,7 @@ import {
   updateDeveloperAssetSubmissionStatus,
 } from '@/features/developer-assets/server';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
-import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +115,14 @@ export async function PUT(
       currentUserId: owner.userId,
       currentContributorIds: getContributorIds(owner.userId),
     });
+    await recordOwnerActivity({
+      actorUserId: owner.userId,
+      actorEmail: owner.email,
+      action: 'library.asset.override',
+      targetType: 'developer_asset',
+      targetId: submissionId,
+      summary: 'Updated an owner publication or access-tier override for a shared library asset.',
+    });
 
     return createNoStoreJsonResponse({ program });
   } catch (error) {
@@ -155,6 +163,14 @@ export async function DELETE(
       confirmationName: body.confirmationName,
       currentUserId: owner.userId,
       currentContributorIds: getContributorIds(owner.userId),
+    });
+    await recordOwnerActivity({
+      actorUserId: owner.userId,
+      actorEmail: owner.email,
+      action: 'library.asset.delete',
+      targetType: 'developer_asset',
+      targetId: submissionId,
+      summary: `Permanently deleted the shared asset lineage for ${typeof body.confirmationName === 'string' ? body.confirmationName : submissionId}.`,
     });
 
     return createNoStoreJsonResponse({ program });

@@ -15,10 +15,7 @@ type EntitlementEnvironment = Partial<Record<
   | 'CARDFORGE_ACCESS_MODE'
   | 'NEXT_PUBLIC_CARDFORGE_ACCESS_MODE'
   | 'CARDFORGE_PAID_ACCOUNT_EMAILS'
-  | 'CARDFORGE_DEV_ACCOUNT_EMAILS'
-  | 'CARDFORGE_E2E_PAID_EMAIL'
-  | 'CARDFORGE_E2E_DEV_EMAIL'
-  | 'CARDFORGE_E2E_OWNER_EMAIL',
+  | 'CARDFORGE_DEV_ACCOUNT_EMAILS',
   string
 >>;
 
@@ -67,9 +64,6 @@ const readEnvironment = (env?: EntitlementEnvironment): EntitlementEnvironment =
   NEXT_PUBLIC_CARDFORGE_ACCESS_MODE: process.env.NEXT_PUBLIC_CARDFORGE_ACCESS_MODE,
   CARDFORGE_PAID_ACCOUNT_EMAILS: process.env.CARDFORGE_PAID_ACCOUNT_EMAILS,
   CARDFORGE_DEV_ACCOUNT_EMAILS: process.env.CARDFORGE_DEV_ACCOUNT_EMAILS,
-  CARDFORGE_E2E_PAID_EMAIL: process.env.CARDFORGE_E2E_PAID_EMAIL,
-  CARDFORGE_E2E_DEV_EMAIL: process.env.CARDFORGE_E2E_DEV_EMAIL,
-  CARDFORGE_E2E_OWNER_EMAIL: process.env.CARDFORGE_E2E_OWNER_EMAIL,
 };
 
 export const isClerkAuthConfigured = (env?: EntitlementEnvironment): boolean => {
@@ -140,15 +134,8 @@ export const resolveAccountAccessMode = ({
 
   const source = readEnvironment(env);
   const normalizedEmails = emailAddresses.map((email) => email.trim().toLowerCase()).filter(Boolean);
-  const devEmails = parseEmailList([
-    source.CARDFORGE_DEV_ACCOUNT_EMAILS,
-    source.CARDFORGE_E2E_DEV_EMAIL,
-    source.CARDFORGE_E2E_OWNER_EMAIL,
-  ].filter(Boolean).join(','));
-  const paidEmails = parseEmailList([
-    source.CARDFORGE_PAID_ACCOUNT_EMAILS,
-    source.CARDFORGE_E2E_PAID_EMAIL,
-  ].filter(Boolean).join(','));
+  const devEmails = parseEmailList(source.CARDFORGE_DEV_ACCOUNT_EMAILS);
+  const paidEmails = parseEmailList(source.CARDFORGE_PAID_ACCOUNT_EMAILS);
 
   if (normalizedEmails.some((email) => devEmails.has(email))) return 'dev';
   if (normalizedEmails.some((email) => paidEmails.has(email))) return 'paid';

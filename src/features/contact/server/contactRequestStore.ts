@@ -110,3 +110,27 @@ export const markContactRequestEmailResult = async ({
     console.error('Failed to update contact request email status:', error);
   }
 };
+
+export const updateContactRequestStatus = async ({
+  id,
+  status,
+}: {
+  id: string;
+  status: 'received' | 'closed';
+}): Promise<void> => {
+  const supabase = getSupabaseServerClient();
+  if (!getSupabaseServerConfigStatus().configured || !supabase) {
+    throw new Error('Contact request storage is not configured.');
+  }
+  const { data, error } = await supabase
+    .from('cardforge_contact_requests')
+    .update({ status })
+    .eq('id', id)
+    .select('id')
+    .limit(1);
+  if (error) {
+    console.error('Failed to update contact request status:', error);
+    throw new Error('Unable to update this contact request.');
+  }
+  if (!data?.[0]) throw new Error('Contact request not found.');
+};

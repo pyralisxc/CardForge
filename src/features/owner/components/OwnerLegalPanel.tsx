@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FileText, KeyRound, Save } from 'lucide-react';
+import { Eye, FileText, KeyRound, RotateCcw, Save } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,9 +30,28 @@ export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {
   const [activeSlug, setActiveSlug] = useState<LegalDocumentSlug>('privacy');
   const [drafts, setDrafts] = useState<Record<LegalDocumentSlug, LegalDocument>>(() => toDrafts(consolePayload.legalDocuments));
   const [isSaving, setIsSaving] = useState(false);
+  const [history, setHistory] = useState<LegalDocument[]>([]);
+  const [historyError, setHistoryError] = useState('');
   useEffect(() => setDrafts(toDrafts(consolePayload.legalDocuments)), [consolePayload]);
   const documents = useMemo(() => DEFAULT_LEGAL_DOCUMENTS.map((document) => drafts[document.slug]).filter(Boolean), [drafts]);
   const active = drafts[activeSlug];
+  const live = consolePayload.legalDocuments.find((document) => document.slug === activeSlug) ?? active;
+  useEffect(() => {
+    let mounted = true;
+    const loadHistory = async () => {
+      setHistoryError('');
+      try {
+        const response = await fetch(`/api/owner/legal-history?slug=${activeSlug}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to load publication history.');
+        const body = await response.json() as { history: LegalDocument[] };
+        if (mounted) setHistory(body.history);
+      } catch (error) {
+        if (mounted) setHistoryError(error instanceof Error ? error.message : 'Unable to load publication history.');
+      }
+    };
+    void loadHistory();
+    return () => { mounted = false; };
+  }, [activeSlug, consolePayload.legalDocuments]);
 
   const save = async () => {
     setIsSaving(true);
@@ -77,10 +96,18 @@ export function OwnerLegalPanel({ consolePayload, onConsoleChange }: {
               />
             </label>
             <p className="text-xs leading-5 text-[#a98a55]">
-              Current publication v{active.version} · effective {active.effectiveDate} · identity v{active.businessIdentityVersion}
+              Current publication v{live.version} · effective {live.effectiveDate} · identity v{live.businessIdentityVersion}
             </p>
             <textarea className="min-h-[22rem] border border-[#5f4526] bg-[#0c0b09] p-3 text-sm leading-6 text-[#ffe7ad]" value={active.body} onChange={(event) => setDrafts((current) => ({ ...current, [activeSlug]: { ...active, body: event.target.value } }))} />
+            <details className="border border-[#4a3823] bg-[#100c08] p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-[#ffe7ad]"><Eye className="mr-2 inline h-4 w-4" />Compare live publication and draft</summary>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <article><h3 className="text-xs uppercase tracking-[0.12em] text-[#a98a55]">Live v{live.version}</h3><div className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap border border-[#3c2c1b] bg-[#0c0b09] p-3 text-xs leading-5 text-[#c7b288]">{live.body}</div></article>
+                <article><h3 className="text-xs uppercase tracking-[0.12em] text-[#a98a55]">Draft · {active.body.length - live.body.length >= 0 ? '+' : ''}{active.body.length - live.body.length} characters</h3><div className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap border border-[#3c2c1b] bg-[#0c0b09] p-3 text-xs leading-5 text-[#c7b288]">{active.body}</div></article>
+              </div>
+            </details>
             <div className="flex flex-wrap gap-3"><Button disabled={isSaving} onClick={save}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Publishing legal page...' : 'Publish legal page'}</Button><Button asChild variant="outline"><Link href={pathBySlug[active.slug]}>View public page</Link></Button></div>
+            <section className="border border-[#4a3823] bg-[#100c08] p-3" aria-labelledby="legal-history-heading"><h3 id="legal-history-heading" className="text-sm font-semibold text-[#ffe7ad]">Publication history</h3><p className="mt-1 text-xs leading-5 text-[#a98a75]">Loading an older version changes only the draft. Publishing it creates a new version; history is never overwritten.</p>{historyError ? <p className="mt-2 text-xs text-[#f0bd75]">{historyError}</p> : null}<div className="mt-3 flex flex-wrap gap-2">{history.map((document) => <Button key={document.version} type="button" size="sm" variant="outline" disabled={document.version === live.version} onClick={() => setDrafts((current) => ({ ...current, [activeSlug]: { ...document, version: live.version, publishedAt: live.publishedAt, businessIdentityVersion: live.businessIdentityVersion } }))}><RotateCcw className="mr-2 h-3.5 w-3.5" />Use v{document.version} as draft</Button>)}</div></section>
           </div>
         </div>
       </section>

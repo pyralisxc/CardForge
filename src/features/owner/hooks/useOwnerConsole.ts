@@ -14,7 +14,6 @@ export function useOwnerConsole() {
   const [isSlowLoad, setIsSlowLoad] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [lastOwnerSaveAt, setLastOwnerSaveAt] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -49,13 +48,11 @@ export function useOwnerConsole() {
 
   const updateConsole = useCallback((consolePayload: OwnerConsolePayload) => {
     setPayload((current) => current ? { ...current, console: consolePayload } : current);
-    setLastOwnerSaveAt(new Date().toISOString());
   }, []);
 
   return {
     isLoading,
     isSlowLoad,
-    lastOwnerSaveAt,
     loadError,
     payload,
     retry: () => setReloadToken((value) => value + 1),

@@ -32,7 +32,7 @@ describe('repository maintenance policy', () => {
       'architecture:check': 'node scripts/check-architecture.mjs',
       'migrations:check': 'node scripts/check-migration-safety.mjs',
       'health:production': 'node scripts/check-production-health.mjs',
-      'qa:bootstrap-authenticated-smoke': 'node scripts/bootstrap-authenticated-smoke-users.mjs',
+      'smoke:ui': 'playwright test tests/smoke/developer-cockpit-ux.spec.ts --workers=1',
       'pipeline:sync-defaults': 'node scripts/sync-pipeline-defaults.mjs',
     });
     expect(packageJson.scripts).not.toHaveProperty('audit:site');
@@ -70,7 +70,7 @@ describe('repository maintenance policy', () => {
     expect(pipelineSync).toContain("rpc('cardforge_migrate_pipeline_registry_storage'");
     expect(pipelineSync).toContain("rpc('cardforge_migrate_pipeline_registry_metadata_urls'");
     expect(pipelineSync).toContain('CARDFORGE_OWNER_ACCOUNT_EMAILS');
-    expect(pipelineSync).toContain('CARDFORGE_E2E_OWNER_EMAIL');
+    expect(pipelineSync).not.toContain('CARDFORGE_E2E_OWNER_EMAIL');
     expect(pipelineSync).not.toContain('CARDFORGE_PIPELINE_OWNER_EMAIL');
     expect(pipelineSync).toContain(".eq('decision_reason', 'pipeline_owner_edit')");
     expect(pipelineSync).toContain('ownerEmails.length !== 1');

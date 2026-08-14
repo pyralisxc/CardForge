@@ -5,6 +5,7 @@ import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { OwnerConsolePage } from '@/features/owner/client';
 import { PublicSiteHeader } from '@/features/public-site/client/shell';
+import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
@@ -17,7 +18,10 @@ export const metadata: Metadata = createPageMetadata({
 
 export default async function OwnerPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const businessIdentity = await getCachedBusinessIdentity();
+  const [businessIdentity, siteConfiguration] = await Promise.all([
+    getCachedBusinessIdentity(),
+    getCachedPublicSiteConfiguration(),
+  ]);
   return (
     <CardForgeAppProviders>
       <div className="cardforge-public-tokens">
@@ -25,6 +29,7 @@ export default async function OwnerPage() {
           accountSlot={authConfigured ? <PublicAuthControls /> : undefined}
           businessIdentity={businessIdentity}
           currentPath="/owner"
+          siteConfiguration={siteConfiguration}
         />
       </div>
       <OwnerConsolePage />

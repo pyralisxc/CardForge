@@ -17,9 +17,8 @@
     "brand:export": "node scripts/export-brand-assets.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke:protected": "playwright test tests/smoke/auth-account.spec.ts tests/smoke/paid-project-import.spec.ts --workers=1",
+    "smoke:ui": "playwright test tests/smoke/developer-cockpit-ux.spec.ts --workers=1",
     "health:production": "node scripts/check-production-health.mjs",
-    "qa:bootstrap-authenticated-smoke": "node scripts/bootstrap-authenticated-smoke-users.mjs",
     "pipeline:sync-defaults": "node scripts/sync-pipeline-defaults.mjs"
   },
   "dependencies": {

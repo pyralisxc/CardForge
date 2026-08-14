@@ -5,7 +5,7 @@ import {
   revalidateExperienceSettingsCache,
   updateExperienceSettings,
 } from '@/features/experience-settings/server';
-import { getCurrentOwnerAccess } from '@/features/owner/server';
+import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function PUT(request: Request) {
   try {
     const ownerAccess = await getCurrentOwnerAccess();
-    if (!ownerAccess.isOwner) {
+    if (!ownerAccess.isOwner || !ownerAccess.userId) {
       return createApiErrorResponse(403, 'owner_access_required', 'Owner access is required for this console.');
     }
 
@@ -21,7 +21,16 @@ export async function PUT(request: Request) {
     const settings = await updateExperienceSettings(body);
     revalidateExperienceSettingsCache();
     revalidatePath('/', 'layout');
-    return createNoStoreJsonResponse({ settings });
+    const activityRecorded = await recordOwnerActivity({
+      actorUserId: ownerAccess.userId,
+      actorEmail: ownerAccess.email,
+      action: 'experience.settings.update',
+      targetType: 'experience_settings',
+      targetId: 'cardforge',
+      summary: 'Updated project-file access or analytics-consent presentation.',
+      metadata: { ...settings },
+    });
+    return createNoStoreJsonResponse({ settings, activityRecorded });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
