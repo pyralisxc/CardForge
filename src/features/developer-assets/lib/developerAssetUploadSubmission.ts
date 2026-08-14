@@ -69,6 +69,7 @@ export interface CreateUploadedDeveloperAssetSubmissionInput {
   developerId: string;
   developerEmail: string | null;
   currentContributorIds: string[];
+  includeRegistryRecipePayloads?: boolean;
   assetType: unknown;
   name: unknown;
   description: unknown;
@@ -80,6 +81,7 @@ export const createUploadedDeveloperAssetSubmission = async ({
   developerId,
   developerEmail,
   currentContributorIds,
+  includeRegistryRecipePayloads = false,
   assetType: assetTypeValue,
   name,
   description,
@@ -115,6 +117,7 @@ export const createUploadedDeveloperAssetSubmission = async ({
       developerId,
       developerEmail,
       currentContributorIds,
+      includeRegistryRecipePayloads,
       input: {
         assetType: assetTypeValue,
         name,

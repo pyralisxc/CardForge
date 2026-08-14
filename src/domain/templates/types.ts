@@ -33,7 +33,7 @@ export interface CardAssetOption {
 }
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
-export type AppearanceStyleKind = 'material' | 'border' | 'divider' | 'icon' | 'theme' | 'shapeRole' | 'frameKit';
+export type AppearanceStyleKind = 'material' | 'border' | 'divider' | 'icon' | 'theme' | 'shapeRole' | 'frameKit' | 'textFrame';
 export type AppearanceGradientType = 'linear' | 'radial' | 'none';
 export type AppearanceTextureKind = 'none' | 'parchment' | 'foil' | 'etched' | 'grain' | 'hatch' | 'uploaded';
 export type AppearanceBorderKind = 'none' | 'solid' | 'double' | 'etched' | 'relic' | 'foil';

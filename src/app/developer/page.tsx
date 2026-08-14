@@ -16,15 +16,16 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default async function DeveloperPage() {
+  const authConfigured = isClerkServerConfigPresent();
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <CardForgeAppProviders>
-      <PublicSiteShell businessIdentity={businessIdentity} accountSlot={<PublicAuthControls />} currentPath="/developer">
+      <PublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <PublicAuthControls /> : undefined} currentPath="/developer">
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Developers', path: '/developer' },
         ])} />
-        <DeveloperProgramPage initialAuthConfigured={isClerkServerConfigPresent()} supportEmail={businessIdentity.supportEmail} />
+        <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
       </PublicSiteShell>
     </CardForgeAppProviders>
   );

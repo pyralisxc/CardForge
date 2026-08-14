@@ -24,7 +24,7 @@ export default async function AccountPage() {
     <CardForgeAppProviders>
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
-          accountSlot={<PublicAuthControls />}
+          accountSlot={authConfigured ? <PublicAuthControls /> : undefined}
           businessIdentity={businessIdentity}
           currentPath="/account"
         />

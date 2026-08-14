@@ -9,34 +9,12 @@ import {
   type RegistryViewerAccess,
 } from '@/features/developer-assets/lib/registryContentAssets';
 import { upsertPipelineRegistryAsset } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
+import {
+  isRepositoryStyle,
+  isRepositoryTemplate,
+} from '@/features/developer-assets/lib/registryContentValidation';
 
 const getPipelineContributorName = (): string => 'CardForge Studio';
-
-type TemplateWithRequiredIdentity = TCGCardTemplate & {
-  id: string;
-  name: string;
-  aspectRatio: string;
-};
-
-export const isRepositoryTemplate = (value: unknown): value is TemplateWithRequiredIdentity => {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<TCGCardTemplate>;
-  return typeof candidate.id === 'string'
-    && candidate.id.trim().length > 0
-    && typeof candidate.name === 'string'
-    && candidate.name.trim().length > 0
-    && typeof candidate.aspectRatio === 'string';
-};
-
-export const isRepositoryStyle = (value: unknown): value is AppearanceStylePreset => {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<AppearanceStylePreset>;
-  return typeof candidate.id === 'string'
-    && typeof candidate.name === 'string'
-    && typeof candidate.kind === 'string'
-    && Array.isArray(candidate.targets)
-    && Boolean(candidate.appearance);
-};
 
 const sortTemplates = (templates: TCGCardTemplate[]): TCGCardTemplate[] =>
   templates.sort((left, right) => {

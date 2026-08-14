@@ -159,6 +159,7 @@ const targetToElementType = (target: AppearanceStylePreset['targets'][number]): 
 const appearanceSurfacesForStyle = (style: AppearanceStylePreset): ElementPresetSurface[] => {
   if (style.kind === 'shapeRole') return ['shapeFill', 'shapeStroke'];
   if (style.kind === 'frameKit') return ['templateCanvas'];
+  if (style.kind === 'textFrame') return ['textPanel'];
   if (style.kind === 'border') return ['textPanel', 'imageFrame', 'iconBackplate', 'shapeStroke'];
   if (style.kind === 'divider') return ['dividerRail'];
   if (style.kind === 'icon') return ['iconGlyph', 'iconBackplate'];

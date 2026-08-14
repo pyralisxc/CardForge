@@ -285,10 +285,16 @@ export const mapDeveloperProgramSettingsRow = (
     }
   : DEFAULT_DEVELOPER_PROGRAM_SETTINGS);
 
+export const resolveDeveloperAssetSourcePayload = (
+  submissionPayload: unknown | null,
+  registrySourcePayload?: unknown,
+): unknown | null => submissionPayload ?? registrySourcePayload ?? null;
+
 export const mapDeveloperAssetSubmissionRow = (
   row: DeveloperAssetSubmissionRow,
   currentUserVotes: Record<string, DeveloperVoteValue> = {},
   profile?: DeveloperAssetProfile | null,
+  registrySourcePayload?: unknown,
 ): DeveloperAssetSubmission => ({
   id: row.id,
   developerId: row.developer_id,
@@ -323,7 +329,7 @@ export const mapDeveloperAssetSubmissionRow = (
   positiveVotes: row.positive_votes ?? 0,
   negativeVotes: row.negative_votes ?? 0,
   currentUserVote: currentUserVotes[row.id] ?? null,
-  sourcePayload: row.source_payload,
+  sourcePayload: resolveDeveloperAssetSourcePayload(row.source_payload, registrySourcePayload),
   targetRegistryAssetId: row.target_registry_asset_id,
   baseRevisionNumber: row.base_revision_number,
   revisionNumber: row.revision_number,
