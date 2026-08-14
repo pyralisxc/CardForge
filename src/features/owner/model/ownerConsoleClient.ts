@@ -65,7 +65,6 @@ export interface OwnerPerson {
   canProposeSiteContent: boolean;
   monthlySubmissionLimitOverride: number | null;
   monthlyPublishedRequirementOverride: number | null;
-  profitShareEligible: boolean;
   developerNote: string;
   submissions: {
     total: number;

@@ -33,7 +33,7 @@ export function buildForgeTitle({
   isAnonymous: boolean;
   isSetupIncomplete: boolean;
 }): string {
-  if (isSetupIncomplete) return 'Connect Clerk to test accounts';
+  if (isSetupIncomplete) return 'Connect Clerk to enable accounts';
   if (isAnonymous) return 'Your CardForge account';
 
   const name = getAccountDisplayName({ displayName, email });

@@ -1,19 +1,36 @@
 begin;
 
 do $$
+declare
+  has_legacy_homepage_image boolean := false;
 begin
   if to_regclass('public.cardforge_owner_settings') is null
     or to_regclass('public.cardforge_site_content_blocks') is null
     or to_regclass('public.cardforge_site_content_proposals') is null
-    or to_regclass('public.cardforge_site_media') is null then
+    or to_regclass('public.cardforge_site_media') is null
+    or to_regclass('public.cardforge_developer_program_settings') is null
+    or to_regclass('public.cardforge_developer_profiles') is null
+    or to_regprocedure('public.cardforge_update_developer_program_settings(jsonb,text)') is null then
     raise exception 'cardforge_owner_control_plane_required';
   end if;
   if exists (
     select 1
-    from public.cardforge_owner_settings
-    where id = 'cardforge'
-      and nullif(btrim(homepage_share_image_url), '') is not null
+    from pg_catalog.pg_attribute
+    where attrelid = 'public.cardforge_owner_settings'::pg_catalog.regclass
+      and attname = 'homepage_share_image_url'
+      and not attisdropped
   ) then
+    execute $query$
+      select exists (
+        select 1
+        from public.cardforge_owner_settings
+        where id = 'cardforge'
+          and nullif(pg_catalog.btrim(homepage_share_image_url), '') is not null
+      )
+    $query$ into has_legacy_homepage_image;
+  end if;
+
+  if has_legacy_homepage_image then
     raise exception 'homepage_share_image_url_must_be_migrated_to_brand_social_before_cleanup';
   end if;
 end
@@ -50,6 +67,101 @@ alter table public.cardforge_owner_settings
   add constraint cardforge_owner_watermark_preview_opacity_range check (watermark_preview_opacity between 5 and 80),
   add constraint cardforge_owner_watermark_share_opacity_range check (watermark_share_opacity between 5 and 80),
   add constraint cardforge_owner_watermark_width_percent_range check (watermark_width_percent between 20 and 90);
+
+-- The Creator Pool is an archived legal record, not a live developer-program
+-- control. Keep the legacy columns temporarily for migration-first compatibility
+-- with the currently deployed bundle, but freeze them and remove them from the
+-- active settings command.
+update public.cardforge_developer_program_settings
+set profit_share_pool_percent = 0
+where profit_share_pool_percent <> 0;
+
+update public.cardforge_developer_profiles
+set eligible_for_profit_share = false
+where eligible_for_profit_share;
+
+alter table public.cardforge_developer_program_settings
+  alter column profit_share_pool_percent set default 0;
+
+alter table public.cardforge_developer_profiles
+  alter column eligible_for_profit_share set default false;
+
+create or replace function public.cardforge_freeze_archived_creator_pool_fields()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if tg_table_name = 'cardforge_developer_program_settings' then
+    new.profit_share_pool_percent := 0;
+  elsif tg_table_name = 'cardforge_developer_profiles' then
+    new.eligible_for_profit_share := false;
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.cardforge_freeze_archived_creator_pool_fields()
+  from public, anon, authenticated;
+grant execute on function public.cardforge_freeze_archived_creator_pool_fields()
+  to service_role;
+
+drop trigger if exists cardforge_freeze_archived_creator_pool_settings
+  on public.cardforge_developer_program_settings;
+create trigger cardforge_freeze_archived_creator_pool_settings
+before insert or update on public.cardforge_developer_program_settings
+for each row execute function public.cardforge_freeze_archived_creator_pool_fields();
+
+drop trigger if exists cardforge_freeze_archived_creator_pool_profile
+  on public.cardforge_developer_profiles;
+create trigger cardforge_freeze_archived_creator_pool_profile
+before insert or update on public.cardforge_developer_profiles
+for each row execute function public.cardforge_freeze_archived_creator_pool_fields();
+
+create or replace function public.cardforge_update_developer_program_settings(
+  p_settings jsonb,
+  p_owner_developer_id text default null
+)
+returns integer
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if p_settings is null or pg_catalog.jsonb_typeof(p_settings) <> 'object' then
+    raise exception 'invalid_developer_program_settings';
+  end if;
+
+  update public.cardforge_developer_program_settings
+  set
+    max_active_developers = (p_settings ->> 'maxActiveDevelopers')::integer,
+    monthly_submission_limit = (p_settings ->> 'monthlySubmissionLimit')::integer,
+    monthly_published_requirement = (p_settings ->> 'monthlyPublishedRequirement')::integer,
+    minimum_votes_for_grading = (p_settings ->> 'minimumVotesForGrading')::integer,
+    minimum_positive_vote_percent = (p_settings ->> 'freeAssetMinimumPositiveVotePercent')::integer,
+    free_asset_minimum_positive_vote_percent = (p_settings ->> 'freeAssetMinimumPositiveVotePercent')::integer,
+    paid_asset_minimum_positive_vote_percent = (p_settings ->> 'paidAssetMinimumPositiveVotePercent')::integer,
+    minimum_votes_for_tier_assignment = (p_settings ->> 'minimumVotesForGrading')::integer,
+    allow_contributor_self_voting = (p_settings ->> 'allowContributorSelfVoting')::boolean,
+    owner_vote_weight = (p_settings ->> 'ownerVoteWeight')::integer,
+    owner_final_review_required = false,
+    publish_caps_by_type = p_settings -> 'publishCapsByType',
+    tier_caps_by_type = p_settings -> 'tierCapsByType'
+  where id = 'default';
+
+  if not found then
+    raise exception 'developer_program_settings_not_found';
+  end if;
+
+  return public.cardforge_rebalance_developer_asset_pipeline(p_owner_developer_id);
+end;
+$$;
+
+comment on column public.cardforge_developer_program_settings.profit_share_pool_percent is
+  'Archived compatibility column. The application no longer exposes or updates a Creator Pool setting.';
+comment on column public.cardforge_developer_profiles.eligible_for_profit_share is
+  'Archived compatibility column. CardForge does not currently operate a developer payout program; legacy writes are forced false.';
 
 alter table public.cardforge_site_media
   drop constraint if exists cardforge_site_media_slot_check;

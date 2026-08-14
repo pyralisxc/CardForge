@@ -23,7 +23,6 @@ type PersonDraft = {
   canProposeSiteContent: boolean;
   monthlySubmissionLimitOverride: string;
   monthlyPublishedRequirementOverride: string;
-  profitShareEligible: boolean;
   developerNote: string;
 };
 
@@ -38,7 +37,6 @@ const createDraft = (person: OwnerPerson): PersonDraft => ({
   canProposeSiteContent: person.canProposeSiteContent,
   monthlySubmissionLimitOverride: person.monthlySubmissionLimitOverride === null ? '' : String(person.monthlySubmissionLimitOverride),
   monthlyPublishedRequirementOverride: person.monthlyPublishedRequirementOverride === null ? '' : String(person.monthlyPublishedRequirementOverride),
-  profitShareEligible: person.profitShareEligible,
   developerNote: person.developerNote,
 });
 
@@ -121,7 +119,6 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
         canProposeSiteContent: draft.canProposeSiteContent,
         monthlySubmissionLimitOverride: draft.monthlySubmissionLimitOverride,
         monthlyPublishedRequirementOverride: draft.monthlyPublishedRequirementOverride,
-        profitShareEligible: draft.profitShareEligible,
         ownerNote: draft.developerNote,
       },
     }, 'Person controls saved');
@@ -177,7 +174,6 @@ export function OwnerPeoplePanel({ currentOwnerId }: { currentOwnerId: string | 
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">Draft campaign packages<input type="checkbox" checked={draft.canDraftCampaigns} onChange={(event) => setDraft((current) => current ? { ...current, canDraftCampaigns: event.target.checked } : current)} /></label>
               <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">Propose public-site copy<input type="checkbox" checked={draft.canProposeSiteContent} onChange={(event) => setDraft((current) => current ? { ...current, canProposeSiteContent: event.target.checked } : current)} /></label>
               <div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-xs text-[#c7b288]">Monthly submission override<input className={inputClassName} inputMode="numeric" placeholder="Use program default" value={draft.monthlySubmissionLimitOverride} onChange={(event) => setDraft((current) => current ? { ...current, monthlySubmissionLimitOverride: event.target.value } : current)} /></label><label className="grid gap-1 text-xs text-[#c7b288]">Published requirement override<input className={inputClassName} inputMode="numeric" placeholder="Use program default" value={draft.monthlyPublishedRequirementOverride} onChange={(event) => setDraft((current) => current ? { ...current, monthlyPublishedRequirementOverride: event.target.value } : current)} /></label></div>
-              <label className="flex min-h-11 items-center justify-between gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 text-sm text-[#ffe7ad]">Future creator-pool eligible<input type="checkbox" checked={draft.profitShareEligible} onChange={(event) => setDraft((current) => current ? { ...current, profitShareEligible: event.target.checked } : current)} /></label>
               <label className="grid gap-1 text-xs text-[#c7b288]">Developer note<textarea className="min-h-20 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={draft.developerNote} onChange={(event) => setDraft((current) => current ? { ...current, developerNote: event.target.value } : current)} /></label>
             </div> : null}
 

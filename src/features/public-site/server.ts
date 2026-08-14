@@ -12,7 +12,7 @@ export {
   getCachedPublicSiteConfiguration,
   revalidatePublicSiteConfiguration,
 } from './server/publicSiteConfigurationCache';
-export { PublicSiteShell } from './server/PublicSiteShell';
+export { ConfiguredPublicSiteShell } from './server/ConfiguredPublicSiteShell';
 export {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
   isHomepageSectionVisible,

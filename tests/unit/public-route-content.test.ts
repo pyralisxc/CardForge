@@ -94,7 +94,7 @@ describe('public route stories', () => {
 
   it('uses the shared public shell across public marketing routes', () => {
     for (const route of ['about', 'cameron', 'developer', 'roadmap']) {
-      expect(readRoute(route), route).toContain('<PublicSiteShell');
+      expect(readRoute(route), route).toMatch(/<(?:Configured)?PublicSiteShell/u);
     }
   });
 });

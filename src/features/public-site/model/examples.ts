@@ -110,7 +110,7 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Template Lab',
     Room: 'Foundry A',
-    AccessCode: 'DEMO-01',
+    AccessCode: 'FORGE-01',
   }),
   Object.freeze({
     EventLogo: '/api/public/site-media/brand.mark',
@@ -121,7 +121,7 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Data Review',
     Room: 'Foundry B',
-    AccessCode: 'DEMO-02',
+    AccessCode: 'FORGE-02',
   }),
   Object.freeze({
     EventLogo: '/api/public/site-media/brand.mark',
@@ -132,7 +132,7 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Export Proof',
     Room: 'Foundry C',
-    AccessCode: 'DEMO-03',
+    AccessCode: 'FORGE-03',
   }),
   Object.freeze({
     EventLogo: '/api/public/site-media/brand.mark',
@@ -143,7 +143,7 @@ const EVENT_BADGE_ROWS = Object.freeze([
     Organization: 'CardForge Studio',
     Track: 'Welcome Desk',
     Room: 'Foundry Hall',
-    AccessCode: 'DEMO-04',
+    AccessCode: 'FORGE-04',
   }),
 ]);
 

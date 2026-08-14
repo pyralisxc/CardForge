@@ -13,7 +13,6 @@ export interface DeveloperProfileRow {
   last_name?: string | null;
   monthly_submission_limit_override?: number | null;
   monthly_published_requirement_override?: number | null;
-  eligible_for_profit_share?: boolean | null;
   owner_note?: string | null;
   can_draft_campaigns?: boolean | null;
   can_propose_site_content?: boolean | null;
@@ -43,7 +42,7 @@ export class DeveloperAccessStoreError extends Error {
 }
 
 const PROFILE_COLUMNS =
-  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,eligible_for_profit_share,owner_note,can_draft_campaigns,can_propose_site_content';
+  'clerk_user_id,email,status,first_name,last_name,monthly_submission_limit_override,monthly_published_requirement_override,owner_note,can_draft_campaigns,can_propose_site_content';
 const normalizeShortText = (value: unknown, maxLength: number): string =>
   typeof value === 'string' ? value.trim().replace(/[ \t]+/g, ' ').slice(0, maxLength) : '';
 
@@ -257,7 +256,6 @@ export const updateDeveloperAssetProfileRules = async ({
     status?: DeveloperProfileStatus;
     monthly_submission_limit_override: number | null;
     monthly_published_requirement_override: number | null;
-    eligible_for_profit_share: boolean;
     owner_note: string;
   };
 }): Promise<void> => {
@@ -283,7 +281,6 @@ export const updateDeveloperProfileControl = async ({
   canProposeSiteContent,
   monthlySubmissionLimitOverride,
   monthlyPublishedRequirementOverride,
-  profitShareEligible,
   ownerNote,
 }: {
   developerId: string;
@@ -292,7 +289,6 @@ export const updateDeveloperProfileControl = async ({
   canProposeSiteContent: boolean;
   monthlySubmissionLimitOverride: number | null;
   monthlyPublishedRequirementOverride: number | null;
-  profitShareEligible: boolean;
   ownerNote: string;
 }): Promise<void> => {
   const supabase = getSupabaseServerClient();
@@ -310,7 +306,6 @@ export const updateDeveloperProfileControl = async ({
       can_propose_site_content: status === 'active' && canProposeSiteContent,
       monthly_submission_limit_override: normalizeOverride(monthlySubmissionLimitOverride, 1, 250),
       monthly_published_requirement_override: normalizeOverride(monthlyPublishedRequirementOverride, 0, 100),
-      eligible_for_profit_share: profitShareEligible,
       owner_note: normalizeShortText(ownerNote, 500),
     })
     .eq('clerk_user_id', normalizedId)

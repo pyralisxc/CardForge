@@ -146,7 +146,7 @@ describe('Owner Console composition', () => {
     ]) {
       const source = await readFile(rootPath(appPath), 'utf8');
       expect(source, appPath).toContain('@/features/public-site/server');
-      expect(source, appPath).toContain('<PublicSiteShell');
+      expect(source, appPath).toContain('<ConfiguredPublicSiteShell');
     }
   });
 });

@@ -4,7 +4,7 @@ import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperProgramPage } from '@/features/developer-program/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
-import { createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, PublicSiteShell, StructuredData } from '@/features/public-site/server';
+import { ConfiguredPublicSiteShell, createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, StructuredData } from '@/features/public-site/server';
 
 export async function generateMetadata() {
   const content = createSiteContentMap(await getCachedSiteContentBlocks('developer'));
@@ -20,13 +20,13 @@ export default async function DeveloperPage() {
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <CardForgeAppProviders>
-      <PublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <PublicAuthControls /> : undefined} currentPath="/developer">
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <PublicAuthControls /> : undefined} currentPath="/developer">
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Developers', path: '/developer' },
         ])} />
         <DeveloperProgramPage initialAuthConfigured={authConfigured} supportEmail={businessIdentity.supportEmail} />
-      </PublicSiteShell>
+      </ConfiguredPublicSiteShell>
     </CardForgeAppProviders>
   );
 }

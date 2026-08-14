@@ -82,7 +82,6 @@ describe('developer asset store helpers', () => {
       paid_asset_minimum_positive_vote_percent: 82,
       allow_contributor_self_voting: false,
       owner_vote_weight: 2,
-      profit_share_pool_percent: 10,
       tier_caps_by_type: { templates: { free: 10, paid: 4 } },
     })).toMatchObject({
       maxActiveDevelopers: 25,
@@ -106,12 +105,10 @@ describe('developer asset store helpers', () => {
     expect(normalizeDeveloperProfileOverrideInput({
       monthlySubmissionLimitOverride: 100,
       monthlyPublishedRequirementOverride: 0,
-      profitShareEligible: true,
       ownerNote: '',
     })).toMatchObject({
       monthly_submission_limit_override: 100,
       monthly_published_requirement_override: 0,
-      eligible_for_profit_share: true,
       owner_note: '',
     });
   });

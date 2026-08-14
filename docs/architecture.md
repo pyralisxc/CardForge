@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: August 13, 2026
+Last updated: August 14, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. The app has one public product surface, one creator studio, one account/access surface, one public developer application, one protected contribution cockpit, and one owner console.
 
@@ -12,7 +12,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
 - Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
 - Email: Resend sends transactional messages to the configured support inbox and users.
-- Shared data: Supabase stores owner settings, editable homepage media, legal copy, the founder profile and public portrait object, roadmap/votes, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles/scopes, asset submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider delivery jobs, and contact request history.
+- Shared data: Supabase stores owner settings, canonical public brand and marketing media, legal copy, the founder profile, roadmap/votes, abuse-rate buckets, billing events/subscriptions, asset registry rows, developer profiles/scopes, asset submissions/votes, campaign packages, protected and approved campaign media, site-copy proposals, provider delivery jobs, and contact request history.
 - User projects: templates, generated cards, local uploads, and project files stay browser-local unless explicitly exported or submitted.
 
 ## Source Lanes
@@ -122,7 +122,7 @@ Developer submissions and CardForge starter assets use one lifecycle:
 
 Assets can also be `archived` or `rejected`. Published creator-facing tiers are `free` and `paid`; internal `developer` and `hidden` values are pipeline states, not extra customer library tiers.
 
-The current developer pipeline is operational infrastructure, not an active payout system. The former Creator Pool page is an archived, noindex notice and is not promoted as an access tier or active program.
+The current developer pipeline is operational infrastructure, not an active payout system. It has no payout eligibility or pool-percentage application controls. The former Creator Pool page is an archived, noindex legal notice and is not promoted as an access tier or active program.
 
 ## Developer Contribution Cockpit
 

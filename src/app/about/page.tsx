@@ -15,7 +15,7 @@ import {
   createSiteContentMap,
   getCachedPublicSiteConfiguration,
   getCachedSiteContentBlocks,
-  PublicSiteShell,
+  ConfiguredPublicSiteShell,
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
@@ -47,7 +47,7 @@ export default async function AboutPage() {
 
   return (
     <CardForgeAppProviders>
-      <PublicSiteShell accountSlot={authConfigured ? <PublicAuthControls /> : undefined} businessIdentity={businessIdentity} currentPath="/about">
+      <ConfiguredPublicSiteShell accountSlot={authConfigured ? <PublicAuthControls /> : undefined} businessIdentity={businessIdentity} currentPath="/about">
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
         { name: 'About CardForge Studio', path: '/about' },
@@ -161,7 +161,7 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
-      </PublicSiteShell>
+      </ConfiguredPublicSiteShell>
     </CardForgeAppProviders>
   );
 }
