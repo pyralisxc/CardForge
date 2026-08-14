@@ -39,7 +39,7 @@ const readPublishedTemplates = async (viewerAccess: RegistryViewerAccess): Promi
     const revisionNumber = Number(metadata.revisionNumber);
     return {
       ...template,
-      id: template.id || row.asset_id,
+      id: row.asset_id,
       name: template.name || row.name,
       templateSource: 'default' as const,
       templateLibrarySource: 'pipeline' as const,
@@ -64,7 +64,7 @@ const readPublishedStyles = async (viewerAccess: RegistryViewerAccess): Promise<
     );
     return style ? {
       ...style,
-      id: style.id || row.asset_id,
+      id: row.asset_id,
       name: style.name || row.name,
       librarySource: row.library_source === 'developer' ? 'developer' as const : 'official' as const,
       accessTier: row.access_tier,

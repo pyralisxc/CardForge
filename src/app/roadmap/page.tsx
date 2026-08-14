@@ -1,18 +1,19 @@
-import type { Metadata } from 'next';
-
 import { PublicAuthControls } from '@/features/account/client/auth';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { RoadmapPage } from '@/features/roadmap/client';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
-import { createBreadcrumbStructuredData, PublicSiteShell, StructuredData } from '@/features/public-site/server';
+import { createBreadcrumbStructuredData, createSiteContentMap, getCachedSiteContentBlocks, PublicSiteShell, StructuredData } from '@/features/public-site/server';
 
-export const metadata: Metadata = createPageMetadata({
-  title: 'CardForge Roadmap',
-  description: 'Vote on CardForge feature priorities and follow planned service upgrades for the shared card-system studio.',
-  path: '/roadmap',
-});
+export async function generateMetadata() {
+  const content = createSiteContentMap(await getCachedSiteContentBlocks('roadmap'));
+  return createPageMetadata({
+    title: content['roadmap.meta.title'],
+    description: content['roadmap.meta.description'],
+    path: '/roadmap',
+  });
+}
 
 export default async function ForgeChroniclePage() {
   const authConfigured = isClerkServerConfigPresent();

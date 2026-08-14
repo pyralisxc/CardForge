@@ -90,6 +90,9 @@ describe('repository maintenance policy', () => {
     expect(catalog).not.toContain('data/default-templates');
     expect(catalog).not.toContain('data/styles');
     expect(catalog).not.toContain('readBuiltIn');
+    expect(catalog.match(/id: row\.asset_id/g)).toHaveLength(2);
+    expect(catalog).not.toContain('id: template.id || row.asset_id');
+    expect(catalog).not.toContain('id: style.id || row.asset_id');
   });
 
   it('keeps developer upload and submission in one route', async () => {

@@ -47,9 +47,11 @@ describe('structured site identity', () => {
 
   it('ships a factual public founder route', () => {
     const source = readFileSync(join(process.cwd(), 'src/app/cameron/page.tsx'), 'utf8');
+    const founderProfile = readFileSync(join(process.cwd(), 'src/features/public-site/model/founderProfile.ts'), 'utf8');
 
     expect(source).toContain('Cameron Locke');
-    expect(source).toContain('sole proprietor');
+    expect(source).toContain('profile.introduction');
+    expect(founderProfile).toContain('sole proprietor');
     expect(source).toContain('createFounderProfileStructuredData');
     expect(source).not.toMatch(/d\/b\/a/i);
   });

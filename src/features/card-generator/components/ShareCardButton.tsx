@@ -16,6 +16,7 @@ import type { ExportMode } from '@/features/card-generator/lib/printValidation';
 import { useToast } from '@/components/ui/use-toast';
 import type { DisplayCard } from '@/domain/rendering';
 import { usePublicShareSettings } from './PublicShareSettingsContext';
+import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
 
 
@@ -43,11 +44,25 @@ export function ShareCardButton({
 }) {
   const { toast } = useToast();
   const shareSettings = usePublicShareSettings();
+  const brand = useBrandPresentation();
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<SocialSharePreset>('square');
   const [working, setWorking] = useState(false);
 
-  const createImage = async () => renderSocialShareImage({ card, preset, exportMode, exportDpi, richTextHighlightColor });
+  const createImage = async () => renderSocialShareImage({
+    card,
+    preset,
+    exportMode,
+    exportDpi,
+    richTextHighlightColor,
+    watermark: {
+      url: brand.watermarkUrl,
+      width: brand.watermarkWidth,
+      height: brand.watermarkHeight,
+      widthPercent: brand.watermarkWidthPercent,
+      opacity: brand.watermarkShareOpacity,
+    },
+  });
 
   const share = async () => {
     setWorking(true);
@@ -58,7 +73,7 @@ export function ShareCardButton({
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({
           files: [file],
-          title: 'CardForge Studio',
+          title: brand.brandName,
           text: shareSettings.message,
           url: shareSettings.homepageUrl,
         });

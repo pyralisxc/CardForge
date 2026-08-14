@@ -19,6 +19,12 @@ import {
 
 const UPLOAD_TIMEOUT_MS = 30_000;
 const inputClassName = 'min-h-11 border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm leading-6 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const mediaGroupLabels = {
+  brand: 'Brand assets',
+  landing: 'Homepage media',
+  showcase: 'Homepage example artwork',
+  founder: 'Founder media',
+} as const;
 
 type PreviewViewport = 'desktop' | 'mobile';
 type FileDimensions = { width: number; height: number };
@@ -54,10 +60,32 @@ export function OwnerSiteMediaPanel({
   const [files, setFiles] = useState<Partial<Record<SiteMediaAsset['slot'], File>>>({});
   const [busySlot, setBusySlot] = useState<SiteMediaAsset['slot'] | null>(null);
   const [inputVersion, setInputVersion] = useState(0);
+  const [brandSettings, setBrandSettings] = useState(consolePayload.siteConfiguration);
+  const [savingBrandSettings, setSavingBrandSettings] = useState(false);
 
   useEffect(() => {
     setDrafts(consolePayload.siteMedia);
-  }, [consolePayload.siteMedia]);
+    setBrandSettings(consolePayload.siteConfiguration);
+  }, [consolePayload.siteConfiguration, consolePayload.siteMedia]);
+
+  const saveBrandSettings = async () => {
+    setSavingBrandSettings(true);
+    try {
+      const response = await fetch('/api/owner/site-configuration', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brandSettings),
+      });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save watermark presentation.'));
+      const body = await response.json() as { settings: OwnerConsolePayload['siteConfiguration'] };
+      onConsoleChange({ ...consolePayload, siteConfiguration: body.settings });
+      toast({ title: 'Watermark presentation saved', description: 'Card previews and social images now use these owner-approved settings.' });
+    } catch (error) {
+      toast({ title: 'Watermark presentation not saved', description: error instanceof Error ? error.message : 'Unable to save watermark presentation.', variant: 'destructive' });
+    } finally {
+      setSavingBrandSettings(false);
+    }
+  };
 
   const updateDraft = (next: SiteMediaAsset) => {
     setDrafts((current) => current.map((asset) => asset.slot === next.slot ? next : asset));
@@ -120,11 +148,24 @@ export function OwnerSiteMediaPanel({
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a98a55]">Visual publishing</p>
         <h2 className="mt-1 font-serif text-2xl text-[#fff1c7]">Site media</h2>
         <p className="mt-2 max-w-4xl text-sm leading-6 text-[#a98a7a]">
-          Replace, frame, and size every public image from one place. JPEG, PNG, and WebP files up to 12 MB are supported. Changes stay in these previews until you publish them, and the previous version remains available for a one-step restore.
+          Replace every public brand and marketing image from one catalog. JPEG, PNG, and WebP files up to 12 MB are supported. Changes stay in these previews until you publish them, and the previous version remains available for a one-step restore.
         </p>
       </div>
       <div className="mt-6 grid gap-6">
-        {drafts.map((draft) => {
+        <article className="border border-[#4a3823] bg-[#100c08] p-4">
+          <h3 className="font-serif text-xl text-[#ffe7ad]">Watermark presentation</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">The artwork is replaced below. These controls determine how strongly it appears; entitlement code still decides when a watermark is required.</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <RangeField label="Free preview opacity" value={brandSettings.watermarkPreviewOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkPreviewOpacity: value }))} />
+            <RangeField label="Social image opacity" value={brandSettings.watermarkShareOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkShareOpacity: value }))} />
+            <RangeField label="Width across card" value={brandSettings.watermarkWidthPercent} min={20} max={90} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkWidthPercent: value }))} />
+          </div>
+          <Button type="button" className="mt-4 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={savingBrandSettings || JSON.stringify(brandSettings) === JSON.stringify(consolePayload.siteConfiguration)} onClick={() => void saveBrandSettings()}>{savingBrandSettings ? 'Saving presentation...' : 'Save watermark presentation'}</Button>
+        </article>
+        {(['brand', 'landing', 'showcase', 'founder'] as const).map((group) => <details key={group} className="border border-[#4a3823] bg-[#100c08]" open={group === 'brand'}>
+          <summary className="cursor-pointer px-4 py-3 font-serif text-xl text-[#ffe7ad]">{mediaGroupLabels[group]} <span className="ml-2 text-xs font-sans text-[#8f7b57]">{drafts.filter((asset) => asset.group === group).length} assets</span></summary>
+          <div className="grid gap-6 border-t border-[#4a3823] p-4">
+          {drafts.filter((asset) => asset.group === group).map((draft) => {
           const published = consolePayload.siteMedia.find((asset) => asset.slot === draft.slot) ?? draft;
           return (
             <OwnerMediaEditor
@@ -141,7 +182,9 @@ export function OwnerSiteMediaPanel({
               onRestore={() => restore(draft)}
             />
           );
-        })}
+          })}
+          </div>
+        </details>)}
       </div>
     </section>
   );
@@ -192,7 +235,9 @@ function OwnerMediaEditor({
     || JSON.stringify(asset.presentation) !== JSON.stringify(published.presentation);
   const frameAspectRatio = getPreviewAspectRatio(asset, viewport, currentDimensions);
   const canReframe = asset.kind === 'showcase';
-  const canPosition = asset.kind !== 'showcase' || asset.presentation.frame !== 'natural';
+  const canPosition = ['hero', 'portrait'].includes(asset.kind)
+    || (asset.kind === 'showcase' && asset.presentation.frame !== 'natural');
+  const hasResponsivePresentation = !['brand', 'favicon', 'watermark', 'social', 'showcase-art'].includes(asset.kind);
   const source = previewUrl ?? getSiteMediaDisplaySrc(asset);
 
   const setPresentation = <K extends keyof SiteMediaPresentation>(
@@ -221,10 +266,10 @@ function OwnerMediaEditor({
           <h3 className="font-serif text-xl text-[#ffe7ad]">{asset.label}</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">{asset.guidance}</p>
         </div>
-        <div className="flex border border-[#5f4526] bg-[#0c0b09] p-1" role="group" aria-label={`${asset.label} preview size`}>
+        {hasResponsivePresentation ? <div className="flex border border-[#5f4526] bg-[#0c0b09] p-1" role="group" aria-label={`${asset.label} preview size`}>
           <PreviewButton active={viewport === 'desktop'} onClick={() => setViewport('desktop')}><Monitor className="h-4 w-4" aria-hidden="true" />Desktop</PreviewButton>
           <PreviewButton active={viewport === 'mobile'} onClick={() => setViewport('mobile')}><Smartphone className="h-4 w-4" aria-hidden="true" />Mobile</PreviewButton>
-        </div>
+        </div> : null}
       </div>
 
       <div className="mt-4 rounded border border-[#3a2d1d] bg-[#090806] p-3 sm:p-5">
@@ -281,7 +326,7 @@ function OwnerMediaEditor({
           </p>
         </div>
 
-        <div className="grid content-start gap-4 border border-[#3a2d1d] bg-[#0c0b09] p-4">
+        {hasResponsivePresentation ? <div className="grid content-start gap-4 border border-[#3a2d1d] bg-[#0c0b09] p-4">
           <h4 className="font-semibold text-[#ffe7ad]">Responsive presentation</h4>
           {canReframe ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -313,7 +358,7 @@ function OwnerMediaEditor({
           {asset.kind === 'hero' ? (
             <RangeField label="Text overlay" value={asset.presentation.overlayStrength} min={0} max={100} suffix="%" onChange={(value) => setPresentation('overlayStrength', value)} />
           ) : null}
-        </div>
+        </div> : <div className="border border-[#3a2d1d] bg-[#0c0b09] p-4 text-sm leading-6 text-[#a98a7a]">{asset.kind === 'social' ? 'CardForge publishes this asset as a fixed 1600 × 900 social image. It has no on-page desktop or mobile crop.' : asset.kind === 'showcase-art' ? 'The live Pipeline template controls this artwork’s crop inside the example card. This catalog owns only the source image and its description.' : 'This asset keeps its natural transparent frame. CardForge scales it automatically wherever it is used.'}</div>}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#3a2d1d] pt-4">
@@ -380,6 +425,9 @@ const getPreviewAspectRatio = (
 };
 
 const getPreviewWidthClass = (asset: SiteMediaAsset, viewport: PreviewViewport): string => {
+  if (asset.kind === 'favicon') return 'max-w-32';
+  if (asset.kind === 'brand') return 'max-w-48';
+  if (asset.kind === 'watermark') return 'max-w-2xl';
   const size = viewport === 'desktop' ? asset.presentation.desktopSize : asset.presentation.mobileSize;
   if (viewport === 'mobile') {
     return { compact: 'max-w-56', standard: 'max-w-72', large: 'max-w-[22rem]' }[size];

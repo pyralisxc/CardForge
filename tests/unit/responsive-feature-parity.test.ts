@@ -21,7 +21,7 @@ describe('responsive feature parity', () => {
     expect(studioHeader).toContain("@/features/public-site/client");
     expect(studioHeader).not.toContain('const studioNavItems');
     expect(studioHeader).toContain('aria-label="Open global navigation"');
-    expect(studioHeader).toContain('lg:hidden');
+    expect(studioHeader).toContain('xl:hidden');
     expect(studioHeader).toContain('developerCockpitHref');
     expect(studioHeader).toContain('Developer cockpit');
     expect(studioHeader.match(/href=\{developerCockpitHref\}/g)).toHaveLength(2);

@@ -29,7 +29,7 @@ describe('social share export', () => {
     expect(layout.cardY).toBeGreaterThanOrEqual(0);
     expect(layout.cardWidth).toBeLessThan(1080);
     expect(layout.cardHeight).toBeLessThan(1080);
-    expect(layout.watermarkUrl).toBe(CARD_WATERMARK_URL);
+    expect(layout.watermark.url).toBe(CARD_WATERMARK_URL);
     expect(layout).not.toHaveProperty('footerY');
   });
 

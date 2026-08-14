@@ -1,18 +1,19 @@
 import type { Metadata } from 'next';
 
 const DEFAULT_SOCIAL_IMAGE = {
-  url: '/card-assets/landing/cardforge-hero-workbench.png',
+  url: '/api/public/site-media/brand.social',
   width: 1600,
   height: 900,
-  alt: 'CardForge Studio card-system workspace and finished card designs',
 };
+
+type SocialImage = typeof DEFAULT_SOCIAL_IMAGE & { alt?: string };
 
 interface PageMetadataInput {
   title: string;
   description: string;
   path: `/${string}` | '/';
   index?: boolean;
-  image?: typeof DEFAULT_SOCIAL_IMAGE;
+  image?: SocialImage;
 }
 
 export const createPageMetadata = ({
@@ -21,7 +22,13 @@ export const createPageMetadata = ({
   path,
   index = true,
   image = DEFAULT_SOCIAL_IMAGE,
-}: PageMetadataInput): Metadata => ({
+}: PageMetadataInput): Metadata => {
+  const openGraphImage = {
+    ...image,
+    alt: image.alt ?? `${title} social preview`,
+  };
+
+  return ({
   title,
   description,
   alternates: { canonical: path },
@@ -30,8 +37,7 @@ export const createPageMetadata = ({
     title,
     description,
     url: path,
-    siteName: 'CardForge Studio',
-    images: [image],
+    images: [openGraphImage],
     type: 'website',
   },
   twitter: {
@@ -40,4 +46,5 @@ export const createPageMetadata = ({
     description,
     images: [image.url],
   },
-});
+  });
+};

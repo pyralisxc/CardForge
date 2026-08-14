@@ -96,10 +96,11 @@ function WorkspaceIntroduction({ eyebrow, title, body }: { eyebrow: string; titl
 const siteControlOwnership = [
   ['Launch experience', 'Owner controlled', 'Portable project access, analytics consent presentation, announcements, and offer visibility change without a deployment.'],
   ['Pages and navigation', 'Owner controlled', 'Approved navigation labels, visibility, order, homepage sections, primary action, and homepage search/share metadata publish here.'],
-  ['Public messaging', 'Owner controlled', 'Landing and About hero copy plus the reusable share message publish from this console.'],
-  ['Site media', 'Owner controlled', 'The five current public media slots, crop, focal point, overlays, and accessibility text publish from this console.'],
+  ['Public messaging', 'Owner controlled', 'Shared shell, homepage, About, founder, developer-program, roadmap, search, and sharing copy publish from the grouped content catalog.'],
+  ['Brand and site media', 'Owner controlled', 'Brand mark, favicon, watermark, default social image, homepage imagery, Studio screenshots, live-example artwork, and founder portrait share one media catalog with restore history.'],
   ['Founder and roadmap', 'Owner controlled', 'Founder presence, social destinations, roadmap economics, voting rules, and current checkpoint status live here.'],
-  ['Product structure', 'Code owned', 'Allowed routes and sections, Studio behavior, validation, security, and capability claims remain code-reviewed.'],
+  ['Legal publications', 'Owner controlled', 'Versioned policies can be drafted, published, and rolled back here while immutable publication history remains intact.'],
+  ['Product behavior', 'Code owned', 'Allowed routes and components, functional and accessibility labels, Studio behavior, validation, permissions, and capability claims remain reviewed code.'],
   ['Providers and secrets', 'Provider owned', 'Clerk, Supabase, Stripe, Resend, Vercel, Google, and PostHog keep their credentials and service configuration in their own dashboards.'],
 ] as const;
 
@@ -108,7 +109,7 @@ function OwnerSiteControlMap() {
     <section className="border border-[#5f4526] bg-[#100c08] p-5" aria-labelledby="site-control-map-heading">
       <h3 id="site-control-map-heading" className="font-serif text-xl text-[#fff1c7]">What you can change here</h3>
       <p className="mt-2 max-w-4xl text-sm leading-6 text-[#c7b288]">
-        Owner-authored content and launch policy belong in CardForge. Structural product behavior remains code-reviewed, and raw provider configuration stays with the provider.
+        Owner-authored content, brand assets, and launch policy belong in CardForge. User project uploads stay user-owned, campaign media stays with production history, structural behavior remains code-reviewed, and raw provider configuration stays with the provider.
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {siteControlOwnership.map(([label, owner, description]) => (

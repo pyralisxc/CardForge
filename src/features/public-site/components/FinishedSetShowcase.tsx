@@ -35,9 +35,15 @@ export function FinishedSetShowcase({ example }: { example: CardForgeExample }) 
     return () => controller.abort();
   }, []);
 
-  const frontTemplate = templates?.find((template) => template.id === example.frontTemplateId);
+  const frontTemplate = templates?.find((template) => template.id === example.frontTemplateId)
+    ?? (example.frontTemplateName
+      ? templates?.find((template) => template.name === example.frontTemplateName)
+      : undefined);
   const backTemplate = example.backTemplateId
     ? templates?.find((template) => template.id === example.backTemplateId)
+      ?? (example.backTemplateName
+        ? templates?.find((template) => template.name === example.backTemplateName)
+        : undefined)
     : undefined;
   const cards = useMemo(() => {
     if (!frontTemplate) return [];
@@ -61,10 +67,18 @@ export function FinishedSetShowcase({ example }: { example: CardForgeExample }) 
     );
   }
 
-  if (!templates || !frontTemplate) {
+  if (!templates) {
     return (
       <div role="status" className="grid min-h-[25rem] place-items-center text-base text-[var(--public-muted-text)]">
         Loading the real CardForge templates…
+      </div>
+    );
+  }
+
+  if (!frontTemplate) {
+    return (
+      <div role="status" className="grid min-h-[25rem] place-items-center text-center text-base text-[var(--public-muted-text)]">
+        This example is temporarily unavailable because its published Pipeline template could not be found.
       </div>
     );
   }

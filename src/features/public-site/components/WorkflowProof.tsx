@@ -1,35 +1,22 @@
-import { CheckCheck, Download, Layers3, Paintbrush } from 'lucide-react';
+"use client";
 
-const steps = [
-  {
-    title: 'Make the look once',
-    copy: 'Set up the front, back, words, and pictures for the kind of card you want.',
-    icon: Paintbrush,
-  },
-  {
-    title: 'Add your card list',
-    copy: 'Type the details or bring in a list you already have. Each line becomes a card.',
-    icon: CheckCheck,
-  },
-  {
-    title: 'Build the whole set',
-    copy: 'CardForge places every title, picture, and detail into the same design.',
-    icon: Layers3,
-  },
-  {
-    title: 'Check and download',
-    copy: 'Look through every card, fix anything odd, and save the finished files.',
-    icon: Download,
-  },
-] as const;
+import { CheckCheck, Download, Layers3, Paintbrush } from 'lucide-react';
+import { useSiteContent } from './PublicSitePresentationContext';
 
 export function WorkflowProof() {
+  const siteContent = useSiteContent();
+  const steps = [
+    { title: siteContent['landing.workflow.step1.title'], copy: siteContent['landing.workflow.step1.body'], icon: Paintbrush },
+    { title: siteContent['landing.workflow.step2.title'], copy: siteContent['landing.workflow.step2.body'], icon: CheckCheck },
+    { title: siteContent['landing.workflow.step3.title'], copy: siteContent['landing.workflow.step3.body'], icon: Layers3 },
+    { title: siteContent['landing.workflow.step4.title'], copy: siteContent['landing.workflow.step4.body'], icon: Download },
+  ] as const;
   return (
     <section aria-labelledby="workflow-heading" className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
       <div className="mx-auto max-w-7xl">
-        <p className="text-base font-semibold text-[var(--public-brass)]">How it works</p>
+        <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['landing.workflow.eyebrow']}</p>
         <h2 id="workflow-heading" className="mt-2 max-w-3xl font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
-          From one good-looking card to the whole set.
+          {siteContent['landing.workflow.headline']}
         </h2>
         <ol className="mt-7 grid gap-px overflow-hidden border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2 xl:grid-cols-4">
           {steps.map((step, index) => (

@@ -8,14 +8,15 @@ import {
 
 describe('public site content rules', () => {
   it('ships with the editable public content blocks', () => {
-    expect(DEFAULT_SITE_CONTENT_BLOCKS.map((block) => block.slug)).toEqual([
-      'landing.hero.headline',
-      'landing.hero.body',
-      'landing.hero.support',
-      'about.hero.headline',
-      'about.hero.body',
-      'sharing.message',
-    ]);
+    const slugs = DEFAULT_SITE_CONTENT_BLOCKS.map((block) => block.slug);
+    expect(slugs).toContain('shell.footer.independent');
+    expect(slugs).toContain('landing.hero.headline');
+    expect(slugs).toContain('about.meta.description');
+    expect(slugs).toContain('founder.meta.title');
+    expect(slugs).toContain('developer.hero.headline');
+    expect(slugs).toContain('roadmap.hero.headline');
+    expect(slugs).toContain('sharing.message');
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 
   it('keeps the bundled public hero copy aligned with the polished live experience', () => {

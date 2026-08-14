@@ -20,7 +20,7 @@ describe('founder social links', () => {
   it('uses safe external links and accessible coming-soon controls', () => {
     const component = source('src/features/public-site/components/FounderSocialLinks.tsx');
 
-    expect(component).toContain('aria-label="Follow CardForge Studio"');
+    expect(component).toContain('aria-label={`Follow ${brandName}`}');
     expect(component).toContain('target="_blank"');
     expect(component).toContain('rel="noopener noreferrer"');
     expect(component).toContain('aria-live="polite"');
@@ -34,7 +34,9 @@ describe('founder social links', () => {
     const layout = source('src/app/layout.tsx');
 
     expect(header.match(/<FounderSocialLinks/g)).toHaveLength(2);
+    expect(header).toContain('brandName={businessIdentity.brandName}');
     expect(footer).toContain('<FounderSocialLinks');
+    expect(footer).toContain('brandName={businessIdentity.brandName}');
     expect(layout).toContain('<FounderProfileProvider profile={founderProfile}>');
   });
 });

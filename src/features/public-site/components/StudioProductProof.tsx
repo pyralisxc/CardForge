@@ -1,6 +1,7 @@
 import { ImageIcon, Layers3, SlidersHorizontal, Type } from 'lucide-react';
 
 import { LiveExampleGallery } from './LiveExampleGallery';
+import { useBrandPresentation } from '@/features/brand-presentation/client';
 
 const libraryItems = [
   ['Cards', Layers3],
@@ -10,6 +11,7 @@ const libraryItems = [
 ] as const;
 
 export function StudioProductProof() {
+  const brand = useBrandPresentation();
   return (
     <figure
       aria-labelledby="studio-proof-caption"
@@ -22,7 +24,7 @@ export function StudioProductProof() {
           <span className="h-2 w-2 rounded-full bg-[#78965b]" aria-hidden="true" />
         </div>
         <strong className="font-[var(--public-font-display)] text-base text-[var(--public-ivory)]">
-          CardForge Studio
+          {brand.brandName}
         </strong>
         <span className="text-base text-[var(--public-muted-text)]">Maker</span>
       </div>
@@ -67,7 +69,7 @@ export function StudioProductProof() {
       </div>
 
       <figcaption id="studio-proof-caption" className="border-t border-[var(--public-border)] bg-[var(--public-surface)] px-4 py-3 text-base text-[var(--public-muted-text)]">
-        Studio workspace preview with real cards rendered by CardForge.
+        Studio workspace preview with real cards rendered by {brand.brandName}.
       </figcaption>
     </figure>
   );

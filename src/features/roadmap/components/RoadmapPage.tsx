@@ -6,6 +6,7 @@ import { History } from 'lucide-react';
 
 import { RoadmapPanel } from '@/features/roadmap/components/RoadmapPanel';
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
+import { useSiteContent } from '@/features/public-site/client/context';
 
 export function RoadmapPage({
   initialAuthConfigured = false,
@@ -14,6 +15,7 @@ export function RoadmapPage({
   initialAuthConfigured?: boolean;
   supportEmail?: string | null;
 }) {
+  const siteContent = useSiteContent();
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [clerkIdentity, setClerkIdentity] = useState({
     isLoaded: false,
@@ -37,13 +39,13 @@ export function RoadmapPage({
         <div className="border border-[#6d4f2b] bg-[#15100a] p-4 md:p-5">
           <div className="flex items-center gap-3 text-[#e2aa4a]">
             <History className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">Product roadmap</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">{siteContent['roadmap.hero.eyebrow']}</span>
           </div>
           <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[#fff1c7] md:text-4xl">
-            Vote for the CardForge tools you want next.
+            {siteContent['roadmap.hero.headline']}
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
-            Add compact ideas, vote on what matters, and follow the next milestones without digging through your account page. Suggestions and votes are shared public beta signals, not private project notes.
+            {siteContent['roadmap.hero.body']}
           </p>
         </div>
       </section>

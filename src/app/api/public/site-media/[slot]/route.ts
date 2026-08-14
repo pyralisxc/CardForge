@@ -1,4 +1,10 @@
-import { getCachedSiteMedia, isSiteMediaSlot, SITE_MEDIA_BUCKET } from '@/features/public-site/server';
+import {
+  getCachedSiteMedia,
+  getDefaultSiteMedia,
+  getSiteMediaContentType,
+  isSiteMediaSlot,
+  SITE_MEDIA_BUCKET,
+} from '@/features/public-site/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 export const dynamic = 'force-dynamic';
@@ -10,11 +16,14 @@ export async function GET(
   const { slot } = await params;
   if (!isSiteMediaSlot(slot)) return new Response(null, { status: 404 });
 
-  const media = (await getCachedSiteMedia()).find((asset) => asset.slot === slot);
-  if (!media) return new Response(null, { status: 404 });
+  const media = (await getCachedSiteMedia()).find((asset) => asset.slot === slot)
+    ?? getDefaultSiteMedia(slot);
   if (!media.storagePath) {
     if (!media.defaultSrc) return new Response(null, { status: 404 });
-    return Response.redirect(new URL(media.defaultSrc, request.url), 307);
+    return new Response(null, {
+      status: 307,
+      headers: { Location: media.defaultSrc },
+    });
   }
 
   const supabase = getSupabaseServerClient();
@@ -26,8 +35,10 @@ export async function GET(
   }
   return new Response(data, {
     headers: {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Content-Type': 'image/webp',
+      'Cache-Control': new URL(request.url).searchParams.has('v')
+        ? 'public, max-age=31536000, immutable'
+        : 'public, max-age=300, stale-while-revalidate=3600',
+      'Content-Type': getSiteMediaContentType(slot),
     },
   });
 }

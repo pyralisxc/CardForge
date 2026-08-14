@@ -14,36 +14,42 @@ import {
 } from '@/features/public-site/client';
 import {
   createBreadcrumbStructuredData,
+  createSiteContentMap,
   createFounderProfileStructuredData,
   getCachedFounderProfile,
   getCachedPublicSiteConfiguration,
+  getCachedSiteContentBlocks,
   getCachedSiteMedia,
   StructuredData,
 } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
-export const metadata = createPageMetadata({
-  title: 'Cameron Locke — Founder of CardForge Studio',
-  description: 'Meet Cameron Locke, the Oregon sole proprietor building CardForge Studio, and support his independent work.',
-  path: '/cameron',
-});
-
-const supportUses = [
-  ['Food and daily life', 'The ordinary things that make it possible to sit down and keep building.', Utensils],
-  ['Housing and stability', 'A steady place to live, work, rest, and keep moving forward.', Home],
-  ['Transportation', 'Getting where I need to go while I build a more stable independent life.', Caravan],
-  ['Business expenses', 'Hosting, software, testing, design resources, and the services that keep CardForge running.', ServerCog],
-] as const;
+export async function generateMetadata() {
+  const content = createSiteContentMap(await getCachedSiteContentBlocks('founder'));
+  return createPageMetadata({
+    title: content['founder.meta.title'],
+    description: content['founder.meta.description'],
+    path: '/cameron',
+  });
+}
 
 export default async function CameronPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, profile, siteMedia, siteConfiguration] = await Promise.all([
+  const [businessIdentity, profile, siteMedia, siteConfiguration, siteContentBlocks] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedFounderProfile(),
     getCachedSiteMedia(),
     getCachedPublicSiteConfiguration(),
+    getCachedSiteContentBlocks('founder'),
   ]);
+  const siteContent = createSiteContentMap(siteContentBlocks);
+  const supportUses = [
+    [siteContent['founder.support-use1.title'], siteContent['founder.support-use1.body'], Utensils],
+    [siteContent['founder.support-use2.title'], siteContent['founder.support-use2.body'], Home],
+    [siteContent['founder.support-use3.title'], siteContent['founder.support-use3.body'], Caravan],
+    [siteContent['founder.support-use4.title'], siteContent['founder.support-use4.body'], ServerCog],
+  ] as const;
   const supportOffers = getCreatorSupportOfferConfiguration();
   const portraitMedia = siteMedia.find((asset) => asset.slot === 'founder.portrait')
     ?? getDefaultSiteMedia('founder.portrait');
@@ -84,9 +90,9 @@ export default async function CameronPage() {
             <h1 className="mt-2 font-[var(--public-font-display)] text-4xl font-semibold text-[var(--public-ivory)] md:text-5xl">{profile.heroHeadline}</h1>
             <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{profile.introduction}</p>
             <div className="mt-6 flex flex-wrap gap-5">
-              <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">See what I’m building <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
-              <Link href="/contact" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">Contact me</Link>
-              {siteConfiguration.supportOfferVisible ? <Link href="#support" className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">Support the work</Link> : null}
+              <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">{siteContent['founder.hero.road-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              <Link href="/contact" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.contact-action']}</Link>
+              {siteConfiguration.supportOfferVisible ? <Link href="#support" className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['founder.hero.support-action']}</Link> : null}
             </div>
           </div>
         </div>
@@ -103,7 +109,7 @@ export default async function CameronPage() {
             <Sparkles className="h-6 w-6 text-[var(--public-brass)]" aria-hidden="true" />
             <h2 className="mt-3 font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">{profile.currentHeading}</h2>
             <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">{profile.currentBody}</p>
-            <h3 className="mt-6 text-lg font-bold text-[var(--public-ivory)]">What I’m focused on now</h3>
+            <h3 className="mt-6 text-lg font-bold text-[var(--public-ivory)]">{siteContent['founder.current.priorities-heading']}</h3>
             <ul className="mt-3 space-y-2 text-base leading-7 text-[var(--public-muted-text)]">
               {profile.priorities.map((priority) => <li key={priority}>• {priority}</li>)}
             </ul>
@@ -115,14 +121,14 @@ export default async function CameronPage() {
       <section id="support" className="scroll-mt-6 border-b border-[var(--public-border)] bg-[radial-gradient(circle_at_80%_15%,#30200f_0%,#0c0b09_42%)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-5xl">
           <HeartHandshake className="h-7 w-7 text-[var(--public-brass)]" aria-hidden="true" />
-          <p className="mt-3 text-base font-semibold text-[var(--public-brass)]">Support the journey</p>
+          <p className="mt-3 text-base font-semibold text-[var(--public-brass)]">{siteContent['founder.support.eyebrow']}</p>
           <h2 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)]">{profile.supportHeading}</h2>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{profile.supportIntroduction}</p>
 
           {siteConfiguration.creatorPassOfferVisible ? <div className="mt-7 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
-            <h3 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">Want CardForge too?</h3>
-            <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">Creator Pass is the best way to support CardForge as a business. It is a product subscription that includes CardForge access and gives the business dependable support to keep growing.</p>
-            <Link href="/account" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See Creator Pass</Link>
+            <h3 className="font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{siteContent['founder.creator-pass.heading']}</h3>
+            <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">{siteContent['founder.creator-pass.body']}</p>
+            <Link href="/account" prefetch={false} className="mt-3 inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">{siteContent['founder.creator-pass.action']}</Link>
           </div> : null}
 
           {supportOffers ? (
@@ -142,8 +148,8 @@ export default async function CameronPage() {
 
       <section className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-5xl">
-          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">What personal support can help with</h2>
-          <p className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">In plain terms: food, housing, transportation, development time, and the business expenses behind the work. {profile.supportUseSummary}</p>
+          <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)]">{siteContent['founder.support-uses.heading']}</h2>
+          <p className="mt-3 max-w-3xl text-lg leading-8 text-[var(--public-muted-text)]">{siteContent['founder.support-uses.body']} {profile.supportUseSummary}</p>
           <div className="mt-7 grid gap-px overflow-hidden border border-[var(--public-border)] bg-[var(--public-border)] md:grid-cols-2">
             {supportUses.map(([title, copy, Icon]) => (
               <article key={title} className="bg-[var(--public-surface)] p-5">

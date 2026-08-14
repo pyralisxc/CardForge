@@ -25,7 +25,10 @@ export interface PublicSiteConfiguration {
   supportOfferVisible: boolean;
   homepageTitle: string;
   homepageDescription: string;
-  homepageShareImageUrl: string;
+  searchKeywords: string[];
+  watermarkPreviewOpacity: number;
+  watermarkShareOpacity: number;
+  watermarkWidthPercent: number;
   primaryNavigation: PrimaryNavigationItem[];
   homepageSections: HomepageSectionSetting[];
 }
@@ -51,7 +54,19 @@ export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
   supportOfferVisible: true,
   homepageTitle: 'Build Complete Card Sets',
   homepageDescription: 'Create highly customized card sets from reusable layouts and structured data, then review and export the whole set in your browser.',
-  homepageShareImageUrl: '',
+  searchKeywords: [
+    'card maker',
+    'TCG card generator',
+    'tabletop card creator',
+    'printable card templates',
+    'custom card set creator',
+    'bulk card generator',
+    'fantasy card template editor',
+    'local-first card design studio',
+  ],
+  watermarkPreviewOpacity: 24,
+  watermarkShareOpacity: 28,
+  watermarkWidthPercent: 68,
   primaryNavigation: PRIMARY_NAVIGATION_IDS.map((id) => ({
     id,
     label: DEFAULT_NAVIGATION_LABELS[id],
@@ -71,10 +86,20 @@ const normalizeText = (value: unknown, fallback: string, maxLength: number): str
   return normalized ? normalized.slice(0, maxLength) : fallback;
 };
 
-const normalizeHttpsUrl = (value: unknown): string => {
-  if (typeof value !== 'string') return '';
-  const normalized = value.trim();
-  return normalized === '' || /^https:\/\//.test(normalized) ? normalized : '';
+const normalizeInteger = (value: unknown, fallback: number, minimum: number, maximum: number): number => (
+  typeof value === 'number' && Number.isInteger(value) && value >= minimum && value <= maximum
+    ? value
+    : fallback
+);
+
+const normalizeKeywords = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [...DEFAULT_PUBLIC_SITE_CONFIGURATION.searchKeywords];
+  const keywords = [...new Set(value.flatMap((item) => (
+    typeof item === 'string' ? [item.trim().replace(/\s+/g, ' ')] : []
+  )).filter(Boolean))];
+  return keywords.length >= 1 && keywords.length <= 24 && keywords.every((keyword) => keyword.length <= 80)
+    ? keywords
+    : [...DEFAULT_PUBLIC_SITE_CONFIGURATION.searchKeywords];
 };
 
 const isSafeInternalPath = (value: string): boolean => /^\/(?!\/)[A-Za-z0-9/_-]*$/.test(value);
@@ -134,7 +159,10 @@ export const hydratePublicSiteConfiguration = (
   supportOfferVisible: row?.support_offer_visible !== false,
   homepageTitle: normalizeText(row?.homepage_title, DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageTitle, 80),
   homepageDescription: normalizeText(row?.homepage_description, DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageDescription, 200),
-  homepageShareImageUrl: normalizeHttpsUrl(row?.homepage_share_image_url),
+  searchKeywords: normalizeKeywords(row?.search_keywords),
+  watermarkPreviewOpacity: normalizeInteger(row?.watermark_preview_opacity, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkPreviewOpacity, 5, 80),
+  watermarkShareOpacity: normalizeInteger(row?.watermark_share_opacity, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkShareOpacity, 5, 80),
+  watermarkWidthPercent: normalizeInteger(row?.watermark_width_percent, DEFAULT_PUBLIC_SITE_CONFIGURATION.watermarkWidthPercent, 20, 90),
   primaryNavigation: normalizeNavigation(row?.primary_navigation),
   homepageSections: normalizeHomepageSections(row?.homepage_sections),
 });
@@ -151,7 +179,10 @@ export const normalizePublicSiteConfigurationInput = (
     support_offer_visible: input.supportOfferVisible,
     homepage_title: input.homepageTitle,
     homepage_description: input.homepageDescription,
-    homepage_share_image_url: input.homepageShareImageUrl,
+    search_keywords: input.searchKeywords,
+    watermark_preview_opacity: input.watermarkPreviewOpacity,
+    watermark_share_opacity: input.watermarkShareOpacity,
+    watermark_width_percent: input.watermarkWidthPercent,
     primary_navigation: input.primaryNavigation,
     homepage_sections: input.homepageSections,
   });
@@ -174,8 +205,18 @@ export const normalizePublicSiteConfigurationInput = (
   if (typeof input.homepageDescription !== 'string' || input.homepageDescription.trim().length < 40 || input.homepageDescription.trim().length > 200) {
     throw new Error('Homepage description must be between 40 and 200 characters.');
   }
-  if (typeof input.homepageShareImageUrl !== 'string' || (input.homepageShareImageUrl.trim() && !/^https:\/\//.test(input.homepageShareImageUrl.trim()))) {
-    throw new Error('Share image must be blank or use an HTTPS URL.');
+  if (!Array.isArray(input.searchKeywords) || input.searchKeywords.length < 1 || input.searchKeywords.length > 24
+    || input.searchKeywords.some((keyword) => typeof keyword !== 'string' || !keyword.trim() || keyword.trim().length > 80)) {
+    throw new Error('Add between 1 and 24 search phrases, each 80 characters or fewer.');
+  }
+  if (typeof input.watermarkPreviewOpacity !== 'number' || !Number.isInteger(input.watermarkPreviewOpacity) || input.watermarkPreviewOpacity < 5 || input.watermarkPreviewOpacity > 80) {
+    throw new Error('Preview watermark opacity must be between 5 and 80 percent.');
+  }
+  if (typeof input.watermarkShareOpacity !== 'number' || !Number.isInteger(input.watermarkShareOpacity) || input.watermarkShareOpacity < 5 || input.watermarkShareOpacity > 80) {
+    throw new Error('Social watermark opacity must be between 5 and 80 percent.');
+  }
+  if (typeof input.watermarkWidthPercent !== 'number' || !Number.isInteger(input.watermarkWidthPercent) || input.watermarkWidthPercent < 20 || input.watermarkWidthPercent > 90) {
+    throw new Error('Watermark width must be between 20 and 90 percent.');
   }
   return configuration;
 };

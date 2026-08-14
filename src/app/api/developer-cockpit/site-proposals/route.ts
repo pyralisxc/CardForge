@@ -90,9 +90,7 @@ export async function PATCH(request: Request) {
         body.expectedVersion,
         body.reviewNote,
       );
-      revalidateSiteContentCache('landing');
-      revalidateSiteContentCache('about');
-      revalidateSiteContentCache('sharing');
+      revalidateSiteContentCache();
       revalidatePath('/');
       revalidatePath('/about');
     } else {

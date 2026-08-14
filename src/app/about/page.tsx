@@ -13,6 +13,7 @@ import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   createBreadcrumbStructuredData,
   createSiteContentMap,
+  getCachedPublicSiteConfiguration,
   getCachedSiteContentBlocks,
   PublicSiteShell,
   StructuredData,
@@ -20,26 +21,29 @@ import {
 import { createPageMetadata } from '@/shared/siteMetadata';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
-export const metadata = createPageMetadata({
-  title: 'About CardForge',
-  description: 'See how CardForge Studio helps creators build customized card sets and how contributors support its shared library, marketing, and public-site improvements.',
-  path: '/about',
-});
-
-const principles = [
-  ['Design the system once', 'Build a reusable layout, then carry the visual rules across every item in the set.', Layers3],
-  ['Your work stays with you', 'Your projects and artwork stay in your browser or downloaded files unless you choose to share them.', ShieldCheck],
-  ['Tune every detail', 'Mix shared structure with card-specific text, art, colors, and positioning so the result still feels personal.', Sparkles],
-  ['Review the whole run', 'Inspect the complete set together, catch inconsistencies, then export images, a PDF, or a ZIP when it is ready.', Eye],
-] as const;
+export async function generateMetadata() {
+  const content = createSiteContentMap(await getCachedSiteContentBlocks('about'));
+  return createPageMetadata({
+    title: content['about.meta.title'],
+    description: content['about.meta.description'],
+    path: '/about',
+  });
+}
 
 export default async function AboutPage() {
   const authConfigured = isClerkServerConfigPresent();
-  const [businessIdentity, siteContentBlocks] = await Promise.all([
+  const [businessIdentity, siteContentBlocks, siteConfiguration] = await Promise.all([
     getCachedBusinessIdentity(),
     getCachedSiteContentBlocks('about'),
+    getCachedPublicSiteConfiguration(),
   ]);
   const siteContent = createSiteContentMap(siteContentBlocks);
+  const principles = [
+    [siteContent['about.principle1.title'], siteContent['about.principle1.body'], Layers3],
+    [siteContent['about.principle2.title'], siteContent['about.principle2.body'], ShieldCheck],
+    [siteContent['about.principle3.title'], siteContent['about.principle3.body'], Sparkles],
+    [siteContent['about.principle4.title'], siteContent['about.principle4.body'], Eye],
+  ] as const;
 
   return (
     <CardForgeAppProviders>
@@ -51,7 +55,7 @@ export default async function AboutPage() {
 
       <section className="border-b border-[var(--public-border)] bg-[var(--public-obsidian)] px-5 py-10 md:px-8 md:py-14">
         <div className="mx-auto max-w-5xl">
-          <p className="text-base font-semibold text-[var(--public-brass)]">About CardForge Studio</p>
+          <p className="text-base font-semibold text-[var(--public-brass)]">{siteContent['about.hero.eyebrow']}</p>
           <h1 className="mt-2 max-w-4xl font-[var(--public-font-display)] text-4xl font-semibold leading-tight text-[var(--public-ivory)] md:text-5xl">
             {siteContent['about.hero.headline']}
           </h1>
@@ -59,11 +63,11 @@ export default async function AboutPage() {
             {siteContent['about.hero.body']}
           </p>
           <div className="mt-6 flex flex-wrap gap-5">
-            <Link href="/studio" prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">
-              Try the Studio <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            <Link href={siteConfiguration.primaryCtaHref} prefetch={false} className="inline-flex min-h-11 items-center gap-2 font-bold text-[var(--public-brass)]">
+              {siteConfiguration.primaryCtaLabel} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link href="/cameron" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">
-              Meet the developer
+              {siteContent['about.hero.secondary-action']}
             </Link>
           </div>
         </div>
@@ -72,10 +76,10 @@ export default async function AboutPage() {
       <section className="border-b border-[var(--public-border)] bg-[var(--public-charcoal)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-5xl">
           <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
-            Customization without repetitive work
+            {siteContent['about.principles.headline']}
           </h2>
           <p className="mt-3 max-w-4xl text-lg leading-8 text-[var(--public-muted-text)]">
-            The goal is a practical middle ground: enough structure to keep a large set coherent, and enough control for the finished work to belong unmistakably to its creator.
+            {siteContent['about.principles.body']}
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {principles.map(([title, copy, Icon]) => (
@@ -92,24 +96,24 @@ export default async function AboutPage() {
       <section className="border-b border-[var(--public-border)] bg-[var(--public-surface)] px-5 py-10 md:px-8 md:py-12">
         <div className="mx-auto max-w-5xl">
           <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
-            Cards are the starting point
+            {siteContent['about.direction.headline']}
           </h2>
           <p className="mt-3 max-w-4xl text-lg leading-8 text-[var(--public-muted-text)]">
-            Card sets are the product today. The wider ambition is a creation system that can serve many kinds of repeatable, printable design work while keeping the same data-driven workflow.
+            {siteContent['about.direction.body']}
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <article className="border border-[var(--public-border)] bg-[var(--public-charcoal)] p-5">
-              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--public-brass)]">Available now</p>
-              <h3 className="mt-2 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">Complete custom card sets</h3>
+              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--public-brass)]">{siteContent['about.direction.current.label']}</p>
+              <h3 className="mt-2 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{siteContent['about.direction.current.title']}</h3>
               <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">
-                Reusable card layouts, structured data, whole-set review, browser-based project control, and downloadable production files.
+                {siteContent['about.direction.current.body']}
               </p>
             </article>
             <article className="border border-[var(--public-border)] bg-[var(--public-charcoal)] p-5">
-              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--public-brass)]">Long-term direction</p>
-              <h3 className="mt-2 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">More kinds of printable creation</h3>
+              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--public-brass)]">{siteContent['about.direction.future.label']}</p>
+              <h3 className="mt-2 font-[var(--public-font-display)] text-2xl font-semibold text-[var(--public-ivory)]">{siteContent['about.direction.future.title']}</h3>
               <p className="mt-2 text-base leading-7 text-[var(--public-muted-text)]">
-                Our future printable formats may include game aids, reference sheets, labels, badges, tokens, and other reusable layouts. These formats are a direction, not currently available features.
+                {siteContent['about.direction.future.body']}
               </p>
             </article>
           </div>
@@ -120,24 +124,24 @@ export default async function AboutPage() {
         <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-[1.3fr_0.7fr] md:items-start">
           <div>
             <h2 className="font-[var(--public-font-display)] text-3xl font-semibold text-[var(--public-ivory)] md:text-4xl">
-              Growing with creators and developers
+              {siteContent['about.contributors.headline']}
             </h2>
             <p className="mt-3 text-lg leading-8 text-[var(--public-muted-text)]">
-              Public roadmap voting helps creators influence priorities. Qualified contributors can submit shared assets, marketing drafts, and site-copy proposals.
+              {siteContent['about.contributors.body']}
             </p>
             <p className="mt-3 text-base leading-7 text-[var(--public-muted-text)]">
-              All public changes remain owner-approved. Contributions follow the current Developer Terms and do not create guaranteed payment, ownership of CardForge, or revenue-sharing rights.
+              {siteContent['about.contributors.ownership']}
             </p>
           </div>
           <div className="grid gap-3 border border-[var(--public-border)] bg-[var(--public-surface)] p-5">
             <Link href="/developer" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-bold text-[var(--public-brass)]">
-              Developer program <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {siteContent['about.contributors.developer-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-semibold text-[var(--public-ivory)]">
-              Public roadmap <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {siteContent['about.contributors.roadmap-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link href="/cameron" prefetch={false} className="inline-flex min-h-11 items-center justify-between gap-3 font-semibold text-[var(--public-ivory)]">
-              About Cameron <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {siteContent['about.contributors.founder-action']} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -146,14 +150,14 @@ export default async function AboutPage() {
       <section className="bg-[var(--public-surface)] px-5 py-10 text-[var(--public-ivory)] md:px-8 md:py-12">
         <div className="mx-auto flex max-w-5xl flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-[var(--public-font-display)] text-3xl font-semibold">An honest public beta</h2>
+            <h2 className="font-[var(--public-font-display)] text-3xl font-semibold">{siteContent['about.beta.headline']}</h2>
             <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--public-muted-text)]">
-              CardForge Studio is independently built and actively improving. The public roadmap separates what works now from what is still planned.
+              {siteContent['about.beta.body']}
             </p>
           </div>
           <div className="flex flex-wrap gap-5">
-            <Link href="/#interactive-showcase" prefetch={false} className="inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">See CardForge in action</Link>
-            <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">View roadmap</Link>
+            <Link href="/#interactive-showcase" prefetch={false} className="inline-flex min-h-11 items-center font-bold text-[var(--public-brass)]">{siteContent['about.beta.showcase-action']}</Link>
+            <Link href="/roadmap" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-[var(--public-ivory)]">{siteContent['about.beta.roadmap-action']}</Link>
           </div>
         </div>
       </section>

@@ -50,6 +50,7 @@ export function DeveloperSiteProposalPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const selectedBlock = cockpit.siteContentBlocks.find((block) => block.slug === draft.slug);
 
   const run = async (key: string, success: string, action: () => Promise<DeveloperCockpitView>) => {
     setBusy(key);
@@ -118,8 +119,8 @@ export function DeveloperSiteProposalPanel({
             <Button type="button" className="min-h-11" variant="outline" onClick={closeComposer}>Close editor</Button>
           </div>
           <div className="mt-4 grid gap-3">
-            <label className="grid gap-1 text-xs text-[#c7b288]">Site text to update<select className={fieldClassName} value={draft.slug} disabled={Boolean(editing)} onChange={(event) => selectBlock(event.target.value as SiteContentBlockSlug)}>{cockpit.siteContentBlocks.map((block) => <option key={block.slug} value={block.slug}>{block.label}</option>)}</select></label>
-            <label className="grid gap-1 text-xs text-[#c7b288]"><span className="flex justify-between"><span>Proposed copy</span><span>{draft.proposedBody.length}/800</span></span><textarea className={`${fieldClassName} min-h-32`} maxLength={800} value={draft.proposedBody} onChange={(event) => setDraft({ ...draft, proposedBody: event.target.value })} /></label>
+            <label className="grid gap-1 text-xs text-[#c7b288]">Site text to update<select className={fieldClassName} value={draft.slug} disabled={Boolean(editing)} onChange={(event) => selectBlock(event.target.value as SiteContentBlockSlug)}>{cockpit.siteContentBlocks.map((block) => <option key={block.slug} value={block.slug}>{block.group} / {block.section} / {block.label}</option>)}</select></label>
+            <label className="grid gap-1 text-xs text-[#c7b288]"><span className="flex justify-between"><span>Proposed copy</span><span>{draft.proposedBody.length}/{selectedBlock?.maxLength ?? 800}</span></span><textarea className={`${fieldClassName} min-h-32`} maxLength={selectedBlock?.maxLength ?? 800} value={draft.proposedBody} onChange={(event) => setDraft({ ...draft, proposedBody: event.target.value })} /></label>
             <label className="grid gap-1 text-xs text-[#c7b288]"><span className="flex justify-between"><span>Why this helps</span><span>{draft.rationale.length}/800</span></span><textarea className={`${fieldClassName} min-h-24`} maxLength={800} value={draft.rationale} onChange={(event) => setDraft({ ...draft, rationale: event.target.value })} placeholder="Name the ambiguity, audience need, SEO intent, or product truth this improves." /></label>
           </div>
           <Button type="button" className="mt-4 min-h-11" disabled={Boolean(busy)} onClick={() => void save()}>{busy === 'create' || busy?.startsWith('save:') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDiff className="mr-2 h-4 w-4" />}{editing ? 'Save changes' : 'Create proposal'}</Button>
