@@ -5,7 +5,13 @@ import {
   normalizeCampaignInput,
   normalizeSiteProposalInput,
 } from '@/features/developer-cockpit/model';
-import { resolveDeveloperContributionScopes } from '@/features/developer-access/model';
+import {
+  EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+  OWNER_DEVELOPER_ACCESS_PROJECTION,
+  resolveDeveloperAccessProjectionForSession,
+  resolveDeveloperContributionScopes,
+  shouldClearStoredDeveloperAccess,
+} from '@/features/developer-access/model';
 import { assertDerivativeAccess } from '@/features/developer-cockpit/server/media';
 import { getVisibleCampaignDerivatives } from '@/features/developer-cockpit/server/storeShared';
 
@@ -44,6 +50,54 @@ describe('developer contribution cockpit', () => {
       canDraftCampaigns: false,
       canProposeSiteContent: false,
     })).toContain('campaigns.publish');
+  });
+
+  it('projects owner revision controls from the current trusted account session', () => {
+    expect(resolveDeveloperAccessProjectionForSession({
+      isOwner: true,
+      sessionKey: 'owner-session',
+      state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+    })).toMatchObject({
+      hasCockpitAccess: true,
+      canSubmitTemplateRevisions: true,
+      canPublishSharedLibrary: true,
+    });
+
+    expect(resolveDeveloperAccessProjectionForSession({
+      isOwner: true,
+      sessionKey: null,
+      state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+    })).toMatchObject({
+      hasCockpitAccess: false,
+      canSubmitTemplateRevisions: false,
+      canPublishSharedLibrary: false,
+    });
+  });
+
+  it('clears an owner projection before the same account can return without owner access', () => {
+    const priorOwnerState = {
+      sessionKey: 'owner-session',
+      projection: OWNER_DEVELOPER_ACCESS_PROJECTION,
+    };
+
+    expect(shouldClearStoredDeveloperAccess({
+      isOwner: true,
+      sessionKey: 'owner-session',
+      state: priorOwnerState,
+    })).toBe(true);
+    expect(resolveDeveloperAccessProjectionForSession({
+      isOwner: true,
+      sessionKey: null,
+      state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+    })).toBe(EMPTY_DEVELOPER_ACCESS_SESSION_STATE.projection);
+    expect(resolveDeveloperAccessProjectionForSession({
+      isOwner: false,
+      sessionKey: 'owner-session',
+      state: EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+    })).toMatchObject({
+      canSubmitTemplateRevisions: false,
+      canPublishSharedLibrary: false,
+    });
   });
 
   it('normalizes complete channel-specific campaign packages', () => {

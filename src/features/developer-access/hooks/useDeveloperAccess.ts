@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import {
   EMPTY_DEVELOPER_ACCESS_PROJECTION,
   EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+  resolveDeveloperAccessProjectionForSession,
+  shouldClearStoredDeveloperAccess,
   type DeveloperAccessProjection,
   type DeveloperAccessSessionState,
 } from '@/features/developer-access/model';
@@ -12,11 +14,18 @@ import {
 export const useDeveloperAccess = (
   sessionKey: string | null,
   initialState: DeveloperAccessSessionState = EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
+  isOwner = false,
 ): DeveloperAccessProjection & { isLoading: boolean } => {
   const [state, setState] = useState<DeveloperAccessSessionState>(initialState);
 
   useEffect(() => {
-    if (!sessionKey || state.sessionKey === sessionKey) return;
+    if (!sessionKey || isOwner) {
+      if (shouldClearStoredDeveloperAccess({ isOwner, sessionKey, state })) {
+        setState(EMPTY_DEVELOPER_ACCESS_SESSION_STATE);
+      }
+      return;
+    }
+    if (state.sessionKey === sessionKey) return;
     let cancelled = false;
 
     void fetch('/api/developer-access', { cache: 'no-store' })
@@ -35,11 +44,11 @@ export const useDeveloperAccess = (
     return () => {
       cancelled = true;
     };
-  }, [sessionKey, state.sessionKey]);
+  }, [isOwner, sessionKey, state]);
 
   const isCurrentSession = Boolean(sessionKey && state.sessionKey === sessionKey);
   return {
-    ...(isCurrentSession ? state.projection : EMPTY_DEVELOPER_ACCESS_PROJECTION),
-    isLoading: Boolean(sessionKey && !isCurrentSession),
+    ...resolveDeveloperAccessProjectionForSession({ isOwner, sessionKey, state }),
+    isLoading: Boolean(sessionKey && !isOwner && !isCurrentSession),
   };
 };

@@ -45,6 +45,7 @@ export function CardForgeStudioShell({
   const developerAccess = useDeveloperAccess(
     accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
     initialDeveloperAccess,
+    accountEntitlement.ownerAccess.isOwner,
   );
   const projectCapabilities = accountEntitlement.capabilities;
   const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();

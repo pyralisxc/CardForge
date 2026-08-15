@@ -63,10 +63,45 @@ export const EMPTY_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
   canPublishSharedLibrary: false,
 };
 
+export const OWNER_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
+  hasCockpitAccess: true,
+  cockpitHref: '/developer/cockpit',
+  canSubmitTemplateRevisions: true,
+  canPublishSharedLibrary: true,
+};
+
 export const EMPTY_DEVELOPER_ACCESS_SESSION_STATE: DeveloperAccessSessionState = {
   sessionKey: null,
   projection: EMPTY_DEVELOPER_ACCESS_PROJECTION,
 };
+
+export const resolveDeveloperAccessProjectionForSession = ({
+  isOwner,
+  sessionKey,
+  state,
+}: {
+  isOwner: boolean;
+  sessionKey: string | null;
+  state: DeveloperAccessSessionState;
+}): DeveloperAccessProjection => {
+  if (!sessionKey) return EMPTY_DEVELOPER_ACCESS_PROJECTION;
+  if (isOwner) return OWNER_DEVELOPER_ACCESS_PROJECTION;
+  return state.sessionKey === sessionKey
+    ? state.projection
+    : EMPTY_DEVELOPER_ACCESS_PROJECTION;
+};
+
+export const shouldClearStoredDeveloperAccess = ({
+  isOwner,
+  sessionKey,
+  state,
+}: {
+  isOwner: boolean;
+  sessionKey: string | null;
+  state: DeveloperAccessSessionState;
+}): boolean => (
+  (!sessionKey || isOwner) && state.sessionKey !== null
+);
 
 export const resolveDeveloperContributionScopes = ({
   isOwner,
