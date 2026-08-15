@@ -1,5 +1,6 @@
 import {
   getCurrentCardforgeUserAccess,
+  resolveOwnerAccessForServerUser,
   resolveAccountEntitlement,
   type CardforgeServerUser,
 } from '@/features/account/server';
@@ -33,7 +34,7 @@ export class DeveloperCockpitAccessError extends Error {
 }
 
 export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockpitAccess> => {
-  const { authConfigured, user, ownerAccess } = await getCurrentCardforgeUserAccess();
+  const { authConfigured, user } = await getCurrentCardforgeUserAccess();
   if (!user) {
     throw new DeveloperCockpitAccessError('Sign in before using the developer cockpit.', 401);
   }
@@ -51,6 +52,7 @@ export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockp
     firstName: user.firstName ?? storedIdentity?.firstName ?? null,
     lastName: user.lastName ?? storedIdentity?.lastName ?? null,
   };
+  const ownerAccess = resolveOwnerAccessForServerUser(authConfigured, resolvedUser);
 
   const entitlement = resolveAccountEntitlement({
     authConfigured,

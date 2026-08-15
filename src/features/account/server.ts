@@ -5,6 +5,7 @@ export {
 export {
   getCurrentCardforgeEntitlement,
   getCurrentCardforgeUserAccess,
+  resolveOwnerAccessForServerUser,
   type CardforgeServerUser,
 } from './lib/serverCardforgeUser';
 export * from './server/accountAdministration';
