@@ -1,4 +1,4 @@
-import type { CampaignMedia } from '@/features/developer-cockpit/model';
+import type { CampaignMedia, CampaignMediaLibrarySummary } from '@/features/developer-cockpit/model';
 import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
 
 import {
@@ -140,20 +140,49 @@ const loadMediaDerivatives = async (mediaIds: string[]) => {
   return readDatabaseRows<DerivativeRow>(data);
 };
 
-export const getAuthorizedCampaignMedia = async (
+export interface CampaignMediaPage {
+  items: CampaignMedia[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export const getAuthorizedCampaignMediaPage = async (
   access: DeveloperCockpitAccess,
-  filters: { query?: string; state?: string; campaignId?: string } = {},
-): Promise<CampaignMedia[]> => {
+  filters: { query?: string; state?: string; campaignId?: string; page?: number; pageSize?: number } = {},
+): Promise<CampaignMediaPage> => {
   if (filters.campaignId) {
     await assertCampaignFilterAccess(filters.campaignId, access);
   }
 
   const supabase = requireCockpitDatabase();
+  const rawPageSize = Number(filters.pageSize ?? 24);
+  const rawPage = Number(filters.page ?? 1);
+  const pageSize = Number.isFinite(rawPageSize)
+    ? Math.min(60, Math.max(6, Math.trunc(rawPageSize)))
+    : 24;
+  const requestedPage = Number.isFinite(rawPage) ? Math.max(1, Math.trunc(rawPage)) : 1;
+  let campaignMediaIds: string[] | null = null;
+  if (filters.campaignId) {
+    const linkedResult = await supabase
+      .from('cardforge_social_campaign_media_attachments')
+      .select('media_id')
+      .eq('campaign_id', filters.campaignId);
+    if (linkedResult.error) {
+      throwCockpitDatabaseError('Unable to filter campaign media.', linkedResult.error);
+    }
+    campaignMediaIds = [...new Set(
+      readDatabaseRows<{ media_id: string }>(linkedResult.data).map((row) => row.media_id),
+    )];
+    if (campaignMediaIds.length === 0) {
+      return { items: [], total: 0, page: 1, pageSize };
+    }
+  }
+
   let query = supabase
     .from('cardforge_campaign_media')
-    .select(MEDIA_COLUMNS)
-    .order('created_at', { ascending: false })
-    .limit(200);
+    .select(MEDIA_COLUMNS, { count: 'exact' })
+    .order('created_at', { ascending: false });
   if (!access.isOwner) {
     const contributorId = access.user.id.replace(/[,%()]/g, '');
     query = query.or(
@@ -169,35 +198,25 @@ export const getAuthorizedCampaignMedia = async (
   if (filters.query) {
     const search = filters.query.replace(/[,%()]/g, '').slice(0, 120);
     query = query.or(
-      `original_filename.ilike.%${search}%,creator_credit.ilike.%${search}%,reusable_caption.ilike.%${search}%,reusable_description.ilike.%${search}%`,
+      `original_filename.ilike.%${search}%,contributor_email.ilike.%${search}%,contributor_name.ilike.%${search}%,creator_credit.ilike.%${search}%,reusable_caption.ilike.%${search}%,reusable_description.ilike.%${search}%`,
     );
   }
 
-  const { data, error } = await query;
+  if (campaignMediaIds) query = query.in('id', campaignMediaIds);
+
+  const page = requestedPage;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await query.range(from, to);
   if (error) throwCockpitDatabaseError('Unable to load campaign media library.', error);
-  let rows = readDatabaseRows<CampaignMediaRow>(data);
-  if (filters.campaignId) {
-    const linkedResult = await supabase
-      .from('cardforge_social_campaign_media_attachments')
-      .select('media_id')
-      .eq('campaign_id', filters.campaignId);
-    if (linkedResult.error) {
-      throwCockpitDatabaseError(
-        'Unable to filter campaign media.',
-        linkedResult.error,
-      );
-    }
-    const ids = new Set(
-      readDatabaseRows<{ media_id: string }>(linkedResult.data)
-        .map((row) => row.media_id),
-    );
-    rows = rows.filter((row) => ids.has(row.id));
-  }
+  const total = count ?? 0;
+  const rows = readDatabaseRows<CampaignMediaRow>(data);
 
   const mediaIds = rows.map((row) => row.id);
   const derivatives = await loadMediaDerivatives(mediaIds);
   if (!access.isOwner) {
-    return rows.map((row) => mapMediaRow(
+    return { items: rows.map((row) => mapMediaRow(
       row,
       derivatives.filter((derivative) => (
         derivative.parent_media_id === row.id
@@ -206,7 +225,7 @@ export const getAuthorizedCampaignMedia = async (
           || derivative.exposure === 'public'
         )
       )),
-    ));
+    )), total, page, pageSize };
   }
 
   const attachmentResult = mediaIds.length
@@ -225,10 +244,13 @@ export const getAuthorizedCampaignMedia = async (
     media_id: string;
     campaign_id: string;
   }>(attachmentResult.data);
-  const jobsResult = await supabase
-    .from('cardforge_social_publish_jobs')
-    .select('campaign_id')
-    .limit(500);
+  const relatedCampaignIds = [...new Set(attachments.map((attachment) => attachment.campaign_id))];
+  const jobsResult = relatedCampaignIds.length
+    ? await supabase
+      .from('cardforge_social_publish_jobs')
+      .select('campaign_id')
+      .in('campaign_id', relatedCampaignIds)
+    : { data: [], error: null };
   if (jobsResult.error) {
     throwCockpitDatabaseError(
       'Unable to load media publication history.',
@@ -237,7 +259,7 @@ export const getAuthorizedCampaignMedia = async (
   }
   const jobs = readDatabaseRows<{ campaign_id: string }>(jobsResult.data);
 
-  return rows.map((row) => {
+  return { items: rows.map((row) => {
     const campaignIds = [...new Set(
       attachments
         .filter((attachment) => attachment.media_id === row.id)
@@ -249,7 +271,36 @@ export const getAuthorizedCampaignMedia = async (
       campaignIds,
       jobs.filter((job) => campaignIds.includes(job.campaign_id)).length,
     );
-  });
+  }), total, page, pageSize };
+};
+
+export const getAuthorizedCampaignMedia = async (
+  access: DeveloperCockpitAccess,
+  filters: { query?: string; state?: string; campaignId?: string } = {},
+): Promise<CampaignMedia[]> => (
+  await getAuthorizedCampaignMediaPage(access, { ...filters, page: 1, pageSize: 24 })
+).items;
+
+export const getCampaignMediaLibrarySummary = async (
+  access: DeveloperCockpitAccess,
+): Promise<CampaignMediaLibrarySummary> => {
+  const { data, error } = await requireCockpitDatabase().rpc(
+    'cardforge_get_campaign_media_summary',
+    { p_contributor_id: access.user.id, p_is_owner: access.isOwner },
+  );
+  if (error) throwCockpitDatabaseError('Unable to summarize campaign media library.', error);
+  const row = readFirstDatabaseRow<{
+    media_count: number | string;
+    protected_bytes: number | string;
+    derivative_bytes: number | string;
+    unused_media_count: number | string;
+  }>(data);
+  return {
+    mediaCount: Number(row?.media_count) || 0,
+    protectedBytes: Number(row?.protected_bytes) || 0,
+    derivativeBytes: Number(row?.derivative_bytes) || 0,
+    unusedMediaCount: Number(row?.unused_media_count) || 0,
+  };
 };
 
 export const setCampaignMediaArchived = async ({

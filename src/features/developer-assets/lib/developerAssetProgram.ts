@@ -74,6 +74,15 @@ export interface DeveloperAssetProgramView {
   activeDeveloperCount: number;
   submissions: DeveloperAssetSubmission[];
   votingQueue: DeveloperAssetSubmission[];
+  submissionPage: DeveloperAssetPageSummary;
+  votingPage: DeveloperAssetPageSummary;
+  totalSubmissionCount: number;
+  totalVoteableCount: number;
+  submissionStatusCounts: Record<DeveloperAssetStatus, number>;
+  reviewStatusCounts: Record<DeveloperAssetStatus, number>;
+  submissionTypeCounts: Record<DeveloperAssetType, number>;
+  managedFileCount: number;
+  managedStorageBytes: number;
   assetTypeSummaries: DeveloperAssetTypePipelineSummary[];
   developerContributions: DeveloperContributionSummary[];
   developerStats: DeveloperAssetMonthlyStats;
@@ -81,6 +90,30 @@ export interface DeveloperAssetProgramView {
   effectiveMonthlyPublishedRequirement: number;
   developerOwnerNote: string | null;
   remainingSubmissions: number;
+}
+
+export interface DeveloperAssetPageSummary {
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface DeveloperAssetProgramAggregate {
+  totalSubmissionCount: number;
+  totalVoteableCount: number;
+  submissionStatusCounts: Partial<Record<DeveloperAssetStatus, number>>;
+  reviewStatusCounts: Partial<Record<DeveloperAssetStatus, number>>;
+  submissionTypeCounts: Partial<Record<DeveloperAssetType, number>>;
+  managedFileCount: number;
+  managedStorageBytes: number;
+  assetTypeMetrics: Partial<Record<DeveloperAssetType, {
+    published: number;
+    starter: number;
+    creatorPass: number;
+    candidate: number;
+    archived: number;
+  }>>;
+  monthlyStatsByDeveloper: Record<string, DeveloperAssetMonthlyStats & { total: number }>;
 }
 
 export interface DeveloperProgramSettingsRow {
@@ -338,6 +371,10 @@ export const buildDeveloperAssetProgramView = ({
   currentContributorIds = [currentUserId],
   activeDeveloperCount = 1,
   submissions,
+  votingQueue,
+  submissionPage,
+  votingPage,
+  aggregate,
   profiles = [],
   now = new Date(),
 }: {
@@ -347,6 +384,10 @@ export const buildDeveloperAssetProgramView = ({
   currentContributorIds?: string[];
   activeDeveloperCount?: number;
   submissions: DeveloperAssetSubmission[];
+  votingQueue?: DeveloperAssetSubmission[];
+  submissionPage?: DeveloperAssetPageSummary;
+  votingPage?: DeveloperAssetPageSummary;
+  aggregate?: DeveloperAssetProgramAggregate;
   profiles?: DeveloperAssetProfile[];
   now?: Date;
 }): DeveloperAssetProgramView => {
@@ -355,33 +396,39 @@ export const buildDeveloperAssetProgramView = ({
   const currentContributorIdSet = new Set(currentContributorIds.length > 0 ? currentContributorIds : [currentUserId]);
   const accountSubmissions = submissions.filter((submission) => submission.developerId === currentUserId);
   const currentRules = resolveEffectiveDeveloperRules(settings, currentProfile);
-  const developerStats = countDeveloperMonthlyStats(accountSubmissions, now);
+  const developerStats = aggregate?.monthlyStatsByDeveloper[currentUserId]
+    ?? countDeveloperMonthlyStats(accountSubmissions, now);
   const activeReviewStatuses = new Set(['draft', 'submitted', 'voting', 'publish_candidate', 'published']);
   const assetTypeSummaries = DEVELOPER_ASSET_TYPES.map((assetType) => {
     const byType = submissions.filter((submission) => submission.assetType === assetType);
     const published = byType.filter((submission) => submission.status === 'published');
-    const starterCount = published.filter((submission) => submission.calculatedAccessTier === 'free').length;
-    const creatorPassCount = published.filter((submission) => submission.calculatedAccessTier === 'paid').length;
+    const metrics = aggregate?.assetTypeMetrics[assetType];
+    const publishedCount = metrics?.published ?? published.length;
+    const starterCount = metrics?.starter ?? published.filter((submission) => submission.calculatedAccessTier === 'free').length;
+    const creatorPassCount = metrics?.creatorPass ?? published.filter((submission) => submission.calculatedAccessTier === 'paid').length;
     const publishCap = settings.publishCapsByType[assetType];
     const starterCap = settings.tierCapsByType[assetType].free;
     const creatorPassCap = settings.tierCapsByType[assetType].paid;
     return {
       assetType,
-      publishedCount: published.length,
+      publishedCount,
       starterCount,
       creatorPassCount,
-      candidateCount: byType.filter((submission) => submission.status === 'voting' || submission.status === 'publish_candidate').length,
-      archiveCount: byType.filter((submission) => submission.status === 'archived').length,
+      candidateCount: metrics?.candidate ?? byType.filter((submission) => submission.status === 'voting' || submission.status === 'publish_candidate').length,
+      archiveCount: metrics?.archived ?? byType.filter((submission) => submission.status === 'archived').length,
       publishCap,
       starterCap,
       creatorPassCap,
-      openPublishSlots: Math.max(0, publishCap - published.length),
-      overPublishCapBy: Math.max(0, published.length - publishCap),
+      openPublishSlots: Math.max(0, publishCap - publishedCount),
+      overPublishCapBy: Math.max(0, publishedCount - publishCap),
       overStarterCapBy: Math.max(0, starterCount - starterCap),
       overCreatorPassCapBy: Math.max(0, creatorPassCount - creatorPassCap),
     };
   });
   const contributionMap = new Map<string, DeveloperAssetSubmission[]>();
+  Object.keys(aggregate?.monthlyStatsByDeveloper ?? {}).forEach((developerId) => {
+    contributionMap.set(developerId, []);
+  });
   submissions.forEach((submission) => {
     const current = contributionMap.get(submission.developerId) ?? [];
     current.push(submission);
@@ -393,7 +440,8 @@ export const buildDeveloperAssetProgramView = ({
   });
   const developerContributions = Array.from(contributionMap.entries())
     .map(([developerId, developerSubmissions]) => {
-      const stats = countDeveloperMonthlyStats(developerSubmissions, now);
+      const stats = aggregate?.monthlyStatsByDeveloper[developerId]
+        ?? countDeveloperMonthlyStats(developerSubmissions, now);
       const developerEmail = developerSubmissions.find((submission) => submission.developerEmail)?.developerEmail ?? null;
       const namedSubmission = developerSubmissions.find((submission) => submission.developerDisplayName);
       const profile = profilesById.get(developerId);
@@ -427,10 +475,53 @@ export const buildDeveloperAssetProgramView = ({
     currentContributorIds: Array.from(currentContributorIdSet),
     activeDeveloperCount,
     submissions,
-    votingQueue: submissions.filter((submission) => (
+    votingQueue: votingQueue ?? submissions.filter((submission) => (
       activeReviewStatuses.has(submission.status)
       && (settings.allowContributorSelfVoting || !currentContributorIdSet.has(submission.developerId))
     )),
+    submissionPage: submissionPage ?? { total: submissions.length, page: 1, pageSize: Math.max(1, submissions.length) },
+    votingPage: votingPage ?? {
+      total: submissions.filter((submission) => (
+        activeReviewStatuses.has(submission.status)
+        && (settings.allowContributorSelfVoting || !currentContributorIdSet.has(submission.developerId))
+      )).length,
+      page: 1,
+      pageSize: Math.max(1, submissions.length),
+    },
+    totalSubmissionCount: aggregate?.totalSubmissionCount ?? submissions.length,
+    totalVoteableCount: aggregate?.totalVoteableCount ?? submissions.filter((submission) => (
+      activeReviewStatuses.has(submission.status)
+      && (settings.allowContributorSelfVoting || !currentContributorIdSet.has(submission.developerId))
+    )).length,
+    submissionStatusCounts: Object.fromEntries([
+      'draft', 'submitted', 'voting', 'publish_candidate', 'published', 'archived', 'rejected',
+    ].map((status) => [
+      status,
+      aggregate?.submissionStatusCounts[status as DeveloperAssetStatus]
+        ?? submissions.filter((submission) => submission.status === status).length,
+    ])) as Record<DeveloperAssetStatus, number>,
+    reviewStatusCounts: Object.fromEntries([
+      'draft', 'submitted', 'voting', 'publish_candidate', 'published', 'archived', 'rejected',
+    ].map((status) => [
+      status,
+      aggregate?.reviewStatusCounts[status as DeveloperAssetStatus]
+        ?? submissions.filter((submission) => (
+          submission.status === status
+          && status !== 'rejected'
+          && (settings.allowContributorSelfVoting || !currentContributorIdSet.has(submission.developerId))
+        )).length,
+    ])) as Record<DeveloperAssetStatus, number>,
+    submissionTypeCounts: Object.fromEntries(DEVELOPER_ASSET_TYPES.map((assetType) => [
+      assetType,
+      aggregate?.submissionTypeCounts[assetType]
+        ?? submissions.filter((submission) => submission.assetType === assetType).length,
+    ])) as Record<DeveloperAssetType, number>,
+    managedFileCount: aggregate?.managedFileCount ?? submissions.filter((submission) => (
+      submission.sourceStorageBucket && submission.sourceStoragePath
+    )).length,
+    managedStorageBytes: aggregate?.managedStorageBytes ?? submissions.reduce((total, submission) => (
+      total + (submission.sourceStorageBucket && submission.sourceStoragePath ? submission.sourceFileSizeBytes ?? 0 : 0)
+    ), 0),
     assetTypeSummaries,
     developerContributions,
     developerStats,
@@ -453,7 +544,7 @@ export const projectDeveloperAssetProgramForViewer = (
 ): DeveloperAssetProgramView => {
   if (isOwner) return program;
 
-  const projectedById = new Map(program.submissions.map((submission) => {
+  const projectedById = new Map([...program.submissions, ...program.votingQueue].map((submission) => {
     const maySeeOwnSource = submission.developerId === currentUserId;
     const projected = maySeeOwnSource ? submission : {
       ...submission,

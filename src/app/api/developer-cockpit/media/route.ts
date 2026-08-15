@@ -1,7 +1,7 @@
 import {
   createDeveloperCockpitErrorResponse,
   DeveloperCockpitStoreError,
-  getAuthorizedCampaignMedia,
+  getAuthorizedCampaignMediaPage,
   getCurrentDeveloperCockpitAccess,
   ingestCampaignMedia,
   MAX_SOCIAL_MEDIA_BYTES,
@@ -30,12 +30,14 @@ export async function GET(request: Request) {
     const access = await getCurrentDeveloperCockpitAccess();
     requireContributionScope(access, 'campaigns.draft');
     const url = new URL(request.url);
-    const media = await getAuthorizedCampaignMedia(access, {
+    const page = await getAuthorizedCampaignMediaPage(access, {
       query: url.searchParams.get('query') ?? undefined,
       state: url.searchParams.get('state') ?? undefined,
       campaignId: url.searchParams.get('campaignId') ?? undefined,
+      page: Number(url.searchParams.get('page') ?? 1),
+      pageSize: Number(url.searchParams.get('pageSize') ?? 24),
     });
-    return createNoStoreJsonResponse({ media });
+    return createNoStoreJsonResponse({ media: page.items, page });
   } catch (error) {
     return createDeveloperCockpitErrorResponse(
       error,

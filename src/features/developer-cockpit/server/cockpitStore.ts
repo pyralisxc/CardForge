@@ -22,7 +22,7 @@ import {
   type CampaignRow,
   type SiteProposalRow,
 } from './storeShared';
-import { getAuthorizedCampaignMedia } from './media';
+import { getAuthorizedCampaignMediaPage, getCampaignMediaLibrarySummary } from './media';
 
 const fetchCampaigns = async (
   access: DeveloperCockpitAccess,
@@ -74,12 +74,13 @@ const fetchSiteProposals = async (
 export const getDeveloperCockpitView = async (
   access: DeveloperCockpitAccess,
 ): Promise<DeveloperCockpitView> => {
-  const [campaignResult, proposalResult, siteContentBlocks, profiles, campaignMedia] = await Promise.all([
+  const [campaignResult, proposalResult, siteContentBlocks, profiles, campaignMediaPage, campaignMediaSummary] = await Promise.all([
     fetchCampaigns(access),
     fetchSiteProposals(access),
     getSiteContentBlocks(),
     listDeveloperAccessProfiles(access.isOwner),
-    getAuthorizedCampaignMedia(access),
+    getAuthorizedCampaignMediaPage(access, { page: 1, pageSize: 24 }),
+    getCampaignMediaLibrarySummary(access),
   ]);
   const publishJobs = await fetchPublishJobs(campaignResult.campaigns.map((campaign) => campaign.id));
   const provider = getBufferConfiguration();
@@ -94,12 +95,12 @@ export const getDeveloperCockpitView = async (
     isOwner: access.isOwner,
     scopes: access.scopes,
     campaigns: campaignResult.campaigns,
-    campaignMedia,
-    campaignMediaSummary: {
-      mediaCount: campaignMedia.length,
-      protectedBytes: campaignMedia.reduce((total, media) => total + media.originalByteCount + media.normalizedByteCount, 0),
-      derivativeBytes: campaignMedia.reduce((total, media) => total + media.derivatives.reduce((derivativeTotal, derivative) => derivativeTotal + derivative.byteCount, 0), 0),
-      unusedMediaCount: campaignMedia.filter((media) => media.campaignIds.length === 0 && !media.archivedAt).length,
+    campaignMedia: campaignMediaPage.items,
+    campaignMediaSummary,
+    campaignMediaPage: {
+      total: campaignMediaPage.total,
+      page: campaignMediaPage.page,
+      pageSize: campaignMediaPage.pageSize,
     },
     publishJobs,
     siteProposals: proposalResult.proposals,

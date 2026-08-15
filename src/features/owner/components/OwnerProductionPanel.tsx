@@ -48,7 +48,7 @@ export function OwnerProductionPanel() {
       <Tabs defaultValue="campaigns" className="space-y-4">
         <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1"><TabsTrigger value="campaigns" className={subtabClassName}>Campaign packages</TabsTrigger><TabsTrigger value="media" className={subtabClassName}>Approved media</TabsTrigger><TabsTrigger value="copy" className={subtabClassName}>Site proposals</TabsTrigger></TabsList>
         <TabsContent value="campaigns" className="mt-0"><DeveloperCampaignPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>
-        <TabsContent value="media" className="mt-0"><DeveloperCampaignMediaLibrary media={cockpit.campaignMedia} summary={cockpit.campaignMediaSummary} onChange={setCockpit} /></TabsContent>
+        <TabsContent value="media" className="mt-0"><DeveloperCampaignMediaLibrary media={cockpit.campaignMedia} pageInfo={cockpit.campaignMediaPage} summary={cockpit.campaignMediaSummary} onChange={setCockpit} /></TabsContent>
         <TabsContent value="copy" className="mt-0"><DeveloperSiteProposalPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>
       </Tabs>
     </section>

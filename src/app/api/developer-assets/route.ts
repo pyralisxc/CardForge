@@ -80,18 +80,44 @@ const syncDeveloperProfile = async (access: Awaited<ReturnType<typeof getDevelop
   }
 };
 
-export async function GET() {
+const parsePositiveInteger = (value: string | null, fallback: number): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+};
+
+export async function GET(request: Request) {
   const timing = createServerTimingTracker();
   try {
     const access = await timing.track('developer_access', getDeveloperAccess);
     if (!access.ok) return access.response;
     await timing.track('profile_sync', () => syncDeveloperProfile(access));
+    const url = new URL(request.url);
     const program = await timing.track(
       'program_view',
       () => getDeveloperAssetProgramView(
         access.user.id,
         getContributorIds(access.user.id),
-        { includeRegistryRecipePayloads: access.isOwner },
+        {
+          includeRegistryRecipePayloads: access.isOwner,
+          submissionQuery: {
+            scope: access.isOwner ? 'all' : 'own',
+            query: url.searchParams.get('query') ?? '',
+            assetType: url.searchParams.get('assetType') ?? 'all',
+            status: url.searchParams.get('status') ?? 'all',
+            page: parsePositiveInteger(url.searchParams.get('page'), 1),
+            pageSize: parsePositiveInteger(url.searchParams.get('pageSize'), 12),
+          },
+          votingQuery: {
+            scope: 'review',
+            query: url.searchParams.get('reviewQuery') ?? '',
+            assetType: url.searchParams.get('reviewAssetType') ?? 'all',
+            status: url.searchParams.get('reviewStatus') ?? 'all',
+            tier: url.searchParams.get('reviewTier') ?? 'all',
+            voteFilter: url.searchParams.get('reviewVote') ?? 'all',
+            page: parsePositiveInteger(url.searchParams.get('reviewPage'), 1),
+            pageSize: parsePositiveInteger(url.searchParams.get('reviewPageSize'), 10),
+          },
+        },
       ),
     );
 

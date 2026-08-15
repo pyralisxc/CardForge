@@ -1,12 +1,13 @@
 "use client";
 
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
-import { Archive, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Archive, ChevronLeft, ChevronRight, RotateCcw, Search, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type {
   CampaignMedia,
+  CampaignMediaPageSummary,
   CampaignMediaLibrarySummary,
   DeveloperCockpitView,
 } from '@/features/developer-cockpit/model';
@@ -27,38 +28,61 @@ const mediaAlt = (item: CampaignMedia) => (
 
 export function DeveloperCampaignMediaLibrary({
   media,
+  pageInfo,
   summary,
   onChange,
 }: {
   media: CampaignMedia[];
+  pageInfo: CampaignMediaPageSummary;
   summary: CampaignMediaLibrarySummary;
   onChange: (cockpit: DeveloperCockpitView) => void;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [items, setItems] = useState(media);
+  const [pageData, setPageData] = useState(pageInfo);
+  const [page, setPage] = useState(pageInfo.page);
+  const [loading, setLoading] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState('');
-  const selected = media.find((item) => item.id === selectedId) ?? null;
-  const visible = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return media.filter((item) => {
-      const matchesQuery = !normalizedQuery || [
-        item.originalFilename,
-        item.creatorCredit,
-        item.reusableCaption,
-        item.reusableDescription,
-        item.contributorName,
-        item.contributorEmail,
-        item.contentHash,
-      ].some((value) => value?.toLowerCase().includes(normalizedQuery));
-      const matchesFilter = filter === 'all'
-        || (filter === 'unused'
-          ? item.campaignIds.length === 0 && !item.archivedAt
-          : filter === item.reviewState);
-      return matchesQuery && matchesFilter;
-    });
-  }, [media, query, filter]);
+  const selected = items.find((item) => item.id === selectedId) ?? null;
+  const totalPages = Math.max(1, Math.ceil(pageData.total / pageData.pageSize));
+
+  const loadPage = useCallback(async (signal: AbortSignal) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageInfo.pageSize) });
+      if (query.trim()) params.set('query', query.trim());
+      if (filter !== 'all') params.set('state', filter);
+      const response = await fetch(`/api/developer-cockpit/media?${params}`, { cache: 'no-store', signal });
+      const payload = await response.json() as {
+        media?: CampaignMedia[];
+        page?: { total: number; page: number; pageSize: number };
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.media || !payload.page) {
+        throw new Error(payload.error?.message || 'Unable to load campaign media.');
+      }
+      setItems(payload.media);
+      setPageData(payload.page);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setMessage(error instanceof Error ? error.message : 'Unable to load campaign media.');
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, [filter, page, pageInfo.pageSize, query, reloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void loadPage(controller.signal), 250);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [loadPage]);
 
   const updateMedia = async (
     item: CampaignMedia,
@@ -82,6 +106,7 @@ export function DeveloperCampaignMediaLibrary({
         throw new Error(payload?.error?.message || payload?.message || 'Unable to update campaign media.');
       }
       onChange(payload.cockpit);
+      setReloadKey((value) => value + 1);
       setMessage(method === 'DELETE'
         ? 'Campaign media and its managed files were permanently deleted.'
         : item.reviewState === 'archived'
@@ -132,7 +157,7 @@ export function DeveloperCampaignMediaLibrary({
             <input
               className="w-full bg-transparent text-sm text-[#ffe7ad] outline-none"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => { setQuery(event.target.value); setPage(1); }}
               placeholder="Search media, contributor, credit, caption, or hash"
             />
           </label>
@@ -140,7 +165,7 @@ export function DeveloperCampaignMediaLibrary({
             aria-label="Filter campaign media"
             className="min-h-11 border border-[#5f4526] bg-[#0c0b09] px-3 text-sm text-[#ffe7ad]"
             value={filter}
-            onChange={(event) => setFilter(event.target.value)}
+            onChange={(event) => { setFilter(event.target.value); setPage(1); }}
           >
             <option value="all">All media</option>
             <option value="private">Private</option>
@@ -148,7 +173,6 @@ export function DeveloperCampaignMediaLibrary({
             <option value="approved">Approved</option>
             <option value="public">Public</option>
             <option value="archived">Archived</option>
-            <option value="unused">Unused</option>
           </select>
         </div>
       </header>
@@ -156,7 +180,7 @@ export function DeveloperCampaignMediaLibrary({
       {message ? <p role="status" className="border border-[#5f4526] bg-[#100c08] p-3 text-sm text-[#f1c875]">{message}</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visible.map((item) => (
+        {items.map((item) => (
           <button
             type="button"
             key={item.id}
@@ -191,11 +215,23 @@ export function DeveloperCampaignMediaLibrary({
         ))}
       </div>
 
-      {!visible.length ? (
+      {!items.length && !loading ? (
         <p className="border border-dashed border-[#4a3823] p-6 text-center text-sm text-[#a98a55]">
           No campaign media matches this view.
         </p>
       ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border border-[#4a3823] bg-[#100c08] p-3 text-xs text-[#c7b288]">
+        <span>{loading ? 'Loading media…' : `${pageData.total === 0 ? 0 : (pageData.page - 1) * pageData.pageSize + 1}-${Math.min(pageData.total, pageData.page * pageData.pageSize)} of ${pageData.total}`}</span>
+        <div className="flex gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={loading || page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+            <ChevronLeft className="mr-1 h-4 w-4" />Previous
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={loading || page >= totalPages} onClick={() => setPage((value) => value + 1)}>
+            Next<ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {selected ? (
         <MediaDetail

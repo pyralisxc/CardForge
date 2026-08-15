@@ -38,10 +38,10 @@ const formatBytes = (value: number): string => {
 
 export function DeveloperAssetSubmissionPanel({
   program,
-  onProgramChange,
+  onSubmitted,
 }: {
   program: DeveloperAssetProgramView;
-  onProgramChange: (program: DeveloperAssetProgramView) => void;
+  onSubmitted: () => Promise<void>;
 }) {
   const { toast } = useToast();
   const [assetType, setAssetType] = useState<DeveloperAssetType>('icons');
@@ -122,8 +122,8 @@ export function DeveloperAssetSubmissionPanel({
         body: formData,
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to submit asset.'));
-      const body = await response.json() as DeveloperAssetsResponse;
-      onProgramChange(body.program);
+      await response.json() as DeveloperAssetsResponse;
+      await onSubmitted();
       setName('');
       setDescription('');
       setPreviewUrl('');

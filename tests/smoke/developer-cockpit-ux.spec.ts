@@ -70,6 +70,7 @@ const makeCockpit = ({
   campaigns,
   campaignMedia: [],
   campaignMediaSummary: { mediaCount: 0, protectedBytes: 0, derivativeBytes: 0, unusedMediaCount: 0 },
+  campaignMediaPage: { total: 0, page: 1, pageSize: 24 },
   publishJobs: [],
   siteProposals: [],
   siteContentBlocks: [],
