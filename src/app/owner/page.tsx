@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { getDeveloperPublicAuthSlot } from '@/features/developer-access/server';
+import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { OwnerConsolePage } from '@/features/owner/client';
@@ -26,7 +26,7 @@ export default async function OwnerPage() {
     <CardForgeAppProviders>
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
-          accountSlot={authConfigured ? await getDeveloperPublicAuthSlot() : undefined}
+          accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}
           businessIdentity={businessIdentity}
           currentPath="/owner"
           siteConfiguration={siteConfiguration}
