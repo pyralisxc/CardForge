@@ -26,7 +26,7 @@ export type ElementKit = {
 
 export const CONSOLIDATED_ELEMENT_KITS: ElementKit[] = [
   { label: 'Text', description: 'Static or placeholder-driven text.', category: 'Core', icon: Type, type: 'text' },
-  { label: 'Image', description: 'Artwork, uploaded image, or data-key image slot.', category: 'Core', icon: ImageIcon, type: 'image' },
+  { label: 'Picture', description: 'Artwork, uploaded picture, or data-key picture slot.', category: 'Core', icon: ImageIcon, type: 'image' },
   { label: 'Icon', description: 'Lucide, TCG symbol, or uploaded custom icon.', category: 'Core', icon: Sparkles, type: 'icon' },
   { label: 'Shape', description: 'Rectangle or ellipse primitive for badges and masks.', category: 'Core', icon: Square, type: 'shape' },
   {

@@ -57,6 +57,12 @@ interface CreateTemplateEditorActionsOptions {
   onTogglePreviewMode: () => void;
   onOpenCommandPalette: () => void;
   onSave: () => void;
+  saveDisabled?: boolean;
+  savePresentation?: {
+    label: string;
+    shortLabel: string;
+    description: string;
+  };
 }
 
 export function createTemplateEditorActions({
@@ -77,19 +83,25 @@ export function createTemplateEditorActions({
   onTogglePreviewMode,
   onOpenCommandPalette,
   onSave,
+  saveDisabled = false,
+  savePresentation = {
+    label: 'Save Template',
+    shortLabel: 'Save',
+    description: 'Save this Template in your browser (Ctrl+S)',
+  },
 }: CreateTemplateEditorActionsOptions): TemplateEditorAction[] {
   return [
     { id: 'undo', label: 'Undo', shortLabel: 'Undo', description: 'Undo the last change (Ctrl+Z)', icon: Undo2, onSelect: onUndo, disabled: !canUndo },
     { id: 'redo', label: 'Redo', shortLabel: 'Redo', description: 'Redo the last undone change (Ctrl+Y)', icon: Redo2, onSelect: onRedo, disabled: !canRedo },
     { id: 'zoom-out', label: 'Zoom out', shortLabel: 'Zoom out', description: 'Reduce the canvas zoom (-)', icon: ZoomOut, onSelect: onZoomOut },
     { id: 'zoom-in', label: 'Zoom in', shortLabel: 'Zoom in', description: 'Increase the canvas zoom (+)', icon: ZoomIn, onSelect: onZoomIn },
-    { id: 'fit', label: 'Fit to screen', shortLabel: 'Fit', description: 'Fit the whole card design in the workspace', icon: Maximize2, onSelect: onFitToScreen },
+    { id: 'fit', label: 'Fit to screen', shortLabel: 'Fit', description: 'Fit the whole Template in the workspace', icon: Maximize2, onSelect: onFitToScreen },
     { id: 'actual-size', label: 'Actual size', shortLabel: '100%', description: 'Set the canvas to 100 percent', icon: Maximize2, onSelect: onActualSize },
-    { id: 'center', label: 'Center canvas', shortLabel: 'Center', description: 'Center the card design in the workspace', icon: Crosshair, onSelect: onCenterCanvas },
+    { id: 'center', label: 'Center canvas', shortLabel: 'Center', description: 'Center the Template in the workspace', icon: Crosshair, onSelect: onCenterCanvas },
     { id: 'grid', label: 'Grid', shortLabel: 'Grid', description: 'Toggle the layout grid (G)', icon: Grid3X3, onSelect: onToggleGrid, active: showGrid },
     { id: 'snap', label: 'Snap to grid', shortLabel: 'Snap', description: 'Snap movement to the layout grid', icon: BoxSelect, onSelect: onToggleSnapToGrid, active: snapToGrid },
     { id: 'preview', label: 'Preview mode', shortLabel: 'Preview', description: 'Toggle card preview mode (P)', icon: previewMode ? Eye : EyeOff, onSelect: onTogglePreviewMode, active: previewMode },
     { id: 'command-palette', label: 'Command palette', shortLabel: 'Commands', description: 'Open every editor command (Ctrl+K)', icon: Search, onSelect: onOpenCommandPalette },
-    { id: 'save', label: 'Save card design', shortLabel: 'Save', description: 'Save this card design (Ctrl+S)', icon: Save, onSelect: onSave },
+    { id: 'save', ...savePresentation, icon: Save, onSelect: onSave, disabled: saveDisabled },
   ];
 }

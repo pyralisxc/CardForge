@@ -20,5 +20,5 @@
   "cardBorderColor": "transparent",
   "fieldContracts": [],
   "freeformCanvas": { "width": 750, "height": 1000, "gridSize": 20, "elements": [] },
-  "cardBackgroundImageUrl": "bootstrap-media://textures/arcane-forge/back-cardforge-studio-portrait.webp"
+  "cardBackgroundImageUrl": "bootstrap-media://images/frames/back/back-cardforge-studio-portrait.webp"
 }

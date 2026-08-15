@@ -3,7 +3,9 @@
   "name": "Obsidian Neon Full Back",
   "tileMode": "contain",
   "seamless": false,
-  "allowedTargets": ["shape", "template", "imageFrame"],
+  "allowedTargets": ["template", "imageFrame"],
+  "studioDefaultDestination": "image.frame.back",
+  "repositoryPathAliases": ["textures/arcane-forge/back-obsidian-neon-premium.webp"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,
   "defaultScale": 100

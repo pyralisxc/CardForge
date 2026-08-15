@@ -83,7 +83,9 @@ export function useTemplateEditorCommands({
   } = controller;
   const backgroundImageInputRef = useRef<HTMLInputElement | null>(null);
   const borderImageInputRef = useRef<HTMLInputElement | null>(null);
+  const saveInFlightRef = useRef(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [customWidthValue, setCustomWidthValue] = useState('');
   const [customHeightValue, setCustomHeightValue] = useState('');
   const [customUnit, setCustomUnit] = useState<CardMeasurementUnit>('mm');
@@ -120,14 +122,15 @@ export function useTemplateEditorCommands({
   }, [currentTemplate.id, templates]);
 
   const saveTemplate = useCallback(async (templateOverride?: TCGCardTemplate) => {
+    if (saveInFlightRef.current) return false;
     const templateToSave = templateOverride?.aspectRatio ? templateOverride : currentTemplate;
-    const reservedNames = new Set(['New Card Template', 'New Card Back', 'New Front Template', 'Untitled card design']);
+    const reservedNames = new Set(['New Card Template', 'New Card Back', 'New Front Template', 'Untitled Template']);
     if (!templateToSave.name?.trim() || reservedNames.has(templateToSave.name.trim())) {
       toast({
-        title: 'Card design name is required',
+        title: 'Template name is required',
         description: withNextStep(
           'Give this design a meaningful name before saving.',
-          'Enter a card design name, then save again.',
+          'Enter a Template name, then save again.',
         ),
         variant: 'destructive',
       });
@@ -145,13 +148,27 @@ export function useTemplateEditorCommands({
       });
       return false;
     }
-    const savedId = await onSaveTemplate({
-      ...templateToSave,
-      freeformCanvas: reconstructFreeformCanvas(templateToSave.freeformCanvas),
-    });
-    acceptTemplate(templateToSave);
-    onSelectTemplate(savedId);
-    return true;
+    saveInFlightRef.current = true;
+    setIsSavingTemplate(true);
+    try {
+      const savedId = await onSaveTemplate({
+        ...templateToSave,
+        freeformCanvas: reconstructFreeformCanvas(templateToSave.freeformCanvas),
+      });
+      acceptTemplate(templateToSave);
+      onSelectTemplate(savedId);
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Template not saved',
+        description: error instanceof Error ? error.message : 'Unable to save this Template. Try again.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      saveInFlightRef.current = false;
+      setIsSavingTemplate(false);
+    }
   }, [acceptTemplate, currentTemplate, onSaveTemplate, onSelectTemplate, toast]);
 
   useEffect(() => {
@@ -390,6 +407,7 @@ export function useTemplateEditorCommands({
     customWidthValue,
     frameKitRecipes,
     handleFileUpload,
+    isSavingTemplate,
     openTemplate,
     newTemplateRequest,
     requestNewTemplate,

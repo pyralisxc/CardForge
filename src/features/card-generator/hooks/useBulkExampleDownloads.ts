@@ -47,7 +47,7 @@ export function useBulkExampleDownloads({
     if (selectedTemplate) return true;
     toast({
       title: ERROR_COPY.selectTemplateFirst.title,
-      description: withNextStep('Choose a card design before downloading ' + format + '.', 'Choose a card design above, then try again.'),
+      description: withNextStep('Choose a Template before downloading ' + format + '.', 'Choose a Template above, then try again.'),
       variant: 'default',
     });
     return false;
@@ -58,7 +58,7 @@ export function useBulkExampleDownloads({
     if (!exampleCsv.trim() || !exampleCsv.includes('\n') || exampleCsv.startsWith('Select a template first.')) {
       toast({
         title: 'Example CSV unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
+        description: withNextStep('This Template has no usable card fields.', 'Open Templates, add card fields, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -73,7 +73,7 @@ export function useBulkExampleDownloads({
     if (!exampleJson.trim() || exampleJson === '[]') {
       toast({
         title: 'Example JSON unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
+        description: withNextStep('This Template has no usable card fields.', 'Open Templates, add card fields, save, then download again.'),
         variant: 'destructive',
       });
       return;
@@ -88,7 +88,7 @@ export function useBulkExampleDownloads({
     if (!exampleStructuredText.trim() || exampleStructuredText.startsWith('Select a template first.')) {
       toast({
         title: 'Text starter unavailable',
-        description: withNextStep('This card design has no usable card fields.', 'Open Design layouts, add card fields, save, then download again.'),
+        description: withNextStep('This Template has no usable card fields.', 'Open Templates, add card fields, save, then download again.'),
         variant: 'destructive',
       });
       return;

@@ -38,7 +38,7 @@
       "textColor": "#25160b",
       "texture": {
         "kind": "uploaded",
-        "imageSource": "bootstrap-media://textures/arcane-forge/frame-ttrpg-premium.webp",
+        "imageSource": "bootstrap-media://images/frames/front/frame-ttrpg-premium.webp",
         "intensity": 100
       }
     },
@@ -49,7 +49,7 @@
       "radius": 8
     }
   },
-  "cardBackgroundImageUrl": "bootstrap-media://textures/arcane-forge/frame-ttrpg-premium.webp",
+  "cardBackgroundImageUrl": "bootstrap-media://images/frames/front/frame-ttrpg-premium.webp",
   "baseBackgroundColor": "#18130f",
   "baseTextColor": "#25160b",
   "defaultElementBorderColor": "transparent",

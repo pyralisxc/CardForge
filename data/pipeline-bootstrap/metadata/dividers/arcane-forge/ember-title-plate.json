@@ -1,13 +1,13 @@
 {
   "id": "arcane-forge-ember-title-plate",
   "name": "Ember Title Plate",
-  "tileMode": "contain",
+  "tileMode": "stretch",
   "seamless": false,
-  "allowedTargets": ["imageFrame", "shape", "template"],
+  "allowedTargets": ["divider"],
+  "repositoryPathAliases": ["parts/arcane-forge/title-plates/ember-title-plate.svg"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,
   "defaultScale": 100,
-  "partRole": "titlePlate",
   "defaultWidth": 420,
   "defaultHeight": 72
 }

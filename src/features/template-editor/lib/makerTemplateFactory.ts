@@ -28,7 +28,7 @@ export const makeNewFreeformTemplate = (
   input: MakeNewFreeformTemplateInput = {},
 ): TCGCardTemplate => {
   const {
-    name = 'Untitled card design',
+    name = 'Untitled Template',
     templateUsage = 'standard',
     formatId = 'poker',
     formatSource = {},

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from 'react';
-import { X } from 'lucide-react';
+import Link from 'next/link';
+import { GitPullRequestArrow, LockKeyhole, X } from 'lucide-react';
 import type { AppearanceStylePreset, FreeformCardElement, TCGCardTemplate } from '@/domain/templates';
 import type { TemplateCardFormatSource } from '@/domain/card-formats';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,8 @@ interface CardTemplateMakerProps {
   onSaveAppearanceStyle: (style: AppearanceStylePreset) => string;
   selectedTemplateIdForEditing: string | null;
   onSelectTemplateForEditing: (templateId: string | null) => void;
-  canSubmitBaseRevision: boolean;
+  canSubmitSharedTemplateRevision: boolean;
+  canPublishSharedLibrary: boolean;
   canUploadCustomAssets: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
   isCheckoutStarting: boolean;
@@ -83,7 +85,8 @@ export function CardTemplateMaker({
   onSaveAppearanceStyle,
   selectedTemplateIdForEditing,
   onSelectTemplateForEditing,
-  canSubmitBaseRevision,
+  canSubmitSharedTemplateRevision,
+  canPublishSharedLibrary,
   canUploadCustomAssets,
   fileInputRef,
   isCheckoutStarting,
@@ -120,6 +123,9 @@ export function CardTemplateMaker({
     setSelectedElementId,
     undo,
   } = controller;
+  const isSharedTemplate = currentTemplate.templateSource === 'default';
+  const isSharedTemplateRevision = isSharedTemplate && canSubmitSharedTemplateRevision;
+  const nextTemplateRevision = Number(currentTemplate.templateRevision ?? 0) + 1;
   const variables = useTemplateEditorVariables({ controller, toast });
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
   const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
@@ -249,9 +255,27 @@ export function CardTemplateMaker({
   }, [isActive, isDirty]);
   const {
     commandPaletteOpen,
+    isSavingTemplate,
     saveTemplate: handleSave,
     setCommandPaletteOpen,
   } = commands;
+  const savePresentation = isSharedTemplateRevision
+    ? {
+        label: `Submit Template revision ${nextTemplateRevision}`,
+        shortLabel: isSavingTemplate ? 'Submitting…' : 'Submit revision',
+        description: `Save this browser draft and submit revision ${nextTemplateRevision} to Forge Review. The shared Template stays unchanged until publication. (Ctrl+S)`,
+      }
+    : isSharedTemplate
+      ? {
+          label: 'Save a personal Template copy',
+          shortLabel: isSavingTemplate ? 'Saving…' : 'Save copy',
+          description: 'Save your changes as a personal browser Template. The CardForge Library original stays unchanged. (Ctrl+S)',
+        }
+      : {
+          label: 'Save Template in this browser',
+          shortLabel: isSavingTemplate ? 'Saving…' : 'Save',
+          description: 'Save this personal Template in your browser library. (Ctrl+S)',
+        };
   const editorActions = createTemplateEditorActions({
     canUndo: history.length > 0,
     canRedo: future.length > 0,
@@ -276,7 +300,10 @@ export function CardTemplateMaker({
     onTogglePreviewMode: () => setPreviewMode(value => !value),
     onOpenCommandPalette: () => setCommandPaletteOpen(true),
     onSave: handleSave,
+    saveDisabled: isSavingTemplate,
+    savePresentation,
   });
+  const saveAction = editorActions.find((action) => action.id === 'save');
   const livePreviewData = useMemo(() => ({
     cardName: 'Astral Relic',
     cost: '3',
@@ -326,6 +353,35 @@ export function CardTemplateMaker({
           toolButtonClassName={makerTheme.toolButton}
           activeButtonClassName={makerTheme.activeButton}
         />
+        {isSharedTemplate ? (
+          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[#c7b288] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-2">
+              {isSharedTemplateRevision
+                ? <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
+                : <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />}
+              <div>
+                <p className="font-medium text-[#ffe7ad]">
+                  {isSharedTemplateRevision
+                    ? `Shared Template · revision ${Number(currentTemplate.templateRevision ?? 0)} is live`
+                    : 'CardForge Library Template'}
+                </p>
+                <p className="mt-0.5 leading-5">
+                  {isSharedTemplateRevision
+                    ? `Submit revision saves this browser draft, then creates revision ${nextTemplateRevision} in Forge Review. The live Template changes only after publication.`
+                    : 'You can edit this Template freely. Saving creates a personal browser copy and keeps the shared original unchanged.'}
+                </p>
+              </div>
+            </div>
+            {isSharedTemplateRevision ? (
+              <Link
+                href={canPublishSharedLibrary ? '/owner' : '/developer/cockpit'}
+                className="shrink-0 font-medium text-[#f0c568] underline decoration-[#7f6225] underline-offset-4 hover:text-[#ffe7ad]"
+              >
+                {canPublishSharedLibrary ? 'Open owner review' : 'Open Forge Review'}
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
         <TemplateCommandPalette
           open={commandPaletteOpen}
           selectedElement={selectedElement}
@@ -339,7 +395,7 @@ export function CardTemplateMaker({
           }}
           onDuplicateSelected={duplicateSelected}
           onDeleteSelected={deleteSelected}
-          onSave={handleSave}
+          saveAction={saveAction!}
           onShowLibrary={() => setMobilePanel('library')}
           onShowInspector={() => {
             setActiveInspectorTab('element');
@@ -442,7 +498,7 @@ export function CardTemplateMaker({
         </div>
         <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#252b35] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">
           <span className="text-[#d5ad54]">Shortcuts</span>
-          <span>Ctrl+S Save</span>
+          <span>Ctrl+S {isSharedTemplateRevision ? 'Submit revision' : 'Save'}</span>
           <span>Ctrl+Z Undo</span>
           <span>Ctrl+D Duplicate</span>
           <span>Del Remove</span>
@@ -469,30 +525,32 @@ export function CardTemplateMaker({
         <AlertDialog open={pendingTemplateChange !== null} onOpenChange={(open) => !open && setPendingTemplateChange(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled card design'}”?</AlertDialogTitle>
+              <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled Template'}”?</AlertDialogTitle>
               <AlertDialogDescription>
                 {currentTemplate.templateSource === 'default'
-                  ? canSubmitBaseRevision
-                    ? 'Saving keeps this draft in your browser and submits a numbered base revision for owner review. The shared design changes only after publication.'
-                    : 'This is a built-in CardForge card design. Saving creates a new personal copy and keeps the original unchanged.'
-                  : 'Your changes are not saved in this browser yet.'}
+                  ? canSubmitSharedTemplateRevision
+                    ? `Submitting keeps this draft in your browser and creates Template revision ${nextTemplateRevision} in Forge Review. The shared Template changes only after publication.`
+                    : 'This is a CardForge Library Template. Saving creates a personal browser copy and keeps the shared original unchanged.'
+                  : 'Your Template changes are not saved in this browser yet.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-2">
-              <label htmlFor="template-save-name" className="text-sm font-medium text-foreground">Card design name</label>
+              <label htmlFor="template-save-name" className="text-sm font-medium text-foreground">Template name</label>
               <Input
                 id="template-save-name"
                 value={saveName}
                 onChange={(event) => setSaveName(event.target.value)}
-                placeholder="Name this card design"
+                placeholder="Name this Template"
               />
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => onReturnToTemplateMaker()}>Keep editing</AlertDialogCancel>
               <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
-              <AlertDialogAction onClick={() => void saveAndContinue()}>
-                {currentTemplate.templateSource === 'default'
-                  ? canSubmitBaseRevision ? 'Submit base revision' : 'Save as new card design'
+              <AlertDialogAction disabled={isSavingTemplate} onClick={() => void saveAndContinue()}>
+                {isSavingTemplate
+                  ? isSharedTemplateRevision ? 'Submitting…' : 'Saving…'
+                  : currentTemplate.templateSource === 'default'
+                  ? canSubmitSharedTemplateRevision ? 'Submit Template revision' : 'Save as personal Template'
                   : 'Save changes'}
               </AlertDialogAction>
             </AlertDialogFooter>

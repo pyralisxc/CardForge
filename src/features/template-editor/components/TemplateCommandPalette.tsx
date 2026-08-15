@@ -11,7 +11,6 @@ import {
   Image as ImageIcon,
   Layers,
   PanelRight,
-  Save,
   Search,
   Sparkles,
   Square,
@@ -32,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/shared/classNames';
 import type { FreeformCardElement } from '@/domain/templates';
 import { readProjectPreference, writeProjectPreference } from '@/features/project/client';
+import type { TemplateEditorAction } from '@/features/template-editor/lib/templateEditorActions';
 
 type PaletteAction = {
   id: string;
@@ -61,7 +61,7 @@ interface TemplateCommandPaletteProps {
   onAddElement: (type: FreeformCardElement['type'], preset?: Partial<FreeformCardElement>) => void;
   onDuplicateSelected: () => void;
   onDeleteSelected: () => void;
-  onSave: () => void;
+  saveAction: TemplateEditorAction;
   onShowLibrary: () => void;
   onShowInspector: () => void;
   onShowTemplateSettings: () => void;
@@ -90,7 +90,7 @@ export function TemplateCommandPalette({
   onAddElement,
   onDuplicateSelected,
   onDeleteSelected,
-  onSave,
+  saveAction,
   onShowLibrary,
   onShowInspector,
   onShowTemplateSettings,
@@ -209,12 +209,13 @@ export function TemplateCommandPalette({
     },
     {
       id: 'save-template',
-      title: 'Save template',
-      description: 'Save the current freeform template.',
+      title: saveAction.label,
+      description: saveAction.description,
       group: 'Template',
-      keywords: ['persist', 'store'],
-      icon: Save,
-      run: closeAfter(onSave),
+      keywords: ['persist', 'store', 'revision', 'submit'],
+      icon: saveAction.icon,
+      disabled: saveAction.disabled,
+      run: closeAfter(saveAction.onSelect),
     },
     {
       id: 'show-library',
@@ -275,7 +276,7 @@ export function TemplateCommandPalette({
     closeAfter,
     onDeleteSelected,
     onDuplicateSelected,
-    onSave,
+    saveAction,
     onShowInspector,
     onShowLibrary,
     onShowTemplateSettings,
@@ -373,7 +374,7 @@ export function TemplateCommandPalette({
         <DialogHeader className="border-b border-[#252b35] px-4 py-3">
           <DialogTitle className="text-sm text-[#f3ead7]">Command Palette</DialogTitle>
           <DialogDescription className="text-xs text-[#8f95a3]">
-            Search layout actions, insert layers, and jump between dense studio panels.
+            Search Template actions, insert layers, and jump between Studio panels.
           </DialogDescription>
         </DialogHeader>
 

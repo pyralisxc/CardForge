@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Archive, ChevronLeft, ChevronRight, Eye, Search, Settings2, Trash2 } from 'lucide-react';
+import { Archive, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { AssetRow } from './DeveloperAssetRows';
@@ -239,6 +239,13 @@ export function OwnerAssetLibraryPanel({
               </div>
             ) : undefined}
           >
+            {submission.assetType === 'templates' && (submission.registryAssetId || submission.targetRegistryAssetId) ? (
+              <Button asChild size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]">
+                <a href={`/studio?editTemplate=${encodeURIComponent(submission.registryAssetId ?? submission.targetRegistryAssetId!)}`}>
+                  <Pencil className="mr-1 h-4 w-4" /> Edit Template
+                </a>
+              </Button>
+            ) : null}
             <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]" onClick={() => setExpandedId((current) => current === submission.id ? null : submission.id)}>
               <Eye className="mr-1 h-4 w-4" /> Review
             </Button>

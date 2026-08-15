@@ -7,7 +7,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 ## Product Truth
 
 - Public site: `/`, `/about`, `/developer`, `/roadmap`, `/cameron`, `/contact`, and legal pages. The homepage owns product proof and access explanation; `/cameron` combines the founder story and voluntary support in one route.
-- Studio: `/studio` contains Layout Studio and Generator.
+- Studio: `/studio` contains Template Studio and Generator.
 - Accounts: Clerk identifies users; CardForge stores trusted access in Clerk private metadata or server-side allowlists.
 - Billing: Stripe owns Creator Pass checkout, subscription lifecycle, webhooks, and customer portal.
 - Business identity: CardForge Studio is the product and brand; Cameron Locke is its Oregon sole-proprietor operator. `src/features/business-identity` is the single runtime identity owner.
@@ -36,6 +36,9 @@ CardForge has three storage lanes:
    - `npm run pipeline:sync-defaults` imports only missing stable IDs, copies referenced media into managed Supabase storage, preserves current owner/vote decisions, and skips durable owner-deletion tombstones.
    - `CARDFORGE_OWNER_ACCOUNT_EMAILS` must contain exactly one canonical Pipeline publisher. Owner and AI-assisted maintenance publish through that real Clerk developer identity; development proxies are never separate attribution owners.
    - Retired development identities are durable aliases, not deleted audit facts: Pipeline ownership transfers to the canonical profile, raw owner activity remains append-only, the Owner Console resolves the alias for display, and a database trigger prevents a retired profile from being recreated.
+   - Code owns the finite Studio destination contract and compatibility rules. Supabase owns live placement, ordering, featured state, and automatic-versus-owner routing. Owner Studio Map changes those registry fields atomically; it never copies files or creates a second catalog.
+   - Templates route by their front/back payload contract. Images route separately as ordinary Pictures, Front Frames, or Back Frames. Icons, Dividers, Textures, Styles, and Fonts each load only from their named Studio destination; the retired Parts/Overlay category is not a runtime source.
+   - Shared Template revisions originate in Template Studio and retain the stable registry id through numbered review submissions. Generic contribution uploads own only media and font files; owner Style publication remains in Appearance Studio. Forge Review and the registry stay the publication boundary for both.
    - Owner permanent deletion is authoritative: it hides the asset at preparation, removes the registry entry, complete submission/revision/vote lineage, and managed storage, then retains only a private tombstone that prevents accidental recreation.
 
 ## Core Routes
@@ -58,7 +61,7 @@ API route files own HTTP configuration and delegation. Provider or product workf
 
 - `src/features/app-shell`: Studio shell and workspace bootstrap.
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy with no feature or framework dependency. Template field contracts, generator/editor field interpretation, template display labels, pointer selection, and parent-resize geometry live here because multiple features consume them.
-- `src/features/template-editor`: Layout Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
+- `src/features/template-editor`: Template Studio composition, session/draft lifecycle, viewport interactions, element/layer commands, variable commands, inspector/library presentation, editor history, and template-library commands. `CardTemplateMaker` composes focused hooks; other features enter only through `client.ts`.
 - `src/features/card-generator`: Single-card and bulk two-face generation, generated output gallery, image tools, and export tools. Each generated card owns independent `data` (front) and `backingData` (back) values; layouts remain reusable rendering blueprints. Bulk files use `back.<field>` headers for back values. App Shell enters through `client.ts` and keeps heavy workspaces lazy.
 - `src/features/brand-presentation`: dependency-free runtime contract for the owner-approved brand name, mark, favicon, social image, and watermark presentation assembled by the app root.
 - `src/features/card-rendering`: shared card preview, rich-text, vector-shape, thumbnail, appearance, watermark rendering, and rendering-specific global CSS consumed through `client.ts`.
@@ -110,8 +113,8 @@ App routes compose the public-site-owned shared header. The Owner Console keeps 
 
 ## Card Creation Model
 
-- Layout Studio owns reusable front templates, separate back templates, and its own editor selection. Opening a card back for editing must not change the Generator's selected front design.
-- Generator owns card sets, the selected front design and card back, card details, cards in the set, and export settings. It hands back editing and creation to Layout Studio, then explicitly offers to apply a newly saved back to the current set and its existing cards.
+- Template Studio owns reusable front Templates, separate back Templates, and its own editor selection. Opening a card back for editing must not change the Generator's selected front Template.
+- Generator owns card sets, the selected front Template and card back, card details, cards in the set, and export settings. It hands back editing and creation to Template Studio, then explicitly offers to apply a newly saved back to the current set and its existing cards.
 - Card backs are not front-template fields.
 - Text variables use Field Contract v1.
 - Images have generator-side formatting controls for fit, position, scale, rotation, offset, and flips.

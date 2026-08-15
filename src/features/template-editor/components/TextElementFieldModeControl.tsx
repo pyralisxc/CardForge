@@ -107,7 +107,7 @@ export function TextElementFieldModeControl({
         </div>
         {variableFields.length > 0 && (
           <p className="text-[10px] leading-4 text-[#8f95a3]">
-            Save the card design before moving to Make cards so these fields are available for single and bulk output.
+            Save the Template before moving to Make cards so these fields are available for single and bulk output.
           </p>
         )}
         {mode === 'structuredRows' && (

@@ -169,6 +169,7 @@ export async function POST(request: Request) {
       currentContributorIds: getContributorIds(access.user.id),
       includeRegistryRecipePayloads: access.isOwner,
       assetType: formData.get('assetType'),
+      studioDestination: formData.get('studioDestination'),
       name: formData.get('name'),
       description: formData.get('description'),
       previewUrl: formData.get('previewUrl'),

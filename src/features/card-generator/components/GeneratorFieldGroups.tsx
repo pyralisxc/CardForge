@@ -227,7 +227,7 @@ export function GeneratorFieldGroups({
   onHighlightColorChange,
   fileInputRefs,
   onImageUpload,
-  emptyMessage = 'No editable card fields were found for this card design.',
+  emptyMessage = 'No editable card fields were found for this Template.',
 }: GeneratorFieldGroupsProps) {
   if (fields.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;

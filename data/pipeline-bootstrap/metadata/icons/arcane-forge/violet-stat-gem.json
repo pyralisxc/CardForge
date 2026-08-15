@@ -3,11 +3,11 @@
   "name": "Violet Stat Gem",
   "tileMode": "contain",
   "seamless": false,
-  "allowedTargets": ["imageFrame", "shape", "template"],
+  "allowedTargets": ["icon"],
+  "repositoryPathAliases": ["parts/arcane-forge/stat-gems/violet-stat-gem.svg"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,
   "defaultScale": 100,
-  "partRole": "statGem",
   "defaultWidth": 96,
   "defaultHeight": 96
 }

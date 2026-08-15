@@ -61,7 +61,7 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/app/`: Next.js routes and API routes.
 - `src/domain/`: pure Cards, Templates, Rendering, and Entitlements policy.
 - `src/features/app-shell/`: Studio shell, workspace bootstrap, and route-level composition.
-- `src/features/template-editor/`: Layout Studio panels, inspector tools, canvas commands, and editor controller hooks.
+- `src/features/template-editor/`: Template Studio panels, inspector tools, canvas commands, and editor controller hooks.
 - `src/features/card-generator/`: One-card and list-based creation, card review, editing, sharing, downloads, and print/export settings.
 - `src/features/brand-presentation/`: Dependency-free runtime projection of the owner-approved brand name, mark, favicon, social image, and watermark presentation.
 - `src/features/card-rendering/`: Shared card preview, rich-text, vector-shape, thumbnail, appearance, and watermark rendering.
@@ -72,7 +72,7 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/features/public-site/`: owner-editable public copy, constrained navigation/homepage/SEO configuration, canonical public brand and marketing media (including favicon, watermark, and live-example artwork), social/share controls, tagged public caching, image processing, and structured search identity.
 - `src/features/legal/`: immutable versioned legal publication, constrained document rendering, and public legal caching.
 - `src/features/developer-access/`: the single owner of developer identity, profile status, contribution grants, and every runtime access to the `cardforge_developer_profiles` persistence boundary.
-- `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, pipeline taxonomy, voting/review UI, and shared-library submissions including fonts.
+- `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, Studio destination map, voting/review UI, and shared-library submissions including fonts.
 - `src/features/developer-program/`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit/`: protected cockpit composition, canonical campaign media/derivatives/attachments, production packages, site-copy proposals, and durable review/delivery ledgers.
 - `src/features/social-publishing/`: server-only publishing-provider adapters. Buffer owns channel connections, scheduling, and delivery; it does not own CardForge contribution records or media sources.
@@ -99,6 +99,10 @@ CardForge has three deliberately separate storage lanes:
 - Repository fallback media for a safe first render plus bootstrap import material. Supabase Site Media owns the live public brand and marketing selections, including the favicon; repository files are not a competing owner or Template Studio catalog. `npm run pipeline:sync-defaults` copies missing Studio assets into managed storage and the registry; it never overwrites owner decisions or recreates an owner-deleted asset.
 
 The app should keep those lanes visibly distinct. Normal free/paid user uploads stay local until a developer intentionally submits a source asset into Forge Review. Developer and owner-submitted assets move through one shared voting, publishing, archive, and deletion pipeline. Owners may permanently remove any lineage—including published or voted work—using exact-name confirmation; the deletion removes registry state, revisions, votes, and managed objects and leaves a private tombstone so bootstrap cannot restore it.
+
+Template Studio shelves are explicit: Templates split into Fronts and Backs; Images split into Pictures, Front Frames, and Back Frames; Elements contain Icons and Dividers; Styles contain Textures and validated reusable treatments. Code owns this finite destination contract, Supabase owns each asset's current placement/order/featured state, and Owner > Library & Production > Forge Pipeline > Studio Map is the only live override surface.
+
+Shared Template revisions are created only from Template Studio, where every save entry point explicitly submits the next numbered revision to Forge Review while keeping the published Template live. The generic developer upload form accepts media and fonts only; owner-authored visual Styles continue to publish from Appearance Studio. This keeps editable structured assets in their native authoring workflow instead of maintaining a parallel JSON-upload path.
 
 ## Environment
 

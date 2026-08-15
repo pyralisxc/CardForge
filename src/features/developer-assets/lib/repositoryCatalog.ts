@@ -48,6 +48,7 @@ export const mapRegistryRowsToTemplateLibrary = async (
       templateAccessTier: row.access_tier,
       templateRegistryStatus: row.status,
       templateContributorName: template.templateContributorName || contributorName,
+      templateOrder: row.studio_sort_order ?? template.templateOrder,
       templateRevision: Number.isInteger(revisionNumber) && revisionNumber >= 0 ? revisionNumber : 0,
       templateRevisionId: typeof metadata.revisionId === 'string' ? metadata.revisionId : undefined,
     } satisfies TCGCardTemplate;
@@ -73,6 +74,10 @@ export const mapRegistryRowsToStyleLibrary = async (
       accessTier: row.access_tier,
       registryStatus: row.status,
       contributorName: style.contributorName || contributorName,
+      studioDestinations: row.studio_destinations ?? style.studioDestinations,
+      studioOrder: row.studio_sort_order ?? style.studioOrder,
+      studioFeatured: row.studio_featured ?? style.studioFeatured,
+      studioRoutingMode: row.studio_routing_mode === 'owner' ? 'owner' as const : 'automatic' as const,
     } : null;
   }));
   return styles.flatMap((style) => style ? [style] : []);

@@ -223,6 +223,7 @@ export const createDeveloperAssetSubmission = async ({
   includeRegistryRecipePayloads?: boolean;
   input: {
     assetType?: unknown;
+    studioDestination?: unknown;
     name?: unknown;
     description?: unknown;
     previewUrl?: unknown;
@@ -250,6 +251,7 @@ export const createDeveloperAssetSubmission = async ({
       developer_id: developerId,
       developer_email: developerEmail,
       asset_type: normalized.value.assetType,
+      requested_studio_destination: normalized.value.requestedStudioDestination,
       name: normalized.value.name,
       description: normalized.value.description,
       preview_url: normalized.value.previewUrl,

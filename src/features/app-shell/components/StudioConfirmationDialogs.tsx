@@ -59,16 +59,16 @@ export function StudioConfirmationDialogs({
       <AlertDialog open={Boolean(templatePendingDeleteId)} onOpenChange={(open) => !open && onCloseTemplateDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this card design?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this Template?</AlertDialogTitle>
             <AlertDialogDescription>
-              &quot;{template?.name || templatePendingDeleteId || 'This card design'}&quot; will be permanently removed from this browser.{' '}
+              &quot;{template?.name || templatePendingDeleteId || 'This Template'}&quot; will be permanently removed from this browser.{' '}
               {dependentCardCount} card{dependentCardCount === 1 ? '' : 's'} using it will also be removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={onConfirmTemplateDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete Card Design
+              Delete Template
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -107,7 +107,7 @@ export function StudioConfirmationDialogs({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove all cards from this set?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove {generatedCardCount} card{generatedCardCount === 1 ? '' : 's'} from this browser. Card designs will not be deleted.
+              This will permanently remove {generatedCardCount} card{generatedCardCount === 1 ? '' : 's'} from this browser. Templates will not be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -127,7 +127,7 @@ export function StudioConfirmationDialogs({
               <div className="space-y-3 text-sm leading-6">
                 <p>
                   {pendingProjectImport?.preview.fileName || 'Selected file'} includes{' '}
-                  {pendingProjectImport?.preview.templateCount ?? 0} card design{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'},{' '}
+                  {pendingProjectImport?.preview.templateCount ?? 0} Template{pendingProjectImport?.preview.templateCount === 1 ? '' : 's'},{' '}
                   {pendingProjectImport?.preview.outputCount ?? 0} card{pendingProjectImport?.preview.outputCount === 1 ? '' : 's'},{' '}
                   {pendingProjectImport?.preview.appearanceStyleCount ?? 0} style preset{pendingProjectImport?.preview.appearanceStyleCount === 1 ? '' : 's'}, and{' '}
                   {pendingProjectImport?.preview.customAssetCount ?? 0} custom asset{pendingProjectImport?.preview.customAssetCount === 1 ? '' : 's'}.
@@ -140,7 +140,7 @@ export function StudioConfirmationDialogs({
                     ].slice(0, 4).join(', ')}.
                   </p>
                 ) : null}
-                <p>Replace loads the file as the local project. Merge adds or updates card designs, cards, styles, assets, and export settings without clearing current local work.</p>
+                <p>Replace loads the file as the local project. Merge adds or updates Templates, cards, styles, assets, and export settings without clearing current local work.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

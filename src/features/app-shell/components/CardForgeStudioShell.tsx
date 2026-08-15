@@ -127,6 +127,7 @@ export function CardForgeStudioShell({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstRunGuideDismissedRef = useRef(false);
+  const requestedTemplateHandledRef = useRef(false);
   const [showFirstRunGuide, setShowFirstRunGuide] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySort, setGallerySort] = useState<'default' | 'name-asc' | 'name-desc' | 'template'>('default');
@@ -301,6 +302,31 @@ export function CardForgeStudioShell({
 
   const effectiveActiveTab = STUDIO_TABS.some(tab => tab.value === activeTab) ? activeTab : STUDIO_TABS[0].value;
   useEffect(() => {
+    if (isLoadingTemplates || requestedTemplateHandledRef.current) return;
+    const url = new URL(window.location.href);
+    const requestedTemplateId = url.searchParams.get('editTemplate');
+    if (!requestedTemplateId) {
+      requestedTemplateHandledRef.current = true;
+      return;
+    }
+    requestedTemplateHandledRef.current = true;
+    const template = templatesFromStore.find((candidate) => candidate.id === requestedTemplateId);
+    if (!template) {
+      toast({
+        title: 'Template is not available',
+        description: 'This Template may be archived, restricted, or no longer published.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setTemplateEditorSelectedTemplateIdAction(template.id);
+    setActiveTabAction('template-maker');
+    url.searchParams.delete('editTemplate');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    focusStudioRegion('[data-testid="layout-studio-panel"]');
+  }, [focusStudioRegion, isLoadingTemplates, setActiveTabAction, setTemplateEditorSelectedTemplateIdAction, templatesFromStore, toast]);
+
+  useEffect(() => {
     let cancelled = false;
     void readProjectPreference<boolean>(STUDIO_GUIDE_STORAGE_KEY).then((dismissed) => {
       if (!cancelled && !firstRunGuideDismissedRef.current) {
@@ -337,9 +363,9 @@ export function CardForgeStudioShell({
               <p className="font-semibold">Some Studio library content did not load</p>
               <p className="mt-1 text-xs leading-5 text-[#cbb58b]">
                 {templateLibraryFailed && styleLibraryFailed
-                  ? 'Card designs and appearance styles are temporarily unavailable.'
+                  ? 'Templates and appearance styles are temporarily unavailable.'
                   : templateLibraryFailed
-                    ? 'Card designs are temporarily unavailable.'
+                    ? 'Templates are temporarily unavailable.'
                     : 'Appearance styles are temporarily unavailable.'}{' '}
                 Your browser-saved work is unchanged.
               </p>
@@ -358,7 +384,7 @@ export function CardForgeStudioShell({
         ) : null}
         <Tabs value={effectiveActiveTab} onValueChange={handleStudioTabChange} className="w-full min-w-0">
           <div className="cardforge-studio-context mb-4 border border-[#4a3823] bg-[#100c08] px-3 py-2 text-xs leading-5 text-[#cbb58b] no-print md:flex md:items-center md:justify-between md:gap-4">
-            <p><span className="font-semibold text-[#fff1c7]">Design layouts</span> shapes card designs and their fields.</p>
+            <p><span className="font-semibold text-[#fff1c7]">Templates</span> shape editable fronts, backs, fields, and visual foundations.</p>
             <p><span className="font-semibold text-[#fff1c7]">Make Cards</span> adds card details, then keeps every card ready for review and export.</p>
           </div>
           <TabsList className="cardforge-studio-tabs mb-4 grid h-auto w-full grid-cols-2 border border-[#5f4526] bg-[#15100a] p-1 no-print md:mb-6">
@@ -400,7 +426,8 @@ export function CardForgeStudioShell({
               projectFileGateMessage={projectFileGateMessage}
               selectedTemplateIdForEditing={templateEditorSelectedTemplateId}
               onSelectTemplateForEditing={setTemplateEditorSelectedTemplateIdAction}
-              canSubmitBaseRevision={developerAccess.canSubmitTemplateRevisions}
+              canSubmitSharedTemplateRevision={developerAccess.canSubmitTemplateRevisions}
+              canPublishSharedLibrary={developerAccess.canPublishSharedLibrary}
               canUploadCustomAssets={canUploadCustomAssets}
               onReturnToTemplateMaker={() => setActiveTabAction('template-maker')}
               requestedBackFormat={matchingBackRequest}

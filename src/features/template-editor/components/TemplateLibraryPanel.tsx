@@ -71,7 +71,7 @@ export function TemplateLibraryPanel({
   );
 
   return (
-    <WorkspaceSection title="Card design" icon={Layers} defaultOpen panelClassName={panelClassName}>
+    <WorkspaceSection title="Template" icon={Layers} defaultOpen panelClassName={panelClassName}>
       <div className="space-y-2">
         <Select
           value={currentTemplateId || '__new__'}
@@ -80,11 +80,11 @@ export function TemplateLibraryPanel({
             else onSelectTemplateId(value);
           }}
         >
-          <SelectTrigger className={controlClassName} aria-label="Choose card design"><SelectValue /></SelectTrigger>
+          <SelectTrigger className={controlClassName} aria-label="Choose Template"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__new__">New card design</SelectItem>
+            <SelectItem value="__new__">New Template</SelectItem>
             {shouldShowUnsavedCurrentTemplate ? (
-              <SelectItem value={currentTemplateId!}>Unsaved design / {currentTemplate.name || 'New card design'}</SelectItem>
+              <SelectItem value={currentTemplateId!}>Unsaved Template / {currentTemplate.name || 'New Template'}</SelectItem>
             ) : null}
             {defaultTemplates.map((template) => (
               <SelectItem key={template.id!} value={template.id!}>{getTemplateLibraryLabel(template)} / {template.name}</SelectItem>

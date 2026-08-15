@@ -33,7 +33,7 @@ const GRADIENT_TYPES = new Set(['linear', 'radial', 'none']);
 const TEXTURE_KINDS = new Set(['none', 'parchment', 'foil', 'etched', 'grain', 'hatch', 'uploaded']);
 const BORDER_KINDS = new Set(['none', 'solid', 'double', 'etched', 'relic', 'foil']);
 const TILE_MODES = new Set(['repeat', 'stretch', 'contain']);
-const ASSET_KINDS = new Set(['texture', 'divider', 'border', 'frame', 'part']);
+const ASSET_KINDS = new Set(['texture', 'divider', 'border', 'frame']);
 const SHAPE_ROLES = new Set<FreeformShapeRole>(['basic', 'panel', 'artFrame', 'rulesBox', 'titlePlate', 'statGem', 'costOrb', 'divider']);
 const SHAPE_KINDS = new Set<FreeformShapeKind>(['rectangle', 'ellipse', 'diamond', 'hexagon', 'capsule', 'banner', 'notch-panel', 'bracket-frame', 'corner-frame', 'line']);
 

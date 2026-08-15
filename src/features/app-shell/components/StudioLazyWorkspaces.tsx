@@ -18,7 +18,7 @@ const WorkspaceLoadingState = () => (
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e4aa43] border-t-transparent" aria-hidden="true" />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Preparing Studio</p>
-            <p className="mt-2 text-sm leading-6 text-[#cbb58b]">Loading your card designs and card set.</p>
+            <p className="mt-2 text-sm leading-6 text-[#cbb58b]">Loading your Templates and card set.</p>
           </div>
         </div>
       </section>

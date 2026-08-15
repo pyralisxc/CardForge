@@ -95,8 +95,8 @@ export const getExportEntitlementCopy = (
     gateMessage,
     projectFileGateMessage,
     panelMessage: projectFileAccess === 'free'
-      ? 'Design layouts, add card data, and move portable project files for free. Creator Pass adds watermark-free finished downloads.'
-      : 'Design layouts, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
+      ? 'Build Templates, add card data, and move portable project files for free. Creator Pass adds watermark-free finished downloads.'
+      : 'Build Templates, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
   };
 };
 

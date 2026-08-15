@@ -1,4 +1,8 @@
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
+import {
+  getStudioAssetDestinationDefinition,
+  type StudioAssetDestination,
+} from '@/domain/templates';
 import type {
   DeveloperAssetAccessTier,
   DeveloperAssetStatus,
@@ -7,7 +11,7 @@ import type {
 
 export type RegistryCreationAssetKind = Extract<
   CardAssetOption['kind'],
-  'texture' | 'divider' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset'
+  'texture' | 'divider' | 'icon' | 'image' | 'template' | 'elementPreset'
 > | 'font';
 
 const assetKindLabels: Record<CardAssetOption['kind'] | 'font', { singular: string; plural: string }> = {
@@ -15,11 +19,10 @@ const assetKindLabels: Record<CardAssetOption['kind'] | 'font', { singular: stri
   divider: { singular: 'Divider', plural: 'Dividers' },
   border: { singular: 'Border', plural: 'Borders' },
   frame: { singular: 'Frame', plural: 'Frames' },
-  part: { singular: 'Overlay Asset', plural: 'Overlay Assets' },
   icon: { singular: 'Icon', plural: 'Icons' },
   image: { singular: 'Image', plural: 'Images' },
   template: { singular: 'Template', plural: 'Templates' },
-  elementPreset: { singular: 'Style Recipe', plural: 'Style Recipes' },
+  elementPreset: { singular: 'Style', plural: 'Styles' },
   font: { singular: 'Font', plural: 'Fonts' },
 };
 
@@ -32,8 +35,7 @@ export const developerAssetTypeToRegistryAssetKind = (
   if (assetType === 'dividers') return 'divider';
   if (assetType === 'icons') return 'icon';
   if (assetType === 'imageAssets') return 'image';
-  if (assetType === 'fonts') return 'font';
-  return 'part';
+  return 'font';
 };
 
 export const getAssetKindLabel = (
@@ -48,6 +50,28 @@ export const getDeveloperAssetTypeLabel = (
   assetType: DeveloperAssetType,
   options: { plural?: boolean } = { plural: true },
 ): string => getAssetKindLabel(developerAssetTypeToRegistryAssetKind(assetType), options);
+
+export const getDeveloperAssetStudioDestinationOptions = (
+  assetType: DeveloperAssetType,
+): StudioAssetDestination[] => {
+  if (assetType === 'templates') return ['template.front', 'template.back'];
+  if (assetType === 'elementPresets') {
+    return ['style.material', 'style.border', 'style.textFrame', 'style.shape', 'style.divider', 'style.icon'];
+  }
+  if (assetType === 'textures') return ['appearance.texture'];
+  if (assetType === 'dividers') return ['element.divider'];
+  if (assetType === 'icons') return ['element.icon'];
+  if (assetType === 'imageAssets') return ['image.picture', 'image.frame.front', 'image.frame.back'];
+  return ['typography.font'];
+};
+
+export const getDefaultDeveloperAssetStudioDestination = (
+  assetType: DeveloperAssetType,
+): StudioAssetDestination => getDeveloperAssetStudioDestinationOptions(assetType)[0];
+
+export const getDeveloperAssetStudioDestinationLabel = (
+  destination: StudioAssetDestination,
+): string => getStudioAssetDestinationDefinition(destination).label;
 
 export const getDeveloperAssetStatusLabel = (status: DeveloperAssetStatus | 'localOnly'): string => {
   if (status === 'publish_candidate') return 'Publish Candidate';

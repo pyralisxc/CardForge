@@ -5,11 +5,16 @@ import {
 } from '@/features/developer-assets/lib/cardAssets';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import {
+  getDefaultStudioAssetDestinations,
+  normalizeStudioAssetDestinations,
+  type StudioAssetRoutingMode,
+} from '@/domain/templates';
+import {
   getVisibleRegistryAccessTiers,
   type RegistryViewerAccess,
 } from './registryContentAssets';
 
-type RegistryAssetKind = CardAssetOption['kind'];
+type RegistryAssetKind = 'texture' | 'divider' | 'icon' | 'image' | 'template' | 'elementPreset';
 
 export type AssetRegistryRow = {
   asset_id: string;
@@ -21,12 +26,15 @@ export type AssetRegistryRow = {
   library_source: string;
   file_size_bytes: number | null;
   metadata: unknown;
+  studio_destinations?: unknown;
+  studio_sort_order?: unknown;
+  studio_featured?: unknown;
+  studio_routing_mode?: unknown;
 };
 
 export interface AssetRegistryPayload {
   textures: CardAssetOption[];
   dividers: CardAssetOption[];
-  parts: CardAssetOption[];
   icons: CardAssetOption[];
   imageAssets: CardAssetOption[];
   templates: CardAssetOption[];
@@ -41,7 +49,6 @@ export interface AssetRegistryPayload {
 const isRegistryAssetKind = (value: unknown): value is RegistryAssetKind =>
   value === 'texture'
   || value === 'divider'
-  || value === 'part'
   || value === 'icon'
   || value === 'image'
   || value === 'template'
@@ -51,7 +58,6 @@ const emptyAssetRegistryPayload = (configured: boolean): AssetRegistryPayload =>
   return {
     textures: [],
     dividers: [],
-    parts: [],
     icons: [],
     imageAssets: [],
     templates: [],
@@ -78,6 +84,13 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
       name: row.name,
     },
   });
+  const destinations = row.studio_destinations === undefined
+    ? getDefaultStudioAssetDestinations({ kind: row.asset_type, metadata: row.metadata })
+    : normalizeStudioAssetDestinations(row.studio_destinations);
+  const studioOrder = Number(row.studio_sort_order);
+  const studioRoutingMode: StudioAssetRoutingMode = row.studio_routing_mode === 'owner'
+    ? 'owner'
+    : 'automatic';
 
   return {
     ...asset,
@@ -109,8 +122,18 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
       ? row.status
       : 'published',
     fileSizeBytes: row.file_size_bytes ?? undefined,
+    studioDestinations: destinations,
+    studioOrder: Number.isInteger(studioOrder) && studioOrder >= 0 ? studioOrder : 100,
+    studioFeatured: row.studio_featured === true,
+    studioRoutingMode,
   };
 };
+
+const sortStudioAssets = (assets: CardAssetOption[]): CardAssetOption[] => [...assets].sort((left, right) => (
+  Number(Boolean(right.studioFeatured)) - Number(Boolean(left.studioFeatured))
+  || (left.studioOrder ?? 100) - (right.studioOrder ?? 100)
+  || left.name.localeCompare(right.name)
+));
 
 export const mapAssetRegistryRowsToPayload = (
   rows: AssetRegistryRow[],
@@ -121,13 +144,12 @@ export const mapAssetRegistryRowsToPayload = (
     .filter((asset): asset is CardAssetOption => Boolean(asset));
 
   return {
-    textures: assets.filter((asset) => asset.kind === 'texture'),
-    dividers: assets.filter((asset) => asset.kind === 'divider'),
-    parts: assets.filter((asset) => asset.kind === 'part'),
-    icons: assets.filter((asset) => asset.kind === 'icon'),
-    imageAssets: assets.filter((asset) => asset.kind === 'image'),
-    templates: assets.filter((asset) => asset.kind === 'template'),
-    elementPresets: assets.filter((asset) => asset.kind === 'elementPreset'),
+    textures: sortStudioAssets(assets.filter((asset) => asset.kind === 'texture')),
+    dividers: sortStudioAssets(assets.filter((asset) => asset.kind === 'divider')),
+    icons: sortStudioAssets(assets.filter((asset) => asset.kind === 'icon')),
+    imageAssets: sortStudioAssets(assets.filter((asset) => asset.kind === 'image')),
+    templates: sortStudioAssets(assets.filter((asset) => asset.kind === 'template')),
+    elementPresets: sortStudioAssets(assets.filter((asset) => asset.kind === 'elementPreset')),
     registry: {
       configured,
       source: 'database',
@@ -143,7 +165,7 @@ const getDatabaseAssetRegistry = async (viewerAccess: RegistryViewerAccess): Pro
   const visibleTiers = getVisibleRegistryAccessTiers(viewerAccess);
   const { data, error } = await supabase
     .from('cardforge_asset_registry')
-    .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata')
+    .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
     .eq('status', 'published')
     .in('access_tier', visibleTiers)
     .order('asset_type', { ascending: true })

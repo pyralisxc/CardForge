@@ -181,7 +181,7 @@ export function TemplateEditorInspectorSidebar({
                 )}
 
                 {elements.canUseAppearanceStudio && (
-                  <InspectorFlowSection title="Fill & Effects" badge="Look" defaultOpen={false} description="Change fill, fill texture, gradient, and glow without touching Frame & Edge borders.">
+                  <InspectorFlowSection title="Fill & Effects" badge="Look" defaultOpen={false} description="Change fill, texture, gradient, and glow without touching Border & Edge controls.">
                     <AppearanceStudioPanel
                       element={selectedElement}
                       selectedAppearance={elements.selectedAppearance}
@@ -206,7 +206,7 @@ export function TemplateEditorInspectorSidebar({
                 )}
 
                 {elements.canUseElementBorder && (
-                  <InspectorFlowSection title="Frame & Edge" badge="Frame" defaultOpen={false} description="Control the selected element container: text box edge, image frame, icon backplate, or shape stroke.">
+                  <InspectorFlowSection title="Border & Edge" badge="Border" defaultOpen={false} description="Control the selected element container: text box edge, picture border, icon backplate, or shape stroke.">
                     <BorderInspectorPanel
                       element={selectedElement}
                       selectedAppearance={elements.selectedAppearance}

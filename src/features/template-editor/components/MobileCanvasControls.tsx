@@ -58,7 +58,7 @@ export function MobileCanvasControls({
         </Button>
       ) : null}
       <span className="min-w-0 flex-1 px-1 text-center">
-        <span className="block truncate text-xs font-semibold text-[#f3ead7]">{templateName || 'Untitled card design'}</span>
+        <span className="block truncate text-xs font-semibold text-[#f3ead7]">{templateName || 'Untitled Template'}</span>
         <span className={cn('mt-0.5 block text-[10px] uppercase tracking-[0.12em]', isDirty ? 'text-[#f5d27b]' : 'text-[#8f95a3]')}>{isDirty ? 'Unsaved' : 'Ready'}</span>
       </span>
       <Button type="button" size="icon" variant="outline" aria-label="Edit selected element" className={cn(makerTheme.toolButton, 'h-10 w-10 shrink-0')} onClick={onOpenInspector}>
@@ -97,7 +97,7 @@ export function MobileCanvasControls({
         </SheetContent>
       </Sheet>
       {saveAction ? (
-        <Button type="button" size="icon" aria-label="Save card design" className="h-10 w-10 shrink-0 rounded-[5px] border border-[#7f6225] bg-[#d5ad54] text-[#11100c] hover:bg-[#f0ca71]" onClick={saveAction.onSelect}>
+        <Button type="button" size="icon" aria-label={saveAction.label} disabled={saveAction.disabled} className="h-10 w-10 shrink-0 rounded-[5px] border border-[#7f6225] bg-[#d5ad54] text-[#11100c] hover:bg-[#f0ca71]" onClick={saveAction.onSelect}>
           <saveAction.icon className="h-5 w-5" />
         </Button>
       ) : null}

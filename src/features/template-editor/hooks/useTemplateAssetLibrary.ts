@@ -14,7 +14,11 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
 } from '@/features/project/client';
 import type { useToast } from '@/components/ui/use-toast';
-import type { FreeformCardElement } from '@/domain/templates';
+import {
+  getDefaultStudioAssetDestinations,
+  type FreeformCardElement,
+  type StudioAssetDestination,
+} from '@/domain/templates';
 import { getBrowserStorageHealth, optimizeLocalAssetFile, validateLocalAssetFile } from '@/features/project/client';
 import {
   getProjectAssetStorage,
@@ -22,6 +26,13 @@ import {
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
 type ToastFn = ReturnType<typeof useToast>['toast'];
+
+const isRoutedTo = (asset: CardAssetOption, destination: StudioAssetDestination): boolean => {
+  const routes = asset.studioDestinations ?? getDefaultStudioAssetDestinations({
+    kind: asset.kind as 'texture' | 'divider' | 'icon' | 'image' | 'template' | 'elementPreset',
+  });
+  return routes.includes(destination);
+};
 
 interface UseTemplateAssetLibraryInput {
   selectedElement: FreeformCardElement | null;
@@ -101,10 +112,7 @@ export function useTemplateAssetLibrary({
         if (Array.isArray(payload.icons) && payload.icons.length > 0) {
           setDiscoveredIconAssets(payload.icons);
         }
-        const nextImageAssets = [
-          ...(Array.isArray(payload.imageAssets) ? payload.imageAssets : []),
-          ...(Array.isArray(payload.parts) ? payload.parts : []),
-        ];
+        const nextImageAssets = Array.isArray(payload.imageAssets) ? payload.imageAssets : [];
         if (nextImageAssets.length > 0) {
           setDiscoveredImageAssets(nextImageAssets);
         }
@@ -125,6 +133,7 @@ export function useTemplateAssetLibrary({
     const target = selectedElement.type === 'shape' ? 'shape' : 'text';
     const search = assetSearch.trim().toLowerCase();
     return [...discoveredTextureAssets, ...customTextureAssets]
+      .filter((asset) => isRoutedTo(asset, 'appearance.texture'))
       .filter((asset) => asset.allowedTargets.includes(target))
       .filter((asset) => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, canUseBackgroundTexture, customTextureAssets, discoveredTextureAssets, selectedElement]);
@@ -132,6 +141,7 @@ export function useTemplateAssetLibrary({
   const compatibleDividerAssets = useMemo(() => {
     const search = assetSearch.trim().toLowerCase();
     return [...discoveredDividerAssets, ...customDividerAssets]
+      .filter((asset) => isRoutedTo(asset, 'element.divider'))
       .filter((asset) => asset.allowedTargets.includes('divider'))
       .filter((asset) => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customDividerAssets, discoveredDividerAssets]);
@@ -139,16 +149,27 @@ export function useTemplateAssetLibrary({
   const compatibleIconAssets = useMemo(() => {
     const search = assetSearch.trim().toLowerCase();
     return [...discoveredIconAssets, ...customIconAssets]
+      .filter((asset) => isRoutedTo(asset, 'element.icon'))
       .filter((asset) => asset.allowedTargets.includes('icon'))
       .filter((asset) => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customIconAssets, discoveredIconAssets]);
 
   const compatibleImageAssets = useMemo(() => {
     const search = assetSearch.trim().toLowerCase();
-    return [...discoveredImageAssets, ...customImageAssets]
-      .filter((asset) => asset.allowedTargets.includes('image') || asset.allowedTargets.includes('imageFrame'))
+    return [...discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.picture')), ...customImageAssets]
+      .filter((asset) => asset.allowedTargets.includes('image'))
       .filter((asset) => !search || asset.name.toLowerCase().includes(search));
   }, [assetSearch, customImageAssets, discoveredImageAssets]);
+
+  const frontFrameAssets = useMemo(
+    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.frame.front')),
+    [discoveredImageAssets],
+  );
+
+  const backFrameAssets = useMemo(
+    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.frame.back')),
+    [discoveredImageAssets],
+  );
 
   const handleAssetUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider' | 'icon' | 'image') => {
     if (!canUploadCustomAssets) {
@@ -267,6 +288,8 @@ export function useTemplateAssetLibrary({
     compatibleIconAssets,
     compatibleImageAssets,
     compatibleTextureAssets,
+    frontFrameAssets,
+    backFrameAssets,
     canUploadCustomAssets,
     handleAssetUpload,
     setAssetSearch,

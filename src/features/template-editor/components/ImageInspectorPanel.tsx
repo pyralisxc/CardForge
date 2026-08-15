@@ -35,9 +35,9 @@ export function ImageInspectorPanel({
   return (
     <>
       <div className="space-y-2 rounded-[6px] border border-[#252b35] bg-[#0b0f15] p-2">
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Image source</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Picture source</Label>
         <div>
-          <Label htmlFor="element-image-source" className="text-xs">Image URL, card field, or uploaded file</Label>
+          <Label htmlFor="element-image-source" className="text-xs">Picture URL, card field, or uploaded file</Label>
           <div className="flex gap-2">
             <Input
               id="element-image-source"
@@ -45,7 +45,7 @@ export function ImageInspectorPanel({
               value={element.imageSource || element.content || ''}
               onChange={(event) => onUpdateElement({ imageSource: event.target.value, content: event.target.value }, false)}
             />
-            <Button type="button" variant="outline" size="icon" onClick={() => imageInputRef.current?.click()} aria-label="Upload image source">
+            <Button type="button" variant="outline" size="icon" onClick={() => imageInputRef.current?.click()} aria-label="Upload picture source">
               <ImageIcon className="h-4 w-4" />
             </Button>
             <input
@@ -57,12 +57,12 @@ export function ImageInspectorPanel({
             />
           </div>
         </div>
-        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Library and personal images</Label>
+        <Label className="block text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">Pictures</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#757d8c]" />
           <Input
             className="h-8 rounded-[4px] border-[#2d3340] bg-[#0d1117] pl-7 text-xs text-[#d8d1c4]"
-            placeholder="Search images and overlays..."
+            placeholder="Search pictures..."
             value={assetSearch}
             onChange={(event) => onAssetSearchChange(event.target.value)}
           />
@@ -92,13 +92,13 @@ export function ImageInspectorPanel({
           </div>
         ) : (
           <div className="rounded-[5px] border border-dashed border-[#2d3340] bg-[#090d13] p-2 text-[10px] text-[#8f95a3]">
-            No compatible image assets found.
+            No compatible pictures found.
           </div>
         )}
       </div>
 
       <div>
-        <Label htmlFor="element-fit">Image Fit</Label>
+        <Label htmlFor="element-fit">Picture fit</Label>
         <Select value={element.imageObjectFit || 'cover'} onValueChange={(value) => onUpdateElement({ imageObjectFit: value as FreeformCardElement['imageObjectFit'] })}>
           <SelectTrigger id="element-fit"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -112,10 +112,10 @@ export function ImageInspectorPanel({
       <div className="grid grid-cols-2 gap-2">
         <ImageNumberField id="element-position-x" label="Position X" value={element.imageObjectPositionX || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionX: value }, false)} />
         <ImageNumberField id="element-position-y" label="Position Y" value={element.imageObjectPositionY || ''} placeholder="center / 50%" onChange={(value) => onUpdateElement({ imageObjectPositionY: value }, false)} />
-        <ImageNumberField id="element-image-scale" label="Image Scale" type="number" step="0.05" value={element.imageScale === undefined ? '' : String(element.imageScale)} placeholder="1" onChange={(value) => onUpdateElement({ imageScale: value ? Number(value) : undefined }, false)} />
-        <ImageNumberField id="element-image-rotation" label="Image Rotation" type="number" value={element.imageRotation === undefined ? '' : String(element.imageRotation)} placeholder="0" onChange={(value) => onUpdateElement({ imageRotation: value ? Number(value) : undefined }, false)} />
-        <ImageNumberField id="element-image-offset-x" label="Image Offset X" type="number" value={element.imageOffsetX === undefined ? '' : String(element.imageOffsetX)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetX: value ? Number(value) : undefined }, false)} />
-        <ImageNumberField id="element-image-offset-y" label="Image Offset Y" type="number" value={element.imageOffsetY === undefined ? '' : String(element.imageOffsetY)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetY: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-image-scale" label="Picture scale" type="number" step="0.05" value={element.imageScale === undefined ? '' : String(element.imageScale)} placeholder="1" onChange={(value) => onUpdateElement({ imageScale: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-image-rotation" label="Picture rotation" type="number" value={element.imageRotation === undefined ? '' : String(element.imageRotation)} placeholder="0" onChange={(value) => onUpdateElement({ imageRotation: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-image-offset-x" label="Picture offset X" type="number" value={element.imageOffsetX === undefined ? '' : String(element.imageOffsetX)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetX: value ? Number(value) : undefined }, false)} />
+        <ImageNumberField id="element-image-offset-y" label="Picture offset Y" type="number" value={element.imageOffsetY === undefined ? '' : String(element.imageOffsetY)} placeholder="0" onChange={(value) => onUpdateElement({ imageOffsetY: value ? Number(value) : undefined }, false)} />
       </div>
     </>
   );
