@@ -18,7 +18,7 @@ import { useSiteContent } from './PublicSitePresentationContext';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
 
 const stages = [
-  { label: 'Design layouts', icon: LayoutTemplate },
+  { label: 'Templates', icon: LayoutTemplate },
   { label: 'Make cards', icon: Database },
   { label: 'Review the set', icon: Layers3 },
 ] as const;

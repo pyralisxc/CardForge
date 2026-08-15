@@ -14,6 +14,7 @@ const submission = (
   developerEmail: `${id}@example.com`,
   developerDisplayName: `Maker ${id}`,
   assetType,
+  requestedStudioDestination: null,
   name,
   description: `Description for ${name}`,
   previewUrl: '',

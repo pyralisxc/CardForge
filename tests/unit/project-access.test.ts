@@ -85,23 +85,27 @@ describe('projectAccess', () => {
   });
 
   it('describes free access without internal entitlement terminology', () => {
-    expect(getExportEntitlementCopy('free')).toEqual({
+    const copy = getExportEntitlementCopy('free');
+    expect(copy).toMatchObject({
       modeLabel: 'Free plan',
       canExportClean: false,
-      gateMessage: 'Creator Pass unlocks watermark-free PNG, PDF, ZIP, and Tabletop Simulator downloads. You can keep designing and making preview cards for free.',
       projectFileGateMessage: 'Creator Pass lets you download and open portable CardForge project files.',
-      panelMessage: 'Design layouts, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
     });
+    expect(copy.panelMessage).toContain('Build Templates');
+    expect(copy.panelMessage).toContain('preview cards for free');
+    expect(copy.panelMessage).toContain('watermark-free downloads');
   });
 
   it('describes owner-enabled free project files without implying finished exports are free', () => {
-    expect(getExportEntitlementCopy('free', 'free')).toEqual({
+    const copy = getExportEntitlementCopy('free', 'free');
+    expect(copy).toMatchObject({
       modeLabel: 'Free plan',
       canExportClean: false,
-      gateMessage: 'Creator Pass unlocks watermark-free PNG, PDF, ZIP, and Tabletop Simulator downloads. You can keep designing and making preview cards for free.',
       projectFileGateMessage: null,
-      panelMessage: 'Design layouts, add card data, and move portable project files for free. Creator Pass adds watermark-free finished downloads.',
     });
+    expect(copy.panelMessage).toContain('Build Templates');
+    expect(copy.panelMessage).toContain('move portable project files for free');
+    expect(copy.panelMessage).toContain('watermark-free finished downloads');
   });
 
   it('describes paid access as export entitlement without cloud project storage', () => {

@@ -35,3 +35,4 @@ export * from './fieldContracts';
 export * from './templateFields';
 export * from './display';
 export * from './editorGeometry';
+export * from './studioAssetDestinations';

@@ -127,7 +127,7 @@ export function SingleCardGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('Choose a card design before adding a card.', 'Choose a card design above, then try again.'),
+        description: withNextStep('Choose a Template before adding a card.', 'Choose a Template above, then try again.'),
         variant: "destructive",
       });
       return;
@@ -297,10 +297,10 @@ export function SingleCardGenerator({
         )}
 
          {!selectedTemplateIdProp && templates.length > 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Choose a card design above to start entering details.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">Choose a Template above to start entering details.</p>
         )}
          {templates.length === 0 && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No card designs are available yet. Use Design layouts to create one first.</p>
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">No front Templates are available yet. Open Templates to create one first.</p>
         )}
 
         <Button

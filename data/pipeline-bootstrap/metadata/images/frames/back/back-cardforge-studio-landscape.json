@@ -4,6 +4,8 @@
   "tileMode": "contain",
   "seamless": false,
   "allowedTargets": ["template", "imageFrame"],
+  "studioDefaultDestination": "image.frame.back",
+  "repositoryPathAliases": ["textures/arcane-forge/back-cardforge-studio-landscape.webp"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,
   "defaultScale": 100

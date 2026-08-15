@@ -1,9 +1,12 @@
 import { nanoid } from 'nanoid';
 
 import {
-  isDeveloperAssetType,
-  type DeveloperAssetType,
+  isDeveloperUploadAssetType,
+  type DeveloperUploadAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
+import {
+  isStudioAssetDestination,
+} from '@/domain/templates';
 import {
   type DeveloperAssetProgramView,
 } from '@/features/developer-assets/lib/developerAssetProgram';
@@ -17,10 +20,11 @@ import {
   DEVELOPER_ASSET_UPLOAD_MAX_BYTES,
 } from '@/features/developer-assets/lib/developerAssetUploadPolicy';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import { getDeveloperAssetStudioDestinationOptions } from './pipelineAssetTaxonomy';
 
 const ALLOWED_MIME_TYPES = new Set<string>(DEVELOPER_ASSET_UPLOAD_ALLOWED_MIME_TYPES);
 const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
-const NON_FONT_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp', 'json']);
+const IMAGE_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp']);
 
 const sanitizeFileStem = (value: string): string => value
   .replace(/\.[^.]+$/u, '')
@@ -36,7 +40,6 @@ const getFileExtension = (file: File): string => {
   if (file.type === 'image/png') return 'png';
   if (file.type === 'image/jpeg') return 'jpg';
   if (file.type === 'image/webp') return 'webp';
-  if (file.type === 'application/json') return 'json';
   if (file.type === 'font/woff2') return 'woff2';
   if (file.type === 'font/woff' || file.type === 'application/font-woff') return 'woff';
   if (file.type === 'font/ttf' || file.type === 'application/x-font-ttf') return 'ttf';
@@ -44,7 +47,7 @@ const getFileExtension = (file: File): string => {
   return '';
 };
 
-const validateSourceFile = (file: File, assetType: DeveloperAssetType): string => {
+const validateSourceFile = (file: File, assetType: DeveloperUploadAssetType): string => {
   if (file.size <= 0 || file.size > DEVELOPER_ASSET_UPLOAD_MAX_BYTES) {
     throw new DeveloperAssetStoreError('Developer asset files must be 10 MB or smaller.', 413);
   }
@@ -53,12 +56,12 @@ const validateSourceFile = (file: File, assetType: DeveloperAssetType): string =
   const isFontUpload = assetType === 'fonts';
   const extensionAllowed = isFontUpload
     ? FONT_EXTENSIONS.has(extension)
-    : NON_FONT_EXTENSIONS.has(extension);
+    : IMAGE_EXTENSIONS.has(extension);
   if (!extensionAllowed || (file.type && !ALLOWED_MIME_TYPES.has(file.type))) {
     throw new DeveloperAssetStoreError(
       isFontUpload
         ? 'Upload WOFF2, WOFF, TTF, or OTF font assets.'
-        : 'Upload SVG, PNG, JPG, WEBP, or JSON assets.',
+        : 'Upload SVG, PNG, JPG, or WEBP artwork.',
       400,
     );
   }
@@ -71,6 +74,7 @@ export interface CreateUploadedDeveloperAssetSubmissionInput {
   currentContributorIds: string[];
   includeRegistryRecipePayloads?: boolean;
   assetType: unknown;
+  studioDestination: unknown;
   name: unknown;
   description: unknown;
   previewUrl: unknown;
@@ -83,15 +87,26 @@ export const createUploadedDeveloperAssetSubmission = async ({
   currentContributorIds,
   includeRegistryRecipePayloads = false,
   assetType: assetTypeValue,
+  studioDestination,
   name,
   description,
   previewUrl,
   file,
 }: CreateUploadedDeveloperAssetSubmissionInput): Promise<DeveloperAssetProgramView> => {
-  if (!isDeveloperAssetType(assetTypeValue)) {
-    throw new DeveloperAssetStoreError('Choose a supported asset type.', 400);
+  if (!isDeveloperUploadAssetType(assetTypeValue)) {
+    throw new DeveloperAssetStoreError(
+      'Templates and Styles are authored in Studio. Use this upload form for media and font assets.',
+      400,
+    );
+  }
+  if (
+    !isStudioAssetDestination(studioDestination)
+    || !getDeveloperAssetStudioDestinationOptions(assetTypeValue).includes(studioDestination)
+  ) {
+    throw new DeveloperAssetStoreError('Choose a Studio destination compatible with this asset type.', 400);
   }
   const extension = validateSourceFile(file, assetTypeValue);
+  const fileBytes = await file.arrayBuffer();
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     throw new DeveloperAssetStoreError('Developer asset storage is not configured yet.', 503);
@@ -103,7 +118,7 @@ export const createUploadedDeveloperAssetSubmission = async ({
     `${Date.now()}-${sanitizeFileStem(file.name)}-${nanoid(8)}.${extension}`,
   ].join('/');
   const storage = supabase.storage.from(DEVELOPER_ASSET_STORAGE_BUCKET);
-  const { error: uploadError } = await storage.upload(storagePath, await file.arrayBuffer(), {
+  const { error: uploadError } = await storage.upload(storagePath, fileBytes, {
     contentType: file.type || 'application/octet-stream',
     upsert: false,
   });
@@ -120,6 +135,7 @@ export const createUploadedDeveloperAssetSubmission = async ({
       includeRegistryRecipePayloads,
       input: {
         assetType: assetTypeValue,
+        studioDestination,
         name,
         description,
         previewUrl: typeof previewUrl === 'string' && previewUrl.trim() ? previewUrl.trim() : data.publicUrl,

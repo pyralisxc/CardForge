@@ -111,6 +111,9 @@ export function TemplateEditorLibrarySidebar({
               resizeStrategy={commands.resizeStrategy}
               gridSize={canvas.gridSize || 20}
               frameKitRecipes={commands.frameKitRecipes}
+              frameAssets={currentTemplate.templateUsage === 'back-preset'
+                ? elements.backFrameAssets
+                : elements.frontFrameAssets}
               backgroundImageInputRef={commands.backgroundImageInputRef}
               borderImageInputRef={commands.borderImageInputRef}
               controlClassName={makerTheme.control}

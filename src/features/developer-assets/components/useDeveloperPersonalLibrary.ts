@@ -10,11 +10,9 @@ import {
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getProjectAssetStorage,
   readTypedProjectAssetListFromStorage,
-  useProjectStore,
 } from '@/features/project/client';
 import {
   createAssetFile,
-  createJsonFile,
   deduplicatePersonalLibraryItems,
   getExtensionForAssetUrl,
   slugifyFileName,
@@ -30,8 +28,6 @@ const emptyPersonalAssets = {
 };
 
 export function useDeveloperPersonalLibrary() {
-  const userTemplates = useProjectStore((state) => state.userTemplates);
-  const appearanceStyles = useProjectStore((state) => state.appearanceStyles);
   const [filter, setFilter] = useState<PersonalLibraryFilter>('all');
   const [assets, setAssets] = useState(emptyPersonalAssets);
 
@@ -54,33 +50,6 @@ export function useDeveloperPersonalLibrary() {
   }, []);
 
   const items = useMemo<PersonalLibraryItem[]>(() => {
-    const templateItems = userTemplates.filter((template) => template.id).map((template) => {
-      const fileNameStem = slugifyFileName(template.name || template.id || 'template', 'template');
-      return {
-        id: `template-${template.id}`,
-        name: template.name || template.id || 'Untitled template',
-        sourceLabel: 'Saved template',
-        assetType: 'templates' as const,
-        fileName: `${fileNameStem}.template.json`,
-        helperText: 'Saved in this browser. Export a project file when you need a portable backup.',
-        previewUrl: `/api/templates#${template.id}`,
-        createFile: async () => createJsonFile(template, `${fileNameStem}.template.json`),
-      };
-    });
-
-    const styleItems = appearanceStyles.filter((style) => style.id && !style.id.startsWith('default-')).map((style) => {
-      const fileNameStem = slugifyFileName(style.name || style.id, 'appearance-style');
-      return {
-        id: `style-${style.id}`,
-        name: style.name || style.id,
-        sourceLabel: 'Appearance style',
-        assetType: 'elementPresets' as const,
-        fileName: `${fileNameStem}.style.json`,
-        helperText: 'Saved Appearance Studio preset from this browser.',
-        createFile: async () => createJsonFile(style, `${fileNameStem}.style.json`),
-      };
-    });
-
     const assetItems = ([
       ['textures', 'Local texture', assets.textures],
       ['dividers', 'Local divider', assets.dividers],
@@ -100,8 +69,8 @@ export function useDeveloperPersonalLibrary() {
       };
     }));
 
-    return deduplicatePersonalLibraryItems([...templateItems, ...styleItems, ...assetItems]);
-  }, [appearanceStyles, assets, userTemplates]);
+    return deduplicatePersonalLibraryItems(assetItems);
+  }, [assets]);
 
   const visibleItems = useMemo(
     () => filter === 'all' ? items : items.filter((item) => item.assetType === filter),

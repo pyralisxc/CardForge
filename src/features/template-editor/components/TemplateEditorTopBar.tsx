@@ -34,8 +34,8 @@ export function TemplateEditorTopBar({
           <PenTool className="h-4 w-4 text-[#d5ad54]" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold tracking-wide text-[#f3ead7]">Design layouts</h2>
-          <p className="cardforge-editor-subtitle text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">{isDirty ? 'Unsaved changes' : 'Card design workspace'}</p>
+          <h2 className="text-sm font-semibold tracking-wide text-[#f3ead7]">Template Studio</h2>
+          <p className="cardforge-editor-subtitle text-[10px] uppercase tracking-[0.14em] text-[#8f95a3]">{isDirty ? 'Unsaved changes' : 'Template workspace'}</p>
         </div>
       </div>
       <div className="cardforge-editor-actions mt-3 flex flex-wrap items-center gap-1 lg:mt-0">
@@ -106,6 +106,7 @@ export function TemplateEditorTopBar({
               <Button
                 type="button"
                 onClick={saveAction.onSelect}
+                disabled={saveAction.disabled}
                 size="sm"
                 aria-keyshortcuts="Control+S Meta+S"
                 className="h-8 gap-1 rounded-[4px] border border-[#7f6225] bg-[#d5ad54] px-3 text-xs font-semibold text-[#11100c] hover:bg-[#f0ca71]"

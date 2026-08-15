@@ -46,6 +46,7 @@ describe('developer asset upload submission', () => {
       developerEmail: 'dev@example.com',
       currentContributorIds: ['developer-1'],
       assetType: 'dividers',
+      studioDestination: 'element.divider',
       name: 'Gold Divider',
       description: 'A clean divider.',
       previewUrl: '',
@@ -74,6 +75,7 @@ describe('developer asset upload submission', () => {
       developerEmail: 'dev@example.com',
       currentContributorIds: ['developer-1'],
       assetType: 'dividers',
+      studioDestination: 'element.divider',
       name: 'Gold Divider',
       description: '',
       previewUrl: '',
@@ -81,5 +83,29 @@ describe('developer asset upload submission', () => {
     })).rejects.toThrow('insert failed');
 
     expect(storage.remove).toHaveBeenCalledWith([expect.stringContaining('developer-1/dividers/')]);
+  });
+
+  it('routes Template revisions through Studio instead of the generic file uploader', async () => {
+    const storage = setupStorage();
+
+    await expect(createUploadedDeveloperAssetSubmission({
+      developerId: 'developer-1',
+      developerEmail: 'dev@example.com',
+      currentContributorIds: ['developer-1'],
+      assetType: 'templates',
+      studioDestination: 'template.front',
+      name: 'Shared Template revision',
+      description: '',
+      previewUrl: '',
+      file: {
+        name: 'shared-template.json',
+        type: 'application/json',
+        size: 128,
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(128)),
+      } as unknown as File,
+    })).rejects.toThrow('Templates and Styles are authored in Studio');
+
+    expect(storage.upload).not.toHaveBeenCalled();
+    expect(mockedCreateDeveloperAssetSubmission).not.toHaveBeenCalled();
   });
 });

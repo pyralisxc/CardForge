@@ -1,6 +1,7 @@
 import { resolveWithTimeout } from '@/shared/asyncTimeout';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import type { PostgrestError } from '@supabase/supabase-js';
+import type { StudioAssetDestination, StudioAssetRoutingMode } from '@/domain/templates';
 
 export type RegistryContentAssetType = 'template' | 'elementPreset' | 'font';
 export type RegistryViewerAccess = 'free' | 'paid' | 'dev';
@@ -22,6 +23,10 @@ export interface RegistryContentAssetRow {
   access_tier?: 'free' | 'paid' | 'developer' | 'hidden';
   library_source?: 'official' | 'developer';
   metadata: unknown;
+  studio_destinations?: StudioAssetDestination[];
+  studio_sort_order?: number;
+  studio_featured?: boolean;
+  studio_routing_mode?: StudioAssetRoutingMode;
 }
 
 export interface PublishedRegistryAssetRow extends RegistryContentAssetRow {
@@ -106,7 +111,7 @@ export const getPublishedRegistryContentRows = async (
     Promise.resolve(
       supabase
         .from('cardforge_asset_registry')
-        .select('asset_id,name,url,status,access_tier,library_source,metadata')
+        .select('asset_id,name,url,status,access_tier,library_source,metadata,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('asset_type', assetType)
         .eq('status', 'published')
         .in('access_tier', visibleTiers)
@@ -146,7 +151,7 @@ export const getPublishedRegistryRows = async (
     Promise.resolve(
       supabase
         .from('cardforge_asset_registry')
-        .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,updated_at')
+        .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,updated_at,studio_destinations,studio_sort_order,studio_featured,studio_routing_mode')
         .eq('status', 'published')
         .in('access_tier', visibleTiers)
         .order('asset_type', { ascending: true })

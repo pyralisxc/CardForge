@@ -115,7 +115,7 @@ export const createFrameKitPresetRecipes = (templates: TCGCardTemplate[]): Eleme
   )).map((template) => ({
     id: `frame-kit-${template.id}`,
     label: template.name,
-    description: 'CardForge Library frame kit for the card canvas.',
+    description: 'CardForge Library card treatment for the full Template canvas.',
     kind: 'frameKit',
     contributorName: DEFAULT_OWNER_CONTRIBUTOR_NAME,
     status: 'published',

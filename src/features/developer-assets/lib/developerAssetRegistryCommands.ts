@@ -4,7 +4,7 @@ import type {
   DeveloperProgramSettings,
   DeveloperVoteValue,
 } from '@/features/developer-assets/lib/developerAssets';
-import type { TCGCardTemplate } from '@/domain/templates';
+import type { StudioAssetDestination, StudioAssetRoutingMode, TCGCardTemplate } from '@/domain/templates';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 import { getUniqueActiveDeveloperProfileReferenceByEmail } from '@/features/developer-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
@@ -58,6 +58,14 @@ export interface SubmittedTemplateRevision {
 export interface PurgeDeveloperAssetSubmissionInput {
   submissionId: string;
   confirmationName: string;
+}
+
+export interface UpdatePipelineAssetStudioRoutingInput {
+  assetId: string;
+  mode: StudioAssetRoutingMode;
+  destinations: StudioAssetDestination[];
+  sortOrder: number;
+  featured: boolean;
 }
 
 const requireSupabase = () => {
@@ -351,4 +359,30 @@ export const archivePipelineRegistryAsset = async (assetId: string): Promise<voi
   if (error) {
     throwRegistryCommandError('Unable to archive the shared library asset.', error.message);
   }
+};
+
+export const updatePipelineAssetStudioRouting = async ({
+  assetId,
+  mode,
+  destinations,
+  sortOrder,
+  featured,
+}: UpdatePipelineAssetStudioRoutingInput): Promise<void> => {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('cardforge_update_asset_studio_routing', {
+    p_asset_id: assetId,
+    p_mode: mode,
+    p_destinations: destinations,
+    p_sort_order: sortOrder,
+    p_featured: featured,
+  });
+
+  if (!error) return;
+  if (error.message.includes('incompatible_studio_asset_destination')) {
+    throw new DeveloperAssetRegistryCommandError('That asset cannot be used in one or more selected Studio sections.', 400);
+  }
+  if (error.message.includes('invalid_studio_routing_mode') || error.message.includes('invalid_studio_sort_order')) {
+    throw new DeveloperAssetRegistryCommandError('The Studio placement settings are invalid.', 400);
+  }
+  throwRegistryCommandError('Unable to update the asset Studio placement.', error.message);
 };

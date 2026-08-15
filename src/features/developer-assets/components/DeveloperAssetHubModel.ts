@@ -1,7 +1,7 @@
 import {
   DEVELOPER_ASSET_STATUSES,
   type DeveloperAssetAccessTier,
-  type DeveloperAssetType,
+  type DeveloperUploadAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
@@ -15,13 +15,13 @@ import {
 
 export type DeveloperAssetSubmission = DeveloperAssetProgramView['submissions'][number];
 export type VoteFilter = 'all' | 'unvoted' | 'upvoted' | 'downvoted';
-export type PersonalLibraryFilter = DeveloperAssetType | 'all';
+export type PersonalLibraryFilter = DeveloperUploadAssetType | 'all';
 
 export interface PersonalLibraryItem {
   id: string;
   name: string;
   sourceLabel: string;
-  assetType: DeveloperAssetType;
+  assetType: DeveloperUploadAssetType;
   fileName: string;
   helperText: string;
   previewUrl?: string;
@@ -52,29 +52,11 @@ export interface DeveloperAssetSubmissionGuidance {
 
 export const reviewQueueHelp = 'All voteable assets live in one lane. Use status, tier, family, and vote filters to narrow new uploads, publish candidates, live library assets, and recoverable archived assets.';
 
-export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, DeveloperAssetSubmissionGuidance> = {
-  templates: {
-    destination: 'Design layouts: card design library',
-    sourceLabel: 'Template JSON',
-    sourceHelp: 'Submit a saved CardForge template JSON so reviewers can inspect the full canvas, layers, sample text, and generator-ready fields.',
-    acceptedFileTypes: 'JSON template export',
-    accept: '.json,application/json',
-    notesHelp: 'Mention the card genre, intended generator fields, readable text constraints, and any layout assumptions.',
-    checklist: ['Complete layout', 'Readable sample text', 'Generator fields named clearly'],
-  },
-  elementPresets: {
-    destination: 'Design layouts: recipe and preset tools',
-    sourceLabel: 'Preset or style JSON',
-    sourceHelp: 'Submit a structured recipe, appearance style, or element preset JSON that can apply predictably to a specific element role.',
-    acceptedFileTypes: 'JSON recipe or style export',
-    accept: '.json,application/json',
-    notesHelp: 'Mention which element roles it applies to, what visual state it creates, and when creators should use it.',
-    checklist: ['Specific element role', 'Visible style change', 'Reusable naming'],
-  },
+export const developerAssetSubmissionGuidance: Record<DeveloperUploadAssetType, DeveloperAssetSubmissionGuidance> = {
   textures: {
     destination: 'Texture swatches and fills',
     sourceLabel: 'Texture image',
-    sourceHelp: 'Submit a tileable or full-surface texture image that can be applied to panels, frames, shapes, or backgrounds.',
+    sourceHelp: 'Submit a genuinely repeatable or scalable surface texture for fills. Finished card faces belong under Images as Front or Back Frames.',
     acceptedFileTypes: 'PNG, JPG, WEBP, or SVG',
     accept: '.png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml',
     notesHelp: 'Mention tile behavior, best surfaces, color range, and whether the texture should repeat or stretch.',
@@ -99,27 +81,18 @@ export const developerAssetSubmissionGuidance: Record<DeveloperAssetType, Develo
     checklist: ['Readable at small size', 'Semantic use named', 'Transparent background preferred'],
   },
   imageAssets: {
-    destination: 'Image asset picker',
-    sourceLabel: 'Image asset',
-    sourceHelp: 'Submit reusable illustration, placeholder, or image-frame content that creators can place directly on a card.',
+    destination: 'Picture picker or front/back Frame library',
+    sourceLabel: 'Picture or Frame image',
+    sourceHelp: 'Submit ordinary artwork as a Picture, or a full-card visual surface as a Front or Back Frame. Templates remain the editable structure.',
     acceptedFileTypes: 'PNG, JPG, WEBP, or SVG',
     accept: '.png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml',
     notesHelp: 'Mention intended crop, aspect ratio, visual style, and whether the asset is a placeholder or finished art.',
     checklist: ['Crop intent clear', 'Aspect ratio noted', 'Source rights described'],
   },
-  parts: {
-    destination: 'Overlay asset and frame-part picker',
-    sourceLabel: 'Overlay image',
-    sourceHelp: 'Submit a reusable ornament, frame piece, plate, flourish, or overlay that can sit on top of layouts.',
-    acceptedFileTypes: 'SVG, PNG, or WEBP',
-    accept: '.svg,.png,.webp,image/svg+xml,image/png,image/webp',
-    notesHelp: 'Mention target placement, stacking behavior, resize constraints, and which element or card surface it decorates.',
-    checklist: ['Transparent edges', 'Placement intent clear', 'Scales without artifacts'],
-  },
   fonts: {
     destination: 'Studio typography picker',
     sourceLabel: 'Font file',
-    sourceHelp: 'Submit a web-usable font file that can become a reviewed text family in the Design layouts workspace after approval.',
+    sourceHelp: 'Submit a web-usable font file that can become a reviewed text family in Template Studio after approval.',
     acceptedFileTypes: 'WOFF2, WOFF, TTF, or OTF',
     accept: '.woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf,application/font-woff,application/x-font-ttf,application/x-font-otf,application/octet-stream',
     notesHelp: 'Mention license rights, best text role, readable size range, category, and whether it is display-only or body-safe.',
@@ -206,14 +179,14 @@ export const isCurrentContributorSubmission = (
   program: DeveloperAssetProgramView,
 ) => program.currentContributorIds.includes(submission.developerId);
 
-export const getCandidateSourceEmptyMessage = (assetType: DeveloperAssetType): string => {
+export const getCandidateSourceEmptyMessage = (assetType: DeveloperUploadAssetType): string => {
   if (assetType === 'fonts') {
     return 'Fonts are submitted from a local font file. Use the font file drop zone or browse for WOFF2, WOFF, TTF, or OTF.';
   }
   return 'Save a template or upload local art in Studio first, then it will appear here as a review candidate source.';
 };
 
-export const getCandidateBrowseLabel = (assetType: DeveloperAssetType): string => {
+export const getCandidateBrowseLabel = (assetType: DeveloperUploadAssetType): string => {
   if (assetType === 'fonts') return 'Drop or browse a font file';
   return 'Drop a file or browse';
 };
@@ -266,7 +239,6 @@ export const getExtensionForMimeType = (mimeType: string) => {
   if (mimeType === 'image/png') return 'png';
   if (mimeType === 'image/jpeg') return 'jpg';
   if (mimeType === 'image/webp') return 'webp';
-  if (mimeType === 'application/json') return 'json';
   if (mimeType === 'font/woff2') return 'woff2';
   if (mimeType === 'font/woff' || mimeType === 'application/font-woff') return 'woff';
   if (mimeType === 'font/ttf' || mimeType === 'application/x-font-ttf') return 'ttf';
@@ -280,12 +252,8 @@ export const getExtensionForAssetUrl = (url: string) => {
     return getExtensionForMimeType(mimeType);
   }
   const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase();
-  return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp', 'json', 'woff2', 'woff', 'ttf', 'otf'].includes(extension) ? extension : 'asset';
+  return extension && ['svg', 'png', 'jpg', 'jpeg', 'webp', 'woff2', 'woff', 'ttf', 'otf'].includes(extension) ? extension : 'asset';
 };
-
-export const createJsonFile = (payload: unknown, fileName: string) => (
-  new File([JSON.stringify(payload, null, 2)], fileName, { type: 'application/json' })
-);
 
 export const createAssetFile = async (asset: CardAssetOption, fileNameStem: string) => {
   const response = await fetch(asset.url);

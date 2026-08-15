@@ -9,3 +9,5 @@ export * from './lib/registryContentAssets';
 export * from './lib/registryContentValidation';
 export * from './lib/registryFonts';
 export * from './lib/repositoryCatalog';
+export * from './lib/ownerStudioRouting';
+export * from './server/catalogCache';

@@ -193,11 +193,11 @@ export function GenerationWorkspace({
       <div className="flex flex-col items-center justify-center min-h-[60vh] border rounded-xl bg-card/30 text-center p-12 space-y-5 shadow-inner">
         <PenTool className="h-16 w-16 text-primary/60" />
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold">No Card Designs Yet</h2>
-          <p className="text-muted-foreground max-w-sm">Use Design layouts to create a card design first, then come back here to fill in details and make cards.</p>
+          <h2 className="text-2xl font-bold">No Templates Yet</h2>
+          <p className="text-muted-foreground max-w-sm">Open Templates to create a front Template first, then come back here to fill in its fields and make cards.</p>
         </div>
         <Button size="lg" onClick={onOpenTemplateMaker} className="gap-2">
-          <PenTool className="h-5 w-5" /> Open Design layouts
+          <PenTool className="h-5 w-5" /> Open Templates
         </Button>
       </div>
     );
@@ -224,14 +224,14 @@ export function GenerationWorkspace({
               />
             </div>
             <div>
-              <Label htmlFor="deck-front-template">Card design</Label>
+              <Label htmlFor="deck-front-template">Template</Label>
               <Select
                 value={generatorSelectedTemplateId ?? undefined}
                 onValueChange={(value) => onTemplateSelectionChange(value)}
                 disabled={templates.length === 0}
               >
                 <SelectTrigger id="deck-front-template">
-                  <SelectValue placeholder="Choose a card design" />
+                  <SelectValue placeholder="Choose a Template" />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map((template) => (

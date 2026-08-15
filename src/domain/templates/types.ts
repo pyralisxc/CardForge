@@ -1,5 +1,6 @@
 import type { CardData } from '@/domain/cards';
 import type { CardFormatId } from '@/domain/card-formats';
+import type { StudioAssetDestination, StudioAssetRoutingMode } from './studioAssetDestinations';
 
 export type FreeformElementType = 'text' | 'image' | 'icon' | 'shape';
 export type FreeformShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'hexagon' | 'capsule' | 'banner' | 'notch-panel' | 'bracket-frame' | 'corner-frame' | 'line';
@@ -14,7 +15,7 @@ export interface CardAssetOption {
   id: string;
   name: string;
   url: string;
-  kind: 'texture' | 'divider' | 'border' | 'frame' | 'part' | 'icon' | 'image' | 'template' | 'elementPreset';
+  kind: 'texture' | 'divider' | 'border' | 'frame' | 'icon' | 'image' | 'template' | 'elementPreset';
   librarySource?: 'official' | 'developer' | 'local';
   accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
   registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
@@ -27,9 +28,13 @@ export interface CardAssetOption {
   defaultBlendMode?: string;
   defaultOpacity?: number;
   defaultScale?: number;
-  partRole?: 'outerFrame' | 'frameRail' | 'corner' | 'titlePlate' | 'artWindow' | 'rulesBox' | 'statGem' | 'costOrb' | 'panel' | 'overlay' | 'ornament';
   defaultWidth?: number;
   defaultHeight?: number;
+  studioDestinations?: StudioAssetDestination[];
+  studioOrder?: number;
+  studioFeatured?: boolean;
+  studioRoutingMode?: StudioAssetRoutingMode;
+  studioDefaultDestination?: StudioAssetDestination;
 }
 
 export type AppearanceTarget = 'element' | 'text' | 'image' | 'icon' | 'shape' | 'divider' | 'template';
@@ -58,7 +63,7 @@ export interface AppearanceTexture {
   scale?: number;
   imageSource?: string;
   assetSource?: string;
-  assetKind?: 'texture' | 'divider' | 'border' | 'frame' | 'part';
+  assetKind?: 'texture' | 'divider' | 'border' | 'frame';
   blendMode?: string;
   textureScale?: number;
   textureOpacity?: number;
@@ -85,7 +90,7 @@ export interface AppearanceEffects {
 
 export interface FreeformAppearance {
   assetSource?: string;
-  assetKind?: 'texture' | 'divider' | 'border' | 'frame' | 'part';
+  assetKind?: 'texture' | 'divider' | 'border' | 'frame';
   blendMode?: string;
   textureScale?: number;
   textureOpacity?: number;
@@ -121,6 +126,10 @@ export interface AppearanceStylePreset {
   accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
   registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   contributorName?: string;
+  studioDestinations?: StudioAssetDestination[];
+  studioOrder?: number;
+  studioFeatured?: boolean;
+  studioRoutingMode?: StudioAssetRoutingMode;
 }
 
 export interface AppearanceStyleLibrary {

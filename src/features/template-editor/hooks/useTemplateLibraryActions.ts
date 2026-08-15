@@ -134,26 +134,26 @@ export function useTemplateLibraryActions({
       pendingRevisionKeysRef.current.set(savedTemplateId, { fingerprint, key: submissionKey });
       toast({
         title: 'Draft saved in this browser',
-        description: `Submitting revision ${Number(templateForFile.templateRevision ?? 0) + 1} for owner review.`,
+        description: `Submitting Template revision ${Number(templateForFile.templateRevision ?? 0) + 1} to Forge Review.`,
       });
       try {
         const result = await mutateShippedLibrary(
           '/api/templates',
           'POST',
           templateForFile,
-          'Unable to submit the base card design revision.',
+          'Unable to submit the Template revision.',
           { 'Idempotency-Key': submissionKey },
         );
         const revision = result.revision && typeof result.revision === 'object'
           ? result.revision as { revisionNumber?: number }
           : null;
         toast({
-          title: 'Base revision submitted',
+          title: 'Template revision submitted',
           description: `Revision ${revision?.revisionNumber ?? Number(templateForFile.templateRevision ?? 0) + 1} is saved for owner review. It becomes shared after publication.`,
         });
       } catch (error) {
         toast({
-          title: 'Draft saved; revision not submitted',
+          title: 'Browser draft saved; revision not submitted',
           description: error instanceof Error
             ? `${error.message} Your browser draft is safe; save again to retry.`
             : 'Your browser draft is safe; save again to retry submission.',
@@ -162,7 +162,7 @@ export function useTemplateLibraryActions({
       }
     } else {
       toast({
-        title: 'Card design saved in this browser',
+        title: 'Template saved in this browser',
         description: `"${templateToSave.name || savedTemplateId}" is available in your personal library on this device.`,
       });
     }

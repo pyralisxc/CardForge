@@ -3,14 +3,15 @@
 import { useCallback, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { FileUp, Library, UploadCloud } from 'lucide-react';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import {
   DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES,
-  DEVELOPER_ASSET_TYPES,
-  type DeveloperAssetType,
+  DEVELOPER_UPLOAD_ASSET_TYPES,
+  type DeveloperUploadAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import {
@@ -23,6 +24,12 @@ import {
 import { FieldHelp, GuidanceCard } from '@/features/developer-assets/components/DeveloperAssetHubUi';
 import { useDeveloperPersonalLibrary } from '@/features/developer-assets/components/useDeveloperPersonalLibrary';
 import { getDeveloperAssetTypeLabel } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import {
+  getDefaultDeveloperAssetStudioDestination,
+  getDeveloperAssetStudioDestinationLabel,
+  getDeveloperAssetStudioDestinationOptions,
+} from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import type { StudioAssetDestination } from '@/domain/templates';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 interface DeveloperAssetsResponse {
@@ -44,7 +51,8 @@ export function DeveloperAssetSubmissionPanel({
   onSubmitted: () => Promise<void>;
 }) {
   const { toast } = useToast();
-  const [assetType, setAssetType] = useState<DeveloperAssetType>('icons');
+  const [assetType, setAssetType] = useState<DeveloperUploadAssetType>('icons');
+  const [studioDestination, setStudioDestination] = useState<StudioAssetDestination>('element.icon');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
@@ -58,6 +66,7 @@ export function DeveloperAssetSubmissionPanel({
     visibleItems: visiblePersonalLibraryItems,
   } = useDeveloperPersonalLibrary();
   const submissionGuidance = developerAssetSubmissionGuidance[assetType];
+  const studioDestinationOptions = getDeveloperAssetStudioDestinationOptions(assetType);
   const expectedSourceSize = DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES[assetType];
 
   const selectCandidateFile = useCallback((file: File | null) => {
@@ -71,8 +80,9 @@ export function DeveloperAssetSubmissionPanel({
     selectCandidateFile(event.target.files?.[0] ?? null);
   };
 
-  const changeAssetType = (nextAssetType: DeveloperAssetType) => {
+  const changeAssetType = (nextAssetType: DeveloperUploadAssetType) => {
     setAssetType(nextAssetType);
+    setStudioDestination(getDefaultDeveloperAssetStudioDestination(nextAssetType));
     setPersonalLibraryFilter(nextAssetType);
   };
 
@@ -86,6 +96,7 @@ export function DeveloperAssetSubmissionPanel({
     try {
       const file = await item.createFile();
       setAssetType(item.assetType);
+      setStudioDestination(getDefaultDeveloperAssetStudioDestination(item.assetType));
       setName((currentName) => currentName.trim() ? currentName : item.name);
       setDescription((currentDescription) => currentDescription.trim() ? currentDescription : item.helperText);
       setPreviewUrl((currentPreviewUrl) => currentPreviewUrl.trim() ? currentPreviewUrl : item.previewUrl ?? '');
@@ -112,6 +123,7 @@ export function DeveloperAssetSubmissionPanel({
 
       const formData = new FormData();
       formData.set('assetType', assetType);
+      formData.set('studioDestination', studioDestination);
       formData.set('name', name);
       formData.set('description', description);
       formData.set('previewUrl', previewUrl);
@@ -146,12 +158,21 @@ export function DeveloperAssetSubmissionPanel({
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
             <h3 className="font-serif text-xl text-[#fff1c7]">Submit a Library Candidate</h3>
             <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Candidate submissions enter the shared CardForge review pipeline. Local browser uploads remain private in your own workspace.
+              Media and font candidates enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used: inside Template Studio.
             </p>
+            <div className="mt-4 flex flex-col gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-[#ffe7ad]">Revising a shared Template?</p>
+                <p className="mt-1 text-xs leading-5 text-[#a98a55]">Open it in Template Studio. The save control becomes Submit revision and sends the complete editable Template to Forge Review.</p>
+              </div>
+              <Button asChild variant="outline" className="shrink-0 border-[#8a642f] text-[#ffe7ad]">
+                <Link href="/studio">Open Template Studio</Link>
+              </Button>
+            </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <GuidanceCard
                 eyebrow="Destination"
-                title={submissionGuidance.destination}
+                title={getDeveloperAssetStudioDestinationLabel(studioDestination)}
                 body={`${getDeveloperAssetTypeLabel(assetType)} publish to this Studio surface after voting, owner review, and cap checks.`}
               />
               <GuidanceCard
@@ -172,7 +193,7 @@ export function DeveloperAssetSubmissionPanel({
                   <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
                 </label>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Submission quick picks">
-                  {DEVELOPER_ASSET_TYPES.map((type) => {
+                  {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => {
                     const isActive = assetType === type;
                     return (
                       <button
@@ -194,13 +215,30 @@ export function DeveloperAssetSubmissionPanel({
                   id="developer-asset-family"
                   className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
                   value={assetType}
-                  onChange={(event) => changeAssetType(event.target.value as DeveloperAssetType)}
+                  onChange={(event) => changeAssetType(event.target.value as DeveloperUploadAssetType)}
                 >
-                  {DEVELOPER_ASSET_TYPES.map((type) => (
+                  {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => (
                     <option key={type} value={type}>{getDeveloperAssetTypeLabel(type, { plural: false })}</option>
                   ))}
                 </select>
               </div>
+              <label htmlFor="developer-asset-studio-destination" className="grid gap-2 text-sm text-[#c7b288]">
+                <span className="flex items-center justify-between gap-2">
+                  Studio destination
+                  <FieldHelp text="Choose where creators should find this asset. CardForge only permits destinations compatible with the selected asset family." />
+                </span>
+                <select
+                  id="developer-asset-studio-destination"
+                  className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+                  value={studioDestination}
+                  onChange={(event) => setStudioDestination(event.target.value as StudioAssetDestination)}
+                >
+                  {studioDestinationOptions.map((destination) => (
+                    <option key={destination} value={destination}>{getDeveloperAssetStudioDestinationLabel(destination)}</option>
+                  ))}
+                </select>
+                <span className="text-xs leading-5 text-[#a98a55]">{submissionGuidance.destination}</span>
+              </label>
               <label htmlFor="developer-asset-name" className="grid gap-2 text-sm text-[#c7b288]">
                 <span className="flex items-center justify-between gap-2">
                   Name
@@ -226,13 +264,13 @@ export function DeveloperAssetSubmissionPanel({
                         onChange={(event) => setPersonalLibraryFilter(event.target.value as PersonalLibraryFilter)}
                       >
                         <option value="all">All saved</option>
-                        {DEVELOPER_ASSET_TYPES.map((type) => (
+                        {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => (
                           <option key={type} value={type}>{getDeveloperAssetTypeLabel(type)}</option>
                         ))}
                       </select>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-[#a98a55]">
-                      Pull saved templates, Appearance Studio styles, and local art into Forge Review. Export a project file when you need to move this browser library to another device.
+                      Pull locally saved art into Forge Review. Templates and Styles stay in their Studio-native authoring workflows.
                     </p>
                     <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
                       {visiblePersonalLibraryItems.length === 0 ? (

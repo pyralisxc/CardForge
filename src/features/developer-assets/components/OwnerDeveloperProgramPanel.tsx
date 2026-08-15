@@ -13,6 +13,7 @@ import {
   type OwnerAssetOverrideInput,
 } from '@/features/developer-assets/components/OwnerAssetLibraryPanel';
 import { OwnerDeveloperProgramOverview } from '@/features/developer-assets/components/OwnerDeveloperProgramOverview';
+import { OwnerStudioRoutingPanel } from '@/features/developer-assets/components/OwnerStudioRoutingPanel';
 import {
   CompactNumberField,
   DecisionCard,
@@ -213,6 +214,7 @@ export function OwnerDeveloperProgramPanel() {
       <Tabs defaultValue="library" className="mt-5 space-y-5">
         <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1">
           <TabsTrigger value="library" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Asset library</TabsTrigger>
+          <TabsTrigger value="studio-map" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Studio map</TabsTrigger>
           <TabsTrigger value="rules" className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]">Pipeline rules</TabsTrigger>
         </TabsList>
         <TabsContent value="library" className="mt-0">
@@ -230,6 +232,9 @@ export function OwnerDeveloperProgramPanel() {
             onUpdateOverride={updateOverride}
             onDeletePermanently={deletePermanently}
           />
+        </TabsContent>
+        <TabsContent value="studio-map" className="mt-0">
+          <OwnerStudioRoutingPanel />
         </TabsContent>
         <TabsContent value="rules" className="mt-0">
 

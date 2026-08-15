@@ -270,7 +270,7 @@ export function BulkGenerator({
     if (!selectedTemplate) {
       toast({
         title: ERROR_COPY.selectTemplateFirst.title,
-        description: withNextStep('Choose a card design before adding cards from a list.', 'Choose a card design above, then try again.'),
+        description: withNextStep('Choose a Template before adding cards from a list.', 'Choose a Template above, then try again.'),
         variant: 'destructive',
       });
       return;
@@ -402,7 +402,7 @@ export function BulkGenerator({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Make cards from a list</CardTitle>
-        <CardDescription>Choose a card design, add your data, and generate cards you can edit individually.</CardDescription>
+        <CardDescription>Choose a Template, add your data, and generate cards you can edit individually.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <BulkTemplateSetupPanel

@@ -30,6 +30,7 @@ const submission = (
   developerLastName: null,
   developerDisplayName: input.developerId,
   assetType: 'icons',
+  requestedStudioDestination: null,
   description: '',
   previewUrl: '',
   sourceUrl: null,
@@ -116,6 +117,7 @@ describe('developer asset store helpers', () => {
   it('normalizes submission input and rejects unsupported assets', () => {
     expect(normalizeDeveloperAssetSubmissionInput({
       assetType: 'icons',
+      studioDestination: 'element.icon',
       name: '  Moon Sigil  ',
       description: '  clean vector icon  ',
       previewUrl: '  https://example.test/moon.svg  ',
@@ -156,6 +158,7 @@ describe('developer asset store helpers', () => {
       developer_id: 'dev-1',
       developer_email: 'dev@example.test',
       asset_type: 'templates',
+      requested_studio_destination: 'template.front',
       name: 'Moon Layout',
       description: 'Layout',
       preview_url: '/api/templates#moon-layout',

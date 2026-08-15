@@ -19,7 +19,7 @@ export function StudioFirstRunGuide({
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e2aa4a]">Welcome to the forge</p>
         <h1 className="mt-2 font-serif text-2xl font-semibold text-[#fff1c7]">Make one card, then build the set.</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbb58b]">
-          Choose a ready-made card design and add your card details. Your work saves in this browser as you go. Clearing browser data or changing devices can remove this copy; a downloaded project backup is the portable recovery path when it is available to you.
+          Choose a ready-made Template and add your card details. Your work saves in this browser as you go. Clearing browser data or changing devices can remove this copy; a downloaded project backup is the portable recovery path when it is available to you.
         </p>
       </div>
       <Button
@@ -34,7 +34,7 @@ export function StudioFirstRunGuide({
       </Button>
       <div className="mt-4 flex flex-wrap gap-3">
         <Button type="button" onClick={onStartMakingCards}>Start making cards</Button>
-        <Button type="button" variant="outline" onClick={onEditDesignFirst}>Design the layout first</Button>
+        <Button type="button" variant="outline" onClick={onEditDesignFirst}>Build a Template first</Button>
       </div>
     </section>
   );

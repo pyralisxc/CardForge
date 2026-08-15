@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { STUDIO_ASSET_DESTINATIONS } from '@/domain/templates';
 
 export const DEFAULT_MAX_JSON_BODY_BYTES = 256 * 1024;
 
@@ -22,20 +23,7 @@ export const stylePresetPayloadSchema = z.object({
 
 const cardAssetAllowedTargetSchema = z.enum(['text', 'shape', 'divider', 'template', 'imageFrame', 'icon', 'image']);
 const tileModeSchema = z.enum(['repeat', 'stretch', 'contain']);
-const cardPartRoleSchema = z.enum([
-  'outerFrame',
-  'frameRail',
-  'corner',
-  'titlePlate',
-  'artWindow',
-  'rulesBox',
-  'statGem',
-  'costOrb',
-  'panel',
-  'overlay',
-  'ornament',
-]);
-
+const studioAssetDestinationSchema = z.enum(STUDIO_ASSET_DESTINATIONS);
 export const cardAssetMetadataOverrideSchema = z.object({
   id: nonEmptyStringSchema.optional(),
   name: nonEmptyStringSchema.optional(),
@@ -47,9 +35,16 @@ export const cardAssetMetadataOverrideSchema = z.object({
   defaultBlendMode: nonEmptyStringSchema.optional(),
   defaultOpacity: z.number().finite().min(0).max(100).optional(),
   defaultScale: z.number().finite().min(1).max(1000).optional(),
-  partRole: cardPartRoleSchema.optional(),
   defaultWidth: z.number().finite().min(1).max(5000).optional(),
   defaultHeight: z.number().finite().min(1).max(5000).optional(),
+  studioDestinations: z.array(studioAssetDestinationSchema).max(STUDIO_ASSET_DESTINATIONS.length).optional(),
+  studioOrder: z.number().int().min(0).max(100000).optional(),
+  studioFeatured: z.boolean().optional(),
+  studioRoutingMode: z.enum(['automatic', 'owner']).optional(),
+  studioDefaultDestination: studioAssetDestinationSchema.optional(),
+  repositoryPathAliases: z.array(
+    z.string().regex(/^(?:textures|parts|dividers|icons|images)\/(?!.*\.\.)[^\\]+$/),
+  ).max(8).optional(),
 }).strict();
 
 export const getUtf8ByteLength = (value: string): number => {

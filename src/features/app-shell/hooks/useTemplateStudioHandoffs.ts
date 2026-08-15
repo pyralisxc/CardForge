@@ -82,7 +82,7 @@ export function useTemplateStudioHandoffs({
         setPendingTemplateRetarget({
           count: dependentCardCount,
           fromTemplateId: sourceTemplateId,
-          name: template.name || 'this card design',
+          name: template.name || 'this Template',
           side: 'front',
           toTemplateId: savedTemplateId,
         });

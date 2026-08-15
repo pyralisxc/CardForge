@@ -3,7 +3,9 @@
   "name": "Arcane Playing Full Frame",
   "tileMode": "contain",
   "seamless": false,
-  "allowedTargets": ["shape", "template", "imageFrame"],
+  "allowedTargets": ["template", "imageFrame"],
+  "studioDefaultDestination": "image.frame.front",
+  "repositoryPathAliases": ["textures/arcane-forge/frame-playing-premium.webp"],
   "defaultBlendMode": "normal",
   "defaultOpacity": 100,
   "defaultScale": 100

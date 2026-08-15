@@ -198,7 +198,7 @@ export const DEFAULT_SITE_MEDIA: SiteMediaDefaults[] = [
     slot: 'landing.showcase.layout',
     group: 'landing',
     kind: 'showcase',
-    label: 'Design layouts screenshot',
+    label: 'Template Studio screenshot',
     guidance: 'Use the natural frame for a full Studio screenshot. Wide and portrait frames are available for intentional crops.',
     defaultSrc: '/site-fallbacks/showcase/studio-layout.jpg',
     defaultAlt: 'The CardForge card design workspace with its card design library, editable canvas, layers, controls, and card field inspector.',

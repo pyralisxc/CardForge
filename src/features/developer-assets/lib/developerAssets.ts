@@ -5,7 +5,14 @@ export const DEVELOPER_ASSET_TYPES = [
   'dividers',
   'icons',
   'imageAssets',
-  'parts',
+  'fonts',
+] as const;
+
+export const DEVELOPER_UPLOAD_ASSET_TYPES = [
+  'textures',
+  'dividers',
+  'icons',
+  'imageAssets',
   'fonts',
 ] as const;
 
@@ -20,6 +27,7 @@ export const DEVELOPER_ASSET_STATUSES = [
 ] as const;
 
 export type DeveloperAssetType = typeof DEVELOPER_ASSET_TYPES[number];
+export type DeveloperUploadAssetType = typeof DEVELOPER_UPLOAD_ASSET_TYPES[number];
 export type DeveloperAssetStatus = typeof DEVELOPER_ASSET_STATUSES[number];
 export type DeveloperVoteValue = 'positive' | 'negative';
 export type DeveloperAssetAccessTier = 'hidden' | 'free' | 'paid' | 'developer';
@@ -101,7 +109,6 @@ export const DEFAULT_DEVELOPER_TIER_CAPS_BY_TYPE: DeveloperTierCapsByType = {
   dividers: { free: 16, paid: 8 },
   icons: { free: 20, paid: 10 },
   imageAssets: { free: 16, paid: 8 },
-  parts: { free: 16, paid: 8 },
   fonts: { free: 8, paid: 4 },
 };
 
@@ -135,7 +142,6 @@ export const DEVELOPER_ASSET_STORAGE_ESTIMATE_BYTES: Record<DeveloperAssetType, 
   dividers: 120 * 1024,
   icons: 80 * 1024,
   imageAssets: 1_500 * 1024,
-  parts: 900 * 1024,
   fonts: 220 * 1024,
 };
 
@@ -178,6 +184,9 @@ export const buildDeveloperVotingPresetSettings = (
 
 export const isDeveloperAssetType = (value: unknown): value is DeveloperAssetType =>
   typeof value === 'string' && (DEVELOPER_ASSET_TYPES as readonly string[]).includes(value);
+
+export const isDeveloperUploadAssetType = (value: unknown): value is DeveloperUploadAssetType =>
+  typeof value === 'string' && (DEVELOPER_UPLOAD_ASSET_TYPES as readonly string[]).includes(value);
 
 export const isDeveloperAssetStatus = (value: unknown): value is DeveloperAssetStatus =>
   typeof value === 'string' && (DEVELOPER_ASSET_STATUSES as readonly string[]).includes(value);

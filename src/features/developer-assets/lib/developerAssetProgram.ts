@@ -15,9 +15,11 @@ import {
   type DeveloperProgramSettings,
   type DeveloperVoteValue,
 } from './developerAssets';
+import { isStudioAssetDestination, type StudioAssetDestination } from '@/domain/templates';
+import { getDeveloperAssetStudioDestinationOptions } from './pipelineAssetTaxonomy';
 
 export type DeveloperAssetSubmissionInputResult =
-  | { ok: true; value: Pick<DeveloperAssetSubmission, 'assetType' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
+  | { ok: true; value: Pick<DeveloperAssetSubmission, 'assetType' | 'requestedStudioDestination' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
   | { ok: false; message: string };
 
 export type DeveloperAssetSubmissionEditInputResult =
@@ -32,6 +34,7 @@ export interface DeveloperAssetSubmission {
   developerLastName?: string | null;
   developerDisplayName?: string | null;
   assetType: DeveloperAssetType;
+  requestedStudioDestination: StudioAssetDestination | null;
   name: string;
   description: string;
   previewUrl: string;
@@ -131,6 +134,7 @@ export interface DeveloperAssetSubmissionRow {
   developer_id: string;
   developer_email: string | null;
   asset_type: unknown;
+  requested_studio_destination: unknown;
   name: string;
   description: string | null;
   preview_url: string | null;
@@ -222,6 +226,7 @@ export const normalizeDeveloperProfileOverrideInput = (
 
 export const normalizeDeveloperAssetSubmissionInput = (value: {
   assetType?: unknown;
+  studioDestination?: unknown;
   name?: unknown;
   description?: unknown;
   previewUrl?: unknown;
@@ -234,6 +239,12 @@ export const normalizeDeveloperAssetSubmissionInput = (value: {
   if (!isDeveloperAssetType(value.assetType)) {
     return { ok: false, message: 'Choose a supported asset type.' };
   }
+  if (
+    !isStudioAssetDestination(value.studioDestination)
+    || !getDeveloperAssetStudioDestinationOptions(value.assetType).includes(value.studioDestination)
+  ) {
+    return { ok: false, message: 'Choose a Studio destination compatible with this asset type.' };
+  }
   const name = normalizeDeveloperAssetShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
   const previewUrl = normalizeUrl(value.previewUrl);
@@ -244,6 +255,7 @@ export const normalizeDeveloperAssetSubmissionInput = (value: {
     ok: true,
     value: {
       assetType: value.assetType,
+      requestedStudioDestination: value.studioDestination,
       name,
       description: normalizeDeveloperAssetLongText(value.description, 280),
       previewUrl: previewUrl || sourceUrl,
@@ -307,6 +319,9 @@ export const mapDeveloperAssetSubmissionRow = (
   developerLastName: profile?.last_name ?? null,
   developerDisplayName: [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() || profile?.email || row.developer_email,
   assetType: isDeveloperAssetType(row.asset_type) ? row.asset_type : 'imageAssets',
+  requestedStudioDestination: isStudioAssetDestination(row.requested_studio_destination)
+    ? row.requested_studio_destination
+    : null,
   name: row.name,
   description: row.description ?? '',
   previewUrl: row.preview_url ?? '',

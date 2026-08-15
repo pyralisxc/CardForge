@@ -62,7 +62,6 @@ const mimeByExtension = {
 const developerTypeByRegistryType = {
   texture: 'textures',
   divider: 'dividers',
-  part: 'parts',
   icon: 'icons',
   image: 'imageAssets',
   template: 'templates',
@@ -72,7 +71,6 @@ const developerTypeByRegistryType = {
 const registryTypeByFolder = {
   textures: 'texture',
   dividers: 'divider',
-  parts: 'part',
   icons: 'icon',
   images: 'image',
 };
@@ -134,11 +132,15 @@ const containsRepositoryAssetUrl = (value) => {
 };
 
 const getStaticAssetDescriptor = (relativePath) => {
-  const catalogPath = relativePath.startsWith('site-fallbacks/')
+  const isSiteFallback = relativePath.startsWith('site-fallbacks/');
+  const catalogPath = isSiteFallback
     ? relativePath.slice('site-fallbacks/'.length)
     : relativePath;
   const [rootFolder, ...rest] = catalogPath.split('/');
-  const registryType = registryTypeByFolder[rootFolder] || 'image';
+  const registryType = isSiteFallback ? 'image' : registryTypeByFolder[rootFolder];
+  if (!registryType) {
+    throw new Error(`Unsupported Pipeline media folder: ${rootFolder || '(empty)'}`);
+  }
   const metadataRelativePath = registryTypeByFolder[rootFolder]
     ? rest.join('/')
     : catalogPath;
@@ -160,6 +162,33 @@ const readMetadata = async (kindFolder, relativePath) => {
     relativePath.replace(/\.[^.]+$/, '.json'),
   );
   return readJson(metadataPath).catch(() => ({}));
+};
+
+const normalizeRepositoryPathAliases = (value) => (
+  Array.isArray(value)
+    ? [...new Set(value.filter((entry) => (
+        typeof entry === 'string'
+        && /^(?:textures|parts|dividers|icons|images)\//.test(entry)
+        && !entry.includes('..')
+      )))]
+    : []
+);
+
+const repositoryOwnedSourcePaths = (metadata) => {
+  if (metadata?.sourceKind !== 'pipeline-owner-import' || typeof metadata.sourcePath !== 'string') {
+    return new Set();
+  }
+  const mediaPrefix = `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/media/`;
+  if (!metadata.sourcePath.startsWith(mediaPrefix)) return new Set();
+  const canonicalRelativePath = metadata.sourcePath.slice(mediaPrefix.length);
+  const relativePaths = [
+    canonicalRelativePath,
+    ...normalizeRepositoryPathAliases(metadata.repositoryPathAliases),
+  ];
+  return new Set(relativePaths.flatMap((relativePath) => [
+    `${mediaPrefix}${relativePath}`,
+    `public/card-assets/${relativePath}`,
+  ]));
 };
 
 const defaultAssetMetadata = (registryType, relativePath) => {
@@ -222,15 +251,7 @@ const defaultAssetMetadata = (registryType, relativePath) => {
     };
   }
 
-  return {
-    ...base,
-    tileMode: 'contain',
-    seamless: false,
-    allowedTargets: ['imageFrame', 'shape', 'template'],
-    partRole: 'ornament',
-    defaultWidth: 220,
-    defaultHeight: 120,
-  };
+  throw new Error(`Unsupported Pipeline media type: ${registryType}`);
 };
 
 const upsertRegistryItem = async (supabase, item, ownerProfile) => {
@@ -310,44 +331,62 @@ const collectStaticAssetItems = async (
   ));
   const uploadedByRelativePath = new Map();
   const storageMigrationRelativePaths = new Set();
+  const expectedRepositoryUrlByRelativePath = new Map();
+  const sidecarByRelativePath = new Map();
   for (const relativePath of sourceFiles) {
     const descriptor = getStaticAssetDescriptor(relativePath);
-    const assetId = descriptor.defaults.id;
+    const sidecar = descriptor.kindFolder
+      ? await readMetadata(descriptor.kindFolder, descriptor.metadataRelativePath)
+      : {};
+    sidecarByRelativePath.set(relativePath, sidecar);
+    const assetId = typeof sidecar.id === 'string' && sidecar.id.trim()
+      ? sidecar.id.trim()
+      : descriptor.defaults.id;
     if (tombstonedAssetIds.has(assetId)) continue;
     const existing = existingRegistryByAssetId.get(assetId);
     const localUrl = `${LEGACY_PUBLIC_MEDIA_PREFIX}${descriptor.catalogPath}`;
+    const repositoryPathAliases = normalizeRepositoryPathAliases(sidecar.repositoryPathAliases);
+    const repositoryUrlAliases = repositoryPathAliases.map((alias) => `${LEGACY_PUBLIC_MEDIA_PREFIX}${alias}`);
+    const recognizedRepositoryUrls = new Set([localUrl, ...repositoryUrlAliases]);
     const seedUrl = relativePath.startsWith('site-fallbacks/')
       ? `${SITE_FALLBACK_PREFIX}${descriptor.catalogPath}`
       : `${BOOTSTRAP_MEDIA_PREFIX}${relativePath}`;
     const hasManagedStorage = Boolean(existing?.storage_bucket && existing?.storage_path);
-    if (existing && existing.url !== localUrl) {
-      publicUrlByLocalPath.set(localUrl, existing.url);
-      publicUrlByLocalPath.set(seedUrl, existing.url);
+    const registerResolvedUrl = (resolvedUrl) => {
+      publicUrlByLocalPath.set(localUrl, resolvedUrl);
+      publicUrlByLocalPath.set(seedUrl, resolvedUrl);
+      for (const alias of repositoryPathAliases) {
+        publicUrlByLocalPath.set(`${LEGACY_PUBLIC_MEDIA_PREFIX}${alias}`, resolvedUrl);
+        publicUrlByLocalPath.set(`${BOOTSTRAP_MEDIA_PREFIX}${alias}`, resolvedUrl);
+      }
+    };
+    if (existing && !recognizedRepositoryUrls.has(existing.url)) {
+      registerResolvedUrl(existing.url);
       continue;
     }
+    expectedRepositoryUrlByRelativePath.set(relativePath, existing?.url || localUrl);
     if (existing && hasManagedStorage) {
       const { data } = supabase.storage
         .from(existing.storage_bucket)
         .getPublicUrl(existing.storage_path);
-      publicUrlByLocalPath.set(localUrl, data.publicUrl);
-      publicUrlByLocalPath.set(seedUrl, data.publicUrl);
+      registerResolvedUrl(data.publicUrl);
       storageMigrationRelativePaths.add(relativePath);
       continue;
     }
     const uploaded = await uploadStaticAsset(supabase, relativePath);
     uploadedByRelativePath.set(relativePath, uploaded);
-    publicUrlByLocalPath.set(localUrl, uploaded.publicUrl);
-    publicUrlByLocalPath.set(seedUrl, uploaded.publicUrl);
+    registerResolvedUrl(uploaded.publicUrl);
     if (existing) storageMigrationRelativePaths.add(relativePath);
   }
 
   const items = [];
   for (const relativePath of sourceFiles) {
     const descriptor = getStaticAssetDescriptor(relativePath);
-    if (tombstonedAssetIds.has(descriptor.defaults.id)) continue;
-    const sidecar = descriptor.kindFolder
-      ? await readMetadata(descriptor.kindFolder, descriptor.metadataRelativePath)
-      : {};
+    const sidecar = sidecarByRelativePath.get(relativePath) || {};
+    const assetId = typeof sidecar.id === 'string' && sidecar.id.trim()
+      ? sidecar.id.trim()
+      : descriptor.defaults.id;
+    if (tombstonedAssetIds.has(assetId)) continue;
     const metadata = {
       ...descriptor.defaults,
       ...sidecar,
@@ -378,7 +417,8 @@ const collectStaticAssetItems = async (
       description: `${metadata.name} starter ${descriptor.registryType} imported into the Forge Pipeline.`,
       metadata,
       requires_storage_migration: storageMigrationRelativePaths.has(relativePath),
-      expected_repository_url: `${LEGACY_PUBLIC_MEDIA_PREFIX}${descriptor.catalogPath}`,
+      expected_repository_url: expectedRepositoryUrlByRelativePath.get(relativePath)
+        || `${LEGACY_PUBLIC_MEDIA_PREFIX}${descriptor.catalogPath}`,
     });
   }
   return { items, publicUrlByLocalPath };
@@ -538,10 +578,12 @@ const main = async () => {
   for (const entry of existingRegistry || []) {
     if (tombstonedAssetIds.has(entry.asset_id)) continue;
     const canonicalItem = canonicalItemByAssetId.get(entry.asset_id);
-    const hasLegacyImportedSourcePath = entry.metadata?.sourceKind === 'pipeline-owner-import'
+    const hasLegacyImportedSourcePath = canonicalItem?.metadata?.sourceKind === 'pipeline-owner-import'
+      && entry.metadata?.sourceKind === 'pipeline-owner-import'
       && typeof entry.metadata?.sourcePath === 'string'
-      && entry.metadata.sourcePath.startsWith('public/card-assets/')
-      && typeof canonicalItem?.metadata?.sourcePath === 'string';
+      && typeof canonicalItem.metadata.sourcePath === 'string'
+      && entry.metadata.sourcePath !== canonicalItem.metadata.sourcePath
+      && repositoryOwnedSourcePaths(canonicalItem.metadata).has(entry.metadata.sourcePath);
     const hasRepositoryAssetUrl = containsRepositoryAssetUrl(entry.metadata);
     if (!hasRepositoryAssetUrl && !hasLegacyImportedSourcePath) continue;
     const metadata = {

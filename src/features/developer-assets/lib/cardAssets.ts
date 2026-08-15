@@ -4,7 +4,7 @@ export type { CardAssetOption } from '@/domain/templates';
 
 export type CardAssetMetadataOverride = Partial<Pick<
   CardAssetOption,
-  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale' | 'partRole' | 'defaultWidth' | 'defaultHeight' | 'packId' | 'packName'
+  'id' | 'name' | 'tileMode' | 'seamless' | 'allowedTargets' | 'defaultBlendMode' | 'defaultOpacity' | 'defaultScale' | 'defaultWidth' | 'defaultHeight' | 'packId' | 'packName' | 'studioDestinations' | 'studioOrder' | 'studioFeatured' | 'studioRoutingMode' | 'studioDefaultDestination'
 >>;
 
 export interface CardAssetDiscoveryInput {
@@ -36,7 +36,7 @@ export const buildDiscoveredCardAsset = ({
   metadata,
 }: CardAssetDiscoveryInput): CardAssetOption => {
   const normalizedRelativePath = (relativePath || url)
-    .replace(/^\/card-assets\/(?:textures|dividers|parts|icons|images|templates|element-presets)\//, '')
+    .replace(/^\/card-assets\/(?:textures|dividers|icons|images|templates|element-presets)\//, '')
     .replace(/\\/g, '/');
   const stem = normalizedRelativePath.replace(/\.[^.]+$/, '');
   const inferredPackId = stem.includes('/') ? stem.split('/')[0] : undefined;
@@ -54,22 +54,6 @@ export const buildDiscoveredCardAsset = ({
         defaultBlendMode: 'multiply',
         defaultOpacity: 42,
         defaultScale: 160,
-      }
-    : kind === 'part'
-      ? {
-          id: derivedId,
-          name: toTitleCase(stem.split('/').pop() || stem),
-          url,
-          kind,
-          tileMode: 'contain',
-          seamless: false,
-          allowedTargets: ['imageFrame', 'shape', 'template'],
-          defaultBlendMode: 'normal',
-          defaultOpacity: 100,
-          defaultScale: 100,
-          partRole: 'ornament',
-          defaultWidth: 220,
-        defaultHeight: 120,
       }
     : kind === 'icon'
       ? {
@@ -155,7 +139,6 @@ export const buildDiscoveredCardAsset = ({
     defaultBlendMode: metadata?.defaultBlendMode || defaults.defaultBlendMode,
     defaultOpacity: metadata?.defaultOpacity ?? defaults.defaultOpacity,
     defaultScale: metadata?.defaultScale ?? defaults.defaultScale,
-    partRole: metadata?.partRole ?? defaults.partRole,
     defaultWidth: metadata?.defaultWidth ?? defaults.defaultWidth,
     defaultHeight: metadata?.defaultHeight ?? defaults.defaultHeight,
   };

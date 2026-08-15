@@ -114,7 +114,7 @@ export function AppearanceStudioPanel({
       <div className="flex items-center justify-between">
         <div>
           <Label className="text-[11px] uppercase tracking-[0.14em] text-[#d5ad54]">Fill presets</Label>
-          <p className="mt-1 text-[11px] leading-4 text-[#8f95a3]">Choose the element fill; borders stay in Frame & Edge.</p>
+          <p className="mt-1 text-[11px] leading-4 text-[#8f95a3]">Choose the element fill; borders stay in Border & Edge.</p>
         </div>
         <Button type="button" variant="outline" size="sm" className={cn(buttonClassName, 'h-7 px-2 text-[10px]')} onClick={onSaveStyle}>
           <Save className="mr-1 h-3.5 w-3.5" /> Save Style

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_DEVELOPER_PROGRAM_SETTINGS,
+  DEVELOPER_UPLOAD_ASSET_TYPES,
   buildDeveloperVotingPresetSettings,
   countDeveloperMonthlyStats,
   normalizeDeveloperProgramSettingsInput,
@@ -28,6 +29,7 @@ const baseSubmission: DeveloperAssetSubmission = {
   developerLastName: null,
   developerDisplayName: 'Dev Example',
   assetType: 'icons',
+  requestedStudioDestination: null,
   name: 'Smoke Icon',
   description: '',
   previewUrl: '',
@@ -62,16 +64,7 @@ const baseSubmission: DeveloperAssetSubmission = {
 
 describe('developer asset program rules', () => {
   it('defines submission guidance for every supported asset family', () => {
-    for (const assetType of [
-      'templates',
-      'elementPresets',
-      'textures',
-      'dividers',
-      'icons',
-      'imageAssets',
-      'parts',
-      'fonts',
-    ] as const) {
+    for (const assetType of DEVELOPER_UPLOAD_ASSET_TYPES) {
       const guidance = developerAssetSubmissionGuidance[assetType];
       expect(guidance.destination).toBeTruthy();
       expect(guidance.sourceLabel).toBeTruthy();
@@ -80,7 +73,6 @@ describe('developer asset program rules', () => {
       expect(guidance.checklist).toHaveLength(3);
     }
 
-    expect(developerAssetSubmissionGuidance.templates.accept).toContain('application/json');
     expect(developerAssetSubmissionGuidance.icons.accept).toContain('image/svg+xml');
     expect(developerAssetSubmissionGuidance.fonts.accept).toContain('font/woff2');
   });
@@ -92,20 +84,20 @@ describe('developer asset program rules', () => {
   });
 
   it('shows one stable personal-library candidate per asset identity', () => {
-    const createFile = async () => new File([], 'asset.json');
+    const createFile = async () => new File([], 'asset.svg');
     const first = {
-      id: 'template-shared',
+      id: 'icon-shared',
       name: 'First copy',
-      sourceLabel: 'Saved template',
-      assetType: 'templates' as const,
-      fileName: 'first.json',
+      sourceLabel: 'Local icon',
+      assetType: 'icons' as const,
+      fileName: 'first.svg',
       helperText: '',
       createFile,
     };
     expect(deduplicatePersonalLibraryItems([
       first,
       { ...first, name: 'Duplicate copy' },
-      { ...first, assetType: 'elementPresets', name: 'Different family' },
+      { ...first, assetType: 'dividers', name: 'Different family' },
     ]).map((item) => item.name)).toEqual(['First copy', 'Different family']);
   });
 

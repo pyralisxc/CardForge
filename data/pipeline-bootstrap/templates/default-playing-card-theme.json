@@ -26,7 +26,7 @@
       "textColor": "#2b1609",
       "texture": {
         "kind": "uploaded",
-        "imageSource": "bootstrap-media://textures/arcane-forge/frame-playing-premium.webp",
+        "imageSource": "bootstrap-media://images/frames/front/frame-playing-premium.webp",
         "intensity": 100
       }
     },
@@ -37,7 +37,7 @@
       "radius": 22
     }
   },
-  "cardBackgroundImageUrl": "bootstrap-media://textures/arcane-forge/frame-playing-premium.webp",
+  "cardBackgroundImageUrl": "bootstrap-media://images/frames/front/frame-playing-premium.webp",
   "baseBackgroundColor": "#f4e2bb",
   "baseTextColor": "#2b1609",
   "defaultElementBorderColor": "transparent",

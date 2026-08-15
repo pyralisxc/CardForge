@@ -75,14 +75,14 @@ export function NewCardDesignDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl border-[#5f4526] bg-[#111017] text-[#f7ead0]">
         <DialogHeader>
-          <DialogTitle>{usage === 'back-preset' ? 'Create a card back' : 'Create a card design'}</DialogTitle>
+          <DialogTitle>{usage === 'back-preset' ? 'Create a card back Template' : 'Create a Template'}</DialogTitle>
           <DialogDescription className="text-[#b9ab91]">
             Choose the name and physical format before opening the canvas. You can view measurements in millimeters, inches, or canvas pixels.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="new-card-design-name">Card design name</Label>
+            <Label htmlFor="new-card-design-name">Template name</Label>
             <Input
               id="new-card-design-name"
               value={name}

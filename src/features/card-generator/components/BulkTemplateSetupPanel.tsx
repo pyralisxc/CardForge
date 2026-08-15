@@ -42,12 +42,12 @@ export function BulkTemplateSetupPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">1. Card design</CardTitle>
+        <CardTitle className="text-base">1. Template</CardTitle>
         <CardDescription>Confirm the front and back designs these cards will generate.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border bg-muted/30 p-3 text-sm">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Selected card design</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Selected Template</p>
           <p className="font-medium">{selectedTemplate?.name || selectedTemplateId || 'No front template selected'}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Back: {backingTemplate?.name || 'No back selected'}
@@ -74,7 +74,7 @@ export function BulkTemplateSetupPanel({
             <div>
               <p className="font-medium">{selectedTemplate.name || selectedTemplate.id}</p>
               <p className="text-muted-foreground">
-                {getTemplateSourceLabel(selectedTemplate)} card design — download a starter file, edit the values, then upload or paste it below.
+                {getTemplateSourceLabel(selectedTemplate)} Template — download a starter file, edit the values, then upload or paste it below.
               </p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -101,7 +101,7 @@ export function BulkTemplateSetupPanel({
                 These are the details your data can fill. Back fields begin with “back.” so front and back can share field names.
               </p>
               <div className="mt-2 rounded bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-5 text-foreground break-words">
-                {exactHeaderLine || 'Select a card design to see fields.'}
+                {exactHeaderLine || 'Select a Template to see fields.'}
               </div>
             </div>
 
