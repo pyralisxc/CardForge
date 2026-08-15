@@ -139,16 +139,16 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
     };
   }
 
-  const [authState, fullUser] = await Promise.all([
-    resolveWithTimeout(Promise.resolve().then(() => auth()), {
-      fallback: null,
-      timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
-    }),
-    resolveWithTimeout(Promise.resolve().then(() => currentUser()), {
-      fallback: null,
-      timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
-    }),
-  ]);
+  const authState = await resolveWithTimeout(Promise.resolve().then(() => auth()), {
+    fallback: null,
+    timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
+  });
+  const fullUser = authState?.userId
+    ? await resolveWithTimeout(Promise.resolve().then(() => currentUser()), {
+        fallback: null,
+        timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
+      })
+    : null;
 
   const user = fullUser
     ? toCardforgeUserFromClerk(fullUser)
