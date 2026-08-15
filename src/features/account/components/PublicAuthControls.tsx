@@ -1,14 +1,14 @@
 "use client";
 
 import { SignInButton, UserButton, useUser } from '@clerk/nextjs';
-import { useEffect } from 'react';
-import { LoaderCircle, LogIn } from 'lucide-react';
+import Link from 'next/link';
+import { Code2, LoaderCircle, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useDeveloperAccess } from '@/features/developer-access/client';
 import {
   getPublicAuthControlState,
   isClerkPublicConfigPresent,
 } from '@/infrastructure/auth/clerk';
-import { announceCardForgeAuthReady } from '@/infrastructure/auth/browserSession';
 
 export function PublicAuthControls() {
   if (!isClerkPublicConfigPresent()) return null;
@@ -17,11 +17,10 @@ export function PublicAuthControls() {
 }
 
 function ClerkPublicAuthControls() {
-  const { isLoaded, isSignedIn } = useUser();
-
-  useEffect(() => {
-    if (isLoaded) announceCardForgeAuthReady();
-  }, [isLoaded, isSignedIn]);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const developerAccess = useDeveloperAccess(
+    isLoaded && isSignedIn ? user?.id ?? null : null,
+  );
 
   const state = getPublicAuthControlState({
     authConfigured: true,
@@ -44,7 +43,23 @@ function ClerkPublicAuthControls() {
   }
 
   if (state === 'signed-in') {
-    return <UserButton userProfileMode="navigation" userProfileUrl="/account" />;
+    return (
+      <div className="flex items-center gap-2">
+        {developerAccess.hasCockpitAccess ? (
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="gap-2 border-[#8a642f] bg-transparent text-[#f0c568] hover:bg-[#241a0f] hover:text-[#ffe7ad]"
+          >
+            <Link href={developerAccess.cockpitHref} prefetch={false}>
+              <Code2 className="h-4 w-4" aria-hidden="true" /> Developer
+            </Link>
+          </Button>
+        ) : null}
+        <UserButton userProfileMode="navigation" userProfileUrl="/account" />
+      </div>
+    );
   }
 
   return (

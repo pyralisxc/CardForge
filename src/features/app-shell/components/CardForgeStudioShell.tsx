@@ -41,7 +41,9 @@ export function CardForgeStudioShell({
 }) {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
-  const developerAccess = useDeveloperAccess();
+  const developerAccess = useDeveloperAccess(
+    accountEntitlement.isSignedIn ? 'signed-in-studio-session' : null,
+  );
   const projectCapabilities = accountEntitlement.capabilities;
   const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();
   const showVisibleCardWatermark = shouldShowVisibleCardWatermark(projectCapabilities.canExportClean);
