@@ -32,7 +32,7 @@ describe('consolidated public routes and account navigation', () => {
       expect(source).toContain("from '@/features/public-site/client/shell'");
       expect(source).toContain('getCachedBusinessIdentity');
       expect(source).toContain('<PublicSiteHeader');
-      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
+      expect(source).toContain('accountSlot={authConfigured ? await getDeveloperPublicAuthSlot() : undefined}');
       expect(source).toContain('className="cardforge-public-tokens"');
       expect(source).not.toContain('className="cardforge-public"');
       expect(source).not.toContain('StudioHeader');
@@ -43,9 +43,9 @@ describe('consolidated public routes and account navigation', () => {
     for (const path of ['src/app/page.tsx', 'src/app/about/page.tsx', 'src/app/cameron/page.tsx']) {
       const source = readSource(path);
       expect(source).toContain('<CardForgeAppProviders>');
-      expect(source).toContain('<DeveloperPublicAuthSlot />');
+      expect(source).toContain('await getDeveloperPublicAuthSlot()');
       expect(source).toContain('isClerkServerConfigPresent');
-      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
+      expect(source).toContain('accountSlot={authConfigured ? await getDeveloperPublicAuthSlot() : undefined}');
     }
   });
 

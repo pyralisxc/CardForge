@@ -7,7 +7,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
+import { getDeveloperPublicAuthSlot } from '@/features/developer-access/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
@@ -47,7 +47,7 @@ export default async function AboutPage() {
 
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined} businessIdentity={businessIdentity} currentPath="/about">
+      <ConfiguredPublicSiteShell accountSlot={authConfigured ? await getDeveloperPublicAuthSlot() : undefined} businessIdentity={businessIdentity} currentPath="/about">
       <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
         { name: 'Home', path: '/' },
         { name: 'About CardForge Studio', path: '/about' },
