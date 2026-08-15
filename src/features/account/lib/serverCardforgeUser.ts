@@ -1,4 +1,4 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth, clerkClient, currentUser } from '@clerk/nextjs/server';
 
 import {
   isClerkAuthConfigured,
@@ -139,14 +139,28 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
     };
   }
 
-  const authState = await resolveWithTimeout(Promise.resolve().then(() => auth()), {
-    fallback: null,
-    timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
-  });
-  const fullUser = await resolveWithTimeout(Promise.resolve().then(() => currentUser()), {
-    fallback: null,
-    timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
-  });
+  const [authState, sessionUser] = await Promise.all([
+    resolveWithTimeout(Promise.resolve().then(() => auth()), {
+      fallback: null,
+      timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
+    }),
+    resolveWithTimeout(Promise.resolve().then(() => currentUser()), {
+      fallback: null,
+      timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
+    }),
+  ]);
+  const fullUser = sessionUser ?? (authState?.userId
+    ? await resolveWithTimeout(
+        Promise.resolve().then(async () => {
+          const client = await clerkClient();
+          return client.users.getUser(authState.userId);
+        }),
+        {
+          fallback: null,
+          timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
+        },
+      )
+    : null);
 
   const user = fullUser
     ? toCardforgeUserFromClerk(fullUser)
