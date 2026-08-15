@@ -7,11 +7,17 @@ import { Code2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicAuthControls } from '@/features/account/client/auth';
 import { useDeveloperAccess } from '@/features/developer-access/hooks/useDeveloperAccess';
+import type { DeveloperAccessSessionState } from '@/features/developer-access/model';
 
-export function DeveloperPublicAuthControls() {
+export function DeveloperPublicAuthControls({
+  initialDeveloperAccess,
+}: {
+  initialDeveloperAccess: DeveloperAccessSessionState;
+}) {
   const { isLoaded, isSignedIn, user } = useUser();
   const developerAccess = useDeveloperAccess(
     isLoaded && isSignedIn ? user?.id ?? null : null,
+    initialDeveloperAccess,
   );
 
   const developerShortcut = developerAccess.hasCockpitAccess ? (

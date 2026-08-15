@@ -4,23 +4,19 @@ import { useEffect, useState } from 'react';
 
 import {
   EMPTY_DEVELOPER_ACCESS_PROJECTION,
+  EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
   type DeveloperAccessProjection,
+  type DeveloperAccessSessionState,
 } from '@/features/developer-access/model';
-interface DeveloperAccessState {
-  sessionKey: string | null;
-  projection: DeveloperAccessProjection;
-}
 
 export const useDeveloperAccess = (
   sessionKey: string | null,
+  initialState: DeveloperAccessSessionState = EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
 ): DeveloperAccessProjection & { isLoading: boolean } => {
-  const [state, setState] = useState<DeveloperAccessState>({
-    sessionKey: null,
-    projection: EMPTY_DEVELOPER_ACCESS_PROJECTION,
-  });
+  const [state, setState] = useState<DeveloperAccessSessionState>(initialState);
 
   useEffect(() => {
-    if (!sessionKey) return;
+    if (!sessionKey || state.sessionKey === sessionKey) return;
     let cancelled = false;
 
     void fetch('/api/developer-access', { cache: 'no-store' })
@@ -39,7 +35,7 @@ export const useDeveloperAccess = (
     return () => {
       cancelled = true;
     };
-  }, [sessionKey]);
+  }, [sessionKey, state.sessionKey]);
 
   const isCurrentSession = Boolean(sessionKey && state.sessionKey === sessionKey);
   return {

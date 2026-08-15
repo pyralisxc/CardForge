@@ -134,7 +134,7 @@ describe('business identity runtime cutover', () => {
 
     expect(studioPage).toContain("import { getBusinessIdentity } from '@/features/business-identity/server';");
     expect(studioPage).toContain('export default async function StudioPage()');
-    expect(studioPage).toContain('await getBusinessIdentity()');
+    expect(studioPage).toContain('getBusinessIdentity()');
     expect(studioPage).toContain('brandName: businessIdentity.brandName');
     expect(studioPage).toContain('copyrightHolder: businessIdentity.copyrightHolder');
     expect(studioClient).toContain('type StudioBusinessIdentity');

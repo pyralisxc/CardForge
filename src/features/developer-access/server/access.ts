@@ -4,10 +4,11 @@ import {
   type CardforgeServerUser,
 } from '@/features/account/server';
 import {
-  EMPTY_DEVELOPER_ACCESS_PROJECTION,
+  EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
   hasContributionScope,
   resolveDeveloperContributionScopes,
   type DeveloperAccessProjection,
+  type DeveloperAccessSessionState,
   type DeveloperContributionScope,
 } from '@/features/developer-access/model';
 import {
@@ -100,16 +101,23 @@ export const requireContributionScope = (
 };
 
 export const getCurrentDeveloperAccessProjection = async (): Promise<DeveloperAccessProjection> => {
+  return (await getCurrentDeveloperAccessSessionState()).projection;
+};
+
+export const getCurrentDeveloperAccessSessionState = async (): Promise<DeveloperAccessSessionState> => {
   try {
     const access = await getCurrentDeveloperCockpitAccess();
     return {
-      hasCockpitAccess: true,
-      cockpitHref: '/developer/cockpit',
-      canSubmitTemplateRevisions: hasContributionScope(access.scopes, 'library.submit'),
-      canPublishSharedLibrary: hasContributionScope(access.scopes, 'library.publish'),
+      sessionKey: access.user.id,
+      projection: {
+        hasCockpitAccess: true,
+        cockpitHref: '/developer/cockpit',
+        canSubmitTemplateRevisions: hasContributionScope(access.scopes, 'library.submit'),
+        canPublishSharedLibrary: hasContributionScope(access.scopes, 'library.publish'),
+      },
     };
   } catch (error) {
-    if (error instanceof DeveloperCockpitAccessError) return EMPTY_DEVELOPER_ACCESS_PROJECTION;
+    if (error instanceof DeveloperCockpitAccessError) return EMPTY_DEVELOPER_ACCESS_SESSION_STATE;
     throw error;
   }
 };

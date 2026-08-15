@@ -51,11 +51,21 @@ export interface DeveloperAccessProjection {
   canPublishSharedLibrary: boolean;
 }
 
+export interface DeveloperAccessSessionState {
+  sessionKey: string | null;
+  projection: DeveloperAccessProjection;
+}
+
 export const EMPTY_DEVELOPER_ACCESS_PROJECTION: DeveloperAccessProjection = {
   hasCockpitAccess: false,
   cockpitHref: '/developer/cockpit',
   canSubmitTemplateRevisions: false,
   canPublishSharedLibrary: false,
+};
+
+export const EMPTY_DEVELOPER_ACCESS_SESSION_STATE: DeveloperAccessSessionState = {
+  sessionKey: null,
+  projection: EMPTY_DEVELOPER_ACCESS_PROJECTION,
 };
 
 export const resolveDeveloperContributionScopes = ({
