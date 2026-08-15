@@ -59,7 +59,8 @@ describe('consolidated public routes and account navigation', () => {
     expect(controls).toContain('useDeveloperAccess(');
     expect(controls).toContain('initialDeveloperAccess,');
     expect(controls).toContain('accountSessionConfirmed');
-    expect(controls).toContain('accountEntitlement.accountUserId === userId');
+    expect(controls).toContain('accountUserId === userId');
+    expect(controls).toContain('refreshEntitlement({ force: true })');
     expect(studioPage).toContain('getCurrentDeveloperAccessSessionState()');
     expect(studioPage).toContain('initialDeveloperAccess={initialDeveloperAccess}');
   });

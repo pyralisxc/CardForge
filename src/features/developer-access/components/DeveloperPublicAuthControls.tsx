@@ -2,6 +2,7 @@
 
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import { Code2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -16,14 +17,38 @@ export function DeveloperPublicAuthControls({
   initialDeveloperAccess: DeveloperAccessSessionState;
 }) {
   const { isLoaded, isSignedIn, user } = useUser();
-  const accountEntitlement = useAccountEntitlement({ initialAuthConfigured: true });
+  const reconciledUserRef = useRef<string | null>(null);
+  const {
+    accountUserId,
+    isLoadingEntitlement,
+    isSignedIn: isAccountSignedIn,
+    refreshEntitlement,
+  } = useAccountEntitlement({ initialAuthConfigured: true });
   const userId = isLoaded && isSignedIn ? user?.id ?? null : null;
   const serverSessionMatches = Boolean(userId && initialDeveloperAccess.sessionKey === userId);
   const accountSessionConfirmed = Boolean(
     userId
-    && accountEntitlement.isSignedIn
-    && accountEntitlement.accountUserId === userId,
+    && isAccountSignedIn
+    && accountUserId === userId,
   );
+  useEffect(() => {
+    if (!userId) {
+      reconciledUserRef.current = null;
+      return;
+    }
+    if (
+      isLoadingEntitlement
+      || accountSessionConfirmed
+      || reconciledUserRef.current === userId
+    ) return;
+    reconciledUserRef.current = userId;
+    void refreshEntitlement({ force: true });
+  }, [
+    isLoadingEntitlement,
+    refreshEntitlement,
+    accountSessionConfirmed,
+    userId,
+  ]);
   const developerAccess = useDeveloperAccess(
     serverSessionMatches || accountSessionConfirmed ? userId : null,
     initialDeveloperAccess,
