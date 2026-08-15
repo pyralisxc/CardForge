@@ -19,7 +19,7 @@ export const DEFAULT_BRAND_PRESENTATION: BrandPresentation = {
   brandName: 'CardForge Studio',
   markUrl: '/brand/cardforge-studio/brand-mark.svg',
   faviconUrl: '/brand/cardforge-studio/favicon.svg',
-  socialImageUrl: '/card-assets/landing/cardforge-hero-workbench.png',
+  socialImageUrl: '/site-fallbacks/landing/cardforge-hero-workbench.png',
   watermarkUrl: '/brand/cardforge-studio/watermark.svg',
   watermarkWidth: 1000,
   watermarkHeight: 260,

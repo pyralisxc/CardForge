@@ -10,7 +10,7 @@
   "templateCategory": "Game card",
   "templateDescription": "A showcase-ready fantasy creature layout with a cinematic artwork window, clear abilities, and bold combat stats.",
   "templatePreviewData": {
-    "Artwork": "/card-assets/showcase/creatures/emberclaw-whelp.webp"
+    "Artwork": "site-fallback://showcase/creatures/emberclaw-whelp.webp"
   },
   "frameStyle": "custom",
   "cardBorderWidth": "0px",
@@ -27,13 +27,13 @@
       "texture": {
         "kind": "uploaded",
         "intensity": 100,
-        "imageSource": "/card-assets/textures/arcane-forge/frame-creature-premium.webp"
+        "imageSource": "bootstrap-media://textures/arcane-forge/frame-creature-premium.webp"
       },
       "baseColor": "#17120d",
       "textColor": "#2a170b"
     }
   },
-  "cardBackgroundImageUrl": "/card-assets/textures/arcane-forge/frame-creature-premium.webp",
+  "cardBackgroundImageUrl": "bootstrap-media://textures/arcane-forge/frame-creature-premium.webp",
   "baseBackgroundColor": "#17120d",
   "baseTextColor": "#2a170b",
   "defaultElementBorderColor": "transparent",
@@ -68,7 +68,7 @@
       "key": "Artwork",
       "type": "image",
       "label": "Artwork",
-        "example": "/card-assets/showcase/creatures/emberclaw-whelp.webp",
+        "example": "site-fallback://showcase/creatures/emberclaw-whelp.webp",
       "required": false,
       "elementId": "mtg-artwork",
       "multiline": false,

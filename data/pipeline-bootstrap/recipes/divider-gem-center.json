@@ -4,7 +4,7 @@
   "kind": "divider",
   "targets": ["divider", "shape"],
   "appearance": {
-    "dividerAsset": "/card-assets/dividers/gem-center.svg",
+    "dividerAsset": "bootstrap-media://dividers/gem-center.svg",
     "assetKind": "divider",
     "shapeRole": "divider",
     "material": {

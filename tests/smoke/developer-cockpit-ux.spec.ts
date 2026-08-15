@@ -11,7 +11,7 @@ import type {
 const READY_TIMEOUT = 120_000;
 const mediaFixture = resolve(
   process.cwd(),
-  'public/card-assets/images/arcane-landscape.svg',
+  'public/site-fallbacks/showcase/cardforge-workshop-cover.webp',
 );
 
 const baseCampaign = {

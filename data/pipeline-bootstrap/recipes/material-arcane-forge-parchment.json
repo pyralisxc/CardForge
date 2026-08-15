@@ -18,8 +18,8 @@
       },
       "texture": {
         "kind": "uploaded",
-        "imageSource": "/card-assets/textures/arcane-forge/forged-parchment.svg",
-        "assetSource": "/card-assets/textures/arcane-forge/forged-parchment.svg",
+        "imageSource": "bootstrap-media://textures/arcane-forge/forged-parchment.svg",
+        "assetSource": "bootstrap-media://textures/arcane-forge/forged-parchment.svg",
         "assetKind": "texture",
         "intensity": 70,
         "scale": 10,

@@ -31,8 +31,8 @@ CardForge has three storage lanes:
 
 3. **Pipeline-owned Studio catalog**
    - `cardforge_asset_registry` is the only runtime catalog for shared templates, card backs, visual presets, fonts, and media assets used by Template Studio.
-   - `src/features/developer-assets/lib/repositoryCatalog.ts` reads published Pipeline records only. An unavailable Pipeline produces an honest unavailable/empty shared catalog rather than silently switching to repository data.
-   - `data/default-templates`, `data/styles`, and referenced Studio files under `public/card-assets` are bootstrap import material, not live product truth. Rendering primitives in TypeScript remain asset-free.
+   - `/api/catalog` reads the published registry once and returns one versioned manifest for templates, card backs, presets, fonts, and media. Tier-keyed server caching is invalidated by application mutations and never crosses free/paid/developer access. Registry failure returns an honest unavailable response rather than caching an empty catalog or switching to repository data.
+   - `data/pipeline-bootstrap` is importer input only; `public/site-fallbacks` is public-page fallback art only. Neither is a second Studio catalog. Rendering primitives in TypeScript remain asset-free.
    - `npm run pipeline:sync-defaults` imports only missing stable IDs, copies referenced media into managed Supabase storage, preserves current owner/vote decisions, and skips durable owner-deletion tombstones.
    - `CARDFORGE_OWNER_ACCOUNT_EMAILS` must contain exactly one canonical Pipeline publisher. Owner and AI-assisted maintenance publish through that real Clerk developer identity; development proxies are never separate attribution owners.
    - Retired development identities are durable aliases, not deleted audit facts: Pipeline ownership transfers to the canonical profile, raw owner activity remains append-only, the Owner Console resolves the alias for display, and a database trigger prevents a retired profile from being recreated.
@@ -50,7 +50,7 @@ CardForge has three storage lanes:
 - `src/app/api/owner/*`: owner console, billing, account, and email operations.
 - `src/app/api/developer-assets/*`: developer pipeline read/write/vote/upload.
 - `src/app/api/developer-cockpit/*`: scoped campaign/site proposal/media operations plus owner-only provider and scope mutations.
-- `src/app/api/assets`, `src/app/api/fonts`, `src/app/api/templates`, `src/app/api/styles`: live catalog/bootstrap APIs.
+- `src/app/api/catalog`: canonical versioned runtime catalog. The GET sides of `assets`, `fonts`, `templates`, and `styles` are compatibility projections; template/style mutations remain on their focused routes.
 
 API route files own HTTP configuration and delegation. Provider or product workflows live under their feature server owner; for example, Stripe webhook processing and owner reconciliation live under `src/features/billing/server`.
 
@@ -71,7 +71,7 @@ API route files own HTTP configuration and delegation. Provider or product workf
 - `src/features/contact`: support/contact forms, mail routing, and contact-request persistence.
 - `src/features/roadmap`: public Chronicle presentation, feature suggestions and votes, owner-editable roadmap settings, and official roadmap operations.
 - `src/features/developer-access`: the single developer identity and authorization owner. It owns profile status, contribution-scope resolution, owner grant mutations, and every runtime access to `cardforge_developer_profiles`.
-- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls. Personal browser-library and review-queue state have focused client hooks; `developerAssetProgram.ts` owns pure contracts, normalization, row mapping, and view construction; `developerAssetStore.ts` owns Supabase reads and mutations.
+- `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls. `developerAssetProgram.ts` owns contracts/normalization/row mapping, `developerAssetProgramView.ts` owns the pure view projection, `developerAssetProjections.ts` owns paged/aggregate reads, and `developerAssetStore.ts` owns commands plus program composition.
 - `src/features/developer-program`: public developer-program recruitment and explanation.
 - `src/features/developer-cockpit`: protected cockpit composition, CardForge-owned campaign/site proposal ledgers, media approval, and workflow state transitions.
 - `src/features/social-publishing`: server-only provider boundary. Buffer owns channel connections, post scheduling, and delivery status; CardForge owns package content, approval history, source media, and the durable mapping to provider post IDs.

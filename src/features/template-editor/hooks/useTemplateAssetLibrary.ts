@@ -34,10 +34,14 @@ const readStoredAssets = async (primaryKey: string): Promise<CardAssetOption[]> 
   try {
     const storage = getProjectAssetStorage();
     const assets = await readTypedProjectAssetListFromStorage<CardAssetOption>(storage, primaryKey);
-    const normalizedAssets = assets.map((asset) => (
-      asset.librarySource === 'local' ? normalizeLocalLibraryAsset(asset) : asset
-    ));
-    await writeProjectAssetListToStorage(storage, primaryKey, normalizedAssets);
+    let changed = false;
+    const normalizedAssets = assets.map((asset) => {
+      if (asset.librarySource !== 'local') return asset;
+      if (asset.registryStatus === 'localOnly' && asset.accessTier === undefined) return asset;
+      changed = true;
+      return normalizeLocalLibraryAsset(asset);
+    });
+    if (changed) await writeProjectAssetListToStorage(storage, primaryKey, normalizedAssets);
     return normalizedAssets;
   } catch {
     return [];

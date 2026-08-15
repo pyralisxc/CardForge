@@ -31,7 +31,7 @@ interface ShippedTemplate {
 }
 
 const readTemplate = (filename: string): ShippedTemplate => JSON.parse(
-  readFileSync(join(process.cwd(), 'data/default-templates', filename), 'utf8'),
+  readFileSync(join(process.cwd(), 'data/pipeline-bootstrap/templates', filename), 'utf8'),
 ) as ShippedTemplate;
 
 const findExample = (templateId: string) => {
@@ -91,7 +91,7 @@ describe('showcase templates', () => {
   });
 
   it('ships an official CardForge Studio back for every standard card format', () => {
-    const filenames = readdirSync(join(process.cwd(), 'data/default-templates'))
+    const filenames = readdirSync(join(process.cwd(), 'data/pipeline-bootstrap/templates'))
       .filter((filename) => filename.startsWith('default-cardforge-studio-back-'));
     const backs = filenames.map(readTemplate);
 
@@ -103,8 +103,8 @@ describe('showcase templates', () => {
         trimWidthMm: format.widthMm,
         trimHeightMm: format.heightMm,
       });
-      const imagePath = back?.cardBackgroundImageUrl?.replace(/^\//, '');
-      expect(imagePath && existsSync(join(process.cwd(), 'public', imagePath))).toBe(true);
+      const imagePath = back?.cardBackgroundImageUrl?.replace(/^bootstrap-media:\/\//, '');
+      expect(imagePath && existsSync(join(process.cwd(), 'data/pipeline-bootstrap/media', imagePath))).toBe(true);
     }
   });
 
@@ -116,6 +116,7 @@ describe('showcase templates', () => {
       startingPoint: 'branded-back',
       brandedBackTemplate: {
         ...readTemplate('default-cardforge-studio-back-us-business.json'),
+        cardBackgroundImageUrl: '/site-fallbacks/showcase/cardforge-workshop-cover.webp',
         name: 'CardForge Studio business back',
         aspectRatio: '3.5:2',
         templateSource: 'default',
@@ -126,7 +127,7 @@ describe('showcase templates', () => {
 
     const html = renderToStaticMarkup(createElement(TemplateThumbnail, { template: landscapeBack }));
 
-    expect(html).toContain('back-cardforge-studio-landscape.webp');
+    expect(html).toContain('cardforge-workshop-cover.webp');
     expect(html).toContain('background-size:100% 100%');
     expect(html).toContain('width:112px');
     expect(html).not.toContain('CF</span>');

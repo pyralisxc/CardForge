@@ -17,8 +17,8 @@
       },
       "texture": {
         "kind": "uploaded",
-        "imageSource": "/card-assets/textures/parchment-grain.svg",
-        "assetSource": "/card-assets/textures/parchment-grain.svg",
+        "imageSource": "bootstrap-media://textures/parchment-grain.svg",
+        "assetSource": "bootstrap-media://textures/parchment-grain.svg",
         "assetKind": "texture",
         "intensity": 55,
         "scale": 8,

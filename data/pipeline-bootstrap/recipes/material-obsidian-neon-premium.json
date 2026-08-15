@@ -17,8 +17,8 @@
       },
       "texture": {
         "kind": "uploaded",
-        "imageSource": "/card-assets/textures/arcane-forge/obsidian-vellum.svg",
-        "assetSource": "/card-assets/textures/arcane-forge/obsidian-vellum.svg",
+        "imageSource": "bootstrap-media://textures/arcane-forge/obsidian-vellum.svg",
+        "assetSource": "bootstrap-media://textures/arcane-forge/obsidian-vellum.svg",
         "assetKind": "texture",
         "intensity": 76,
         "scale": 12,

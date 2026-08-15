@@ -43,5 +43,5 @@
       }
     ]
   },
-  "cardBackgroundImageUrl": "/card-assets/textures/arcane-forge/back-obsidian-neon-premium.webp"
+  "cardBackgroundImageUrl": "bootstrap-media://textures/arcane-forge/back-obsidian-neon-premium.webp"
 }

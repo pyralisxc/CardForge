@@ -18,8 +18,8 @@
       },
       "texture": {
         "kind": "uploaded",
-        "imageSource": "/card-assets/textures/purple-foil.svg",
-        "assetSource": "/card-assets/textures/purple-foil.svg",
+        "imageSource": "bootstrap-media://textures/purple-foil.svg",
+        "assetSource": "bootstrap-media://textures/purple-foil.svg",
         "assetKind": "texture",
         "intensity": 60,
         "scale": 16,

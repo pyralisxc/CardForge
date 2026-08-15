@@ -16,8 +16,8 @@
       },
       "texture": {
         "kind": "uploaded",
-        "imageSource": "/card-assets/textures/dark-leather.svg",
-        "assetSource": "/card-assets/textures/dark-leather.svg",
+        "imageSource": "bootstrap-media://textures/dark-leather.svg",
+        "assetSource": "bootstrap-media://textures/dark-leather.svg",
         "assetKind": "texture",
         "intensity": 42,
         "scale": 9,

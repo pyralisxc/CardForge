@@ -15,6 +15,10 @@ const configuredOwnerEmail = (value) => {
 
 let OWNER_EMAIL = null;
 const ASSET_BUCKET = process.env.CARDFORGE_DEVELOPER_ASSET_BUCKET || 'cardforge-developer-assets';
+const BOOTSTRAP_ROOT = path.join('data', 'pipeline-bootstrap');
+const BOOTSTRAP_MEDIA_PREFIX = 'bootstrap-media://';
+const SITE_FALLBACK_PREFIX = 'site-fallback://';
+const LEGACY_PUBLIC_MEDIA_PREFIX = '/card-assets/';
 
 const projectRoot = process.cwd();
 const envPath = path.join(projectRoot, '.env.local');
@@ -104,7 +108,9 @@ const rewritePipelineAssetUrls = (value, publicUrlByLocalPath) => {
 
 const collectPipelineAssetPaths = (value, paths = new Set()) => {
   if (typeof value === 'string') {
-    if (value.startsWith('/card-assets/')) paths.add(value.slice('/card-assets/'.length));
+    if (value.startsWith(BOOTSTRAP_MEDIA_PREFIX)) paths.add(value.slice(BOOTSTRAP_MEDIA_PREFIX.length));
+    if (value.startsWith(SITE_FALLBACK_PREFIX)) paths.add(`site-fallbacks/${value.slice(SITE_FALLBACK_PREFIX.length)}`);
+    if (value.startsWith(LEGACY_PUBLIC_MEDIA_PREFIX)) paths.add(value.slice(LEGACY_PUBLIC_MEDIA_PREFIX.length));
     return paths;
   }
   if (Array.isArray(value)) {
@@ -118,21 +124,29 @@ const collectPipelineAssetPaths = (value, paths = new Set()) => {
 };
 
 const containsRepositoryAssetUrl = (value) => {
-  if (typeof value === 'string') return value.startsWith('/card-assets/');
+  if (typeof value === 'string') {
+    return value.startsWith(BOOTSTRAP_MEDIA_PREFIX)
+      || value.startsWith(SITE_FALLBACK_PREFIX)
+      || value.startsWith(LEGACY_PUBLIC_MEDIA_PREFIX);
+  }
   if (Array.isArray(value)) return value.some(containsRepositoryAssetUrl);
   return Boolean(value && typeof value === 'object' && Object.values(value).some(containsRepositoryAssetUrl));
 };
 
 const getStaticAssetDescriptor = (relativePath) => {
-  const [rootFolder, ...rest] = relativePath.split('/');
+  const catalogPath = relativePath.startsWith('site-fallbacks/')
+    ? relativePath.slice('site-fallbacks/'.length)
+    : relativePath;
+  const [rootFolder, ...rest] = catalogPath.split('/');
   const registryType = registryTypeByFolder[rootFolder] || 'image';
   const metadataRelativePath = registryTypeByFolder[rootFolder]
     ? rest.join('/')
-    : relativePath;
+    : catalogPath;
   return {
     kindFolder: registryTypeByFolder[rootFolder] ? rootFolder : null,
     registryType,
     metadataRelativePath,
+    catalogPath,
     defaults: defaultAssetMetadata(registryType, metadataRelativePath),
   };
 };
@@ -140,8 +154,8 @@ const getStaticAssetDescriptor = (relativePath) => {
 const readMetadata = async (kindFolder, relativePath) => {
   const metadataPath = path.join(
     projectRoot,
-    'data',
-    'assets',
+    BOOTSTRAP_ROOT,
+    'metadata',
     kindFolder,
     relativePath.replace(/\.[^.]+$/, '.json'),
   );
@@ -240,7 +254,9 @@ const upsertRegistryItem = async (supabase, item, ownerProfile) => {
 };
 
 const uploadStaticAsset = async (supabase, relativePath) => {
-  const absolutePath = path.join(projectRoot, 'public', 'card-assets', relativePath);
+  const absolutePath = relativePath.startsWith('site-fallbacks/')
+    ? path.join(projectRoot, 'public', relativePath)
+    : path.join(projectRoot, BOOTSTRAP_ROOT, 'media', relativePath);
   const extension = path.extname(relativePath).toLowerCase();
   const storagePath = `owner-defaults/${relativePath}`;
   const body = await fs.readFile(absolutePath);
@@ -264,8 +280,8 @@ const uploadStaticAsset = async (supabase, relativePath) => {
 const collectReferencedAssetPaths = async () => {
   const paths = new Set();
   for (const directory of [
-    path.join(projectRoot, 'data', 'default-templates'),
-    path.join(projectRoot, 'data', 'styles'),
+    path.join(projectRoot, BOOTSTRAP_ROOT, 'templates'),
+    path.join(projectRoot, BOOTSTRAP_ROOT, 'recipes'),
   ]) {
     const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
     for (const file of files) {
@@ -282,11 +298,14 @@ const collectStaticAssetItems = async (
   referencedAssetPaths,
 ) => {
   const publicUrlByLocalPath = new Map();
-  const rootDirectory = path.join(projectRoot, 'public', 'card-assets');
+  const rootDirectory = path.join(projectRoot, BOOTSTRAP_ROOT, 'media');
   const availableFiles = (await walkFiles(rootDirectory))
     .filter((file) => ['.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(path.extname(file).toLowerCase()));
+  const fallbackFiles = (await walkFiles(path.join(projectRoot, 'public', 'site-fallbacks')))
+    .filter((file) => ['.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(path.extname(file).toLowerCase()))
+    .map((file) => `site-fallbacks/${file}`);
   const catalogFolders = new Set(Object.keys(registryTypeByFolder));
-  const sourceFiles = availableFiles.filter((file) => (
+  const sourceFiles = [...availableFiles, ...fallbackFiles].filter((file) => (
     catalogFolders.has(file.split('/')[0]) || referencedAssetPaths.has(file)
   ));
   const uploadedByRelativePath = new Map();
@@ -296,10 +315,14 @@ const collectStaticAssetItems = async (
     const assetId = descriptor.defaults.id;
     if (tombstonedAssetIds.has(assetId)) continue;
     const existing = existingRegistryByAssetId.get(assetId);
-    const localUrl = `/card-assets/${relativePath}`;
+    const localUrl = `${LEGACY_PUBLIC_MEDIA_PREFIX}${descriptor.catalogPath}`;
+    const seedUrl = relativePath.startsWith('site-fallbacks/')
+      ? `${SITE_FALLBACK_PREFIX}${descriptor.catalogPath}`
+      : `${BOOTSTRAP_MEDIA_PREFIX}${relativePath}`;
     const hasManagedStorage = Boolean(existing?.storage_bucket && existing?.storage_path);
     if (existing && existing.url !== localUrl) {
-      publicUrlByLocalPath.set(`/card-assets/${relativePath}`, existing.url);
+      publicUrlByLocalPath.set(localUrl, existing.url);
+      publicUrlByLocalPath.set(seedUrl, existing.url);
       continue;
     }
     if (existing && hasManagedStorage) {
@@ -307,12 +330,14 @@ const collectStaticAssetItems = async (
         .from(existing.storage_bucket)
         .getPublicUrl(existing.storage_path);
       publicUrlByLocalPath.set(localUrl, data.publicUrl);
+      publicUrlByLocalPath.set(seedUrl, data.publicUrl);
       storageMigrationRelativePaths.add(relativePath);
       continue;
     }
     const uploaded = await uploadStaticAsset(supabase, relativePath);
     uploadedByRelativePath.set(relativePath, uploaded);
     publicUrlByLocalPath.set(localUrl, uploaded.publicUrl);
+    publicUrlByLocalPath.set(seedUrl, uploaded.publicUrl);
     if (existing) storageMigrationRelativePaths.add(relativePath);
   }
 
@@ -327,7 +352,9 @@ const collectStaticAssetItems = async (
       ...descriptor.defaults,
       ...sidecar,
       sourceKind: 'pipeline-owner-import',
-      sourcePath: `public/card-assets/${relativePath}`,
+      sourcePath: relativePath.startsWith('site-fallbacks/')
+        ? `public/${relativePath}`
+        : `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/media/${relativePath}`,
     };
     const existing = existingRegistryByAssetId.get(metadata.id);
     const uploaded = uploadedByRelativePath.get(relativePath);
@@ -338,8 +365,12 @@ const collectStaticAssetItems = async (
       name: metadata.name,
       registry_asset_type: descriptor.registryType,
       developer_asset_type: developerTypeByRegistryType[descriptor.registryType],
-      url: publicUrlByLocalPath.get(`/card-assets/${relativePath}`),
-      preview_url: publicUrlByLocalPath.get(`/card-assets/${relativePath}`),
+      url: publicUrlByLocalPath.get(relativePath.startsWith('site-fallbacks/')
+        ? `${SITE_FALLBACK_PREFIX}${descriptor.catalogPath}`
+        : `${BOOTSTRAP_MEDIA_PREFIX}${relativePath}`),
+      preview_url: publicUrlByLocalPath.get(relativePath.startsWith('site-fallbacks/')
+        ? `${SITE_FALLBACK_PREFIX}${descriptor.catalogPath}`
+        : `${BOOTSTRAP_MEDIA_PREFIX}${relativePath}`),
       storage_bucket: uploaded?.storageBucket || existing?.storage_bucket || ASSET_BUCKET,
       storage_path: storagePath,
       file_size_bytes: uploaded?.fileSizeBytes || existing?.file_size_bytes || 0,
@@ -347,14 +378,14 @@ const collectStaticAssetItems = async (
       description: `${metadata.name} starter ${descriptor.registryType} imported into the Forge Pipeline.`,
       metadata,
       requires_storage_migration: storageMigrationRelativePaths.has(relativePath),
-      expected_repository_url: `/card-assets/${relativePath}`,
+      expected_repository_url: `${LEGACY_PUBLIC_MEDIA_PREFIX}${descriptor.catalogPath}`,
     });
   }
   return { items, publicUrlByLocalPath };
 };
 
 const collectTemplateItems = async (publicUrlByLocalPath) => {
-  const directory = path.join(projectRoot, 'data', 'default-templates');
+  const directory = path.join(projectRoot, BOOTSTRAP_ROOT, 'templates');
   const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
   const items = [];
   for (const file of files) {
@@ -377,7 +408,7 @@ const collectTemplateItems = async (publicUrlByLocalPath) => {
       description: template.templateDescription || `${template.name} starter template imported into the Forge Pipeline.`,
       metadata: {
         sourceKind: 'pipeline-owner-import',
-        sourcePath: `data/default-templates/${file}`,
+        sourcePath: `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/templates/${file}`,
         template: {
           ...template,
           templateSource: 'default',
@@ -393,7 +424,7 @@ const collectTemplateItems = async (publicUrlByLocalPath) => {
 };
 
 const collectStyleItems = async (publicUrlByLocalPath) => {
-  const directory = path.join(projectRoot, 'data', 'styles');
+  const directory = path.join(projectRoot, BOOTSTRAP_ROOT, 'recipes');
   const files = (await walkFiles(directory)).filter((file) => file.endsWith('.json'));
   const items = [];
   for (const file of files) {
@@ -418,7 +449,7 @@ const collectStyleItems = async (publicUrlByLocalPath) => {
         description: `${style.name} starter style imported into the Forge Pipeline.`,
         metadata: {
           sourceKind: 'pipeline-owner-import',
-          sourcePath: `data/styles/${file}`,
+          sourcePath: `${BOOTSTRAP_ROOT.replace(/\\/g, '/')}/recipes/${file}`,
           style: {
             ...style,
             librarySource: 'developer',

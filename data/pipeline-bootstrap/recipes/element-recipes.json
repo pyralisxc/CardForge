@@ -14,7 +14,7 @@
           "baseColor": "rgba(18,15,11,0.72)",
           "texture": {
             "kind": "uploaded",
-            "assetSource": "/card-assets/textures/dark-leather.svg",
+            "assetSource": "bootstrap-media://textures/dark-leather.svg",
             "assetKind": "texture",
             "textureOpacity": 42,
             "textureScale": 180,
@@ -90,7 +90,7 @@
           "textColor": "#20140a",
           "texture": {
             "kind": "uploaded",
-            "assetSource": "/card-assets/textures/parchment-grain.svg",
+            "assetSource": "bootstrap-media://textures/parchment-grain.svg",
             "assetKind": "texture",
             "textureOpacity": 46,
             "textureScale": 160,
@@ -130,7 +130,7 @@
           "textColor": "#f7df9d",
           "texture": {
             "kind": "uploaded",
-            "assetSource": "/card-assets/textures/hammered-metal.svg",
+            "assetSource": "bootstrap-media://textures/hammered-metal.svg",
             "assetKind": "texture",
             "textureOpacity": 28,
             "textureScale": 150,
@@ -168,7 +168,7 @@
           "baseColor": "#0b0f15",
           "texture": {
             "kind": "uploaded",
-            "assetSource": "/card-assets/textures/purple-foil.svg",
+            "assetSource": "bootstrap-media://textures/purple-foil.svg",
             "assetKind": "texture",
             "textureOpacity": 36,
             "textureScale": 190,
@@ -206,7 +206,7 @@
           "baseColor": "#0b0f15",
           "texture": {
             "kind": "uploaded",
-            "assetSource": "/card-assets/textures/hammered-metal.svg",
+            "assetSource": "bootstrap-media://textures/hammered-metal.svg",
             "assetKind": "texture",
             "textureOpacity": 34,
             "textureScale": 150,

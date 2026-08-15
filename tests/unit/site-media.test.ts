@@ -39,7 +39,7 @@ describe('owner-managed homepage media', () => {
       'founder.portrait',
     ]);
     const hero = getDefaultSiteMedia('landing.hero');
-    expect(getSiteMediaDisplaySrc(hero)).toBe('/card-assets/showcase/cardforge-workshop-cover.webp');
+    expect(getSiteMediaDisplaySrc(hero)).toBe('/site-fallbacks/showcase/cardforge-workshop-cover.webp');
     expect(getSiteMediaDisplaySrc({ ...hero, storagePath: 'landing/hero/example.webp', updatedAt: '2026-07-21T19:30:00.000Z' }))
       .toContain('/api/public/site-media/landing.hero?v=');
     expect(getSiteMediaStoragePath('landing.hero', 'upload-id')).toBe('landing/hero/upload-id.webp');
@@ -50,7 +50,7 @@ describe('owner-managed homepage media', () => {
     expect(getDefaultSiteMedia('landing.showcase.layout').presentation.frame).toBe('natural');
     expect(getDefaultSiteMedia('landing.showcase.layout')).toMatchObject({ width: 1119, height: 1536 });
     expect(getSiteMediaDisplaySrc(getDefaultSiteMedia('landing.showcase.art.creature.emberclaw')))
-      .toBe('/card-assets/showcase/creatures/emberclaw-whelp.webp');
+      .toBe('/site-fallbacks/showcase/creatures/emberclaw-whelp.webp');
     expect(getDefaultSiteMedia('founder.portrait').presentation.frame).toBe('portrait');
     expect(hero.previousVersion).toBeNull();
   });
