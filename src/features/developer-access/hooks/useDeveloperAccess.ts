@@ -6,43 +6,44 @@ import {
   EMPTY_DEVELOPER_ACCESS_PROJECTION,
   type DeveloperAccessProjection,
 } from '@/features/developer-access/model';
-import { CARDFORGE_AUTH_READY_EVENT } from '@/infrastructure/auth/browserSession';
+interface DeveloperAccessState {
+  sessionKey: string | null;
+  projection: DeveloperAccessProjection;
+}
 
-export const useDeveloperAccess = (): DeveloperAccessProjection & { isLoading: boolean } => {
-  const [projection, setProjection] = useState<DeveloperAccessProjection>(EMPTY_DEVELOPER_ACCESS_PROJECTION);
-  const [isLoading, setIsLoading] = useState(true);
+export const useDeveloperAccess = (
+  sessionKey: string | null,
+): DeveloperAccessProjection & { isLoading: boolean } => {
+  const [state, setState] = useState<DeveloperAccessState>({
+    sessionKey: null,
+    projection: EMPTY_DEVELOPER_ACCESS_PROJECTION,
+  });
 
   useEffect(() => {
+    if (!sessionKey) return;
     let cancelled = false;
-    let requestNumber = 0;
 
-    const load = () => {
-      const currentRequest = ++requestNumber;
-      void fetch('/api/developer-access', { cache: 'no-store' })
-        .then(async (response) => response.ok
-          ? await response.json() as DeveloperAccessProjection
-          : EMPTY_DEVELOPER_ACCESS_PROJECTION)
-        .then((value) => {
-          if (!cancelled && currentRequest === requestNumber) setProjection(value);
-        })
-        .catch(() => {
-          if (!cancelled && currentRequest === requestNumber) {
-            setProjection(EMPTY_DEVELOPER_ACCESS_PROJECTION);
-          }
-        })
-        .finally(() => {
-          if (!cancelled && currentRequest === requestNumber) setIsLoading(false);
-        });
-    };
-
-    load();
-    window.addEventListener(CARDFORGE_AUTH_READY_EVENT, load);
+    void fetch('/api/developer-access', { cache: 'no-store' })
+      .then(async (response) => response.ok
+        ? await response.json() as DeveloperAccessProjection
+        : EMPTY_DEVELOPER_ACCESS_PROJECTION)
+      .then((projection) => {
+        if (!cancelled) setState({ sessionKey, projection });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setState({ sessionKey, projection: EMPTY_DEVELOPER_ACCESS_PROJECTION });
+        }
+      });
 
     return () => {
       cancelled = true;
-      window.removeEventListener(CARDFORGE_AUTH_READY_EVENT, load);
     };
-  }, []);
+  }, [sessionKey]);
 
-  return { ...projection, isLoading };
+  const isCurrentSession = Boolean(sessionKey && state.sessionKey === sessionKey);
+  return {
+    ...(isCurrentSession ? state.projection : EMPTY_DEVELOPER_ACCESS_PROJECTION),
+    isLoading: Boolean(sessionKey && !isCurrentSession),
+  };
 };

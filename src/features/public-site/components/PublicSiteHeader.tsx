@@ -3,7 +3,7 @@
 import { type ReactNode, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Code2, LogIn, Menu } from 'lucide-react';
+import { ArrowRight, LogIn, Menu } from 'lucide-react';
 
 import {
   Dialog,
@@ -20,7 +20,6 @@ import { FounderSocialLinks } from './FounderSocialLinks';
 import { useSiteContent } from './PublicSitePresentationContext';
 import { useBrandPresentation } from '@/features/brand-presentation/client';
 import { useFounderProfile } from './FounderProfileContext';
-import { useDeveloperAccess } from '@/features/developer-access/client';
 
 export interface PublicSiteHeaderProps {
   accountSlot?: ReactNode;
@@ -43,7 +42,6 @@ export function PublicSiteHeader({
   const founderProfile = useFounderProfile();
   const brand = useBrandPresentation();
   const siteContent = useSiteContent();
-  const developerAccess = useDeveloperAccess();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -68,16 +66,6 @@ export function PublicSiteHeader({
             {businessIdentity.brandName}
           </span>
         </Link>
-
-        {developerAccess.hasCockpitAccess ? (
-          <Link
-            href={developerAccess.cockpitHref}
-            prefetch={false}
-            className="hidden min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-brass)] px-4 text-base font-bold text-[var(--public-brass)] transition-colors hover:bg-[var(--public-surface-raised)] lg:inline-flex"
-          >
-            <Code2 className="h-4 w-4" aria-hidden="true" /> Developer cockpit
-          </Link>
-        ) : null}
 
         <nav aria-label="Primary navigation" className="ml-auto hidden items-center gap-5 xl:flex">
           {siteConfiguration.primaryNavigation.filter((item) => item.visible).map((item) => (
@@ -148,17 +136,6 @@ export function PublicSiteHeader({
               </DialogDescription>
             </div>
             <nav aria-label="Mobile navigation" className="grid content-start gap-1">
-              {developerAccess.hasCockpitAccess ? (
-                <DialogClose asChild>
-                  <Link
-                    href={developerAccess.cockpitHref}
-                    prefetch={false}
-                    className="mb-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-brass)] px-5 text-base font-bold text-[var(--public-brass)]"
-                  >
-                    <Code2 className="h-4 w-4" aria-hidden="true" /> Developer cockpit
-                  </Link>
-                </DialogClose>
-              ) : null}
               {siteConfiguration.primaryNavigation.filter((item) => item.visible).map((item) => (
                 <DialogClose key={item.href} asChild>
                   <Link

@@ -1,4 +1,4 @@
-import { PublicAuthControls } from '@/features/account/client/auth';
+import { DeveloperPublicAuthControls } from '@/features/developer-access/client';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { RoadmapPage } from '@/features/roadmap/client';
@@ -20,7 +20,7 @@ export default async function ForgeChroniclePage() {
   const businessIdentity = await getCachedBusinessIdentity();
   return (
     <CardForgeAppProviders>
-      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <PublicAuthControls /> : undefined} currentPath="/roadmap">
+      <ConfiguredPublicSiteShell businessIdentity={businessIdentity} accountSlot={authConfigured ? <DeveloperPublicAuthControls /> : undefined} currentPath="/roadmap">
         <StructuredData value={createBreadcrumbStructuredData(businessIdentity, [
           { name: 'Home', path: '/' },
           { name: 'Roadmap', path: '/roadmap' },

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { PublicAuthControls } from '@/features/account/client/auth';
+import { DeveloperPublicAuthControls } from '@/features/developer-access/client';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { DeveloperCockpitPage } from '@/features/developer-cockpit/client';
@@ -26,7 +26,7 @@ export default async function DeveloperCockpitRoute() {
     <CardForgeAppProviders>
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
-          accountSlot={authConfigured ? <PublicAuthControls /> : undefined}
+          accountSlot={authConfigured ? <DeveloperPublicAuthControls /> : undefined}
           businessIdentity={businessIdentity}
           currentPath="/developer/cockpit"
           siteConfiguration={siteConfiguration}

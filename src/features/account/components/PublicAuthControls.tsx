@@ -1,27 +1,26 @@
 "use client";
 
 import { SignInButton, UserButton, useUser } from '@clerk/nextjs';
-import { useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { LoaderCircle, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   getPublicAuthControlState,
   isClerkPublicConfigPresent,
 } from '@/infrastructure/auth/clerk';
-import { announceCardForgeAuthReady } from '@/infrastructure/auth/browserSession';
 
-export function PublicAuthControls() {
+export function PublicAuthControls({
+  signedInAccessory,
+}: {
+  signedInAccessory?: ReactNode;
+}) {
   if (!isClerkPublicConfigPresent()) return null;
 
-  return <ClerkPublicAuthControls />;
+  return <ClerkPublicAuthControls signedInAccessory={signedInAccessory} />;
 }
 
-function ClerkPublicAuthControls() {
+function ClerkPublicAuthControls({ signedInAccessory }: { signedInAccessory?: ReactNode }) {
   const { isLoaded, isSignedIn } = useUser();
-
-  useEffect(() => {
-    if (isLoaded) announceCardForgeAuthReady();
-  }, [isLoaded, isSignedIn]);
 
   const state = getPublicAuthControlState({
     authConfigured: true,
@@ -44,7 +43,12 @@ function ClerkPublicAuthControls() {
   }
 
   if (state === 'signed-in') {
-    return <UserButton userProfileMode="navigation" userProfileUrl="/account" />;
+    return (
+      <div className="flex items-center gap-2">
+        {signedInAccessory}
+        <UserButton userProfileMode="navigation" userProfileUrl="/account" />
+      </div>
+    );
   }
 
   return (
