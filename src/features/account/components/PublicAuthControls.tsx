@@ -1,12 +1,14 @@
 "use client";
 
 import { SignInButton, UserButton, useUser } from '@clerk/nextjs';
+import { useEffect } from 'react';
 import { LoaderCircle, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   getPublicAuthControlState,
   isClerkPublicConfigPresent,
 } from '@/infrastructure/auth/clerk';
+import { announceCardForgeAuthReady } from '@/infrastructure/auth/browserSession';
 
 export function PublicAuthControls() {
   if (!isClerkPublicConfigPresent()) return null;
@@ -16,6 +18,11 @@ export function PublicAuthControls() {
 
 function ClerkPublicAuthControls() {
   const { isLoaded, isSignedIn } = useUser();
+
+  useEffect(() => {
+    if (isLoaded) announceCardForgeAuthReady();
+  }, [isLoaded, isSignedIn]);
+
   const state = getPublicAuthControlState({
     authConfigured: true,
     isLoaded,

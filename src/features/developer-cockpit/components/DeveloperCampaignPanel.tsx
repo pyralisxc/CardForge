@@ -27,7 +27,7 @@ export function DeveloperCampaignPanel({
   onChange: (cockpit: DeveloperCockpitView) => void;
 }) {
   const canDraft = cockpit.scopes.includes('campaigns.draft');
-  const [showComposer, setShowComposer] = useState(canDraft && cockpit.campaigns.length === 0);
+  const [showComposer, setShowComposer] = useState(false);
   const [draft, setDraft] = useState<CampaignDraft>(createEmptyCampaignDraft);
   const [editing, setEditing] = useState<SocialCampaign | null>(null);
   const [busy, setBusy] = useState(false);

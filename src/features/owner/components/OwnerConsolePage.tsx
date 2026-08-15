@@ -136,6 +136,7 @@ export function OwnerConsolePage() {
     updateConsole,
   } = useOwnerConsole();
   const [workspace, setWorkspace] = useState('overview');
+  const [siteWorkspace, setSiteWorkspace] = useState('identity');
 
   if (!payload && isLoading) {
     return (
@@ -189,7 +190,7 @@ export function OwnerConsolePage() {
               />
               <Tabs defaultValue="actions" className="space-y-4">
                 <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1"><TabsTrigger value="actions" className={subtabClassName}>Action center</TabsTrigger><TabsTrigger value="integrations" className={subtabClassName}>Integrations</TabsTrigger><TabsTrigger value="health" className={subtabClassName}>System health</TabsTrigger></TabsList>
-                <TabsContent value="actions" className="mt-0"><OwnerReadinessPanel view="roadmap" consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
+                <TabsContent value="actions" className="mt-0"><OwnerReadinessPanel view="roadmap" compactRoadmap consolePayload={payload.console} onConsoleChange={updateConsole} onOpenRoadmap={() => { setWorkspace('site'); setSiteWorkspace('roadmap'); }} /></TabsContent>
                 <TabsContent value="integrations" className="mt-0"><OwnerConnectedServicesPanel services={payload.integrationStatus.connectedServices} /></TabsContent>
                 <TabsContent value="health" className="mt-0"><OwnerReadinessPanel view="health" consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
               </Tabs>
@@ -220,7 +221,7 @@ export function OwnerConsolePage() {
                 body="Code allowlists routes, sections, validation, and security. Within that boundary, the owner controls live identity, pages, metadata, copy, media, access presentation, offers, and roadmap behavior."
               />
               <OwnerSiteControlMap />
-              <Tabs defaultValue="identity" className="space-y-4">
+              <Tabs value={siteWorkspace} onValueChange={setSiteWorkspace} className="space-y-4">
                 <TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1">
                   <TabsTrigger value="identity" className={subtabClassName}>Brand &amp; Identity</TabsTrigger>
                   <TabsTrigger value="pages" className={subtabClassName}>Pages &amp; SEO</TabsTrigger>
@@ -242,7 +243,7 @@ export function OwnerConsolePage() {
                 </TabsContent>
                 <TabsContent value="copy" className="mt-0"><OwnerPublicContentPanel consolePayload={payload.console} mode="copy" onConsoleChange={updateConsole} /></TabsContent>
                 <TabsContent value="media" className="mt-0"><OwnerSiteMediaPanel consolePayload={payload.console} onConsoleChange={updateConsole} /></TabsContent>
-                <TabsContent value="roadmap" className="mt-0"><OwnerPublicContentPanel consolePayload={payload.console} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
+                <TabsContent value="roadmap" className="mt-0 space-y-4"><OwnerReadinessPanel view="roadmap" consolePayload={payload.console} onConsoleChange={updateConsole} /><OwnerPublicContentPanel consolePayload={payload.console} mode="mechanics" onConsoleChange={updateConsole} /></TabsContent>
               </Tabs>
             </TabsContent>
             <TabsContent value="library" className="mt-0 space-y-4">

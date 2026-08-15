@@ -251,11 +251,12 @@ export function SingleCardGenerator({
         )}
 
         {selectedTemplateIdProp && (
-          <Accordion type="multiple" defaultValue={['front-card-data', 'back-card-data']} className="w-full">
+          <Accordion type="multiple" defaultValue={['front-card-data']} className="w-full">
             <AccordionItem value="front-card-data">
-              <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
+              <AccordionTrigger className="text-base">
                 <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4" /> Front Details
+                  <Layers className="h-4 w-4" /> Front details
+                  <span className="text-xs font-normal text-muted-foreground">{dynamicFields.length} editable</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3 pt-3 border-t">
@@ -271,9 +272,10 @@ export function SingleCardGenerator({
             </AccordionItem>
             {backingTemplate ? (
               <AccordionItem value="back-card-data">
-                <AccordionTrigger className="text-base [&>.lucide-chevron-down]:hidden">
+                <AccordionTrigger className="text-base">
                   <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4" /> Back Details
+                    <Layers className="h-4 w-4" /> Back details
+                    <span className="text-xs font-normal text-muted-foreground">{backingFields.length} editable</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="space-y-3 border-t pt-3">

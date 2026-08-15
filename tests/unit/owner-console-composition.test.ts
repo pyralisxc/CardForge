@@ -87,7 +87,7 @@ describe('Owner Console composition', () => {
 
     expect(parent).toContain('<OwnerAssetLibraryPanel');
     expect(parent).not.toContain('.slice(0, 12)');
-    expect(library).toContain('buildOwnerAssetLibraryPage');
+    expect(library).toContain('program.submissionPage');
     expect(library).toContain('Asset type');
     expect(library).toContain('Pipeline status');
     expect(library).toContain('Search library');
