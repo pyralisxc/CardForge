@@ -55,6 +55,7 @@ export async function GET() {
     const entitlement = resolveAccountEntitlement({
       authConfigured: true,
       isSignedIn: Boolean(user),
+      accountUserId: userId,
       emailAddresses,
       privateMetadata,
       ownerAccess,
