@@ -13,7 +13,7 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import { reconstructMinimalTemplate } from '@/domain/templates';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
-import { loadEditorFonts } from '@/features/template-editor/services/editorBootstrap';
+import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
 
 interface UseTemplateEditorSessionInput {
   isActive: boolean;
@@ -46,9 +46,9 @@ export function useTemplateEditorSession({
 
   useEffect(() => {
     let mounted = true;
-    void loadEditorFonts()
+    void loadCardForgeCatalog()
       .then((payload) => {
-        if (mounted) setFontOptions(mergeCardFontOptions(CARD_FONT_OPTIONS, payload.fonts ?? []));
+        if (mounted) setFontOptions(mergeCardFontOptions(CARD_FONT_OPTIONS, payload.fonts.fonts ?? []));
       })
       .catch(() => {
         if (mounted) setFontOptions(CARD_FONT_OPTIONS);

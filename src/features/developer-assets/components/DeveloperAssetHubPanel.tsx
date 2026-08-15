@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Pencil, Search, UploadCloud } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -44,11 +44,12 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [editDescription, setEditDescription] = useState('');
   const [editPreviewUrl, setEditPreviewUrl] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const templatePreviews = useDeveloperTemplatePreviews(program?.submissions);
+  const previewSubmissions = useMemo(() => program
+    ? [...program.submissions, ...program.votingQueue]
+    : undefined, [program]);
+  const templatePreviews = useDeveloperTemplatePreviews(previewSubmissions);
   const {
-    submissions: reviewQueueSubmissions,
     statusCounts: reviewStatusCounts,
-    filteredSubmissions: filteredReviewSubmissions,
     visibleSubmissions: visibleReviewSubmissions,
     search: reviewSearch,
     setSearch: setReviewSearch,
@@ -66,22 +67,34 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
     setPage: setReviewPage,
     pageCount: reviewPageCount,
   } = useDeveloperReviewQueue(program);
+  const [ownPage, setOwnPage] = useState(1);
+  const hasLoadedRef = useRef(false);
 
-  const ownSubmissions = useMemo(() => (
-    program?.submissions.filter((submission) => isCurrentContributorSubmission(submission, program)) ?? []
-  ), [program]);
+  const ownSubmissions = program?.submissions ?? [];
   const liveLibraryCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0) ?? 0;
   const openDefaultSlotCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.openPublishSlots, 0) ?? 0;
   const archiveCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.archiveCount, 0) ?? 0;
 
   const loadProgram = useCallback(async (attempt = 0) => {
-    setIsLoading(true);
+    if (!hasLoadedRef.current) setIsLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch('/api/developer-assets', { cache: 'no-store' });
+      const params = new URLSearchParams({
+        page: String(ownPage),
+        pageSize: '12',
+        reviewQuery: reviewSearch,
+        reviewAssetType: reviewType,
+        reviewStatus: reviewStatus,
+        reviewTier: reviewTier,
+        reviewVote: reviewVoteFilter,
+        reviewPage: String(reviewPage),
+        reviewPageSize: String(reviewPageSize),
+      });
+      const response = await fetch(`/api/developer-assets?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load developer asset hub.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
+      hasLoadedRef.current = true;
       setIsLoading(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load developer asset hub.';
@@ -95,10 +108,11 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
       toast({ title: 'Developer asset hub unavailable', description: message, variant: 'destructive' });
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [ownPage, reviewPage, reviewPageSize, reviewSearch, reviewStatus, reviewTier, reviewType, reviewVoteFilter, toast]);
 
   useEffect(() => {
-    void loadProgram();
+    const timer = window.setTimeout(() => void loadProgram(), 250);
+    return () => window.clearTimeout(timer);
   }, [loadProgram]);
 
   const vote = async (submissionId: string, voteValue: 'positive' | 'negative') => {
@@ -109,8 +123,8 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         body: JSON.stringify({ voteValue }),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to submit vote.'));
-      const body = await response.json() as DeveloperAssetsResponse;
-      setProgram(body.program);
+      await response.json() as DeveloperAssetsResponse;
+      await loadProgram();
       toast({ title: 'Vote recorded', description: 'The submission score has been updated.' });
     } catch (error) {
       toast({
@@ -149,8 +163,8 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         }),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to edit asset.'));
-      const body = await response.json() as DeveloperAssetsResponse;
-      setProgram(body.program);
+      await response.json() as DeveloperAssetsResponse;
+      await loadProgram();
       cancelEdit();
       toast({ title: 'Asset updated', description: 'Your submission details were saved.' });
     } catch (error) {
@@ -214,7 +228,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
         <div className="mt-4 grid gap-3 border border-[#5f4526] bg-[#100c08] p-4 md:grid-cols-3">
           <ProgramRule label="Current defaults" value={liveLibraryCount} body="Published pipeline assets currently feeding the live site library." />
           <ProgramRule label="Open live slots" value={openDefaultSlotCount} body="Available Starter and Creator Pass slots before passing assets have to wait in candidate review." />
-          <ProgramRule label="Voting lane" value={reviewQueueSubmissions.length} body="Voteable uploads, publish candidates, live assets, and recoverable archived assets in one shared lane." />
+          <ProgramRule label="Voting lane" value={program.totalVoteableCount} body="Voteable uploads, publish candidates, live assets, and recoverable archived assets in one shared lane." />
         </div>
 
         <div className="mt-4 border border-[#5f4526] bg-[#100c08] p-4">
@@ -243,14 +257,14 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             />
             <GuidanceCard
               eyebrow="2. Review"
-              title={`${reviewQueueSubmissions.length} voteable assets`}
+              title={`${program.totalVoteableCount} voteable assets`}
               body={program.settings.allowContributorSelfVoting
                 ? 'Self-voting is enabled, so you can review your own uploads and peer work.'
                 : 'Self-voting is off, so your own uploads are hidden from your review queue.'}
             />
             <GuidanceCard
               eyebrow="3. Track"
-              title={`${ownSubmissions.length} owned assets`}
+              title={`${program.submissionPage.total} owned assets`}
               body="Use My Pipeline to expand previews, edit eligible uploads, and see why each asset is waiting, live, or archived."
             />
             <GuidanceCard
@@ -291,7 +305,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
             <TabsTrigger value="program" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Program</TabsTrigger>
           </TabsList>
 
-          <DeveloperAssetSubmissionPanel program={program} onProgramChange={setProgram} />
+          <DeveloperAssetSubmissionPanel program={program} onSubmitted={loadProgram} />
 
           <TabsContent value="voting" className="mt-4">
             <div className="border border-[#5f4526] bg-[#100c08] p-4">
@@ -308,7 +322,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                   className={`rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad] ${reviewStatus === 'all' ? 'border-[#d8b365] bg-[#2a1b0d]' : ''}`}
                   onClick={() => setReviewStatus('all')}
                 >
-                  All ({reviewQueueSubmissions.length})
+                  All ({program.totalVoteableCount})
                 </Button>
                 {DEVELOPER_ASSET_STATUSES
                   .filter((status) => status !== 'draft' && status !== 'rejected')
@@ -381,7 +395,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
               <QueuePager
                 page={Math.min(reviewPage, reviewPageCount)}
                 pageCount={reviewPageCount}
-                total={filteredReviewSubmissions.length}
+                total={program.votingPage.total}
                 pageSize={reviewPageSize}
                 onPrevious={() => setReviewPage((page) => Math.max(1, page - 1))}
                 onNext={() => setReviewPage((page) => Math.min(reviewPageCount, page + 1))}
@@ -431,6 +445,17 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                   </AssetRow>
                 ))}
               </div>
+              <QueuePager
+                page={program.submissionPage.page}
+                pageCount={Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize))}
+                total={program.submissionPage.total}
+                pageSize={program.submissionPage.pageSize}
+                onPrevious={() => setOwnPage((page) => Math.max(1, page - 1))}
+                onNext={() => setOwnPage((page) => Math.min(
+                  Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize)),
+                  page + 1,
+                ))}
+              />
             </div>
           </TabsContent>
 

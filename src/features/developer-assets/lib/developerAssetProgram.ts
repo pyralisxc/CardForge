@@ -1,7 +1,5 @@
 import {
   DEFAULT_DEVELOPER_PROGRAM_SETTINGS,
-  DEVELOPER_ASSET_TYPES,
-  countDeveloperMonthlyStats,
   isDeveloperAssetAccessTier,
   isDeveloperAssetAccessTierOverride,
   isDeveloperAssetStatus,
@@ -74,6 +72,15 @@ export interface DeveloperAssetProgramView {
   activeDeveloperCount: number;
   submissions: DeveloperAssetSubmission[];
   votingQueue: DeveloperAssetSubmission[];
+  submissionPage: DeveloperAssetPageSummary;
+  votingPage: DeveloperAssetPageSummary;
+  totalSubmissionCount: number;
+  totalVoteableCount: number;
+  submissionStatusCounts: Record<DeveloperAssetStatus, number>;
+  reviewStatusCounts: Record<DeveloperAssetStatus, number>;
+  submissionTypeCounts: Record<DeveloperAssetType, number>;
+  managedFileCount: number;
+  managedStorageBytes: number;
   assetTypeSummaries: DeveloperAssetTypePipelineSummary[];
   developerContributions: DeveloperContributionSummary[];
   developerStats: DeveloperAssetMonthlyStats;
@@ -81,6 +88,30 @@ export interface DeveloperAssetProgramView {
   effectiveMonthlyPublishedRequirement: number;
   developerOwnerNote: string | null;
   remainingSubmissions: number;
+}
+
+export interface DeveloperAssetPageSummary {
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface DeveloperAssetProgramAggregate {
+  totalSubmissionCount: number;
+  totalVoteableCount: number;
+  submissionStatusCounts: Partial<Record<DeveloperAssetStatus, number>>;
+  reviewStatusCounts: Partial<Record<DeveloperAssetStatus, number>>;
+  submissionTypeCounts: Partial<Record<DeveloperAssetType, number>>;
+  managedFileCount: number;
+  managedStorageBytes: number;
+  assetTypeMetrics: Partial<Record<DeveloperAssetType, {
+    published: number;
+    starter: number;
+    creatorPass: number;
+    candidate: number;
+    archived: number;
+  }>>;
+  monthlyStatsByDeveloper: Record<string, DeveloperAssetMonthlyStats & { total: number }>;
 }
 
 export interface DeveloperProgramSettingsRow {
@@ -167,25 +198,6 @@ const normalizeOptionalInteger = (value: unknown, min: number, max: number): num
   if (!Number.isFinite(numeric)) return null;
   const rounded = Math.round(numeric);
   return rounded >= min && rounded <= max ? rounded : null;
-};
-
-const resolveEffectiveDeveloperRules = (
-  settings: DeveloperProgramSettings,
-  profile?: DeveloperAssetProfile | null,
-) => ({
-  effectiveSubmissionLimit: profile?.monthly_submission_limit_override ?? settings.monthlySubmissionLimit,
-  effectivePublishedRequirement: profile?.monthly_published_requirement_override ?? settings.monthlyPublishedRequirement,
-  submissionLimitOverride: profile?.monthly_submission_limit_override ?? null,
-  publishedRequirementOverride: profile?.monthly_published_requirement_override ?? null,
-  ownerNote: profile?.owner_note ?? null,
-});
-
-const getDeveloperProfileDisplayName = (
-  developerEmail: string | null,
-  profile?: DeveloperAssetProfile | null,
-): string | null => {
-  const profileName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
-  return profileName || profile?.email || developerEmail;
 };
 
 export const normalizeDeveloperProfileOverrideInput = (
@@ -331,148 +343,4 @@ export const mapDeveloperAssetSubmissionRow = (
   updatedAt: row.updated_at,
 });
 
-export const buildDeveloperAssetProgramView = ({
-  configured,
-  settings,
-  currentUserId,
-  currentContributorIds = [currentUserId],
-  activeDeveloperCount = 1,
-  submissions,
-  profiles = [],
-  now = new Date(),
-}: {
-  configured: boolean;
-  settings: DeveloperProgramSettings;
-  currentUserId: string;
-  currentContributorIds?: string[];
-  activeDeveloperCount?: number;
-  submissions: DeveloperAssetSubmission[];
-  profiles?: DeveloperAssetProfile[];
-  now?: Date;
-}): DeveloperAssetProgramView => {
-  const profilesById = new Map(profiles.map((profile) => [profile.clerk_user_id, profile]));
-  const currentProfile = profilesById.get(currentUserId);
-  const currentContributorIdSet = new Set(currentContributorIds.length > 0 ? currentContributorIds : [currentUserId]);
-  const accountSubmissions = submissions.filter((submission) => submission.developerId === currentUserId);
-  const currentRules = resolveEffectiveDeveloperRules(settings, currentProfile);
-  const developerStats = countDeveloperMonthlyStats(accountSubmissions, now);
-  const activeReviewStatuses = new Set(['draft', 'submitted', 'voting', 'publish_candidate', 'published']);
-  const assetTypeSummaries = DEVELOPER_ASSET_TYPES.map((assetType) => {
-    const byType = submissions.filter((submission) => submission.assetType === assetType);
-    const published = byType.filter((submission) => submission.status === 'published');
-    const starterCount = published.filter((submission) => submission.calculatedAccessTier === 'free').length;
-    const creatorPassCount = published.filter((submission) => submission.calculatedAccessTier === 'paid').length;
-    const publishCap = settings.publishCapsByType[assetType];
-    const starterCap = settings.tierCapsByType[assetType].free;
-    const creatorPassCap = settings.tierCapsByType[assetType].paid;
-    return {
-      assetType,
-      publishedCount: published.length,
-      starterCount,
-      creatorPassCount,
-      candidateCount: byType.filter((submission) => submission.status === 'voting' || submission.status === 'publish_candidate').length,
-      archiveCount: byType.filter((submission) => submission.status === 'archived').length,
-      publishCap,
-      starterCap,
-      creatorPassCap,
-      openPublishSlots: Math.max(0, publishCap - published.length),
-      overPublishCapBy: Math.max(0, published.length - publishCap),
-      overStarterCapBy: Math.max(0, starterCount - starterCap),
-      overCreatorPassCapBy: Math.max(0, creatorPassCount - creatorPassCap),
-    };
-  });
-  const contributionMap = new Map<string, DeveloperAssetSubmission[]>();
-  submissions.forEach((submission) => {
-    const current = contributionMap.get(submission.developerId) ?? [];
-    current.push(submission);
-    contributionMap.set(submission.developerId, current);
-  });
-  profiles.forEach((profile) => {
-    if (profile.status && profile.status !== 'active') return;
-    if (!contributionMap.has(profile.clerk_user_id)) contributionMap.set(profile.clerk_user_id, []);
-  });
-  const developerContributions = Array.from(contributionMap.entries())
-    .map(([developerId, developerSubmissions]) => {
-      const stats = countDeveloperMonthlyStats(developerSubmissions, now);
-      const developerEmail = developerSubmissions.find((submission) => submission.developerEmail)?.developerEmail ?? null;
-      const namedSubmission = developerSubmissions.find((submission) => submission.developerDisplayName);
-      const profile = profilesById.get(developerId);
-      const rules = resolveEffectiveDeveloperRules(settings, profile);
-      return {
-        developerId,
-        developerEmail: profile?.email ?? developerEmail,
-        developerName: namedSubmission?.developerDisplayName ?? getDeveloperProfileDisplayName(developerEmail, profile),
-        profileStatus: profile?.status ?? 'active',
-        submitted: stats.submitted,
-        published: stats.published,
-        archived: stats.archived,
-        rejected: stats.rejected,
-        effectiveSubmissionLimit: rules.effectiveSubmissionLimit,
-        effectivePublishedRequirement: rules.effectivePublishedRequirement,
-        submissionLimitOverride: rules.submissionLimitOverride,
-        publishedRequirementOverride: rules.publishedRequirementOverride,
-        remainingSubmissions: Math.max(0, rules.effectiveSubmissionLimit - stats.submitted),
-        requiredPublished: rules.effectivePublishedRequirement,
-        missingPublished: Math.max(0, rules.effectivePublishedRequirement - stats.published),
-        ownerNote: rules.ownerNote,
-        isOwnerDefaultContributor: false,
-      };
-    })
-    .sort((a, b) => b.submitted - a.submitted || a.developerId.localeCompare(b.developerId));
-
-  return {
-    configured,
-    settings,
-    currentUserId,
-    currentContributorIds: Array.from(currentContributorIdSet),
-    activeDeveloperCount,
-    submissions,
-    votingQueue: submissions.filter((submission) => (
-      activeReviewStatuses.has(submission.status)
-      && (settings.allowContributorSelfVoting || !currentContributorIdSet.has(submission.developerId))
-    )),
-    assetTypeSummaries,
-    developerContributions,
-    developerStats,
-    effectiveMonthlySubmissionLimit: currentRules.effectiveSubmissionLimit,
-    effectiveMonthlyPublishedRequirement: currentRules.effectivePublishedRequirement,
-    developerOwnerNote: currentRules.ownerNote,
-    remainingSubmissions: Math.max(0, currentRules.effectiveSubmissionLimit - developerStats.submitted),
-  };
-};
-
-export const projectDeveloperAssetProgramForViewer = (
-  program: DeveloperAssetProgramView,
-  {
-    currentUserId,
-    isOwner,
-  }: {
-    currentUserId: string;
-    isOwner: boolean;
-  },
-): DeveloperAssetProgramView => {
-  if (isOwner) return program;
-
-  const projectedById = new Map(program.submissions.map((submission) => {
-    const maySeeOwnSource = submission.developerId === currentUserId;
-    const projected = maySeeOwnSource ? submission : {
-      ...submission,
-      developerEmail: null,
-      sourceUrl: null,
-      sourceStorageBucket: null,
-      sourceStoragePath: null,
-    };
-    return [submission.id, projected] as const;
-  }));
-
-  return {
-    ...program,
-    submissions: program.submissions.map((submission) => projectedById.get(submission.id) ?? submission),
-    votingQueue: program.votingQueue.map((submission) => projectedById.get(submission.id) ?? submission),
-    developerContributions: program.developerContributions.map((contribution) => ({
-      ...contribution,
-      developerEmail: contribution.developerId === currentUserId ? contribution.developerEmail : null,
-      ownerNote: contribution.developerId === currentUserId ? contribution.ownerNote : null,
-    })),
-  };
-};
+export { buildDeveloperAssetProgramView, projectDeveloperAssetProgramForViewer } from './developerAssetProgramView';

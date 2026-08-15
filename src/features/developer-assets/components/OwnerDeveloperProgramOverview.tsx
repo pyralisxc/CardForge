@@ -42,8 +42,8 @@ export function OwnerDeveloperProgramOverview({
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-4">
         <DecisionCard label="Program status" body={program.configured ? 'Supabase developer tables are connected and accepting submissions.' : 'Developer tables are not configured yet.'} />
-        <DecisionCard label="Submissions" body={`${program.submissions.length} total developer asset submission${program.submissions.length === 1 ? '' : 's'} in the review system.`} />
-        <DecisionCard label="Voteable assets" body={`${program.votingQueue.length} asset${program.votingQueue.length === 1 ? '' : 's'} can still receive developer votes, including live assets whose automatic signal remains active.`} />
+        <DecisionCard label="Submissions" body={`${program.totalSubmissionCount} total developer asset submission${program.totalSubmissionCount === 1 ? '' : 's'} in the review system.`} />
+        <DecisionCard label="Voteable assets" body={`${program.totalVoteableCount} asset${program.totalVoteableCount === 1 ? '' : 's'} can still receive developer votes, including live assets whose automatic signal remains active.`} />
         <DecisionCard label="Active developers" body={`${program.activeDeveloperCount} active developer${program.activeDeveloperCount === 1 ? '' : 's'} currently count toward voting presets.`} />
         <DecisionCard label="Published policy" body="Creator-facing assets are published pipeline rows with a free or paid tier." />
         <DecisionCard label="Cap pressure" body={overCapCount === 0 ? 'All published asset types are inside current caps.' : `${overCapCount} asset ${overCapCount === 1 ? 'type is' : 'types are'} over cap.`} />

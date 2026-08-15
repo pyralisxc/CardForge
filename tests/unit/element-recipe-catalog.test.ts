@@ -10,7 +10,7 @@ import { createRecipesFromAppearanceStyles } from '@/features/template-editor/li
 describe('element recipe catalog', () => {
   it('loads one unique, usable repository catalog for Studio and pipeline sync', async () => {
     const source = JSON.parse(await readFile(
-      path.join(process.cwd(), 'data', 'styles', 'element-recipes.json'),
+      path.join(process.cwd(), 'data', 'pipeline-bootstrap', 'recipes', 'element-recipes.json'),
       'utf8',
     )) as { version: number; styles: AppearanceStylePreset[] };
 

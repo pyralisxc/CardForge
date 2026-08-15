@@ -4,14 +4,12 @@ import {
   isDeveloperAssetStatus,
   normalizeDeveloperProgramSettingsInput,
   type DeveloperProgramSettings,
-  type DeveloperVoteValue,
 } from '@/features/developer-assets/lib/developerAssets';
 import {
   countActiveDevelopers,
   DeveloperAccessStoreError,
   fetchDeveloperProfileRows,
   updateDeveloperAssetProfileRules,
-  type DeveloperProfileRow,
 } from '@/features/developer-access/server';
 import {
   castDeveloperAssetVote,
@@ -20,11 +18,9 @@ import {
   saveDeveloperProgramSettings,
   setDeveloperAssetOwnerOverride,
 } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
-import { isRepositoryStyle } from '@/features/developer-assets/lib/registryContentValidation';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import {
   buildDeveloperAssetProgramView,
-  mapDeveloperAssetSubmissionRow,
   mapDeveloperProgramSettingsRow,
   normalizeDeveloperAssetLongText,
   normalizeDeveloperAssetShortText,
@@ -32,20 +28,17 @@ import {
   normalizeDeveloperAssetSubmissionInput,
   normalizeDeveloperProfileOverrideInput,
   type DeveloperAssetProgramView,
-  type DeveloperAssetSubmission,
-  type DeveloperAssetSubmissionRow,
   type DeveloperProgramSettingsRow,
   type DeveloperProfileOverrideInput,
 } from './developerAssetProgram';
+import { DeveloperAssetStoreError } from './developerAssetStoreError';
+import {
+  fetchDeveloperAssetProgramAggregate,
+  fetchDeveloperAssetSubmissionPage,
+  type DeveloperAssetListQuery,
+} from './developerAssetProjections';
 
-export class DeveloperAssetStoreError extends Error {
-  constructor(
-    message: string,
-    public readonly status = 500
-  ) {
-    super(message);
-  }
-}
+export { DeveloperAssetStoreError } from './developerAssetStoreError';
 
 const runRegistryCommand = async (command: () => Promise<void>): Promise<void> => {
   try {
@@ -84,94 +77,58 @@ const fetchDeveloperSettings = async (): Promise<{ configured: boolean; settings
   };
 };
 
-const fetchSubmissionRows = async (
-  currentUserId: string,
-  profileRows: DeveloperProfileRow[] = [],
-  includeRegistryRecipePayloads = false,
-): Promise<DeveloperAssetSubmission[]> => {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) return [];
-
-  const [
-    { data: rows, error: rowsError },
-    { data: voteRows, error: votesError },
-  ] = await Promise.all([
-    supabase
-      .from('cardforge_developer_asset_submissions')
-      .select('id,developer_id,developer_email,asset_type,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at')
-      .order('submitted_at', { ascending: false }),
-    supabase
-      .from('cardforge_developer_asset_votes')
-      .select('submission_id,vote_value')
-      .eq('developer_id', currentUserId),
-  ]);
-
-  if (rowsError || votesError) {
-    console.error('Failed to load developer asset submissions:', rowsError ?? votesError);
-    return [];
-  }
-
-  const submissionRows = (rows ?? []) as DeveloperAssetSubmissionRow[];
-  const registryStylesById = new Map<string, unknown>();
-  if (includeRegistryRecipePayloads) {
-    const recipeAssetIds = [...new Set(submissionRows.flatMap((row) => {
-      if (row.asset_type !== 'elementPresets') return [];
-      const assetId = row.registry_asset_id ?? row.target_registry_asset_id;
-      return assetId ? [assetId] : [];
-    }))];
-
-    if (recipeAssetIds.length > 0) {
-      const { data: registryRows, error: registryRowsError } = await supabase
-        .from('cardforge_asset_registry')
-        .select('asset_id,style:metadata->style')
-        .eq('asset_type', 'elementPreset')
-        .in('asset_id', recipeAssetIds);
-
-      if (registryRowsError) {
-        console.error('Failed to load Pipeline recipe content for owner previews:', registryRowsError);
-      } else {
-        (registryRows ?? []).forEach((row) => {
-          const registryRow = row as { asset_id?: unknown; style?: unknown };
-          if (typeof registryRow.asset_id === 'string' && isRepositoryStyle(registryRow.style)) {
-            registryStylesById.set(registryRow.asset_id, registryRow.style);
-          }
-        });
-      }
-    }
-  }
-
-  const currentUserVotes = Object.fromEntries((voteRows ?? []).map((row) => [
-    String((row as { submission_id: string }).submission_id),
-    (row as { vote_value: DeveloperVoteValue }).vote_value,
-  ]));
-  const profilesById = new Map(profileRows.map((row) => [
-    String((row as DeveloperProfileRow).clerk_user_id),
-    row as DeveloperProfileRow,
-  ]));
-
-  return submissionRows.map((submissionRow) => {
-    const registryAssetId = submissionRow.registry_asset_id ?? submissionRow.target_registry_asset_id;
-    return mapDeveloperAssetSubmissionRow(
-      submissionRow,
-      currentUserVotes,
-      profilesById.get(submissionRow.developer_id),
-      registryAssetId ? registryStylesById.get(registryAssetId) : undefined,
-    );
-  });
-};
-
 export const getDeveloperAssetProgramView = async (
   currentUserId: string,
   currentContributorIds: string[] = [currentUserId],
-  { includeRegistryRecipePayloads = false }: { includeRegistryRecipePayloads?: boolean } = {},
+  {
+    includeRegistryRecipePayloads = false,
+    submissionQuery,
+    votingQuery,
+  }: {
+    includeRegistryRecipePayloads?: boolean;
+    submissionQuery?: DeveloperAssetListQuery;
+    votingQuery?: DeveloperAssetListQuery;
+  } = {},
 ): Promise<DeveloperAssetProgramView> => {
   const { configured, settings } = await fetchDeveloperSettings();
-  const [profiles, activeDeveloperCount] = await Promise.all([
+  const [profiles, activeDeveloperCount, aggregate] = await Promise.all([
     fetchDeveloperProfileRows(),
     countActiveDevelopers(),
+    fetchDeveloperAssetProgramAggregate(currentUserId, settings.allowContributorSelfVoting),
   ]);
-  const submissions = await fetchSubmissionRows(currentUserId, profiles, includeRegistryRecipePayloads);
-  return buildDeveloperAssetProgramView({ configured, settings, currentUserId, currentContributorIds, submissions, profiles, activeDeveloperCount });
+  const [submissionPage, votingPage] = await Promise.all([
+    fetchDeveloperAssetSubmissionPage({
+      currentUserId,
+      profiles,
+      includeRegistryRecipePayloads,
+      allowSelfVoting: settings.allowContributorSelfVoting,
+      query: submissionQuery ?? {
+        scope: includeRegistryRecipePayloads ? 'all' : 'own',
+        page: 1,
+        pageSize: 12,
+      },
+    }),
+    fetchDeveloperAssetSubmissionPage({
+      currentUserId,
+      profiles,
+      includeRegistryRecipePayloads,
+      allowSelfVoting: settings.allowContributorSelfVoting,
+      query: votingQuery ?? { scope: 'review', page: 1, pageSize: 10 },
+    }),
+  ]);
+  return buildDeveloperAssetProgramView({
+    configured,
+    settings,
+    currentUserId,
+    currentContributorIds,
+    submissions: submissionPage.submissions,
+    votingQueue: votingPage.submissions,
+    submissionPage,
+    votingPage,
+    aggregate,
+    profiles,
+    activeDeveloperCount,
+  });
 };
 
 export const getDeveloperAssetVotePolicy = async (

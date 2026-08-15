@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Crown, Save, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ import {
   getDeveloperVotingPresetLabel,
   type DeveloperProgramSettings,
   type DeveloperVotingPreset,
+  type DeveloperAssetStatus,
+  type DeveloperAssetType,
 } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import { getDeveloperAssetTypeLabel } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
@@ -44,16 +46,29 @@ export function OwnerDeveloperProgramPanel() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [libraryQuery, setLibraryQuery] = useState('');
+  const [libraryAssetType, setLibraryAssetType] = useState<DeveloperAssetType | 'all'>('all');
+  const [libraryStatus, setLibraryStatus] = useState<DeveloperAssetStatus | 'all'>('all');
+  const [libraryPage, setLibraryPage] = useState(1);
+  const hasLoadedRef = useRef(false);
 
   const loadProgram = useCallback(async () => {
-    setIsLoading(true);
+    if (!hasLoadedRef.current) setIsLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch('/api/developer-assets', { cache: 'no-store' });
+      const params = new URLSearchParams({
+        query: libraryQuery,
+        assetType: libraryAssetType,
+        status: libraryStatus,
+        page: String(libraryPage),
+        pageSize: '12',
+      });
+      const response = await fetch(`/api/developer-assets?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load developer program.'));
       const body = await response.json() as DeveloperAssetsResponse;
       setProgram(body.program);
       setSettings(body.program.settings);
+      hasLoadedRef.current = true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load developer program.';
       setLoadError(message);
@@ -65,10 +80,11 @@ export function OwnerDeveloperProgramPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [libraryAssetType, libraryPage, libraryQuery, libraryStatus, toast]);
 
   useEffect(() => {
-    void loadProgram();
+    const timer = window.setTimeout(() => void loadProgram(), 250);
+    return () => window.clearTimeout(timer);
   }, [loadProgram]);
 
   const saveSettings = async () => {
@@ -82,8 +98,8 @@ export function OwnerDeveloperProgramPanel() {
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to save developer program.'));
       const body = await response.json() as DeveloperAssetsResponse;
-      setProgram(body.program);
       setSettings(body.program.settings);
+      await loadProgram();
       setLastSavedAt(new Date().toISOString());
       toast({ title: 'Developer program saved', description: 'Roster, voting, and publish rules are updated.' });
     } catch (error) {
@@ -109,8 +125,8 @@ export function OwnerDeveloperProgramPanel() {
         body: JSON.stringify(input),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update asset status.'));
-      const body = await response.json() as DeveloperAssetsResponse;
-      setProgram(body.program);
+      await response.json() as DeveloperAssetsResponse;
+      await loadProgram();
       setLastSavedAt(new Date().toISOString());
       toast({ title: 'Asset control saved', description: 'The owner override and automatic recommendation are now synchronized.' });
     } catch (error) {
@@ -133,8 +149,8 @@ export function OwnerDeveloperProgramPanel() {
         body: JSON.stringify({ confirmationName }),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to permanently delete this asset.'));
-      const body = await response.json() as DeveloperAssetsResponse;
-      setProgram(body.program);
+      await response.json() as DeveloperAssetsResponse;
+      await loadProgram();
       setLastSavedAt(new Date().toISOString());
       toast({ title: 'Asset permanently deleted', description: 'The registry entry, revision lineage, votes, and managed storage were removed.' });
     } catch (error) {
@@ -202,6 +218,14 @@ export function OwnerDeveloperProgramPanel() {
         <TabsContent value="library" className="mt-0">
           <OwnerAssetLibraryPanel
             program={program}
+            query={libraryQuery}
+            assetTypeFilter={libraryAssetType}
+            statusFilter={libraryStatus}
+            page={libraryPage}
+            onQueryChange={(value) => { setLibraryQuery(value); setLibraryPage(1); }}
+            onAssetTypeFilterChange={(value) => { setLibraryAssetType(value); setLibraryPage(1); }}
+            onStatusFilterChange={(value) => { setLibraryStatus(value); setLibraryPage(1); }}
+            onPageChange={setLibraryPage}
             updatingSubmissionId={updatingSubmissionId}
             onUpdateOverride={updateOverride}
             onDeletePermanently={deletePermanently}

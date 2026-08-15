@@ -85,7 +85,7 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/shared/`: Framework-independent utilities.
 - `src/components/ui/`: Generic UI primitives and generic browser UI state.
 - `src/lib/`, `src/store/`, and `src/types/` are retired root ownership lanes and must not be recreated.
-- `data/default-templates/`, `data/styles/`, and Studio files under `public/card-assets/`: bootstrap import material only. Template Studio never reads these as a runtime catalog; the Forge Pipeline is the single live owner. The importer inserts missing stable IDs, preserves owner decisions, and respects permanent-deletion tombstones.
+- `data/pipeline-bootstrap/`: one-time template, recipe, metadata, and media input for the Forge Pipeline importer. Studio never reads it at runtime. `public/site-fallbacks/` contains only owner-replaceable public-page fallback art.
 - `supabase/migrations/`: Immutable, forward-only database migrations for shared product state.
 - `tests/unit/`: focused Vitest protection for durable data contracts, security boundaries, high-risk behavior, and known regressions. File-size policy belongs to `architecture:check`, not unit tests.
 - `tests/smoke/`: protected authenticated QA coverage for provider-backed access and recovery paths only.

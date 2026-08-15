@@ -1,0 +1,442 @@
+{
+  "id": "default-mtg-theme",
+  "name": "Arcane Creature Card",
+  "aspectRatio": "63:88",
+  "formatId": "poker",
+  "trimWidthMm": 63,
+  "trimHeightMm": 88,
+  "templateSource": "default",
+  "templateUsage": "standard",
+  "templateCategory": "Game card",
+  "templateDescription": "A showcase-ready fantasy creature layout with a cinematic artwork window, clear abilities, and bold combat stats.",
+  "templatePreviewData": {
+    "Artwork": "site-fallback://showcase/creatures/emberclaw-whelp.webp"
+  },
+  "frameStyle": "custom",
+  "cardBorderWidth": "0px",
+  "cardBorderStyle": "none",
+  "cardBorderRadius": "18px",
+  "appearance": {
+    "border": {
+      "kind": "none",
+      "color": "transparent",
+      "width": 0,
+      "radius": 18
+    },
+    "material": {
+      "texture": {
+        "kind": "uploaded",
+        "intensity": 100,
+        "imageSource": "bootstrap-media://textures/arcane-forge/frame-creature-premium.webp"
+      },
+      "baseColor": "#17120d",
+      "textColor": "#2a170b"
+    }
+  },
+  "cardBackgroundImageUrl": "bootstrap-media://textures/arcane-forge/frame-creature-premium.webp",
+  "baseBackgroundColor": "#17120d",
+  "baseTextColor": "#2a170b",
+  "defaultElementBorderColor": "transparent",
+  "cardBorderColor": "transparent",
+  "fieldContracts": [
+    {
+      "key": "CardName",
+      "type": "structuredRows",
+      "label": "Card Name",
+      "example": "Emberclaw Whelp",
+      "required": true,
+      "elementId": "mtg-card-name",
+      "multiline": false,
+      "fontWeight": "font-bold",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Cost",
+      "type": "text",
+      "label": "Cost",
+      "example": "3",
+      "required": true,
+      "elementId": "mtg-cost",
+      "multiline": false,
+      "textAlign": "center",
+      "fontWeight": "font-bold",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Artwork",
+      "type": "image",
+      "label": "Artwork",
+        "example": "site-fallback://showcase/creatures/emberclaw-whelp.webp",
+      "required": false,
+      "elementId": "mtg-artwork",
+      "multiline": false,
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "TypeLine",
+      "type": "text",
+      "label": "Type Line",
+      "example": "Creature - Dragon",
+      "required": true,
+      "elementId": "mtg-type-line",
+      "multiline": false,
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Ability",
+      "type": "text",
+      "label": "Ability",
+      "example": "Flying",
+      "required": false,
+      "elementId": "mtg-rules",
+      "multiline": false,
+      "fontWeight": "font-bold",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "SubText",
+      "type": "text",
+      "label": "SubText",
+      "example": "Small in size, fierce in spirit.",
+      "required": false,
+      "elementId": "mtg-rules",
+      "fontStyle": "italic",
+      "multiline": false,
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Power",
+      "type": "text",
+      "label": "Power",
+      "example": "2",
+      "required": false,
+      "elementId": "mtg-pt",
+      "multiline": false,
+      "fontWeight": "font-bold",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    },
+    {
+      "key": "Toughness",
+      "type": "text",
+      "label": "Toughness",
+      "example": "2",
+      "required": false,
+      "elementId": "mtg-pt",
+      "multiline": false,
+      "fontWeight": "font-bold",
+      "textAutoFit": true,
+      "minFontSizePx": 8
+    }
+  ],
+  "freeformCanvas": {
+    "width": 630,
+    "height": 880,
+    "gridSize": 20,
+    "elements": [
+      {
+        "id": "mtg-artwork",
+        "type": "image",
+        "name": "Artwork",
+        "x": 48,
+        "y": 118,
+        "width": 534,
+        "height": 346,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 1,
+        "locked": false,
+        "content": "Artwork",
+        "textColor": "#111827",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-sans",
+        "fontSize": "text-sm",
+        "fontSizePx": 14,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-0",
+        "borderColor": "#8a5a28",
+        "borderWidth": "border-2",
+        "borderRadius": "rounded-xl",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "appearance": {
+          "border": {
+            "kind": "solid",
+            "color": "#8a5a28",
+            "width": 2,
+            "radius": 12
+          },
+          "effects": {
+            "glow": 2,
+            "bevel": 2,
+            "shadow": 8
+          },
+          "material": {
+            "texture": {
+              "kind": "none"
+            },
+            "baseColor": "transparent"
+          }
+        },
+        "imageSource": "Artwork"
+      },
+      {
+        "id": "mtg-card-name",
+        "type": "text",
+        "name": "Card Name",
+        "x": 104,
+        "y": 58,
+        "width": 402,
+        "height": 44,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "content": "{{CardName:\"Emberclaw Whelp\"}}",
+        "textColor": "#261407",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-cinzel",
+        "fontSize": "text-base",
+        "fontSizePx": 25,
+        "fontWeight": "font-bold",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "appearance": {
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 3
+          },
+          "material": {
+            "texture": {
+              "kind": "none"
+            },
+            "baseColor": "transparent",
+            "textColor": "#261407"
+          }
+        },
+        "lineHeight": "1.15",
+        "textAutoFit": true,
+        "textTransform": "uppercase",
+        "textMinFontSizePx": 8,
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true
+      },
+      {
+        "id": "mtg-type-line",
+        "type": "text",
+        "name": "Type Line",
+        "x": 96,
+        "y": 500,
+        "width": 438,
+        "height": 36,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "content": "{{TypeLine:\"Creature - Dragon\"}}",
+        "textColor": "#261407",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-cinzel",
+        "fontSize": "text-base",
+        "fontSizePx": 17,
+        "fontWeight": "font-semibold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-none",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "appearance": {
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          },
+          "material": {
+            "texture": {
+              "kind": "none"
+            },
+            "baseColor": "transparent",
+            "textColor": "#261407"
+          }
+        },
+        "lineHeight": "1.15",
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true
+      },
+      {
+        "id": "mtg-rules",
+        "type": "text",
+        "name": "Rules Box",
+        "x": 88,
+        "y": 558,
+        "width": 454,
+        "height": 220,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 2,
+        "locked": false,
+        "content": "{{Ability:\"**Flying**\"}}\nWhen Emberclaw Whelp enters the battlefield, it deals 1 damage to any target.\n\n{{SubText:\"_Small in size, fierce in spirit._\"}}",
+        "textColor": "#261407",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-book",
+        "fontSize": "text-base",
+        "fontSizePx": 18,
+        "fontWeight": "font-normal",
+        "textAlign": "left",
+        "fontStyle": "normal",
+        "padding": "p-3",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-md",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "appearance": {
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          },
+          "material": {
+            "texture": {
+              "kind": "none"
+            },
+            "baseColor": "transparent",
+            "textColor": "#261407"
+          }
+        },
+        "lineHeight": "1.22",
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "backgroundImageUrl": "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(216,174,92,0.18))",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true
+      },
+      {
+        "id": "mtg-pt",
+        "type": "text",
+        "name": "Power Toughness",
+        "x": 476,
+        "y": 784,
+        "width": 104,
+        "height": 56,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Power:\"2\"}} / {{Toughness:\"2\"}}",
+        "textColor": "#f6dc97",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-base",
+        "fontSizePx": 24,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-full",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "appearance": {
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          },
+          "material": {
+            "texture": {
+              "kind": "none"
+            },
+            "baseColor": "transparent",
+            "textColor": "#f6dc97"
+          }
+        },
+        "lineHeight": "1.15",
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": false
+      },
+      {
+        "id": "mtg-cost",
+        "type": "text",
+        "name": "Cost",
+        "x": 529,
+        "y": 63,
+        "width": 58,
+        "height": 52,
+        "rotation": 0,
+        "opacity": 1,
+        "zIndex": 3,
+        "locked": false,
+        "content": "{{Cost:\"3\"}}",
+        "textColor": "#f6dc97",
+        "backgroundColor": "transparent",
+        "fontFamily": "font-serif",
+        "fontSize": "text-base",
+        "fontSizePx": 24,
+        "fontWeight": "font-bold",
+        "textAlign": "center",
+        "fontStyle": "normal",
+        "padding": "p-1",
+        "borderWidth": "0px",
+        "borderRadius": "rounded-full",
+        "minHeight": "_auto_",
+        "imageObjectFit": "cover",
+        "strokeWidth": 0,
+        "appearance": {
+          "border": {
+            "kind": "none",
+            "width": 0
+          },
+          "effects": {
+            "shadow": 1
+          },
+          "material": {
+            "texture": {
+              "kind": "none"
+            },
+            "baseColor": "transparent",
+            "textColor": "#f6dc97"
+          }
+        },
+        "lineHeight": "1.15",
+        "textAutoFit": true,
+        "textMinFontSizePx": 8,
+        "backgroundImageUrl": "radial-gradient(circle at 35% 30%, #fff4c4, #8f5d24 72%, #3a210e)",
+        "generatorFieldKind": "text",
+        "generatorFieldRequired": true
+      }
+    ]
+  }
+}

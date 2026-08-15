@@ -6,6 +6,7 @@ import type {
 import {
   getPublishedRegistryContentRows,
   readRegistryContentAsset,
+  type RegistryContentAssetRow,
   type RegistryViewerAccess,
 } from '@/features/developer-assets/lib/registryContentAssets';
 import { upsertPipelineRegistryAsset } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
@@ -23,9 +24,10 @@ const sortTemplates = (templates: TCGCardTemplate[]): TCGCardTemplate[] =>
     return leftOrder === rightOrder ? left.name.localeCompare(right.name) : leftOrder - rightOrder;
   });
 
-const readPublishedTemplates = async (viewerAccess: RegistryViewerAccess): Promise<TCGCardTemplate[]> => {
+export const mapRegistryRowsToTemplateLibrary = async (
+  rows: RegistryContentAssetRow[],
+): Promise<TCGCardTemplate[]> => {
   const contributorName = getPipelineContributorName();
-  const rows = await getPublishedRegistryContentRows('template', viewerAccess);
   const templates = await Promise.all(rows.map(async (row) => {
     const template = await readRegistryContentAsset<TCGCardTemplate>(
       row,
@@ -53,9 +55,10 @@ const readPublishedTemplates = async (viewerAccess: RegistryViewerAccess): Promi
   return sortTemplates(templates.flatMap((template) => template ? [template] : []));
 };
 
-const readPublishedStyles = async (viewerAccess: RegistryViewerAccess): Promise<AppearanceStylePreset[]> => {
+export const mapRegistryRowsToStyleLibrary = async (
+  rows: RegistryContentAssetRow[],
+): Promise<AppearanceStylePreset[]> => {
   const contributorName = getPipelineContributorName();
-  const rows = await getPublishedRegistryContentRows('elementPreset', viewerAccess);
   const styles = await Promise.all(rows.map(async (row) => {
     const style = await readRegistryContentAsset<AppearanceStylePreset>(
       row,
@@ -77,14 +80,18 @@ const readPublishedStyles = async (viewerAccess: RegistryViewerAccess): Promise<
 
 export const getRepositoryTemplateLibrary = async (
   viewerAccess: RegistryViewerAccess = 'free',
-): Promise<TCGCardTemplate[]> => readPublishedTemplates(viewerAccess);
+): Promise<TCGCardTemplate[]> => mapRegistryRowsToTemplateLibrary(
+  await getPublishedRegistryContentRows('template', viewerAccess),
+);
 
 export const getRepositoryStyleLibrary = async (
   viewerAccess: RegistryViewerAccess = 'free',
 ): Promise<AppearanceStyleLibrary> => {
   return {
     version: 1,
-    styles: (await readPublishedStyles(viewerAccess))
+    styles: (await mapRegistryRowsToStyleLibrary(
+      await getPublishedRegistryContentRows('elementPreset', viewerAccess),
+    ))
       .sort((left, right) => left.name.localeCompare(right.name)),
   };
 };

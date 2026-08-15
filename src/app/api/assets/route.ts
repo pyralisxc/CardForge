@@ -1,11 +1,11 @@
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
-import { getAssetRegistryPayload } from '@/features/developer-assets/server';
 import { getCurrentCardforgeEntitlement } from '@/features/account/server';
+import { getCachedCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 
 export async function GET() {
   try {
     const entitlement = await getCurrentCardforgeEntitlement();
-    return createNoStoreJsonResponse(await getAssetRegistryPayload(entitlement.accessMode));
+    return createNoStoreJsonResponse((await getCachedCardForgeCatalog(entitlement.accessMode)).assets);
   } catch (error) {
     console.error('Failed to load asset library:', error);
     return createApiErrorResponse(

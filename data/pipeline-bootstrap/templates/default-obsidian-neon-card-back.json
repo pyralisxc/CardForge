@@ -1,0 +1,47 @@
+{
+  "id": "default-obsidian-neon-card-back",
+  "name": "Obsidian Neon Card Back",
+  "aspectRatio": "63:88",
+  "formatId": "poker",
+  "trimWidthMm": 63,
+  "trimHeightMm": 88,
+  "templateSource": "default",
+  "templateUsage": "back-preset",
+  "templateCategory": "Card back",
+  "templateDescription": "The single premium neon-black reverse-side preset for CardForge launch templates.",
+  "templateOrder": 6,
+  "frameStyle": "custom",
+  "cardBorderWidth": "0px",
+  "cardBorderStyle": "none",
+  "cardBorderRadius": "18px",
+  "baseBackgroundColor": "#05030a",
+  "baseTextColor": "#f5d27b",
+  "defaultElementBorderColor": "transparent",
+  "cardBorderColor": "transparent",
+  "fieldContracts": [],
+  "freeformCanvas": {
+    "width": 630,
+    "height": 880,
+    "gridSize": 20,
+    "elements": [
+      {
+        "id": "back-premium-frame-anchor",
+        "type": "shape",
+        "name": "Premium Back Frame Anchor",
+        "x": 0,
+        "y": 0,
+        "width": 630,
+        "height": 880,
+        "opacity": 0,
+        "zIndex": 1,
+        "locked": true,
+        "visible": true,
+        "shapeKind": "rectangle",
+        "shapeRole": "basic",
+        "borderWidth": "0px",
+        "strokeWidth": 0
+      }
+    ]
+  },
+  "cardBackgroundImageUrl": "bootstrap-media://textures/arcane-forge/back-obsidian-neon-premium.webp"
+}

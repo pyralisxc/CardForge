@@ -1,5 +1,6 @@
 import { resolveAccountEntitlement } from '@/features/account/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+import { revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 import {
   DeveloperAssetStoreError,
   permanentlyDeleteDeveloperAssetSubmission,
@@ -59,6 +60,7 @@ export async function PATCH(
       allowOwnerEdit: access.ownerAccess.isOwner,
       currentContributorIds: getContributorIds(access.user.id),
     });
+    revalidateCardForgeCatalog();
 
     return createNoStoreJsonResponse({
       program: projectDeveloperAssetProgramForViewer(program, {
@@ -115,6 +117,7 @@ export async function PUT(
       currentUserId: owner.userId,
       currentContributorIds: getContributorIds(owner.userId),
     });
+    revalidateCardForgeCatalog();
     await recordOwnerActivity({
       actorUserId: owner.userId,
       actorEmail: owner.email,
@@ -164,6 +167,7 @@ export async function DELETE(
       currentUserId: owner.userId,
       currentContributorIds: getContributorIds(owner.userId),
     });
+    revalidateCardForgeCatalog();
     await recordOwnerActivity({
       actorUserId: owner.userId,
       actorEmail: owner.email,

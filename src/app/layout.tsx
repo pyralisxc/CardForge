@@ -36,7 +36,7 @@ const createBrandPresentation = (
     brandName,
     markUrl: getSiteMediaDisplaySrc(assetFor(media, 'brand.mark')) ?? '/brand/cardforge-studio/brand-mark.svg',
     faviconUrl: getSiteMediaDisplaySrc(assetFor(media, 'brand.favicon')) ?? '/brand/cardforge-studio/favicon.svg',
-    socialImageUrl: getSiteMediaDisplaySrc(assetFor(media, 'brand.social')) ?? '/card-assets/landing/cardforge-hero-workbench.png',
+    socialImageUrl: getSiteMediaDisplaySrc(assetFor(media, 'brand.social')) ?? '/site-fallbacks/landing/cardforge-hero-workbench.png',
     watermarkUrl: getSiteMediaDisplaySrc(watermark) ?? '/brand/cardforge-studio/watermark.svg',
     watermarkWidth: watermark.width ?? 1000,
     watermarkHeight: watermark.height ?? 260,

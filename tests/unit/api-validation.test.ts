@@ -138,22 +138,22 @@ describe('apiValidation', () => {
 
   it('keeps the premium CardForge asset sidecars valid and discoverable', async () => {
     const expectedSidecars = [
-      'data/assets/textures/arcane-forge/forged-parchment.json',
-      'data/assets/textures/arcane-forge/obsidian-vellum.json',
-      'data/assets/textures/arcane-forge/rune-metal.json',
-      'data/assets/textures/arcane-forge/ember-leather.json',
-      'data/assets/textures/arcane-forge/astral-paper.json',
-      'data/assets/textures/arcane-forge/guild-slate.json',
-      'data/assets/textures/arcane-forge/frame-creature-premium.json',
-      'data/assets/textures/arcane-forge/frame-ttrpg-premium.json',
-      'data/assets/textures/arcane-forge/frame-playing-premium.json',
-      'data/assets/textures/arcane-forge/back-obsidian-neon-premium.json',
-      'data/assets/dividers/arcane-forge/gilded-title-plate.json',
-      'data/assets/dividers/arcane-forge/rune-rule-separator.json',
-      'data/assets/dividers/arcane-forge/corner-flourish.json',
-      'data/assets/dividers/arcane-forge/mana-gem-rule.json',
-      'data/assets/dividers/arcane-forge/stat-rail.json',
-      'data/assets/dividers/arcane-forge/neon-sigil-divider.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/forged-parchment.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/obsidian-vellum.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/rune-metal.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/ember-leather.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/astral-paper.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/guild-slate.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/frame-creature-premium.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/frame-ttrpg-premium.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/frame-playing-premium.json',
+      'data/pipeline-bootstrap/metadata/textures/arcane-forge/back-obsidian-neon-premium.json',
+      'data/pipeline-bootstrap/metadata/dividers/arcane-forge/gilded-title-plate.json',
+      'data/pipeline-bootstrap/metadata/dividers/arcane-forge/rune-rule-separator.json',
+      'data/pipeline-bootstrap/metadata/dividers/arcane-forge/corner-flourish.json',
+      'data/pipeline-bootstrap/metadata/dividers/arcane-forge/mana-gem-rule.json',
+      'data/pipeline-bootstrap/metadata/dividers/arcane-forge/stat-rail.json',
+      'data/pipeline-bootstrap/metadata/dividers/arcane-forge/neon-sigil-divider.json',
     ];
 
     await Promise.all(expectedSidecars.map(async (relativePath) => {

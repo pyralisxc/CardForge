@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
         pathname: '/brand/**',
       },
       {
-        pathname: '/card-assets/**',
+        pathname: '/site-fallbacks/**',
       },
       {
         pathname: '/api/public/site-media/**',

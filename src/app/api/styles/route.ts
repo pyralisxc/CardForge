@@ -14,6 +14,7 @@ import {
   isRepositoryStyle,
   publishRepositoryStyle,
 } from '@/features/developer-assets/server';
+import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 import {
   DeveloperCockpitAccessError,
   getCurrentDeveloperCockpitAccess,
@@ -23,7 +24,7 @@ import {
 export async function GET() {
   try {
     const entitlement = await getCurrentCardforgeEntitlement();
-    return createNoStoreJsonResponse(await getRepositoryStyleLibrary(entitlement.accessMode));
+    return createNoStoreJsonResponse((await getCachedCardForgeCatalog(entitlement.accessMode)).styles);
   } catch (error) {
     console.error('Failed to load style library:', error);
     return createApiErrorResponse(
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
     });
 
     await Promise.all(validStyles.map(publishRepositoryStyle));
+    revalidateCardForgeCatalog();
     const next = { version: current.version || 1, styles: merged.sort((a, b) => a.name.localeCompare(b.name)) };
     return createNoStoreJsonResponse(next);
   } catch (error) {
@@ -128,6 +130,7 @@ export async function DELETE(request: Request) {
       return createApiErrorResponse(400, 'invalid_style_id', 'Style id is required.');
     }
     await archivePipelineRegistryAsset(body.id);
+    revalidateCardForgeCatalog();
     const next = await getRepositoryStyleLibrary('dev');
     return createNoStoreJsonResponse(next);
   } catch (error) {

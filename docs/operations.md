@@ -151,7 +151,7 @@ Safe support rollback removes/disables support checkout environment values while
 
 - `npm run health:production`: canonical public/API health.
 - `npm run smoke:ui`: focused mocked browser regression for the Developer Cockpit and accessibility contract. It does not prove signed-in provider behavior.
-- `npm run pipeline:sync-defaults`: import missing bootstrap templates, styles, and referenced Studio media through the atomic Pipeline command. Run only after Pipeline migrations. It preserves existing owner decisions and permanent-deletion tombstones; it is not a runtime fallback or overwrite command.
+- `npm run pipeline:sync-defaults`: import missing files from `data/pipeline-bootstrap/{templates,recipes,metadata,media}` through the atomic Pipeline command. Run only after Pipeline migrations. It preserves existing owner decisions and permanent-deletion tombstones; it is not a runtime fallback or overwrite command. Public-page fallback art lives separately under `public/site-fallbacks`.
 - `npm run brand:export`: synchronize canonical brand SVGs into the runtime `public/brand/cardforge-studio/` mirrors and regenerate ignored PNG derivatives under `output/`.
 
 ## Manual release checks

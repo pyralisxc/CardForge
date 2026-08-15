@@ -115,7 +115,7 @@ const mapRegistryRowToAsset = (row: AssetRegistryRow): CardAssetOption | null =>
 export const mapAssetRegistryRowsToPayload = (
   rows: AssetRegistryRow[],
   configured = true,
-): AssetRegistryPayload | null => {
+): AssetRegistryPayload => {
   const assets = rows
     .map((row) => mapRegistryRowToAsset(row))
     .filter((asset): asset is CardAssetOption => Boolean(asset));

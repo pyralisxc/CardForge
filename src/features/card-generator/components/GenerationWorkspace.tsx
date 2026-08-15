@@ -154,6 +154,7 @@ export function GenerationWorkspace({
       : null
   ), [activeCardSet.id, activeCardSet.name, selectedBackingTemplate, selectedTemplate]);
   const showGeneratedPreviewWatermark = shouldShowVisibleCardWatermark(canExportClean);
+  const hasGeneratedCards = generatedDisplayCards.length > 0;
   const scrollGalleryIntoView = useCallback(() => {
     window.requestAnimationFrame(() => {
       galleryRegionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -383,7 +384,7 @@ export function GenerationWorkspace({
         </Tabs>
       </section>
 
-      <section data-workflow-step="review" aria-labelledby="generator-review-heading" className="space-y-4">
+      {hasGeneratedCards ? <section data-workflow-step="review" aria-labelledby="generator-review-heading" className="space-y-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Review the set</p>
           <h2 id="generator-review-heading" className="mt-1 text-xl font-semibold">Review your cards</h2>
@@ -406,9 +407,14 @@ export function GenerationWorkspace({
             exportGateMessage={exportGateMessage}
           />
         </div>
-      </section>
+      </section> : (
+        <section data-workflow-step="next" className="rounded-lg border border-dashed bg-card/40 p-4 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Next: review and export</p>
+          <p className="mt-1">Add your first card above. CardForge will then open the set gallery, print layout, image downloads, and virtual-tabletop exports.</p>
+        </section>
+      )}
 
-      <section data-workflow-step="export" aria-labelledby="generator-export-heading">
+      {hasGeneratedCards ? <section data-workflow-step="export" aria-labelledby="generator-export-heading">
         <ExportControlsPanel
           canExportClean={canExportClean}
           exportDpi={exportDpi}
@@ -436,7 +442,7 @@ export function GenerationWorkspace({
           onSetPdfOptions={onSetPdfOptions}
           onStartCheckout={onStartCheckout}
         />
-      </section>
+      </section> : null}
     </div>
     </>
   );

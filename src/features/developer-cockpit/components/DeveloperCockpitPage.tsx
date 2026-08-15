@@ -158,7 +158,7 @@ export function DeveloperCockpitPage() {
 
           <TabsContent value="library" className="mt-3"><DeveloperAssetHubPanel compact /></TabsContent>
           <TabsContent value="campaigns" className="mt-3"><DeveloperCampaignPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>
-          {cockpit.isOwner ? <TabsContent value="campaign-media" className="mt-3"><DeveloperCampaignMediaLibrary media={cockpit.campaignMedia} summary={cockpit.campaignMediaSummary} onChange={setCockpit} /></TabsContent> : null}
+          {cockpit.isOwner ? <TabsContent value="campaign-media" className="mt-3"><DeveloperCampaignMediaLibrary media={cockpit.campaignMedia} pageInfo={cockpit.campaignMediaPage} summary={cockpit.campaignMediaSummary} onChange={setCockpit} /></TabsContent> : null}
           <TabsContent value="site" className="mt-3"><DeveloperSiteProposalPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>
           <TabsContent value="standards" className="mt-3">
             <section className="border border-[#5f4526] bg-[#15100a] p-5">

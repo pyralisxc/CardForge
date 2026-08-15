@@ -1,0 +1,847 @@
+{
+  "version": 1,
+  "styles": [
+    {
+      "id": "shape-role-panel",
+      "name": "Panel",
+      "kind": "shapeRole",
+      "targets": [
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "panel",
+        "material": {
+          "baseColor": "rgba(18,15,11,0.72)",
+          "texture": {
+            "kind": "uploaded",
+            "assetSource": "bootstrap-media://textures/dark-leather.svg",
+            "assetKind": "texture",
+            "textureOpacity": 42,
+            "textureScale": 180,
+            "blendMode": "overlay"
+          }
+        },
+        "border": {
+          "kind": "relic",
+          "color": "#d5ad54",
+          "width": 2,
+          "radius": 8
+        },
+        "effects": {
+          "innerHighlight": 18,
+          "bevel": 20
+        }
+      },
+      "updates": {
+        "shapeRole": "panel",
+        "shapeKind": "rectangle",
+        "width": 360,
+        "height": 140,
+        "borderRadius": "rounded-md"
+      }
+    },
+    {
+      "id": "shape-role-art-frame",
+      "name": "Art Frame",
+      "kind": "shapeRole",
+      "targets": [
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "artFrame",
+        "material": {
+          "baseColor": "rgba(0,0,0,0.04)",
+          "texture": {
+            "kind": "none"
+          }
+        },
+        "border": {
+          "kind": "relic",
+          "color": "#d5ad54",
+          "secondaryColor": "#7a52cc",
+          "width": 4,
+          "radius": 10
+        },
+        "effects": {
+          "glow": 10,
+          "innerHighlight": 16
+        }
+      },
+      "updates": {
+        "shapeRole": "artFrame",
+        "shapeKind": "corner-frame",
+        "width": 500,
+        "height": 330,
+        "fillColor": "transparent",
+        "backgroundColor": "transparent"
+      }
+    },
+    {
+      "id": "shape-role-rules-box",
+      "name": "Rules Box",
+      "kind": "shapeRole",
+      "targets": [
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "rulesBox",
+        "material": {
+          "baseColor": "rgba(244,226,186,0.94)",
+          "textColor": "#20140a",
+          "texture": {
+            "kind": "uploaded",
+            "assetSource": "bootstrap-media://textures/parchment-grain.svg",
+            "assetKind": "texture",
+            "textureOpacity": 46,
+            "textureScale": 160,
+            "blendMode": "multiply"
+          }
+        },
+        "border": {
+          "kind": "relic",
+          "color": "#4a2f12",
+          "secondaryColor": "#d5ad54",
+          "width": 4,
+          "radius": 8
+        },
+        "effects": {
+          "innerHighlight": 28,
+          "bevel": 22
+        }
+      },
+      "updates": {
+        "shapeRole": "rulesBox",
+        "shapeKind": "notch-panel",
+        "width": 500,
+        "height": 180
+      }
+    },
+    {
+      "id": "shape-role-title-plate",
+      "name": "Title Plate",
+      "kind": "shapeRole",
+      "targets": [
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "titlePlate",
+        "material": {
+          "baseColor": "#17100b",
+          "textColor": "#f7df9d",
+          "texture": {
+            "kind": "uploaded",
+            "assetSource": "bootstrap-media://textures/hammered-metal.svg",
+            "assetKind": "texture",
+            "textureOpacity": 28,
+            "textureScale": 150,
+            "blendMode": "overlay"
+          }
+        },
+        "border": {
+          "kind": "double",
+          "color": "#d5ad54",
+          "width": 2,
+          "radius": 6
+        },
+        "effects": {
+          "glow": 8,
+          "bevel": 18
+        }
+      },
+      "updates": {
+        "shapeRole": "titlePlate",
+        "shapeKind": "banner",
+        "width": 430,
+        "height": 48
+      }
+    },
+    {
+      "id": "shape-role-stat-gem",
+      "name": "Stat Gem",
+      "kind": "shapeRole",
+      "targets": [
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "statGem",
+        "material": {
+          "baseColor": "#0b0f15",
+          "texture": {
+            "kind": "uploaded",
+            "assetSource": "bootstrap-media://textures/purple-foil.svg",
+            "assetKind": "texture",
+            "textureOpacity": 36,
+            "textureScale": 190,
+            "blendMode": "screen"
+          }
+        },
+        "border": {
+          "kind": "foil",
+          "color": "#d5ad54",
+          "secondaryColor": "#7a52cc",
+          "width": 3,
+          "radius": 8
+        },
+        "effects": {
+          "glow": 16
+        }
+      },
+      "updates": {
+        "shapeRole": "statGem",
+        "shapeKind": "diamond",
+        "width": 64,
+        "height": 64
+      }
+    },
+    {
+      "id": "shape-role-cost-orb",
+      "name": "Cost Orb",
+      "kind": "shapeRole",
+      "targets": [
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "costOrb",
+        "material": {
+          "baseColor": "#0b0f15",
+          "texture": {
+            "kind": "uploaded",
+            "assetSource": "bootstrap-media://textures/hammered-metal.svg",
+            "assetKind": "texture",
+            "textureOpacity": 34,
+            "textureScale": 150,
+            "blendMode": "overlay"
+          }
+        },
+        "border": {
+          "kind": "foil",
+          "color": "#d5ad54",
+          "secondaryColor": "#f5d27b",
+          "width": 3,
+          "radius": 999
+        },
+        "effects": {
+          "glow": 14,
+          "innerHighlight": 20
+        }
+      },
+      "updates": {
+        "shapeRole": "costOrb",
+        "shapeKind": "ellipse",
+        "width": 64,
+        "height": 64,
+        "borderRadius": "rounded-full"
+      }
+    },
+    {
+      "id": "border-none",
+      "name": "None",
+      "kind": "border",
+      "targets": [
+        "text",
+        "image",
+        "icon",
+        "shape"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#111720"
+        },
+        "border": {
+          "kind": "none",
+          "width": 0,
+          "radius": 0
+        }
+      }
+    },
+    {
+      "id": "border-gold-hairline",
+      "name": "Gold Hairline",
+      "kind": "border",
+      "targets": [
+        "text",
+        "image",
+        "icon",
+        "shape"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#111720"
+        },
+        "border": {
+          "kind": "solid",
+          "color": "#d5ad54",
+          "width": 1,
+          "radius": 6
+        }
+      }
+    },
+    {
+      "id": "border-heavy-relic",
+      "name": "Heavy Relic",
+      "kind": "border",
+      "targets": [
+        "text",
+        "image",
+        "icon",
+        "shape"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#17100b"
+        },
+        "border": {
+          "kind": "relic",
+          "color": "#9f742a",
+          "secondaryColor": "#d5ad54",
+          "width": 4,
+          "radius": 8,
+          "innerWidth": 1
+        }
+      }
+    },
+    {
+      "id": "border-arcane-edge",
+      "name": "Arcane Edge",
+      "kind": "border",
+      "targets": [
+        "text",
+        "image",
+        "icon",
+        "shape"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#160d25"
+        },
+        "border": {
+          "kind": "foil",
+          "color": "#7a52cc",
+          "secondaryColor": "#bda2ff",
+          "width": 2,
+          "radius": 12
+        }
+      }
+    },
+    {
+      "id": "border-circle-seal",
+      "name": "Circle Seal",
+      "kind": "border",
+      "targets": [
+        "text",
+        "image",
+        "icon",
+        "shape"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#151008"
+        },
+        "border": {
+          "kind": "double",
+          "color": "#d5ad54",
+          "width": 2,
+          "radius": 999
+        }
+      }
+    },
+    {
+      "id": "border-etched-frame",
+      "name": "Etched Frame",
+      "kind": "border",
+      "targets": [
+        "text",
+        "image",
+        "icon",
+        "shape"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#140f09"
+        },
+        "border": {
+          "kind": "etched",
+          "color": "#d5ad54",
+          "secondaryColor": "#5f4216",
+          "width": 4,
+          "radius": 6,
+          "innerWidth": 1
+        },
+        "rawCss": {
+          "backgroundImage": "repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 8px), linear-gradient(180deg, rgba(213,173,84,0.18), transparent)"
+        }
+      }
+    },
+    {
+      "id": "border-violet-relic",
+      "name": "Violet Relic",
+      "kind": "border",
+      "targets": [
+        "text",
+        "image",
+        "icon",
+        "shape"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#160d25"
+        },
+        "border": {
+          "kind": "relic",
+          "color": "#7a52cc",
+          "secondaryColor": "#d8c4ff",
+          "width": 4,
+          "radius": 12,
+          "innerWidth": 1
+        },
+        "rawCss": {
+          "backgroundImage": "linear-gradient(135deg, rgba(122,82,204,0.28), rgba(213,173,84,0.12), rgba(0,0,0,0.22))"
+        }
+      }
+    },
+    {
+      "id": "divider-gilded-filigree-seed",
+      "name": "Gilded Filigree",
+      "kind": "divider",
+      "targets": [
+        "divider",
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "divider",
+        "material": {
+          "baseColor": "#d5ad54",
+          "texture": {
+            "kind": "none"
+          }
+        },
+        "border": {
+          "kind": "none",
+          "width": 0,
+          "radius": 999
+        },
+        "rawCss": {
+          "backgroundImage": "linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)"
+        }
+      },
+      "updates": {
+        "shapeKind": "rectangle",
+        "shapeRole": "divider",
+        "width": 470,
+        "height": 14,
+        "strokeWidth": 0,
+        "fillColor": "#d5ad54",
+        "backgroundImageUrl": "linear-gradient(90deg, transparent 0%, #7f5d1f 8%, #f5d27b 18%, #7f5d1f 28%, transparent 36%, #d5ad54 50%, transparent 64%, #7f5d1f 72%, #f5d27b 82%, #7f5d1f 92%, transparent 100%)",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-full",
+        "appearance": {
+          "shapeRole": "divider"
+        }
+      }
+    },
+    {
+      "id": "divider-mana-thread-seed",
+      "name": "Mana Thread",
+      "kind": "divider",
+      "targets": [
+        "divider",
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "divider",
+        "material": {
+          "baseColor": "#7a52cc",
+          "texture": {
+            "kind": "none"
+          }
+        },
+        "border": {
+          "kind": "none",
+          "width": 0,
+          "radius": 999
+        },
+        "rawCss": {
+          "backgroundImage": "linear-gradient(90deg, transparent, #7a52cc 16%, #d5ad54 50%, #7a52cc 84%, transparent)"
+        }
+      },
+      "updates": {
+        "shapeKind": "rectangle",
+        "shapeRole": "divider",
+        "width": 470,
+        "height": 10,
+        "strokeWidth": 0,
+        "fillColor": "#7a52cc",
+        "backgroundImageUrl": "linear-gradient(90deg, transparent, #7a52cc 16%, #d5ad54 50%, #7a52cc 84%, transparent)",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-full",
+        "appearance": {
+          "shapeRole": "divider"
+        }
+      }
+    },
+    {
+      "id": "divider-double-gold-seed",
+      "name": "Double Gold",
+      "kind": "divider",
+      "targets": [
+        "divider",
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "divider",
+        "material": {
+          "baseColor": "#d5ad54",
+          "texture": {
+            "kind": "none"
+          }
+        },
+        "border": {
+          "kind": "none",
+          "width": 0,
+          "radius": 999
+        },
+        "rawCss": {
+          "backgroundImage": "linear-gradient(180deg, transparent 0 25%, #d5ad54 25% 38%, transparent 38% 62%, #d5ad54 62% 75%, transparent 75%)"
+        }
+      },
+      "updates": {
+        "shapeKind": "rectangle",
+        "shapeRole": "divider",
+        "width": 470,
+        "height": 12,
+        "strokeWidth": 0,
+        "fillColor": "#d5ad54",
+        "backgroundImageUrl": "linear-gradient(180deg, transparent 0 25%, #d5ad54 25% 38%, transparent 38% 62%, #d5ad54 62% 75%, transparent 75%)",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-full",
+        "appearance": {
+          "shapeRole": "divider"
+        }
+      }
+    },
+    {
+      "id": "divider-bloodline-seed",
+      "name": "Bloodline",
+      "kind": "divider",
+      "targets": [
+        "divider",
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "divider",
+        "material": {
+          "baseColor": "#8c2718",
+          "texture": {
+            "kind": "none"
+          }
+        },
+        "border": {
+          "kind": "none",
+          "width": 0,
+          "radius": 999
+        },
+        "rawCss": {
+          "backgroundImage": "linear-gradient(90deg, transparent, #8c2718 18%, #f0b15a 50%, #8c2718 82%, transparent)"
+        }
+      },
+      "updates": {
+        "shapeKind": "rectangle",
+        "shapeRole": "divider",
+        "width": 470,
+        "height": 10,
+        "strokeWidth": 0,
+        "fillColor": "#8c2718",
+        "backgroundImageUrl": "linear-gradient(90deg, transparent, #8c2718 18%, #f0b15a 50%, #8c2718 82%, transparent)",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-full",
+        "appearance": {
+          "shapeRole": "divider"
+        }
+      }
+    },
+    {
+      "id": "divider-chevron-relic-seed",
+      "name": "Chevron Relic",
+      "kind": "divider",
+      "targets": [
+        "divider",
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "divider",
+        "material": {
+          "baseColor": "#7a52cc",
+          "texture": {
+            "kind": "none"
+          }
+        },
+        "border": {
+          "kind": "none",
+          "width": 0,
+          "radius": 999
+        },
+        "rawCss": {
+          "backgroundImage": "repeating-linear-gradient(120deg, transparent 0 10px, rgba(255,255,255,0.16) 10px 15px), linear-gradient(90deg, transparent, #4d2096 14%, #d5ad54 50%, #4d2096 86%, transparent)"
+        }
+      },
+      "updates": {
+        "shapeKind": "rectangle",
+        "shapeRole": "divider",
+        "width": 470,
+        "height": 18,
+        "strokeWidth": 0,
+        "fillColor": "#7a52cc",
+        "backgroundImageUrl": "repeating-linear-gradient(120deg, transparent 0 10px, rgba(255,255,255,0.16) 10px 15px), linear-gradient(90deg, transparent, #4d2096 14%, #d5ad54 50%, #4d2096 86%, transparent)",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-full",
+        "appearance": {
+          "shapeRole": "divider"
+        }
+      }
+    },
+    {
+      "id": "divider-gem-center-seed",
+      "name": "Gem Center",
+      "kind": "divider",
+      "targets": [
+        "divider",
+        "shape"
+      ],
+      "appearance": {
+        "shapeRole": "divider",
+        "material": {
+          "baseColor": "#d5ad54",
+          "texture": {
+            "kind": "none"
+          }
+        },
+        "border": {
+          "kind": "none",
+          "width": 0,
+          "radius": 999
+        },
+        "rawCss": {
+          "backgroundImage": "linear-gradient(90deg, transparent, #7f5d1f 20%, transparent 42%, #f5d27b 47%, #7a52cc 50%, #f5d27b 53%, transparent 58%, #7f5d1f 80%, transparent)"
+        }
+      },
+      "updates": {
+        "shapeKind": "rectangle",
+        "shapeRole": "divider",
+        "width": 470,
+        "height": 20,
+        "strokeWidth": 0,
+        "fillColor": "#d5ad54",
+        "backgroundImageUrl": "linear-gradient(90deg, transparent, #7f5d1f 20%, transparent 42%, #f5d27b 47%, #7a52cc 50%, #f5d27b 53%, transparent 58%, #7f5d1f 80%, transparent)",
+        "borderWidth": "_none_",
+        "borderRadius": "rounded-full",
+        "appearance": {
+          "shapeRole": "divider"
+        }
+      }
+    },
+    {
+      "id": "icon-style-fire",
+      "name": "Fire",
+      "kind": "icon",
+      "targets": [
+        "icon"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#210b06",
+          "textColor": "#ffb35f",
+          "fillColor": "rgba(132,37,15,0.72)",
+          "strokeColor": "#ffb35f"
+        },
+        "border": {
+          "kind": "solid",
+          "color": "#d67425",
+          "width": 1,
+          "radius": 999
+        },
+        "effects": {
+          "glow": 14
+        }
+      },
+      "updates": {
+        "iconName": "Flame",
+        "strokeColor": "#ffb35f",
+        "fillColor": "rgba(132,37,15,0.72)",
+        "backgroundColor": "#210b06",
+        "borderColor": "#d67425",
+        "borderWidth": "border",
+        "borderRadius": "rounded-full"
+      }
+    },
+    {
+      "id": "icon-style-water",
+      "name": "Water",
+      "kind": "icon",
+      "targets": [
+        "icon"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#071521",
+          "textColor": "#9ddcff",
+          "fillColor": "rgba(47,125,185,0.45)",
+          "strokeColor": "#9ddcff"
+        },
+        "border": {
+          "kind": "solid",
+          "color": "#49a7df",
+          "width": 1,
+          "radius": 999
+        },
+        "effects": {
+          "glow": 14
+        }
+      },
+      "updates": {
+        "iconName": "Droplets",
+        "strokeColor": "#9ddcff",
+        "fillColor": "rgba(47,125,185,0.45)",
+        "backgroundColor": "#071521",
+        "borderColor": "#49a7df",
+        "borderWidth": "border",
+        "borderRadius": "rounded-full"
+      }
+    },
+    {
+      "id": "icon-style-arcane",
+      "name": "Arcane",
+      "kind": "icon",
+      "targets": [
+        "icon"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#190f2c",
+          "textColor": "#d8c4ff",
+          "fillColor": "rgba(122,82,204,0.42)",
+          "strokeColor": "#d8c4ff"
+        },
+        "border": {
+          "kind": "solid",
+          "color": "#7a52cc",
+          "width": 1,
+          "radius": 999
+        },
+        "effects": {
+          "glow": 14
+        }
+      },
+      "updates": {
+        "iconName": "WandSparkles",
+        "strokeColor": "#d8c4ff",
+        "fillColor": "rgba(122,82,204,0.42)",
+        "backgroundColor": "#190f2c",
+        "borderColor": "#7a52cc",
+        "borderWidth": "border-2",
+        "borderRadius": "rounded-full"
+      }
+    },
+    {
+      "id": "icon-style-nature",
+      "name": "Nature",
+      "kind": "icon",
+      "targets": [
+        "icon"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#0b1a0f",
+          "textColor": "#b9f2a1",
+          "fillColor": "rgba(62,137,78,0.48)",
+          "strokeColor": "#b9f2a1"
+        },
+        "border": {
+          "kind": "solid",
+          "color": "#6fb06a",
+          "width": 1,
+          "radius": 999
+        },
+        "effects": {
+          "glow": 14
+        }
+      },
+      "updates": {
+        "iconName": "Leaf",
+        "strokeColor": "#b9f2a1",
+        "fillColor": "rgba(62,137,78,0.48)",
+        "backgroundColor": "#0b1a0f",
+        "borderColor": "#6fb06a",
+        "borderWidth": "border",
+        "borderRadius": "rounded-full"
+      }
+    },
+    {
+      "id": "icon-style-shadow",
+      "name": "Shadow",
+      "kind": "icon",
+      "targets": [
+        "icon"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#08070a",
+          "textColor": "#e6d8ff",
+          "fillColor": "rgba(36,28,46,0.82)",
+          "strokeColor": "#e6d8ff"
+        },
+        "border": {
+          "kind": "solid",
+          "color": "#8066a8",
+          "width": 1,
+          "radius": 999
+        },
+        "effects": {
+          "glow": 14
+        }
+      },
+      "updates": {
+        "iconName": "Skull",
+        "strokeColor": "#e6d8ff",
+        "fillColor": "rgba(36,28,46,0.82)",
+        "backgroundColor": "#08070a",
+        "borderColor": "#8066a8",
+        "borderWidth": "border",
+        "borderRadius": "rounded-full"
+      }
+    },
+    {
+      "id": "icon-style-relic",
+      "name": "Relic",
+      "kind": "icon",
+      "targets": [
+        "icon"
+      ],
+      "appearance": {
+        "material": {
+          "baseColor": "#151008",
+          "textColor": "#ffe09b",
+          "fillColor": "rgba(213,173,84,0.34)",
+          "strokeColor": "#ffe09b"
+        },
+        "border": {
+          "kind": "solid",
+          "color": "#d5ad54",
+          "width": 1,
+          "radius": 999
+        },
+        "effects": {
+          "glow": 14
+        }
+      },
+      "updates": {
+        "iconName": "Gem",
+        "strokeColor": "#ffe09b",
+        "fillColor": "rgba(213,173,84,0.34)",
+        "backgroundColor": "#151008",
+        "borderColor": "#d5ad54",
+        "borderWidth": "border-2",
+        "borderRadius": "rounded-full"
+      }
+    }
+  ]
+}

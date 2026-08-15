@@ -14,7 +14,6 @@ import {
   type DeveloperAssetType,
 } from '../lib/developerAssets';
 import type { DeveloperAssetProgramView } from '../lib/developerAssetProgram';
-import { buildOwnerAssetLibraryPage } from '../lib/ownerAssetLibrary';
 import {
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTierLabel,
@@ -29,6 +28,14 @@ export interface OwnerAssetOverrideInput {
 
 interface OwnerAssetLibraryPanelProps {
   program: DeveloperAssetProgramView;
+  query: string;
+  assetTypeFilter: DeveloperAssetType | 'all';
+  statusFilter: DeveloperAssetStatus | 'all';
+  page: number;
+  onQueryChange: (value: string) => void;
+  onAssetTypeFilterChange: (value: DeveloperAssetType | 'all') => void;
+  onStatusFilterChange: (value: DeveloperAssetStatus | 'all') => void;
+  onPageChange: (page: number) => void;
   updatingSubmissionId: string | null;
   onUpdateOverride: (submissionId: string, input: OwnerAssetOverrideInput) => Promise<void>;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
@@ -44,41 +51,30 @@ const statusOptions: DeveloperAssetStatus[] = [
 
 export function OwnerAssetLibraryPanel({
   program,
+  query,
+  assetTypeFilter,
+  statusFilter,
+  page,
+  onQueryChange,
+  onAssetTypeFilterChange,
+  onStatusFilterChange,
+  onPageChange,
   updatingSubmissionId,
   onUpdateOverride,
   onDeletePermanently,
 }: OwnerAssetLibraryPanelProps) {
-  const [statusFilter, setStatusFilter] = useState<DeveloperAssetStatus | 'all'>('all');
-  const [assetTypeFilter, setAssetTypeFilter] = useState<DeveloperAssetType | 'all'>('all');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [managingId, setManagingId] = useState<string | null>(null);
   const [statusOverride, setStatusOverride] = useState<DeveloperAssetStatus | 'automatic'>('automatic');
   const [tierOverride, setTierOverride] = useState<DeveloperAssetAccessTierOverride | 'automatic'>('automatic');
   const [ownerNote, setOwnerNote] = useState('');
   const templatePreviews = useDeveloperTemplatePreviews(program.submissions);
-  const statusCounts = DEVELOPER_ASSET_STATUSES.reduce<Record<DeveloperAssetStatus, number>>((counts, status) => {
-    counts[status] = program.submissions.filter((submission) => submission.status === status).length;
-    return counts;
-  }, {} as Record<DeveloperAssetStatus, number>);
-  const assetTypeCounts = DEVELOPER_ASSET_TYPES.reduce<Record<DeveloperAssetType, number>>((counts, assetType) => {
-    counts[assetType] = program.submissions.filter((submission) => submission.assetType === assetType).length;
-    return counts;
-  }, {} as Record<DeveloperAssetType, number>);
-  const library = buildOwnerAssetLibraryPage(program.submissions, {
-    assetType: assetTypeFilter,
-    status: statusFilter,
-    query: search,
-    page,
-  });
-  const managedStorageItems = program.submissions.filter((submission) => (
-    submission.sourceStorageBucket && submission.sourceStoragePath
-  ));
-  const managedStorageBytes = managedStorageItems.reduce((total, submission) => (
-    total + (submission.sourceFileSizeBytes ?? 0)
-  ), 0);
-  const purgeEligibleCount = program.submissions.length;
+  const totalPages = Math.max(1, Math.ceil(program.submissionPage.total / program.submissionPage.pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const firstItemNumber = program.submissionPage.total === 0
+    ? 0
+    : (currentPage - 1) * program.submissionPage.pageSize + 1;
+  const lastItemNumber = Math.min(currentPage * program.submissionPage.pageSize, program.submissionPage.total);
 
   const openManager = (submission: DeveloperAssetProgramView['submissions'][number]) => {
     setManagingId(submission.id);
@@ -128,9 +124,9 @@ export function OwnerAssetLibraryPanel({
         Review the actual asset, see the automatic result, and use Manage only when CardForge needs an owner exception. Clearing an override immediately returns the asset to automatic operation.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <LibrarySummary label="Managed files" value={String(managedStorageItems.length)} detail="Supabase objects owned by this pipeline" />
-        <LibrarySummary label="Managed storage" value={formatBytes(managedStorageBytes)} detail="Known source-file size" />
-        <LibrarySummary label="Owner deletable" value={String(purgeEligibleCount)} detail="Votes and publication do not limit owner authority" />
+        <LibrarySummary label="Managed files" value={String(program.managedFileCount)} detail="Supabase objects owned by this pipeline" />
+        <LibrarySummary label="Managed storage" value={formatBytes(program.managedStorageBytes)} detail="Known source-file size" />
+        <LibrarySummary label="Owner deletable" value={String(program.totalSubmissionCount)} detail="Votes and publication do not limit owner authority" />
       </div>
       <div className="mt-4 grid gap-3 border border-[#3c2c1b] bg-[#100c08] p-3 md:grid-cols-[minmax(14rem,1fr)_minmax(12rem,0.7fr)_minmax(12rem,0.7fr)]">
         <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
@@ -139,8 +135,8 @@ export function OwnerAssetLibraryPanel({
             <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
             <input
               type="search"
-              value={search}
-              onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Asset, contributor, or catalog id"
               className="min-w-0 flex-1 bg-transparent p-2 text-sm normal-case tracking-normal text-[#ffe7ad] outline-none placeholder:text-[#6f624d]"
             />
@@ -149,36 +145,36 @@ export function OwnerAssetLibraryPanel({
         <FilterSelect
           label="Asset type"
           value={assetTypeFilter}
-          onChange={(value) => { setAssetTypeFilter(value as DeveloperAssetType | 'all'); setPage(1); }}
+          onChange={(value) => onAssetTypeFilterChange(value as DeveloperAssetType | 'all')}
           options={[
-            { value: 'all', label: `All types (${program.submissions.length})` },
+            { value: 'all', label: `All types (${program.totalSubmissionCount})` },
             ...DEVELOPER_ASSET_TYPES.map((assetType) => ({
               value: assetType,
-              label: `${getDeveloperAssetTypeLabel(assetType)} (${assetTypeCounts[assetType]})`,
+              label: `${getDeveloperAssetTypeLabel(assetType)} (${program.submissionTypeCounts[assetType]})`,
             })),
           ]}
         />
         <FilterSelect
           label="Pipeline status"
           value={statusFilter}
-          onChange={(value) => { setStatusFilter(value as DeveloperAssetStatus | 'all'); setPage(1); }}
+          onChange={(value) => onStatusFilterChange(value as DeveloperAssetStatus | 'all')}
           options={[
-            { value: 'all', label: `All statuses (${program.submissions.length})` },
+            { value: 'all', label: `All statuses (${program.totalSubmissionCount})` },
             ...DEVELOPER_ASSET_STATUSES.map((status) => ({
               value: status,
-              label: `${getDeveloperAssetStatusLabel(status)} (${statusCounts[status]})`,
+              label: `${getDeveloperAssetStatusLabel(status)} (${program.submissionStatusCounts[status]})`,
             })),
           ]}
         />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#a98a55]" aria-live="polite">
-        <p>Showing {library.firstItemNumber}-{library.lastItemNumber} of {library.totalItems} matching assets.</p>
-        <p>Page {library.page} of {library.totalPages}</p>
+        <p>Showing {firstItemNumber}-{lastItemNumber} of {program.submissionPage.total} matching assets.</p>
+        <p>Page {currentPage} of {totalPages}</p>
       </div>
       <div className="mt-4 space-y-3">
-        {library.items.length === 0 ? (
+        {program.submissions.length === 0 ? (
           <p className="border border-[#3c2c1b] bg-[#100c08] p-4 text-sm text-[#c7b288]">No pipeline assets match these filters.</p>
-        ) : library.items.map((submission) => (
+        ) : program.submissions.map((submission) => (
           <AssetRow
             key={submission.id}
             submission={submission}
@@ -252,13 +248,13 @@ export function OwnerAssetLibraryPanel({
           </AssetRow>
         ))}
       </div>
-      {library.totalPages > 1 ? (
+      {totalPages > 1 ? (
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#3c2c1b] pt-4">
-          <Button size="sm" variant="outline" className="rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={library.page <= 1} onClick={() => setPage(library.page - 1)}>
+          <Button size="sm" variant="outline" className="rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Previous
           </Button>
-          <span className="text-xs text-[#a98a55]">{library.firstItemNumber}-{library.lastItemNumber} of {library.totalItems}</span>
-          <Button size="sm" variant="outline" className="rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={library.page >= library.totalPages} onClick={() => setPage(library.page + 1)}>
+          <span className="text-xs text-[#a98a55]">{firstItemNumber}-{lastItemNumber} of {program.submissionPage.total}</span>
+          <Button size="sm" variant="outline" className="rounded-none border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
             Next <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>

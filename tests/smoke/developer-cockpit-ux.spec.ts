@@ -11,7 +11,7 @@ import type {
 const READY_TIMEOUT = 120_000;
 const mediaFixture = resolve(
   process.cwd(),
-  'public/card-assets/images/arcane-landscape.svg',
+  'public/site-fallbacks/showcase/cardforge-workshop-cover.webp',
 );
 
 const baseCampaign = {
@@ -70,6 +70,7 @@ const makeCockpit = ({
   campaigns,
   campaignMedia: [],
   campaignMediaSummary: { mediaCount: 0, protectedBytes: 0, derivativeBytes: 0, unusedMediaCount: 0 },
+  campaignMediaPage: { total: 0, page: 1, pageSize: 24 },
   publishJobs: [],
   siteProposals: [],
   siteContentBlocks: [],

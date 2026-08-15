@@ -146,10 +146,14 @@ export interface ProviderChannelBinding { service: SocialService; channelId: str
 export interface CampaignMediaLibrarySummary {
   mediaCount: number; protectedBytes: number; derivativeBytes: number; unusedMediaCount: number;
 }
+export interface CampaignMediaPageSummary {
+  total: number; page: number; pageSize: number;
+}
 export interface DeveloperCockpitView {
   configured: boolean; extendedContributionsEnabled: boolean; currentUserId: string;
   isDeveloper: boolean; isOwner: boolean; scopes: DeveloperContributionScope[];
   campaigns: SocialCampaign[]; campaignMedia: CampaignMedia[]; campaignMediaSummary: CampaignMediaLibrarySummary;
+  campaignMediaPage: CampaignMediaPageSummary;
   publishJobs: SocialPublishJob[]; siteProposals: SiteContentProposal[]; siteContentBlocks: SiteContentBlock[];
   profiles: DeveloperAccessProfile[];
   provider: { name: 'buffer'; configured: boolean; publishingEnabled: boolean; organizationId: string | null; allowedChannelCount: number; missing: string[]; };
