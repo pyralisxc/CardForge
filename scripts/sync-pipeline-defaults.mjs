@@ -519,6 +519,7 @@ const main = async () => {
     ...await collectTemplateItems(staticCatalog.publicUrlByLocalPath),
     ...await collectStyleItems(staticCatalog.publicUrlByLocalPath),
   ];
+  const canonicalItemByAssetId = new Map(items.map((item) => [item.asset_id, item]));
 
   for (const item of staticCatalog.items.filter((entry) => entry.requires_storage_migration)) {
     const { error } = await supabase.rpc('cardforge_migrate_pipeline_registry_storage', {
@@ -535,8 +536,20 @@ const main = async () => {
   }
 
   for (const entry of existingRegistry || []) {
-    if (tombstonedAssetIds.has(entry.asset_id) || !containsRepositoryAssetUrl(entry.metadata)) continue;
-    const metadata = rewritePipelineAssetUrls(entry.metadata, staticCatalog.publicUrlByLocalPath);
+    if (tombstonedAssetIds.has(entry.asset_id)) continue;
+    const canonicalItem = canonicalItemByAssetId.get(entry.asset_id);
+    const hasLegacyImportedSourcePath = entry.metadata?.sourceKind === 'pipeline-owner-import'
+      && typeof entry.metadata?.sourcePath === 'string'
+      && entry.metadata.sourcePath.startsWith('public/card-assets/')
+      && typeof canonicalItem?.metadata?.sourcePath === 'string';
+    const hasRepositoryAssetUrl = containsRepositoryAssetUrl(entry.metadata);
+    if (!hasRepositoryAssetUrl && !hasLegacyImportedSourcePath) continue;
+    const metadata = {
+      ...rewritePipelineAssetUrls(entry.metadata, staticCatalog.publicUrlByLocalPath),
+      ...(hasLegacyImportedSourcePath
+        ? { sourcePath: canonicalItem.metadata.sourcePath }
+        : {}),
+    };
     if (containsRepositoryAssetUrl(metadata)) {
       throw new Error(`Cannot migrate ${entry.asset_id}: a referenced Studio asset is missing or permanently deleted.`);
     }
@@ -545,7 +558,7 @@ const main = async () => {
       p_metadata: metadata,
     });
     if (error) throw error;
-    console.log(`Moved embedded Studio references into the Pipeline: ${entry.asset_id}`);
+    console.log(`Normalized Pipeline metadata ownership: ${entry.asset_id}`);
   }
 
   const newItems = items.filter((item) => (
