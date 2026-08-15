@@ -73,7 +73,7 @@ export function DeveloperCampaignMediaLibrary({
     } finally {
       if (!signal.aborted) setLoading(false);
     }
-  }, [filter, page, pageInfo.pageSize, query, reloadKey]);
+  }, [filter, page, pageInfo.pageSize, query]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,7 +82,7 @@ export function DeveloperCampaignMediaLibrary({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [loadPage]);
+  }, [loadPage, reloadKey]);
 
   const updateMedia = async (
     item: CampaignMedia,
