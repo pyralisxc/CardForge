@@ -1,6 +1,7 @@
 import { CardForgeStudioShell } from '@/features/app-shell/client/studio';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
+import { getCurrentDeveloperAccessSessionState } from '@/features/developer-access/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
@@ -11,14 +12,17 @@ export const metadata = createPageMetadata({
 });
 
 export default async function StudioPage() {
-  const businessIdentity = await getBusinessIdentity();
+  const [businessIdentity, initialDeveloperAccess] = await Promise.all([
+    getBusinessIdentity(),
+    getCurrentDeveloperAccessSessionState(),
+  ]);
 
   return (
     <CardForgeAppProviders>
       <CardForgeStudioShell businessIdentity={{
         brandName: businessIdentity.brandName,
         copyrightHolder: businessIdentity.copyrightHolder,
-      }} />
+      }} initialDeveloperAccess={initialDeveloperAccess} />
     </CardForgeAppProviders>
   );
 }

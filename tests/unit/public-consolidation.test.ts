@@ -32,7 +32,7 @@ describe('consolidated public routes and account navigation', () => {
       expect(source).toContain("from '@/features/public-site/client/shell'");
       expect(source).toContain('getCachedBusinessIdentity');
       expect(source).toContain('<PublicSiteHeader');
-      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthControls /> : undefined}');
+      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
       expect(source).toContain('className="cardforge-public-tokens"');
       expect(source).not.toContain('className="cardforge-public"');
       expect(source).not.toContain('StudioHeader');
@@ -43,10 +43,23 @@ describe('consolidated public routes and account navigation', () => {
     for (const path of ['src/app/page.tsx', 'src/app/about/page.tsx', 'src/app/cameron/page.tsx']) {
       const source = readSource(path);
       expect(source).toContain('<CardForgeAppProviders>');
-      expect(source).toContain('<DeveloperPublicAuthControls />');
+      expect(source).toContain('<DeveloperPublicAuthSlot />');
       expect(source).toContain('isClerkServerConfigPresent');
-      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthControls /> : undefined}');
+      expect(source).toContain('accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}');
     }
+  });
+
+  it('hydrates developer navigation from the same server-owned access decision', () => {
+    const slot = readSource('src/features/developer-access/server/DeveloperPublicAuthSlot.tsx');
+    const controls = readSource('src/features/developer-access/components/DeveloperPublicAuthControls.tsx');
+    const studioPage = readSource('src/app/studio/page.tsx');
+
+    expect(slot).toContain('getCurrentDeveloperAccessSessionState');
+    expect(slot).toContain('initialDeveloperAccess={initialDeveloperAccess}');
+    expect(controls).toContain('useDeveloperAccess(');
+    expect(controls).toContain('initialDeveloperAccess,');
+    expect(studioPage).toContain('getCurrentDeveloperAccessSessionState()');
+    expect(studioPage).toContain('initialDeveloperAccess={initialDeveloperAccess}');
   });
 
   it('keeps Clerk controls available in the mobile menu and names identity management separately', () => {

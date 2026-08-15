@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
@@ -9,7 +9,7 @@ import { formatAccessExpiration, STUDIO_GUIDE_STORAGE_KEY } from '@/features/app
 import { useToast } from '@/components/ui/use-toast';
 
 import { useAccountEntitlement } from '@/features/account/client/entitlement';
-import { useDeveloperAccess } from '@/features/developer-access/client';
+import { useDeveloperAccess, type DeveloperAccessSessionState } from '@/features/developer-access/client';
 import { StudioHeader } from '@/features/app-shell/components/StudioHeader';
 import { StudioFirstRunGuide } from '@/features/app-shell/components/StudioFirstRunGuide';
 import { CardTemplateMaker, EditCardDialog, GenerationWorkspace } from '@/features/app-shell/components/StudioLazyWorkspaces';
@@ -36,13 +36,17 @@ export type StudioBusinessIdentity = {
 
 export function CardForgeStudioShell({
   businessIdentity,
+  initialDeveloperAccess,
 }: {
   businessIdentity: StudioBusinessIdentity;
+  initialDeveloperAccess: DeveloperAccessSessionState;
 }) {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
+  const { isLoaded: isUserLoaded, isSignedIn, user } = useUser();
   const developerAccess = useDeveloperAccess(
-    accountEntitlement.isSignedIn ? 'signed-in-studio-session' : null,
+    isUserLoaded && isSignedIn ? user?.id ?? null : null,
+    initialDeveloperAccess,
   );
   const projectCapabilities = accountEntitlement.capabilities;
   const workspaceSaveStatus = useBrowserWorkspaceSaveStatus();
@@ -311,9 +315,6 @@ export function CardForgeStudioShell({
   }, []);
 
   const isStudioReady = !isLoadingTemplates;
-
-  // Comment: Initial selection of template for single card generator (and now bulk generator)
-  // is handled by Zustand's _rehydrateCallback or other actions modifying the templates list.
 
   return (
     <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[#0c0b09] text-[#f7ead0]">
