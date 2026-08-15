@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Fragment } from 'react';
 
-import { PublicAuthControls } from '@/features/account/client/auth';
+import { DeveloperPublicAuthControls } from '@/features/developer-access/client';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
@@ -69,7 +69,7 @@ export default async function LandingPage() {
   return (
     <CardForgeAppProviders>
       <PublicSiteShell
-        accountSlot={authConfigured ? <PublicAuthControls /> : undefined}
+        accountSlot={authConfigured ? <DeveloperPublicAuthControls /> : undefined}
         businessIdentity={businessIdentity}
         currentPath="/"
         siteConfiguration={siteConfiguration}
