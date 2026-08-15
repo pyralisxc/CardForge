@@ -102,7 +102,7 @@ The app should keep those lanes visibly distinct. Normal free/paid user uploads 
 
 Template Studio shelves are explicit: Templates split into Fronts and Backs; Images split into Pictures, Front Frames, and Back Frames; Elements contain Icons and Dividers; Styles contain Textures and validated reusable treatments. Code owns this finite destination contract, Supabase owns each asset's current placement/order/featured state, and Owner > Library & Production > Forge Pipeline > Studio Map is the only live override surface.
 
-Shared Template revisions are created only from Template Studio, where every save entry point explicitly submits the next numbered revision to Forge Review while keeping the published Template live. The generic developer upload form accepts media and fonts only; owner-authored visual Styles continue to publish from Appearance Studio. This keeps editable structured assets in their native authoring workflow instead of maintaining a parallel JSON-upload path.
+Shared Template revisions are created only from Template Studio. A developer save submits the next numbered revision to Forge Review while keeping the published Template live; an owner save records and publishes the next revision atomically without a redundant self-review. The generic developer upload form accepts media and fonts only, and owner-authored visual Styles continue to publish from Appearance Studio. This keeps editable structured assets in their native authoring workflow instead of maintaining a parallel JSON-upload path.
 
 ## Environment
 

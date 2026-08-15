@@ -80,6 +80,13 @@ const OwnerRetentionPanel = dynamic(
   { loading: panelFallback },
 );
 
+type OwnerWorkspace = 'overview' | 'audience' | 'site' | 'library' | 'governance';
+
+interface OwnerConsolePageProps {
+  initialWorkspace?: OwnerWorkspace;
+  initialPipelineStatus?: 'all' | 'submitted';
+}
+
 const tabClassName = "rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]";
 const subtabClassName = "rounded-none border-b-2 border-transparent px-3 py-2 text-sm text-[#a98a75] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#1b140c] data-[state=active]:text-[#ffe7ad]";
 
@@ -126,7 +133,10 @@ function OwnerSiteControlMap() {
   );
 }
 
-export function OwnerConsolePage() {
+export function OwnerConsolePage({
+  initialWorkspace = 'overview',
+  initialPipelineStatus = 'all',
+}: OwnerConsolePageProps) {
   const {
     isLoading,
     isSlowLoad,
@@ -135,7 +145,7 @@ export function OwnerConsolePage() {
     retry,
     updateConsole,
   } = useOwnerConsole();
-  const [workspace, setWorkspace] = useState('overview');
+  const [workspace, setWorkspace] = useState<OwnerWorkspace>(initialWorkspace);
   const [siteWorkspace, setSiteWorkspace] = useState('identity');
 
   if (!payload && isLoading) {
@@ -173,8 +183,8 @@ export function OwnerConsolePage() {
       <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
         <section className="mx-auto max-w-7xl space-y-4 px-5 py-6 md:px-8">
           <OwnerConsoleSummary payload={payload} />
-          <Tabs value={workspace} onValueChange={setWorkspace} className="space-y-4">
-            <label className="grid gap-1 text-xs text-[#c7b288] sm:hidden">Owner workspace<select aria-label="Owner workspace" className="min-h-11 border border-[#5f4526] bg-[#100c08] px-3 text-sm text-[#ffe7ad]" value={workspace} onChange={(event) => setWorkspace(event.target.value)}><option value="overview">Overview</option><option value="audience">Growth &amp; People</option><option value="site">Site Controls</option><option value="library">Library &amp; Production</option><option value="governance">Governance</option></select></label>
+            <Tabs value={workspace} onValueChange={(value) => setWorkspace(value as OwnerWorkspace)} className="space-y-4">
+            <label className="grid gap-1 text-xs text-[#c7b288] sm:hidden">Owner workspace<select aria-label="Owner workspace" className="min-h-11 border border-[#5f4526] bg-[#100c08] px-3 text-sm text-[#ffe7ad]" value={workspace} onChange={(event) => setWorkspace(event.target.value as OwnerWorkspace)}><option value="overview">Overview</option><option value="audience">Growth &amp; People</option><option value="site">Site Controls</option><option value="library">Library &amp; Production</option><option value="governance">Governance</option></select></label>
             <TabsList className="hidden h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2 sm:flex">
               <TabsTrigger value="overview" className={tabClassName}>Overview</TabsTrigger>
               <TabsTrigger value="audience" className={tabClassName}>Growth &amp; People</TabsTrigger>
@@ -252,7 +262,7 @@ export function OwnerConsolePage() {
                 title="Operate reusable assets and campaign packages"
                 body="The asset pipeline owns Studio library content. Campaign packages own media and marketing history. Buffer remains a delivery provider, never CardForge’s media owner."
               />
-              <Tabs defaultValue="assets" className="space-y-4"><TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1"><TabsTrigger value="assets" className={subtabClassName}>Assets &amp; Pipeline</TabsTrigger><TabsTrigger value="production" className={subtabClassName}>Campaigns &amp; Media</TabsTrigger></TabsList><TabsContent value="assets" className="mt-0"><OwnerDeveloperProgramPanel /></TabsContent><TabsContent value="production" className="mt-0"><OwnerProductionPanel /></TabsContent></Tabs>
+              <Tabs defaultValue="assets" className="space-y-4"><TabsList className="flex h-auto flex-wrap justify-start rounded-none border border-[#3c2c1b] bg-[#100c08] p-1"><TabsTrigger value="assets" className={subtabClassName}>Assets &amp; Pipeline</TabsTrigger><TabsTrigger value="production" className={subtabClassName}>Campaigns &amp; Media</TabsTrigger></TabsList><TabsContent value="assets" className="mt-0"><OwnerDeveloperProgramPanel initialStatusFilter={initialPipelineStatus} /></TabsContent><TabsContent value="production" className="mt-0"><OwnerProductionPanel /></TabsContent></Tabs>
             </TabsContent>
             <TabsContent value="governance" className="mt-0 space-y-4">
               <WorkspaceIntroduction

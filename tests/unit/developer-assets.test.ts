@@ -197,5 +197,11 @@ describe('developer asset program rules', () => {
       ownerStatusOverride: 'published',
       calculatedAccessTier: 'free',
     }, { settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS })).toContain('owner override');
+    expect(getSubmissionNextStep({
+      ...baseSubmission,
+      assetType: 'templates',
+      status: 'submitted',
+      revisionNumber: 2,
+    }, { settings: DEFAULT_DEVELOPER_PROGRAM_SETTINGS })).toContain('owner to compare and approve');
   });
 });
