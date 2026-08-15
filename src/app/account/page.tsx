@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { AccountProfilePage } from '@/features/account/client/profile';
-import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
+import { getDeveloperPublicAuthSlot } from '@/features/developer-access/server';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
@@ -26,7 +26,7 @@ export default async function AccountPage() {
     <CardForgeAppProviders>
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
-          accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}
+          accountSlot={authConfigured ? await getDeveloperPublicAuthSlot() : undefined}
           businessIdentity={businessIdentity}
           currentPath="/account"
           siteConfiguration={siteConfiguration}
