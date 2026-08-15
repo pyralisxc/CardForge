@@ -55,7 +55,8 @@ describe('consolidated public routes and account navigation', () => {
     const studioPage = readSource('src/app/studio/page.tsx');
 
     expect(slot).toContain('getCurrentDeveloperAccessSessionState');
-    expect(slot).toContain('initialDeveloperAccess={initialDeveloperAccess}');
+    expect(slot).toContain('initialDeveloperAccess.sessionKey');
+    expect(slot).toContain('initialDeveloperAccess={developerAccess}');
     expect(controls).toContain('useDeveloperAccess(');
     expect(controls).toContain('initialDeveloperAccess,');
     expect(controls).toContain('accountSessionConfirmed');

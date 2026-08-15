@@ -3,5 +3,9 @@ import { getCurrentDeveloperAccessSessionState } from '@/features/developer-acce
 
 export async function DeveloperPublicAuthSlot() {
   const initialDeveloperAccess = await getCurrentDeveloperAccessSessionState();
-  return <DeveloperPublicAuthControls initialDeveloperAccess={initialDeveloperAccess} />;
+  const developerAccess = initialDeveloperAccess.sessionKey
+    ? initialDeveloperAccess
+    : await getCurrentDeveloperAccessSessionState();
+
+  return <DeveloperPublicAuthControls initialDeveloperAccess={developerAccess} />;
 }
