@@ -63,7 +63,8 @@ describe('consolidated public routes and account navigation', () => {
     expect(controls).toContain('refreshEntitlement({ force: true })');
     expect(controls).toContain('}, 1000)');
     const accountEntitlementRoute = readSource('src/app/api/account/entitlement/route.ts');
-    expect(accountEntitlementRoute).toContain('accountUserId: userId');
+    expect(accountEntitlementRoute).toContain('getCurrentCardforgeUserAccess()');
+    expect(accountEntitlementRoute).toContain('accountUserId: user?.id ?? null');
     const developerAccess = readSource('src/features/developer-access/server/access.ts');
     expect(developerAccess).toContain('resolveOwnerAccessForServerUser(authConfigured, resolvedUser)');
     expect(studioPage).toContain('getCurrentDeveloperAccessSessionState()');
