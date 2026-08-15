@@ -42,7 +42,10 @@ export function DeveloperPublicAuthControls({
       || reconciledUserRef.current === userId
     ) return;
     reconciledUserRef.current = userId;
-    void refreshEntitlement({ force: true });
+    const reconciliationTimer = window.setTimeout(() => {
+      void refreshEntitlement({ force: true });
+    }, 1000);
+    return () => window.clearTimeout(reconciliationTimer);
   }, [
     isLoadingEntitlement,
     refreshEntitlement,
