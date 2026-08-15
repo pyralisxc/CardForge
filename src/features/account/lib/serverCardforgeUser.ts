@@ -166,6 +166,7 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
 export const getCurrentCardforgeEntitlement = async (): Promise<AccountEntitlement> => {
   const access = await getCurrentCardforgeUserAccess();
   return resolveAccountEntitlement({
+    accountUserId: access.user?.id ?? null,
     authConfigured: access.authConfigured,
     isSignedIn: Boolean(access.user),
     emailAddresses: access.user?.emailAddresses ?? [],

@@ -162,6 +162,7 @@ describe('accountEntitlement', () => {
 
   it('returns full entitlement copy and capabilities for a paid account', () => {
     const entitlement = resolveAccountEntitlement({
+      accountUserId: 'user_123',
       authConfigured: true,
       isSignedIn: true,
       emailAddresses: ['maker@example.com'],
@@ -176,6 +177,7 @@ describe('accountEntitlement', () => {
     expect(entitlement).toMatchObject({
       accessMode: 'paid',
       accountEmail: 'maker@example.com',
+      accountUserId: 'user_123',
       authConfigured: true,
       canExportClean: true,
       hasStripeCustomer: true,

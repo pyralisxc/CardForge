@@ -32,6 +32,7 @@ export interface ResolveAccountAccessModeInput {
 }
 
 export interface ResolveAccountEntitlementInput extends Partial<ResolveAccountAccessModeInput> {
+  accountUserId?: string | null;
   env?: EntitlementEnvironment;
   ownerAccess?: OwnerAccess;
   projectFileAccess?: ProjectFileAccessPolicy;
@@ -41,6 +42,7 @@ export interface AccountEntitlement {
   accessMode: AccessMode;
   accessExpiresAt: string | null;
   accountEmail: string | null;
+  accountUserId: string | null;
   authConfigured: boolean;
   canExportClean: boolean;
   capabilities: ProjectCapabilities;
@@ -143,6 +145,7 @@ export const resolveAccountAccessMode = ({
 };
 
 export const resolveAccountEntitlement = ({
+  accountUserId = null,
   authConfigured,
   isSignedIn = false,
   emailAddresses = [],
@@ -171,6 +174,7 @@ export const resolveAccountEntitlement = ({
       ? readActiveMetadataAccessExpiresAt(privateMetadata, now)
       : null,
     accountEmail: emailAddresses[0] || null,
+    accountUserId,
     authConfigured: configured,
     canExportClean: capabilities.canExportClean,
     capabilities,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { STUDIO_TABS } from '@/features/app-shell/lib/studioTabs';
@@ -43,9 +42,8 @@ export function CardForgeStudioShell({
 }) {
   const { toast } = useToast();
   const accountEntitlement = useAccountEntitlement();
-  const { isLoaded: isUserLoaded, isSignedIn, user } = useUser();
   const developerAccess = useDeveloperAccess(
-    isUserLoaded && isSignedIn ? user?.id ?? null : null,
+    accountEntitlement.isSignedIn ? accountEntitlement.accountUserId : null,
     initialDeveloperAccess,
   );
   const projectCapabilities = accountEntitlement.capabilities;
