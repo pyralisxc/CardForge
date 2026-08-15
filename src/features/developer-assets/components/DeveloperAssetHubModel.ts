@@ -156,6 +156,9 @@ export const getSubmissionNextStep = (
   if (submission.status === 'rejected') {
     return 'Closed by owner review. Use the notes and submit a stronger version if it still belongs in the library.';
   }
+  if (submission.status === 'submitted' && submission.assetType === 'templates' && submission.revisionNumber != null) {
+    return 'Waiting for the owner to compare and approve this Template revision. The current shared Template stays live until the owner publishes it.';
+  }
   if (needsVotes) {
     return `Needs more developer signal before the pipeline can grade status and tier. ${getReviewProgressLabel(submission, program.settings.minimumVotesForGrading)}.`;
   }

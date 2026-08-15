@@ -128,13 +128,16 @@ export function useTemplateLibraryActions({
     }
     const templateForFile = selectAllTemplates(useProjectStore.getState()).find(t => t.id === savedTemplateId);
     if (templateForFile?.templateSource === 'default' && projectCapabilities.canSubmitTemplateRevisions) {
+      const publishesDirectly = projectCapabilities.canPublishSharedLibrary;
       const fingerprint = JSON.stringify(templateForFile);
       const pending = pendingRevisionKeysRef.current.get(savedTemplateId);
       const submissionKey = pending?.fingerprint === fingerprint ? pending.key : nanoid(32);
       pendingRevisionKeysRef.current.set(savedTemplateId, { fingerprint, key: submissionKey });
       toast({
         title: 'Draft saved in this browser',
-        description: `Submitting Template revision ${Number(templateForFile.templateRevision ?? 0) + 1} to Forge Review.`,
+        description: publishesDirectly
+          ? `Publishing Template revision ${Number(templateForFile.templateRevision ?? 0) + 1} to the shared CardForge Library.`
+          : `Submitting Template revision ${Number(templateForFile.templateRevision ?? 0) + 1} to Forge Review.`,
       });
       try {
         const result = await mutateShippedLibrary(
@@ -147,16 +150,27 @@ export function useTemplateLibraryActions({
         const revision = result.revision && typeof result.revision === 'object'
           ? result.revision as { revisionNumber?: number }
           : null;
+        if (publishesDirectly && typeof revision?.revisionNumber === 'number') {
+          addOrUpdateTemplate({
+            ...templateForFile,
+            templateRevision: revision.revisionNumber,
+            templateRegistryStatus: 'published',
+          }, 'default');
+        }
         toast({
-          title: 'Template revision submitted',
-          description: `Revision ${revision?.revisionNumber ?? Number(templateForFile.templateRevision ?? 0) + 1} is saved for owner review. It becomes shared after publication.`,
+          title: publishesDirectly ? 'Template changes published' : 'Template revision submitted',
+          description: publishesDirectly
+            ? `Revision ${revision?.revisionNumber ?? Number(templateForFile.templateRevision ?? 0) + 1} is live in the shared CardForge Library.`
+            : `Revision ${revision?.revisionNumber ?? Number(templateForFile.templateRevision ?? 0) + 1} is saved for owner review. It becomes shared after publication.`,
         });
       } catch (error) {
         toast({
-          title: 'Browser draft saved; revision not submitted',
+          title: publishesDirectly
+            ? 'Browser draft saved; changes not published'
+            : 'Browser draft saved; revision not submitted',
           description: error instanceof Error
             ? `${error.message} Your browser draft is safe; save again to retry.`
-            : 'Your browser draft is safe; save again to retry submission.',
+            : `Your browser draft is safe; save again to retry ${publishesDirectly ? 'publication' : 'submission'}.`,
           variant: 'destructive',
         });
       }
@@ -167,7 +181,7 @@ export function useTemplateLibraryActions({
       });
     }
     return savedTemplateId;
-  }, [addOrUpdateTemplate, projectCapabilities.canSubmitTemplateRevisions, setSingleCardGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
+  }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, projectCapabilities.canSubmitTemplateRevisions, setSingleCardGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
     setTemplatePendingDeleteId(templateId);

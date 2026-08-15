@@ -47,9 +47,9 @@ export interface SubmitTemplateRevisionInput {
   submissionKey: string;
 }
 
-export interface SubmittedTemplateRevision {
+export interface TemplateRevisionResult {
   id: string;
-  status: 'submitted';
+  status: 'submitted' | 'published';
   baseRevision: number;
   revisionNumber: number;
   assetId: string;
@@ -119,29 +119,32 @@ const throwDeveloperAssetPurgeError = (errorMessage?: string): never => {
   throw new DeveloperAssetRegistryCommandError('Unable to permanently delete this developer asset.', 500);
 };
 
-export const submitTemplateRevision = async ({
+const writeTemplateRevision = async ({
   template,
   developerId,
   developerEmail,
   expectedRevision,
   submissionKey,
-}: SubmitTemplateRevisionInput): Promise<SubmittedTemplateRevision> => {
+}: SubmitTemplateRevisionInput, publishDirectly: boolean): Promise<TemplateRevisionResult> => {
   const supabase = requireSupabase();
-  const { data: revisionId, error } = await supabase.rpc('cardforge_submit_template_revision', {
-    p_asset_id: template.id,
-    p_name: template.name,
-    p_description: template.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
-    p_developer_id: developerId,
-    p_developer_email: developerEmail ?? '',
-    p_template_payload: {
-      ...template,
-      templateSource: 'default',
-      templateLibrarySource: 'pipeline',
-      templateRegistryStatus: 'submitted',
+  const { data: revisionId, error } = await supabase.rpc(
+    publishDirectly ? 'cardforge_publish_owner_template_revision' : 'cardforge_submit_template_revision',
+    {
+      p_asset_id: template.id,
+      p_name: template.name,
+      p_description: template.templateDescription ?? 'Base card design revision submitted from CardForge Studio.',
+      p_developer_id: developerId,
+      p_developer_email: developerEmail ?? '',
+      p_template_payload: {
+        ...template,
+        templateSource: 'default',
+        templateLibrarySource: 'pipeline',
+        templateRegistryStatus: publishDirectly ? 'published' : 'submitted',
+      },
+      p_expected_revision: expectedRevision,
+      p_submission_key: submissionKey,
     },
-    p_expected_revision: expectedRevision,
-    p_submission_key: submissionKey,
-  });
+  );
   if (error || !revisionId) throwTemplateRevisionError(error?.message);
 
   const { data: rows, error: loadError } = await supabase
@@ -162,14 +165,29 @@ export const submitTemplateRevision = async ({
     revision_number: number;
     target_registry_asset_id: string;
   };
+  const expectedStatus = publishDirectly ? 'published' : 'submitted';
+  if (row.status !== expectedStatus) {
+    throw new DeveloperAssetRegistryCommandError(
+      `The revision was accepted, but its ${expectedStatus} state could not be confirmed. Retry the same save to confirm it safely.`,
+      503,
+    );
+  }
   return {
     id: row.id,
-    status: 'submitted',
+    status: expectedStatus,
     baseRevision: row.base_revision_number,
     revisionNumber: row.revision_number,
     assetId: row.target_registry_asset_id,
   };
 };
+
+export const submitTemplateRevision = async (
+  input: SubmitTemplateRevisionInput,
+): Promise<TemplateRevisionResult> => writeTemplateRevision(input, false);
+
+export const publishOwnerTemplateRevision = async (
+  input: SubmitTemplateRevisionInput,
+): Promise<TemplateRevisionResult> => writeTemplateRevision(input, true);
 
 export const castDeveloperAssetVote = async ({
   submissionId,

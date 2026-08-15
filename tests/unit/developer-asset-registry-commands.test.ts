@@ -8,6 +8,7 @@ import {
   saveDeveloperProgramSettings,
   setDeveloperAssetOwnerOverride,
   purgeDeveloperAssetSubmission,
+  publishOwnerTemplateRevision,
   submitTemplateRevision,
   upsertPipelineRegistryAsset,
 } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
@@ -156,6 +157,48 @@ describe('developer asset registry commands', () => {
       p_developer_id: 'developer-1',
       p_expected_revision: 2,
       p_submission_key: 'save-attempt-1',
+    }));
+  });
+
+  it('publishes an owner Template revision through one atomic database command', async () => {
+    const limit = vi.fn().mockResolvedValue({
+      data: [{
+        id: 'revision-4',
+        status: 'published',
+        base_revision_number: 3,
+        revision_number: 4,
+        target_registry_asset_id: 'starter-template',
+      }],
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ limit });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+    const rpc = vi.fn().mockResolvedValue({ data: 'revision-4', error: null });
+    mockedGetSupabaseServerClient.mockReturnValue({ rpc, from } as never);
+
+    await expect(publishOwnerTemplateRevision({
+      template: {
+        id: 'starter-template',
+        name: 'Starter Template',
+        aspectRatio: '63:88',
+        templateSource: 'default',
+      },
+      developerId: 'owner-user-id',
+      developerEmail: 'owner@cardforges.com',
+      expectedRevision: 3,
+      submissionKey: 'owner-save-4',
+    })).resolves.toMatchObject({
+      id: 'revision-4',
+      status: 'published',
+      revisionNumber: 4,
+    });
+
+    expect(rpc).toHaveBeenCalledWith('cardforge_publish_owner_template_revision', expect.objectContaining({
+      p_asset_id: 'starter-template',
+      p_developer_id: 'owner-user-id',
+      p_expected_revision: 3,
+      p_submission_key: 'owner-save-4',
     }));
   });
 

@@ -16,7 +16,12 @@ export const metadata: Metadata = createPageMetadata({
   index: false,
 });
 
-export default async function OwnerPage() {
+export default async function OwnerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ workspace?: string; pipelineStatus?: string }>;
+}) {
+  const params = await searchParams;
   const authConfigured = isClerkServerConfigPresent();
   const [businessIdentity, siteConfiguration] = await Promise.all([
     getCachedBusinessIdentity(),
@@ -32,7 +37,10 @@ export default async function OwnerPage() {
           siteConfiguration={siteConfiguration}
         />
       </div>
-      <OwnerConsolePage />
+      <OwnerConsolePage
+        initialWorkspace={params.workspace === 'library' ? 'library' : 'overview'}
+        initialPipelineStatus={params.pipelineStatus === 'submitted' ? 'submitted' : 'all'}
+      />
     </CardForgeAppProviders>
   );
 }

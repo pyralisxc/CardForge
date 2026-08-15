@@ -38,7 +38,11 @@ interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
 }
 
-export function OwnerDeveloperProgramPanel() {
+export function OwnerDeveloperProgramPanel({
+  initialStatusFilter = 'all',
+}: {
+  initialStatusFilter?: DeveloperAssetStatus | 'all';
+}) {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
   const [settings, setSettings] = useState<DeveloperProgramSettings | null>(null);
@@ -49,7 +53,7 @@ export function OwnerDeveloperProgramPanel() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [libraryQuery, setLibraryQuery] = useState('');
   const [libraryAssetType, setLibraryAssetType] = useState<DeveloperAssetType | 'all'>('all');
-  const [libraryStatus, setLibraryStatus] = useState<DeveloperAssetStatus | 'all'>('all');
+  const [libraryStatus, setLibraryStatus] = useState<DeveloperAssetStatus | 'all'>(initialStatusFilter);
   const [libraryPage, setLibraryPage] = useState(1);
   const hasLoadedRef = useRef(false);
 
@@ -117,7 +121,8 @@ export function OwnerDeveloperProgramPanel() {
   const updateOverride = async (
     submissionId: string,
     input: OwnerAssetOverrideInput,
-  ) => {
+    success?: { title: string; description: string },
+  ): Promise<boolean> => {
     setUpdatingSubmissionId(submissionId);
     try {
       const response = await fetch(`/api/developer-assets/${submissionId}`, {
@@ -129,13 +134,15 @@ export function OwnerDeveloperProgramPanel() {
       await response.json() as DeveloperAssetsResponse;
       await loadProgram();
       setLastSavedAt(new Date().toISOString());
-      toast({ title: 'Asset control saved', description: 'The owner override and automatic recommendation are now synchronized.' });
+      toast(success ?? { title: 'Asset control saved', description: 'The owner override and automatic recommendation are now synchronized.' });
+      return true;
     } catch (error) {
       toast({
         title: 'Asset control not saved',
         description: error instanceof Error ? error.message : 'Unable to update asset control.',
         variant: 'destructive',
       });
+      return false;
     } finally {
       setUpdatingSubmissionId(null);
     }

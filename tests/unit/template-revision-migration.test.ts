@@ -7,6 +7,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/20260812172450_add_template_revision_workflow.sql'),
   'utf8',
 ).toLowerCase();
+const ownerPublishMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20260815175658_owner_template_direct_publish.sql'),
+  'utf8',
+).toLowerCase();
 
 describe('template revision migration', () => {
   it('uses a forward-only atomic and idempotent revision workflow', () => {
@@ -25,5 +29,16 @@ describe('template revision migration', () => {
     expect(migration).toContain('from public, anon, authenticated');
     expect(migration).toContain('to service_role');
     expect(migration).not.toContain('security definer');
+  });
+
+  it('records and publishes owner revisions inside one service-role transaction', () => {
+    expect(ownerPublishMigration).toContain('begin;');
+    expect(ownerPublishMigration).toContain('cardforge_submit_template_revision');
+    expect(ownerPublishMigration).toContain('cardforge_set_developer_asset_owner_override');
+    expect(ownerPublishMigration).toContain("'published'");
+    expect(ownerPublishMigration).toContain('from public, anon, authenticated');
+    expect(ownerPublishMigration).toContain('to service_role');
+    expect(ownerPublishMigration).not.toContain('security definer');
+    expect(ownerPublishMigration).toContain('commit;');
   });
 });

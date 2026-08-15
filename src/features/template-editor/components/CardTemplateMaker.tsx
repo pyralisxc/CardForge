@@ -125,6 +125,7 @@ export function CardTemplateMaker({
   } = controller;
   const isSharedTemplate = currentTemplate.templateSource === 'default';
   const isSharedTemplateRevision = isSharedTemplate && canSubmitSharedTemplateRevision;
+  const publishesSharedTemplateDirectly = isSharedTemplateRevision && canPublishSharedLibrary;
   const nextTemplateRevision = Number(currentTemplate.templateRevision ?? 0) + 1;
   const variables = useTemplateEditorVariables({ controller, toast });
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
@@ -259,7 +260,13 @@ export function CardTemplateMaker({
     saveTemplate: handleSave,
     setCommandPaletteOpen,
   } = commands;
-  const savePresentation = isSharedTemplateRevision
+  const savePresentation = publishesSharedTemplateDirectly
+    ? {
+        label: `Publish Template revision ${nextTemplateRevision}`,
+        shortLabel: isSavingTemplate ? 'Publishing...' : 'Publish changes',
+        description: `Save this browser draft and publish revision ${nextTemplateRevision} directly to the shared CardForge Library. (Ctrl+S)`,
+      }
+    : isSharedTemplateRevision
     ? {
         label: `Submit Template revision ${nextTemplateRevision}`,
         shortLabel: isSavingTemplate ? 'Submitting…' : 'Submit revision',
@@ -366,18 +373,20 @@ export function CardTemplateMaker({
                     : 'CardForge Library Template'}
                 </p>
                 <p className="mt-0.5 leading-5">
-                  {isSharedTemplateRevision
-                    ? `Submit revision saves this browser draft, then creates revision ${nextTemplateRevision} in Forge Review. The live Template changes only after publication.`
+                  {publishesSharedTemplateDirectly
+                    ? `Publish changes saves this browser draft and makes revision ${nextTemplateRevision} live in the shared CardForge Library. Revision history is retained automatically.`
+                    : isSharedTemplateRevision
+                    ? `Submit revision saves this browser draft, then creates revision ${nextTemplateRevision} in Forge Review. The live Template changes only after owner publication.`
                     : 'You can edit this Template freely. Saving creates a personal browser copy and keeps the shared original unchanged.'}
                 </p>
               </div>
             </div>
             {isSharedTemplateRevision ? (
               <Link
-                href={canPublishSharedLibrary ? '/owner' : '/developer/cockpit'}
+                href={canPublishSharedLibrary ? '/owner?workspace=library&pipelineStatus=submitted' : '/developer/cockpit'}
                 className="shrink-0 font-medium text-[#f0c568] underline decoration-[#7f6225] underline-offset-4 hover:text-[#ffe7ad]"
               >
-                {canPublishSharedLibrary ? 'Open owner review' : 'Open Forge Review'}
+                {canPublishSharedLibrary ? 'Review pending revisions' : 'Open Forge Review'}
               </Link>
             ) : null}
           </div>
@@ -498,7 +507,7 @@ export function CardTemplateMaker({
         </div>
         <div id="maker-shortcuts-help" role="note" aria-label="Keyboard shortcuts" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#252b35] bg-[#080b10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#757d8c]">
           <span className="text-[#d5ad54]">Shortcuts</span>
-          <span>Ctrl+S {isSharedTemplateRevision ? 'Submit revision' : 'Save'}</span>
+          <span>Ctrl+S {publishesSharedTemplateDirectly ? 'Publish changes' : isSharedTemplateRevision ? 'Submit revision' : 'Save'}</span>
           <span>Ctrl+Z Undo</span>
           <span>Ctrl+D Duplicate</span>
           <span>Del Remove</span>
@@ -528,8 +537,10 @@ export function CardTemplateMaker({
               <AlertDialogTitle>Save changes to “{currentTemplate.name || 'Untitled Template'}”?</AlertDialogTitle>
               <AlertDialogDescription>
                 {currentTemplate.templateSource === 'default'
-                  ? canSubmitSharedTemplateRevision
-                    ? `Submitting keeps this draft in your browser and creates Template revision ${nextTemplateRevision} in Forge Review. The shared Template changes only after publication.`
+                  ? publishesSharedTemplateDirectly
+                    ? `Publishing keeps this draft in your browser and makes Template revision ${nextTemplateRevision} live immediately. Revision history is retained without a self-review step.`
+                    : canSubmitSharedTemplateRevision
+                    ? `Submitting keeps this draft in your browser and creates Template revision ${nextTemplateRevision} in Forge Review. The shared Template changes only after owner publication.`
                     : 'This is a CardForge Library Template. Saving creates a personal browser copy and keeps the shared original unchanged.'
                   : 'Your Template changes are not saved in this browser yet.'}
               </AlertDialogDescription>
@@ -548,9 +559,9 @@ export function CardTemplateMaker({
               <Button type="button" variant="outline" onClick={discardAndContinue}>Don’t save</Button>
               <AlertDialogAction disabled={isSavingTemplate} onClick={() => void saveAndContinue()}>
                 {isSavingTemplate
-                  ? isSharedTemplateRevision ? 'Submitting…' : 'Saving…'
+                  ? publishesSharedTemplateDirectly ? 'Publishing...' : isSharedTemplateRevision ? 'Submitting…' : 'Saving…'
                   : currentTemplate.templateSource === 'default'
-                  ? canSubmitSharedTemplateRevision ? 'Submit Template revision' : 'Save as personal Template'
+                  ? publishesSharedTemplateDirectly ? 'Publish Template changes' : canSubmitSharedTemplateRevision ? 'Submit Template revision' : 'Save as personal Template'
                   : 'Save changes'}
               </AlertDialogAction>
             </AlertDialogFooter>

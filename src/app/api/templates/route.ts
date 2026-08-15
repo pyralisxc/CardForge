@@ -11,6 +11,7 @@ import {
   archivePipelineRegistryAsset,
   DeveloperAssetRegistryCommandError,
   isRepositoryTemplate,
+  publishOwnerTemplateRevision,
   submitTemplateRevision,
   toRepositoryAssetFileName,
 } from '@/features/developer-assets/server';
@@ -38,7 +39,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const access = await getCurrentDeveloperCockpitAccess();
-    requireContributionScope(access, 'library.submit');
+    requireContributionScope(access, access.isOwner ? 'library.publish' : 'library.submit');
 
     const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
@@ -69,23 +70,30 @@ export async function POST(request: Request) {
     if (!submissionKey || submissionKey.length > 160) {
       return createApiErrorResponse(400, 'invalid_idempotency_key', 'A valid revision submission key is required.');
     }
-    const revision = await submitTemplateRevision({
-      template: { ...template, id: template.id!, templateSource: 'default' },
+    const revisionInput = {
+      template: { ...template, id: template.id!, templateSource: 'default' as const },
       developerId: access.user.id,
       developerEmail: access.email,
       expectedRevision: Number.isInteger(template.templateRevision) && Number(template.templateRevision) >= 0
         ? Number(template.templateRevision)
         : 0,
       submissionKey,
-    });
+    };
+    const revision = access.isOwner
+      ? await publishOwnerTemplateRevision(revisionInput)
+      : await submitTemplateRevision(revisionInput);
     revalidateCardForgeCatalog();
 
     return createNoStoreJsonResponse({
       ok: true,
       fileName,
       revision,
-      template: { ...template, templateSource: source, templateRegistryStatus: 'submitted' },
-    }, { status: 202 });
+      template: {
+        ...template,
+        templateSource: source,
+        templateRegistryStatus: access.isOwner ? 'published' : 'submitted',
+      },
+    }, { status: access.isOwner ? 200 : 202 });
   } catch (error) {
     if (error instanceof DeveloperCockpitAccessError) {
       return createApiErrorResponse(

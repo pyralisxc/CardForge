@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Archive, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
+import { Archive, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { AssetRow } from './DeveloperAssetRows';
@@ -37,7 +37,11 @@ interface OwnerAssetLibraryPanelProps {
   onStatusFilterChange: (value: DeveloperAssetStatus | 'all') => void;
   onPageChange: (page: number) => void;
   updatingSubmissionId: string | null;
-  onUpdateOverride: (submissionId: string, input: OwnerAssetOverrideInput) => Promise<void>;
+  onUpdateOverride: (
+    submissionId: string,
+    input: OwnerAssetOverrideInput,
+    success?: { title: string; description: string },
+  ) => Promise<boolean>;
   onDeletePermanently: (submissionId: string, confirmationName: string) => Promise<void>;
 }
 
@@ -90,12 +94,33 @@ export function OwnerAssetLibraryPanel({
       (nextStatus === 'archived' || nextStatus === 'rejected')
       && !window.confirm(`Confirm ${nextStatus === 'rejected' ? 'closing' : 'retiring'} this asset. Its history will be preserved.`)
     ) return;
-    await onUpdateOverride(submissionId, {
+    const saved = await onUpdateOverride(submissionId, {
       ownerStatusOverride: nextStatus,
       ownerAccessTierOverride: tierOverride === 'automatic' ? null : tierOverride,
       ownerNote,
     });
-    setManagingId(null);
+    if (saved) setManagingId(null);
+  };
+
+  const publishTemplateRevision = async (submission: DeveloperAssetProgramView['submissions'][number]) => {
+    const revisionLabel = submission.revisionNumber ? `revision ${submission.revisionNumber}` : 'this revision';
+    if (!window.confirm(`Publish ${revisionLabel} of “${submission.name}” to the shared CardForge Library now?`)) return;
+    const saved = await onUpdateOverride(
+      submission.id,
+      {
+        ownerStatusOverride: 'published',
+        ownerAccessTierOverride: 'free',
+        ownerNote: `Approved and published ${revisionLabel} from Owner Review.`,
+      },
+      {
+        title: 'Template revision published',
+        description: `${revisionLabel[0].toUpperCase()}${revisionLabel.slice(1)} is now live in the shared CardForge Library.`,
+      },
+    );
+    if (saved) {
+      setManagingId(null);
+      setExpandedId(null);
+    }
   };
 
   const retireAsset = async (submission: DeveloperAssetProgramView['submissions'][number]) => {
@@ -121,8 +146,25 @@ export function OwnerAssetLibraryPanel({
     <div className="mt-7">
       <h3 className="font-serif text-xl text-[#fff1c7]">Visual asset library</h3>
       <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-        Review the actual asset, see the automatic result, and use Manage only when CardForge needs an owner exception. Clearing an override immediately returns the asset to automatic operation.
+        Pending Template revisions have a direct publication decision. Other assets follow the automatic pipeline unless you use Manage for an owner exception.
       </p>
+      {program.submissionStatusCounts.submitted > 0 ? (
+        <div className="mt-4 flex flex-col gap-3 border border-[#8a642f] bg-[#1b140c] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-serif text-lg text-[#ffe7ad]">Owner review queue</p>
+            <p className="mt-1 text-xs leading-5 text-[#c7b288]">
+              {program.submissionStatusCounts.submitted} submitted revision{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="rounded-none bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+            onClick={() => onStatusFilterChange('submitted')}
+          >
+            Show pending revisions
+          </Button>
+        </div>
+      ) : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <LibrarySummary label="Managed files" value={String(program.managedFileCount)} detail="Supabase objects owned by this pipeline" />
         <LibrarySummary label="Managed storage" value={formatBytes(program.managedStorageBytes)} detail="Known source-file size" />
@@ -174,7 +216,11 @@ export function OwnerAssetLibraryPanel({
       <div className="mt-4 space-y-3">
         {program.submissions.length === 0 ? (
           <p className="border border-[#3c2c1b] bg-[#100c08] p-4 text-sm text-[#c7b288]">No pipeline assets match these filters.</p>
-        ) : program.submissions.map((submission) => (
+        ) : program.submissions.map((submission) => {
+          const isPendingTemplateRevision = submission.assetType === 'templates'
+            && submission.revisionNumber != null
+            && submission.status === 'submitted';
+          return (
           <AssetRow
             key={submission.id}
             submission={submission}
@@ -239,6 +285,17 @@ export function OwnerAssetLibraryPanel({
               </div>
             ) : undefined}
           >
+            {isPendingTemplateRevision ? (
+              <Button
+                size="sm"
+                disabled={updatingSubmissionId === submission.id}
+                className="rounded-none bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
+                onClick={() => void publishTemplateRevision(submission)}
+              >
+                <CheckCircle2 className="mr-1 h-4 w-4" />
+                {updatingSubmissionId === submission.id ? 'Publishing...' : `Approve & publish revision ${submission.revisionNumber}`}
+              </Button>
+            ) : null}
             {submission.assetType === 'templates' && (submission.registryAssetId || submission.targetRegistryAssetId) ? (
               <Button asChild size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]">
                 <a href={`/studio?editTemplate=${encodeURIComponent(submission.registryAssetId ?? submission.targetRegistryAssetId!)}`}>
@@ -247,13 +304,14 @@ export function OwnerAssetLibraryPanel({
               </Button>
             ) : null}
             <Button size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]" onClick={() => setExpandedId((current) => current === submission.id ? null : submission.id)}>
-              <Eye className="mr-1 h-4 w-4" /> Review
+              <Eye className="mr-1 h-4 w-4" /> {isPendingTemplateRevision ? 'Compare revision' : 'Review'}
             </Button>
             <Button size="sm" variant="outline" className="border-[#8a642f] bg-transparent text-[#f0c568]" onClick={() => openManager(submission)}>
               <Settings2 className="mr-1 h-4 w-4" /> Manage
             </Button>
           </AssetRow>
-        ))}
+          );
+        })}
       </div>
       {totalPages > 1 ? (
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#3c2c1b] pt-4">
