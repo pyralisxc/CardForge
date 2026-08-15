@@ -6,6 +6,7 @@ import { Code2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { PublicAuthControls } from '@/features/account/client/auth';
+import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { useDeveloperAccess } from '@/features/developer-access/hooks/useDeveloperAccess';
 import type { DeveloperAccessSessionState } from '@/features/developer-access/model';
 
@@ -15,8 +16,16 @@ export function DeveloperPublicAuthControls({
   initialDeveloperAccess: DeveloperAccessSessionState;
 }) {
   const { isLoaded, isSignedIn, user } = useUser();
+  const accountEntitlement = useAccountEntitlement({ initialAuthConfigured: true });
+  const userId = isLoaded && isSignedIn ? user?.id ?? null : null;
+  const serverSessionMatches = Boolean(userId && initialDeveloperAccess.sessionKey === userId);
+  const accountSessionConfirmed = Boolean(
+    userId
+    && accountEntitlement.isSignedIn
+    && accountEntitlement.accountUserId === userId,
+  );
   const developerAccess = useDeveloperAccess(
-    isLoaded && isSignedIn ? user?.id ?? null : null,
+    serverSessionMatches || accountSessionConfirmed ? userId : null,
     initialDeveloperAccess,
   );
 
