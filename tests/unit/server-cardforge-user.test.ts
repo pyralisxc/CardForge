@@ -44,12 +44,31 @@ describe('server CardForge user resolution', () => {
     expect(access.user?.id).toBe('user_123');
   });
 
-  it('does not call Clerk user lookup without a signed-in session', async () => {
+  it('uses the authoritative Clerk user when the lightweight auth read is temporarily empty', async () => {
     clerk.auth.mockResolvedValue({ userId: null, sessionClaims: null });
+    clerk.currentUser.mockResolvedValue({
+      id: 'user_456',
+      emailAddresses: [{ emailAddress: 'owner@example.com' }],
+      primaryEmailAddress: { emailAddress: 'owner@example.com' },
+      firstName: 'Pyralis',
+      lastName: 'Cameron',
+      publicMetadata: {},
+      privateMetadata: {},
+    });
 
     const access = await getCurrentCardforgeUserAccess();
 
-    expect(clerk.currentUser).not.toHaveBeenCalled();
+    expect(clerk.currentUser).toHaveBeenCalledOnce();
+    expect(access.user?.id).toBe('user_456');
+  });
+
+  it('returns no user when both Clerk reads are signed out', async () => {
+    clerk.auth.mockResolvedValue({ userId: null, sessionClaims: null });
+    clerk.currentUser.mockResolvedValue(null);
+
+    const access = await getCurrentCardforgeUserAccess();
+
+    expect(clerk.currentUser).toHaveBeenCalledOnce();
     expect(access.user).toBeNull();
   });
 });
