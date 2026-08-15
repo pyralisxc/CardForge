@@ -24,6 +24,15 @@ export interface RegistryContentAssetRow {
   metadata: unknown;
 }
 
+export interface PublishedRegistryAssetRow extends RegistryContentAssetRow {
+  asset_type: string;
+  status: 'published';
+  access_tier: 'free' | 'paid' | 'developer';
+  library_source: 'official' | 'developer';
+  file_size_bytes: number | null;
+  updated_at: string | null;
+}
+
 const REGISTRY_CONTENT_FETCH_TIMEOUT_MS = 1200;
 const REGISTRY_CONTENT_ROWS_TIMEOUT_MS = 1200;
 const REGISTRY_CONTENT_TIMEOUT_ERROR: PostgrestError = {
@@ -124,4 +133,42 @@ export const getPublishedRegistryContentRows = async (
   }
 
   return (data ?? []) as RegistryContentAssetRow[];
+};
+
+export const getPublishedRegistryRows = async (
+  viewerAccess: RegistryViewerAccess = 'free',
+): Promise<PublishedRegistryAssetRow[]> => {
+  const supabase = getSupabaseServerClient();
+  if (!getSupabaseServerConfigStatus().configured || !supabase) return [];
+
+  const visibleTiers = getVisibleRegistryAccessTiers(viewerAccess);
+  const { data, error } = await resolveWithTimeout(
+    Promise.resolve(
+      supabase
+        .from('cardforge_asset_registry')
+        .select('asset_id,name,asset_type,url,status,access_tier,library_source,file_size_bytes,metadata,updated_at')
+        .eq('status', 'published')
+        .in('access_tier', visibleTiers)
+        .order('asset_type', { ascending: true })
+        .order('name', { ascending: true }),
+    ),
+    {
+      fallback: {
+        data: null,
+        error: REGISTRY_CONTENT_TIMEOUT_ERROR,
+        count: null,
+        status: 408,
+        statusText: 'Request Timeout',
+        success: false,
+      },
+      timeoutMs: REGISTRY_CONTENT_ROWS_TIMEOUT_MS,
+    },
+  );
+  if (error) {
+    if ((error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'REGISTRY_CONTENT_TIMEOUT') {
+      console.error('Failed to load published registry catalog:', error);
+    }
+    throw new Error('Published CardForge catalog is temporarily unavailable.');
+  }
+  return (data ?? []) as PublishedRegistryAssetRow[];
 };

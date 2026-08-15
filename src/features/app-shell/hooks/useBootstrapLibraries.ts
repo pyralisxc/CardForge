@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { loadBootstrapStyles, loadBootstrapTemplates } from '@/features/app-shell/lib/bootstrapLibraries';
+import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
 import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 
 interface UseBootstrapLibrariesInput {
@@ -31,7 +31,7 @@ export function useBootstrapLibraries({
     const loadPipelineTemplates = async () => {
       setIsLoadingTemplates(true);
       try {
-        const payload = await loadBootstrapTemplates();
+        const payload = (await loadCardForgeCatalog()).templates;
         if (cancelled) return;
         if (!Array.isArray(payload.defaults) || !Array.isArray(payload.userTemplates)) {
           throw new Error('Template library response is incomplete.');
@@ -58,7 +58,7 @@ export function useBootstrapLibraries({
 
     const loadPipelineStyles = async () => {
       try {
-        const payload = await loadBootstrapStyles() as Partial<AppearanceStyleLibrary>;
+        const payload = (await loadCardForgeCatalog()).styles as Partial<AppearanceStyleLibrary>;
         if (cancelled) return;
         if (!Array.isArray(payload.styles)) throw new Error('Style library response is incomplete.');
         setStyleLibraryFailed(false);

@@ -5,11 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
 import { createBulkDisplayCards } from '@/features/card-generator/client';
 import { CardPreview } from '@/features/card-rendering/client';
+import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
 import type { CardForgeExample } from '../model/examples';
-
-interface TemplatesPayload {
-  defaults?: TCGCardTemplate[];
-}
 
 const buildRows = (example: CardForgeExample): string[][] => {
   const headers = Array.from(new Set(example.rows.flatMap((row) => Object.keys(row))));
@@ -22,12 +19,12 @@ export function FinishedSetShowcase({ example }: { example: CardForgeExample }) 
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch('/api/templates', { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Template catalog returned ${response.status}.`);
-        return response.json() as Promise<TemplatesPayload>;
+    void loadCardForgeCatalog()
+      .then((payload) => {
+        if (!controller.signal.aborted) {
+          setTemplates(Array.isArray(payload.templates.defaults) ? payload.templates.defaults : []);
+        }
       })
-      .then((payload) => setTemplates(Array.isArray(payload.defaults) ? payload.defaults : []))
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         setLoadFailed(true);

@@ -9,6 +9,7 @@ import {
 import { upsertDeveloperProfile } from '@/features/developer-access/server';
 import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
+import { revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,7 @@ export async function POST(
       currentContributorIds: contributorIds,
       ownerDeveloperId: ownerAccess.isOwner ? user.id : null,
     });
+    revalidateCardForgeCatalog();
 
     return createNoStoreJsonResponse({
       program: projectDeveloperAssetProgramForViewer(program, {

@@ -10,11 +10,11 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 import {
   archivePipelineRegistryAsset,
   DeveloperAssetRegistryCommandError,
-  getRepositoryTemplateLibrary,
   isRepositoryTemplate,
   submitTemplateRevision,
   toRepositoryAssetFileName,
 } from '@/features/developer-assets/server';
+import { getCachedCardForgeCatalog, revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 import {
   DeveloperCockpitAccessError,
   getCurrentDeveloperCockpitAccess,
@@ -24,10 +24,7 @@ import {
 export async function GET() {
   try {
     const entitlement = await getCurrentCardforgeEntitlement();
-    return createNoStoreJsonResponse({
-      defaults: await getRepositoryTemplateLibrary(entitlement.accessMode),
-      userTemplates: [],
-    });
+    return createNoStoreJsonResponse((await getCachedCardForgeCatalog(entitlement.accessMode)).templates);
   } catch (error) {
     console.error('Failed to load template library:', error);
     return createApiErrorResponse(
@@ -81,6 +78,7 @@ export async function POST(request: Request) {
         : 0,
       submissionKey,
     });
+    revalidateCardForgeCatalog();
 
     return createNoStoreJsonResponse({
       ok: true,
@@ -139,6 +137,7 @@ export async function DELETE(request: Request) {
       );
     }
     await archivePipelineRegistryAsset(id);
+    revalidateCardForgeCatalog();
 
     return createNoStoreJsonResponse({ ok: true, fileName });
   } catch (error) {

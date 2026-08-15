@@ -13,6 +13,7 @@ import { getCurrentCardforgeUserAccess } from '@/features/account/server';
 import { getCurrentOwnerAccess } from '@/features/owner/server';
 import { createServerTimingTracker } from '@/infrastructure/http/serverTiming';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
+import { revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,6 +174,7 @@ export async function POST(request: Request) {
       previewUrl: formData.get('previewUrl'),
       file,
     });
+    revalidateCardForgeCatalog();
     return createNoStoreJsonResponse({
       program: projectDeveloperAssetProgramForViewer(program, {
         currentUserId: access.user.id,
@@ -215,6 +217,7 @@ export async function PUT(request: Request) {
       ownerUserId,
       getContributorIds(ownerUserId)
     );
+    revalidateCardForgeCatalog();
     return createNoStoreJsonResponse({ program });
   } catch (error) {
     if (error instanceof SyntaxError) {

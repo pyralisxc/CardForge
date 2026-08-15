@@ -3,12 +3,9 @@
 import { useEffect, useState } from 'react';
 
 import type { TCGCardTemplate } from '@/domain/templates';
+import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
 import { CARDFORGE_EXAMPLES } from '../model/examples';
 import { ExampleHeroProof } from './ExampleHeroProof';
-
-interface TemplatesPayload {
-  defaults?: TCGCardTemplate[];
-}
 
 export function LiveExampleGallery() {
   const [templates, setTemplates] = useState<readonly TCGCardTemplate[] | null>(null);
@@ -17,13 +14,10 @@ export function LiveExampleGallery() {
   useEffect(() => {
     const controller = new AbortController();
 
-    void fetch('/api/templates', { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Template catalog returned ${response.status}.`);
-        return response.json() as Promise<TemplatesPayload>;
-      })
+    void loadCardForgeCatalog()
       .then((payload) => {
-        setTemplates(Array.isArray(payload.defaults) ? payload.defaults : []);
+        if (controller.signal.aborted) return;
+        setTemplates(Array.isArray(payload.templates.defaults) ? payload.templates.defaults : []);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;

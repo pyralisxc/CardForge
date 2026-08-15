@@ -74,7 +74,7 @@ describe('public examples', () => {
     const heroProof = readSource('src/features/public-site/components/ExampleHeroProof.tsx');
     const model = readSource('src/features/public-site/model/examples.ts');
 
-    expect(liveGallery).toContain("fetch('/api/templates'");
+    expect(liveGallery).toContain('loadCardForgeCatalog');
     expect(liveGallery).toMatch(/live card rendering is temporarily unavailable/i);
     expect(liveGallery).not.toContain('ExampleSetGallery');
     expect(heroProof).toContain("from '@/features/card-rendering/client'");
