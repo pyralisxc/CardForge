@@ -34,4 +34,12 @@ describe('CardForge Studio plugin', () => {
     expect(route).toContain("getDeveloperCockpitAccessForUserId");
     expect(route).toContain("acceptsToken: 'oauth_token'");
   });
+
+  it('routes Studio document links through sign-in and preserves the exact draft destination', () => {
+    const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
+
+    expect(route).toContain('const studioDocumentPath');
+    expect(route).toContain('/sign-in?redirect_url=');
+    expect(route).toContain('openInStudioUrl: authenticatedStudioUrl(document.id)');
+  });
 });
