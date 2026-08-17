@@ -3,7 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { shouldRunClerkMiddlewareForRequest } from './clerk';
 
-const clerkHandler = clerkMiddleware();
+const clerkHandler = clerkMiddleware({
+  frontendApiProxy: {
+    enabled: true,
+  },
+});
 
 export const cardforgeMiddleware = (
   request: NextRequest,
