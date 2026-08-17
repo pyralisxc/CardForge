@@ -77,6 +77,10 @@ const publicOrigin = () => (
 );
 
 const absoluteUrl = (path: string) => `${publicOrigin()}${path}`;
+const studioDocumentPath = (documentId: string) => `/studio?document=${encodeURIComponent(documentId)}`;
+const authenticatedStudioUrl = (documentId: string) => absoluteUrl(
+  `/sign-in?redirect_url=${encodeURIComponent(studioDocumentPath(documentId))}`,
+);
 
 const omitEmbeddedMediaForChat = (value: unknown): unknown => {
   if (typeof value === 'string') {
@@ -156,7 +160,7 @@ const handler = createMcpHandler(
               createdAt: document.createdAt,
               updatedAt: document.updatedAt,
             },
-            openInStudioUrl: absoluteUrl(`/studio?document=${encodeURIComponent(document.id)}`),
+            openInStudioUrl: authenticatedStudioUrl(document.id),
           };
           return {
             content: [{ type: 'text', text: `Created "${document.title}" as a private editable Studio Template.` }],
@@ -211,7 +215,7 @@ const handler = createMcpHandler(
           const document = await getDeveloperTemplateDraft(access, documentId);
           const result = {
             document: omitEmbeddedMediaForChat(document),
-            openInStudioUrl: absoluteUrl(`/studio?document=${encodeURIComponent(document.id)}`),
+            openInStudioUrl: authenticatedStudioUrl(document.id),
           };
           return {
             content: [{ type: 'text', text: JSON.stringify(result) }],
