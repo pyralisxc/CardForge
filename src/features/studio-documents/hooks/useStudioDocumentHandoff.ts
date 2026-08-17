@@ -57,6 +57,7 @@ export function useStudioDocumentHandoff({
   toast,
 }: StudioDocumentHandoffOptions) {
   const handledDocumentIdRef = useRef<string | null>(null);
+  const signInPromptedDocumentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isAccountLoading || !isStudioReady) return;
@@ -65,13 +66,16 @@ export function useStudioDocumentHandoff({
     if (!documentId || handledDocumentIdRef.current === documentId) return;
 
     if (!isSignedIn) {
-      toast({
-        title: 'Sign in to open this draft',
-        description: 'Account Studio documents are private to the account that created them.',
-        variant: 'destructive',
-      });
+      if (signInPromptedDocumentIdRef.current !== documentId) {
+        signInPromptedDocumentIdRef.current = documentId;
+        toast({
+          title: 'Sign in to open this draft',
+          description: 'Use the Studio Sign in button above. This private draft will stay pending and open automatically after your CardForge account connects.',
+        });
+      }
       return;
     }
+    signInPromptedDocumentIdRef.current = null;
     handledDocumentIdRef.current = documentId;
 
     let cancelled = false;
