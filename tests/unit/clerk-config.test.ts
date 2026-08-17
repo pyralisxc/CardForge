@@ -34,15 +34,13 @@ describe('Clerk middleware route selection', () => {
     expect(shouldRunClerkMiddlewareForRequest('/sign-in/sso-callback', 'GET')).toBe(true);
   });
 
-  it('proxies Clerk Frontend API requests through the existing /__clerk middleware path', () => {
-    expect(shouldRunClerkMiddlewareForRequest('/__clerk/v1/environment', 'GET')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/__clerk/v1/client', 'GET')).toBe(true);
-
+  it('keeps the established Clerk middleware flow without an unconfigured Frontend API proxy', () => {
     const middleware = readFileSync(
       resolve(process.cwd(), 'src/infrastructure/auth/middleware.ts'),
       'utf8',
     );
-    expect(middleware).toContain('frontendApiProxy');
-    expect(middleware).toContain('enabled: true');
+
+    expect(middleware).toContain('clerkMiddleware()');
+    expect(middleware).not.toContain('frontendApiProxy');
   });
 });
