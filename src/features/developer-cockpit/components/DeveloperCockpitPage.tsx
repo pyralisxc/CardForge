@@ -20,10 +20,12 @@ import {
   type DeveloperCockpitView,
   loadDeveloperCockpit,
 } from '@/features/developer-cockpit/client/api';
-import { isCampaignActionable } from '@/features/developer-cockpit/client/campaignWorkflow';
-import { DeveloperCampaignPanel } from '@/features/developer-cockpit/components/DeveloperCampaignPanel';
-import { DeveloperCampaignMediaLibrary } from '@/features/developer-cockpit/components/DeveloperCampaignMediaLibrary';
 import { DeveloperSiteProposalPanel } from '@/features/developer-cockpit/components/DeveloperSiteProposalPanel';
+import {
+  DeveloperCampaignMediaLibrary,
+  DeveloperCampaignPanel,
+} from '@/features/marketing-content/client';
+import { isCampaignActionable } from '@/features/marketing-content/client/campaignWorkflow';
 
 const tabClassName = 'min-h-11 rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]';
 const cockpitTabs: ReadonlyArray<{ value: string; label: string; ownerOnly?: boolean }> = [
@@ -157,8 +159,8 @@ export function DeveloperCockpitPage() {
           </TabsContent>
 
           <TabsContent value="library" className="mt-3"><DeveloperAssetHubPanel compact /></TabsContent>
-          <TabsContent value="campaigns" className="mt-3"><DeveloperCampaignPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>
-          {cockpit.isOwner ? <TabsContent value="campaign-media" className="mt-3"><DeveloperCampaignMediaLibrary media={cockpit.campaignMedia} pageInfo={cockpit.campaignMediaPage} summary={cockpit.campaignMediaSummary} onChange={setCockpit} /></TabsContent> : null}
+          <TabsContent value="campaigns" className="mt-3"><DeveloperCampaignPanel cockpit={cockpit} onRefresh={load} /></TabsContent>
+          {cockpit.isOwner ? <TabsContent value="campaign-media" className="mt-3"><DeveloperCampaignMediaLibrary media={cockpit.campaignMedia} pageInfo={cockpit.campaignMediaPage} summary={cockpit.campaignMediaSummary} onRefresh={load} /></TabsContent> : null}
           <TabsContent value="site" className="mt-3"><DeveloperSiteProposalPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>
           <TabsContent value="standards" className="mt-3">
             <section className="border border-[#5f4526] bg-[#15100a] p-5">

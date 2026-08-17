@@ -1,5 +1,5 @@
-import type { CampaignMedia, CampaignMediaLibrarySummary } from '@/features/developer-cockpit/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
+import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { CampaignMedia, CampaignMediaLibrarySummary } from '@/features/marketing-content/model';
 
 import {
   DERIVATIVE_COLUMNS,

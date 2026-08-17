@@ -15,19 +15,17 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buildOrganicCampaignUrl } from "@/features/analytics/model";
-import {
-  loadDeveloperCockpit,
-  type DeveloperCockpitView,
-} from "@/features/developer-cockpit/client/api";
+import { buildOrganicCampaignUrl } from "@/features/analytics/client";
 import {
   DeveloperCampaignMediaLibrary,
   DeveloperCampaignPanel,
-} from "@/features/developer-cockpit/client/owner";
+  loadMarketingContentWorkspace,
+  type MarketingContentWorkspaceView,
+} from "@/features/marketing-content/client";
 import {
   loadMarketingCommandCenter,
   runMarketingCommand,
-} from "@/features/marketing/client/api";
+} from "@/features/marketing/client";
 import {
   MARKETING_AUDIENCES,
   MARKETING_CONTENT_PILLARS,
@@ -37,7 +35,7 @@ import {
   type MarketingCommandCenterView,
   type MarketingDestination,
   type MarketingStrategyRecord,
-} from "@/features/marketing/model";
+} from "@/features/marketing/client";
 
 const fieldClassName =
   "min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]";
@@ -52,7 +50,7 @@ export function OwnerMarketingPanel({
   const [marketing, setMarketing] = useState<MarketingCommandCenterView | null>(
     null,
   );
-  const [cockpit, setCockpit] = useState<DeveloperCockpitView | null>(null);
+  const [cockpit, setCockpit] = useState<MarketingContentWorkspaceView | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice] = useState(initialNotice);
   const [error, setError] = useState("");
@@ -63,7 +61,7 @@ export function OwnerMarketingPanel({
     try {
       const [nextMarketing, nextCockpit] = await Promise.all([
         loadMarketingCommandCenter(),
-        loadDeveloperCockpit(),
+        loadMarketingContentWorkspace(),
       ]);
       setMarketing(nextMarketing);
       setCockpit(nextCockpit);
@@ -238,7 +236,7 @@ export function OwnerMarketingPanel({
           />
         </TabsContent>
         <TabsContent value="content" className="mt-0">
-          <DeveloperCampaignPanel cockpit={cockpit} onChange={setCockpit} />
+          <DeveloperCampaignPanel cockpit={cockpit} onRefresh={load} />
         </TabsContent>
         <TabsContent value="distribution" className="mt-0">
           <DistributionEditor
@@ -256,7 +254,7 @@ export function OwnerMarketingPanel({
             media={cockpit.campaignMedia}
             pageInfo={cockpit.campaignMediaPage}
             summary={cockpit.campaignMediaSummary}
-            onChange={setCockpit}
+            onRefresh={load}
           />
         </TabsContent>
         <TabsContent value="results" className="mt-0">
@@ -601,7 +599,7 @@ function DistributionEditor({
   onError,
 }: {
   marketing: MarketingCommandCenterView;
-  cockpit: DeveloperCockpitView;
+  cockpit: MarketingContentWorkspaceView;
   onSaved: () => void;
   onError: (message: string) => void;
 }) {
@@ -920,8 +918,8 @@ function ManualDeliveryRow({
   onSaved,
   onError,
 }: {
-  job: DeveloperCockpitView["publishJobs"][number];
-  content: DeveloperCockpitView["campaigns"][number] | undefined;
+  job: MarketingContentWorkspaceView["publishJobs"][number];
+  content: MarketingContentWorkspaceView["campaigns"][number] | undefined;
   destination: MarketingDestination | undefined;
   campaign: MarketingCampaign | undefined;
   onSaved: () => void;
@@ -1099,7 +1097,7 @@ function ResultsPanel({
   cockpit,
 }: {
   marketing: MarketingCommandCenterView;
-  cockpit: DeveloperCockpitView;
+  cockpit: MarketingContentWorkspaceView;
 }) {
   const published = cockpit.publishJobs.filter(
     (job) => job.status === "published",

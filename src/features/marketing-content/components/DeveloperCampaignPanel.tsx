@@ -5,26 +5,27 @@ import { Megaphone, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
-  loadDeveloperCockpit,
-  mutateCampaign,
-  type DeveloperCockpitView,
-} from '@/features/developer-cockpit/client/api';
+  mutateMarketingContent,
+} from '@/features/marketing-content/client/api';
 import {
   createEmptyCampaignDraft,
   DeveloperCampaignComposer,
   getCampaignPayload,
   toCampaignDraft,
   type CampaignDraft,
-} from '@/features/developer-cockpit/components/DeveloperCampaignComposer';
-import { DeveloperCampaignQueue } from '@/features/developer-cockpit/components/DeveloperCampaignQueue';
-import type { SocialCampaign } from '@/features/developer-cockpit/model';
+} from '@/features/marketing-content/components/DeveloperCampaignComposer';
+import { DeveloperCampaignQueue } from '@/features/marketing-content/components/DeveloperCampaignQueue';
+import type {
+  MarketingContentWorkspaceView,
+  MarketingContentPackage as SocialCampaign,
+} from '@/features/marketing-content/model';
 
 export function DeveloperCampaignPanel({
   cockpit,
-  onChange,
+  onRefresh,
 }: {
-  cockpit: DeveloperCockpitView;
-  onChange: (cockpit: DeveloperCockpitView) => void;
+  cockpit: MarketingContentWorkspaceView;
+  onRefresh: () => Promise<void> | void;
 }) {
   const canDraft = cockpit.scopes.includes('campaigns.draft');
   const [showComposer, setShowComposer] = useState(false);
@@ -60,14 +61,14 @@ export function DeveloperCampaignPanel({
     try {
       const payload = getCampaignPayload(draft);
       await (editing
-        ? mutateCampaign('PATCH', {
+        ? mutateMarketingContent('PATCH', {
           action: 'save',
           campaignId: editing.id,
           expectedVersion: editing.version,
           campaign: payload,
         })
-        : mutateCampaign('POST', payload));
-      onChange(await loadDeveloperCockpit());
+        : mutateMarketingContent('POST', payload));
+      await onRefresh();
       setMessage(editing ? 'Campaign changes saved.' : 'Campaign draft created.');
       resetComposer();
     } catch (nextError) {
@@ -137,7 +138,7 @@ export function DeveloperCampaignPanel({
 
       <DeveloperCampaignQueue
         cockpit={cockpit}
-        onChange={onChange}
+        onRefresh={onRefresh}
         onEdit={editCampaign}
         onMessage={setMessage}
         onError={showError}

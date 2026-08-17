@@ -1,10 +1,14 @@
-import { buildOrganicCampaignUrl } from '@/features/analytics/model';
-import { getCampaignRecord } from '@/features/developer-cockpit/server/storeShared';
-import { getPublicCampaignMediaUrl } from '@/features/developer-cockpit/server/media';
-import { decryptMarketingToken } from '@/features/social-publishing/server/marketingTokenCrypto';
-import { getMetaConfiguration } from '@/features/social-publishing/server/metaConnection';
-import { publishToMeta } from '@/features/social-publishing/server/metaPublisher';
+import { buildOrganicCampaignUrl } from '@/features/analytics/server';
+import {
+  getMarketingContentPackage,
+  getPublicCampaignMediaUrl,
+} from '@/features/marketing-content/server';
+import {
+  publishToMeta,
+} from '@/features/social-publishing/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
+import { decryptMarketingToken } from './marketingTokenCrypto';
+import { getMetaConfiguration } from './metaConnection';
 
 type ClaimedDelivery = {
   id: string;
@@ -74,7 +78,7 @@ const dispatchOne = async (delivery: ClaimedDelivery) => {
     .limit(1);
   const connection = connectionData?.[0] as ConnectionSecretRow | undefined;
   if (connectionError || !connection || connection.status !== 'active') throw new Error('The Meta connection must be reconnected.');
-  const content = await getCampaignRecord(delivery.campaign_id);
+  const content = await getMarketingContentPackage(delivery.campaign_id);
   const variant = content.variants.find((item) => item.service === delivery.service);
   if (!variant) throw new Error('The approved content does not include this destination channel.');
   const { data: campaignData, error: campaignError } = await database

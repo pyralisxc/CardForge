@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   decryptMarketingToken,
   encryptMarketingToken,
-} from '@/features/social-publishing/server/marketingTokenCrypto';
-import { buildMetaAuthorizationUrl } from '@/features/social-publishing/server/metaConnection';
+} from '@/features/marketing-distribution/server/marketingTokenCrypto';
+import { buildMetaAuthorizationUrl } from '@/features/marketing-distribution/server/metaConnection';
 import { publishToMeta } from '@/features/social-publishing/server/metaPublisher';
 
 const key = Buffer.alloc(32, 7).toString('base64');

@@ -1,4 +1,4 @@
-import { encryptMarketingToken } from '@/features/social-publishing/server/marketingTokenCrypto';
+import { encryptMarketingToken } from './marketingTokenCrypto';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 

@@ -1,9 +1,9 @@
 import type {
-  SocialCampaign,
-  SocialCampaignStatus,
-  SocialCampaignVariant,
-  SocialPublishJobStatus,
-} from '@/features/developer-cockpit/model';
+  MarketingContentPackage as SocialCampaign,
+  MarketingContentStatus as SocialCampaignStatus,
+  MarketingChannelVariant as SocialCampaignVariant,
+  MarketingDeliveryStatus as SocialPublishJobStatus,
+} from '@/features/marketing-content/model';
 
 export type CampaignQueueFilter =
   | 'needs_action'

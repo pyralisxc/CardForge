@@ -5,7 +5,7 @@ import {
   CAMPAIGN_FIELD_LIMITS,
   type CampaignAssociationKind,
   type CampaignDevelopmentAssociation,
-} from '@/features/developer-cockpit/model';
+} from '@/features/marketing-content/model';
 
 const ASSOCIATION_LABELS: Record<CampaignAssociationKind, string> = {
   pull_request: 'GitHub PR',

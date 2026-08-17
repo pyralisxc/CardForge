@@ -9,8 +9,7 @@ import type {
   CampaignMedia,
   CampaignMediaPageSummary,
   CampaignMediaLibrarySummary,
-  DeveloperCockpitView,
-} from '@/features/developer-cockpit/model';
+} from '@/features/marketing-content/model';
 
 const bytes = (value: number) => (
   value < 1024 * 1024
@@ -30,12 +29,12 @@ export function DeveloperCampaignMediaLibrary({
   media,
   pageInfo,
   summary,
-  onChange,
+  onRefresh,
 }: {
   media: CampaignMedia[];
   pageInfo: CampaignMediaPageSummary;
   summary: CampaignMediaLibrarySummary;
-  onChange: (cockpit: DeveloperCockpitView) => void;
+  onRefresh: () => Promise<void> | void;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -98,14 +97,14 @@ export function DeveloperCampaignMediaLibrary({
         body: JSON.stringify(body),
       });
       const payload = await response.json().catch(() => null) as {
-        cockpit?: DeveloperCockpitView;
+        cockpit?: unknown;
         message?: string;
         error?: { message?: string };
       } | null;
       if (!response.ok || !payload?.cockpit) {
         throw new Error(payload?.error?.message || payload?.message || 'Unable to update campaign media.');
       }
-      onChange(payload.cockpit);
+      await onRefresh();
       setReloadKey((value) => value + 1);
       setMessage(method === 'DELETE'
         ? 'Campaign media and its managed files were permanently deleted.'

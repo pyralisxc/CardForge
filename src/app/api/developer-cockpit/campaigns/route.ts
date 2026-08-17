@@ -1,16 +1,18 @@
 import {
+  createDeveloperCockpitErrorResponse,
+  getCurrentDeveloperCockpitAccess,
+  requireContributionScope,
+} from '@/features/developer-cockpit/server';
+import {
   approveSocialCampaign,
   cancelSocialCampaign,
-  createDeveloperCockpitErrorResponse,
   createSocialCampaign,
-  DeveloperCockpitStoreError,
-  getCurrentDeveloperCockpitAccess,
   listSocialCampaigns,
+  MarketingContentStoreError,
   requestSocialCampaignChanges,
-  requireContributionScope,
   saveSocialCampaign,
   submitSocialCampaign,
-} from '@/features/developer-cockpit/server';
+} from '@/features/marketing-content/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
 
@@ -24,7 +26,7 @@ const consumeMutationLimit = async (userId: string) => {
     windowSeconds: 3600,
   });
   if (!rateLimit.allowed) {
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Too many campaign changes. Please try again later.',
       429,
     );
@@ -134,7 +136,7 @@ export async function PATCH(request: Request) {
       ));
     }
 
-    throw new DeveloperCockpitStoreError(
+    throw new MarketingContentStoreError(
       'Choose a supported campaign action.',
       400,
     );

@@ -4,7 +4,7 @@ import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabas
 import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import { getAnalyticsConfigurationStatus } from '@/features/analytics/server';
 import type { OwnerConnectedService } from '@/features/owner/lib/ownerConsole';
-import { getMetaConfiguration } from '@/features/social-publishing/server';
+import { getMetaConfiguration } from '@/features/marketing-distribution/server';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 
 const buildConnectedServices = ({

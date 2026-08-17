@@ -14,13 +14,13 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   CAMPAIGN_FIELD_LIMITS,
-  SOCIAL_SERVICES,
-  SOCIAL_SERVICE_LABELS,
+  MARKETING_CHANNELS as SOCIAL_SERVICES,
+  MARKETING_CHANNEL_LABELS as SOCIAL_SERVICE_LABELS,
   type CampaignMedia,
   type CampaignMediaAttachment,
-  type SocialCampaignVariant,
-  type SocialService,
-} from '@/features/developer-cockpit/model';
+  type MarketingChannelVariant as SocialCampaignVariant,
+  type MarketingChannel as SocialService,
+} from '@/features/marketing-content/model';
 
 const fieldClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]';
 

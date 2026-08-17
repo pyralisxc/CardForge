@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-export function CockpitConfirmationDialog({
+export function ConfirmationDialog({
   trigger,
   title,
   description,

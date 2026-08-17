@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
-import { connectMetaAccounts } from '@/features/social-publishing/server';
+import { connectMetaAccounts } from '@/features/marketing-distribution/server';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 export const dynamic = 'force-dynamic';

@@ -1,14 +1,14 @@
 import type {
   CampaignInput,
-  SocialCampaign,
-  SocialCampaignStatus,
-} from '@/features/developer-cockpit/model';
+  MarketingContentPackage as SocialCampaign,
+  MarketingContentStatus as SocialCampaignStatus,
+} from '@/features/marketing-content/model';
 import {
   canTransitionCampaign,
   normalizeCampaignInput,
-} from '@/features/developer-cockpit/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
-import { getAllowedCampaignActions } from '@/features/developer-cockpit/server/campaignActions';
+} from '@/features/marketing-content/model';
+import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import { getAllowedCampaignActions } from '@/features/marketing-content/server/campaignActions';
 
 import {
   cleanReviewNote,

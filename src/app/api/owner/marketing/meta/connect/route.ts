@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 
 import { getCurrentOwnerAccess } from '@/features/owner/server';
-import { buildMetaAuthorizationUrl } from '@/features/social-publishing/server';
+import { buildMetaAuthorizationUrl } from '@/features/marketing-distribution/server';
 import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';

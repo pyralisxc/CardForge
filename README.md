@@ -74,9 +74,11 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/features/developer-access/`: the single owner of developer identity, profile status, contribution grants, and every runtime access to the `cardforge_developer_profiles` persistence boundary.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, Studio destination map, voting/review UI, and shared-library submissions including fonts.
 - `src/features/developer-program/`: public developer-program recruitment and explanation.
-- `src/features/marketing/`: owner-controlled strategy, campaign containers, content intent, destinations, community rules, and the native delivery queue.
-- `src/features/developer-cockpit/`: protected contributor composition, canonical campaign media/derivatives/attachments, individual content packages, site-copy proposals, and durable review history.
-- `src/features/social-publishing/`: server-only publishing adapters and encrypted connection handling. Meta owns account authorization; CardForge owns approval, scheduling, and delivery history.
+- `src/features/marketing/`: owner-controlled strategy, campaign containers, offers, and claims guardrails.
+- `src/features/marketing-content/`: reusable content packages, channel variants, canonical media, contributor workflow, review, and approval.
+- `src/features/marketing-distribution/`: destination rules, encrypted connections, schedules, delivery jobs, retries, and provider-post records.
+- `src/features/developer-cockpit/`: protected contributor workspace composition and site-copy proposal workflow.
+- `src/features/social-publishing/`: stateless server-only provider adapters. Meta owns external authorization and provider posts; CardForge distribution owns encrypted connections and delivery history.
 - `src/features/analytics/`: the single consent boundary, safe allow-listed event contract, and owner-only composition of provider-owned GA4, PostHog, and Search Console reports. Session replay is not used.
 - `src/features/experience-settings/`: owner-controlled launch policy for portable project-file access and analytics-consent presentation, with one cached public projection.
 - `src/features/owner/`: Owner authorization, integration/database health, consolidated Clerk/developer people projection, append-only owner activity, and lazy composition of feature-owned operational controls.

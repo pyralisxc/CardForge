@@ -1,5 +1,5 @@
-import type { SocialCampaign } from '@/features/developer-cockpit/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
+import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { MarketingContentPackage as SocialCampaign } from '@/features/marketing-content/model';
 
 export const getAllowedCampaignActions = (
   campaign: SocialCampaign,

@@ -4,31 +4,32 @@ import { useMemo, useState } from 'react';
 import { Search, Send, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { loadDeveloperCockpit, mutateCampaign, type DeveloperCockpitView } from '@/features/developer-cockpit/client/api';
+import { mutateMarketingContent } from '@/features/marketing-content/client/api';
 import {
   getCampaignStatusGuidance,
   getCampaignStatusLabel,
   matchesCampaignQueueFilter,
   type CampaignQueueFilter,
-} from '@/features/developer-cockpit/client/campaignWorkflow';
-import { CockpitConfirmationDialog } from '@/features/developer-cockpit/components/CockpitConfirmationDialog';
-import { DeveloperCampaignPackageDetails } from '@/features/developer-cockpit/components/DeveloperCampaignPackageDetails';
+} from '@/features/marketing-content/client/campaignWorkflow';
+import { ConfirmationDialog as CockpitConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { DeveloperCampaignPackageDetails } from '@/features/marketing-content/components/DeveloperCampaignPackageDetails';
 import {
   canTransitionCampaign,
-  type SocialCampaign,
-} from '@/features/developer-cockpit/model';
+  type MarketingContentPackage as SocialCampaign,
+  type MarketingContentWorkspaceView,
+} from '@/features/marketing-content/model';
 
 const fieldClassName = 'min-h-11 w-full border border-[#5f4526] bg-[#0c0b09] px-3 py-2 text-sm text-[#ffe7ad] placeholder:text-[#6f5b3a]';
 
 export function DeveloperCampaignQueue({
   cockpit,
-  onChange,
+  onRefresh,
   onEdit,
   onMessage,
   onError,
 }: {
-  cockpit: DeveloperCockpitView;
-  onChange: (cockpit: DeveloperCockpitView) => void;
+  cockpit: MarketingContentWorkspaceView;
+  onRefresh: () => Promise<void> | void;
   onEdit: (campaign: SocialCampaign) => void;
   onMessage: (message: string) => void;
   onError: (message: string) => void;
@@ -43,7 +44,7 @@ export function DeveloperCampaignQueue({
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
 
   const jobsByCampaign = useMemo(() => {
-    const map = new Map<string, DeveloperCockpitView['publishJobs']>();
+    const map = new Map<string, MarketingContentWorkspaceView['publishJobs']>();
     cockpit.publishJobs.forEach((job) => map.set(job.campaignId, [...(map.get(job.campaignId) ?? []), job]));
     return map;
   }, [cockpit.publishJobs]);
@@ -78,7 +79,7 @@ export function DeveloperCampaignQueue({
     onError('');
     try {
       await action();
-      onChange(await loadDeveloperCockpit());
+      await onRefresh();
       onMessage(success);
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Unable to update the campaign.');
@@ -91,7 +92,7 @@ export function DeveloperCampaignQueue({
     campaign: SocialCampaign,
     action: 'submit' | 'request_changes' | 'approve' | 'cancel',
     success: string,
-  ) => run(`${action}:${campaign.id}`, success, () => mutateCampaign('PATCH', {
+  ) => run(`${action}:${campaign.id}`, success, () => mutateMarketingContent('PATCH', {
     action,
     campaignId: campaign.id,
     expectedVersion: campaign.version,

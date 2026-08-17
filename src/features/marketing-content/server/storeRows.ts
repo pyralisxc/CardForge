@@ -3,13 +3,12 @@ import type {
   CampaignMedia,
   CampaignMediaAttachment,
   CampaignMediaDerivative,
-  SiteContentProposal,
-  SocialCampaign,
-  SocialCampaignStatus,
-  SocialPublishJob,
-  SocialPublishJobStatus,
-  SocialService,
-} from '@/features/developer-cockpit/model';
+  MarketingContentPackage as SocialCampaign,
+  MarketingContentStatus as SocialCampaignStatus,
+  MarketingDelivery as SocialPublishJob,
+  MarketingDeliveryStatus as SocialPublishJobStatus,
+  MarketingChannel as SocialService,
+} from '@/features/marketing-content/model';
 
 export type CampaignRow = {
   id: string;
@@ -142,25 +141,6 @@ export type PublishJobRow = {
   updated_at: string;
 };
 
-export type SiteProposalRow = {
-  id: string;
-  contributor_id: string;
-  contributor_email: string | null;
-  contributor_name: string | null;
-  slug: SiteContentProposal['slug'];
-  base_body: string;
-  proposed_body: string;
-  rationale: string;
-  status: SiteContentProposal['status'];
-  review_note: string;
-  reviewed_by: string | null;
-  submitted_at: string | null;
-  published_at: string | null;
-  version: number;
-  created_at: string;
-  updated_at: string;
-};
-
 export const CAMPAIGN_COLUMNS = [
   'id', 'contributor_id', 'contributor_email', 'contributor_name', 'title',
   'objective', 'destination_url', 'production_note', 'variants', 'status',
@@ -203,13 +183,6 @@ export const JOB_COLUMNS = [
   'provider_post_id', 'status', 'scheduled_for', 'error_message',
   'last_checked_at', 'destination_id', 'delivery_mode', 'publication_url',
   'manual_note', 'attempt_count', 'created_at', 'updated_at',
-].join(',');
-
-export const PROPOSAL_COLUMNS = [
-  'id', 'contributor_id', 'contributor_email', 'contributor_name', 'slug',
-  'base_body', 'proposed_body', 'rationale', 'status', 'review_note',
-  'reviewed_by', 'submitted_at', 'published_at', 'version', 'created_at',
-  'updated_at',
 ].join(',');
 
 const record = (value: unknown): Record<string, unknown> => (
@@ -392,25 +365,6 @@ export const mapJobRow = (row: PublishJobRow): SocialPublishJob => ({
   publicationUrl: row.publication_url,
   manualNote: row.manual_note,
   attemptCount: row.attempt_count,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-});
-
-export const mapProposalRow = (row: SiteProposalRow): SiteContentProposal => ({
-  id: row.id,
-  contributorId: row.contributor_id,
-  contributorEmail: row.contributor_email,
-  contributorName: row.contributor_name,
-  slug: row.slug,
-  baseBody: row.base_body,
-  proposedBody: row.proposed_body,
-  rationale: row.rationale,
-  status: row.status,
-  reviewNote: row.review_note,
-  reviewedBy: row.reviewed_by,
-  submittedAt: row.submitted_at,
-  publishedAt: row.published_at,
-  version: row.version,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });

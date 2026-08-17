@@ -8,7 +8,7 @@ import {
   mutateDeveloperCockpit,
   type DeveloperCockpitView,
 } from '@/features/developer-cockpit/client/api';
-import { CockpitConfirmationDialog } from '@/features/developer-cockpit/components/CockpitConfirmationDialog';
+import { ConfirmationDialog as CockpitConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import type { SiteContentProposal } from '@/features/developer-cockpit/model';
 import type { SiteContentBlockSlug } from '@/features/public-site/client';
 

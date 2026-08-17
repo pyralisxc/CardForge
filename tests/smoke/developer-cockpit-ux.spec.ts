@@ -3,10 +3,8 @@ import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 
-import type {
-  DeveloperCockpitView,
-  SocialCampaign,
-} from '@/features/developer-cockpit/model';
+import type { DeveloperCockpitView } from '@/features/developer-cockpit/model';
+import type { MarketingContentPackage as SocialCampaign } from '@/features/marketing-content/model';
 import { DEFAULT_MARKETING_STRATEGY } from '@/features/marketing/model';
 
 const READY_TIMEOUT = 120_000;

@@ -1,9 +1,9 @@
 import type {
   CampaignMedia,
-  SocialCampaign,
-  SocialPublishJob,
-} from '@/features/developer-cockpit/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
+  MarketingContentPackage as SocialCampaign,
+  MarketingDelivery as SocialPublishJob,
+} from '@/features/marketing-content/model';
+import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 import {

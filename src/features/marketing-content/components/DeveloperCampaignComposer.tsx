@@ -10,22 +10,22 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { uploadCampaignMedia } from '@/features/developer-cockpit/client/api';
-import { getCampaignPackageReadiness } from '@/features/developer-cockpit/client/campaignWorkflow';
-import { CampaignAssociationEditor } from '@/features/developer-cockpit/components/CampaignAssociationEditor';
+import { uploadCampaignMedia } from '@/features/marketing-content/client/api';
+import { getCampaignPackageReadiness } from '@/features/marketing-content/client/campaignWorkflow';
+import { CampaignAssociationEditor } from '@/features/marketing-content/components/CampaignAssociationEditor';
 import {
   CampaignMediaIngestFields,
   createCampaignMediaIngestDraft,
   type CampaignMediaIngestDraft,
-} from '@/features/developer-cockpit/components/CampaignMediaIngestFields';
-import { CampaignVariantEditor } from '@/features/developer-cockpit/components/CampaignVariantEditor';
+} from '@/features/marketing-content/components/CampaignMediaIngestFields';
+import { CampaignVariantEditor } from '@/features/marketing-content/components/CampaignVariantEditor';
 import {
   CAMPAIGN_FIELD_LIMITS,
-  SOCIAL_SERVICES,
+  MARKETING_CHANNELS as SOCIAL_SERVICES,
   type CampaignMedia,
-  type SocialCampaign,
-  type SocialCampaignVariant,
-} from '@/features/developer-cockpit/model';
+  type MarketingContentPackage as SocialCampaign,
+  type MarketingChannelVariant as SocialCampaignVariant,
+} from '@/features/marketing-content/model';
 import {
   MARKETING_AUDIENCES,
   MARKETING_CONTENT_KINDS,
@@ -33,7 +33,7 @@ import {
   MARKETING_FUNNEL_STAGES,
   type MarketingCampaign,
   type MarketingStrategy,
-} from '@/features/marketing/model';
+} from '@/domain/marketing';
 
 export type CampaignDraft = {
   idempotencyKey: string;

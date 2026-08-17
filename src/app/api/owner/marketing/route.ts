@@ -1,11 +1,14 @@
 import { getCurrentOwnerAccess, recordOwnerActivity } from '@/features/owner/server';
 import {
   completeManualMarketingDelivery,
+  MarketingDistributionStoreError,
+  queueMarketingDelivery,
+  saveMarketingDestination,
+} from '@/features/marketing-distribution/server';
+import {
   getMarketingCommandCenterView,
   MarketingStoreError,
-  queueMarketingDelivery,
   saveMarketingCampaign,
-  saveMarketingDestination,
   updateMarketingStrategy,
 } from '@/features/marketing/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
@@ -22,6 +25,9 @@ const errorResponse = (error: unknown) => {
     return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
   }
   if (error instanceof MarketingStoreError) {
+    return createApiErrorResponse(error.status, 'marketing_command_failed', error.message);
+  }
+  if (error instanceof MarketingDistributionStoreError) {
     return createApiErrorResponse(error.status, 'marketing_command_failed', error.message);
   }
   console.error('Marketing command center request failed:', error);

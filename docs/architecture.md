@@ -52,7 +52,7 @@ CardForge has three storage lanes:
 - `src/app/api/billing/*`: Stripe status, checkout, portal, and webhook.
 - `src/app/api/owner/*`: owner console, billing, account, and email operations.
 - `src/app/api/developer-assets/*`: developer pipeline read/write/vote/upload.
-- `src/app/api/developer-cockpit/*`: scoped campaign/site proposal/media operations plus owner-only provider and scope mutations.
+- `src/app/api/developer-cockpit/*`: contributor-facing HTTP routes that delegate content/media work to `marketing-content`, site-copy proposals to `developer-cockpit`, and authorization to `developer-access`.
 - `src/app/api/catalog`: canonical versioned runtime catalog. The GET sides of `assets`, `fonts`, `templates`, and `styles` are compatibility projections; template/style mutations remain on their focused routes.
 
 API route files own HTTP configuration and delegation. Provider or product workflows live under their feature server owner; for example, Stripe webhook processing and owner reconciliation live under `src/features/billing/server`.
@@ -76,9 +76,11 @@ API route files own HTTP configuration and delegation. Provider or product workf
 - `src/features/developer-access`: the single developer identity and authorization owner. It owns profile status, contribution-scope resolution, owner grant mutations, and every runtime access to `cardforge_developer_profiles`.
 - `src/features/developer-assets`: developer submission/voting UI, reviewed asset registry, pipeline taxonomy, fonts, and owner asset-program controls. `developerAssetProgram.ts` owns contracts/normalization/row mapping, `developerAssetProgramView.ts` owns the pure view projection, `developerAssetProjections.ts` owns paged/aggregate reads, and `developerAssetStore.ts` owns commands plus program composition.
 - `src/features/developer-program`: public developer-program recruitment and explanation.
-- `src/features/marketing`: owner-controlled positioning, markets, campaign containers, claims guardrails, owned/community destinations, and provider-neutral delivery scheduling.
-- `src/features/developer-cockpit`: protected contributor composition, CardForge-owned content/site proposal ledgers, media approval, and workflow state transitions. Every content package belongs to one marketing campaign.
-- `src/features/social-publishing`: server-only provider boundary, authenticated token encryption, Meta OAuth, and Facebook/Instagram publishing adapters. Meta owns account authorization; CardForge owns content, approval, scheduling, retry state, source media, and provider-post mappings.
+- `src/features/marketing`: owner-controlled positioning, markets, campaign containers, offers, and claims guardrails. It owns why CardForge communicates and which campaign a content package serves; it does not own content production or delivery execution.
+- `src/features/marketing-content`: channel-ready content packages, variants, canonical campaign media, derivatives, attachments, production associations, contributor attribution, review, approval, and content lifecycle. Owners, developers, and future agents enter through the same public content interfaces.
+- `src/features/marketing-distribution`: owned/community destinations, encrypted provider connections, provider-neutral scheduling, manual delivery records, retries, idempotent dispatch, and provider-post mappings.
+- `src/features/developer-cockpit`: protected contributor composition and site-copy proposals. It composes developer access, marketing strategy, marketing content, distribution state, public-site proposals, and developer assets without owning those product domains.
+- `src/features/social-publishing`: stateless external-provider publishing adapters. Meta owns account authorization and provider posts; CardForge distribution owns credentials, destinations, delivery state, scheduling, and retries.
 - `src/features/analytics`: one explicit-consent boundary for privacy-minimized GA4 acquisition, anonymous allow-listed PostHog interactions, organic UTM policy, and server-only read access to GA4, PostHog, and Search Console. Providers own measurement records; CardForge does not duplicate raw analytics in Supabase.
 - `src/features/experience-settings`: the single owner of launch-time experience policy, its owner-only mutation, and its sanitized cached public projection. It currently controls portable project-file access and analytics-consent presentation.
 - `src/features/owner`: owner authorization, integration/database health, the external-provider inventory, and lazy operational panel composition. The inventory explains and links provider ownership without becoming a second configuration system. Business identity, account administration, billing, and public content remain owned by their product features.
@@ -136,9 +138,11 @@ The current developer pipeline is operational infrastructure, not an active payo
 
 - `developer-access` owns developer identity, active/inactive status, scope resolution, and owner-managed contribution grants.
 - `developer-assets` retains the existing asset submission, peer voting, publishing, archive, and recovery lifecycle.
-- `marketing` owns strategy, campaign grouping, approved claims, distribution destinations, community participation rules, and the delivery queue.
-- `developer-cockpit` owns individual marketing content packages, canonical campaign media, derivatives, attachments, production associations, and site-copy proposals, including contributor attribution, versions, review notes, and owner decisions.
-- `social-publishing` owns provider protocols and encrypted connection material. Native Meta mutations require owner approval plus `CARDFORGE_META_PUBLISHING_ENABLED=true`; raw tokens never enter client DTOs.
+- `marketing` owns strategy, campaign grouping, offers, and approved/prohibited claims.
+- `marketing-content` owns individual content packages, channel variants, canonical media, derivatives, attachments, production associations, contributor attribution, versions, review notes, and owner decisions.
+- `marketing-distribution` owns destination rules, encrypted connection material, delivery jobs, schedules, retries, manual-publication records, and provider-post mappings. Native Meta mutations require owner approval plus `CARDFORGE_META_PUBLISHING_ENABLED=true`; raw tokens never enter client DTOs.
+- `social-publishing` owns provider protocol adapters and contains no persisted campaign, connection, destination, or delivery state.
+- `developer-cockpit` owns only the protected contributor workspace and site-copy proposal workflow; it composes the other owners through public interfaces.
 
 Non-owner developers never gain approval, site publication, provider configuration, or scheduling powers. New campaign/site scopes default false in Supabase and are additionally hidden behind `CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED`.
 
@@ -148,7 +152,7 @@ The Owner Console People directory is the single human-facing composition of Cle
 
 Campaign media has one canonical CardForge UUID. Ingestion retains an immutable protected original and a protected normalized WebP master; storage bucket/object references stay server-only. Campaign JSON retains only channel copy. Relational attachments reference media IDs and own display order, contextual alt text, crop intent, caption overrides, and an optional chosen derivative. Media owns intrinsic metadata, content hash, rights/credit, focal point, lifecycle, and its approved derivatives. A public URL is delivery output, never application identity.
 
-Owner approval creates or reuses the deterministic 1080×1350 JPEG provider derivative for each media ID, records it before exposure, and is retry-safe. The protected normalized WebP master never goes to a publishing provider. `social-publishing` resolves an approved derivative server-side only when the separately gated owner delivery flow is enabled.
+Owner approval creates or reuses the deterministic 1080×1350 JPEG provider derivative for each media ID, records it before exposure, and is retry-safe. The protected normalized WebP master never goes to a publishing provider. `marketing-distribution` resolves approved content media through `marketing-content`, then hands provider-safe payloads to `social-publishing` only when the separately gated owner delivery flow is enabled.
 
 Campaigns use the durable lifecycle:
 

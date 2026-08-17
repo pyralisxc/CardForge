@@ -22,7 +22,7 @@ describe('Owner Console composition', () => {
       ['src', 'features', 'owner', 'components', 'OwnerPeoplePanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerInboxPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerSiteConfigurationPanel.tsx'],
-      ['src', 'features', 'owner', 'components', 'OwnerMarketingPanel.tsx'],
+      ['src', 'features', 'marketing', 'components', 'OwnerMarketingPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerGovernancePanels.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerPublicContentPanel.tsx'],
       ['src', 'features', 'owner', 'components', 'OwnerSiteMediaPanel.tsx'],

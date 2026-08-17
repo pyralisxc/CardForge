@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   canTransitionCampaign,
   normalizeCampaignInput,
-  normalizeSiteProposalInput,
-} from '@/features/developer-cockpit/model';
+} from '@/features/marketing-content/model';
+import { normalizeSiteProposalInput } from '@/features/developer-cockpit/model';
 
 const marketingContext = {
   marketingCampaignId: '33333333-3333-4333-8333-333333333333',
@@ -23,8 +23,8 @@ import {
   resolveDeveloperContributionScopes,
   shouldClearStoredDeveloperAccess,
 } from '@/features/developer-access/model';
-import { assertDerivativeAccess } from '@/features/developer-cockpit/server/media';
-import { getVisibleCampaignDerivatives } from '@/features/developer-cockpit/server/storeShared';
+import { assertDerivativeAccess } from '@/features/marketing-content/server/media';
+import { getVisibleCampaignDerivatives } from '@/features/marketing-content/server/storeShared';
 
 describe('developer contribution cockpit', () => {
   it('keeps new contribution powers least-privilege while owners retain every approval boundary', () => {

@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 
-import { dispatchDueMarketingDeliveries } from '@/features/marketing/server';
+import { dispatchDueMarketingDeliveries } from '@/features/marketing-distribution/server';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';

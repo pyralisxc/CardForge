@@ -2,8 +2,8 @@ import {
   createDeveloperCockpitErrorResponse,
   getCurrentDeveloperCockpitAccess,
   requireContributionScope,
-  updateCampaignAssociations,
 } from '@/features/developer-cockpit/server';
+import { updateCampaignAssociations } from '@/features/marketing-content/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';

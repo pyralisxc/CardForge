@@ -4,11 +4,11 @@ import sharp from 'sharp';
 
 import {
   canTransitionCampaign,
-  type SocialCampaign,
-} from '@/features/developer-cockpit/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
-import { getAllowedCampaignActions } from '@/features/developer-cockpit/server/campaignActions';
-import { SOCIAL_PUBLIC_MEDIA_BUCKET } from '@/features/developer-cockpit/server/media';
+  type MarketingContentPackage as SocialCampaign,
+} from '@/features/marketing-content/model';
+import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import { getAllowedCampaignActions } from '@/features/marketing-content/server/campaignActions';
+import { SOCIAL_PUBLIC_MEDIA_BUCKET } from '@/features/marketing-content/server/media';
 
 import {
   cleanReviewNote,

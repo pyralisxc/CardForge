@@ -2,13 +2,13 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import sharp from 'sharp';
 
-import type { CampaignMedia } from '@/features/developer-cockpit/model';
-import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
+import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import type { CampaignMedia } from '@/features/marketing-content/model';
 import {
   getCampaignMediaForAccess,
   getCampaignMediaRecord,
   SOCIAL_SOURCE_BUCKET,
-} from '@/features/developer-cockpit/server/media';
+} from '@/features/marketing-content/server/media';
 
 import {
   DeveloperCockpitStoreError,

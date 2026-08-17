@@ -32,7 +32,7 @@ const OwnerSiteConfigurationPanel = dynamic(
   { loading: panelFallback },
 );
 const OwnerMarketingPanel = dynamic(
-  () => import('./OwnerMarketingPanel').then((module) => module.OwnerMarketingPanel),
+  () => import('@/features/marketing/client').then((module) => module.OwnerMarketingPanel),
   { loading: panelFallback },
 );
 const OwnerPublicContentPanel = dynamic(

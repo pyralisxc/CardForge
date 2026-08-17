@@ -1,4 +1,4 @@
-import { CAMPAIGN_FIELD_LIMITS } from '@/features/developer-cockpit/model';
+import { CAMPAIGN_FIELD_LIMITS } from '@/features/marketing-content/model';
 
 export type CampaignMediaIngestDraft = {
   rightsBasis: string;

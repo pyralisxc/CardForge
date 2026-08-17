@@ -2,9 +2,8 @@ import {
   DeveloperCockpitAccessError,
 } from '@/features/developer-cockpit/server/access';
 import { DeveloperAccessStoreError } from '@/features/developer-access/server';
-import {
-  DeveloperCockpitStoreError,
-} from '@/features/developer-cockpit/server/storeShared';
+import { DeveloperCockpitStoreError } from '@/features/developer-cockpit/server/storeSupport';
+import { MarketingContentStoreError } from '@/features/marketing-content/server';
 import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
 import { RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
@@ -46,6 +45,13 @@ export const createDeveloperCockpitErrorResponse = (
         : error.status === 503
           ? 'developer_cockpit_unavailable'
           : 'developer_cockpit_request_invalid',
+      error.message,
+    );
+  }
+  if (error instanceof MarketingContentStoreError) {
+    return createApiErrorResponse(
+      error.status,
+      'developer_cockpit_request_invalid',
       error.message,
     );
   }

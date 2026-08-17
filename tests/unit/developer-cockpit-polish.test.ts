@@ -8,8 +8,8 @@ import {
   getCampaignStatusLabel,
   isCampaignActionable,
   matchesCampaignQueueFilter,
-} from '@/features/developer-cockpit/client/campaignWorkflow';
-import { normalizeCampaignInput } from '@/features/developer-cockpit/model';
+} from '@/features/marketing-content/client/campaignWorkflow';
+import { normalizeCampaignInput } from '@/features/marketing-content/model';
 
 const root = process.cwd();
 const sourcePath = (...segments: string[]) => resolve(root, 'src', ...segments);
@@ -47,7 +47,7 @@ describe('developer cockpit polish contract', () => {
 
   it('exposes deliberate campaign lifecycle controls', () => {
     const queue = readFileSync(
-      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCampaignQueue.tsx'),
+      sourcePath('features', 'marketing-content', 'components', 'DeveloperCampaignQueue.tsx'),
       'utf8',
     );
 
@@ -67,14 +67,14 @@ describe('developer cockpit polish contract', () => {
       'server/storeShared.ts',
       'server/storeRows.ts',
     ];
-    const cockpitRoot = sourcePath('features', 'developer-cockpit');
+    const contentRoot = sourcePath('features', 'marketing-content');
 
     for (const path of focusedFiles) {
-      expect(() => readFileSync(resolve(cockpitRoot, path), 'utf8'), path).not.toThrow();
+      expect(() => readFileSync(resolve(contentRoot, path), 'utf8'), path).not.toThrow();
     }
 
     const composer = readFileSync(
-      resolve(cockpitRoot, 'components', 'DeveloperCampaignComposer.tsx'),
+      resolve(contentRoot, 'components', 'DeveloperCampaignComposer.tsx'),
       'utf8',
     );
     expect(composer).toContain('CampaignAssociationEditor');
@@ -84,7 +84,7 @@ describe('developer cockpit polish contract', () => {
 
   it('promotes reviewed campaign art into a provider-ready JPEG', () => {
     const approval = readFileSync(
-      sourcePath('features', 'developer-cockpit', 'server', 'mediaApproval.ts'),
+      sourcePath('features', 'marketing-content', 'server', 'mediaApproval.ts'),
       'utf8',
     );
 
@@ -160,7 +160,7 @@ describe('developer cockpit polish contract', () => {
 
   it('shows reviewers campaign proof instead of approving an image count', () => {
     const details = readFileSync(
-      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCampaignPackageDetails.tsx'),
+      sourcePath('features', 'marketing-content', 'components', 'DeveloperCampaignPackageDetails.tsx'),
       'utf8',
     );
 
@@ -201,7 +201,7 @@ describe('developer cockpit polish contract', () => {
 
   it('gives owners reversible campaign-media retirement and guarded permanent deletion', () => {
     const mediaLibrary = readFileSync(
-      sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCampaignMediaLibrary.tsx'),
+      sourcePath('features', 'marketing-content', 'components', 'DeveloperCampaignMediaLibrary.tsx'),
       'utf8',
     );
     const mediaRoute = readFileSync(

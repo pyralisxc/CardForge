@@ -2,7 +2,7 @@ import Image from 'next/image';
 import type { ReactNode } from 'react';
 import {
   getPublishJobStatusLabel,
-} from '@/features/developer-cockpit/client/campaignWorkflow';
+} from '@/features/marketing-content/client/campaignWorkflow';
 import {
   CalendarClock,
   ExternalLink,
@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 
 import {
-  SOCIAL_SERVICE_LABELS,
-  type SocialCampaign,
-  type SocialPublishJob,
-} from '@/features/developer-cockpit/model';
+  MARKETING_CHANNEL_LABELS as SOCIAL_SERVICE_LABELS,
+  type MarketingContentPackage as SocialCampaign,
+  type MarketingDelivery as SocialPublishJob,
+} from '@/features/marketing-content/model';
 
 const formatDateTime = (value: string | null) => (
   value
