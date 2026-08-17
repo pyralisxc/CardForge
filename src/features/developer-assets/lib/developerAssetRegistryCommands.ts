@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type {
   DeveloperAssetAccessTierOverride,
   DeveloperAssetStatus,
@@ -55,6 +57,39 @@ export interface TemplateRevisionResult {
   assetId: string;
 }
 
+export interface TemplatePipelineDraftResult extends Omit<TemplateRevisionResult, 'status'> {
+  status: 'draft' | 'submitted';
+}
+
+export const createNewSharedTemplateId = ({
+  developerId,
+  localTemplateId,
+  name,
+}: {
+  developerId: string;
+  localTemplateId: string;
+  name: string;
+}): string => {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'template';
+  const identity = createHash('sha256')
+    .update(`${developerId}:${localTemplateId}`)
+    .digest('hex')
+    .slice(0, 12);
+  return `community-${slug}-${identity}`;
+};
+
+interface TemplatePipelineDraftInput {
+  template: TCGCardTemplate & { id: string };
+  developerId: string;
+  developerEmail: string | null;
+  submissionKey: string;
+}
+
 export interface PurgeDeveloperAssetSubmissionInput {
   submissionId: string;
   confirmationName: string;
@@ -85,6 +120,24 @@ const throwRegistryCommandError = (message: string, errorMessage?: string): neve
 };
 
 const throwTemplateRevisionError = (errorMessage?: string): never => {
+  if (errorMessage?.includes('developer_asset_not_found')) {
+    throw new DeveloperAssetRegistryCommandError('The Template Pipeline draft was not found.', 404);
+  }
+  if (errorMessage?.includes('template_draft_owner_required')) {
+    throw new DeveloperAssetRegistryCommandError('Only the developer who created this draft can submit it.', 403);
+  }
+  if (errorMessage?.includes('template_asset_exists')) {
+    throw new DeveloperAssetRegistryCommandError('This Template already exists in the shared library. Open it as a revision instead.', 409);
+  }
+  if (errorMessage?.includes('template_draft_not_editable')) {
+    throw new DeveloperAssetRegistryCommandError('This Template is no longer an editable Pipeline draft.', 409);
+  }
+  if (errorMessage?.includes('template_draft_details_required')) {
+    throw new DeveloperAssetRegistryCommandError('Confirm the description, source rights, specialties, use case, and Studio placement before submitting.', 400);
+  }
+  if (errorMessage?.includes('invalid_template_pipeline_draft')) {
+    throw new DeveloperAssetRegistryCommandError('The Template Pipeline draft is incomplete or invalid.', 400);
+  }
   if (errorMessage?.includes('pipeline_asset_deleted_by_owner')) {
     throw new DeveloperAssetRegistryCommandError(
       'This shared template was permanently deleted by the owner and cannot accept new revisions.',
@@ -117,6 +170,102 @@ const throwDeveloperAssetPurgeError = (errorMessage?: string): never => {
     );
   }
   throw new DeveloperAssetRegistryCommandError('Unable to permanently delete this developer asset.', 500);
+};
+
+const loadTemplatePipelineResult = async (
+  submissionId: string,
+  expectedStatus: 'draft' | 'submitted',
+): Promise<TemplatePipelineDraftResult> => {
+  const supabase = requireSupabase();
+  const { data: rows, error } = await supabase
+    .from('cardforge_developer_asset_submissions')
+    .select('id,status,base_revision_number,revision_number,target_registry_asset_id')
+    .eq('id', submissionId)
+    .limit(1);
+  if (error || !rows?.[0]) {
+    throw new DeveloperAssetRegistryCommandError(
+      `The Pipeline ${expectedStatus} was saved, but its confirmation could not be loaded. Retry the same action to confirm it safely.`,
+      503,
+    );
+  }
+  const row = rows[0] as {
+    id: string;
+    status: string;
+    base_revision_number: number;
+    revision_number: number;
+    target_registry_asset_id: string;
+  };
+  if (row.status !== expectedStatus) {
+    throw new DeveloperAssetRegistryCommandError(`The Template is no longer an editable Pipeline ${expectedStatus}.`, 409);
+  }
+  return {
+    id: row.id,
+    status: expectedStatus,
+    baseRevision: row.base_revision_number,
+    revisionNumber: row.revision_number,
+    assetId: row.target_registry_asset_id,
+  };
+};
+
+export const createTemplatePipelineDraft = async ({
+  template,
+  developerId,
+  developerEmail,
+  submissionKey,
+}: TemplatePipelineDraftInput): Promise<TemplatePipelineDraftResult> => {
+  const supabase = requireSupabase();
+  const { data: submissionId, error } = await supabase.rpc('cardforge_create_template_pipeline_draft', {
+    p_asset_id: template.id,
+    p_name: template.name,
+    p_developer_id: developerId,
+    p_developer_email: developerEmail ?? '',
+    p_template_payload: {
+      ...template,
+      templateSource: 'default',
+      templateLibrarySource: 'pipeline',
+      templateRegistryStatus: 'draft',
+    },
+    p_submission_key: submissionKey,
+  });
+  if (error || !submissionId) throwTemplateRevisionError(error?.message);
+  return loadTemplatePipelineResult(String(submissionId), 'draft');
+};
+
+export const submitTemplatePipelineDraft = async ({
+  submissionId,
+  developerId,
+  name,
+  description,
+  previewUrl,
+  sourceNotes,
+  specialtyTags,
+  useCaseTags,
+  requestedStudioDestination,
+}: {
+  submissionId: string;
+  developerId: string;
+  name: string;
+  description: string;
+  previewUrl: string;
+  sourceNotes: string;
+  specialtyTags: string[];
+  useCaseTags: string[];
+  requestedStudioDestination: string;
+}): Promise<TemplatePipelineDraftResult> => {
+  const supabase = requireSupabase();
+  const { data: resultId, error } = await supabase.rpc('cardforge_submit_template_pipeline_draft', {
+    p_submission_id: submissionId,
+    p_developer_id: developerId,
+    p_name: name,
+    p_description: description,
+    p_preview_url: previewUrl,
+    p_source_notes: sourceNotes,
+    p_specialty_tags: specialtyTags,
+    p_use_case_tags: useCaseTags,
+    p_requested_studio_destination: requestedStudioDestination,
+  });
+  if (error || !resultId) throwTemplateRevisionError(error?.message);
+  return loadTemplatePipelineResult(String(resultId), 'submitted');
 };
 
 const writeTemplateRevision = async ({

@@ -3,6 +3,7 @@ import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastruct
 import { revalidateCardForgeCatalog } from '@/features/developer-assets/server/catalogCache';
 import {
   DeveloperAssetStoreError,
+  finalizeDeveloperTemplatePipelineDraft,
   permanentlyDeleteDeveloperAssetSubmission,
   projectDeveloperAssetProgramForViewer,
   updateDeveloperAssetSubmissionDetails,
@@ -52,7 +53,15 @@ export async function PATCH(
     if (!access.ok) return access.response;
 
     const { submissionId } = await params;
-    const body = await request.json() as { name?: unknown; description?: unknown; previewUrl?: unknown };
+    const body = await request.json() as {
+      name?: unknown;
+      description?: unknown;
+      previewUrl?: unknown;
+      sourceNotes?: unknown;
+      specialtyTags?: unknown;
+      useCaseTags?: unknown;
+      requestedStudioDestination?: unknown;
+    };
     const program = await updateDeveloperAssetSubmissionDetails({
       submissionId,
       developerId: access.user.id,
@@ -86,6 +95,53 @@ export async function PATCH(
       'developer_asset_request_invalid',
       'Unable to edit developer asset submission.'
     );
+  }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ submissionId: string }> }
+) {
+  try {
+    const access = await getDeveloperAccess();
+    if (!access.ok) return access.response;
+    const { submissionId } = await params;
+    const body = await request.json() as {
+      name?: unknown;
+      description?: unknown;
+      previewUrl?: unknown;
+      sourceNotes?: unknown;
+      specialtyTags?: unknown;
+      useCaseTags?: unknown;
+      requestedStudioDestination?: unknown;
+    };
+    const program = await finalizeDeveloperTemplatePipelineDraft({
+      submissionId,
+      developerId: access.user.id,
+      input: body,
+      currentContributorIds: getContributorIds(access.user.id),
+      includeRegistryRecipePayloads: access.ownerAccess.isOwner,
+    });
+    revalidateCardForgeCatalog();
+    return createNoStoreJsonResponse({
+      program: projectDeveloperAssetProgramForViewer(program, {
+        currentUserId: access.user.id,
+        isOwner: access.ownerAccess.isOwner,
+      }),
+    });
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return createApiErrorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
+    }
+    if (error instanceof DeveloperAssetStoreError) {
+      return createApiErrorResponse(
+        error.status,
+        error.status === 503 ? 'developer_asset_unavailable' : 'developer_asset_request_invalid',
+        error.message,
+      );
+    }
+    console.error('Failed to submit Template Pipeline draft:', error);
+    return createApiErrorResponse(500, 'developer_asset_request_invalid', 'Unable to submit the Template Pipeline draft.');
   }
 }
 

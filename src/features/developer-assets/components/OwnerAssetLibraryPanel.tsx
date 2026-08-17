@@ -103,8 +103,11 @@ export function OwnerAssetLibraryPanel({
   };
 
   const publishTemplateRevision = async (submission: DeveloperAssetProgramView['submissions'][number]) => {
-    const revisionLabel = submission.revisionNumber ? `revision ${submission.revisionNumber}` : 'this revision';
-    if (!window.confirm(`Publish ${revisionLabel} of “${submission.name}” to the shared CardForge Library now?`)) return;
+    const isNewTemplate = submission.baseRevisionNumber === 0;
+    const revisionLabel = isNewTemplate
+      ? 'this new Template'
+      : submission.revisionNumber ? `revision ${submission.revisionNumber}` : 'this revision';
+    if (!window.confirm(`Publish ${revisionLabel} “${submission.name}” to the shared CardForge Library now?`)) return;
     const saved = await onUpdateOverride(
       submission.id,
       {
@@ -113,7 +116,7 @@ export function OwnerAssetLibraryPanel({
         ownerNote: `Approved and published ${revisionLabel} from Owner Review.`,
       },
       {
-        title: 'Template revision published',
+        title: isNewTemplate ? 'New Template published' : 'Template revision published',
         description: `${revisionLabel[0].toUpperCase()}${revisionLabel.slice(1)} is now live in the shared CardForge Library.`,
       },
     );
@@ -146,14 +149,14 @@ export function OwnerAssetLibraryPanel({
     <div className="mt-7">
       <h3 className="font-serif text-xl text-[#fff1c7]">Visual asset library</h3>
       <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-        Pending Template revisions have a direct publication decision. Other assets follow the automatic pipeline unless you use Manage for an owner exception.
+        New Templates and revisions have a direct publication decision. Other assets follow the automatic pipeline unless you use Manage for an owner exception.
       </p>
       {program.submissionStatusCounts.submitted > 0 ? (
         <div className="mt-4 flex flex-col gap-3 border border-[#8a642f] bg-[#1b140c] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-serif text-lg text-[#ffe7ad]">Owner review queue</p>
             <p className="mt-1 text-xs leading-5 text-[#c7b288]">
-              {program.submissionStatusCounts.submitted} submitted revision{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
+              {program.submissionStatusCounts.submitted} submitted Template contribution{program.submissionStatusCounts.submitted === 1 ? '' : 's'} waiting for a publication decision.
             </p>
           </div>
           <Button
@@ -161,7 +164,7 @@ export function OwnerAssetLibraryPanel({
             className="rounded-none bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
             onClick={() => onStatusFilterChange('submitted')}
           >
-            Show pending revisions
+            Show pending Templates
           </Button>
         </div>
       ) : null}
@@ -220,6 +223,7 @@ export function OwnerAssetLibraryPanel({
           const isPendingTemplateRevision = submission.assetType === 'templates'
             && submission.revisionNumber != null
             && submission.status === 'submitted';
+          const isNewTemplateSubmission = isPendingTemplateRevision && submission.baseRevisionNumber === 0;
           return (
           <AssetRow
             key={submission.id}
@@ -293,10 +297,14 @@ export function OwnerAssetLibraryPanel({
                 onClick={() => void publishTemplateRevision(submission)}
               >
                 <CheckCircle2 className="mr-1 h-4 w-4" />
-                {updatingSubmissionId === submission.id ? 'Publishing...' : `Approve & publish revision ${submission.revisionNumber}`}
+                {updatingSubmissionId === submission.id
+                  ? 'Publishing...'
+                  : isNewTemplateSubmission
+                    ? 'Approve & publish new Template'
+                    : `Approve & publish revision ${submission.revisionNumber}`}
               </Button>
             ) : null}
-            {submission.assetType === 'templates' && (submission.registryAssetId || submission.targetRegistryAssetId) ? (
+            {submission.assetType === 'templates' && (submission.registryAssetId || (submission.baseRevisionNumber ?? 0) > 0) ? (
               <Button asChild size="sm" variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]">
                 <a href={`/studio?editTemplate=${encodeURIComponent(submission.registryAssetId ?? submission.targetRegistryAssetId!)}`}>
                   <Pencil className="mr-1 h-4 w-4" /> Edit Template

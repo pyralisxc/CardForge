@@ -46,11 +46,17 @@ const standards = [
   'Owner approval is not ceremonial: it is the only boundary that can expose media, publish site copy, or schedule social posts.',
 ];
 
-export function DeveloperCockpitPage() {
+export function DeveloperCockpitPage({
+  initialTab = 'overview',
+  initialSubmissionId = null,
+}: {
+  initialTab?: string;
+  initialSubmissionId?: string | null;
+}) {
   const [cockpit, setCockpit] = useState<DeveloperCockpitView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,7 +164,7 @@ export function DeveloperCockpitPage() {
             </section>
           </TabsContent>
 
-          <TabsContent value="library" className="mt-3"><DeveloperAssetHubPanel compact /></TabsContent>
+          <TabsContent value="library" className="mt-3"><DeveloperAssetHubPanel compact initialSubmissionId={initialSubmissionId} /></TabsContent>
           <TabsContent value="campaigns" className="mt-3"><DeveloperCampaignPanel cockpit={cockpit} onRefresh={load} /></TabsContent>
           {cockpit.isOwner ? <TabsContent value="campaign-media" className="mt-3"><DeveloperCampaignMediaLibrary media={cockpit.campaignMedia} pageInfo={cockpit.campaignMediaPage} summary={cockpit.campaignMediaSummary} onRefresh={load} /></TabsContent> : null}
           <TabsContent value="site" className="mt-3"><DeveloperSiteProposalPanel cockpit={cockpit} onChange={setCockpit} /></TabsContent>

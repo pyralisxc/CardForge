@@ -9,7 +9,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { DEVELOPER_ASSET_STATUSES, DEVELOPER_ASSET_TYPES, type DeveloperAssetAccessTier, type DeveloperAssetStatus, type DeveloperAssetType } from '@/features/developer-assets/lib/developerAssets';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
+import { normalizeContentTaxonomyTags } from '@/features/developer-assets/lib/contentTaxonomy';
+import type { StudioAssetDestination } from '@/domain/templates';
 import {
+  getDeveloperAssetStudioDestinationLabel,
+  getDeveloperAssetStudioDestinationOptions,
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
@@ -33,7 +37,13 @@ import { DeveloperAssetSubmissionPanel } from '@/features/developer-assets/compo
 
 interface DeveloperAssetsResponse { program: DeveloperAssetProgramView }
 
-export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean }) {
+export function DeveloperAssetHubPanel({
+  compact = false,
+  initialSubmissionId = null,
+}: {
+  compact?: boolean;
+  initialSubmissionId?: string | null;
+}) {
   const { toast } = useToast();
   const [program, setProgram] = useState<DeveloperAssetProgramView | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +53,12 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editPreviewUrl, setEditPreviewUrl] = useState('');
+  const [editSourceNotes, setEditSourceNotes] = useState('');
+  const [editSpecialtyTags, setEditSpecialtyTags] = useState('');
+  const [editUseCaseTags, setEditUseCaseTags] = useState('');
+  const [editRequestedStudioDestination, setEditRequestedStudioDestination] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState(initialSubmissionId ? 'pipeline' : 'submit');
   const previewSubmissions = useMemo(() => program
     ? [...program.submissions, ...program.votingQueue]
     : undefined, [program]);
@@ -69,6 +84,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
   } = useDeveloperReviewQueue(program);
   const [ownPage, setOwnPage] = useState(1);
   const hasLoadedRef = useRef(false);
+  const hasOpenedInitialSubmissionRef = useRef(false);
 
   const ownSubmissions = program?.submissions ?? [];
   const liveLibraryCount = program?.assetTypeSummaries.reduce((total, summary) => total + summary.publishedCount, 0) ?? 0;
@@ -135,20 +151,37 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
     }
   };
 
-  const beginEdit = (submission: DeveloperAssetSubmission) => {
+  const beginEdit = useCallback((submission: DeveloperAssetSubmission) => {
     setEditingSubmissionId(submission.id);
     setEditName(submission.name);
     setEditDescription(submission.description);
     setEditPreviewUrl(submission.previewUrl);
+    setEditSourceNotes(submission.sourceNotes);
+    setEditSpecialtyTags(submission.specialtyTags.join(', '));
+    setEditUseCaseTags(submission.useCaseTags.join(', '));
+    setEditRequestedStudioDestination(submission.requestedStudioDestination ?? '');
     setExpandedSubmissionId(submission.id);
-  };
+  }, []);
 
   const cancelEdit = () => {
     setEditingSubmissionId(null);
     setEditName('');
     setEditDescription('');
     setEditPreviewUrl('');
+    setEditSourceNotes('');
+    setEditSpecialtyTags('');
+    setEditUseCaseTags('');
+    setEditRequestedStudioDestination('');
   };
+
+  useEffect(() => {
+    if (!initialSubmissionId || hasOpenedInitialSubmissionRef.current || !program) return;
+    const submission = program.submissions.find((candidate) => candidate.id === initialSubmissionId);
+    if (!submission) return;
+    hasOpenedInitialSubmissionRef.current = true;
+    setActiveWorkspaceTab('pipeline');
+    beginEdit(submission);
+  }, [beginEdit, initialSubmissionId, program]);
 
   const saveEdit = async (submissionId: string) => {
     setIsEditing(true);
@@ -160,6 +193,10 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
           name: editName,
           description: editDescription,
           previewUrl: editPreviewUrl,
+          sourceNotes: editSourceNotes,
+          specialtyTags: normalizeContentTaxonomyTags(editSpecialtyTags),
+          useCaseTags: normalizeContentTaxonomyTags(editUseCaseTags),
+          requestedStudioDestination: editRequestedStudioDestination,
         }),
       });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to edit asset.'));
@@ -171,6 +208,38 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
       toast({
         title: 'Asset not updated',
         description: error instanceof Error ? error.message : 'Unable to edit asset.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const submitDraft = async (submissionId: string) => {
+    setIsEditing(true);
+    try {
+      const response = await fetch(`/api/developer-assets/${submissionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          description: editDescription,
+          previewUrl: editPreviewUrl,
+          sourceNotes: editSourceNotes,
+          specialtyTags: normalizeContentTaxonomyTags(editSpecialtyTags),
+          useCaseTags: normalizeContentTaxonomyTags(editUseCaseTags),
+          requestedStudioDestination: editRequestedStudioDestination,
+        }),
+      });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to submit Template draft.'));
+      await response.json() as DeveloperAssetsResponse;
+      await loadProgram();
+      cancelEdit();
+      toast({ title: 'Template sent for owner review', description: 'Its authored details and confirmed classification are now in the review pipeline.' });
+    } catch (error) {
+      toast({
+        title: 'Template draft not submitted',
+        description: error instanceof Error ? error.message : 'Unable to submit Template draft.',
         variant: 'destructive',
       });
     } finally {
@@ -297,7 +366,7 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
           </div>
         </div>
 
-        <Tabs defaultValue="submit" className="mt-6">
+        <Tabs value={activeWorkspaceTab} onValueChange={setActiveWorkspaceTab} className="mt-6">
           <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-none border border-[#5f4526] bg-[#100c08] p-2">
             <TabsTrigger value="submit" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Submit</TabsTrigger>
             <TabsTrigger value="voting" className="rounded-none border border-transparent px-4 py-2 text-[#c7b288] data-[state=active]:border-[#d8b365] data-[state=active]:bg-[#2a1b0d] data-[state=active]:text-[#ffe7ad]">Voting Lane</TabsTrigger>
@@ -422,12 +491,26 @@ export function DeveloperAssetHubPanel({ compact = false }: { compact?: boolean 
                         name={editName}
                         description={editDescription}
                         previewUrl={editPreviewUrl}
+                        sourceNotes={editSourceNotes}
+                        specialtyTags={editSpecialtyTags}
+                        useCaseTags={editUseCaseTags}
+                        requestedStudioDestination={editRequestedStudioDestination}
+                        destinationOptions={getDeveloperAssetStudioDestinationOptions(submission.assetType).map((destination) => ({
+                          value: destination,
+                          label: getDeveloperAssetStudioDestinationLabel(destination as StudioAssetDestination),
+                        }))}
+                        isDraft={submission.status === 'draft'}
                         isSaving={isEditing}
                         onNameChange={setEditName}
                         onDescriptionChange={setEditDescription}
                         onPreviewUrlChange={setEditPreviewUrl}
+                        onSourceNotesChange={setEditSourceNotes}
+                        onSpecialtyTagsChange={setEditSpecialtyTags}
+                        onUseCaseTagsChange={setEditUseCaseTags}
+                        onRequestedStudioDestinationChange={setEditRequestedStudioDestination}
                         onCancel={cancelEdit}
                         onSave={() => saveEdit(submission.id)}
+                        onSubmit={() => submitDraft(submission.id)}
                       />
                     ) : null}
                   >
