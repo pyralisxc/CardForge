@@ -1,2 +1,1 @@
-export * from './model';
-export * from './server/bufferPublisher';
+export * from './server/metaPublisher';

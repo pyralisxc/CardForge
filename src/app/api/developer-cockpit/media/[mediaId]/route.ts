@@ -1,14 +1,16 @@
 import {
-  assertDerivativeAccess,
-  assertMediaAccess,
   createDeveloperCockpitErrorResponse,
-  getCampaignMediaRecord,
   getCurrentDeveloperCockpitAccess,
   getDeveloperCockpitView,
-  purgeCampaignMedia,
   requireContributionScope,
-  setCampaignMediaArchived,
 } from '@/features/developer-cockpit/server';
+import {
+  assertDerivativeAccess,
+  assertMediaAccess,
+  getCampaignMediaRecord,
+  purgeCampaignMedia,
+  setCampaignMediaArchived,
+} from '@/features/marketing-content/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 

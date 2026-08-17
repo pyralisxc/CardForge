@@ -1,13 +1,15 @@
 import {
   createDeveloperCockpitErrorResponse,
-  DeveloperCockpitStoreError,
-  getAuthorizedCampaignMediaPage,
   getCurrentDeveloperCockpitAccess,
-  ingestCampaignMedia,
-  MAX_SOCIAL_MEDIA_BYTES,
   requireContributionScope,
-  validateSocialMediaFile,
 } from '@/features/developer-cockpit/server';
+import {
+  getAuthorizedCampaignMediaPage,
+  ingestCampaignMedia,
+  MarketingContentStoreError,
+  MAX_SOCIAL_MEDIA_BYTES,
+  validateSocialMediaFile,
+} from '@/features/marketing-content/server';
 import {
   createApiErrorResponse,
   createNoStoreJsonResponse,
@@ -21,7 +23,7 @@ const parseFocalPoint = (value: FormDataEntryValue | null) => {
   try {
     return JSON.parse(value) as unknown;
   } catch {
-    throw new DeveloperCockpitStoreError('Focal point metadata is invalid.', 400);
+    throw new MarketingContentStoreError('Focal point metadata is invalid.', 400);
   }
 };
 

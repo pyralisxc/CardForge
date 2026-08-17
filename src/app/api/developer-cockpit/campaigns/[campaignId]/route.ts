@@ -1,11 +1,13 @@
 import {
   createDeveloperCockpitErrorResponse,
-  DeveloperCockpitStoreError,
-  getAllowedCampaignActions,
-  getCampaignRecord,
   getCurrentDeveloperCockpitAccess,
   requireContributionScope,
 } from '@/features/developer-cockpit/server';
+import {
+  getAllowedCampaignActions,
+  getMarketingContentPackage,
+  MarketingContentStoreError,
+} from '@/features/marketing-content/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
@@ -17,9 +19,9 @@ export async function GET(
   try {
     const access = await getCurrentDeveloperCockpitAccess();
     requireContributionScope(access, 'campaigns.draft');
-    const campaign = await getCampaignRecord((await params).campaignId, access);
+    const campaign = await getMarketingContentPackage((await params).campaignId, access);
     if (!access.isOwner && campaign.contributorId !== access.user.id) {
-      throw new DeveloperCockpitStoreError('Campaign package access denied.', 403);
+      throw new MarketingContentStoreError('Marketing content access denied.', 403);
     }
     return createNoStoreJsonResponse({
       campaign,

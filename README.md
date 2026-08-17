@@ -74,8 +74,11 @@ npm run pipeline:sync-defaults            # Import missing bootstrap assets into
 - `src/features/developer-access/`: the single owner of developer identity, profile status, contribution grants, and every runtime access to the `cardforge_developer_profiles` persistence boundary.
 - `src/features/developer-assets/`: Developer Asset Hub, reviewed asset registry, Studio destination map, voting/review UI, and shared-library submissions including fonts.
 - `src/features/developer-program/`: public developer-program recruitment and explanation.
-- `src/features/developer-cockpit/`: protected cockpit composition, canonical campaign media/derivatives/attachments, production packages, site-copy proposals, and durable review/delivery ledgers.
-- `src/features/social-publishing/`: server-only publishing-provider adapters. Buffer owns channel connections, scheduling, and delivery; it does not own CardForge contribution records or media sources.
+- `src/features/marketing/`: owner-controlled strategy, campaign containers, offers, and claims guardrails.
+- `src/features/marketing-content/`: reusable content packages, channel variants, canonical media, contributor workflow, review, and approval.
+- `src/features/marketing-distribution/`: destination rules, encrypted connections, schedules, delivery jobs, retries, and provider-post records.
+- `src/features/developer-cockpit/`: protected contributor workspace composition and site-copy proposal workflow.
+- `src/features/social-publishing/`: stateless server-only provider adapters. Meta owns external authorization and provider posts; CardForge distribution owns encrypted connections and delivery history.
 - `src/features/analytics/`: the single consent boundary, safe allow-listed event contract, and owner-only composition of provider-owned GA4, PostHog, and Search Console reports. Session replay is not used.
 - `src/features/experience-settings/`: owner-controlled launch policy for portable project-file access and analytics-consent presentation, with one cached public projection.
 - `src/features/owner/`: Owner authorization, integration/database health, consolidated Clerk/developer people projection, append-only owner activity, and lazy composition of feature-owned operational controls.
@@ -136,11 +139,12 @@ The deployed CardForge site owns user-experience truth. Every release must exerc
 
 Persistent automated tests are reserved for failures that are difficult or costly to detect through normal use: permissions, billing and entitlements, destructive operations, migration/data integrity, pure rendering or export contracts, and regressions that have already occurred. A test created only to guide development should be removed or consolidated after the behavior is proven unless it protects one of those durable boundaries. Tests support the product; they do not become a second implementation of it.
 
-Extended contributor campaigns/site proposals and Buffer publishing are separate release gates. Both default off. Follow the Developer Cockpit and Buffer checklist in [docs/operations.md](docs/operations.md); never expose `BUFFER_API_KEY` to a client bundle or enable publishing before the connected-channel allowlist and production owner flow are verified.
+Extended contributor access and native Meta publishing are separate release gates. Both default off. Follow the Marketing Command Center checklist in [docs/operations.md](docs/operations.md); never expose Meta, encryption, or dispatcher secrets to a client bundle, and never enable publishing before the signed-in production owner flow and harmless post are verified.
 
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md): current product architecture and source-of-truth behavior.
+- [docs/product-direction.md](docs/product-direction.md): living Studio, Specialty, Kit, Games, print, and fulfillment direction; proposed behavior is kept separate from shipped architecture.
 - [docs/operations.md](docs/operations.md): live operations, env vars, provider checks, and launch-critical verification.
 - [docs/risk-register.md](docs/risk-register.md): unresolved and explicitly accepted operational risks.
 

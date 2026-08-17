@@ -4,7 +4,7 @@ import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabas
 import { getConfiguredPublicAppUrl, getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import { getAnalyticsConfigurationStatus } from '@/features/analytics/server';
 import type { OwnerConnectedService } from '@/features/owner/lib/ownerConsole';
-import { getBufferConfiguration } from '@/features/social-publishing/server';
+import { getMetaConfiguration } from '@/features/marketing-distribution/server';
 import { getCanonicalOwnerAccountEmail } from '@/domain/entitlements';
 
 const buildConnectedServices = ({
@@ -26,7 +26,7 @@ const buildConnectedServices = ({
   emailProviderConfigured: boolean;
   supabaseConfigured: boolean;
 }): OwnerConnectedService[] => {
-  const buffer = getBufferConfiguration();
+  const meta = getMetaConfiguration();
   const creatorPassReady = billing.productAccessConfigured && billing.webhookConfigured;
   const billingReady = creatorPassReady && billing.supportConfigured;
   const googleReportingIdentityReady = analytics.reportingConfigured && analyticsProjectIdentityVerified;
@@ -159,16 +159,16 @@ const buildConnectedServices = ({
       dashboardUrl: 'https://us.posthog.com/project/555175',
     },
     {
-      id: 'buffer',
-      name: 'Buffer',
+      id: 'meta',
+      name: 'Meta',
       category: 'Social publishing',
-      identifier: buffer.organizationId ?? 'Not connected',
-      status: buffer.configured ? (buffer.publishingEnabled ? 'ready' : 'disabled') : 'attention',
-      statusLabel: buffer.configured ? (buffer.publishingEnabled ? 'Publishing enabled' : 'Connected, publishing disabled') : 'Not connected',
-      purpose: 'May own channel connections, scheduling, retries, and delivery after the owner rollout gate is enabled.',
-      ownership: 'CardForge owns campaign media and approval history; Buffer owns only provider delivery.',
-      removalImpact: 'Provider scheduling stops; CardForge campaign packages and media remain intact.',
-      dashboardUrl: 'https://publish.buffer.com/',
+      identifier: meta.appId || 'Not configured',
+      status: meta.configured ? (meta.publishingEnabled ? 'ready' : 'disabled') : 'attention',
+      statusLabel: meta.configured ? (meta.publishingEnabled ? 'Native publishing enabled' : 'Configured, publishing disabled') : 'Needs app configuration',
+      purpose: 'Owns Facebook Page and Instagram professional-account authorization and final publication APIs.',
+      ownership: 'CardForge owns strategy, approval, scheduling, retries, and history; Meta owns the connected accounts and posts.',
+      removalImpact: 'New Facebook and Instagram publication stops; CardForge campaigns, media, schedules, and history remain intact.',
+      dashboardUrl: 'https://developers.facebook.com/apps/',
     },
     {
       id: 'github',

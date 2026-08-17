@@ -11,7 +11,7 @@ import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'CardForge Owner Console',
-  description: 'Control CardForge launch readiness, feature voting, contributor asset rules, legal pages, and account access mechanics.',
+  description: 'Control CardForge marketing, launch readiness, contributor pipelines, legal pages, and account access mechanics.',
   path: '/owner',
   index: false,
 });
@@ -19,7 +19,12 @@ export const metadata: Metadata = createPageMetadata({
 export default async function OwnerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ workspace?: string; pipelineStatus?: string }>;
+  searchParams: Promise<{
+    workspace?: string;
+    pipelineStatus?: string;
+    meta?: string;
+    message?: string;
+  }>;
 }) {
   const params = await searchParams;
   const authConfigured = isClerkServerConfigPresent();
@@ -38,8 +43,13 @@ export default async function OwnerPage({
         />
       </div>
       <OwnerConsolePage
-        initialWorkspace={params.workspace === 'library' ? 'library' : 'overview'}
+        initialWorkspace={params.workspace === 'library' || params.workspace === 'marketing' ? params.workspace : 'overview'}
         initialPipelineStatus={params.pipelineStatus === 'submitted' ? 'submitted' : 'all'}
+        initialMarketingNotice={params.meta === 'connected'
+          ? { kind: 'success', message: 'Meta accounts connected. Review the discovered destinations before enabling publishing.' }
+          : params.meta === 'error'
+            ? { kind: 'error', message: (params.message ?? 'Unable to connect Meta.').slice(0, 240) }
+            : undefined}
       />
     </CardForgeAppProviders>
   );

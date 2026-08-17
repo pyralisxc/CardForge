@@ -7,14 +7,19 @@ import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server
 import {
   cleanReviewNote,
   DeveloperCockpitStoreError,
-  mapProposalRow,
   normalizeExpectedVersion,
-  PROPOSAL_COLUMNS,
-  readFirstDatabaseRow,
   requireCockpitDatabase,
   throwCockpitDatabaseError,
+} from './storeSupport';
+import {
+  mapProposalRow,
+  PROPOSAL_COLUMNS,
   type SiteProposalRow,
-} from './storeShared';
+} from './siteProposalRows';
+
+const readFirstDatabaseRow = <Row>(value: unknown): Row | undefined => (
+  Array.isArray(value) ? value[0] as Row | undefined : undefined
+);
 
 const getSiteProposal = async (proposalId: string): Promise<SiteContentProposal> => {
   const supabase = requireCockpitDatabase();
