@@ -11,8 +11,9 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { uploadCampaignMedia } from '@/features/marketing-content/client/api';
-import { getCampaignPackageReadiness } from '@/features/marketing-content/client/campaignWorkflow';
+import { getCampaignMediaExpectation, getCampaignPackageReadiness } from '@/features/marketing-content/client/campaignWorkflow';
 import { CampaignAssociationEditor } from '@/features/marketing-content/components/CampaignAssociationEditor';
+import { CampaignProviderPreview } from '@/features/marketing-content/components/CampaignProviderPreview';
 import {
   CampaignMediaIngestFields,
   createCampaignMediaIngestDraft,
@@ -22,6 +23,7 @@ import { CampaignVariantEditor } from '@/features/marketing-content/components/C
 import {
   CAMPAIGN_FIELD_LIMITS,
   MARKETING_CHANNELS as SOCIAL_SERVICES,
+  MARKETING_CHANNEL_LABELS as SOCIAL_SERVICE_LABELS,
   type CampaignMedia,
   type MarketingContentPackage as SocialCampaign,
   type MarketingChannelVariant as SocialCampaignVariant,
@@ -175,6 +177,7 @@ export function DeveloperCampaignComposer({
 }) {
   const [mediaMetadata, setMediaMetadata] = useState(createCampaignMediaIngestDraft);
   const [uploadingVariant, setUploadingVariant] = useState<number | null>(null);
+  const [previewVariantIndex, setPreviewVariantIndex] = useState(0);
   const readiness = getCampaignPackageReadiness(draft);
   const associationsComplete = draft.associations.every((association) => (
     Boolean(association.externalKey.trim())
@@ -264,6 +267,42 @@ export function DeveloperCampaignComposer({
       </div>
 
       <PackageReadiness readiness={readiness} />
+
+      <section className="mt-4 border border-[#6d4f2b] bg-[#1b1209] p-4" aria-labelledby="live-provider-preview-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.14em] text-[#e2aa4a]">Audience view</p>
+            <h3 id="live-provider-preview-heading" className="font-serif text-xl text-[#fff1c7]">Live provider preview</h3>
+            <p className="mt-1 text-xs text-[#c7b288]">This preview updates with the copy, destination, and media below.</p>
+          </div>
+          <a href="#campaign-social-posts" className="inline-flex min-h-11 items-center text-sm text-[#f1c875] underline underline-offset-4">
+            Edit copy or media
+          </a>
+        </div>
+        {draft.variants.length > 1 ? (
+          <div className="mt-3 flex flex-wrap gap-2" aria-label="Preview channel">
+            {draft.variants.map((variant, index) => (
+              <Button
+                key={`${variant.service}:${index}`}
+                type="button"
+                size="sm"
+                variant={previewVariantIndex === index ? 'default' : 'outline'}
+                onClick={() => setPreviewVariantIndex(index)}
+              >
+                {SOCIAL_SERVICE_LABELS[variant.service]}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+        <div className="mx-auto mt-3 max-w-xl">
+          <CampaignProviderPreview
+            variant={draft.variants[Math.min(previewVariantIndex, draft.variants.length - 1)]}
+            destinationUrl={draft.destinationUrl}
+            callToAction={draft.callToAction}
+            mediaExpectation={getCampaignMediaExpectation(draft)}
+          />
+        </div>
+      </section>
 
       <fieldset
         className="mt-5 border border-[#4a3823] bg-[#100c08] p-4"
@@ -381,6 +420,7 @@ export function DeveloperCampaignComposer({
       </fieldset>
 
       <fieldset
+        id="campaign-social-posts"
         className="mt-4 border border-[#4a3823] bg-[#100c08] p-4"
         disabled={disabled}
       >

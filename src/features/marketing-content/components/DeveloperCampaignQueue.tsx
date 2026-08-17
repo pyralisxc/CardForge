@@ -6,6 +6,8 @@ import { Search, Send, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { mutateMarketingContent } from '@/features/marketing-content/client/api';
 import {
+  getCampaignPackageReadiness,
+  getCampaignMediaExpectation,
   getCampaignStatusGuidance,
   getCampaignStatusLabel,
   matchesCampaignQueueFilter,
@@ -36,9 +38,7 @@ export function DeveloperCampaignQueue({
 }) {
   const canApprove = cockpit.scopes.includes('campaigns.approve');
   const canPublish = cockpit.scopes.includes('campaigns.publish');
-  const [filter, setFilter] = useState<CampaignQueueFilter>(
-    cockpit.isOwner ? 'needs_action' : 'active',
-  );
+  const [filter, setFilter] = useState<CampaignQueueFilter>('active');
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
@@ -104,8 +104,8 @@ export function DeveloperCampaignQueue({
       <div className="border border-[#5f4526] bg-[#15100a] p-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Campaign packages</p>
-            <h2 id="campaign-queue-heading" className="font-serif text-2xl text-[#fff1c7]">{cockpit.isOwner ? 'Campaign review and delivery' : 'Your campaign packages'}</h2>
+            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">{cockpit.isOwner ? 'Candidate queue' : 'Campaign packages'}</p>
+            <h2 id="campaign-queue-heading" className="font-serif text-2xl text-[#fff1c7]">{cockpit.isOwner ? 'Review the next CardForge story' : 'Your campaign packages'}</h2>
           </div>
           <p className="text-sm text-[#c7b288]">{campaigns.length} shown / {cockpit.campaigns.length} total</p>
         </div>
@@ -145,6 +145,9 @@ export function DeveloperCampaignQueue({
           && canTransitionCampaign(campaign.status, 'cancelled', cockpit.isOwner ? 'owner' : 'contributor');
         const cancelLabel = campaign.status === 'submitted' ? 'Withdraw submission' : campaign.status === 'draft' || campaign.status === 'changes_requested' ? 'Cancel draft' : 'Archive package';
         const jobs = jobsByCampaign.get(campaign.id) ?? [];
+        const readiness = getCampaignPackageReadiness(campaign);
+        const hasMedia = campaign.variants.some((variant) => variant.attachments.length > 0);
+        const mediaExpectation = getCampaignMediaExpectation(campaign);
 
         return (
           <article key={campaign.id} className="border border-[#5f4526] bg-[#15100a] p-5">
@@ -162,9 +165,20 @@ export function DeveloperCampaignQueue({
                 <p className="mt-2 text-xs leading-5 text-[#d2b77e]">
                   {getCampaignStatusGuidance(campaign.status, cockpit.isOwner)}
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2" aria-label={`Readiness for ${campaign.title}`}>
+                  <span className="border border-[#4a6f51] bg-[#0e170f] px-2 py-1 text-xs text-[#a8e7b8]">
+                    Copy ready
+                  </span>
+                  <span className={`border px-2 py-1 text-xs ${hasMedia ? 'border-[#4a6f51] bg-[#0e170f] text-[#a8e7b8]' : 'border-[#8c6436] bg-[#1b1209] text-[#f0bd75]'}`}>
+                    {hasMedia ? 'Media attached' : mediaExpectation.label}
+                  </span>
+                  <span className="border border-[#4a3823] bg-[#100c08] px-2 py-1 text-xs text-[#c7b288]">
+                    {readiness.completed}/{readiness.total} ready
+                  </span>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {canEdit ? <Button type="button" className="min-h-11" variant="outline" onClick={() => onEdit(campaign)}>Edit</Button> : null}
+                {canEdit ? <Button type="button" className="min-h-11" variant="outline" onClick={() => onEdit(campaign)}>Open review editor</Button> : null}
                 {canEdit ? <Button type="button" className="min-h-11" onClick={() => void workflow(campaign, 'submit', 'Campaign submitted for owner review.')} disabled={Boolean(busy)}><Send className="mr-2 h-4 w-4" />Submit for review</Button> : null}
                 {canCancel ? (
                   <CockpitConfirmationDialog
