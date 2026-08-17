@@ -31,7 +31,7 @@ interface UseTemplateLibraryActionsInput {
 }
 
 const mutateShippedLibrary = async (
-  path: '/api/styles' | '/api/templates',
+  path: '/api/styles' | '/api/templates' | '/api/templates/submissions',
   method: 'POST' | 'DELETE',
   body: unknown,
   fallback: string,
@@ -83,6 +83,7 @@ export function useTemplateLibraryActions({
 }: UseTemplateLibraryActionsInput) {
   const [templatePendingDeleteId, setTemplatePendingDeleteId] = useState<string | null>(null);
   const pendingRevisionKeysRef = useRef(new Map<string, { fingerprint: string; key: string }>());
+  const pendingNewTemplateKeysRef = useRef(new Map<string, { fingerprint: string; key: string }>());
 
   const handleSaveAppearanceStyle = useCallback((style: AppearanceStylePreset): string => {
     const savedId = addOrUpdateAppearanceStyle(style);
@@ -183,6 +184,34 @@ export function useTemplateLibraryActions({
     return savedTemplateId;
   }, [addOrUpdateTemplate, projectCapabilities.canPublishSharedLibrary, projectCapabilities.canSubmitTemplateRevisions, setSingleCardGeneratorSelectedTemplateId, setTemplateEditorSelectedTemplateId, toast]);
 
+  const handleContinueNewTemplateInPipeline = useCallback(async (template: TCGCardTemplate): Promise<string> => {
+    if (!projectCapabilities.canSubmitTemplateRevisions || template.templateSource === 'default') {
+      throw new Error('Only a developer or owner can continue a new personal Template in the Pipeline.');
+    }
+
+    const fingerprint = JSON.stringify(template);
+    const pending = pendingNewTemplateKeysRef.current.get(template.id!);
+    const submissionKey = pending?.fingerprint === fingerprint ? pending.key : nanoid(32);
+    pendingNewTemplateKeysRef.current.set(template.id!, { fingerprint, key: submissionKey });
+
+    const result = await mutateShippedLibrary(
+      '/api/templates/submissions',
+      'POST',
+      template,
+      'Unable to create the Template Pipeline draft.',
+      { 'Idempotency-Key': submissionKey },
+    );
+    const openInPipelineUrl = typeof result.openInPipelineUrl === 'string'
+      ? result.openInPipelineUrl
+      : null;
+    if (!openInPipelineUrl?.startsWith('/developer/cockpit?')) {
+      throw new Error('The Pipeline draft was created, but its secure handoff link was unavailable.');
+    }
+    return openInPipelineUrl;
+  }, [
+    projectCapabilities.canSubmitTemplateRevisions,
+  ]);
+
   const handleDeleteTemplate = useCallback((templateId: string) => {
     setTemplatePendingDeleteId(templateId);
   }, []);
@@ -232,6 +261,7 @@ export function useTemplateLibraryActions({
     handleDeleteTemplate,
     handleSaveAppearanceStyle,
     handleSaveTemplate,
+    handleContinueNewTemplateInPipeline,
     setTemplatePendingDeleteId,
     templatePendingDeleteId,
   };

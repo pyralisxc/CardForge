@@ -42,6 +42,7 @@ interface CardTemplateMakerProps {
   canUseProjectFiles: boolean;
   showCardWatermark: boolean;
   onSaveTemplate: (template: TCGCardTemplate) => Promise<string>;
+  onContinueNewTemplateInPipeline: (template: TCGCardTemplate) => Promise<string>;
   templates: TCGCardTemplate[];
   defaultTemplates: TCGCardTemplate[];
   backFaceTemplates: TCGCardTemplate[];
@@ -71,6 +72,7 @@ export function CardTemplateMaker({
   canUseProjectFiles,
   showCardWatermark,
   onSaveTemplate,
+  onContinueNewTemplateInPipeline,
   templates,
   defaultTemplates,
   backFaceTemplates,
@@ -126,12 +128,14 @@ export function CardTemplateMaker({
   const isSharedTemplate = currentTemplate.templateSource === 'default';
   const isSharedTemplateRevision = isSharedTemplate && canSubmitSharedTemplateRevision;
   const publishesSharedTemplateDirectly = isSharedTemplateRevision && canPublishSharedLibrary;
+  const canSubmitNewTemplate = !isSharedTemplate && canSubmitSharedTemplateRevision;
   const nextTemplateRevision = Number(currentTemplate.templateRevision ?? 0) + 1;
   const variables = useTemplateEditorVariables({ controller, toast });
   const [activeInspectorTab, setActiveInspectorTab] = useState<string>('element');
   const [pendingTemplateChange, setPendingTemplateChange] = useState<(() => void) | null>(null);
   const [saveName, setSaveName] = useState('');
   const [contextElement, setContextElement] = useState<FreeformCardElement | null>(null);
+  const [isCreatingPipelineDraft, setIsCreatingPipelineDraft] = useState(false);
   const wasActiveRef = useRef(isActive);
   const selectElement = useCallback((id: string | null) => {
     selectElementInController(id);
@@ -260,6 +264,29 @@ export function CardTemplateMaker({
     saveTemplate: handleSave,
     setCommandPaletteOpen,
   } = commands;
+  const handleContinueInPipeline = useCallback(async () => {
+    if (isCreatingPipelineDraft) return;
+    if (!await commands.saveTemplate()) return;
+    setIsCreatingPipelineDraft(true);
+    try {
+      const pipelineUrl = await onContinueNewTemplateInPipeline(currentTemplate);
+      window.location.assign(pipelineUrl);
+    } catch (error) {
+      toast({
+        title: 'Pipeline draft not created',
+        description: error instanceof Error ? error.message : 'Unable to continue this Template in the Pipeline.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingPipelineDraft(false);
+    }
+  }, [
+    commands,
+    currentTemplate,
+    isCreatingPipelineDraft,
+    onContinueNewTemplateInPipeline,
+    toast,
+  ]);
   const savePresentation = publishesSharedTemplateDirectly
     ? {
         label: `Publish Template revision ${nextTemplateRevision}`,
@@ -389,6 +416,29 @@ export function CardTemplateMaker({
                 {canPublishSharedLibrary ? 'Review pending revisions' : 'Open Forge Review'}
               </Link>
             ) : null}
+          </div>
+        ) : canSubmitNewTemplate ? (
+          <div className="flex flex-col gap-2 border-b border-[#2b2415] bg-[#100d08] px-3 py-2 text-xs text-[#c7b288] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-2">
+              <GitPullRequestArrow className="mt-0.5 h-4 w-4 shrink-0 text-[#d5ad54]" />
+              <div>
+                <p className="font-medium text-[#ffe7ad]">
+                  Personal Template · not shared
+                </p>
+                <p className="mt-0.5 leading-5">
+                  Save locally as often as you like. Continue in Pipeline carries over the authored design facts, then asks you to complete classification and source details before review.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="shrink-0 bg-[#d5ad54] text-[#161007] hover:bg-[#f0c568]"
+              disabled={isCreatingPipelineDraft || isSavingTemplate}
+              onClick={() => void handleContinueInPipeline()}
+            >
+              {isCreatingPipelineDraft ? 'Opening Pipeline…' : 'Continue in Pipeline'}
+            </Button>
           </div>
         ) : null}
         <TemplateCommandPalette

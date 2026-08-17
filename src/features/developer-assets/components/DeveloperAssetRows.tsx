@@ -22,12 +22,14 @@ import {
   type DeveloperAssetSubmission,
 } from '@/features/developer-assets/components/DeveloperAssetHubModel';
 import {
+  getDeveloperAssetStudioDestinationLabel,
   getDeveloperAssetStatusDescription,
   getDeveloperAssetStatusLabel,
   getDeveloperAssetTierDescription,
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
+import { formatContentTaxonomyTag } from '@/features/developer-assets/lib/contentTaxonomy';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import { isRepositoryStyle } from '@/features/developer-assets/lib/registryContentValidation';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
@@ -124,22 +126,44 @@ export function EditSubmissionForm({
   name,
   description,
   previewUrl,
+  sourceNotes,
+  specialtyTags,
+  useCaseTags,
+  requestedStudioDestination,
+  destinationOptions,
+  isDraft,
   isSaving,
   onNameChange,
   onDescriptionChange,
   onPreviewUrlChange,
+  onSourceNotesChange,
+  onSpecialtyTagsChange,
+  onUseCaseTagsChange,
+  onRequestedStudioDestinationChange,
   onCancel,
   onSave,
+  onSubmit,
 }: {
   name: string;
   description: string;
   previewUrl: string;
+  sourceNotes: string;
+  specialtyTags: string;
+  useCaseTags: string;
+  requestedStudioDestination: string;
+  destinationOptions: Array<{ value: string; label: string }>;
+  isDraft: boolean;
   isSaving: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onPreviewUrlChange: (value: string) => void;
+  onSourceNotesChange: (value: string) => void;
+  onSpecialtyTagsChange: (value: string) => void;
+  onUseCaseTagsChange: (value: string) => void;
+  onRequestedStudioDestinationChange: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
+  onSubmit: () => void;
 }) {
   return (
     <div className="mt-3 grid gap-3 border border-[#5f4526] bg-[#100c08] p-3">
@@ -152,14 +176,62 @@ export function EditSubmissionForm({
         <input className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={previewUrl} onChange={(event) => onPreviewUrlChange(event.target.value)} />
       </label>
       <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-        Notes
+        Description
         <textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
       </label>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+          Specialties
+          <input
+            className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
+            placeholder="games, marketing"
+            value={specialtyTags}
+            onChange={(event) => onSpecialtyTagsChange(event.target.value)}
+          />
+        </label>
+        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+          Use-case tags
+          <input
+            className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
+            placeholder="tcg, event-poster"
+            value={useCaseTags}
+            onChange={(event) => onUseCaseTagsChange(event.target.value)}
+          />
+        </label>
+      </div>
+      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+        Studio placement
+        <select
+          className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
+          value={requestedStudioDestination}
+          onChange={(event) => onRequestedStudioDestinationChange(event.target.value)}
+        >
+          <option value="">Choose placement</option>
+          {destinationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      </label>
+      <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+        Source and rights notes
+        <textarea
+          className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
+          placeholder="State who created the artwork, where assets came from, and what publication rights CardForge has."
+          value={sourceNotes}
+          onChange={(event) => onSourceNotesChange(event.target.value)}
+        />
+      </label>
+      <p className="text-xs leading-5 text-[#a98a55]">
+        CardForge carries over authored Studio facts only. Confirm these fields yourself; missing classification and rights information is never generated automatically.
+      </p>
       <div className="flex flex-wrap gap-2">
         <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={onSave}>
           <Save className="mr-2 h-4 w-4" />
-          {isSaving ? 'Saving...' : 'Save'}
+          {isSaving ? 'Saving...' : isDraft ? 'Save Pipeline draft' : 'Save'}
         </Button>
+        {isDraft ? (
+          <Button className="bg-[#8fbf75] text-[#0e170b] hover:bg-[#a8d98c]" disabled={isSaving} onClick={onSubmit}>
+            {isSaving ? 'Submitting...' : 'Submit for owner review'}
+          </Button>
+        ) : null}
         <Button variant="outline" className="border-[#5f4526] bg-transparent text-[#ffe7ad]" disabled={isSaving} onClick={onCancel}>
           <X className="mr-2 h-4 w-4" />
           Cancel
@@ -271,7 +343,11 @@ export function AssetRow({
               <div><dt className="uppercase tracking-[0.12em]">Automatic result</dt><dd className="break-all text-[#c7b288]">{getDeveloperAssetStatusLabel(submission.automatedStatus)} / {getDeveloperAssetTierLabel(submission.automatedAccessTier)}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Owner override</dt><dd className="break-all text-[#c7b288]">{submission.ownerStatusOverride || submission.ownerAccessTierOverride ? [submission.ownerStatusOverride, submission.ownerAccessTierOverride].filter(Boolean).join(' / ') : 'None - automatic'}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Live catalog id</dt><dd className="break-all text-[#c7b288]">{submission.registryAssetId ?? 'Not published'}</dd></div>
-              <div><dt className="uppercase tracking-[0.12em]">Submitted</dt><dd className="text-[#c7b288]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Studio placement</dt><dd className="text-[#c7b288]">{submission.requestedStudioDestination ? getDeveloperAssetStudioDestinationLabel(submission.requestedStudioDestination) : 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Specialties</dt><dd className="text-[#c7b288]">{submission.specialtyTags.length ? submission.specialtyTags.map(formatContentTaxonomyTag).join(', ') : 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Use cases</dt><dd className="text-[#c7b288]">{submission.useCaseTags.length ? submission.useCaseTags.map(formatContentTaxonomyTag).join(', ') : 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">Source and rights</dt><dd className="text-[#c7b288]">{submission.sourceNotes || 'Not confirmed'}</dd></div>
+              <div><dt className="uppercase tracking-[0.12em]">{submission.status === 'draft' ? 'Draft created' : 'Submitted'}</dt><dd className="text-[#c7b288]">{new Date(submission.submittedAt).toLocaleDateString()}</dd></div>
               <div><dt className="uppercase tracking-[0.12em]">Updated</dt><dd className="text-[#c7b288]">{submission.updatedAt ? new Date(submission.updatedAt).toLocaleDateString() : 'Not updated'}</dd></div>
             </dl>
             {editForm}

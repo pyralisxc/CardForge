@@ -17,6 +17,7 @@ import {
   purgeDeveloperAssetSubmission,
   saveDeveloperProgramSettings,
   setDeveloperAssetOwnerOverride,
+  submitTemplatePipelineDraft,
 } from '@/features/developer-assets/lib/developerAssetRegistryCommands';
 import { getSupabaseServerClient, getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 import {
@@ -325,6 +326,10 @@ export const updateDeveloperAssetSubmissionDetails = async ({
     name?: unknown;
     description?: unknown;
     previewUrl?: unknown;
+    sourceNotes?: unknown;
+    specialtyTags?: unknown;
+    useCaseTags?: unknown;
+    requestedStudioDestination?: unknown;
   };
   allowOwnerEdit?: boolean;
   currentContributorIds?: string[];
@@ -332,12 +337,9 @@ export const updateDeveloperAssetSubmissionDetails = async ({
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
 
-  const normalized = normalizeDeveloperAssetSubmissionEditInput(input);
-  if (!normalized.ok) throw new DeveloperAssetStoreError(normalized.message, 400);
-
   const { data: rows, error: loadError } = await supabase
     .from('cardforge_developer_asset_submissions')
-    .select('developer_id,status,source_url')
+    .select('developer_id,status,source_url,asset_type')
     .eq('id', submissionId)
     .limit(1);
 
@@ -346,7 +348,7 @@ export const updateDeveloperAssetSubmissionDetails = async ({
     throw new DeveloperAssetStoreError('Unable to load developer asset submission.', 500);
   }
 
-  const row = rows?.[0] as { developer_id?: string; status?: unknown; source_url?: string | null } | undefined;
+  const row = rows?.[0] as { developer_id?: string; status?: unknown; source_url?: string | null; asset_type?: unknown } | undefined;
   if (!row) throw new DeveloperAssetStoreError('Developer asset submission was not found.', 404);
   if (!allowOwnerEdit && row.developer_id !== developerId) {
     throw new DeveloperAssetStoreError('Only the uploader can edit this asset.', 403);
@@ -355,6 +357,9 @@ export const updateDeveloperAssetSubmissionDetails = async ({
     throw new DeveloperAssetStoreError('Published or rejected assets cannot be edited from the developer hub.', 400);
   }
 
+  const normalized = normalizeDeveloperAssetSubmissionEditInput({ ...input, assetType: row.asset_type });
+  if (!normalized.ok) throw new DeveloperAssetStoreError(normalized.message, 400);
+
   const previewUrl = normalized.value.previewUrl || row.source_url || '';
   const { error } = await supabase
     .from('cardforge_developer_asset_submissions')
@@ -362,6 +367,12 @@ export const updateDeveloperAssetSubmissionDetails = async ({
       name: normalized.value.name,
       description: normalized.value.description,
       preview_url: previewUrl,
+      ...(normalized.value.sourceNotes !== undefined ? { source_notes: normalized.value.sourceNotes } : {}),
+      ...(normalized.value.specialtyTags !== undefined ? { specialty_tags: normalized.value.specialtyTags } : {}),
+      ...(normalized.value.useCaseTags !== undefined ? { use_case_tags: normalized.value.useCaseTags } : {}),
+      ...(normalized.value.requestedStudioDestination !== undefined
+        ? { requested_studio_destination: normalized.value.requestedStudioDestination }
+        : {}),
     })
     .eq('id', submissionId);
 
@@ -373,6 +384,65 @@ export const updateDeveloperAssetSubmissionDetails = async ({
   return getDeveloperAssetProgramView(developerId, currentContributorIds, {
     includeRegistryRecipePayloads: allowOwnerEdit,
   });
+};
+
+export const finalizeDeveloperTemplatePipelineDraft = async ({
+  submissionId,
+  developerId,
+  input,
+  currentContributorIds = [developerId],
+  includeRegistryRecipePayloads = false,
+}: {
+  submissionId: string;
+  developerId: string;
+  input: {
+    name?: unknown;
+    description?: unknown;
+    previewUrl?: unknown;
+    sourceNotes?: unknown;
+    specialtyTags?: unknown;
+    useCaseTags?: unknown;
+    requestedStudioDestination?: unknown;
+  };
+  currentContributorIds?: string[];
+  includeRegistryRecipePayloads?: boolean;
+}): Promise<DeveloperAssetProgramView> => {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new DeveloperAssetStoreError('Developer asset database is not configured yet.', 503);
+  const { data: rows, error } = await supabase
+    .from('cardforge_developer_asset_submissions')
+    .select('developer_id,status,asset_type')
+    .eq('id', submissionId)
+    .limit(1);
+  if (error) throw new DeveloperAssetStoreError('Unable to load the Template Pipeline draft.', 500);
+  const row = rows?.[0] as { developer_id?: string; status?: unknown; asset_type?: unknown } | undefined;
+  if (!row) throw new DeveloperAssetStoreError('Template Pipeline draft was not found.', 404);
+  if (row.developer_id !== developerId) throw new DeveloperAssetStoreError('Only the draft owner can submit this Template.', 403);
+  if (row.status !== 'draft' || row.asset_type !== 'templates') {
+    throw new DeveloperAssetStoreError('Only a new Template Pipeline draft can be submitted through this action.', 409);
+  }
+  const normalized = normalizeDeveloperAssetSubmissionEditInput({ ...input, assetType: row.asset_type });
+  if (!normalized.ok) throw new DeveloperAssetStoreError(normalized.message, 400);
+  if (!normalized.value.description) throw new DeveloperAssetStoreError('Describe what this Template is designed to create.', 400);
+  if (!normalized.value.sourceNotes) throw new DeveloperAssetStoreError('Add source and rights notes before submitting this Template.', 400);
+  if (!normalized.value.specialtyTags?.length) throw new DeveloperAssetStoreError('Choose at least one specialty.', 400);
+  if (!normalized.value.useCaseTags?.length) throw new DeveloperAssetStoreError('Choose at least one use-case tag.', 400);
+  if (!normalized.value.requestedStudioDestination) throw new DeveloperAssetStoreError('Choose where this Template belongs in Studio.', 400);
+
+  await runRegistryCommand(async () => {
+    await submitTemplatePipelineDraft({
+      submissionId,
+      developerId,
+      name: normalized.value.name,
+      description: normalized.value.description,
+      previewUrl: normalized.value.previewUrl,
+      sourceNotes: normalized.value.sourceNotes!,
+      specialtyTags: normalized.value.specialtyTags!,
+      useCaseTags: normalized.value.useCaseTags!,
+      requestedStudioDestination: normalized.value.requestedStudioDestination!,
+    });
+  });
+  return getDeveloperAssetProgramView(developerId, currentContributorIds, { includeRegistryRecipePayloads });
 };
 
 export const updateDeveloperAssetSubmissionStatus = async ({

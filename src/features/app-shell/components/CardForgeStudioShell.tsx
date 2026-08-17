@@ -150,6 +150,7 @@ export function CardForgeStudioShell({
     handleDeleteTemplate,
     handleSaveAppearanceStyle,
     handleSaveTemplate: saveTemplateToLibrary,
+    handleContinueNewTemplateInPipeline,
     setTemplatePendingDeleteId,
     templatePendingDeleteId,
   } = useTemplateLibraryActions({
@@ -426,6 +427,7 @@ export function CardForgeStudioShell({
               showCardWatermark={showVisibleCardWatermark}
               isActive={effectiveActiveTab === 'template-maker'}
               onSaveTemplate={handleSaveTemplate}
+              onContinueNewTemplateInPipeline={handleContinueNewTemplateInPipeline}
               templates={templatesFromStore}
               defaultTemplates={standardDefaultTemplates}
               backFaceTemplates={backFacePresetTemplates}

@@ -17,7 +17,7 @@ import { isRepositoryStyle } from './registryContentValidation';
 import type { DeveloperProfileRow } from '@/features/developer-access/server';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
-const SUBMISSION_COLUMNS = 'id,developer_id,developer_email,asset_type,requested_studio_destination,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at';
+const SUBMISSION_COLUMNS = 'id,developer_id,developer_email,asset_type,requested_studio_destination,specialty_tags,use_case_tags,source_notes,name,description,preview_url,source_url,source_file_size_bytes,source_mime_type,source_storage_bucket,source_storage_path,registry_asset_id,status,automated_status,owner_status_override,calculated_access_tier,automated_access_tier,owner_access_tier_override,quality_score,tier_decision_reason,owner_note,decision_reason,positive_votes,negative_votes,source_payload,target_registry_asset_id,base_revision_number,revision_number,published_at,purge_state,submitted_at,updated_at';
 
 export type DeveloperAssetListScope = 'all' | 'own' | 'review';
 

@@ -17,13 +17,22 @@ import {
 } from './developerAssets';
 import { isStudioAssetDestination, type StudioAssetDestination } from '@/domain/templates';
 import { getDeveloperAssetStudioDestinationOptions } from './pipelineAssetTaxonomy';
+import { normalizeContentTaxonomyTags } from './contentTaxonomy';
 
 export type DeveloperAssetSubmissionInputResult =
   | { ok: true; value: Pick<DeveloperAssetSubmission, 'assetType' | 'requestedStudioDestination' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
   | { ok: false; message: string };
 
 export type DeveloperAssetSubmissionEditInputResult =
-  | { ok: true; value: Pick<DeveloperAssetSubmission, 'name' | 'description' | 'previewUrl'> }
+  | { ok: true; value: {
+      name: string;
+      description: string;
+      previewUrl: string;
+      sourceNotes?: string;
+      specialtyTags?: string[];
+      useCaseTags?: string[];
+      requestedStudioDestination?: StudioAssetDestination;
+    } }
   | { ok: false; message: string };
 
 export interface DeveloperAssetSubmission {
@@ -35,6 +44,9 @@ export interface DeveloperAssetSubmission {
   developerDisplayName?: string | null;
   assetType: DeveloperAssetType;
   requestedStudioDestination: StudioAssetDestination | null;
+  specialtyTags: string[];
+  useCaseTags: string[];
+  sourceNotes: string;
   name: string;
   description: string;
   previewUrl: string;
@@ -135,6 +147,9 @@ export interface DeveloperAssetSubmissionRow {
   developer_email: string | null;
   asset_type: unknown;
   requested_studio_destination: unknown;
+  specialty_tags?: unknown;
+  use_case_tags?: unknown;
+  source_notes?: string | null;
   name: string;
   description: string | null;
   preview_url: string | null;
@@ -269,18 +284,47 @@ export const normalizeDeveloperAssetSubmissionInput = (value: {
 };
 
 export const normalizeDeveloperAssetSubmissionEditInput = (value: {
+  assetType?: unknown;
   name?: unknown;
   description?: unknown;
   previewUrl?: unknown;
+  sourceNotes?: unknown;
+  specialtyTags?: unknown;
+  useCaseTags?: unknown;
+  requestedStudioDestination?: unknown;
 }): DeveloperAssetSubmissionEditInputResult => {
   const name = normalizeDeveloperAssetShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
+  let requestedStudioDestination: StudioAssetDestination | undefined;
+  const hasRequestedStudioDestination = typeof value.requestedStudioDestination === 'string'
+    ? value.requestedStudioDestination.trim() !== ''
+    : value.requestedStudioDestination !== undefined && value.requestedStudioDestination !== null;
+  if (hasRequestedStudioDestination) {
+    if (
+      !isDeveloperAssetType(value.assetType)
+      || !isStudioAssetDestination(value.requestedStudioDestination)
+      || !getDeveloperAssetStudioDestinationOptions(value.assetType).includes(value.requestedStudioDestination)
+    ) {
+      return { ok: false, message: 'Choose a Studio destination compatible with this asset type.' };
+    }
+    requestedStudioDestination = value.requestedStudioDestination;
+  }
   return {
     ok: true,
     value: {
       name,
       description: normalizeDeveloperAssetLongText(value.description, 280),
       previewUrl: normalizeUrl(value.previewUrl),
+      ...(value.sourceNotes !== undefined
+        ? { sourceNotes: normalizeDeveloperAssetLongText(value.sourceNotes, 600) }
+        : {}),
+      ...(value.specialtyTags !== undefined
+        ? { specialtyTags: normalizeContentTaxonomyTags(value.specialtyTags) }
+        : {}),
+      ...(value.useCaseTags !== undefined
+        ? { useCaseTags: normalizeContentTaxonomyTags(value.useCaseTags) }
+        : {}),
+      ...(requestedStudioDestination ? { requestedStudioDestination } : {}),
     },
   };
 };
@@ -322,6 +366,9 @@ export const mapDeveloperAssetSubmissionRow = (
   requestedStudioDestination: isStudioAssetDestination(row.requested_studio_destination)
     ? row.requested_studio_destination
     : null,
+  specialtyTags: normalizeContentTaxonomyTags(row.specialty_tags),
+  useCaseTags: normalizeContentTaxonomyTags(row.use_case_tags),
+  sourceNotes: row.source_notes ?? '',
   name: row.name,
   description: row.description ?? '',
   previewUrl: row.preview_url ?? '',
