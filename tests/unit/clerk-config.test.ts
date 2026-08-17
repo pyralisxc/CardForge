@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { shouldRunClerkMiddlewareForRequest } from '@/infrastructure/auth/clerk';
@@ -29,5 +32,17 @@ describe('Clerk middleware route selection', () => {
   it('runs for the dedicated public sign-in route', () => {
     expect(shouldRunClerkMiddlewareForRequest('/sign-in', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/sign-in/sso-callback', 'GET')).toBe(true);
+  });
+
+  it('proxies Clerk Frontend API requests through the existing /__clerk middleware path', () => {
+    expect(shouldRunClerkMiddlewareForRequest('/__clerk/v1/environment', 'GET')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/__clerk/v1/client', 'GET')).toBe(true);
+
+    const middleware = readFileSync(
+      resolve(process.cwd(), 'src/infrastructure/auth/middleware.ts'),
+      'utf8',
+    );
+    expect(middleware).toContain('frontendApiProxy');
+    expect(middleware).toContain('enabled: true');
   });
 });
