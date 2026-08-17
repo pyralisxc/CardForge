@@ -390,10 +390,13 @@ export const getPublicCampaignMediaUrl = async (
   const derivative = derivativeId
     ? derivatives.find((item) => item.id === derivativeId)
     : derivatives.find((item) => (
-      item.purpose === 'public_original' && item.exposure === 'public'
+      item.purpose === 'provider_image'
+      && item.mime_type === 'image/jpeg'
+      && item.exposure === 'public'
     ));
   if (
     !derivative
+    || derivative.mime_type !== 'image/jpeg'
     || derivative.exposure !== 'public'
     || derivative.storage_bucket !== SOCIAL_PUBLIC_MEDIA_BUCKET
   ) {

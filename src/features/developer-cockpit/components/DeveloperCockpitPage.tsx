@@ -9,7 +9,7 @@ import {
   FileCheck2,
   Megaphone,
   RefreshCw,
-  Settings2,
+  Target,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ const cockpitTabs: ReadonlyArray<{ value: string; label: string; ownerOnly?: boo
 const standards = [
   'Use real CardForge proof. Keep product claims grounded in a current screen, workflow, release, or public capability.',
   'Attach source and license notes. A reviewer should know who owns every image and why CardForge may publish it.',
-  'Write channel-native variants. The campaign package is the source of truth; Buffer only handles connected channels and delivery.',
+  'Write channel-native variants inside the owner-selected campaign. CardForge keeps the strategy, review, destination, schedule, and delivery record together.',
   'Never place secrets, customer data, private email, billing details, or unreleased account state in screenshots.',
   'Site-copy proposals compare against the captured live text. If the live text changes first, update the proposal from the latest version instead of overwriting it.',
   'Owner approval is not ceremonial: it is the only boundary that can expose media, publish site copy, or schedule social posts.',
@@ -137,7 +137,7 @@ export function DeveloperCockpitPage() {
             <div className="grid gap-3 md:grid-cols-3">
               <MetricCard icon={Megaphone} label="Campaign actions" value={actionableCampaigns} help={cockpit.isOwner ? 'Review, provider setup, or delivery recovery that needs you.' : 'Drafts or requested revisions ready for your attention.'} onOpen={() => setActiveTab('campaigns')} />
               <MetricCard icon={FileCheck2} label="Site review" value={submittedProposals} help={cockpit.isOwner ? 'Copy proposals waiting for an owner decision.' : 'Your copy proposals currently in owner review.'} onOpen={() => setActiveTab('site')} />
-              <MetricCard icon={Activity} label="Buffer drafts & schedules" value={activeJobs} help="Buffer drafts and scheduled posts with durable CardForge records." onOpen={() => setActiveTab('campaigns')} />
+              <MetricCard icon={Activity} label="Open deliveries" value={activeJobs} help="Approved content already prepared or scheduled by the owner." onOpen={() => setActiveTab('campaigns')} />
             </div>
             <section className="grid gap-3 lg:grid-cols-2">
               <article className="border border-[#5f4526] bg-[#15100a] p-5">
@@ -147,11 +147,11 @@ export function DeveloperCockpitPage() {
                 </div>
               </article>
               <article className="border border-[#5f4526] bg-[#15100a] p-5">
-                <div className="flex items-center gap-3 text-[#e2aa4a]"><Settings2 className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">Social publishing status</h2></div>
+                <div className="flex items-center gap-3 text-[#e2aa4a]"><Target className="h-5 w-5" /><h2 className="font-serif text-xl text-[#fff1c7]">Marketing direction</h2></div>
                 <p className="mt-3 text-sm leading-6 text-[#c7b288]">
-                  Buffer is {cockpit.provider.configured ? 'configured' : 'not configured'} and live publishing is {cockpit.provider.publishingEnabled ? 'enabled' : 'hard-disabled'}.
+                  Primary market: {cockpit.marketingStrategy.primaryAudience.replaceAll('-', ' ')}. Current offer: {cockpit.marketingStrategy.offer}
                 </p>
-                {!cockpit.provider.publishingEnabled ? <p className="mt-2 text-xs leading-5 text-[#f0bd75]">This is the safe release state until credentials, channel allowlisting, legal copy, and production verification are complete.</p> : null}
+                <p className="mt-2 text-xs leading-5 text-[#a98a75]">The owner controls publishing connections and schedules. Contributors prepare truthful, reviewable content—not provider credentials.</p>
               </article>
             </section>
           </TabsContent>

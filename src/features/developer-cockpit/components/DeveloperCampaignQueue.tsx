@@ -1,18 +1,10 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { CalendarClock, Loader2, RefreshCw, Search, Send, ShieldCheck } from 'lucide-react';
+import { Search, Send, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  loadBufferChannels,
-  loadDeveloperCockpit,
-  mutateCampaign,
-  mutateDeveloperCockpit,
-  type BufferChannelView,
-  type DeveloperCockpitView,
-  type ProviderChannelBinding,
-} from '@/features/developer-cockpit/client/api';
+import { loadDeveloperCockpit, mutateCampaign, type DeveloperCockpitView } from '@/features/developer-cockpit/client/api';
 import {
   getCampaignStatusGuidance,
   getCampaignStatusLabel,
@@ -20,10 +12,8 @@ import {
   type CampaignQueueFilter,
 } from '@/features/developer-cockpit/client/campaignWorkflow';
 import { CockpitConfirmationDialog } from '@/features/developer-cockpit/components/CockpitConfirmationDialog';
-import { toLocalDateTime } from '@/features/developer-cockpit/components/DeveloperCampaignComposer';
 import { DeveloperCampaignPackageDetails } from '@/features/developer-cockpit/components/DeveloperCampaignPackageDetails';
 import {
-  SOCIAL_SERVICE_LABELS,
   canTransitionCampaign,
   type SocialCampaign,
 } from '@/features/developer-cockpit/model';
@@ -51,10 +41,6 @@ export function DeveloperCampaignQueue({
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
-  const [channels, setChannels] = useState<BufferChannelView[]>([]);
-  const [bindings, setBindings] = useState<Record<string, string>>({});
-  const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>({});
-  const [channelsLoading, setChannelsLoading] = useState(false);
 
   const jobsByCampaign = useMemo(() => {
     const map = new Map<string, DeveloperCockpitView['publishJobs']>();
@@ -112,36 +98,6 @@ export function DeveloperCampaignQueue({
     reviewNote: reviewNotes[campaign.id] ?? '',
   }));
 
-  const loadChannels = async () => {
-    setChannelsLoading(true);
-    onError('');
-    try {
-      setChannels(await loadBufferChannels());
-      onMessage('Connected Buffer channels refreshed.');
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Unable to load Buffer channels.');
-    } finally {
-      setChannelsLoading(false);
-    }
-  };
-
-  const campaignBindings = (campaign: SocialCampaign): ProviderChannelBinding[] => campaign.variants.flatMap((variant) => {
-    const channelId = bindings[`${campaign.id}:${variant.service}`];
-    return channelId ? [{ service: variant.service, channelId }] : [];
-  });
-
-  const providerAction = (campaign: SocialCampaign, mode: 'draft' | 'schedule') => {
-    const scheduleValue = scheduleTimes[campaign.id] ?? toLocalDateTime(campaign.requestedPublishAt);
-    return run(`${mode}:${campaign.id}`, mode === 'draft' ? 'Buffer drafts created.' : 'Campaign scheduled in Buffer.', () => mutateDeveloperCockpit('provider', 'POST', {
-      action: 'publish',
-      campaignId: campaign.id,
-      expectedVersion: campaign.version,
-      mode,
-      dueAt: scheduleValue ? new Date(scheduleValue).toISOString() : campaign.requestedPublishAt,
-      bindings: campaignBindings(campaign),
-    }));
-  };
-
   return (
     <section className="space-y-3" aria-labelledby="campaign-queue-heading">
       <div className="border border-[#5f4526] bg-[#15100a] p-4">
@@ -188,11 +144,6 @@ export function DeveloperCampaignQueue({
           && canTransitionCampaign(campaign.status, 'cancelled', cockpit.isOwner ? 'owner' : 'contributor');
         const cancelLabel = campaign.status === 'submitted' ? 'Withdraw submission' : campaign.status === 'draft' || campaign.status === 'changes_requested' ? 'Cancel draft' : 'Archive package';
         const jobs = jobsByCampaign.get(campaign.id) ?? [];
-        const selectedBindings = campaignBindings(campaign);
-        const scheduleValue = scheduleTimes[campaign.id] ?? toLocalDateTime(campaign.requestedPublishAt);
-        const providerActionDisabled = !cockpit.provider.publishingEnabled
-          || Boolean(busy)
-          || selectedBindings.length === 0;
 
         return (
           <article key={campaign.id} className="border border-[#5f4526] bg-[#15100a] p-5">
@@ -238,7 +189,7 @@ export function DeveloperCampaignQueue({
                   <CockpitConfirmationDialog
                     trigger={<Button type="button" className="min-h-11" disabled={Boolean(busy)}><ShieldCheck className="mr-2 h-4 w-4" />Approve package and make media public</Button>}
                     title="Approve this package and its media?"
-                    description={<><p>This promotes {campaign.variants.reduce((count, variant) => count + variant.attachments.length, 0)} protected image attachment(s) through stable public derivatives and unlocks owner publishing controls.</p><p className="mt-2">It does not send anything to Buffer yet.</p></>}
+                    description={<><p>This promotes {campaign.variants.reduce((count, variant) => count + variant.attachments.length, 0)} protected image attachment(s) through stable public derivatives and unlocks the Marketing distribution workspace.</p><p className="mt-2">Approval does not publish anything.</p></>}
                     actionLabel="Approve package"
                     onConfirm={() => void workflow(campaign, 'approve', 'Campaign package and media approved.')}
                   />
@@ -248,38 +199,8 @@ export function DeveloperCampaignQueue({
 
             {canPublish && providerReady ? (
               <div className="mt-4 border border-[#4a3823] bg-[#100c08] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs uppercase tracking-[0.14em] text-[#e2aa4a]">Owner publishing controls</p><Button type="button" className="min-h-11" variant="outline" onClick={() => void loadChannels()} disabled={channelsLoading || !cockpit.provider.configured}>{channelsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Load Buffer channels</Button></div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {campaign.variants.map((variant) => <label key={variant.service} className="grid gap-1 text-xs text-[#c7b288]">{SOCIAL_SERVICE_LABELS[variant.service]} channel<select className={fieldClassName} value={bindings[`${campaign.id}:${variant.service}`] ?? ''} onChange={(event) => setBindings((current) => ({ ...current, [`${campaign.id}:${variant.service}`]: event.target.value }))}><option value="">Choose connected channel</option>{channels.filter((channel) => channel.service === variant.service).map((channel) => <option key={channel.id} value={channel.id}>{channel.displayName}{channel.isQueuePaused ? ' (paused)' : ''}</option>)}</select></label>)}
-                  <label className="grid gap-1 text-xs text-[#c7b288]">Schedule time<input type="datetime-local" className={fieldClassName} value={scheduleTimes[campaign.id] ?? toLocalDateTime(campaign.requestedPublishAt)} onChange={(event) => setScheduleTimes((current) => ({ ...current, [campaign.id]: event.target.value }))} /></label>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {campaign.status !== 'provider_draft' ? <CockpitConfirmationDialog trigger={<Button type="button" className="min-h-11" variant="outline" disabled={providerActionDisabled}>Create Buffer drafts</Button>} title="Create drafts in Buffer?" description={`This sends the approved copy and public media to ${selectedBindings.length} selected Buffer channel(s) as drafts. Nothing will be scheduled.`} actionLabel="Create Buffer drafts" onConfirm={() => void providerAction(campaign, 'draft')} /> : null}
-                  <CockpitConfirmationDialog trigger={<Button type="button" className="min-h-11" disabled={providerActionDisabled || !scheduleValue}><CalendarClock className="mr-2 h-4 w-4" />Schedule approved package</Button>} title="Schedule this package in Buffer?" description={`This schedules the approved package for ${scheduleValue} across ${selectedBindings.length} selected channel(s).`} actionLabel="Schedule in Buffer" onConfirm={() => void providerAction(campaign, 'schedule')} />
-                </div>
-                {selectedBindings.length === 0 && cockpit.provider.publishingEnabled ? <p className="mt-3 text-xs leading-5 text-[#f0bd75]">Choose at least one connected channel before creating drafts or scheduling.</p> : null}
-                {!cockpit.provider.publishingEnabled ? <p className="mt-3 text-xs leading-5 text-[#f0bd75]">Publishing remains disabled until the production provider checklist is complete.</p> : null}
-              </div>
-            ) : null}
-
-            {jobs.length && canPublish ? (
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  className="min-h-11"
-                  variant="ghost"
-                  onClick={() => void run(
-                    `refresh:${campaign.id}`,
-                    'Buffer delivery status refreshed.',
-                    () => mutateDeveloperCockpit('provider', 'POST', {
-                      action: 'refresh',
-                      campaignId: campaign.id,
-                    }),
-                  )}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh delivery status
-                </Button>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#e2aa4a]">Approved for distribution</p>
+                <p className="mt-2 text-sm leading-6 text-[#c7b288]">Choose an owned account or community in Owner Console → Marketing → Distribution. Delivery never begins from the review action itself.</p>
               </div>
             ) : null}
           </article>

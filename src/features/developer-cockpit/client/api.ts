@@ -2,21 +2,10 @@
 
 import type {
   DeveloperCockpitView,
-  ProviderChannelBinding,
   CampaignMedia,
   SocialCampaign,
-  SocialService,
 } from '@/features/developer-cockpit/model';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
-
-export interface BufferChannelView {
-  id: string;
-  name: string;
-  displayName: string;
-  service: SocialService;
-  avatar: string | null;
-  isQueuePaused: boolean;
-}
 
 export const loadDeveloperCockpit = async (): Promise<DeveloperCockpitView> => {
   const response = await fetch('/api/developer-cockpit', { cache: 'no-store' });
@@ -26,7 +15,7 @@ export const loadDeveloperCockpit = async (): Promise<DeveloperCockpitView> => {
 };
 
 export const mutateDeveloperCockpit = async (
-  path: 'site-proposals' | 'scopes' | 'provider',
+  path: 'site-proposals' | 'scopes',
   method: 'POST' | 'PATCH',
   payload: unknown,
 ): Promise<DeveloperCockpitView> => {
@@ -38,13 +27,6 @@ export const mutateDeveloperCockpit = async (
   if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to update the developer cockpit.'));
   const body = await response.json() as { cockpit: DeveloperCockpitView };
   return body.cockpit;
-};
-
-export const loadBufferChannels = async (): Promise<BufferChannelView[]> => {
-  const response = await fetch('/api/developer-cockpit/provider', { cache: 'no-store' });
-  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load Buffer channels.'));
-  const body = await response.json() as { channels: BufferChannelView[] };
-  return body.channels;
 };
 
 export const uploadCampaignMedia = async (
@@ -94,4 +76,4 @@ export const validateCampaign = async (payload: unknown) => {
   return response.json() as Promise<{ normalized: unknown; blockingErrors: string[]; readinessWarnings: string[]; allowedNextActions: string[] }>;
 };
 
-export type { DeveloperCockpitView, ProviderChannelBinding };
+export type { DeveloperCockpitView };

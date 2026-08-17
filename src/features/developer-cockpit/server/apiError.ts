@@ -44,10 +44,8 @@ export const createDeveloperCockpitErrorResponse = (
       error.status === 429
         ? 'rate_limited'
         : error.status === 503
-        ? error.message.includes('Buffer')
-          ? 'social_publishing_unavailable'
-          : 'developer_cockpit_unavailable'
-        : 'developer_cockpit_request_invalid',
+          ? 'developer_cockpit_unavailable'
+          : 'developer_cockpit_request_invalid',
       error.message,
     );
   }

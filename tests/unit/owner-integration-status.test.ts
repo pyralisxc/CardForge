@@ -97,7 +97,7 @@ describe('owner integration status', () => {
       'google-analytics',
       'search-console',
       'posthog',
-      'buffer',
+      'meta',
       'github',
     ]));
   });

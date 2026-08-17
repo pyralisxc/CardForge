@@ -20,6 +20,14 @@ export type CampaignRow = {
   objective: string;
   destination_url: string;
   production_note: string;
+  marketing_campaign_id: string;
+  audience_key: SocialCampaign['audienceKey'];
+  content_pillar: SocialCampaign['contentPillar'];
+  funnel_stage: SocialCampaign['funnelStage'];
+  content_kind: SocialCampaign['contentKind'];
+  call_to_action: string;
+  creation_source: SocialCampaign['creationSource'];
+  utm_content: string;
   variants: unknown;
   status: SocialCampaignStatus;
   requested_publish_at: string | null;
@@ -73,7 +81,7 @@ export type DerivativeRow = {
   purpose: CampaignMediaDerivative['purpose'];
   width: number;
   height: number;
-  mime_type: 'image/webp';
+  mime_type: 'image/jpeg' | 'image/webp';
   byte_count: number;
   storage_bucket: string;
   storage_path: string;
@@ -117,7 +125,7 @@ export type AssociationRow = {
 export type PublishJobRow = {
   id: string;
   campaign_id: string;
-  provider: 'buffer';
+  provider: SocialPublishJob['provider'];
   service: SocialService;
   provider_channel_id: string;
   provider_post_id: string | null;
@@ -125,6 +133,11 @@ export type PublishJobRow = {
   scheduled_for: string | null;
   error_message: string;
   last_checked_at: string | null;
+  destination_id: string | null;
+  delivery_mode: SocialPublishJob['deliveryMode'];
+  publication_url: string;
+  manual_note: string;
+  attempt_count: number;
   created_at: string;
   updated_at: string;
 };
@@ -151,6 +164,8 @@ export type SiteProposalRow = {
 export const CAMPAIGN_COLUMNS = [
   'id', 'contributor_id', 'contributor_email', 'contributor_name', 'title',
   'objective', 'destination_url', 'production_note', 'variants', 'status',
+  'marketing_campaign_id', 'audience_key', 'content_pillar', 'funnel_stage',
+  'content_kind', 'call_to_action', 'creation_source', 'utm_content',
   'requested_publish_at', 'review_note', 'reviewed_by', 'submitted_at',
   'approved_at', 'version', 'created_at', 'updated_at',
 ].join(',');
@@ -186,7 +201,8 @@ export const ASSOCIATION_COLUMNS = [
 export const JOB_COLUMNS = [
   'id', 'campaign_id', 'provider', 'service', 'provider_channel_id',
   'provider_post_id', 'status', 'scheduled_for', 'error_message',
-  'last_checked_at', 'created_at', 'updated_at',
+  'last_checked_at', 'destination_id', 'delivery_mode', 'publication_url',
+  'manual_note', 'attempt_count', 'created_at', 'updated_at',
 ].join(',');
 
 export const PROPOSAL_COLUMNS = [
@@ -334,6 +350,14 @@ export const mapCampaignRow = (
     objective: row.objective,
     destinationUrl: row.destination_url,
     productionNote: row.production_note,
+    marketingCampaignId: row.marketing_campaign_id,
+    audienceKey: row.audience_key,
+    contentPillar: row.content_pillar,
+    funnelStage: row.funnel_stage,
+    contentKind: row.content_kind,
+    callToAction: row.call_to_action,
+    creationSource: row.creation_source,
+    utmContent: row.utm_content,
     variants: copies.map((variant) => ({
       service: variant.service!,
       text: variant.text ?? '',
@@ -363,6 +387,11 @@ export const mapJobRow = (row: PublishJobRow): SocialPublishJob => ({
   scheduledFor: row.scheduled_for,
   errorMessage: row.error_message,
   lastCheckedAt: row.last_checked_at,
+  destinationId: row.destination_id,
+  deliveryMode: row.delivery_mode,
+  publicationUrl: row.publication_url,
+  manualNote: row.manual_note,
+  attemptCount: row.attempt_count,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });

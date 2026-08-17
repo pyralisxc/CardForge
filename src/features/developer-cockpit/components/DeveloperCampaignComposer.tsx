@@ -26,6 +26,14 @@ import {
   type SocialCampaign,
   type SocialCampaignVariant,
 } from '@/features/developer-cockpit/model';
+import {
+  MARKETING_AUDIENCES,
+  MARKETING_CONTENT_KINDS,
+  MARKETING_CONTENT_PILLARS,
+  MARKETING_FUNNEL_STAGES,
+  type MarketingCampaign,
+  type MarketingStrategy,
+} from '@/features/marketing/model';
 
 export type CampaignDraft = {
   idempotencyKey: string;
@@ -33,17 +41,36 @@ export type CampaignDraft = {
   objective: string;
   destinationUrl: string;
   productionNote: string;
+  marketingCampaignId: string;
+  audienceKey: SocialCampaign['audienceKey'];
+  contentPillar: SocialCampaign['contentPillar'];
+  funnelStage: SocialCampaign['funnelStage'];
+  contentKind: SocialCampaign['contentKind'];
+  callToAction: string;
+  creationSource: SocialCampaign['creationSource'];
+  utmContent: string;
   requestedPublishAt: string;
   variants: SocialCampaignVariant[];
   associations: SocialCampaign['associations'];
 };
 
-export const createEmptyCampaignDraft = (): CampaignDraft => ({
+export const createEmptyCampaignDraft = (
+  campaign?: MarketingCampaign,
+  strategy?: MarketingStrategy,
+): CampaignDraft => ({
   idempotencyKey: crypto.randomUUID(),
   title: '',
   objective: '',
   destinationUrl: 'https://cardforges.com/',
   productionNote: '',
+  marketingCampaignId: campaign?.id ?? '',
+  audienceKey: campaign?.audienceKey ?? strategy?.primaryAudience ?? 'tabletop-designers',
+  contentPillar: 'product-proof',
+  funnelStage: 'awareness',
+  contentKind: 'demonstration',
+  callToAction: strategy?.defaultCallToAction ?? 'Enter the Studio',
+  creationSource: 'developer',
+  utmContent: '',
   requestedPublishAt: '',
   variants: [{ service: 'facebook', text: '', attachments: [] }],
   associations: [],
@@ -63,6 +90,14 @@ export const toCampaignDraft = (campaign: SocialCampaign): CampaignDraft => ({
   objective: campaign.objective,
   destinationUrl: campaign.destinationUrl,
   productionNote: campaign.productionNote,
+  marketingCampaignId: campaign.marketingCampaignId,
+  audienceKey: campaign.audienceKey,
+  contentPillar: campaign.contentPillar,
+  funnelStage: campaign.funnelStage,
+  contentKind: campaign.contentKind,
+  callToAction: campaign.callToAction,
+  creationSource: campaign.creationSource,
+  utmContent: campaign.utmContent,
   requestedPublishAt: toLocalDateTime(campaign.requestedPublishAt),
   variants: campaign.variants.map((variant) => ({
     ...variant,
@@ -120,6 +155,8 @@ export function DeveloperCampaignComposer({
   editing,
   busy,
   mediaLibrary,
+  marketingCampaigns,
+  marketingStrategy,
   onDraftChange,
   onCancel,
   onSave,
@@ -129,6 +166,8 @@ export function DeveloperCampaignComposer({
   editing: SocialCampaign | null;
   busy: boolean;
   mediaLibrary: CampaignMedia[];
+  marketingCampaigns: MarketingCampaign[];
+  marketingStrategy: MarketingStrategy;
   onDraftChange: (draft: CampaignDraft) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -141,6 +180,11 @@ export function DeveloperCampaignComposer({
     Boolean(association.externalKey.trim())
   ));
   const disabled = busy || uploadingVariant !== null;
+  const hasContentContext = Boolean(
+    draft.marketingCampaignId
+    && draft.callToAction.trim()
+    && draft.utmContent.trim(),
+  );
 
   const updateVariant = (index: number, variant: SocialCampaignVariant) => {
     onDraftChange({
@@ -206,7 +250,7 @@ export function DeveloperCampaignComposer({
             {editing ? editing.title : 'Build a campaign package'}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c7b288]">
-            Choose media from CardForge's approved library or upload a new source. The package stores durable media references, not storage paths.
+            Build one reviewable content package inside an owner-defined campaign. Add channel-specific copy, rights-aware media, a clear call to action, and durable development proof.
           </p>
         </div>
         <Button
@@ -226,11 +270,11 @@ export function DeveloperCampaignComposer({
         disabled={disabled}
       >
         <legend className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#e2aa4a]">
-          1. Campaign brief
+          1. Campaign and intent
         </legend>
         <div className="grid gap-3 md:grid-cols-2">
           <CountedField
-            label="Campaign name"
+            label="Content title"
             value={draft.title}
             limit={CAMPAIGN_FIELD_LIMITS.title}
           >
@@ -245,6 +289,58 @@ export function DeveloperCampaignComposer({
               placeholder="Founder workflow proof"
             />
           </CountedField>
+          <label className="grid gap-1 text-xs text-[#c7b288]">
+            Marketing campaign
+            <select
+              className={fieldClassName}
+              value={draft.marketingCampaignId}
+              onChange={(event) => {
+                const campaign = marketingCampaigns.find((candidate) => candidate.id === event.target.value);
+                onDraftChange({
+                  ...draft,
+                  marketingCampaignId: event.target.value,
+                  audienceKey: campaign?.audienceKey ?? draft.audienceKey,
+                });
+              }}
+            >
+              <option value="">Choose a campaign</option>
+              {marketingCampaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-[#c7b288]">
+            Audience
+            <select className={fieldClassName} value={draft.audienceKey} disabled>
+              {MARKETING_AUDIENCES.map((audience) => <option key={audience.id} value={audience.id}>{audience.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-[#c7b288]">
+            Content pillar
+            <select className={fieldClassName} value={draft.contentPillar} onChange={(event) => onDraftChange({ ...draft, contentPillar: event.target.value as CampaignDraft['contentPillar'] })}>
+              {MARKETING_CONTENT_PILLARS.filter((pillar) => marketingStrategy.enabledPillars.includes(pillar.id)).map((pillar) => <option key={pillar.id} value={pillar.id}>{pillar.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-[#c7b288]">
+            Journey stage
+            <select className={fieldClassName} value={draft.funnelStage} onChange={(event) => onDraftChange({ ...draft, funnelStage: event.target.value as CampaignDraft['funnelStage'] })}>
+              {MARKETING_FUNNEL_STAGES.map((stage) => <option key={stage} value={stage}>{stage.replaceAll('-', ' ')}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-[#c7b288]">
+            Content format
+            <select className={fieldClassName} value={draft.contentKind} onChange={(event) => onDraftChange({ ...draft, contentKind: event.target.value as CampaignDraft['contentKind'] })}>
+              {MARKETING_CONTENT_KINDS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll('-', ' ')}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-[#c7b288]">
+            Creation source
+            <select className={fieldClassName} value={draft.creationSource} onChange={(event) => onDraftChange({ ...draft, creationSource: event.target.value as CampaignDraft['creationSource'] })}>
+              <option value="developer">Developer-authored</option>
+              <option value="human">Owner/human-authored</option>
+              <option value="ai-assisted">AI-assisted</option>
+            </select>
+          </label>
           <label className="grid gap-1 text-xs text-[#c7b288]">
             Link people should open
             <input
@@ -274,6 +370,12 @@ export function DeveloperCampaignComposer({
               })}
               placeholder="What should someone understand or do after seeing this?"
             />
+          </CountedField>
+          <CountedField label="Call to action" value={draft.callToAction} limit={CAMPAIGN_FIELD_LIMITS.callToAction}>
+            <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.callToAction} value={draft.callToAction} onChange={(event) => onDraftChange({ ...draft, callToAction: event.target.value })} placeholder="Enter the Studio" />
+          </CountedField>
+          <CountedField label="Tracking key" value={draft.utmContent} limit={CAMPAIGN_FIELD_LIMITS.utmContent}>
+            <input className={fieldClassName} maxLength={CAMPAIGN_FIELD_LIMITS.utmContent} value={draft.utmContent} onChange={(event) => onDraftChange({ ...draft, utmContent: event.target.value })} placeholder="one_card_to_full_set" />
           </CountedField>
         </div>
       </fieldset>
@@ -380,7 +482,7 @@ export function DeveloperCampaignComposer({
           type="button"
           className="min-h-11"
           onClick={onSave}
-          disabled={disabled || !readiness.readyToSave || !associationsComplete}
+          disabled={disabled || !readiness.readyToSave || !associationsComplete || !hasContentContext}
         >
           {busy ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

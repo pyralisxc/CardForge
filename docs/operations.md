@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: August 14, 2026
+Last updated: August 16, 2026
 
 This is the current runbook for `https://cardforges.com`. Provider dashboards own live state; this document owns the safe operating sequence and the evidence required after a change. Do not preserve deployment IDs or completed rollout diaries here.
 
@@ -14,7 +14,7 @@ This is the current runbook for `https://cardforges.com`. Provider dashboards ow
 - Resend owns transactional email delivery.
 - Google Cloud project `cardforge-authentication` owns the production OAuth client used by Clerk. Google Cloud project `cardforge-analytics` owns the least-privilege service identity used for GA4 and Search Console owner reports.
 - GA4 owns consented acquisition/adoption reporting, PostHog owns anonymous allow-listed interaction events, and Search Console independently owns Google discovery reporting.
-- Buffer may own social scheduling/delivery only after its separate owner-controlled rollout gate is enabled.
+- CardForge owns marketing strategy, approval, scheduling, community tasks, and delivery history. Meta owns Facebook/Instagram authorization and publication APIs.
 
 Secrets stay in Vercel or the owning provider. The Owner Console reports readiness and operational state; it must never render raw secret values.
 
@@ -30,7 +30,7 @@ Access: `CARDFORGE_OWNER_ACCOUNT_EMAILS`, `CARDFORGE_DEV_ACCOUNT_EMAILS`, and `C
 
 Analytics: the public enable flag, GA measurement ID, PostHog project token/ingestion host, plus the server-only GA property/service account, Search Console site URL, and PostHog project ID/app host/personal key. Limit the PostHog personal key to Query Read for the one CardForge project.
 
-Social publishing: server-only Buffer API key, organization ID, exact channel allowlist, and publishing flag.
+Social publishing: Meta app ID/secret, the reviewed Facebook Login for Business configuration ID, an explicit Graph API version, a base64 32-byte token-encryption key, the Cron dispatcher secret, and the native publishing flag.
 
 Use `.env.example` as the complete variable catalog.
 
@@ -82,7 +82,7 @@ Changing the operator is a legal and operational migration, not a copy edit. Req
 
 ## Owner Console checks
 
-Use `/owner` through five job-based workspaces: Overview, Growth & People, Site Controls, Library & Production, and Governance. Feature modules still own their data; Owner composes their controls and never becomes a duplicate persistence layer. The asset library shows the complete pipeline through type/status filters, search, and 12-item pages instead of silently truncating the review list. Forge Pipeline > Studio Map shows the exact creator-facing destinations, placement mode, order, and featured state for every registry asset; clear all compatible destinations under Owner override to hide an asset without deleting its history.
+Use `/owner` through six job-based workspaces: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Feature modules still own their data; Owner composes their controls and never becomes a duplicate persistence layer. The asset library shows the complete pipeline through type/status filters, search, and 12-item pages instead of silently truncating the review list. Forge Pipeline > Studio Map shows the exact creator-facing destinations, placement mode, order, and featured state for every registry asset; clear all compatible destinations under Owner override to hide an asset without deleting its history.
 
 Overview > Integrations is the owner-facing provider inventory. Every production dependency must name its purpose, identifier, authoritative owner, removal impact, and exact dashboard destination. Runtime readiness is shown only when CardForge can derive it from configuration; provider-managed entries are labeled honestly instead of being treated as application settings. Add, replace, or retire a provider in this inventory and this topology together. Never render credentials, secret values, or recovery material.
 
@@ -113,9 +113,9 @@ After analytics, privacy, domain, or credential changes:
 
 Rollback all browser collection with a newly deployed `NEXT_PUBLIC_CARDFORGE_ANALYTICS_ENABLED=false` build; this preserves provider-owned history and owner reporting access. After the event-only Privacy Policy is published, never roll back to a replay-capable build unless browser collection has first been disabled and verified in production.
 
-## Developer Cockpit and Buffer
+## Marketing Command Center and Developer Cockpit
 
-`CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_BUFFER_PUBLISHING_ENABLED` are independent and default false. Owner approval remains mandatory. Supabase owns CardForge media/campaign history; Buffer owns only provider scheduling and delivery.
+`CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED` and `CARDFORGE_META_PUBLISHING_ENABLED` are independent and default false. Owner approval remains mandatory. Supabase owns strategy, campaign grouping, approved content, destination rules, encrypted provider connections, scheduling, retries, and publication history. Meta owns the connected Facebook/Instagram account and the final provider post.
 
 For a Pipeline-catalog release, preserve this order: apply and verify the forward Pipeline migrations; run `npm run pipeline:sync-defaults`; verify every expected shared Template, standard-size CardForge Studio back, style, and referenced media record is published at the intended tier; then deploy the bundle that reads Pipeline records only. Never deploy the pipeline-only reader before the import is complete. A rollback may disable the new bundle, but must not restore deleted registry rows, managed files, or private deletion tombstones.
 
@@ -125,15 +125,17 @@ Apply `20260815175658_owner_template_direct_publish.sql` before deploying its ap
 
 Before extended contributors are enabled, verify protected source storage, approved-only public derivatives, canonical media/attachment/association integrity, private preview authorization, owner-only approval/provider mutations, legal publications, and scoped developer grants. A stale campaign version or invalid relationship must leave the campaign, attachments, exposure, and version unchanged.
 
-Before Buffer is enabled:
+Before native Meta publishing is enabled:
 
-1. Store the owner API key server-side and configure the exact organization/channel allowlist.
-2. While publishing is disabled, load channels through the owner cockpit and confirm no unlisted channel appears.
-3. Approve a harmless internal campaign and verify a reused media item produces one stable public derivative without exposing protected sources.
-4. Enable publishing, create Buffer drafts first, and confirm one durable CardForge provider job per channel with matching provider post IDs.
-5. Schedule one harmless post, confirm its due time in Buffer, refresh CardForge until delivery agrees, and retain campaign/job/post evidence without recording the API key.
+1. Create a Meta Business app, add Facebook Login for Business, and register `https://cardforges.com/api/owner/marketing/meta/callback` as an exact OAuth redirect URI.
+2. Create a Facebook Login for Business configuration using a user access token and only `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, and `instagram_content_publish`. Store its ID as `CARDFORGE_META_LOGIN_CONFIGURATION_ID`; CardForge invokes that reviewed configuration instead of supplying ad hoc scopes. Facebook publication targets Pages; Instagram requires a professional account. Groups and third-party communities remain manual destinations.
+3. Set the five required Meta/encryption variables plus `CARDFORGE_MARKETING_DISPATCH_SECRET` in Vercel with `CARDFORGE_META_PUBLISHING_ENABLED=false`. Set `CARDFORGE_META_PAGE_ID` too when the owner account manages more than one Page; the connection fails closed instead of storing credentials for every manageable Page. Deploy, then use Owner Console → Marketing → Distribution → Connect Meta. Confirm the connection table exposes only safe metadata while token ciphertext remains server-only.
+4. Store the dispatch URL and bearer secret in Supabase Vault. Create one Supabase Cron job that POSTs to `https://cardforges.com/api/marketing/dispatch` every minute with the bearer header. Never place the secret directly in migration SQL or a browser-visible setting.
+5. Approve harmless content with one Facebook variant and approved derivative. Prepare it for the owned Page, enable native publishing, run the dispatcher once, and confirm one published delivery row and matching Meta post ID. Repeat with a future schedule and verify the due item is claimed once.
+6. For Instagram, link or choose a professional account and repeat the harmless publication. Approval creates a public 1080×1350 JPEG delivery derivative while the protected WebP master stays private. Confirm container failures remain retryable and no protected source URL is exposed.
+7. Add community destinations with their rules link, last-checked time, and posting guidance. Confirm they always create manual tasks and can be completed with an optional publication link and outcome note.
 
-Rollback new provider mutations by disabling `CARDFORGE_BUFFER_PUBLISHING_ENABLED`. Cancel already-created drafts/schedules in Buffer and refresh the durable CardForge job ledger; do not delete history.
+Rollback native mutations by setting `CARDFORGE_META_PUBLISHING_ENABLED=false`. The dispatcher then refuses new provider calls while schedules and history remain intact. Delete the Supabase Cron job only if the endpoint itself is being retired; never delete campaigns, content, connection history, or delivery records to simulate rollback.
 
 ## Authenticated production smoke
 

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import sharp from 'sharp';
+
 import {
   canTransitionCampaign,
   type SocialCampaign,
@@ -22,22 +24,25 @@ import {
   type DerivativeRow,
 } from './storeShared';
 
+const PROVIDER_IMAGE_WIDTH = 1080;
+const PROVIDER_IMAGE_HEIGHT = 1350;
+
 const createPublicDerivative = async (
   media: CampaignMediaRow,
 ): Promise<DerivativeRow> => {
   const supabase = requireCockpitDatabase();
-  const promotionKey = `${media.id}:public-original`;
+  const promotionKey = `${media.id}:provider-jpeg`;
   const derivativeId = randomUUID();
-  const storagePath = `${media.id}/${randomUUID()}.webp`;
+  const storagePath = `${media.id}/${randomUUID()}.jpg`;
   const { data, error } = await supabase
     .from('cardforge_campaign_media_derivatives')
     .insert({
       id: derivativeId,
       parent_media_id: media.id,
-      purpose: 'public_original',
-      width: media.width,
-      height: media.height,
-      mime_type: 'image/webp',
+      purpose: 'provider_image',
+      width: PROVIDER_IMAGE_WIDTH,
+      height: PROVIDER_IMAGE_HEIGHT,
+      mime_type: 'image/jpeg',
       byte_count: media.normalized_byte_count,
       storage_bucket: SOCIAL_PUBLIC_MEDIA_BUCKET,
       storage_path: storagePath,
@@ -76,7 +81,7 @@ const prepareMediaDerivative = async (mediaId: string): Promise<string> => {
   const media = rows[0];
   if (!media) throw new DeveloperCockpitStoreError('Campaign media not found.', 404);
 
-  const promotionKey = `${media.id}:public-original`;
+  const promotionKey = `${media.id}:provider-jpeg`;
   let derivative = derivatives.find((candidate) => (
     candidate.promotion_key === promotionKey
   ));
@@ -99,15 +104,34 @@ const prepareMediaDerivative = async (mediaId: string): Promise<string> => {
     );
   }
 
+  const providerImage = await sharp(Buffer.from(await source.arrayBuffer()))
+    .resize({
+      width: PROVIDER_IMAGE_WIDTH,
+      height: PROVIDER_IMAGE_HEIGHT,
+      fit: 'contain',
+      background: '#120d1c',
+      withoutEnlargement: false,
+    })
+    .flatten({ background: '#120d1c' })
+    .jpeg({ quality: 92, mozjpeg: true })
+    .toBuffer();
   const { error: uploadError } = await supabase.storage
     .from(SOCIAL_PUBLIC_MEDIA_BUCKET)
-    .upload(derivative.storage_path, await source.arrayBuffer(), {
+    .upload(derivative.storage_path, providerImage, {
       cacheControl: '31536000',
-      contentType: 'image/webp',
+      contentType: 'image/jpeg',
       upsert: true,
     });
   if (uploadError) {
     throwCockpitDatabaseError('Unable to promote approved campaign media.', uploadError);
+  }
+
+  const { error: metadataError } = await supabase
+    .from('cardforge_campaign_media_derivatives')
+    .update({ byte_count: providerImage.byteLength })
+    .eq('id', derivative.id);
+  if (metadataError) {
+    throwCockpitDatabaseError('Unable to finalize approved campaign media.', metadataError);
   }
 
   return derivative.id;
@@ -149,7 +173,9 @@ export const approveSocialCampaign = async (
   for (const attachment of campaign.variants.flatMap((variant) => variant.attachments)) {
     const selected = attachment.derivativeId
       ? attachment.media.derivatives.find((derivative) => (
-        derivative.id === attachment.derivativeId && derivative.exposure === 'public'
+        derivative.id === attachment.derivativeId
+        && derivative.exposure === 'public'
+        && derivative.mimeType === 'image/jpeg'
       ))
       : null;
     selections.push({

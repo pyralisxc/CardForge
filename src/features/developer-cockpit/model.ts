@@ -7,6 +7,14 @@ import type {
   DeveloperAccessProfile,
   DeveloperContributionScope,
 } from '@/features/developer-access/client';
+import type {
+  MarketingAudienceId,
+  MarketingCampaign,
+  MarketingContentKind,
+  MarketingContentPillar,
+  MarketingFunnelStage,
+  MarketingStrategy,
+} from '@/features/marketing/model';
 import {
   SOCIAL_SERVICES,
   SOCIAL_SERVICE_LABELS,
@@ -31,10 +39,10 @@ export type CampaignAssociationKind =
 
 export interface CampaignMediaDerivative {
   id: string;
-  purpose: 'normalized_master' | 'public_original' | 'social_crop' | 'thumbnail';
+  purpose: 'normalized_master' | 'public_original' | 'provider_image' | 'social_crop' | 'thumbnail';
   width: number;
   height: number;
-  mimeType: 'image/webp';
+  mimeType: 'image/jpeg' | 'image/webp';
   byteCount: number;
   exposure: 'private' | 'public';
   crop: { x: number; y: number; width: number; height: number } | null;
@@ -114,6 +122,14 @@ export interface SocialCampaign {
   objective: string;
   destinationUrl: string;
   productionNote: string;
+  marketingCampaignId: string;
+  audienceKey: MarketingAudienceId;
+  contentPillar: MarketingContentPillar;
+  funnelStage: MarketingFunnelStage;
+  contentKind: MarketingContentKind;
+  callToAction: string;
+  creationSource: 'human' | 'developer' | 'ai-assisted';
+  utmContent: string;
   variants: SocialCampaignVariant[];
   associations: CampaignDevelopmentAssociation[];
   status: SocialCampaignStatus;
@@ -128,9 +144,11 @@ export interface SocialCampaign {
 }
 
 export interface SocialPublishJob {
-  id: string; campaignId: string; provider: 'buffer'; service: SocialService;
+  id: string; campaignId: string; provider: 'meta' | 'manual'; service: SocialService;
   providerChannelId: string; providerPostId: string | null; status: SocialPublishJobStatus;
   scheduledFor: string | null; errorMessage: string; lastCheckedAt: string | null;
+  destinationId: string | null; deliveryMode: 'automatic' | 'manual';
+  publicationUrl: string; manualNote: string; attemptCount: number;
   createdAt: string; updatedAt: string;
 }
 
@@ -142,7 +160,6 @@ export interface SiteContentProposal {
   version: number; createdAt: string; updatedAt: string;
 }
 
-export interface ProviderChannelBinding { service: SocialService; channelId: string; }
 export interface CampaignMediaLibrarySummary {
   mediaCount: number; protectedBytes: number; derivativeBytes: number; unusedMediaCount: number;
 }
@@ -156,11 +173,13 @@ export interface DeveloperCockpitView {
   campaignMediaPage: CampaignMediaPageSummary;
   publishJobs: SocialPublishJob[]; siteProposals: SiteContentProposal[]; siteContentBlocks: SiteContentBlock[];
   profiles: DeveloperAccessProfile[];
-  provider: { name: 'buffer'; configured: boolean; publishingEnabled: boolean; organizationId: string | null; allowedChannelCount: number; missing: string[]; };
+  marketingStrategy: MarketingStrategy;
+  marketingCampaigns: MarketingCampaign[];
 }
 
 export const CAMPAIGN_FIELD_LIMITS = {
   title: 120, objective: 600, destinationUrl: 2_048, productionNote: 1_000,
+  callToAction: 500, utmContent: 120,
   variantText: 5_000, mediaAlt: 300, captionOverride: 1_000, associationKey: 500,
   rightsBasis: 1_000, creatorCredit: 500, rightsRestriction: 1_000,
   reusableCaption: 1_000, reusableDescription: 2_000,
@@ -177,10 +196,17 @@ type CampaignAttachmentInput = {
 };
 export type CampaignInput = {
   title?: unknown; objective?: unknown; destinationUrl?: unknown; productionNote?: unknown;
+  marketingCampaignId?: unknown; audienceKey?: unknown; contentPillar?: unknown;
+  funnelStage?: unknown; contentKind?: unknown; callToAction?: unknown;
+  creationSource?: unknown; utmContent?: unknown;
   requestedPublishAt?: unknown; variants?: unknown; associations?: unknown;
 };
 export type CampaignInputResult = { ok: true; value: {
   title: string; objective: string; destinationUrl: string; productionNote: string;
+  marketingCampaignId: string; audienceKey: MarketingAudienceId;
+  contentPillar: MarketingContentPillar; funnelStage: MarketingFunnelStage;
+  contentKind: MarketingContentKind; callToAction: string;
+  creationSource: 'human' | 'developer' | 'ai-assisted'; utmContent: string;
   requestedPublishAt: string | null; variants: Array<{ service: SocialService; text: string; attachments: CampaignAttachmentInput[] }>;
   associations: Array<Omit<CampaignDevelopmentAssociation, 'id' | 'createdBy' | 'createdAt'>>;
 } } | { ok: false; message: string };
@@ -214,6 +240,22 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
   if (requestedPublishAt === false) return { ok: false, message: 'The preferred publish time is invalid.' };
   const productionNote = longText(input.productionNote);
   if (productionNote.length > CAMPAIGN_FIELD_LIMITS.productionNote) return { ok: false, message: 'Release and review context must be 1,000 characters or fewer.' };
+  const marketingCampaignId = shortText(input.marketingCampaignId);
+  if (!isUuid(marketingCampaignId)) return { ok: false, message: 'Choose the marketing campaign this content supports.' };
+  const audienceKey = shortText(input.audienceKey) as MarketingAudienceId;
+  if (!['tabletop-designers', 'deck-creators', 'small-publishers', 'educators-facilitators'].includes(audienceKey)) return { ok: false, message: 'Choose the audience for this content.' };
+  const contentPillar = shortText(input.contentPillar) as MarketingContentPillar;
+  if (!['product-proof', 'creator-education', 'build-in-public', 'customer-research', 'launch-update'].includes(contentPillar)) return { ok: false, message: 'Choose a supported content pillar.' };
+  const funnelStage = shortText(input.funnelStage) as MarketingFunnelStage;
+  if (!['awareness', 'consideration', 'activation', 'feedback'].includes(funnelStage)) return { ok: false, message: 'Choose the content journey stage.' };
+  const contentKind = shortText(input.contentKind) as MarketingContentKind;
+  if (!['demonstration', 'education', 'question', 'update', 'creator-story'].includes(contentKind)) return { ok: false, message: 'Choose a supported content format.' };
+  const callToAction = longText(input.callToAction);
+  if (!callToAction || callToAction.length > CAMPAIGN_FIELD_LIMITS.callToAction) return { ok: false, message: 'Add a call to action of 500 characters or fewer.' };
+  const creationSource = shortText(input.creationSource) as 'human' | 'developer' | 'ai-assisted';
+  if (!['human', 'developer', 'ai-assisted'].includes(creationSource)) return { ok: false, message: 'Choose how this content was created.' };
+  const utmContent = shortText(input.utmContent).toLowerCase().replace(/[^a-z0-9]+/gu, '_').replace(/^_+|_+$/gu, '');
+  if (!utmContent || utmContent.length > CAMPAIGN_FIELD_LIMITS.utmContent) return { ok: false, message: 'Add a short tracking key for this content.' };
   if (!Array.isArray(input.variants) || !input.variants.length) return { ok: false, message: 'Add at least one channel variant.' };
   if (input.variants.length > 10) return { ok: false, message: 'A campaign can target at most 10 channels.' };
   const seenServices = new Set<SocialService>();
@@ -227,7 +269,8 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
     seenServices.add(service);
     const text = longText(candidate.text);
     if (!text) return { ok: false, message: `${SOCIAL_SERVICE_LABELS[service]} copy is required.` };
-    if (text.length > CAMPAIGN_FIELD_LIMITS.variantText) return { ok: false, message: `${SOCIAL_SERVICE_LABELS[service]} copy must be 5,000 characters or fewer.` };
+    const textLimit = service === 'instagram' ? 2_200 : CAMPAIGN_FIELD_LIMITS.variantText;
+    if (text.length > textLimit) return { ok: false, message: `${SOCIAL_SERVICE_LABELS[service]} copy must be ${textLimit.toLocaleString('en-US')} characters or fewer.` };
     const source = candidate.attachments;
     if (source !== undefined && !Array.isArray(source)) return { ok: false, message: 'Campaign attachments must be a list.' };
     if (Array.isArray(source) && source.length > 4) return { ok: false, message: 'Each channel can include at most four images.' };
@@ -255,6 +298,9 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
       if (JSON.stringify(cropIntent).length > MAX_CROP_INTENT_JSON_LENGTH) return { ok: false, message: 'Campaign crop intent is too large.' };
       attachments.push({ mediaId, derivativeId, displayOrder, altText, captionOverride, cropIntent });
     }
+    if (service === 'instagram' && !attachments.length) {
+      return { ok: false, message: 'Instagram content needs at least one approved image.' };
+    }
     variants.push({ service, text, attachments });
   }
   const associations: Array<Omit<CampaignDevelopmentAssociation, 'id' | 'createdBy' | 'createdAt'>> = [];
@@ -279,7 +325,11 @@ export const normalizeCampaignInput = (input: CampaignInput): CampaignInputResul
     associationKeys.add(key);
     associations.push({ kind: kind as CampaignAssociationKind, externalKey, referenceUrl, titleSnapshot, metadataSnapshot, note });
   }
-  return { ok: true, value: { title, objective, destinationUrl, productionNote, requestedPublishAt, variants, associations } };
+  return { ok: true, value: {
+    title, objective, destinationUrl, productionNote, marketingCampaignId,
+    audienceKey, contentPillar, funnelStage, contentKind, callToAction,
+    creationSource, utmContent, requestedPublishAt, variants, associations,
+  } };
 };
 
 const contributorCampaignTransitions: Partial<Record<SocialCampaignStatus, SocialCampaignStatus[]>> = { draft: ['submitted', 'cancelled'], changes_requested: ['draft', 'submitted', 'cancelled'], submitted: ['cancelled'] };

@@ -130,6 +130,33 @@ const campaignCopies = (input: NormalizedCampaign) => (
   input.variants.map(({ service, text }) => ({ service, text }))
 );
 
+const assertMarketingCampaignAccess = async (
+  input: NormalizedCampaign,
+  access: DeveloperCockpitAccess,
+) => {
+  let query = requireCockpitDatabase()
+    .from('cardforge_marketing_campaigns')
+    .select('id,status,audience_key')
+    .eq('id', input.marketingCampaignId)
+    .limit(1);
+  if (!access.isOwner) query = query.in('status', ['planning', 'active']);
+  const { data, error } = await query;
+  if (error) throwCockpitDatabaseError('Unable to validate the marketing campaign.', error);
+  const campaign = data?.[0] as { id?: string; audience_key?: string } | undefined;
+  if (!campaign?.id) {
+    throw new DeveloperCockpitStoreError(
+      'Choose an active marketing campaign before saving this content.',
+      400,
+    );
+  }
+  if (campaign.audience_key !== input.audienceKey) {
+    throw new DeveloperCockpitStoreError(
+      'The content audience must match its marketing campaign.',
+      400,
+    );
+  }
+};
+
 export const listSocialCampaigns = async ({
   access,
   status,
@@ -177,10 +204,11 @@ export const createSocialCampaign = async (
 
   const normalized = normalizeCampaignInput(input);
   if (!normalized.ok) throw new DeveloperCockpitStoreError(normalized.message, 400);
+  await assertMarketingCampaignAccess(normalized.value, access);
   await assertMediaAttachmentAccess(normalized.value, access);
   const relationships = serializeRelationships(normalized.value);
   const { data, error } = await requireCockpitDatabase().rpc(
-    'cardforge_create_social_campaign',
+    'cardforge_create_marketing_content',
     {
       p_contributor_id: access.user.id,
       p_contributor_email: access.email,
@@ -194,6 +222,14 @@ export const createSocialCampaign = async (
       p_requested_publish_at: normalized.value.requestedPublishAt,
       p_attachments: relationships.attachments,
       p_associations: relationships.associations,
+      p_marketing_campaign_id: normalized.value.marketingCampaignId,
+      p_audience_key: normalized.value.audienceKey,
+      p_content_pillar: normalized.value.contentPillar,
+      p_funnel_stage: normalized.value.funnelStage,
+      p_content_kind: normalized.value.contentKind,
+      p_call_to_action: normalized.value.callToAction,
+      p_creation_source: normalized.value.creationSource,
+      p_utm_content: normalized.value.utmContent,
     },
   );
   if (error) throwCockpitDatabaseError('Unable to create the campaign package.', error);
@@ -202,7 +238,6 @@ export const createSocialCampaign = async (
       'Campaign creation did not return an identifier.',
     );
   }
-
   const campaign = await getCampaignRecord(data, access);
   return {
     campaign,
@@ -232,13 +267,14 @@ export const saveSocialCampaign = async ({
 
   const normalized = normalizeCampaignInput(input);
   if (!normalized.ok) throw new DeveloperCockpitStoreError(normalized.message, 400);
+  await assertMarketingCampaignAccess(normalized.value, access);
   await assertMediaAttachmentAccess(normalized.value, access);
   const version = normalizeExpectedVersion(expectedVersion);
   const relationships = serializeRelationships(normalized.value);
   const { data, error } = await requireCockpitDatabase().rpc(
-    'cardforge_update_social_campaign',
+    'cardforge_update_marketing_content',
     {
-      p_campaign_id: campaign.id,
+      p_content_id: campaign.id,
       p_expected_version: version,
       p_actor_id: access.user.id,
       p_title: normalized.value.title,
@@ -249,6 +285,14 @@ export const saveSocialCampaign = async ({
       p_requested_publish_at: normalized.value.requestedPublishAt,
       p_attachments: relationships.attachments,
       p_associations: relationships.associations,
+      p_marketing_campaign_id: normalized.value.marketingCampaignId,
+      p_audience_key: normalized.value.audienceKey,
+      p_content_pillar: normalized.value.contentPillar,
+      p_funnel_stage: normalized.value.funnelStage,
+      p_content_kind: normalized.value.contentKind,
+      p_call_to_action: normalized.value.callToAction,
+      p_creation_source: normalized.value.creationSource,
+      p_utm_content: normalized.value.utmContent,
     },
   );
   if (error) throwCockpitDatabaseError('Unable to save the campaign package.', error);
@@ -258,7 +302,6 @@ export const saveSocialCampaign = async ({
       409,
     );
   }
-
   const saved = await getCampaignRecord(campaign.id, access);
   return {
     campaign: saved,
@@ -406,6 +449,14 @@ export const updateCampaignAssociations = async ({
       objective: campaign.objective,
       destinationUrl: campaign.destinationUrl,
       productionNote: campaign.productionNote,
+      marketingCampaignId: campaign.marketingCampaignId,
+      audienceKey: campaign.audienceKey,
+      contentPillar: campaign.contentPillar,
+      funnelStage: campaign.funnelStage,
+      contentKind: campaign.contentKind,
+      callToAction: campaign.callToAction,
+      creationSource: campaign.creationSource,
+      utmContent: campaign.utmContent,
       requestedPublishAt: campaign.requestedPublishAt,
       variants: campaign.variants.map((variant) => ({
         service: variant.service,

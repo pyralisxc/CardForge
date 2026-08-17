@@ -28,7 +28,12 @@ export function DeveloperCampaignPanel({
 }) {
   const canDraft = cockpit.scopes.includes('campaigns.draft');
   const [showComposer, setShowComposer] = useState(false);
-  const [draft, setDraft] = useState<CampaignDraft>(createEmptyCampaignDraft);
+  const createDraft = () => createEmptyCampaignDraft(
+    cockpit.marketingCampaigns.find((campaign) => campaign.status === 'active')
+      ?? cockpit.marketingCampaigns[0],
+    cockpit.marketingStrategy,
+  );
+  const [draft, setDraft] = useState<CampaignDraft>(createDraft);
   const [editing, setEditing] = useState<SocialCampaign | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +41,7 @@ export function DeveloperCampaignPanel({
 
   const resetComposer = () => {
     setEditing(null);
-    setDraft(createEmptyCampaignDraft());
+    setDraft(createDraft());
     setShowComposer(false);
   };
 
@@ -90,7 +95,7 @@ export function DeveloperCampaignPanel({
         {canDraft && !showComposer ? (
           <Button type="button" className="min-h-11" onClick={() => {
             setEditing(null);
-            setDraft(createEmptyCampaignDraft());
+            setDraft(createDraft());
             setShowComposer(true);
           }}>
             <Plus className="mr-2 h-4 w-4" />New campaign package
@@ -107,6 +112,8 @@ export function DeveloperCampaignPanel({
           editing={editing}
           busy={busy}
           mediaLibrary={cockpit.campaignMedia}
+          marketingCampaigns={cockpit.marketingCampaigns}
+          marketingStrategy={cockpit.marketingStrategy}
           onDraftChange={setDraft}
           onCancel={resetComposer}
           onSave={() => void saveCampaign()}
@@ -118,6 +125,13 @@ export function DeveloperCampaignPanel({
         <article className="border border-[#7d5a2e] bg-[#181009] p-5">
           <h2 className="font-serif text-xl text-[#fff1c7]">Campaign drafting is not enabled</h2>
           <p className="mt-2 text-sm leading-6 text-[#c7b288]">The owner can enable this scope independently from asset-library access.</p>
+        </article>
+      ) : null}
+
+      {canDraft && cockpit.marketingCampaigns.length === 0 ? (
+        <article className="border border-[#7d5a2e] bg-[#181009] p-5">
+          <h2 className="font-serif text-xl text-[#fff1c7]">A marketing campaign is required</h2>
+          <p className="mt-2 text-sm leading-6 text-[#c7b288]">The owner needs to create or activate a campaign in the Marketing workspace before contributors can submit content.</p>
         </article>
       ) : null}
 

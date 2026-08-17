@@ -37,11 +37,15 @@ const workflowStatusLabels: Record<SocialCampaignStatus | SocialPublishJobStatus
   submitted: 'Awaiting review',
   changes_requested: 'Changes requested',
   approved: 'Approved',
-  provider_draft: 'Buffer draft',
+  planned: 'Planned',
+  ready: 'Ready to publish',
+  provider_draft: 'Provider draft',
   scheduled: 'Scheduled',
+  publishing: 'Publishing',
   published: 'Published',
   failed: 'Delivery failed',
   cancelled: 'Cancelled',
+  skipped: 'Skipped',
   unknown: 'Status unavailable',
 };
 
@@ -163,7 +167,7 @@ export const getCampaignStatusGuidance = (
       : 'The package is approved; publishing remains owner-controlled.';
   }
   if (status === 'provider_draft') return 'Provider drafts exist and remain under owner control.';
-  if (status === 'scheduled') return 'The approved package is scheduled with the publishing provider.';
+  if (status === 'scheduled') return 'The approved content is scheduled for delivery from Marketing.';
   if (status === 'published') return 'This package and its delivery record are retained as campaign history.';
   if (status === 'failed') return 'Provider delivery needs owner attention; the approved package is preserved.';
   return 'This package is closed and retained in campaign history.';

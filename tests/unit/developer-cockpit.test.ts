@@ -5,6 +5,17 @@ import {
   normalizeCampaignInput,
   normalizeSiteProposalInput,
 } from '@/features/developer-cockpit/model';
+
+const marketingContext = {
+  marketingCampaignId: '33333333-3333-4333-8333-333333333333',
+  audienceKey: 'tabletop-designers',
+  contentPillar: 'product-proof',
+  funnelStage: 'consideration',
+  contentKind: 'demonstration',
+  callToAction: 'Enter the Studio',
+  creationSource: 'developer',
+  utmContent: 'founder_workflow_proof',
+} as const;
 import {
   EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
   OWNER_DEVELOPER_ACCESS_PROJECTION,
@@ -102,6 +113,7 @@ describe('developer contribution cockpit', () => {
 
   it('normalizes complete channel-specific campaign packages', () => {
     expect(normalizeCampaignInput({
+      ...marketingContext,
       title: '  Founder workflow proof  ',
       objective: '  Show the full card-set workflow.  ',
       destinationUrl: 'https://cardforges.com/',
@@ -118,6 +130,7 @@ describe('developer contribution cockpit', () => {
     })).toEqual({
       ok: true,
       value: {
+        ...marketingContext,
         title: 'Founder workflow proof',
         objective: 'Show the full card-set workflow.',
         destinationUrl: 'https://cardforges.com/',
@@ -142,6 +155,7 @@ describe('developer contribution cockpit', () => {
 
   it('rejects incomplete campaign and site proposal inputs', () => {
     expect(normalizeCampaignInput({
+      ...marketingContext,
       title: 'No channel copy',
       objective: 'Test',
         variants: [],
@@ -154,6 +168,7 @@ describe('developer contribution cockpit', () => {
     })).toEqual({ ok: false, message: 'Choose a supported public-site copy block.' });
 
     expect(normalizeCampaignInput({
+      ...marketingContext,
       title: 'Legacy storage reference',
       objective: 'A package must refer to canonical media rather than a storage object.',
       variants: [{
@@ -164,6 +179,33 @@ describe('developer contribution cockpit', () => {
     } as never)).toEqual({
       ok: false,
       message: 'Attach CardForge media by ID; storage references are not accepted.',
+    });
+
+    expect(normalizeCampaignInput({
+      ...marketingContext,
+      title: 'Instagram needs an image',
+      objective: 'Prevent a delivery that Meta cannot publish.',
+      variants: [{ service: 'instagram', text: 'Image coming soon.', attachments: [] }],
+    })).toEqual({
+      ok: false,
+      message: 'Instagram content needs at least one approved image.',
+    });
+
+    expect(normalizeCampaignInput({
+      ...marketingContext,
+      title: 'Instagram caption too long',
+      objective: 'Respect the provider limit before review.',
+      variants: [{
+        service: 'instagram',
+        text: 'x'.repeat(2_201),
+        attachments: [{
+          mediaId: '11111111-1111-4111-8111-111111111111',
+          altText: 'A CardForge card set.',
+        }],
+      }],
+    })).toEqual({
+      ok: false,
+      message: 'Instagram copy must be 2,200 characters or fewer.',
     });
   });
 
@@ -178,6 +220,7 @@ describe('developer contribution cockpit', () => {
 
   it('rejects ambiguous attachment order and oversized development relationships', () => {
     expect(normalizeCampaignInput({
+      ...marketingContext,
       title: 'Ambiguous image order',
       objective: 'Keep channel attachment order deterministic.',
       variants: [{
@@ -202,6 +245,7 @@ describe('developer contribution cockpit', () => {
     });
 
     expect(normalizeCampaignInput({
+      ...marketingContext,
       title: 'Too many links',
       objective: 'Keep campaign relationships intentionally bounded.',
       variants: [{ service: 'facebook', text: 'A campaign.' }],

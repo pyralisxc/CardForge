@@ -44,6 +44,12 @@ export function DeveloperCampaignPackageDetails({
           </h4>
         </div>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <ContextItem icon={FileText} label="Marketing intent">
+            {campaign.audienceKey.replaceAll('-', ' ')} · {campaign.contentPillar.replaceAll('-', ' ')} · {campaign.funnelStage} · {campaign.contentKind.replaceAll('-', ' ')}
+          </ContextItem>
+          <ContextItem icon={Link2} label="Call to action and tracking">
+            {campaign.callToAction} · utm_content={campaign.utmContent}
+          </ContextItem>
           <ContextItem icon={Link2} label="Destination">
             {campaign.destinationUrl ? (
               <a

@@ -6,7 +6,7 @@ import type {
 } from '@/features/developer-cockpit/model';
 import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
 import { listDeveloperAccessProfiles } from '@/features/developer-access/server';
-import { getBufferConfiguration } from '@/features/social-publishing/server';
+import { getMarketingContributorContext } from '@/features/marketing/server';
 import { isMissingSupabaseTableError } from '@/infrastructure/database/supabaseErrors';
 import {
   getSupabaseServerClient,
@@ -74,16 +74,16 @@ const fetchSiteProposals = async (
 export const getDeveloperCockpitView = async (
   access: DeveloperCockpitAccess,
 ): Promise<DeveloperCockpitView> => {
-  const [campaignResult, proposalResult, siteContentBlocks, profiles, campaignMediaPage, campaignMediaSummary] = await Promise.all([
+  const [campaignResult, proposalResult, siteContentBlocks, profiles, campaignMediaPage, campaignMediaSummary, marketing] = await Promise.all([
     fetchCampaigns(access),
     fetchSiteProposals(access),
     getSiteContentBlocks(),
     listDeveloperAccessProfiles(access.isOwner),
     getAuthorizedCampaignMediaPage(access, { page: 1, pageSize: 24 }),
     getCampaignMediaLibrarySummary(access),
+    getMarketingContributorContext(),
   ]);
   const publishJobs = await fetchPublishJobs(campaignResult.campaigns.map((campaign) => campaign.id));
-  const provider = getBufferConfiguration();
   return {
     configured: getSupabaseServerConfigStatus().configured
       && campaignResult.configured
@@ -106,13 +106,7 @@ export const getDeveloperCockpitView = async (
     siteProposals: proposalResult.proposals,
     siteContentBlocks,
     profiles,
-    provider: {
-      name: 'buffer',
-      configured: provider.configured,
-      publishingEnabled: provider.publishingEnabled,
-      organizationId: provider.organizationId,
-      allowedChannelCount: provider.allowedChannelIds.length,
-      missing: provider.missing,
-    },
+    marketingStrategy: marketing.strategy,
+    marketingCampaigns: marketing.campaigns,
   };
 };

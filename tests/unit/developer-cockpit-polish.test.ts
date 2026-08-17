@@ -82,6 +82,19 @@ describe('developer cockpit polish contract', () => {
     expect(composer).toContain('CampaignVariantEditor');
   });
 
+  it('promotes reviewed campaign art into a provider-ready JPEG', () => {
+    const approval = readFileSync(
+      sourcePath('features', 'developer-cockpit', 'server', 'mediaApproval.ts'),
+      'utf8',
+    );
+
+    expect(approval).toContain("purpose: 'provider_image'");
+    expect(approval).toContain("mime_type: 'image/jpeg'");
+    expect(approval).toContain('PROVIDER_IMAGE_WIDTH = 1080');
+    expect(approval).toContain('PROVIDER_IMAGE_HEIGHT = 1350');
+    expect(approval).toContain('.jpeg({ quality: 92, mozjpeg: true })');
+  });
+
   it('keeps owner work visible from review through publishing setup', () => {
     const campaign = {
       contributorId: 'developer-1',
@@ -159,7 +172,7 @@ describe('developer cockpit polish contract', () => {
   });
 
   it('presents workflow states with provider-aware human labels', () => {
-    expect(getCampaignStatusLabel('provider_draft')).toBe('Buffer draft');
+    expect(getCampaignStatusLabel('provider_draft')).toBe('Provider draft');
     expect(getCampaignStatusLabel('changes_requested')).toBe('Changes requested');
     expect(getCampaignStatusLabel('scheduled')).toBe('Scheduled');
   });
