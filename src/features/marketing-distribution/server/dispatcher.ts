@@ -6,6 +6,7 @@ import {
 import {
   publishToMeta,
 } from '@/features/social-publishing/server';
+import { isMetaPublishingService } from '@/features/marketing-distribution/model';
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 import { decryptMarketingToken } from './marketingTokenCrypto';
 import { getMetaConfiguration } from './metaConnection';
@@ -14,7 +15,7 @@ type ClaimedDelivery = {
   id: string;
   campaign_id: string;
   destination_id: string;
-  service: 'facebook' | 'instagram';
+  service: string;
   attempt_count: number;
 };
 
@@ -22,7 +23,7 @@ type DestinationRow = {
   id: string;
   connection_id: string;
   external_account_id: string;
-  service: 'facebook' | 'instagram';
+  service: string;
 };
 
 type ConnectionSecretRow = {
@@ -60,16 +61,24 @@ const finishDelivery = async (
 const dispatchOne = async (delivery: ClaimedDelivery) => {
   const database = getSupabaseServerClient();
   if (!database) throw new Error('The marketing database is not configured.');
+  if (!isMetaPublishingService(delivery.service)) {
+    throw new Error('The delivery channel is not supported by the Meta publisher.');
+  }
   const { data: destinationData, error: destinationError } = await database
     .from('cardforge_marketing_destinations')
     .select('id,connection_id,external_account_id,service')
     .eq('id', delivery.destination_id)
     .eq('provider', 'meta')
+    .eq('service', delivery.service)
     .eq('publishing_mode', 'automatic')
     .eq('active', true)
     .limit(1);
   const destination = destinationData?.[0] as DestinationRow | undefined;
-  if (destinationError || !destination?.connection_id) throw new Error('The Meta destination is unavailable.');
+  if (
+    destinationError
+    || !destination?.connection_id
+    || !isMetaPublishingService(destination.service)
+  ) throw new Error('The Meta destination is unavailable.');
   const { data: connectionData, error: connectionError } = await database
     .from('cardforge_marketing_connections')
     .select('access_token_ciphertext,access_token_iv,access_token_auth_tag,status')

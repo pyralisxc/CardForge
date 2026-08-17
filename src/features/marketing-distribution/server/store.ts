@@ -191,7 +191,7 @@ export const queueMarketingDelivery = async ({
     url?: string;
     active?: boolean;
   } | undefined;
-  if (!content?.id || !['approved', 'provider_draft', 'scheduled', 'published', 'failed'].includes(content.status ?? '')) {
+  if (!content?.id || !['approved', 'provider_draft', 'scheduled', 'failed'].includes(content.status ?? '')) {
     throw new MarketingDistributionStoreError(
       'Only owner-approved content can be prepared for delivery.',
       409,
@@ -217,6 +217,7 @@ export const queueMarketingDelivery = async ({
   const deliveryMode = destination.publishing_mode ?? 'manual';
   const automaticDueAt = deliveryMode === 'automatic' ? dueAt ?? new Date() : dueAt;
   const status = automaticDueAt ? 'scheduled' : 'ready';
+  const providerChannelId = destination.external_account_id || destination.url || destination.id;
   const { data, error: insertError } = await database
     .from('cardforge_social_publish_jobs')
     .upsert({
@@ -224,17 +225,45 @@ export const queueMarketingDelivery = async ({
       destination_id: destination.id,
       provider: destination.provider ?? 'manual',
       service: destination.service,
-      provider_channel_id: destination.external_account_id || destination.url || destination.id,
+      provider_channel_id: providerChannelId,
       status,
       scheduled_for: automaticDueAt?.toISOString() ?? null,
       delivery_mode: deliveryMode,
       idempotency_key: `${content.id}:${destination.id}`,
       error_message: '',
-    }, { onConflict: 'campaign_id,provider_channel_id' })
-    .select('id')
+    }, {
+      onConflict: 'campaign_id,provider_channel_id',
+      ignoreDuplicates: true,
+    })
+    .select('id,status')
     .limit(1);
   if (insertError) throwDatabaseError('Unable to queue the marketing delivery.', insertError);
-  return { id: data?.[0]?.id as string, status };
+  if (data?.[0]?.id) {
+    return { id: data[0].id as string, status: data[0].status as string };
+  }
+  const { data: existingData, error: existingError } = await database
+    .from('cardforge_social_publish_jobs')
+    .select('id,status')
+    .eq('campaign_id', content.id)
+    .eq('provider_channel_id', providerChannelId)
+    .limit(1);
+  const existing = existingData?.[0];
+  if (existingError) {
+    throwDatabaseError(
+      'Unable to confirm the existing marketing delivery.',
+      existingError,
+    );
+  }
+  if (!existing?.id) {
+    throw new MarketingDistributionStoreError(
+      'Unable to confirm the existing marketing delivery.',
+      503,
+    );
+  }
+  return {
+    id: existing.id as string,
+    status: existing.status as string,
+  };
 };
 
 export const completeManualMarketingDelivery = async (

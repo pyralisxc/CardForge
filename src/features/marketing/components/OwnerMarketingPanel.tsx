@@ -610,7 +610,7 @@ function DistributionEditor({
   const [scheduledFor, setScheduledFor] = useState("");
   const [busy, setBusy] = useState(false);
   const approved = cockpit.campaigns.filter((item) =>
-    ["approved", "provider_draft", "scheduled", "published", "failed"].includes(
+    ["approved", "provider_draft", "scheduled", "failed"].includes(
       item.status,
     ),
   );
@@ -805,11 +805,14 @@ function DistributionEditor({
           <button
             type="button"
             key={destination.id}
+            disabled={destination.publishingMode === "automatic"}
+            title={destination.publishingMode === "automatic" ? "Connected destinations are managed through Connect Meta." : "Edit destination"}
             onClick={() => {
+              if (destination.publishingMode === "automatic") return;
               setEditing(destination);
               setDraft(destination);
             }}
-            className="border border-[#5f4526] bg-[#15100a] p-4 text-left"
+            className="border border-[#5f4526] bg-[#15100a] p-4 text-left disabled:cursor-default"
           >
             <div className="flex justify-between gap-2">
               <h4 className="font-medium text-[#ffe7ad]">{destination.name}</h4>

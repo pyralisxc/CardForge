@@ -87,6 +87,12 @@ const isChannel = (value: unknown): value is MarketingChannel => (
   && MARKETING_CHANNELS.includes(value as MarketingChannel)
 );
 
+export const isMetaPublishingService = (
+  value: unknown,
+): value is 'facebook' | 'instagram' => (
+  value === 'facebook' || value === 'instagram'
+);
+
 export const normalizeMarketingDestinationInput = (
   input: Record<string, unknown>,
 ): MarketingDestinationInputResult => {
@@ -101,6 +107,12 @@ export const normalizeMarketingDestinationInput = (
     return { ok: false, message: 'Choose an owned account or community destination.' };
   }
   const community = input.kind === 'community';
+  if (!community && (input.provider === 'meta' || input.publishingMode === 'automatic')) {
+    return {
+      ok: false,
+      message: 'Connected Meta destinations are managed through Connect Meta.',
+    };
+  }
   const provider = community ? 'manual' : input.provider === 'meta' ? 'meta' : 'manual';
   const publishingMode = community
     ? 'manual'

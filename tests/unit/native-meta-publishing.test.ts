@@ -5,11 +5,18 @@ import {
   encryptMarketingToken,
 } from '@/features/marketing-distribution/server/marketingTokenCrypto';
 import { buildMetaAuthorizationUrl } from '@/features/marketing-distribution/server/metaConnection';
+import { isMetaPublishingService } from '@/features/marketing-distribution/model';
 import { publishToMeta } from '@/features/social-publishing/server/metaPublisher';
 
 const key = Buffer.alloc(32, 7).toString('base64');
 
 describe('native Meta publishing', () => {
+  it('fails closed for channels outside the reviewed Meta adapters', () => {
+    expect(isMetaPublishingService('facebook')).toBe(true);
+    expect(isMetaPublishingService('instagram')).toBe(true);
+    expect(isMetaPublishingService('linkedin')).toBe(false);
+  });
+
   it('invokes the reviewed Facebook Login for Business configuration', () => {
     process.env.NEXT_PUBLIC_APP_URL = 'https://cardforges.com';
     process.env.CARDFORGE_META_APP_ID = 'meta-app-id';

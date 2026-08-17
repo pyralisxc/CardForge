@@ -95,6 +95,18 @@ describe('marketing command center contracts', () => {
       ok: false,
       message: 'Community destinations must use guided manual publishing.',
     });
+
+    expect(normalizeMarketingDestinationInput({
+      name: 'Connected Facebook Page',
+      service: 'facebook',
+      kind: 'owned',
+      provider: 'meta',
+      publishingMode: 'automatic',
+      externalAccountId: 'page-123',
+    })).toEqual({
+      ok: false,
+      message: 'Connected Meta destinations are managed through Connect Meta.',
+    });
   });
 
   it('normalizes campaign containers independently from individual content submissions', () => {
