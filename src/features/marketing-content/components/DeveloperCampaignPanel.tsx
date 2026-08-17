@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { Megaphone, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Megaphone, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +39,13 @@ export function DeveloperCampaignPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const composerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showComposer) return;
+    composerRef.current?.focus({ preventScroll: true });
+    composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [showComposer, editing?.id]);
 
   const resetComposer = () => {
     setEditing(null);
@@ -89,8 +96,8 @@ export function DeveloperCampaignPanel({
         <div className="flex items-center gap-3">
           <Megaphone className="h-5 w-5 text-[#e2aa4a]" />
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">Campaign packages</p>
-            <p className="text-sm text-[#c7b288]">A campaign package keeps social post copy, media, rights information, release context, approval, and delivery history together.</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-[#e2aa4a]">{cockpit.isOwner ? 'Owner review workspace' : 'Campaign packages'}</p>
+            <p className="text-sm text-[#c7b288]">{cockpit.isOwner ? 'Review each candidate as your audience will see it, complete its media, and move only approved work toward publishing.' : 'Keep social copy, media, rights information, release context, approval, and delivery history together.'}</p>
           </div>
         </div>
         {canDraft && !showComposer ? (
@@ -108,18 +115,23 @@ export function DeveloperCampaignPanel({
       {message ? <p role="status" className="border border-[#497352] bg-[#0e170f] p-3 text-sm text-[#a8e7b8]">{message}</p> : null}
 
       {showComposer && canDraft ? (
-        <DeveloperCampaignComposer
-          draft={draft}
-          editing={editing}
-          busy={busy}
-          mediaLibrary={cockpit.campaignMedia}
-          marketingCampaigns={cockpit.marketingCampaigns}
-          marketingStrategy={cockpit.marketingStrategy}
-          onDraftChange={setDraft}
-          onCancel={resetComposer}
-          onSave={() => void saveCampaign()}
-          onError={showError}
-        />
+        <div ref={composerRef} tabIndex={-1} className="scroll-mt-4 outline-none">
+          <button type="button" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm text-[#f1c875] underline-offset-4 hover:underline" onClick={resetComposer}>
+            <ArrowLeft className="h-4 w-4" /> Back to candidate queue
+          </button>
+          <DeveloperCampaignComposer
+            draft={draft}
+            editing={editing}
+            busy={busy}
+            mediaLibrary={cockpit.campaignMedia}
+            marketingCampaigns={cockpit.marketingCampaigns}
+            marketingStrategy={cockpit.marketingStrategy}
+            onDraftChange={setDraft}
+            onCancel={resetComposer}
+            onSave={() => void saveCampaign()}
+            onError={showError}
+          />
+        </div>
       ) : null}
 
       {!canDraft ? (
@@ -136,13 +148,15 @@ export function DeveloperCampaignPanel({
         </article>
       ) : null}
 
-      <DeveloperCampaignQueue
-        cockpit={cockpit}
-        onRefresh={onRefresh}
-        onEdit={editCampaign}
-        onMessage={setMessage}
-        onError={showError}
-      />
+      {!showComposer ? (
+        <DeveloperCampaignQueue
+          cockpit={cockpit}
+          onRefresh={onRefresh}
+          onEdit={editCampaign}
+          onMessage={setMessage}
+          onError={showError}
+        />
+      ) : null}
     </section>
   );
 }

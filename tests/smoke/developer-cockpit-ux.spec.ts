@@ -216,7 +216,7 @@ test.describe('developer cockpit UX audit', () => {
     });
 
     await page.getByRole('tab', { name: 'Campaigns', exact: true }).click();
-    await expect(page.getByLabel('Filter campaign packages', { exact: true })).toHaveValue('needs_action');
+    await expect(page.getByLabel('Filter campaign packages', { exact: true })).toHaveValue('active');
     await expect(page.getByRole('heading', {
       name: 'Developer cockpit release proof',
       exact: true,
@@ -249,7 +249,7 @@ test.describe('developer cockpit UX audit', () => {
     )).toBeVisible();
     await expect(page.getByText('Owner publishing controls', { exact: true })).toBeVisible();
     await expect(page.getByText('public · CardForge', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('Filter campaign packages', { exact: true })).toHaveValue('needs_action');
+    await expect(page.getByLabel('Filter campaign packages', { exact: true })).toHaveValue('active');
     await expectNoWcagViolations(page);
   });
 });

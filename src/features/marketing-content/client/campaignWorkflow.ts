@@ -84,6 +84,43 @@ type CampaignReadinessInput = {
   variants: SocialCampaignVariant[];
 };
 
+export type CampaignMediaExpectation = {
+  level: 'required' | 'recommended' | 'optional';
+  label: string;
+  guidance: string;
+};
+
+export const getCampaignMediaExpectation = (
+  campaign: Pick<SocialCampaign, 'contentKind' | 'contentPillar' | 'variants'>,
+): CampaignMediaExpectation => {
+  if (campaign.variants.some((variant) => variant.service === 'instagram')) {
+    return {
+      level: 'required',
+      label: 'Media required',
+      guidance: 'Instagram requires an approved image before this package can be submitted.',
+    };
+  }
+  if (campaign.contentKind === 'demonstration') {
+    return {
+      level: 'recommended',
+      label: 'Media recommended',
+      guidance: 'A product demonstration should show the workflow, card set, or finished result it describes.',
+    };
+  }
+  if (campaign.contentPillar === 'product-proof' || campaign.contentKind === 'creator-story') {
+    return {
+      level: 'recommended',
+      label: 'Media recommended',
+      guidance: 'This story will be stronger with real CardForge work or a rights-cleared creator image.',
+    };
+  }
+  return {
+    level: 'optional',
+    label: 'Text-first is valid',
+    guidance: 'This post can remain text-only; add media only when it adds useful evidence or context.',
+  };
+};
+
 export type CampaignReadinessItem = {
   key: 'brief' | 'source' | 'rights' | 'channels' | 'media';
   label: string;

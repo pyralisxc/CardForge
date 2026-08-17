@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getCampaignPackageReadiness,
+  getCampaignMediaExpectation,
   getCampaignStatusLabel,
   isCampaignActionable,
   matchesCampaignQueueFilter,
@@ -163,12 +164,59 @@ describe('developer cockpit polish contract', () => {
       sourcePath('features', 'marketing-content', 'components', 'DeveloperCampaignPackageDetails.tsx'),
       'utf8',
     );
+    const providerPreview = readFileSync(
+      sourcePath('features', 'marketing-content', 'components', 'CampaignProviderPreview.tsx'),
+      'utf8',
+    );
 
     expect(details).toContain('Release context');
     expect(details).toContain('Release and review context');
     expect(details).toContain('Development associations');
-    expect(details).toContain('<Image');
+    expect(details).toContain('CampaignProviderPreview');
+    expect(providerPreview).toContain('<Image');
     expect(details).toContain('attachment.altText');
+  });
+
+  it('gives every candidate a provider preview and a focused review editor', () => {
+    const preview = readFileSync(
+      sourcePath('features', 'marketing-content', 'components', 'CampaignProviderPreview.tsx'),
+      'utf8',
+    );
+    const queue = readFileSync(
+      sourcePath('features', 'marketing-content', 'components', 'DeveloperCampaignQueue.tsx'),
+      'utf8',
+    );
+    const panel = readFileSync(
+      sourcePath('features', 'marketing-content', 'components', 'DeveloperCampaignPanel.tsx'),
+      'utf8',
+    );
+
+    expect(preview).toContain('Preview only · nothing published');
+    expect(preview).toContain('mediaExpectation.label');
+    expect(queue).toContain("useState<CampaignQueueFilter>('active')");
+    expect(queue).toContain('Open review editor');
+    expect(panel).toContain('Back to candidate queue');
+    expect(panel).toContain('!showComposer ?');
+  });
+
+  it('distinguishes intentional text posts from candidates that call for visual proof', () => {
+    expect(getCampaignMediaExpectation({
+      contentKind: 'demonstration',
+      contentPillar: 'product-proof',
+      variants: [{ service: 'facebook', text: 'See the workflow.', attachments: [] }],
+    })).toMatchObject({ level: 'recommended', label: 'Media recommended' });
+
+    expect(getCampaignMediaExpectation({
+      contentKind: 'question',
+      contentPillar: 'customer-research',
+      variants: [{ service: 'facebook', text: 'Where do you get stuck?', attachments: [] }],
+    })).toMatchObject({ level: 'optional', label: 'Text-first is valid' });
+
+    expect(getCampaignMediaExpectation({
+      contentKind: 'question',
+      contentPillar: 'customer-research',
+      variants: [{ service: 'instagram', text: 'Where do you get stuck?', attachments: [] }],
+    })).toMatchObject({ level: 'required', label: 'Media required' });
   });
 
   it('presents workflow states with provider-aware human labels', () => {
