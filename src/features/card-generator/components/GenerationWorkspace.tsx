@@ -404,7 +404,7 @@ export function GenerationWorkspace({
             onGallerySortChange={onGallerySortChange}
             onEditCardRequest={onEditCardRequest}
             onRemoveCard={onRemoveCard}
-            exportGateMessage={exportGateMessage}
+            canExportClean={canExportClean}
           />
         </div>
       </section> : (

@@ -70,6 +70,10 @@ export type ApiErrorCode =
   | 'stripe_portal_url_missing'
   | 'asset_library_unavailable'
   | 'style_library_unavailable'
+  | 'studio_document_conflict'
+  | 'studio_document_invalid'
+  | 'studio_document_not_found'
+  | 'studio_document_unavailable'
   | 'template_library_unavailable';
 
 export interface ApiErrorBody {

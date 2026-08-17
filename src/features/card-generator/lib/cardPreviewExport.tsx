@@ -2,13 +2,14 @@
 
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { toBlob, toCanvas } from 'html-to-image';
+import { toCanvas } from 'html-to-image';
 
 import { CardPreview, DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR } from '@/features/card-rendering/client';
 import { getCardExportDimensionsPx } from '@/domain/rendering';
 import { getExportProfile, type ExportMode, type ExportProfile } from '@/features/card-generator/lib/printValidation';
 import type { CardFace } from '@/domain/cards';
 import type { DisplayCard } from '@/domain/rendering';
+import type { BrandPresentation } from '@/features/brand-presentation/client';
 
 const RENDER_WAIT_TIMEOUT_MS = 1800;
 
@@ -47,6 +48,70 @@ export interface CardFaceExportRenderer {
   renderToCanvas: (card: DisplayCard, face?: CardFace) => Promise<HTMLCanvasElement>;
   cleanup: () => void;
 }
+
+export interface CardExportWatermark {
+  url: string;
+  width: number;
+  height: number;
+  widthPercent: number;
+  opacity: number;
+}
+
+export const resolveCardExportWatermark = (
+  canExportClean: boolean,
+  brand: BrandPresentation,
+): CardExportWatermark | undefined => canExportClean ? undefined : {
+  url: brand.watermarkUrl,
+  width: brand.watermarkWidth,
+  height: brand.watermarkHeight,
+  widthPercent: brand.watermarkWidthPercent,
+  opacity: brand.watermarkPreviewOpacity,
+};
+
+export const getCardExportWatermarkPlacement = (
+  canvasWidth: number,
+  canvasHeight: number,
+  watermark: CardExportWatermark,
+) => {
+  const width = Math.round(canvasWidth * watermark.widthPercent / 100);
+  const height = Math.round(width * watermark.height / watermark.width);
+  return {
+    x: Math.round((canvasWidth - width) / 2),
+    y: Math.round((canvasHeight - height) / 2),
+    width,
+    height,
+  };
+};
+
+const loadWatermarkImage = (source: string): Promise<HTMLImageElement> => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => resolve(image);
+  image.onerror = () => reject(new Error('The CardForge watermark could not be loaded for export.'));
+  image.src = source;
+});
+
+export const applyCardExportWatermark = async (
+  canvas: HTMLCanvasElement,
+  watermark?: CardExportWatermark,
+): Promise<HTMLCanvasElement> => {
+  if (!watermark) return canvas;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Canvas rendering is unavailable for the CardForge watermark.');
+  const image = await loadWatermarkImage(watermark.url);
+  const placement = getCardExportWatermarkPlacement(canvas.width, canvas.height, watermark);
+  context.save();
+  context.globalAlpha = watermark.opacity;
+  context.drawImage(image, placement.x, placement.y, placement.width, placement.height);
+  context.restore();
+  return canvas;
+};
+
+const canvasToPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> => new Promise((resolve, reject) => {
+  canvas.toBlob((blob) => {
+    if (blob) resolve(blob);
+    else reject(new Error('Card preview did not produce a PNG blob.'));
+  }, 'image/png');
+});
 
 export async function mountCardPreviewForExport(
   card: DisplayCard,
@@ -107,6 +172,7 @@ export async function mountCardPreviewForExport(
 export function createCardFaceExportRenderer(
   exportProfile: ExportProfile,
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
+  watermark?: CardExportWatermark,
 ): CardFaceExportRenderer {
   const container = document.createElement('div');
   container.style.cssText = [
@@ -150,29 +216,21 @@ export function createCardFaceExportRenderer(
     return { element, widthPx, heightPx };
   };
 
+  const renderToCanvas = async (card: DisplayCard, face: CardFace = 'front') => {
+    const { element, widthPx, heightPx } = await renderPreview(card, face);
+    const canvas = await toCanvas(element, {
+      pixelRatio: exportProfile.canvasPixelRatio,
+      width: widthPx,
+      height: heightPx,
+      skipFonts: false,
+      fetchRequestInit: { mode: 'cors' },
+    });
+    return applyCardExportWatermark(canvas, watermark);
+  };
+
   return {
-    renderToBlob: async (card, face = 'front') => {
-      const { element, widthPx, heightPx } = await renderPreview(card, face);
-      const blob = await toBlob(element, {
-        pixelRatio: exportProfile.canvasPixelRatio,
-        width: widthPx,
-        height: heightPx,
-        skipFonts: false,
-        fetchRequestInit: { mode: 'cors' },
-      });
-      if (!blob) throw new Error('Card preview did not produce a PNG blob.');
-      return blob;
-    },
-    renderToCanvas: async (card, face = 'front') => {
-      const { element, widthPx, heightPx } = await renderPreview(card, face);
-      return toCanvas(element, {
-        pixelRatio: exportProfile.canvasPixelRatio,
-        width: widthPx,
-        height: heightPx,
-        skipFonts: false,
-        fetchRequestInit: { mode: 'cors' },
-      });
-    },
+    renderToBlob: async (card, face = 'front') => canvasToPngBlob(await renderToCanvas(card, face)),
+    renderToCanvas,
     cleanup: () => {
       root.unmount();
       if (document.body.contains(container)) document.body.removeChild(container);
@@ -185,8 +243,9 @@ export async function renderCardToCanvasWithProfile(
   exportProfile: ExportProfile,
   face: CardFace = 'front',
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
+  watermark?: CardExportWatermark,
 ): Promise<HTMLCanvasElement> {
-  const renderer = createCardFaceExportRenderer(exportProfile, highlightColor);
+  const renderer = createCardFaceExportRenderer(exportProfile, highlightColor, watermark);
   try {
     return await renderer.renderToCanvas(card, face);
   } finally {
@@ -200,6 +259,7 @@ export async function renderCardToCanvas(
   exportDpi: number,
   face: CardFace = 'front',
   highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
+  watermark?: CardExportWatermark,
 ): Promise<HTMLCanvasElement> {
-  return renderCardToCanvasWithProfile(card, getExportProfile(exportMode, exportDpi), face, highlightColor);
+  return renderCardToCanvasWithProfile(card, getExportProfile(exportMode, exportDpi), face, highlightColor, watermark);
 }

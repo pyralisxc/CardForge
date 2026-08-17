@@ -33,7 +33,7 @@ describe('developer contribution cockpit', () => {
       profileStatus: 'active',
       canDraftCampaigns: false,
       canProposeSiteContent: false,
-    })).toEqual(['assets.submit', 'assets.review', 'library.submit']);
+    })).toEqual(['assets.submit', 'assets.review', 'library.submit', 'studio.ai.create']);
 
     expect(resolveDeveloperContributionScopes({
       isOwner: false,
@@ -44,6 +44,7 @@ describe('developer contribution cockpit', () => {
       'assets.submit',
       'assets.review',
       'library.submit',
+      'studio.ai.create',
       'campaigns.draft',
       'site.propose',
     ]);
