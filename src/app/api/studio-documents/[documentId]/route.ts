@@ -10,11 +10,13 @@ import {
   StudioDocumentStoreError,
   updateStudioDocument,
 } from '@/features/studio-documents/server';
-import { parseJsonBodyWithLimit } from '@/infrastructure/http/apiValidation';
+import {
+  parseJsonBodyWithLimit,
+  STUDIO_CONTENT_MAX_JSON_BODY_BYTES,
+} from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 
 export const dynamic = 'force-dynamic';
-const MAX_STUDIO_DOCUMENT_BYTES = 2 * 1024 * 1024;
 const idSchema = z.string().uuid();
 
 const readDocumentId = async (context: { params: Promise<{ documentId: string }> }) => {
@@ -60,7 +62,7 @@ export async function PATCH(
   try {
     const documentId = await readDocumentId(context);
     if (!documentId) return createApiErrorResponse(400, 'studio_document_invalid', 'A valid Studio document id is required.');
-    const parsedBody = await parseJsonBodyWithLimit(request, MAX_STUDIO_DOCUMENT_BYTES);
+    const parsedBody = await parseJsonBodyWithLimit(request, STUDIO_CONTENT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
       return createApiErrorResponse(
         parsedBody.code === 'payload_too_large' ? 413 : 400,

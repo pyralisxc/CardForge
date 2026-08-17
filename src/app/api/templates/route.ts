@@ -5,6 +5,7 @@ import {
   formatZodIssues,
   parseJsonBodyWithLimit,
   templatePayloadSchema,
+  STUDIO_CONTENT_MAX_JSON_BODY_BYTES,
 } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     const access = await getCurrentDeveloperCockpitAccess();
     requireContributionScope(access, access.isOwner ? 'library.publish' : 'library.submit');
 
-    const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+    const parsedBody = await parseJsonBodyWithLimit(request, STUDIO_CONTENT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
       return createApiErrorResponse(
         parsedBody.code === 'payload_too_large' ? 413 : 400,

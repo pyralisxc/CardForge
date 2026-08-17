@@ -109,6 +109,38 @@ const toCardforgeUserFromClerk = (user: ClerkUserLike): CardforgeServerUser => {
   };
 };
 
+const createCardforgeUserAccess = (
+  authConfigured: boolean,
+  user: CardforgeServerUser | null,
+): CardforgeServerUserAccess => ({
+  authConfigured,
+  user,
+  ownerAccess: resolveOwnerAccessForServerUser(authConfigured, user),
+});
+
+export const getCardforgeUserAccessForUserId = async (
+  userId: string,
+): Promise<CardforgeServerUserAccess> => {
+  const authConfigured = isClerkAuthConfigured();
+  if (!authConfigured) return createCardforgeUserAccess(false, null);
+
+  const fullUser = await resolveWithTimeout(
+    Promise.resolve().then(async () => {
+      const client = await clerkClient();
+      return client.users.getUser(userId);
+    }),
+    {
+      fallback: null,
+      timeoutMs: CLERK_USER_READ_TIMEOUT_MS,
+    },
+  );
+
+  return createCardforgeUserAccess(
+    authConfigured,
+    fullUser ? toCardforgeUserFromClerk(fullUser) : null,
+  );
+};
+
 const getSessionFallbackUser = (
   userId: string,
   claims: Metadata | null,
@@ -168,11 +200,7 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
       ? getSessionFallbackUser(authState.userId, isRecord(authState.sessionClaims) ? authState.sessionClaims : null)
       : null;
 
-  return {
-    authConfigured,
-    user,
-    ownerAccess: resolveOwnerAccessForServerUser(authConfigured, user),
-  };
+  return createCardforgeUserAccess(authConfigured, user);
 };
 
 export const getCurrentCardforgeEntitlement = async (): Promise<AccountEntitlement> => {

@@ -11,9 +11,9 @@ import {
   requireContributionScope,
 } from '@/features/developer-access/server';
 import {
-  DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
   parseJsonBodyWithLimit,
+  STUDIO_CONTENT_MAX_JSON_BODY_BYTES,
   templatePayloadSchema,
 } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return createApiErrorResponse(429, 'rate_limited', 'Too many Pipeline draft handoffs. Please try again later.');
     }
 
-    const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+    const parsedBody = await parseJsonBodyWithLimit(request, STUDIO_CONTENT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
       return createApiErrorResponse(
         parsedBody.code === 'payload_too_large' ? 413 : 400,

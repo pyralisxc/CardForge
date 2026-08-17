@@ -76,9 +76,10 @@ describe('account Studio documents', () => {
 
   it('keeps plugin access developer-only and delegates watermark eligibility to the existing entitlement owner', () => {
     const route = readFileSync(resolve(process.cwd(), 'src/app/api/studio-documents/template-drafts/route.ts'), 'utf8');
+    const service = readFileSync(resolve(process.cwd(), 'src/features/studio-documents/server/developerTemplateDrafts.ts'), 'utf8');
     const access = readFileSync(resolve(process.cwd(), 'src/features/studio-documents/server/studioDocumentAccess.ts'), 'utf8');
 
-    expect(route).toContain("requireContributionScope(developerAccess, 'studio.ai.create')");
+    expect(service).toContain("requireContributionScope(access, 'studio.ai.create')");
     expect(access).toContain('isWatermarkRequired(entitlement.capabilities.canExportClean)');
     expect(route).not.toContain('watermarkPreviewOpacity');
   });

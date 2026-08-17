@@ -107,6 +107,8 @@ Template Studio shelves are explicit: Templates split into Fronts and Backs; Ima
 
 Shared Template revisions are created only from Template Studio. A developer save submits the next numbered revision to Forge Review while keeping the published Template live; an owner save records and publishes the next revision atomically without a redundant self-review. The generic developer upload form accepts media and fonts only, and owner-authored visual Styles continue to publish from Appearance Studio. This keeps editable structured assets in their native authoring workflow instead of maintaining a parallel JSON-upload path.
 
+ChatGPT and Codex use the authenticated `/mcp` endpoint to create and inspect private account Studio documents, then optionally create a Forge Review draft from an exact chosen Template. The same developer scopes, account ownership, rate limits, watermark/export entitlements, and owner-only publication boundary apply to browser and MCP callers. OAuth discovery lives under `/.well-known/`; Clerk remains the identity provider. Before connecting a chat client, configure the production Clerk OAuth Applications screen for `openid`, `profile`, and `email`, then allow the reviewed client through CIMD or temporarily enable dynamic client registration for controlled testing. The distributable source package lives in `plugins/cardforge-studio`; its public ChatGPT connection id is added only after the production MCP server has been registered.
+
 ## Environment
 
 Copy `.env.example` to `.env.local` for local account/database testing.

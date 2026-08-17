@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cardforge-studio": {
+      "type": "http",
+      "url": "https://cardforges.com/mcp"
+    }
+  }
+}

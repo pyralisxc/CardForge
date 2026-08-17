@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { STUDIO_ASSET_DESTINATIONS } from '@/domain/templates';
 
 export const DEFAULT_MAX_JSON_BODY_BYTES = 256 * 1024;
+// Leave headroom below Vercel's 4.5 MB Function request ceiling.
+export const STUDIO_CONTENT_MAX_JSON_BODY_BYTES = 4 * 1024 * 1024;
 
 export const templatePayloadSchema = z.object({
   id: z.string().trim().min(1),

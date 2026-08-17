@@ -1,22 +1,18 @@
-import { randomUUID } from 'node:crypto';
-
 import {
   DeveloperCockpitAccessError,
   getCurrentDeveloperCockpitAccess,
-  requireContributionScope,
 } from '@/features/developer-access/server';
 import {
-  createProjectDocumentFromTemplateDraft,
-  createStudioDocument,
+  createDeveloperTemplateDraft,
   getCurrentStudioDocumentAccount,
   gptTemplateDraftInputSchema,
   StudioDocumentAccessError,
   StudioDocumentStoreError,
 } from '@/features/studio-documents/server';
 import {
-  DEFAULT_MAX_JSON_BODY_BYTES,
   formatZodIssues,
   parseJsonBodyWithLimit,
+  STUDIO_CONTENT_MAX_JSON_BODY_BYTES,
 } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
@@ -26,7 +22,6 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const developerAccess = await getCurrentDeveloperCockpitAccess();
-    requireContributionScope(developerAccess, 'studio.ai.create');
 
     const rateLimit = await consumeRateLimit({
       action: 'studio-ai-draft',
@@ -38,7 +33,7 @@ export async function POST(request: Request) {
       return createApiErrorResponse(429, 'rate_limited', 'Too many AI Studio drafts. Please try again later.');
     }
 
-    const parsedBody = await parseJsonBodyWithLimit(request, DEFAULT_MAX_JSON_BODY_BYTES);
+    const parsedBody = await parseJsonBodyWithLimit(request, STUDIO_CONTENT_MAX_JSON_BODY_BYTES);
     if (!parsedBody.ok) {
       return createApiErrorResponse(
         parsedBody.code === 'payload_too_large' ? 413 : 400,
@@ -60,15 +55,7 @@ export async function POST(request: Request) {
     if (account.ownerUserId !== developerAccess.user.id) {
       return createApiErrorResponse(403, 'developer_access_required', 'Developer account ownership could not be verified.');
     }
-    const document = await createStudioDocument({
-      ownerUserId: account.ownerUserId,
-      title: validation.data.title,
-      creationSource: 'gpt',
-      document: createProjectDocumentFromTemplateDraft(
-        validation.data,
-        `gpt-${randomUUID()}`,
-      ),
-    });
+    const document = await createDeveloperTemplateDraft(developerAccess, validation.data);
 
     return createNoStoreJsonResponse({
       document,
