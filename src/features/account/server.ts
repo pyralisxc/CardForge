@@ -3,6 +3,7 @@ export {
   resolveAccountEntitlement,
 } from './lib/accountEntitlement';
 export {
+  getCardforgeUserAccessForUserId,
   getCurrentCardforgeEntitlement,
   getCurrentCardforgeUserAccess,
   resolveOwnerAccessForServerUser,

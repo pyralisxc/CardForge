@@ -1,4 +1,5 @@
 import {
+  getCardforgeUserAccessForUserId,
   getCurrentCardforgeUserAccess,
   resolveOwnerAccessForServerUser,
   resolveAccountEntitlement,
@@ -33,8 +34,10 @@ export class DeveloperCockpitAccessError extends Error {
   }
 }
 
-export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockpitAccess> => {
-  const { authConfigured, user } = await getCurrentCardforgeUserAccess();
+const resolveDeveloperCockpitAccess = async ({
+  authConfigured,
+  user,
+}: Awaited<ReturnType<typeof getCurrentCardforgeUserAccess>>): Promise<DeveloperCockpitAccess> => {
   if (!user) {
     throw new DeveloperCockpitAccessError('Sign in before using the developer cockpit.', 401);
   }
@@ -92,6 +95,16 @@ export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockp
     }),
   };
 };
+
+export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockpitAccess> => (
+  resolveDeveloperCockpitAccess(await getCurrentCardforgeUserAccess())
+);
+
+export const getDeveloperCockpitAccessForUserId = async (
+  userId: string,
+): Promise<DeveloperCockpitAccess> => (
+  resolveDeveloperCockpitAccess(await getCardforgeUserAccessForUserId(userId))
+);
 
 export const requireContributionScope = (
   access: DeveloperCockpitAccess,

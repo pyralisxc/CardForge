@@ -6,12 +6,17 @@ import {
   cardAssetMetadataOverrideSchema,
   formatZodIssues,
   parseJsonBodyWithLimit,
+  STUDIO_CONTENT_MAX_JSON_BODY_BYTES,
   stylePresetPayloadSchema,
   templatePayloadSchema,
 } from '@/infrastructure/http/apiValidation';
 import { createApiErrorResponse } from '@/infrastructure/http/apiResponses';
 
 describe('apiValidation', () => {
+  it('reserves a bounded upload lane for image-backed Studio content', () => {
+    expect(STUDIO_CONTENT_MAX_JSON_BODY_BYTES).toBe(4 * 1024 * 1024);
+  });
+
   it('creates no-store JSON API error envelopes with correlation ids', async () => {
     const response = createApiErrorResponse(503, 'service_unavailable', 'Try again later.', [
       'Temporary maintenance window.',

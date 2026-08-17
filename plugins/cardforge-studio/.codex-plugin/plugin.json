@@ -1,0 +1,39 @@
+{
+  "name": "cardforge-studio",
+  "version": "0.1.0",
+  "description": "Create private editable CardForge Templates from chat and hand completed drafts to Forge Review.",
+  "author": {
+    "name": "CardForge Studio",
+    "url": "https://cardforges.com"
+  },
+  "homepage": "https://cardforges.com/studio",
+  "repository": "https://github.com/pyralisxc/CardForge",
+  "keywords": [
+    "card-design",
+    "templates",
+    "tabletop-games",
+    "marketing-creative"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "CardForge Studio",
+    "shortDescription": "Create editable Templates from chat",
+    "longDescription": "Create private, layered CardForge Templates in chat, open them in Studio for visual editing, and send chosen developer drafts to Forge Review without bypassing publication gates.",
+    "developerName": "CardForge Studio",
+    "category": "Design",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://cardforges.com",
+    "privacyPolicyURL": "https://cardforges.com/privacy",
+    "termsOfServiceURL": "https://cardforges.com/terms",
+    "defaultPrompt": [
+      "Create an editable social post Template.",
+      "Show my private CardForge Studio drafts.",
+      "Continue my chosen Template in Forge Review."
+    ],
+    "brandColor": "#8A5A2B"
+  }
+}
