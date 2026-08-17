@@ -21,6 +21,11 @@ describe('Clerk middleware route selection', () => {
     expect(shouldRunClerkMiddlewareForRequest('/api/developer-cockpit/provider', 'POST')).toBe(true);
   });
 
+  it('runs for the authenticated MCP server', () => {
+    expect(shouldRunClerkMiddlewareForRequest('/mcp', 'GET')).toBe(true);
+    expect(shouldRunClerkMiddlewareForRequest('/mcp', 'POST')).toBe(true);
+  });
+
   it('runs for the dedicated public sign-in route', () => {
     expect(shouldRunClerkMiddlewareForRequest('/sign-in', 'GET')).toBe(true);
     expect(shouldRunClerkMiddlewareForRequest('/sign-in/sso-callback', 'GET')).toBe(true);

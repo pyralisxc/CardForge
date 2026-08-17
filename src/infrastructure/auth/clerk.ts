@@ -25,6 +25,7 @@ const CLERK_PAGE_PREFIXES = [
   '/profile',
   '/sign-in',
   '/__clerk',
+  '/mcp',
 ];
 
 const CLERK_API_PREFIXES = [
