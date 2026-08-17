@@ -35,11 +35,18 @@ describe('CardForge Studio plugin', () => {
     expect(route).toContain("acceptsToken: 'oauth_token'");
   });
 
-  it('routes Studio document links through sign-in and preserves the exact draft destination', () => {
+  it('opens Studio documents directly and lets the existing Studio auth flow resume them', () => {
     const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
+    const handoff = readFileSync(
+      resolve(process.cwd(), 'src/features/studio-documents/hooks/useStudioDocumentHandoff.ts'),
+      'utf8',
+    );
 
-    expect(route).toContain('const studioDocumentPath');
-    expect(route).toContain('/sign-in?redirect_url=');
-    expect(route).toContain('openInStudioUrl: authenticatedStudioUrl(document.id)');
+    expect(route).toContain('const studioDocumentUrl');
+    expect(route).toContain('/studio?document=');
+    expect(route).not.toContain('/sign-in?redirect_url=');
+    expect(route).toContain('openInStudioUrl: studioDocumentUrl(document.id)');
+    expect(handoff).toContain('This private draft will stay pending and open automatically');
+    expect(handoff).toContain('signInPromptedDocumentIdRef');
   });
 });
