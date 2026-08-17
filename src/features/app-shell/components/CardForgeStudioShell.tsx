@@ -27,6 +27,7 @@ import {
   readProjectPreference,
   writeProjectPreference,
 } from '@/features/project/client';
+import { useStudioDocumentHandoff } from '@/features/studio-documents/client';
 
 export type StudioBusinessIdentity = {
   brandName: string;
@@ -233,7 +234,6 @@ export function CardForgeStudioShell({
   } = useCardZipExportActions({
     canExportClean: projectCapabilities.canExportClean,
     exportDpi,
-    exportGateMessage,
     exportMode,
     generatedDisplayCards,
     richTextHighlightColor,
@@ -340,6 +340,22 @@ export function CardForgeStudioShell({
   }, []);
 
   const isStudioReady = !isLoadingTemplates;
+  useStudioDocumentHandoff({
+    isAccountLoading: accountEntitlement.isLoadingEntitlement,
+    isSignedIn: accountEntitlement.isSignedIn,
+    isStudioReady,
+    mergeAppearanceStyles: setAppearanceStylesFromFilesAction,
+    mergeStoredCards: mergeStoredCardsFromFileAction,
+    mergeUserTemplates: mergeUserTemplatesFromFilesAction,
+    setActiveTab: setActiveTabAction,
+    setExportDpi: setExportDpiAction,
+    setExportMode: setExportModeAction,
+    setPdfOptions: setPdfOptionsAction,
+    setSelectedPaperSize: setSelectedPaperSizeAction,
+    setSelectedTemplateId: setSingleCardGeneratorSelectedTemplateIdAction,
+    setTemplateEditorSelectedTemplateId: setTemplateEditorSelectedTemplateIdAction,
+    toast,
+  });
 
   return (
     <div className="flex min-h-screen max-w-full flex-col overflow-x-hidden bg-[#0c0b09] text-[#f7ead0]">

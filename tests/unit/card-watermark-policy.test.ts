@@ -39,6 +39,34 @@ describe('card watermark policy', () => {
     expect(cleanExportSource).not.toContain('CardWatermarkOverlay');
   });
 
+  it('applies owner-configured watermarks to every free finished export path', () => {
+    const rendererSource = readFileSync(
+      resolve(process.cwd(), 'src/features/card-generator/lib/cardPreviewExport.tsx'),
+      'utf8',
+    );
+    const imageSource = readFileSync(
+      resolve(process.cwd(), 'src/features/card-generator/components/ExportCardImageButton.tsx'),
+      'utf8',
+    );
+    const pdfSource = readFileSync(
+      resolve(process.cwd(), 'src/features/card-generator/components/SaveAsPdfButton.tsx'),
+      'utf8',
+    );
+    const zipSource = readFileSync(
+      resolve(process.cwd(), 'src/features/card-generator/hooks/useCardZipExportActions.ts'),
+      'utf8',
+    );
+
+    expect(rendererSource).toContain('applyCardExportWatermark(canvas, watermark)');
+    expect(rendererSource).toContain('brand.watermarkPreviewOpacity');
+    expect(imageSource).toContain('resolveCardExportWatermark(canExportClean, brand)');
+    expect(pdfSource).toContain('resolveCardExportWatermark(canExportClean, brand)');
+    expect(zipSource).toContain('createCardFaceExportRenderer(exportProfile, richTextHighlightColor, exportWatermark)');
+    expect(imageSource).not.toContain('if (gateMessage)');
+    expect(pdfSource).not.toContain('if (gateMessage)');
+    expect(zipSource).not.toContain('if (!canExportClean)');
+  });
+
   it('applies the entitlement policy at every free-visible Studio card surface', () => {
     const shellSource = readFileSync(
       resolve(process.cwd(), 'src/features/app-shell/components/CardForgeStudioShell.tsx'),

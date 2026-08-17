@@ -17,9 +17,10 @@ import {
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
 import { getCardPhysicalSizeMm } from '@/domain/rendering';
-import { renderCardToCanvasWithProfile } from '@/features/card-generator/lib/cardPreviewExport';
+import { renderCardToCanvasWithProfile, resolveCardExportWatermark } from '@/features/card-generator/lib/cardPreviewExport';
 import { hasCardBacking } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
+import { useBrandPresentation } from '@/features/brand-presentation/client';
 
 const MAX_PDF_CARDS_PER_FILE = 500;
 const MAX_TOTAL_PDF_EXPORT_CARDS = 10000;
@@ -43,8 +44,8 @@ interface SaveAsPdfButtonProps {
   exportMode: ExportMode;
   exportDpi: number;
   richTextHighlightColor: string;
+  canExportClean: boolean;
   disabled?: boolean;
-  gateMessage?: string | null;
   templateName?: string;
 }
 
@@ -58,23 +59,15 @@ export function SaveAsPdfButton({
   exportMode,
   exportDpi,
   richTextHighlightColor,
+  canExportClean,
   disabled = false,
-  gateMessage,
   templateName,
 }: SaveAsPdfButtonProps) {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const { toast } = useToast();
+  const brand = useBrandPresentation();
 
   const handleSaveAsPdf = async () => {
-    if (gateMessage) {
-      toast({
-        title: 'Watermark-free download locked',
-        description: withNextStep(gateMessage, 'Open your account page and buy Creator Pass to export clean files.'),
-        variant: 'default',
-      });
-      return;
-    }
-
     if (generatedDisplayCards.length === 0) {
       toast({
         title: ERROR_COPY.pdfNoCards.title,
@@ -139,6 +132,7 @@ export function SaveAsPdfButton({
       ? (pdfDuplexLayout === 'same-page' ? 'print-same-sheet' : 'print-duplex-sheets')
       : 'digital-sheet';
     const timestamp = new Date().toISOString().slice(0, 10);
+    const watermarkSuffix = canExportClean ? '' : '-watermarked';
 
     toast({
       title: totalChunks > 1 ? 'Generating chunked PDFs...' : 'Generating PDF...',
@@ -199,7 +193,7 @@ export function SaveAsPdfButton({
         }
 
         const chunkSuffix = totalChunks > 1 ? `-part-${chunkIndex + 1}-of-${totalChunks}` : '';
-        pdf.save(`${safeName}-${pdfModeSlug}-${timestamp}${chunkSuffix}.pdf`);
+        pdf.save(`${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}${chunkSuffix}.pdf`);
 
         // Yield to the browser between chunk downloads to reduce UI stalls.
         await new Promise<void>((resolve) => {
@@ -217,7 +211,7 @@ export function SaveAsPdfButton({
       } else {
         toast({
           title: 'PDF saved',
-          description: `${safeName}-${pdfModeSlug}-${timestamp}.pdf downloaded. Next step: inspect print margins and image quality before production use.`,
+          description: `${safeName}-${pdfModeSlug}-${timestamp}${watermarkSuffix}.pdf downloaded${canExportClean ? '' : ' with the CardForge watermark'}. Next step: inspect print margins and image quality before production use.`,
         });
       }
 
@@ -243,7 +237,13 @@ export function SaveAsPdfButton({
 
     for (const { card, face, x, y, w, h } of pageCards) {
       try {
-          const canvas = await renderCardToCanvasWithProfile(card, exportProfile, face, richTextHighlightColor);
+          const canvas = await renderCardToCanvasWithProfile(
+            card,
+            exportProfile,
+            face,
+            richTextHighlightColor,
+            resolveCardExportWatermark(canExportClean, brand),
+          );
           pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h);
           if(pdfIncludeCutLines) drawCutLines(pdf,x,y,w,h);
       } catch (e) {

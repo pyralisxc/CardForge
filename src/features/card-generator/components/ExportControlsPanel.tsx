@@ -191,7 +191,7 @@ export function ExportControlsPanel({
               >
                 {isCheckoutStarting ? 'Checking access...' : 'Get watermark-free downloads'}
               </Button>
-              <p>Creator Pass adds watermark-free finished downloads.</p>
+              <p>You can download every format now with the watermark. Creator Pass makes those same files clean.</p>
             </div>
           ) : null}
 
@@ -333,8 +333,8 @@ export function ExportControlsPanel({
                 exportMode={exportMode}
                 exportDpi={exportDpi}
                 richTextHighlightColor={richTextHighlightColor}
+                canExportClean={canExportClean}
                 disabled={generatedDisplayCards.length === 0}
-                gateMessage={exportGateMessage}
                 templateName={firstCard?.template?.name}
               />
             </div>

@@ -156,7 +156,7 @@ export function OwnerSiteMediaPanel({
           <h3 className="font-serif text-xl text-[#ffe7ad]">Watermark presentation</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a98a7a]">The artwork is replaced below. These controls determine how strongly it appears; entitlement code still decides when a watermark is required.</p>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <RangeField label="Free preview opacity" value={brandSettings.watermarkPreviewOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkPreviewOpacity: value }))} />
+            <RangeField label="Free preview/export opacity" value={brandSettings.watermarkPreviewOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkPreviewOpacity: value }))} />
             <RangeField label="Social image opacity" value={brandSettings.watermarkShareOpacity} min={5} max={80} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkShareOpacity: value }))} />
             <RangeField label="Width across card" value={brandSettings.watermarkWidthPercent} min={20} max={90} suffix="%" onChange={(value) => setBrandSettings((current) => ({ ...current, watermarkWidthPercent: value }))} />
           </div>

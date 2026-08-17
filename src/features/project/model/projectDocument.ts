@@ -209,18 +209,7 @@ export const applyProjectDocumentToState = (document: ProjectDocumentV1): Projec
   customAssets: normalizeCustomAssets(document.customAssets),
 });
 
-export const parseProjectDocumentFile = (contents: string): ParseProjectDocumentResult => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(contents);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to parse JSON.';
-    return {
-      success: false,
-      error: `Invalid project document JSON: ${message}`,
-    };
-  }
-
+export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
   const document = normalizeProjectDocument(parsed);
   if (document) {
     return {
@@ -233,4 +222,19 @@ export const parseProjectDocumentFile = (contents: string): ParseProjectDocument
     success: false,
     error: getUnsupportedProjectDocumentReason(parsed),
   };
+};
+
+export const parseProjectDocumentFile = (contents: string): ParseProjectDocumentResult => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(contents);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to parse JSON.';
+    return {
+      success: false,
+      error: `Invalid project document JSON: ${message}`,
+    };
+  }
+
+  return parseProjectDocumentValue(parsed);
 };

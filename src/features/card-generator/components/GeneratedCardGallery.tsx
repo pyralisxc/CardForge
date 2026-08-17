@@ -33,7 +33,7 @@ interface GeneratedCardGalleryProps {
   exportMode: ExportMode;
   exportDpi: number;
   richTextHighlightColor: string;
-  exportGateMessage?: string | null;
+  canExportClean: boolean;
   showPreviewWatermark: boolean;
   onGallerySearchChange: (value: string) => void;
   onGallerySortChange: (value: GeneratedGallerySort) => void;
@@ -66,7 +66,7 @@ export function GeneratedCardGallery({
   exportMode,
   exportDpi,
   richTextHighlightColor,
-  exportGateMessage,
+  canExportClean,
   showPreviewWatermark,
   onGallerySearchChange,
   onGallerySortChange,
@@ -313,8 +313,8 @@ export function GeneratedCardGallery({
                                   exportMode={exportMode}
                                   exportDpi={exportDpi}
                                   richTextHighlightColor={richTextHighlightColor}
+                                  canExportClean={canExportClean}
                                   disabled={false}
-                                  gateMessage={exportGateMessage}
                                   iconOnly
                                   ariaLabel={
                                     hasRepeatedExportButtons

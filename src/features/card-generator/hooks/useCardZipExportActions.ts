@@ -24,6 +24,8 @@ import {
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
+import { useBrandPresentation } from '@/features/brand-presentation/client';
+import { resolveCardExportWatermark } from '@/features/card-generator/lib/cardPreviewExport';
 
 type ToastFn = ReturnType<typeof useToast>['toast'];
 export type ZipExportKind = 'png-set' | 'tabletop-simulator';
@@ -31,7 +33,6 @@ export type ZipExportKind = 'png-set' | 'tabletop-simulator';
 interface UseCardZipExportActionsInput {
   canExportClean: boolean;
   exportDpi: number;
-  exportGateMessage: string | null;
   exportMode: ExportMode;
   generatedDisplayCards: DisplayCard[];
   richTextHighlightColor: string;
@@ -41,7 +42,6 @@ interface UseCardZipExportActionsInput {
 export function useCardZipExportActions({
   canExportClean,
   exportDpi,
-  exportGateMessage,
   exportMode,
   generatedDisplayCards,
   richTextHighlightColor,
@@ -50,18 +50,11 @@ export function useCardZipExportActions({
   const [zipProgress, setZipProgress] = useState<{ done: number; total: number } | null>(null);
   const [isZipExporting, setIsZipExporting] = useState(false);
   const [zipExportKind, setZipExportKind] = useState<ZipExportKind | null>(null);
+  const brand = useBrandPresentation();
+  const exportWatermark = resolveCardExportWatermark(canExportClean, brand);
 
   const handleExportAllAsZip = useCallback(async () => {
     if (generatedDisplayCards.length === 0) return;
-    if (!canExportClean) {
-      toast({
-        title: 'Watermark-free download locked',
-        description: exportGateMessage || 'Creator Pass is required for watermark-free downloads.',
-        variant: 'default',
-      });
-      return;
-    }
-
     const exportItems = createCardZipExportItems(generatedDisplayCards);
     const exportCopy = createZipExportCopy(exportMode, exportItems.length);
     setZipExportKind('png-set');
@@ -75,7 +68,7 @@ export function useCardZipExportActions({
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
       const folder = zip.folder(exportCopy.folderName)!;
-      const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor);
+      const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor, exportWatermark);
 
       try {
         for (let i = 0; i < exportItems.length; i++) {
@@ -92,7 +85,8 @@ export function useCardZipExportActions({
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${exportCopy.fileNamePrefix}.zip`;
+      const fileNamePrefix = `${exportCopy.fileNamePrefix}${canExportClean ? '' : '-watermarked'}`;
+      link.download = `${fileNamePrefix}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -100,7 +94,7 @@ export function useCardZipExportActions({
       trackExportCompleted('png_set', generatedDisplayCards.length);
       toast({
         title: 'ZIP Exported',
-        description: `${exportItems.length} ${exportCopy.outputLabel} saved to ${exportCopy.fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality.`,
+        description: `${exportItems.length} ${exportCopy.outputLabel} saved to ${fileNamePrefix}.zip using ${getRasterExportQualityOption(exportDpi).label.toLowerCase()} raster quality${canExportClean ? '' : ' with the CardForge watermark'}.`,
       });
     } catch (err) {
       trackExportFailed('png_set', 'render_or_archive', generatedDisplayCards.length);
@@ -110,21 +104,12 @@ export function useCardZipExportActions({
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [canExportClean, exportDpi, exportGateMessage, exportMode, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [canExportClean, exportDpi, exportMode, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
   const handleExportTabletopSimulatorSpritesheets = useCallback(async (
     quality: TabletopSimulatorExportQuality = 'standard'
   ) => {
     if (generatedDisplayCards.length === 0) return;
-    if (!canExportClean) {
-      toast({
-        title: 'Watermark-free download locked',
-        description: exportGateMessage || 'Creator Pass is required for watermark-free downloads.',
-        variant: 'default',
-      });
-      return;
-    }
-
     const preset = getTabletopSimulatorExportPreset(quality);
     const sheets = createTabletopSimulatorSheets(generatedDisplayCards, quality);
     const totalRenderJobs = sheets.reduce((total, sheet) => total + 1 + (sheet.hasBacks ? 1 : 0), 0);
@@ -139,7 +124,7 @@ export function useCardZipExportActions({
       const { createCardFaceExportRenderer } = await import('@/features/card-generator/lib/cardPreviewExport');
       const zip = new JSZip();
       const folder = zip.folder('tabletop-simulator-spritesheets')!;
-      const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor);
+      const renderer = createCardFaceExportRenderer(exportProfile, richTextHighlightColor, exportWatermark);
       let completed = 0;
       const renderedSheetSizes: Array<{ sheetIndex: number; cardWidthPx: number; cardHeightPx: number }> = [];
 
@@ -231,6 +216,7 @@ export function useCardZipExportActions({
           `Set Width to ${preset.grid.columns} and Height to ${preset.grid.rows}. Each sheet contains at most ${preset.grid.cardsPerSheet} playable cards.`,
           'If a matching back PNG exists, use it as the custom deck back image for that sheet.',
           'The JSON manifest lists card numbers and CardForge card ids.',
+          ...(canExportClean ? [] : ['This free-tier proof export includes the CardForge watermark on every card face.']),
         ].join('\n')
       );
 
@@ -238,7 +224,7 @@ export function useCardZipExportActions({
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cardforge-tabletop-simulator-${quality}-spritesheets.zip`;
+      link.download = `cardforge-tabletop-simulator-${quality}${canExportClean ? '' : '-watermarked'}-spritesheets.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -246,7 +232,7 @@ export function useCardZipExportActions({
       trackExportCompleted('tabletop_simulator', generatedDisplayCards.length);
       toast({
         title: 'Tabletop Simulator ZIP exported',
-        description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} saved with a manifest. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
+        description: `${sheets.length} ${preset.label.toLowerCase()} sheet${sheets.length === 1 ? '' : 's'} saved with a manifest${canExportClean ? '' : ' and the CardForge watermark'}. Create each custom deck with ${preset.grid.columns} columns and ${preset.grid.rows} rows.`,
       });
     } catch (err) {
       trackExportFailed('tabletop_simulator', 'render_or_archive', generatedDisplayCards.length);
@@ -256,7 +242,7 @@ export function useCardZipExportActions({
       setZipProgress(null);
       setZipExportKind(null);
     }
-  }, [canExportClean, exportGateMessage, generatedDisplayCards, richTextHighlightColor, toast]);
+  }, [canExportClean, exportWatermark, generatedDisplayCards, richTextHighlightColor, toast]);
 
   return {
     handleExportAllAsZip,

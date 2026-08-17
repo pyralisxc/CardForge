@@ -19,39 +19,32 @@ import {
 } from '@/features/card-generator/lib/printValidation';
 import { extractErrorMessage, withNextStep } from '@/shared/userFacingErrors';
 import { ERROR_COPY } from '@/features/card-generator/lib/errorCopy';
-import { renderCardToCanvas } from '@/features/card-generator/lib/cardPreviewExport';
+import { renderCardToCanvas, resolveCardExportWatermark } from '@/features/card-generator/lib/cardPreviewExport';
 import { hasCardBacking } from '@/domain/rendering';
 import type { DisplayCard } from '@/domain/rendering';
 import { trackExportCompleted, trackExportFailed, trackExportStarted } from '@/features/analytics/client/tracking';
+import { useBrandPresentation } from '@/features/brand-presentation/client';
 
 interface ExportCardImageButtonProps {
   card: DisplayCard;
   exportMode: ExportMode;
   exportDpi: number;
   richTextHighlightColor: string;
+  canExportClean: boolean;
   disabled?: boolean;
-  gateMessage?: string | null;
   className?: string;
   ariaLabel?: string;
   iconOnly?: boolean;
 }
 
-export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHighlightColor, disabled = false, gateMessage, className, ariaLabel, iconOnly = false }: ExportCardImageButtonProps) {
+export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHighlightColor, canExportClean, disabled = false, className, ariaLabel, iconOnly = false }: ExportCardImageButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const brand = useBrandPresentation();
 
   const hasBackFace = hasCardBacking(card);
 
   const handleExport = async (format: 'png' | 'webp' | 'jpeg', face: CardFace = 'front') => {
-    if (gateMessage) {
-      toast({
-        title: 'Watermark-free download locked',
-        description: withNextStep(gateMessage, 'Open your account page and buy Creator Pass to export clean files.'),
-        variant: 'default',
-      });
-      return;
-    }
-
     setIsLoading(true);
     trackExportStarted('image', 1);
     try {
@@ -67,7 +60,14 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
         });
       }
 
-      const canvas = await renderCardToCanvas(card, exportMode, exportDpi, face, richTextHighlightColor);
+      const canvas = await renderCardToCanvas(
+        card,
+        exportMode,
+        exportDpi,
+        face,
+        richTextHighlightColor,
+        resolveCardExportWatermark(canExportClean, brand),
+      );
       const mimeType = format === 'webp'
         ? 'image/webp'
         : format === 'jpeg'
@@ -90,7 +90,7 @@ export function ExportCardImageButton({ card, exportMode, exportDpi, richTextHig
       const quality = getRasterExportQualityOption(exportDpi);
       toast({
         title: 'Card downloaded',
-        description: `Saved as ${format.toUpperCase()} at ${dimensions.widthPx} × ${dimensions.heightPx}px using ${quality.label.toLowerCase()} raster quality. Enlarging beyond these pixels will soften the image.`,
+        description: `Saved as ${format.toUpperCase()} at ${dimensions.widthPx} × ${dimensions.heightPx}px using ${quality.label.toLowerCase()} raster quality${canExportClean ? '' : ' with the CardForge watermark'}. Enlarging beyond these pixels will soften the image.`,
       });
     } catch (err) {
       trackExportFailed('image', 'render_or_download', 1);

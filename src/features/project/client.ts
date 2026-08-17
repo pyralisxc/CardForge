@@ -14,6 +14,7 @@ export {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   parseProjectDocumentFile,
+  parseProjectDocumentValue,
 } from './model/projectDocument';
 export type {
   CreateProjectDocumentInput,

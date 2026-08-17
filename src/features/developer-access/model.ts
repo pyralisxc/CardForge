@@ -12,6 +12,7 @@ export const DEVELOPER_CONTRIBUTION_SCOPES = [
   'assets.review',
   'library.submit',
   'library.publish',
+  'studio.ai.create',
   'campaigns.draft',
   'campaigns.approve',
   'campaigns.publish',
@@ -27,6 +28,7 @@ export const DEVELOPER_CONTRIBUTION_SCOPE_LABELS: Record<DeveloperContributionSc
   'assets.review': 'Review library assets',
   'library.submit': 'Submit shared library revisions',
   'library.publish': 'Publish shared library revisions',
+  'studio.ai.create': 'Create private Studio drafts with AI',
   'campaigns.draft': 'Draft campaign packages',
   'campaigns.approve': 'Approve campaign packages',
   'campaigns.publish': 'Publish approved campaigns',
@@ -121,6 +123,7 @@ export const resolveDeveloperContributionScopes = ({
     'assets.submit',
     'assets.review',
     'library.submit',
+    'studio.ai.create',
     ...(canDraftCampaigns ? ['campaigns.draft' as const] : []),
     ...(canProposeSiteContent ? ['site.propose' as const] : []),
   ];

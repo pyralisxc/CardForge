@@ -42,6 +42,9 @@ export const getProjectCapabilities = (
   canUseProjectFiles: mode !== 'free' || projectFileAccess === 'free',
 });
 
+export const isWatermarkRequired = (canExportClean: boolean): boolean =>
+  !canExportClean;
+
 export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
   const source = readEnvironment(env);
   const explicitMode = source.CARDFORGE_ACCESS_MODE ?? source.NEXT_PUBLIC_CARDFORGE_ACCESS_MODE;
@@ -52,7 +55,7 @@ export const resolveAccessMode = (env?: AccessEnvironment): AccessMode => {
 export const getExportGateMessage = (mode: AccessMode): string | null =>
   getProjectCapabilities(mode).canExportClean
     ? null
-    : 'Creator Pass unlocks watermark-free PNG, PDF, ZIP, and Tabletop Simulator downloads. You can keep designing and making preview cards for free.';
+    : 'Free PNG, PDF, ZIP, and Tabletop Simulator downloads include the CardForge watermark. Creator Pass removes it from finished files.';
 
 export const getProjectFileGateMessage = (
   mode: AccessMode,
@@ -95,8 +98,8 @@ export const getExportEntitlementCopy = (
     gateMessage,
     projectFileGateMessage,
     panelMessage: projectFileAccess === 'free'
-      ? 'Build Templates, add card data, and move portable project files for free. Creator Pass adds watermark-free finished downloads.'
-      : 'Build Templates, add card data, and make preview cards for free. Creator Pass adds watermark-free downloads and portable project files.',
+      ? 'Build Templates, add card data, move portable project files for free, and download watermarked finished files. Creator Pass removes the watermark.'
+      : 'Build Templates, add card data, and download watermarked finished files for free. Creator Pass removes the watermark and adds portable project files.',
   };
 };
 
