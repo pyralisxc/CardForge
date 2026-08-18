@@ -1,6 +1,10 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
-import { getCardForgeCatalogManifest } from '@/features/developer-assets/lib/catalogManifest';
+import {
+  getCardForgeCatalogManifest,
+  getCardForgeStudioAssetManifest,
+  getCardForgeStudioBootstrapManifest,
+} from '@/features/developer-assets/lib/catalogManifest';
 import type { RegistryViewerAccess } from '@/features/developer-assets/lib/registryContentAssets';
 
 export const CARDFORGE_CATALOG_TAG = 'public:cardforge-catalog';
@@ -23,8 +27,52 @@ const cachedCatalogs: Record<RegistryViewerAccess, () => ReturnType<typeof getCa
   ),
 };
 
+const cachedStudioBootstraps: Record<RegistryViewerAccess, () => ReturnType<typeof getCardForgeStudioBootstrapManifest>> = {
+  free: unstable_cache(
+    () => getCardForgeStudioBootstrapManifest('free'),
+    ['cardforge-studio-bootstrap', 'free'],
+    { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
+  ),
+  paid: unstable_cache(
+    () => getCardForgeStudioBootstrapManifest('paid'),
+    ['cardforge-studio-bootstrap', 'paid'],
+    { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
+  ),
+  dev: unstable_cache(
+    () => getCardForgeStudioBootstrapManifest('dev'),
+    ['cardforge-studio-bootstrap', 'dev'],
+    { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
+  ),
+};
+
+const cachedStudioAssets: Record<RegistryViewerAccess, () => ReturnType<typeof getCardForgeStudioAssetManifest>> = {
+  free: unstable_cache(
+    () => getCardForgeStudioAssetManifest('free'),
+    ['cardforge-studio-assets', 'free'],
+    { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
+  ),
+  paid: unstable_cache(
+    () => getCardForgeStudioAssetManifest('paid'),
+    ['cardforge-studio-assets', 'paid'],
+    { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
+  ),
+  dev: unstable_cache(
+    () => getCardForgeStudioAssetManifest('dev'),
+    ['cardforge-studio-assets', 'dev'],
+    { tags: [CARDFORGE_CATALOG_TAG], revalidate: 300 },
+  ),
+};
+
 export const getCachedCardForgeCatalog = (access: RegistryViewerAccess = 'free') => (
   cachedCatalogs[access]()
+);
+
+export const getCachedCardForgeStudioBootstrap = (access: RegistryViewerAccess = 'free') => (
+  cachedStudioBootstraps[access]()
+);
+
+export const getCachedCardForgeStudioAssets = (access: RegistryViewerAccess = 'free') => (
+  cachedStudioAssets[access]()
 );
 
 export const revalidateCardForgeCatalog = (): void => {
