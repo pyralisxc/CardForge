@@ -38,6 +38,8 @@ Use one coherent objective branch and one final PR unless an independent ownersh
 
 During implementation, use one focused RED/GREEN cycle per behavior and run the complete repository gate once near completion. Default Git inspection to orientation, pre-commit, and pre-PR. Do not repeat unchanged Git/provider queries, poll agents, or create extra planning and progress artifacts.
 
+For remote GitHub-only work, do not use file-writing actions that create commits as the implementation loop. Prepare related file changes as one Git tree/commit, or an equivalent batch, and move the branch once per coherent milestone. GitHub CI is the code-health loop; Vercel Preview is hosted integration proof for a deployable checkpoint, not a substitute compile loop. Do not push incomplete, no-op, or test-only commits merely to obtain or retrigger a preview. If Vercel is rate limited, stop pushing until the provider state changes instead of creating more commits.
+
 Provider-backed work uses one preflight, one approved mutation, and one postflight verification. If the same check would run twice without a relevant state change, or two checks produce no new evidence, stop the loop and take over or report the blocker.
 
 Direct instructions from Cameron override this protocol.

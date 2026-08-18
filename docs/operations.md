@@ -1,6 +1,6 @@
 # CardForge Operations
 
-Last updated: August 16, 2026
+Last updated: August 18, 2026
 
 This is the current runbook for `https://cardforges.com`. Provider dashboards own live state; this document owns the safe operating sequence and the evidence required after a change. Do not preserve deployment IDs or completed rollout diaries here.
 
@@ -34,9 +34,21 @@ Social publishing: Meta app ID/secret, the reviewed Facebook Login for Business 
 
 Use `.env.example` as the complete variable catalog.
 
+## Development deployment cadence
+
+Vercel remains CardForge's hosted development-preview and production runtime. GitHub is the source/CI workspace; Vercel Preview is the live integration environment for feature branches; Vercel Production deploys `main` to `cardforges.com`. Do not add a second hosting platform solely to gain more development build volume unless a proven Vercel runtime, cost, or capacity limitation remains after the workflow below is followed.
+
+For GitHub-only or remote-agent work, do not use one-file write operations that create a commit as the normal implementation loop. Prepare related changes first and, when Git data APIs are available, create the changed blobs/tree, one coherent commit, and one branch-ref update. A branch push should represent something coherent enough to build and inspect.
+
+GitHub `verify` is the deterministic code-health loop. Vercel Preview is not a compile loop: use it after a coherent implementation checkpoint to test browser rendering, navigation, responsive behavior, auth/cookie boundaries that are valid on Preview, MCP/API routing, and provider-backed integration that the Preview environment can safely exercise. Batch follow-up fixes into the next coherent commit instead of pushing each adjustment separately.
+
+Default deployment cadence is one initial Vercel Preview for the coherent PR head and only meaningful follow-up previews after relevant fixes. Do not push no-op, incomplete, documentation-only, or test-only commits merely to obtain or retrigger a Vercel status. If Vercel reports a build-rate or quota block, stop pushing until that provider state changes; do not bypass required checks or create more commits to chase the status.
+
+If stronger development isolation becomes necessary, first use Vercel Preview-scoped or branch-specific environment variables and dedicated non-production provider credentials where appropriate. Keep production provider settings and `NEXT_PUBLIC_APP_URL=https://cardforges.com` authoritative for `main`. Introduce a second hosting platform only after a concrete requirement shows that the existing GitHub + Vercel Preview model cannot satisfy the development workflow cleanly.
+
 ## Release sequence
 
-1. Run the smallest focused checks while implementing. Temporary development tests should be removed or consolidated once the behavior is proven unless they protect a durable high-risk boundary or known regression.
+1. Run the smallest focused checks while implementing. Temporary development tests should be removed or consolidated once the behavior is proven unless they protect a durable high-risk boundary or known regression. Remote agents batch related Git changes into coherent milestones rather than pushing each file or test adjustment independently.
 2. Before the PR, run `npm run lint`, `npm run typecheck`, `npm run architecture:check`, `npm run migrations:check`, the focused durable tests affected by the change, `npm run build`, and `git diff --check`. GitHub runs the maintained verification suite once on the exact PR head.
 3. Require the GitHub `verify` check and a successful Vercel preview deployment on the exact PR head. Vercel READY proves deployment, not visual quality: exercise every changed public workflow on that preview at desktop and mobile widths and confirm the primary action is obvious, branding and control values do not clip or repeat, navigation and touch targets remain usable, no horizontal overflow appears, and the imagery, contrast, spacing, and hierarchy still feel like CardForge. Use the signed-in production browser for provider-backed roles that a preview cannot validly prove.
 4. Apply an additive production migration only after Cameron explicitly approves that exact provider mutation. Run the postflight below before merging code that depends on the new schema.
