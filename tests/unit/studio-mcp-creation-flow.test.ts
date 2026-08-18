@@ -10,6 +10,7 @@ describe('Studio MCP creative production flow', () => {
   const schemas = readSource('src/features/studio-documents/server/mcpToolInputSchemas.ts');
   const agentSchemas = readSource('src/features/studio-documents/server/agentTemplateToolSchemas.ts');
   const agentTools = readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts');
+  const creationLibrary = readSource('src/features/studio-documents/server/studioCreationLibrary.ts');
   const validation = readSource('src/features/studio-documents/templateDraftSchema.ts');
   const revisions = readSource('src/features/studio-documents/server/developerTemplateDrafts.ts');
   const projectDocument = readSource('src/features/project/model/projectDocument.ts');
@@ -41,6 +42,15 @@ describe('Studio MCP creative production flow', () => {
     expect(agentSchemas).toContain('additionalProperties: false');
     expect(agentSchemas).toContain('PROJECT_ASSET_BINDINGS');
     expect(route).not.toContain('fromJsonSchema');
+  });
+
+  it('exposes native frame and border recipes instead of forcing the model to recreate them by hand', () => {
+    expect(creationLibrary).toContain("'frame-kit'");
+    expect(creationLibrary).toContain('templateFrameKitItem');
+    expect(creationLibrary).toContain('appearance: style.appearance');
+    expect(creationLibrary).toContain('elementUpdates: style.updates');
+    expect(creationLibrary).toContain('templateUpdates: style.templateUpdates');
+    expect(creationLibrary).toContain('cardBorderImageSource: template.cardBorderImageSource');
   });
 
   it('validates plan bindings and keeps unresolved custom media explicit until CardForge embeds it', () => {
