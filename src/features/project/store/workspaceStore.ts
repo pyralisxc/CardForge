@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
-import { createJSONStorage, devtools, persist } from 'zustand/middleware';
+import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 
@@ -20,6 +20,25 @@ import {
   dedupeAppearanceStyles,
   normalizeActiveTab,
 } from './workspaceDefaults';
+
+const WORKSPACE_STORAGE_OPTIONS = {
+  keepRecoverySnapshot: true,
+  suppressWriteErrors: true,
+  trackWorkspaceSaveStatus: true,
+} as const;
+
+const inertStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
+const createWorkspaceJsonStorage = () => createJSONStorage(() => createScopedProjectStorage(
+  'project-workspace',
+  WORKSPACE_STORAGE_OPTIONS,
+));
+
+let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 
 const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycleSlice> = (set, get) => ({
   _rehydrateCallback: () => {
@@ -80,10 +99,7 @@ export const useProjectStore = create<ProjectState>()(
       }),
       {
         name: 'workspace',
-        storage: createJSONStorage(() => createScopedProjectStorage(
-          'project-workspace',
-          { keepRecoverySnapshot: true, suppressWriteErrors: true, trackWorkspaceSaveStatus: true },
-        )),
+        storage: createWorkspaceJsonStorage(),
         partialize: (state) => ({
           userTemplates: state.userTemplates,
           appearanceStyles: dedupeAppearanceStyles(state.appearanceStyles),
@@ -113,9 +129,17 @@ export const useProjectStore = create<ProjectState>()(
 );
 
 export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceScope) => {
+  const isScopeChange = hydratedPersistenceScope !== null && hydratedPersistenceScope !== scope;
   setProjectPersistenceScope(scope);
-  useProjectStore.setState(useProjectStore.getInitialState());
+
+  if (isScopeChange) {
+    useProjectStore.persist.setOptions({ storage: createJSONStorage(() => inertStorage) });
+    useProjectStore.setState(useProjectStore.getInitialState());
+    useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+  }
+
   await useProjectStore.persist.rehydrate();
+  hydratedPersistenceScope = scope;
 };
 
 export type { ProjectState } from './types';
