@@ -1,12 +1,17 @@
 import { verifyClerkToken } from '@clerk/mcp-tools/next';
 import { auth } from '@clerk/nextjs/server';
-import { fromJsonSchema } from '@modelcontextprotocol/server';
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 
 import {
   CARDFORGE_FREEFORM_ELEMENT_TYPES,
   CARDFORGE_FREEFORM_SHAPE_KINDS,
 } from '@/domain/templates';
+import {
+  PROJECT_ASSET_REQUIREMENT_SOURCES,
+  PROJECT_ASSET_REQUIREMENT_STATUSES,
+  PROJECT_PRODUCTION_DECISION_MODES,
+  summarizeProjectProductionAssets,
+} from '@/features/project/server';
 import {
   DeveloperCockpitAccessError,
   getDeveloperCockpitAccessForUserId,
@@ -17,119 +22,32 @@ import {
   getDeveloperTemplateDraft,
   gptTemplateDraftInputSchema,
   listDeveloperTemplateDrafts,
+  searchStudioCreationLibrary,
   StudioDocumentStoreError,
+  updateDeveloperTemplateDraft,
 } from '@/features/studio-documents/server';
+import {
+  createTemplateInputSchema,
+  documentIdInputSchema,
+  pipelineInputSchema,
+  searchStudioLibraryInputSchema,
+  updateTemplateInputSchema,
+} from '@/features/studio-documents/server/mcpToolInputSchemas';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const createTemplateInputSchema = fromJsonSchema({
-  type: 'object',
-  additionalProperties: false,
-  required: ['title', 'template'],
-  properties: {
-    title: { type: 'string', minLength: 1, maxLength: 160 },
-    template: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['name', 'aspectRatio'],
-      properties: {
-        id: { type: ['string', 'null'], maxLength: 255 },
-        name: { type: 'string', minLength: 1, maxLength: 160 },
-        aspectRatio: { type: 'string', minLength: 1, maxLength: 40 },
-        baseBackgroundColor: { type: 'string', maxLength: 255 },
-        baseTextColor: { type: 'string', maxLength: 255 },
-        cardBackgroundImageUrl: { type: 'string', maxLength: 20000 },
-        cardBorderColor: { type: 'string', maxLength: 255 },
-        cardBorderWidth: { type: 'string', maxLength: 100 },
-        cardBorderStyle: { type: 'string', maxLength: 100 },
-        cardBorderRadius: { type: 'string', maxLength: 100 },
-        freeformCanvas: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['width', 'height', 'elements'],
-          properties: {
-            width: { type: 'number', minimum: 1, maximum: 5000 },
-            height: { type: 'number', minimum: 1, maximum: 5000 },
-            elements: {
-              type: 'array',
-              maxItems: 200,
-              items: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['type'],
-                properties: {
-                  id: { type: 'string', minLength: 1, maxLength: 255 },
-                  type: { type: 'string', enum: [...CARDFORGE_FREEFORM_ELEMENT_TYPES] },
-                  name: { type: 'string', minLength: 1, maxLength: 160 },
-                  x: { type: 'number' },
-                  y: { type: 'number' },
-                  width: { type: 'number', exclusiveMinimum: 0 },
-                  height: { type: 'number', exclusiveMinimum: 0 },
-                  rotation: { type: 'number' },
-                  opacity: { type: 'number', minimum: 0, maximum: 1 },
-                  zIndex: { type: 'number' },
-                  locked: { type: 'boolean' },
-                  content: { type: 'string', maxLength: 20000 },
-                  imageSource: { type: 'string', maxLength: 20000 },
-                  iconImageSource: { type: 'string', maxLength: 20000 },
-                  iconName: { type: 'string', maxLength: 255 },
-                  shapeKind: { type: 'string', enum: [...CARDFORGE_FREEFORM_SHAPE_KINDS] },
-                  textColor: { type: 'string', maxLength: 255 },
-                  backgroundColor: { type: 'string', maxLength: 255 },
-                  backgroundImageUrl: { type: 'string', maxLength: 20000 },
-                  fontFamily: { type: 'string', maxLength: 255 },
-                  fontSize: {
-                    type: 'string',
-                    enum: ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl'],
-                  },
-                  fontSizePx: { type: 'number', exclusiveMinimum: 0, maximum: 1000 },
-                  fontWeight: {
-                    type: 'string',
-                    enum: ['font-normal', 'font-medium', 'font-semibold', 'font-bold'],
-                  },
-                  textAlign: { type: 'string', enum: ['left', 'center', 'right', 'justify'] },
-                  fontStyle: { type: 'string', enum: ['normal', 'italic'] },
-                  letterSpacing: { type: 'string', maxLength: 100 },
-                  lineHeight: { type: 'string', maxLength: 100 },
-                  padding: { type: 'string', maxLength: 100 },
-                  borderColor: { type: 'string', maxLength: 255 },
-                  borderWidth: { type: 'string', maxLength: 100 },
-                  borderRadius: { type: 'string', maxLength: 100 },
-                  minHeight: { type: 'string', maxLength: 100 },
-                  imageObjectFit: { type: 'string', enum: ['cover', 'contain', 'fill', 'none'] },
-                  fillColor: { type: 'string', maxLength: 255 },
-                  strokeColor: { type: 'string', maxLength: 255 },
-                  strokeWidth: { type: 'number', minimum: 0, maximum: 100 },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-});
-
-const documentIdInputSchema = fromJsonSchema<{ documentId: string }>({
-  type: 'object',
-  additionalProperties: false,
-  required: ['documentId'],
-  properties: {
-    documentId: { type: 'string', format: 'uuid' },
-  },
-});
-
-const pipelineInputSchema = fromJsonSchema<{ documentId: string; templateId?: string }>({
-  type: 'object',
-  additionalProperties: false,
-  required: ['documentId'],
-  properties: {
-    documentId: { type: 'string', format: 'uuid' },
-    templateId: { type: 'string', minLength: 1 },
-  },
-});
+const CARDFORGE_SHAPE_ROLES = [
+  'basic',
+  'panel',
+  'artFrame',
+  'rulesBox',
+  'titlePlate',
+  'statGem',
+  'costOrb',
+  'divider',
+] as const;
 
 const publicOrigin = () => (
   process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '') || 'https://cardforges.com'
@@ -179,13 +97,131 @@ const toolError = (error: unknown) => {
   };
 };
 
+const validateDraftInput = (input: unknown) => {
+  const validation = gptTemplateDraftInputSchema.safeParse(input);
+  if (validation.success) return validation.data;
+  const details = validation.error.issues
+    .slice(0, 6)
+    .map((issue) => `${issue.path.join('.') || 'input'}: ${issue.message}`)
+    .join('; ');
+  throw new StudioDocumentStoreError(
+    `The editable Template needs correction before CardForge can create it. ${details}`,
+    409,
+  );
+};
+
+const documentStructuredContent = (document: Awaited<ReturnType<typeof createDeveloperTemplateDraft>>) => {
+  const productionPlan = document.document.productionPlan;
+  return {
+    document: {
+      id: document.id,
+      title: document.title,
+      creationSource: document.creationSource,
+      revision: document.revision,
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt,
+    },
+    productionPlan: productionPlan ? {
+      decisionMode: productionPlan.decisionMode,
+      outputSize: productionPlan.outputSize,
+      editableFieldCount: productionPlan.editableFieldKeys.length,
+      assetSummary: summarizeProjectProductionAssets(productionPlan),
+    } : null,
+    openInStudioUrl: studioDocumentUrl(document.id),
+  };
+};
+
 const handler = createMcpHandler(
   (server) => {
     server.registerTool(
+      'get_studio_creation_guide',
+      {
+        title: 'Get the CardForge creation workflow',
+        description: 'Read CardForge native authoring capabilities and the recommended conversation-to-Studio workflow before planning a new design.',
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      },
+      async () => {
+        try {
+          await getMcpDeveloperAccess();
+          const structuredContent = {
+            workflow: [
+              'Establish the purpose, audience, deliverable, and exact output dimensions or physical format.',
+              'Agree on visual direction: look and feel, palette, typography, hierarchy, and copy/content needs.',
+              'Define every Studio-editable field and bind it through native fieldContracts to a real canvas element.',
+              'Inventory assets with quantities and roles. Search the CardForge library before asking for new art.',
+              'Show the production plan to the user and use decisionMode confirmed after approval, or delegated only when the user explicitly delegated creative decisions.',
+              'Create the native editable Template, inspect the resulting Studio document, and revise the same document when a stronger pass is useful.',
+              'Open the finished private project in CardForge Studio for visual inspection and manual editing.',
+            ],
+            canvas: {
+              elementTypes: [...CARDFORGE_FREEFORM_ELEMENT_TYPES],
+              shapeKinds: [...CARDFORGE_FREEFORM_SHAPE_KINDS],
+              shapeRoles: [...CARDFORGE_SHAPE_ROLES],
+              note: 'MCP-created elements require stable ids, names, explicit geometry, and z-index. Shapes also require shapeKind.',
+            },
+            planning: {
+              decisionModes: [...PROJECT_PRODUCTION_DECISION_MODES],
+              assetSources: [...PROJECT_ASSET_REQUIREMENT_SOURCES],
+              assetStatuses: [...PROJECT_ASSET_REQUIREMENT_STATUSES],
+              customArtRule: 'Do not claim custom-generated media is attached unless a usable assetUrl exists. Keep it needed, or use an explicit placeholder, until it can actually be bound.',
+            },
+            quality: {
+              nativeEditableFeatures: [
+                'physical trim dimensions and custom canvas sizes',
+                'field contracts and generator-editable fields',
+                'materials, gradients, textures, borders, glow, bevel, and shadow',
+                'shape roles and native shape kinds',
+                'image fit, position, scale, offset, and rotation',
+                'font family, pixel sizing, alignment, transforms, decoration, and auto-fit',
+                'grouping through parentId, visibility, locking, rotation, and layer order',
+              ],
+            },
+          };
+          return {
+            content: [{ type: 'text', text: 'CardForge creation workflow loaded. Plan the artifact and its asset inventory before creating the Studio document.' }],
+            structuredContent,
+          };
+        } catch (error) {
+          return toolError(error);
+        }
+      },
+    );
+
+    server.registerTool(
+      'search_studio_library',
+      {
+        title: 'Search the CardForge Studio library',
+        description: 'Search CardForge templates, styles, fonts, textures, dividers, icons, and images while planning a design. Prefer reusing suitable library assets before inventing new ones.',
+        inputSchema: searchStudioLibraryInputSchema,
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ query, kinds, limit }) => {
+        try {
+          await getMcpDeveloperAccess();
+          const items = await searchStudioCreationLibrary({ query, kinds, limit });
+          return {
+            content: [{ type: 'text', text: `Found ${items.length} CardForge creation librar${items.length === 1 ? 'y item' : 'y items'}.` }],
+            structuredContent: { items },
+          };
+        } catch (error) {
+          return toolError(error);
+        }
+      },
+    );
+
+    server.registerTool(
       'create_editable_template',
       {
-        title: 'Create an editable CardForge Template',
-        description: 'Create a private editable Template using CardForge native canvas fields only. Element types are text, image, icon, or shape; use shapeKind for shapes and content for text.',
+        title: 'Create a planned editable CardForge Template',
+        description: 'Create one private, high-fidelity CardForge Template after planning its purpose, dimensions, visual direction, editable fields, and asset inventory with the user. productionPlan is required and must truthfully record confirmed user approval or explicit creative delegation. Use native Studio fields so the result remains editable.',
         inputSchema: createTemplateInputSchema,
         annotations: {
           readOnlyHint: false,
@@ -204,25 +240,54 @@ const handler = createMcpHandler(
             windowSeconds: 3600,
           });
           if (!rateLimit.allowed) throw new StudioDocumentStoreError('Too many Studio drafts. Please try again later.', 409);
-          const validation = gptTemplateDraftInputSchema.safeParse(input);
-          if (!validation.success) {
-            throw new StudioDocumentStoreError('The editable Template uses unsupported CardForge fields or values.', 409);
-          }
-          const document = await createDeveloperTemplateDraft(access, validation.data);
-          const structuredContent = {
-            document: {
-              id: document.id,
-              title: document.title,
-              creationSource: document.creationSource,
-              revision: document.revision,
-              createdAt: document.createdAt,
-              updatedAt: document.updatedAt,
-            },
-            openInStudioUrl: studioDocumentUrl(document.id),
-          };
+          const validatedInput = validateDraftInput(input);
+          const document = await createDeveloperTemplateDraft(access, validatedInput);
+          const assetSummary = summarizeProjectProductionAssets(validatedInput.productionPlan);
           return {
-            content: [{ type: 'text', text: `Created "${document.title}" as a private editable Studio Template.` }],
-            structuredContent,
+            content: [{
+              type: 'text',
+              text: `Created "${document.title}" as a private editable Studio Template with ${assetSummary.totalAssetInstances} planned asset instance${assetSummary.totalAssetInstances === 1 ? '' : 's'}; ${assetSummary.neededInstances} still need production or selection.`,
+            }],
+            structuredContent: documentStructuredContent(document),
+          };
+        } catch (error) {
+          return toolError(error);
+        }
+      },
+    );
+
+    server.registerTool(
+      'update_editable_template',
+      {
+        title: 'Revise an editable CardForge Template',
+        description: 'Revise the same private Studio document after inspecting it or discussing changes. Load the document first, preserve its CardForge identity, send the current expectedRevision, and update the rich native Template plus its production plan.',
+        inputSchema: updateTemplateInputSchema,
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      },
+      async ({ documentId, expectedRevision, ...draftInput }) => {
+        try {
+          const access = await getMcpDeveloperAccess();
+          const rateLimit = await consumeRateLimit({
+            action: 'studio-ai-draft',
+            identity: access.user.id,
+            limit: 60,
+            windowSeconds: 3600,
+          });
+          if (!rateLimit.allowed) throw new StudioDocumentStoreError('Too many Studio draft revisions. Please try again later.', 409);
+          const validatedInput = validateDraftInput(draftInput);
+          const document = await updateDeveloperTemplateDraft({
+            access,
+            documentId,
+            expectedRevision,
+            input: validatedInput,
+          });
+          return {
+            content: [{ type: 'text', text: `Revised "${document.title}" to Studio document revision ${document.revision}.` }],
+            structuredContent: documentStructuredContent(document),
           };
         } catch (error) {
           return toolError(error);
@@ -259,7 +324,7 @@ const handler = createMcpHandler(
       'get_editable_template',
       {
         title: 'Get an editable CardForge Template',
-        description: 'Load one private Studio document, including its editable Template data, before discussing or changing it.',
+        description: 'Load one private Studio document, including its native editable Template and production plan, before discussing or revising it.',
         inputSchema: documentIdInputSchema,
         annotations: {
           readOnlyHint: true,
@@ -288,7 +353,7 @@ const handler = createMcpHandler(
       'continue_template_in_pipeline',
       {
         title: 'Continue a Template in Forge Review',
-        description: 'Create a developer Pipeline draft from a private Studio Template, then return the Forge Review page where missing description, preview, and tags must be completed by the developer.',
+        description: 'Create a developer Pipeline draft from a private Studio Template, then return Forge Review. This is separate from creative planning and does not publish the Template.',
         inputSchema: pipelineInputSchema,
         annotations: {
           readOnlyHint: false,
@@ -323,8 +388,18 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.1.0' },
-    instructions: 'Create private editable Templates using CardForge native canvas fields only. Elements must use type text, image, icon, or shape; shapes use shapeKind and text uses content. Never claim a Template is published. Before a Pipeline handoff, identify the exact Studio document and Template; leave missing review metadata for the developer in Forge Review.',
+    serverInfo: { name: 'cardforge-studio', version: '0.2.0' },
+    instructions: [
+      'Act as a design director and production planner before creating a new CardForge Template.',
+      'For a new design, establish purpose, audience, exact dimensions or physical format, visual direction, copy needs, Studio-editable fields, and an explicit asset inventory with quantities and roles.',
+      'Use get_studio_creation_guide when the workflow or native capabilities are unclear, and search_studio_library before inventing a new asset when CardForge may already have a suitable template, style, font, texture, divider, icon, or image.',
+      'Before create_editable_template, summarize the production plan to the user and get approval unless the user already explicitly delegated the creative decisions. Record decisionMode confirmed only after approval and delegated only after explicit delegation.',
+      'Use fieldContracts for content the user should be able to edit in Studio, and bind every planned editable field and asset target to stable native element ids.',
+      'Do not claim custom-generated art, backgrounds, borders, or other media are attached unless a usable assetUrl is actually available. Keep unresolved custom media status needed, or use an explicit placeholder, until it can be bound.',
+      'Create with native CardForge fields rather than generic design-tool vocabulary. Rich native appearance, typography, image positioning, shape roles, grouping, and physical dimensions are supported.',
+      'After creation, inspect the result with get_editable_template. Use update_editable_template against the current revision when another pass materially improves the design or the user requests changes.',
+      'Never claim a private Template is published. Forge Review and the contribution Pipeline are separate explicit steps.',
+    ].join(' '),
     maxSubscriptions: 0,
   },
 );
