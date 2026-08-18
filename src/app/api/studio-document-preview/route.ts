@@ -11,7 +11,11 @@ export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get('token') ?? '';
   const payload = readStudioDocumentPreviewToken(token);
   if (!payload) {
-    return createApiErrorResponse(404, 'studio_document_not_found', 'This CardForge draft preview has expired or is invalid.');
+    return createApiErrorResponse(
+      404,
+      'studio_document_not_found',
+      'This CardForge draft preview link has expired or is invalid. Return to ChatGPT and ask CardForge to render the latest draft preview again.',
+    );
   }
 
   try {
@@ -34,7 +38,9 @@ export async function GET(request: Request) {
       return createApiErrorResponse(
         error.status === 404 ? 404 : 503,
         error.status === 404 ? 'studio_document_not_found' : 'studio_document_unavailable',
-        error.status === 404 ? 'This CardForge draft preview is no longer available.' : error.message,
+        error.status === 404
+          ? 'This CardForge draft preview is no longer available. Return to ChatGPT and render a fresh preview if the draft still exists.'
+          : error.message,
       );
     }
     console.error('Unable to render Studio draft preview:', error);
