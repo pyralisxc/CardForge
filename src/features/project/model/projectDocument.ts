@@ -1,5 +1,11 @@
 import type { StoredDisplayCard } from '@/domain/cards';
-import { reconstructMinimalTemplateObject, type AppearanceStylePreset, type CardAssetOption, type TCGCardTemplate } from '@/domain/templates';
+import {
+  reconstructMinimalTemplateObject,
+  validateNativeTemplateStructure,
+  type AppearanceStylePreset,
+  type CardAssetOption,
+  type TCGCardTemplate,
+} from '@/domain/templates';
 import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
 
 const PROJECT_DOCUMENT_VERSION = 1;
@@ -70,6 +76,17 @@ const isLikelyTemplate = (value: unknown): value is Partial<TCGCardTemplate> => 
     || isRecord(value.freeformCanvas)
     || Array.isArray(value.fieldContracts)
   );
+};
+
+const getInvalidTemplateReason = (value: unknown): string | null => {
+  if (!Array.isArray(value)) return null;
+  for (let index = 0; index < value.length; index += 1) {
+    const template = value[index];
+    if (!isLikelyTemplate(template)) continue;
+    const reason = validateNativeTemplateStructure(template);
+    if (reason) return `Template ${index + 1} cannot be opened safely. ${reason}`;
+  }
+  return null;
 };
 
 const isLikelyStoredCard = (value: unknown): value is Partial<StoredDisplayCard> => (
@@ -210,6 +227,16 @@ export const applyProjectDocumentToState = (document: ProjectDocumentV1): Projec
 });
 
 export const parseProjectDocumentValue = (parsed: unknown): ParseProjectDocumentResult => {
+  if (isRecord(parsed) && parsed.version === PROJECT_DOCUMENT_VERSION) {
+    const invalidTemplateReason = getInvalidTemplateReason(parsed.userTemplates);
+    if (invalidTemplateReason) {
+      return {
+        success: false,
+        error: invalidTemplateReason,
+      };
+    }
+  }
+
   const document = normalizeProjectDocument(parsed);
   if (document) {
     return {
