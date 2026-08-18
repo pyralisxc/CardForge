@@ -58,27 +58,17 @@ export function useStudioDocumentHandoff({
 }: StudioDocumentHandoffOptions) {
   const handledDocumentIdRef = useRef<string | null>(null);
   const inFlightDocumentIdRef = useRef<string | null>(null);
-  const signInPromptedDocumentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isAccountLoading) return;
+    if (isAccountLoading || !isSignedIn || !isStudioReady) return;
     const url = new URL(window.location.href);
     const documentId = url.searchParams.get('document');
-    if (!documentId || handledDocumentIdRef.current === documentId) return;
+    if (
+      !documentId
+      || handledDocumentIdRef.current === documentId
+      || inFlightDocumentIdRef.current === documentId
+    ) return;
 
-    if (!isSignedIn) {
-      if (signInPromptedDocumentIdRef.current !== documentId) {
-        signInPromptedDocumentIdRef.current = documentId;
-        toast({
-          title: 'Sign in to open this draft',
-          description: 'This private draft is still selected. Sign in above and CardForge will open it automatically when Studio is ready.',
-        });
-      }
-      return;
-    }
-
-    signInPromptedDocumentIdRef.current = null;
-    if (!isStudioReady || inFlightDocumentIdRef.current === documentId) return;
     inFlightDocumentIdRef.current = documentId;
 
     let cancelled = false;

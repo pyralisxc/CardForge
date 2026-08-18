@@ -35,8 +35,9 @@ describe('CardForge Studio plugin', () => {
     expect(route).toContain("acceptsToken: 'oauth_token'");
   });
 
-  it('opens Studio documents directly and lets the existing Studio auth flow resume them', () => {
+  it('returns direct Studio document links while browser Clerk owns sign-in', () => {
     const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
+    const studioPage = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
     const handoff = readFileSync(
       resolve(process.cwd(), 'src/features/studio-documents/hooks/useStudioDocumentHandoff.ts'),
       'utf8',
@@ -46,9 +47,26 @@ describe('CardForge Studio plugin', () => {
     expect(route).toContain('/studio?document=');
     expect(route).not.toContain('/sign-in?redirect_url=');
     expect(route).toContain('openInStudioUrl: studioDocumentUrl(document.id)');
-    expect(handoff).toContain('This private draft is still selected');
-    expect(handoff).toContain('signInPromptedDocumentIdRef');
+    expect(studioPage).toContain('redirectToSignIn');
+    expect(studioPage).toContain('returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`');
+    expect(handoff).not.toContain('signInPromptedDocumentIdRef');
+    expect(handoff).not.toContain('Sign in to open this draft');
     expect(handoff).toContain('inFlightDocumentIdRef');
     expect(handoff).toContain('handledDocumentIdRef.current = documentId');
+  });
+
+  it('keeps MCP server dependencies out of the Studio browser surface', () => {
+    const studioPage = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
+    const studioLoader = readFileSync(
+      resolve(process.cwd(), 'src/features/app-shell/components/StudioRuntimeLoader.tsx'),
+      'utf8',
+    );
+
+    expect(studioPage).not.toContain('@modelcontextprotocol');
+    expect(studioPage).not.toContain('@clerk/mcp-tools');
+    expect(studioPage).not.toContain('mcp-handler');
+    expect(studioLoader).not.toContain('@modelcontextprotocol');
+    expect(studioLoader).not.toContain('@clerk/mcp-tools');
+    expect(studioLoader).not.toContain('mcp-handler');
   });
 });

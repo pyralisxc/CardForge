@@ -53,10 +53,17 @@ describe('public header authentication controls', () => {
     expect(signInPageSource).toContain('fallbackRedirectUrl={fallbackRedirectUrl}');
   });
 
-  it('keeps Studio and Studio-document requests inside the shared Clerk middleware lifecycle', () => {
-    expect(clerkConfig.shouldRunClerkMiddlewareForRequest('/studio', 'GET')).toBe(true);
-    expect(clerkConfig.shouldRunClerkMiddlewareForRequest('/studio/something', 'GET')).toBe(true);
-    expect(clerkConfig.shouldRunClerkMiddlewareForRequest('/api/studio-documents/123', 'GET')).toBe(true);
+  it('lets the broad proxy matcher establish Clerk context without a second route allowlist', () => {
+    const proxySource = readFileSync(resolve(process.cwd(), 'src/proxy.ts'), 'utf8');
+    const middlewareSource = readFileSync(
+      resolve(process.cwd(), 'src/infrastructure/auth/middleware.ts'),
+      'utf8',
+    );
+
+    expect(proxySource).toContain("'/(api|trpc)(.*)'");
+    expect(proxySource).toContain("'/__clerk/(.*)'");
+    expect(middlewareSource).toContain('clerkMiddleware()');
+    expect(middlewareSource).not.toContain('shouldRunClerkMiddlewareForRequest');
   });
 
   it('accepts only same-site relative sign-in destinations', () => {
@@ -65,6 +72,16 @@ describe('public header authentication controls', () => {
     expect(clerkConfig.getSafeLocalReturnPath('https://evil.example/studio')).toBe('/account');
     expect(clerkConfig.getSafeLocalReturnPath('//evil.example/studio')).toBe('/account');
     expect(clerkConfig.getSafeLocalReturnPath(undefined)).toBe('/account');
+  });
+
+  it('protects Studio document deep links on the server while leaving plain Studio independently loadable', () => {
+    const studioPageSource = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
+
+    expect(studioPageSource).toContain("import { auth } from '@clerk/nextjs/server'");
+    expect(studioPageSource).toContain('if (documentId && isClerkServerConfigPresent())');
+    expect(studioPageSource).toContain('redirectToSignIn');
+    expect(studioPageSource).toContain('returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`');
+    expect(studioPageSource).not.toContain('if (!isAuthenticated)' + " return redirectToSignIn()" );
   });
 
   it('removes the superseded app-shell public header', () => {
