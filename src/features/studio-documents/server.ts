@@ -5,4 +5,5 @@ export * from './server/studioDocumentStore';
 export * from './server/developerTemplateDrafts';
 export * from './server/studioCreationLibrary';
 export * from './server/embeddedTemplateAssets';
+export * from './server/studioDocumentPreviewToken';
 export * from './server/mcpToolInputSchemas';
