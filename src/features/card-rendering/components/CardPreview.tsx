@@ -84,11 +84,19 @@ export function CardPreview({
     () => appearanceToStyle(normalizeTemplateAppearance(tb)),
     [tb]
   );
-  
+
   const resolvedCardContentBgUrl = tb.cardBackgroundImageUrl ? replacePlaceholdersLocal(tb.cardBackgroundImageUrl, dataToRender, isEditorPreview) : undefined;
   const resolvedCardBorderImageSource = tb.cardBorderImageSource ? replacePlaceholdersLocal(tb.cardBorderImageSource, dataToRender, isEditorPreview) : undefined;
   const resolvedCardContentBackground = toRenderableBackground(resolvedCardContentBgUrl);
-  
+  const resolvedBorderVisual = toRenderableBackground(resolvedCardBorderImageSource);
+  const borderVisualIsGradient = Boolean(
+    resolvedCardBorderImageSource?.startsWith('linear-gradient')
+    || resolvedCardBorderImageSource?.startsWith('radial-gradient'),
+  );
+  const borderOverlayBackground = resolvedBorderVisual && !borderVisualIsGradient
+    ? resolvedBorderVisual
+    : undefined;
+
   const rawCardBorderWidth = tb.cardBorderWidth as unknown;
   const effectiveBorderWidthStr = typeof rawCardBorderWidth === 'string'
     ? rawCardBorderWidth
@@ -100,6 +108,9 @@ export function CardPreview({
   const unitMatch = effectiveBorderWidthStr.match(/[a-zA-Z%]+$/);
   const effectiveBorderWidthUnit = unitMatch ? unitMatch[0] : 'px';
   const finalEffectiveBorderWidthWithUnit = `${numericBorderWidth}${effectiveBorderWidthUnit}`;
+  const structuralBorderStyle = tb.cardBorderStyle && tb.cardBorderStyle !== '_default_'
+    ? tb.cardBorderStyle
+    : 'solid';
 
   const cardContainerStyle: React.CSSProperties = {
     width: `${renderWidthPx}px`,
@@ -108,142 +119,56 @@ export function CardPreview({
     position: 'relative',
     overflow: 'hidden',
     isolation: 'isolate',
+    color: tb.baseTextColor || undefined,
     backgroundColor: templateAppearanceStyle.backgroundColor || tb.baseBackgroundColor || undefined,
     backgroundImage: [
       resolvedCardContentBackground,
       templateAppearanceStyle.backgroundImage,
     ].filter(Boolean).join(', ') || undefined,
-    backgroundSize: templateAppearanceStyle.backgroundSize || undefined,
-    backgroundRepeat: templateAppearanceStyle.backgroundRepeat || undefined,
-    backgroundPosition: templateAppearanceStyle.backgroundPosition || undefined,
+    backgroundSize: resolvedCardContentBackground ? 'cover' : templateAppearanceStyle.backgroundSize || undefined,
+    backgroundRepeat: resolvedCardContentBackground ? 'no-repeat' : templateAppearanceStyle.backgroundRepeat || undefined,
+    backgroundPosition: resolvedCardContentBackground ? 'center' : templateAppearanceStyle.backgroundPosition || undefined,
     backgroundBlendMode: templateAppearanceStyle.backgroundBlendMode || undefined,
     boxShadow: templateAppearanceStyle.boxShadow || undefined,
   };
 
   if (tb.cardBorderRadius) cardContainerStyle.borderRadius = tb.cardBorderRadius;
 
-  const isStandardOrCustomFrame = tb.frameStyle === 'standard' || tb.frameStyle === 'custom';
-  const isCSSDrivenBorderImage = resolvedCardBorderImageSource && resolvedCardBorderImageSource.startsWith("CSS:");
-  
-  const useImageBorderViaMultiBackground = 
-    isStandardOrCustomFrame &&
-    resolvedCardBorderImageSource &&
-    !isCSSDrivenBorderImage &&
-    !resolvedCardBorderImageSource.startsWith("linear-gradient") &&
-    !resolvedCardBorderImageSource.startsWith("radial-gradient") &&
-    numericBorderWidth > 0;
-
-  if (useImageBorderViaMultiBackground) {
-    cardContainerStyle.padding = finalEffectiveBorderWidthWithUnit;
-    cardContainerStyle.border = 'none'; 
-    cardContainerStyle.backgroundColor = 'transparent'; // Base element transparent, layers define appearance
-
-    const finalBgImages = [];
-    const finalBgSizes = [];
-    const finalBgClips = [];
-    const finalBgOrigins = [];
-    const finalBgPositions = [];
-    const finalBgRepeats = [];
-
-    // Layer 2: Content Background Image (Optional, Topmost)
-    if (resolvedCardContentBgUrl && (resolvedCardContentBgUrl.startsWith('http') || resolvedCardContentBgUrl.startsWith('data:'))) {
-        finalBgImages.push(`url(${resolvedCardContentBgUrl})`);
-        finalBgSizes.push('cover'); // Or tb.cardContentBackgroundSize if implemented
-        finalBgClips.push('content-box');
-        finalBgOrigins.push('content-box');
-        finalBgPositions.push('center center');
-        finalBgRepeats.push('no-repeat');
+  if (numericBorderWidth > 0 && structuralBorderStyle !== 'none') {
+    cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit;
+    cardContainerStyle.borderStyle = structuralBorderStyle as React.CSSProperties['borderStyle'];
+    cardContainerStyle.borderColor = tb.cardBorderColor || 'hsl(var(--border))';
+    if (borderVisualIsGradient && resolvedCardBorderImageSource) {
+      cardContainerStyle.borderImageSource = resolvedCardBorderImageSource;
+      cardContainerStyle.borderImageSlice = 1;
+      cardContainerStyle.borderColor = 'transparent';
     }
-
-    // Layer 1: Base Background Color for Content Area (Middle)
-    const baseBgForContent = tb.baseBackgroundColor && tb.baseBackgroundColor !== 'transparent' ? tb.baseBackgroundColor : null;
-    if (baseBgForContent) {
-        finalBgImages.push(`linear-gradient(${baseBgForContent}, ${baseBgForContent})`);
-        finalBgSizes.push('auto'); 
-        finalBgClips.push('content-box');
-        finalBgOrigins.push('content-box');
-        finalBgPositions.push('center center');
-        finalBgRepeats.push('no-repeat');
-    }
-    
-    // Layer 0: Border Image (Bottommost, fills padding-box)
-    finalBgImages.push(`url(${resolvedCardBorderImageSource})`);
-    finalBgSizes.push('cover'); 
-    finalBgClips.push('padding-box');
-    finalBgOrigins.push('padding-box');
-    finalBgPositions.push('center center');
-    finalBgRepeats.push('no-repeat');
-    
-    cardContainerStyle.backgroundImage = finalBgImages.join(', ');
-    cardContainerStyle.backgroundSize = finalBgSizes.join(', ');
-    cardContainerStyle.backgroundClip = finalBgClips.join(', ');
-    cardContainerStyle.backgroundOrigin = finalBgOrigins.join(', ');
-    cardContainerStyle.backgroundPosition = finalBgPositions.join(', ');
-    cardContainerStyle.backgroundRepeat = finalBgRepeats.join(', ');
-
   } else {
-    // Fallback to Original Border Logic (Solid color with box-shadow, CSS border-image, or predefined frame)
-    if (tb.baseBackgroundColor) cardContainerStyle.backgroundColor = tb.baseBackgroundColor;
-    if (tb.baseTextColor) cardContainerStyle.color = tb.baseTextColor;
-
-    if (resolvedCardContentBackground) {
-        // For non-multi-background cases, this content background is applied directly.
-        // If a border image is active via CSS (e.g. classic-gold), this background needs to respect it.
-        cardContainerStyle.backgroundImage = [
-          resolvedCardContentBackground,
-          templateAppearanceStyle.backgroundImage,
-        ].filter(Boolean).join(', ');
-        cardContainerStyle.backgroundSize = 'cover'; // Or tb.cardContentBackgroundSize
-        cardContainerStyle.backgroundPosition = 'center';
-        cardContainerStyle.backgroundClip = 'content-box'; // Ensures content bg is inside any border
-        cardContainerStyle.backgroundOrigin = 'content-box';
-    }
-    
-    if (isStandardOrCustomFrame && !isCSSDrivenBorderImage && numericBorderWidth > 0) {
-        cardContainerStyle.boxShadow = [
-          templateAppearanceStyle.boxShadow,
-          `0 0 0 ${finalEffectiveBorderWidthWithUnit} ${tb.cardBorderColor || 'hsl(var(--border))'}`,
-        ].filter(Boolean).join(', ');
-        cardContainerStyle.borderColor = 'transparent';
-        cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit; 
-        cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
-                                          ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
-                                          : 'solid';
-    } else if (isStandardOrCustomFrame && isCSSDrivenBorderImage && numericBorderWidth > 0) {
-        cardContainerStyle.borderImageSource = resolvedCardBorderImageSource; 
-        const parsedBorderWidthForSlice = numericBorderWidth > 0 ? numericBorderWidth : 1;
-        cardContainerStyle.borderImageSlice = parsedBorderWidthForSlice; 
-        cardContainerStyle.borderColor = 'transparent'; 
-        cardContainerStyle.borderWidth = finalEffectiveBorderWidthWithUnit;
-        cardContainerStyle.borderStyle = (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none')
-                                          ? tb.cardBorderStyle as React.CSSProperties['borderStyle']
-                                          : 'solid';
-    } else if (!isStandardOrCustomFrame) { 
-        if (tb.cardBorderColor) cardContainerStyle.borderColor = tb.cardBorderColor;
-        if (tb.cardBorderWidth) cardContainerStyle.borderWidth = tb.cardBorderWidth;
-        if (tb.cardBorderStyle && tb.cardBorderStyle !== '_default_' && tb.cardBorderStyle !== 'none') {
-            cardContainerStyle.borderStyle = tb.cardBorderStyle as React.CSSProperties['borderStyle'];
-        } else if (tb.cardBorderStyle === 'none' || numericBorderWidth === 0) {
-            cardContainerStyle.borderStyle = 'none';
-            cardContainerStyle.borderWidth = '0';
-        } else {
-            cardContainerStyle.borderStyle = 'solid';
-        }
-    }
+    cardContainerStyle.borderWidth = 0;
+    cardContainerStyle.borderStyle = 'none';
   }
 
+  const borderOverlayStyle: React.CSSProperties | null = borderOverlayBackground ? {
+    position: 'absolute',
+    inset: 0,
+    zIndex: 9999,
+    pointerEvents: 'none',
+    borderRadius: 'inherit',
+    backgroundImage: borderOverlayBackground,
+    backgroundSize: '100% 100%',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  } : null;
 
   const calculatedPrintSize = useMemo(() => {
     if (!showSizeInfo) return '';
     const [ratioW, ratioH] = (templateToRender.aspectRatio || TCG_ASPECT_RATIO).split(':').map(Number);
     if (isNaN(ratioW) || isNaN(ratioH) || ratioW <= 0 || ratioH <= 0) {
-        const defaultWidthIn = (STANDARD_TCG_WIDTH_MM * MM_TO_INCHES).toFixed(1);
-        const defaultHeightIn = (88 * MM_TO_INCHES).toFixed(1);
-        return `Approx. Print Size: ${defaultWidthIn}in x ${defaultHeightIn}in`;
+      const defaultWidthIn = (STANDARD_TCG_WIDTH_MM * MM_TO_INCHES).toFixed(1);
+      const defaultHeightIn = (88 * MM_TO_INCHES).toFixed(1);
+      return `Approx. Print Size: ${defaultWidthIn}in x ${defaultHeightIn}in`;
     }
 
-    // If both ratio values are >= 20 they represent actual mm dimensions.
-    // Otherwise treat as a pure proportion and normalise to standard 88mm height.
     let widthMm: number, heightMm: number;
     if (ratioW >= 20 && ratioH >= 20) {
       widthMm = ratioW;
@@ -298,7 +223,6 @@ export function CardPreview({
       .sort((a, b) => a.zIndex - b.zIndex)
       .filter((element) => {
         if (element.visible === false) return false;
-        // Hide if any ancestor is hidden
         let pid = element.parentId;
         while (pid) {
           const parent = elementById.get(pid);
@@ -546,6 +470,7 @@ export function CardPreview({
           aria-label={isInteractive ? 'Select generated output. Double-click to edit.' : undefined}
         >
           {freeformElements}
+          {borderOverlayStyle ? <div aria-hidden="true" data-card-border-overlay style={borderOverlayStyle} /> : null}
           {interactionOverlay}
         </div>
       </div>

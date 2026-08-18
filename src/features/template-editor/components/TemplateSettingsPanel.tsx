@@ -31,6 +31,7 @@ interface TemplateSettingsPanelProps {
   gridSize: number;
   frameKitRecipes: ElementPresetRecipe[];
   frameAssets: CardAssetOption[];
+  borderAssets: CardAssetOption[];
   backgroundImageInputRef: { current: HTMLInputElement | null };
   borderImageInputRef: { current: HTMLInputElement | null };
   controlClassName: string;
@@ -58,6 +59,7 @@ export function TemplateSettingsPanel({
   gridSize,
   frameKitRecipes,
   frameAssets,
+  borderAssets,
   backgroundImageInputRef,
   borderImageInputRef,
   controlClassName,
@@ -195,7 +197,7 @@ export function TemplateSettingsPanel({
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label htmlFor="maker-border-width" className="text-xs">Border Width</Label>
+          <Label htmlFor="maker-border-width" className="text-xs">Structural border width</Label>
           <Input id="maker-border-width" value={currentTemplate.cardBorderWidth || ''} onChange={event => onUpdateTemplate({ cardBorderWidth: event.target.value }, false)} />
         </div>
         <div>
@@ -204,7 +206,7 @@ export function TemplateSettingsPanel({
         </div>
       </div>
       <div>
-        <Label htmlFor="maker-border-style">Border Style</Label>
+        <Label htmlFor="maker-border-style">Structural border style</Label>
         <Select value={currentTemplate.cardBorderStyle || '_default_'} onValueChange={value => onUpdateTemplate({ cardBorderStyle: value === '_default_' ? undefined : value as TCGCardTemplate['cardBorderStyle'] })}>
           <SelectTrigger id="maker-border-style"><SelectValue /></SelectTrigger>
           <SelectContent>{CARD_BORDER_STYLES.map(style => <SelectItem key={style.value} value={style.value}>{style.label}</SelectItem>)}</SelectContent>
@@ -251,10 +253,10 @@ export function TemplateSettingsPanel({
       <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
         <div>
           <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">
-            {currentTemplate.templateUsage === 'back-preset' ? 'Back frames' : 'Front frames'}
+            {currentTemplate.templateUsage === 'back-preset' ? 'Back foundations' : 'Front foundations'}
           </Label>
           <p className="mt-1 text-[10px] leading-4 text-[#818999]">
-            Full-card artwork routed here by the Forge Pipeline. Choose one as this Template&apos;s visual foundation.
+            Full-card artwork rendered beneath editable content. Use this for the visual foundation, not for a transparent decorative border.
           </p>
         </div>
         {frameAssets.length > 0 ? (
@@ -282,12 +284,50 @@ export function TemplateSettingsPanel({
           </div>
         ) : (
           <p className="rounded-[4px] border border-dashed border-[#3a2e17] p-2 text-[10px] leading-4 text-[#818999]">
-            No published {currentTemplate.templateUsage === 'back-preset' ? 'back' : 'front'} frames are routed here yet. You can still upload a card background below.
+            No published {currentTemplate.templateUsage === 'back-preset' ? 'back' : 'front'} foundations are routed here yet. You can still upload a card background below.
+          </p>
+        )}
+      </div>
+      <div className="space-y-1.5 rounded-[6px] border border-[#302819] bg-[#0b0f15] p-2">
+        <div>
+          <Label className="text-[10px] uppercase tracking-[0.14em] text-[#d5ad54]">
+            {currentTemplate.templateUsage === 'back-preset' ? 'Back border overlays' : 'Front border overlays'}
+          </Label>
+          <p className="mt-1 text-[10px] leading-4 text-[#818999]">
+            Transparent professional border artwork rendered above the complete card. Pipeline contributors can publish PNG, WebP, or SVG overlays directly to this section.
+          </p>
+        </div>
+        {borderAssets.length > 0 ? (
+          <div className="grid grid-cols-2 gap-1.5">
+            {borderAssets.map((asset) => (
+              <Button
+                key={asset.id}
+                type="button"
+                variant="outline"
+                className={cn(
+                  buttonClassName,
+                  'h-auto min-h-24 flex-col items-stretch gap-1.5 overflow-hidden p-1.5 text-left',
+                  currentTemplate.cardBorderImageSource === asset.url && 'border-[#d5ad54] text-[#f5d27b]',
+                )}
+                onClick={() => onUpdateTemplate({ cardBorderImageSource: asset.url, frameStyle: 'custom' })}
+              >
+                <span
+                  className="h-20 w-full rounded-[3px] border border-[#3a2e17] bg-[#17120d] bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${asset.url})` }}
+                  aria-hidden="true"
+                />
+                <span className="block w-full truncate text-[10px] text-[#f1dfb4]">{asset.name}</span>
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-[4px] border border-dashed border-[#3a2e17] p-2 text-[10px] leading-4 text-[#818999]">
+            No published {currentTemplate.templateUsage === 'back-preset' ? 'back' : 'front'} border overlays are routed here yet.
           </p>
         )}
       </div>
       <div>
-        <Label htmlFor="maker-bg-image">Custom card background</Label>
+        <Label htmlFor="maker-bg-image">Custom card foundation</Label>
         <div className="flex gap-2">
           <Input id="maker-bg-image" value={currentTemplate.cardBackgroundImageUrl || ''} onChange={event => onUpdateTemplate({ cardBackgroundImageUrl: event.target.value }, false)} />
           <Button type="button" variant="outline" size="icon" onClick={() => backgroundImageInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></Button>
@@ -303,7 +343,7 @@ export function TemplateSettingsPanel({
         </div>
       </div>
       <div>
-        <Label htmlFor="maker-border-image">Border Image/Gradient</Label>
+        <Label htmlFor="maker-border-image">Custom border overlay / gradient</Label>
         <div className="flex gap-2">
           <Input id="maker-border-image" value={currentTemplate.cardBorderImageSource || ''} onChange={event => onUpdateTemplate({ cardBorderImageSource: event.target.value }, false)} />
           <Button type="button" variant="outline" size="icon" onClick={() => borderImageInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></Button>
@@ -314,7 +354,7 @@ export function TemplateSettingsPanel({
             type="file"
             accept="image/*"
             hidden
-            onChange={event => onFileUpload(event, dataUri => onUpdateTemplate({ cardBorderImageSource: dataUri }))}
+            onChange={event => onFileUpload(event, dataUri => onUpdateTemplate({ cardBorderImageSource: dataUri, frameStyle: 'custom' }))}
           />
         </div>
       </div>

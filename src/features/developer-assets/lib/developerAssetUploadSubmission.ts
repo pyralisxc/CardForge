@@ -6,6 +6,7 @@ import {
 } from '@/features/developer-assets/lib/developerAssets';
 import {
   isStudioAssetDestination,
+  type StudioAssetDestination,
 } from '@/domain/templates';
 import {
   type DeveloperAssetProgramView,
@@ -25,6 +26,7 @@ import { getDeveloperAssetStudioDestinationOptions } from './pipelineAssetTaxono
 const ALLOWED_MIME_TYPES = new Set<string>(DEVELOPER_ASSET_UPLOAD_ALLOWED_MIME_TYPES);
 const FONT_EXTENSIONS = new Set(['woff2', 'woff', 'ttf', 'otf']);
 const IMAGE_EXTENSIONS = new Set(['svg', 'png', 'jpg', 'jpeg', 'webp']);
+const BORDER_OVERLAY_EXTENSIONS = new Set(['svg', 'png', 'webp']);
 
 const sanitizeFileStem = (value: string): string => value
   .replace(/\.[^.]+$/u, '')
@@ -47,7 +49,14 @@ const getFileExtension = (file: File): string => {
   return '';
 };
 
-const validateSourceFile = (file: File, assetType: DeveloperUploadAssetType): string => {
+const isBorderOverlayDestination = (destination: StudioAssetDestination): boolean =>
+  destination === 'image.border.front' || destination === 'image.border.back';
+
+const validateSourceFile = (
+  file: File,
+  assetType: DeveloperUploadAssetType,
+  studioDestination: StudioAssetDestination,
+): string => {
   if (file.size <= 0 || file.size > DEVELOPER_ASSET_UPLOAD_MAX_BYTES) {
     throw new DeveloperAssetStoreError('Developer asset files must be 10 MB or smaller.', 413);
   }
@@ -62,6 +71,12 @@ const validateSourceFile = (file: File, assetType: DeveloperUploadAssetType): st
       isFontUpload
         ? 'Upload WOFF2, WOFF, TTF, or OTF font assets.'
         : 'Upload SVG, PNG, JPG, or WEBP artwork.',
+      400,
+    );
+  }
+  if (isBorderOverlayDestination(studioDestination) && !BORDER_OVERLAY_EXTENSIONS.has(extension)) {
+    throw new DeveloperAssetStoreError(
+      'Professional border overlays must use SVG, PNG, or WEBP so transparency can be preserved.',
       400,
     );
   }
@@ -105,7 +120,7 @@ export const createUploadedDeveloperAssetSubmission = async ({
   ) {
     throw new DeveloperAssetStoreError('Choose a Studio destination compatible with this asset type.', 400);
   }
-  const extension = validateSourceFile(file, assetTypeValue);
+  const extension = validateSourceFile(file, assetTypeValue, studioDestination);
   const fileBytes = await file.arrayBuffer();
   const supabase = getSupabaseServerClient();
   if (!supabase) {

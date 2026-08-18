@@ -61,7 +61,9 @@ export const getDeveloperAssetStudioDestinationOptions = (
   if (assetType === 'textures') return ['appearance.texture'];
   if (assetType === 'dividers') return ['element.divider'];
   if (assetType === 'icons') return ['element.icon'];
-  if (assetType === 'imageAssets') return ['image.picture', 'image.frame.front', 'image.frame.back'];
+  if (assetType === 'imageAssets') {
+    return ['image.picture', 'image.frame.front', 'image.frame.back', 'image.border.front', 'image.border.back'];
+  }
   return ['typography.font'];
 };
 

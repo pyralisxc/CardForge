@@ -171,6 +171,16 @@ export function useTemplateAssetLibrary({
     [discoveredImageAssets],
   );
 
+  const frontBorderAssets = useMemo(
+    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.border.front')),
+    [discoveredImageAssets],
+  );
+
+  const backBorderAssets = useMemo(
+    () => discoveredImageAssets.filter((asset) => isRoutedTo(asset, 'image.border.back')),
+    [discoveredImageAssets],
+  );
+
   const handleAssetUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider' | 'icon' | 'image') => {
     if (!canUploadCustomAssets) {
       event.target.value = '';
@@ -290,6 +300,8 @@ export function useTemplateAssetLibrary({
     compatibleTextureAssets,
     frontFrameAssets,
     backFrameAssets,
+    frontBorderAssets,
+    backBorderAssets,
     canUploadCustomAssets,
     handleAssetUpload,
     setAssetSearch,

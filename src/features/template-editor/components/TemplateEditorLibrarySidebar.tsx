@@ -114,6 +114,9 @@ export function TemplateEditorLibrarySidebar({
               frameAssets={currentTemplate.templateUsage === 'back-preset'
                 ? elements.backFrameAssets
                 : elements.frontFrameAssets}
+              borderAssets={currentTemplate.templateUsage === 'back-preset'
+                ? elements.backBorderAssets
+                : elements.frontBorderAssets}
               backgroundImageInputRef={commands.backgroundImageInputRef}
               borderImageInputRef={commands.borderImageInputRef}
               controlClassName={makerTheme.control}
