@@ -13,7 +13,7 @@ import type { TCGCardTemplate } from '@/domain/templates';
 import { reconstructMinimalTemplate } from '@/domain/templates';
 import { useTemplateEditorController } from '@/features/template-editor/hooks/useTemplateEditorController';
 import { makeNewFreeformTemplate } from '@/features/template-editor/lib/makerTemplateFactory';
-import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
+import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client/catalog';
 
 interface UseTemplateEditorSessionInput {
   isActive: boolean;
@@ -38,6 +38,7 @@ export const resolveTemplateEditorInitialTemplate = ({
 };
 
 export function useTemplateEditorSession({
+  isActive,
   selectedTemplateId,
   templates,
 }: UseTemplateEditorSessionInput) {
@@ -45,8 +46,9 @@ export function useTemplateEditorSession({
   const [savedTemplateJson, setSavedTemplateJson] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isActive) return;
     let mounted = true;
-    void loadCardForgeCatalog()
+    void loadCardForgeStudioBootstrap()
       .then((payload) => {
         if (mounted) setFontOptions(mergeCardFontOptions(CARD_FONT_OPTIONS, payload.fonts.fonts ?? []));
       })
@@ -56,7 +58,7 @@ export function useTemplateEditorSession({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isActive]);
 
   const initialTemplate = useMemo(() => {
     return resolveTemplateEditorInitialTemplate({ recoveredDraft: null, selectedTemplateId, templates });
@@ -65,7 +67,6 @@ export function useTemplateEditorSession({
   initialTemplateRef.current = initialTemplate;
 
   const controller = useTemplateEditorController(initialTemplate);
-
 
   useEffect(() => {
     setSavedTemplateJson(JSON.stringify(reconstructMinimalTemplate(initialTemplateRef.current)));
