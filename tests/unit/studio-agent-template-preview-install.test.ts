@@ -144,7 +144,7 @@ describe('agent Template preview tokens', () => {
     else process.env.CLERK_SECRET_KEY = previousClerkSecret;
   });
 
-  it('binds preview access to owner, document, revision, and expiration', () => {
+  it('binds preview access to owner, document, revision, and a practical review window', () => {
     const now = 1_800_000_000_000;
     const token = createStudioDocumentPreviewToken({
       documentId: '3463b910-38e9-4056-966d-795babbc0f4e',
@@ -158,8 +158,9 @@ describe('agent Template preview tokens', () => {
       ownerUserId: 'user_example',
       revision: 4,
     });
+    expect(readStudioDocumentPreviewToken(token, now + 90 * 60 * 1000)).not.toBeNull();
     expect(readStudioDocumentPreviewToken(`${token}x`, now)).toBeNull();
-    expect(readStudioDocumentPreviewToken(token, now + 16 * 60 * 1000)).toBeNull();
+    expect(readStudioDocumentPreviewToken(token, now + 121 * 60 * 1000)).toBeNull();
   });
 });
 
@@ -187,12 +188,15 @@ describe('agent Template install and chat preview architecture', () => {
     expect(preview).toContain('/api/studio-document-preview?token=');
   });
 
-  it('keeps generated image bytes out of the preview tool result', () => {
+  it('keeps generated image bytes out of preview results and reports production completeness', () => {
     expect(mcpTools).toContain("'attach_template_artwork'");
     expect(mcpTools).toContain("'preview_template_draft'");
     expect(mcpTools).toContain('createStudioDocumentPreviewToken');
     expect(mcpTools).not.toContain('structuredContent: { template');
+    expect(mcpTools).toContain('remainingAssetRequirementIds');
+    expect(mcpTools).toContain('productionReady');
     expect(mcpTools).toContain("'openai/outputTemplate'");
+    expect(mcpTools).toContain("'openai/widgetDomain': publicOrigin");
     expect(mcpTools).toContain('frameDomains: [publicOrigin]');
   });
 });

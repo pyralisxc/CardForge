@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 
 const PREVIEW_TOKEN_VERSION = 1 as const;
-const PREVIEW_TOKEN_TTL_SECONDS = 15 * 60;
+const PREVIEW_TOKEN_TTL_SECONDS = 2 * 60 * 60;
 const PREVIEW_TOKEN_PURPOSE = 'cardforge-studio-draft-preview-v1';
 
 interface StudioDocumentPreviewTokenPayload {

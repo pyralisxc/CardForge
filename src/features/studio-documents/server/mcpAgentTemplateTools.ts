@@ -1,6 +1,7 @@
 import { createMcpHandler } from 'mcp-handler';
 
 import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import { summarizeProjectProductionAssets } from '@/features/project/server';
 import {
   attachDeveloperTemplateDraftAsset,
   getDeveloperTemplateDraft,
@@ -19,6 +20,28 @@ type McpRegistrationServer = Parameters<RegistrationCallback>[0];
 type ToolErrorResult = {
   isError: boolean;
   content: Array<{ type: 'text'; text: string }>;
+};
+
+type DeveloperTemplateDraft = Awaited<ReturnType<typeof getDeveloperTemplateDraft>>;
+
+const productionStatus = (document: DeveloperTemplateDraft) => {
+  const plan = document.document.productionPlan;
+  if (!plan) {
+    return {
+      productionReady: false,
+      assetSummary: null,
+      remainingAssetRequirementIds: [] as string[],
+    };
+  }
+  const assetSummary = summarizeProjectProductionAssets(plan);
+  const remainingAssetRequirementIds = plan.assets
+    .filter((asset) => asset.status !== 'selected')
+    .map((asset) => asset.id);
+  return {
+    productionReady: assetSummary.neededInstances === 0 && assetSummary.placeholderInstances === 0,
+    assetSummary,
+    remainingAssetRequirementIds,
+  };
 };
 
 const buildPreviewWidgetHtml = (origin: string) => `<!doctype html>
@@ -68,9 +91,17 @@ const buildPreviewWidgetHtml = (origin: string) => `<!doctype html>
     }
     const title = typeof output.title === 'string' ? output.title : 'CardForge draft';
     const revision = Number.isInteger(output.revision) ? 'Revision ' + output.revision : '';
+    const remaining = Number.isInteger(output.remainingAssetCount) ? output.remainingAssetCount : 0;
+    const ready = output.productionReady === true;
+    const productionLabel = ready
+      ? 'ready to install'
+      : remaining > 0
+        ? remaining + ' planned asset' + (remaining === 1 ? '' : 's') + ' still needed'
+        : 'draft still needs review';
     status.innerHTML = '<strong></strong><span></span>';
     status.querySelector('strong').textContent = title;
-    status.querySelector('span').textContent = revision;
+    status.querySelector('span').textContent = [revision, productionLabel].filter(Boolean).join(' · ');
+    openButton.textContent = ready ? 'Open in CardForge' : 'Open draft in CardForge';
     openButton.disabled = !openUrl;
   };
 
@@ -101,6 +132,20 @@ export const registerAgentTemplateTools = ({
   getAccess: () => Promise<DeveloperCockpitAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
+  const previewResourceMeta = {
+    ui: {
+      csp: { frameDomains: [publicOrigin] },
+    },
+    'openai/widgetDescription': 'Exact CardForge Template preview with a link to install the approved draft in Studio.',
+    'openai/widgetPrefersBorder': false,
+    'openai/widgetDomain': publicOrigin,
+    'openai/widgetCSP': {
+      connect_domains: [],
+      resource_domains: [],
+      frame_domains: [publicOrigin],
+    },
+  };
+
   server.registerResource(
     'CardForge Template draft preview',
     PREVIEW_RESOURCE_URI,
@@ -108,24 +153,14 @@ export const registerAgentTemplateTools = ({
       title: 'CardForge Template draft preview',
       description: 'Renders the exact current CardForge Template draft for visual review before Studio installation.',
       mimeType: PREVIEW_RESOURCE_MIME_TYPE,
-      _meta: {
-        ui: {
-          csp: { frameDomains: [publicOrigin] },
-        },
-        'openai/widgetDescription': 'Exact CardForge Template preview with a link to install the approved draft in Studio.',
-        'openai/widgetPrefersBorder': false,
-        'openai/widgetCSP': {
-          connect_domains: [],
-          resource_domains: [],
-          frame_domains: [publicOrigin],
-        },
-      },
+      _meta: previewResourceMeta,
     },
     async (uri) => ({
       contents: [{
         uri: uri.href,
         mimeType: PREVIEW_RESOURCE_MIME_TYPE,
         text: buildPreviewWidgetHtml(publicOrigin),
+        _meta: previewResourceMeta,
       }],
     }),
   );
@@ -134,7 +169,7 @@ export const registerAgentTemplateTools = ({
     'attach_template_artwork',
     {
       title: 'Attach generated artwork to a CardForge Template draft',
-      description: 'Attach one generated, user-provided, or CardForge-output PNG/JPEG/WebP to one planned artwork requirement. CardForge validates and normalizes it, embeds it into the Template itself, and advances the same Studio document revision.',
+      description: 'Attach one generated, user-provided, or CardForge-output PNG/JPEG/WebP to one planned artwork requirement. CardForge validates and normalizes it, embeds it into the Template itself, advances the same Studio document revision, and reports which planned assets still remain.',
       inputSchema: attachTemplateAssetInputSchema,
       annotations: {
         readOnlyHint: false,
@@ -154,15 +189,19 @@ export const registerAgentTemplateTools = ({
           mimeType,
           data,
         });
+        const status = productionStatus(document);
         return {
           content: [{
             type: 'text',
-            text: `Attached artwork to "${document.title}". The same Studio draft is now revision ${document.revision}.`,
+            text: status.productionReady
+              ? `Attached artwork to "${document.title}". Revision ${document.revision} now has every planned production asset attached or selected.`
+              : `Attached artwork to "${document.title}". Revision ${document.revision} still has ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} to complete.`,
           }],
           structuredContent: {
             documentId: document.id,
             revision: document.revision,
             assetRequirementId,
+            ...status,
           },
         };
       } catch (error) {
@@ -175,7 +214,7 @@ export const registerAgentTemplateTools = ({
     'preview_template_draft',
     {
       title: 'Preview the current CardForge Template draft',
-      description: 'Render the exact current CardForge Template in chat for visual review. Use after initial creation and after meaningful layout, copy, style, or artwork revisions, before asking the user to open/install it in Studio.',
+      description: 'Render the exact current CardForge Template in chat for visual review. The result reports whether all planned production assets are complete. Use after initial creation and after meaningful layout, copy, style, or artwork revisions; do not call an asset-incomplete draft finished.',
       inputSchema: previewTemplateDraftInputSchema,
       annotations: {
         readOnlyHint: true,
@@ -192,6 +231,7 @@ export const registerAgentTemplateTools = ({
       try {
         const access = await getAccess();
         const document = await getDeveloperTemplateDraft(access, documentId);
+        const status = productionStatus(document);
         const token = createStudioDocumentPreviewToken({
           documentId: document.id,
           ownerUserId: access.user.id,
@@ -204,11 +244,17 @@ export const registerAgentTemplateTools = ({
           revision: document.revision,
           previewUrl,
           openInStudioUrl,
+          productionReady: status.productionReady,
+          assetSummary: status.assetSummary,
+          remainingAssetRequirementIds: status.remainingAssetRequirementIds,
+          remainingAssetCount: status.remainingAssetRequirementIds.length,
         };
         return {
           content: [{
             type: 'text',
-            text: `Rendered "${document.title}" revision ${document.revision} for visual review. Revise this same draft if the user wants changes; open it in Studio only when they are ready to install it.`,
+            text: status.productionReady
+              ? `Rendered "${document.title}" revision ${document.revision}. All planned production assets are complete; revise if the user requests changes or open it in Studio when approved.`
+              : `Rendered "${document.title}" revision ${document.revision} as a draft preview. ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain, so do not describe it as production-complete yet.`,
           }],
           structuredContent,
         };
