@@ -117,10 +117,12 @@ describe('developer asset store helpers', () => {
     });
   });
 
-  it('normalizes submission input and rejects unsupported assets', () => {
+  it('normalizes submission input with canonical taxonomy and rejects unsupported assets', () => {
     expect(normalizeDeveloperAssetSubmissionInput({
       assetType: 'icons',
       studioDestination: 'element.icon',
+      specialtyTags: ['games'],
+      useCaseTags: ['tcg'],
       name: '  Moon Sigil  ',
       description: '  clean vector icon  ',
       previewUrl: '  https://example.test/moon.svg  ',
@@ -132,12 +134,51 @@ describe('developer asset store helpers', () => {
     })).toMatchObject({
       ok: true,
       value: {
+        specialtyTags: ['games'],
+        useCaseTags: ['tcg'],
         name: 'Moon Sigil',
         sourceStoragePath: 'dev-1/icons/moon.svg',
       },
     });
     expect(normalizeDeveloperAssetSubmissionInput({ assetType: 'tsx', name: 'Executable' }))
       .toEqual({ ok: false, message: 'Choose a supported asset type.' });
+  });
+
+  it('does not allow canonical tags to leak into the wrong taxonomy category', () => {
+    const base = {
+      assetType: 'icons',
+      studioDestination: 'element.icon',
+      name: 'Moon Sigil',
+      sourceUrl: 'https://storage.example.test/moon.svg',
+    };
+
+    expect(normalizeDeveloperAssetSubmissionInput({
+      ...base,
+      specialtyTags: ['tcg'],
+      useCaseTags: ['tcg'],
+    })).toEqual({ ok: false, message: 'Choose at least one supported CardForge specialty.' });
+
+    expect(normalizeDeveloperAssetSubmissionInput({
+      ...base,
+      specialtyTags: ['games'],
+      useCaseTags: ['games'],
+    })).toEqual({ ok: false, message: 'Choose at least one supported CardForge use case.' });
+
+    expect(normalizeDeveloperAssetSubmissionEditInput({
+      assetType: 'icons',
+      name: 'Moon Sigil',
+      specialtyTags: ['games', 'tcg'],
+      useCaseTags: ['tcg', 'games'],
+    })).toEqual({
+      ok: true,
+      value: {
+        name: 'Moon Sigil',
+        description: '',
+        previewUrl: '',
+        specialtyTags: ['games'],
+        useCaseTags: ['tcg'],
+      },
+    });
   });
 
   it('normalizes contributor-owned detail edits', () => {
@@ -155,13 +196,15 @@ describe('developer asset store helpers', () => {
     });
   });
 
-  it('maps automatic, override, publication, and revision state from the database', () => {
+  it('maps automatic, override, publication, revision, and category-safe taxonomy state from the database', () => {
     expect(mapDeveloperAssetSubmissionRow({
       id: 'asset-1',
       developer_id: 'dev-1',
       developer_email: 'dev@example.test',
       asset_type: 'templates',
       requested_studio_destination: 'template.front',
+      specialty_tags: ['games', 'tcg'],
+      use_case_tags: ['tcg', 'games'],
       name: 'Moon Layout',
       description: 'Layout',
       preview_url: '/api/templates#moon-layout',
@@ -198,6 +241,8 @@ describe('developer asset store helpers', () => {
       calculatedAccessTier: 'free',
       automatedAccessTier: 'developer',
       ownerAccessTierOverride: 'free',
+      specialtyTags: ['games'],
+      useCaseTags: ['tcg'],
       currentUserVote: 'positive',
       targetRegistryAssetId: 'moon-layout',
       revisionNumber: 2,
