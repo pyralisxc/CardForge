@@ -1,4 +1,4 @@
-
+import { ClerkProvider } from '@clerk/nextjs';
 import type {Metadata} from 'next';
 import './globals.css';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
@@ -21,6 +21,7 @@ import {
 } from '@/features/public-site/server';
 import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 import { getCachedBusinessIdentity } from '@/features/business-identity/server';
+import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 
 const assetFor = (media: SiteMediaAsset[], slot: SiteMediaAsset['slot']): SiteMediaAsset => (
   media.find((asset) => asset.slot === slot) ?? getDefaultSiteMedia(slot)
@@ -99,11 +100,14 @@ export default async function RootLayout({
       </SiteContentProvider>
     </BrandPresentationProvider>
   );
+  const authenticatedApp = isClerkServerConfigPresent()
+    ? <ClerkProvider>{app}</ClerkProvider>
+    : app;
 
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <div id="cardforge-app-content">{app}</div>
+        <div id="cardforge-app-content">{authenticatedApp}</div>
         <AnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} />
       </body>
     </html>
