@@ -12,7 +12,7 @@ import {
   PROJECT_PRODUCTION_PLAN_VERSION,
   PROJECT_PRODUCTION_SIZE_UNITS,
 } from '@/features/project/server';
-import type { GptTemplateDraftInput } from '@/features/studio-documents/model';
+import type { GptTemplateDraftInput } from '@/features/studio-documents/templateDraftSchema';
 import { STUDIO_CREATION_LIBRARY_KINDS, type StudioCreationLibraryKind } from './studioCreationLibrary';
 
 const appearanceSchema = {
@@ -120,7 +120,7 @@ const productionPlanSchema = {
   additionalProperties: false,
   required: ['version', 'decisionMode', 'purpose', 'deliverable', 'outputSize', 'visualDirection', 'editableFieldKeys', 'assets'],
   properties: {
-    version: { type: 'number', const: PROJECT_PRODUCTION_PLAN_VERSION },
+    version: { type: 'number', enum: [PROJECT_PRODUCTION_PLAN_VERSION] },
     decisionMode: { type: 'string', enum: [...PROJECT_PRODUCTION_DECISION_MODES] },
     purpose: { type: 'string', minLength: 1, maxLength: 1000 },
     deliverable: { type: 'string', minLength: 1, maxLength: 500 },
@@ -211,7 +211,7 @@ const fieldContractSchema = {
 const elementSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['type'],
+  required: ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'zIndex'],
   properties: {
     id: { type: 'string', minLength: 1, maxLength: 255 },
     type: { type: 'string', enum: [...CARDFORGE_FREEFORM_ELEMENT_TYPES] },
@@ -274,7 +274,7 @@ const elementSchema = {
 const templateSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['name', 'aspectRatio'],
+  required: ['name', 'aspectRatio', 'freeformCanvas'],
   properties: {
     id: { type: ['string', 'null'], maxLength: 255 },
     name: { type: 'string', minLength: 1, maxLength: 160 },
