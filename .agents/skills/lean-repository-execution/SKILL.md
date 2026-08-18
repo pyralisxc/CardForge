@@ -28,16 +28,19 @@ Deliver the approved outcome with the least process that protects correctness an
 1. **Orient once.** Read `AGENTS.md`, affected owners, current status, and only necessary history. Reuse this orientation until files, ancestry, requirements, or provider state change.
 2. **Use one coherent branch and PR.** Split only at independent ownership or high-risk rollout boundaries. Do not create workflow-only branches or chains of closely related PRs.
 3. **Implement cohesive batches.** Work inline by default. Do not use subagents for ordinary implementation. Use one only for independent investigation or high-risk/cross-owner final review.
-4. **Commit milestones.** Commit coherent outcomes, not every adjustment, test fix, or review note.
+4. **Commit milestones.** Commit coherent outcomes, not every adjustment, test fix, or review note. When working through remote GitHub APIs instead of a local worktree, prepare related blobs/tree entries first, create one commit for the milestone, then move the branch once. Never use one-file-at-a-time commit creation as the normal edit loop.
 5. **Keep context lean.** Summarize routine tool output and retain only evidence that changes a decision, proves a check, or explains a failure.
+6. **Use hosted previews intentionally.** GitHub CI is the deterministic code-health loop. Vercel Preview is the live browser/integration check for a coherent deployable branch head. Default to one initial preview and only meaningful follow-up previews after relevant fixes; do not push no-op, incomplete, or test-only commits just to retrigger hosted status.
 
 ## Hard budgets
 
 - **Git:** default to orientation, pre-commit, and pre-PR. Repeat only after state changed or to diagnose a specific failure.
+- **Remote Git writes:** one branch update per coherent milestone. Batch multi-file changes into one tree/commit whenever the available GitHub tooling supports it.
 - **Focused verification:** one intentional RED and one GREEN run per behavior. Rerun only after relevant code changes or a failure that needs diagnosis.
 - **Full verification:** run once after implementation and cleanup. After a failure, rerun the failing portion; repeat the full gate only when the fix could affect the wider system.
 - **Review:** self-review every PR diff. Add one independent review only for high-risk changes or material cross-owner changes; re-review only blocking fixes.
 - **CI:** inspect the final run once. Reinspect only after a new push or changed check state.
+- **Vercel Preview:** use it to prove deployment and live behavior on the exact coherent PR head, not as a per-file compile/test loop. If Vercel reports a build-rate or quota block, stop pushing and wait for or resolve that provider state; never create extra commits to chase the check.
 - **Providers:** for high-risk changes, use one preflight, one approved mutation, and one postflight verification. Do not poll providers during ordinary edits.
 - **Agents:** no agent fan-out by default. Do not poll. After a meaningful wait, request status once; if there is still no evidence of progress, interrupt and take over.
 
