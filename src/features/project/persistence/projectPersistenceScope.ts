@@ -1,9 +1,6 @@
 import type { StateStorage } from 'zustand/middleware';
 
-import {
-  createProjectPersistenceScope,
-  type ProjectPersistenceScope,
-} from '../lib/projectPersistenceIdentity';
+import type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
 import { createIndexedDbStorage } from './indexedDbStorage';
 
 export { createProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
