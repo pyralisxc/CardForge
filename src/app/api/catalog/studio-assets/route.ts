@@ -8,6 +8,6 @@ export async function GET() {
     return createNoStoreJsonResponse(await getCachedCardForgeStudioAssets(entitlement.accessMode));
   } catch (error) {
     console.error('Failed to load CardForge Studio assets:', error);
-    return createApiErrorResponse(500, 'studio_assets_unavailable', 'Unable to load the CardForge Studio assets.');
+    return createApiErrorResponse(500, 'asset_library_unavailable', 'Unable to load the CardForge Studio assets.');
   }
 }
