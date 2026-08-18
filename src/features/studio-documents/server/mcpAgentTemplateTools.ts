@@ -17,7 +17,7 @@ const PREVIEW_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
 type ToolErrorResult = {
-  isError: true;
+  isError: boolean;
   content: Array<{ type: 'text'; text: string }>;
 };
 
