@@ -57,10 +57,11 @@ export function useStudioDocumentHandoff({
   toast,
 }: StudioDocumentHandoffOptions) {
   const handledDocumentIdRef = useRef<string | null>(null);
+  const inFlightDocumentIdRef = useRef<string | null>(null);
   const signInPromptedDocumentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isAccountLoading || !isStudioReady) return;
+    if (isAccountLoading) return;
     const url = new URL(window.location.href);
     const documentId = url.searchParams.get('document');
     if (!documentId || handledDocumentIdRef.current === documentId) return;
@@ -70,13 +71,15 @@ export function useStudioDocumentHandoff({
         signInPromptedDocumentIdRef.current = documentId;
         toast({
           title: 'Sign in to open this draft',
-          description: 'Use the Studio Sign in button above. This private draft will stay pending and open automatically after your CardForge account connects.',
+          description: 'This private draft is still selected. Sign in above and CardForge will open it automatically when Studio is ready.',
         });
       }
       return;
     }
+
     signInPromptedDocumentIdRef.current = null;
-    handledDocumentIdRef.current = documentId;
+    if (!isStudioReady || inFlightDocumentIdRef.current === documentId) return;
+    inFlightDocumentIdRef.current = documentId;
 
     let cancelled = false;
     void (async () => {
@@ -122,6 +125,7 @@ export function useStudioDocumentHandoff({
         setTemplateEditorSelectedTemplateId(firstTemplateId);
         setActiveTab('template-maker');
 
+        handledDocumentIdRef.current = documentId;
         url.searchParams.delete('document');
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
         toast({
@@ -137,6 +141,10 @@ export function useStudioDocumentHandoff({
             description: error instanceof Error ? error.message : 'Unable to open the Studio draft.',
             variant: 'destructive',
           });
+        }
+      } finally {
+        if (inFlightDocumentIdRef.current === documentId) {
+          inFlightDocumentIdRef.current = null;
         }
       }
     })();
