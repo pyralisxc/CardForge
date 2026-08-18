@@ -170,6 +170,8 @@ export async function POST(request: Request) {
       includeRegistryRecipePayloads: access.isOwner,
       assetType: formData.get('assetType'),
       studioDestination: formData.get('studioDestination'),
+      specialtyTags: formData.get('specialtyTags'),
+      useCaseTags: formData.get('useCaseTags'),
       name: formData.get('name'),
       description: formData.get('description'),
       previewUrl: formData.get('previewUrl'),
