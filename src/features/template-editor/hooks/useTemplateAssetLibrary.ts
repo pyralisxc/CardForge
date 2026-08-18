@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
 import type { CardAssetOption } from '@/features/developer-assets/client/assets';
-import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
+import { loadCardForgeStudioAssets } from '@/features/developer-assets/client/catalog';
 import { getAssetKindLabel, normalizeLocalLibraryAsset } from '@/features/developer-assets/client/assets';
 import {
   CUSTOM_DIVIDER_ASSETS_STORAGE_KEY,
@@ -101,7 +101,7 @@ export function useTemplateAssetLibrary({
 
     const loadDiscoveredAssets = async () => {
       try {
-        const payload = (await loadCardForgeCatalog()).assets;
+        const payload = (await loadCardForgeStudioAssets()).assets;
         if (cancelled) return;
         if (Array.isArray(payload.textures) && payload.textures.length > 0) {
           setDiscoveredTextureAssets(payload.textures);
@@ -121,7 +121,7 @@ export function useTemplateAssetLibrary({
       }
     };
 
-    loadDiscoveredAssets();
+    void loadDiscoveredAssets();
 
     return () => {
       cancelled = true;
