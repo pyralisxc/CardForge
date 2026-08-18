@@ -1,4 +1,5 @@
 import { createIndexedDbStorage } from './indexedDbStorage';
+import { getScopedProjectStorageNamespace } from './projectPersistenceScope';
 
 export interface ProjectAssetStorage {
   getItem: (key: string) => string | null | Promise<string | null>;
@@ -6,7 +7,7 @@ export interface ProjectAssetStorage {
 }
 
 export const getProjectAssetStorage = (): ProjectAssetStorage => {
-  const storage = createIndexedDbStorage('project-assets');
+  const storage = createIndexedDbStorage(getScopedProjectStorageNamespace('project-assets'));
   return {
     getItem: async (key) => await storage.getItem(key),
     setItem: async (key, value) => {
