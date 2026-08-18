@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
 import type { DeveloperAccessSessionState } from '@/features/developer-access/client';
+import { setProjectPersistenceScope, type ProjectPersistenceScope } from '@/features/project/client';
 
 export type StudioRuntimeBusinessIdentity = {
   brandName: string;
@@ -23,10 +24,17 @@ const DeferredStudioShell = dynamic(
 export function StudioRuntimeLoader({
   businessIdentity,
   initialDeveloperAccess,
+  persistenceScope,
 }: {
   businessIdentity: StudioRuntimeBusinessIdentity;
   initialDeveloperAccess: DeveloperAccessSessionState;
+  persistenceScope: ProjectPersistenceScope;
 }) {
+  // The heavy Studio bundle owns the Zustand workspace store. Set the account scope
+  // before that bundle is allowed to load so automatic hydration cannot touch legacy
+  // browser-global project state.
+  setProjectPersistenceScope(persistenceScope);
+
   const [shouldLoadRuntime, setShouldLoadRuntime] = useState(false);
 
   useEffect(() => {
