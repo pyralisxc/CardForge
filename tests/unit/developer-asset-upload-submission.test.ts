@@ -66,6 +66,59 @@ describe('developer asset upload submission', () => {
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
+  it('accepts transparency-capable professional border overlays', async () => {
+    const storage = setupStorage();
+    mockedCreateDeveloperAssetSubmission.mockResolvedValue({ submissions: [] } as never);
+
+    await createUploadedDeveloperAssetSubmission({
+      developerId: 'developer-1',
+      developerEmail: 'dev@example.com',
+      currentContributorIds: ['developer-1'],
+      assetType: 'imageAssets',
+      studioDestination: 'image.border.front',
+      name: 'Ornate Gold Overlay',
+      description: 'Transparent card border art.',
+      previewUrl: '',
+      file: {
+        name: 'ornate-border.webp',
+        type: 'image/webp',
+        size: 256,
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(256)),
+      } as unknown as File,
+    });
+
+    expect(storage.upload).toHaveBeenCalledOnce();
+    expect(mockedCreateDeveloperAssetSubmission).toHaveBeenCalledWith(expect.objectContaining({
+      input: expect.objectContaining({
+        assetType: 'imageAssets',
+        studioDestination: 'image.border.front',
+      }),
+    }));
+  });
+
+  it('rejects JPEG border overlays because they cannot preserve transparency', async () => {
+    const storage = setupStorage();
+
+    await expect(createUploadedDeveloperAssetSubmission({
+      developerId: 'developer-1',
+      developerEmail: 'dev@example.com',
+      currentContributorIds: ['developer-1'],
+      assetType: 'imageAssets',
+      studioDestination: 'image.border.front',
+      name: 'Flat Border',
+      description: '',
+      previewUrl: '',
+      file: {
+        name: 'border.jpg',
+        type: 'image/jpeg',
+        size: 256,
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(256)),
+      } as unknown as File,
+    })).rejects.toThrow('SVG, PNG, or WEBP');
+
+    expect(storage.upload).not.toHaveBeenCalled();
+  });
+
   it('removes the uploaded object when submission persistence fails', async () => {
     const storage = setupStorage();
     mockedCreateDeveloperAssetSubmission.mockRejectedValue(new Error('insert failed'));
