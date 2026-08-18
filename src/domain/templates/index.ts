@@ -31,6 +31,7 @@ export * from './elementCapabilities';
 export * from './appearanceNormalization';
 export * from './constants';
 export * from './templateFactory';
+export * from './templateValidation';
 export * from './fieldContracts';
 export * from './templateFields';
 export * from './display';
