@@ -20,13 +20,17 @@ export default async function StudioPage({
   searchParams: Promise<{ document?: string }>;
 }) {
   const documentId = (await searchParams).document;
-  if (documentId && isClerkServerConfigPresent()) {
-    const { isAuthenticated, redirectToSignIn } = await auth();
-    if (!isAuthenticated) {
+  const authConfigured = isClerkServerConfigPresent();
+  let persistenceScope: `account:${string}` | 'guest' | 'local' = 'local';
+
+  if (authConfigured) {
+    const { isAuthenticated, redirectToSignIn, userId } = await auth();
+    if (documentId && !isAuthenticated) {
       return redirectToSignIn({
         returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`,
       });
     }
+    persistenceScope = userId ? `account:${encodeURIComponent(userId)}` : 'guest';
   }
 
   const [businessIdentity, initialDeveloperAccess] = await Promise.all([
@@ -39,7 +43,7 @@ export default async function StudioPage({
       <StudioRuntimeLoader businessIdentity={{
         brandName: businessIdentity.brandName,
         copyrightHolder: businessIdentity.copyrightHolder,
-      }} initialDeveloperAccess={initialDeveloperAccess} />
+      }} initialDeveloperAccess={initialDeveloperAccess} persistenceScope={persistenceScope} />
     </CardForgeAppProviders>
   );
 }
