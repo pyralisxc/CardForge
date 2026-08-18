@@ -26,6 +26,17 @@ export type ProjectAssetRequirementSource = typeof PROJECT_ASSET_REQUIREMENT_SOU
 export const PROJECT_ASSET_REQUIREMENT_STATUSES = ['selected', 'needed', 'placeholder'] as const;
 export type ProjectAssetRequirementStatus = typeof PROJECT_ASSET_REQUIREMENT_STATUSES[number];
 
+export const PROJECT_ASSET_BINDINGS = [
+  'template.background',
+  'template.border',
+  'element.image',
+  'element.background',
+  'element.icon',
+  'element.texture',
+  'element.divider',
+] as const;
+export type ProjectAssetBinding = typeof PROJECT_ASSET_BINDINGS[number];
+
 export const PROJECT_PRODUCTION_SIZE_UNITS = ['px', 'mm', 'in'] as const;
 export type ProjectProductionSizeUnit = typeof PROJECT_PRODUCTION_SIZE_UNITS[number];
 
@@ -51,8 +62,10 @@ export interface ProjectAssetRequirement {
   source: ProjectAssetRequirementSource;
   quantity: number;
   status: ProjectAssetRequirementStatus;
+  binding?: ProjectAssetBinding;
   assetId?: string;
   assetUrl?: string;
+  embeddedAssetId?: string;
   prompt?: string;
   targetElementIds?: string[];
   width?: number;
@@ -137,8 +150,10 @@ const normalizeAssetRequirement = (value: unknown): ProjectAssetRequirement | nu
     source: value.source,
     quantity,
     status: value.status,
+    binding: isOneOf(PROJECT_ASSET_BINDINGS, value.binding) ? value.binding : undefined,
     assetId: cleanString(value.assetId, 255),
     assetUrl: cleanString(value.assetUrl, 20_000),
+    embeddedAssetId: cleanString(value.embeddedAssetId, 255),
     prompt: cleanString(value.prompt, 4_000),
     targetElementIds: cleanStringArray(value.targetElementIds, 100, 255),
     width: cleanPositiveNumber(value.width, 20_000),
