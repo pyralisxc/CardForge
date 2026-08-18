@@ -1,0 +1,43 @@
+import {
+  getStudioDocument,
+  readStudioDocumentPreviewToken,
+  StudioDocumentStoreError,
+} from '@/features/studio-documents/server';
+import { createApiErrorResponse, createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: Request) {
+  const token = new URL(request.url).searchParams.get('token') ?? '';
+  const payload = readStudioDocumentPreviewToken(token);
+  if (!payload) {
+    return createApiErrorResponse(404, 'studio_document_not_found', 'This CardForge draft preview has expired or is invalid.');
+  }
+
+  try {
+    const document = await getStudioDocument(payload.ownerUserId, payload.documentId);
+    if (document.revision !== payload.revision || document.creationSource !== 'gpt') {
+      return createApiErrorResponse(409, 'studio_document_conflict', 'This draft has a newer revision. Ask CardForge to render the latest preview.');
+    }
+    const template = document.document.userTemplates[0];
+    if (!template || document.document.userTemplates.length !== 1) {
+      return createApiErrorResponse(409, 'studio_document_conflict', 'This draft cannot be rendered as a single CardForge Template preview.');
+    }
+
+    return createNoStoreJsonResponse({
+      title: document.title,
+      revision: document.revision,
+      template,
+    });
+  } catch (error) {
+    if (error instanceof StudioDocumentStoreError) {
+      return createApiErrorResponse(
+        error.status === 404 ? 404 : 503,
+        error.status === 404 ? 'studio_document_not_found' : 'studio_document_unavailable',
+        error.status === 404 ? 'This CardForge draft preview is no longer available.' : error.message,
+      );
+    }
+    console.error('Unable to render Studio draft preview:', error);
+    return createApiErrorResponse(500, 'studio_document_unavailable', 'Unable to render the CardForge draft preview.');
+  }
+}
