@@ -160,6 +160,25 @@ export const createBrowserKeyValueStorage = (
   };
 };
 
+export const quarantineBrowserStorageValue = async ({
+  namespace,
+  key,
+  quarantineNamespace,
+}: {
+  namespace: string;
+  key: string;
+  quarantineNamespace: string;
+}): Promise<boolean> => {
+  const source = createBrowserKeyValueStorage(namespace);
+  const value = await source.getItem(key);
+  if (typeof value !== 'string') return false;
+
+  const quarantine = createBrowserKeyValueStorage(quarantineNamespace);
+  await quarantine.setItem(`${Date.now()}:${key}`, value);
+  await source.removeItem(key);
+  return true;
+};
+
 export const getBrowserRecoverySnapshot = async (namespace: string, key: string): Promise<string | null> => {
   const storage = createBrowserKeyValueStorage(namespace);
   return storage.getItem(`__recovery__:${key}`);
