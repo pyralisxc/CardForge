@@ -62,7 +62,10 @@ describe('account Studio documents', () => {
         freeformCanvas: {
           width: 1000,
           height: 1000,
-          elements: Array.from({ length: 201 }, (_, index) => ({ id: String(index) })),
+          elements: Array.from({ length: 201 }, (_, index) => ({
+            id: String(index),
+            type: 'text',
+          })),
         },
       },
     }).success).toBe(false);
@@ -72,6 +75,52 @@ describe('account Studio documents', () => {
       template: { name: 'Draft', aspectRatio: '1:1' },
       publish: true,
     }).success).toBe(false);
+  });
+
+  it('rejects invented canvas vocabularies before an AI draft can be persisted', () => {
+    expect(gptTemplateDraftInputSchema.safeParse({
+      title: 'Generic design tool payload',
+      template: {
+        name: 'Generic design tool payload',
+        aspectRatio: '16:9',
+        freeformCanvas: {
+          width: 1600,
+          height: 900,
+          elements: [{
+            id: 'slot-1',
+            type: 'image-slot',
+            x: 100,
+            y: 100,
+            width: 300,
+            height: 400,
+            label: 'FORGE EXPORT 01',
+          }],
+        },
+      },
+    }).success).toBe(false);
+
+    expect(gptTemplateDraftInputSchema.safeParse({
+      title: 'Native image element',
+      template: {
+        name: 'Native image element',
+        aspectRatio: '16:9',
+        freeformCanvas: {
+          width: 1600,
+          height: 900,
+          elements: [{
+            id: 'slot-1',
+            type: 'image',
+            name: 'Forge export 01',
+            x: 100,
+            y: 100,
+            width: 300,
+            height: 400,
+            imageSource: 'artworkUrl',
+            imageObjectFit: 'cover',
+          }],
+        },
+      },
+    }).success).toBe(true);
   });
 
   it('keeps plugin access developer-only and delegates watermark eligibility to the existing entitlement owner', () => {
