@@ -4,7 +4,11 @@ import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 
-import { createScopedProjectStorage } from '../persistence/projectPersistenceScope';
+import {
+  createScopedProjectStorage,
+  setProjectPersistenceScope,
+  type ProjectPersistenceScope,
+} from '../persistence/projectPersistenceScope';
 import { createAppearanceSlice } from './appearanceSlice';
 import { createOutputSlice } from './outputSlice';
 import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
@@ -101,10 +105,17 @@ export const useProjectStore = create<ProjectState>()(
           if (error) console.error('Error rehydrating the project workspace:', error);
           if (state) setTimeout(() => state._rehydrateCallback(), 0);
         },
+        skipHydration: true,
         version: 1,
       },
     ),
   ),
 );
+
+export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceScope) => {
+  setProjectPersistenceScope(scope);
+  useProjectStore.setState(useProjectStore.getInitialState());
+  await useProjectStore.persist.rehydrate();
+};
 
 export type { ProjectState } from './types';
