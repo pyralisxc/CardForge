@@ -25,7 +25,12 @@ import {
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
+import { loadPersonalStudioMedia, uploadPersonalStudioMedia } from '@/features/studio-media/client';
+
 type ToastFn = ReturnType<typeof useToast>['toast'];
+type EditableAssetKind = 'texture' | 'divider' | 'icon' | 'image';
+
+const DURABLE_STUDIO_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const isRoutedTo = (asset: CardAssetOption, destination: StudioAssetDestination): boolean => {
   const routes = asset.studioDestinations ?? getDefaultStudioAssetDestinations({
@@ -59,6 +64,33 @@ const readStoredAssets = async (primaryKey: string): Promise<CardAssetOption[]> 
   }
 };
 
+const mergeAssetLists = (...lists: CardAssetOption[][]): CardAssetOption[] => {
+  const byId = new Map<string, CardAssetOption>();
+  lists.flat().forEach((asset) => byId.set(asset.id, asset));
+  return [...byId.values()];
+};
+
+const storageKeyForKind = (kind: EditableAssetKind): string => (
+  kind === 'texture'
+    ? CUSTOM_TEXTURE_ASSETS_STORAGE_KEY
+    : kind === 'divider'
+      ? CUSTOM_DIVIDER_ASSETS_STORAGE_KEY
+      : kind === 'icon'
+        ? CUSTOM_ICON_ASSETS_STORAGE_KEY
+        : CUSTOM_IMAGE_ASSETS_STORAGE_KEY
+);
+
+const readFileAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const value = event.target?.result;
+    if (typeof value === 'string') resolve(value);
+    else reject(new Error('The selected artwork could not be read.'));
+  };
+  reader.onerror = () => reject(reader.error ?? new Error('Failed to read the selected artwork.'));
+  reader.readAsDataURL(file);
+});
+
 export function useTemplateAssetLibrary({
   selectedElement,
   canUseBackgroundTexture,
@@ -78,23 +110,42 @@ export function useTemplateAssetLibrary({
   useEffect(() => {
     let cancelled = false;
     const loadCustomAssets = async () => {
-      const [textures, dividers, icons, images] = await Promise.all([
+      const [textures, dividers, icons, images, personalLibrary] = await Promise.all([
         readStoredAssets(CUSTOM_TEXTURE_ASSETS_STORAGE_KEY),
         readStoredAssets(CUSTOM_DIVIDER_ASSETS_STORAGE_KEY),
         readStoredAssets(CUSTOM_ICON_ASSETS_STORAGE_KEY),
         readStoredAssets(CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
+        canUploadCustomAssets
+          ? loadPersonalStudioMedia().catch((error) => {
+              console.warn('Unable to load personal Studio media:', error);
+              return null;
+            })
+          : Promise.resolve(null),
       ]);
       if (cancelled) return;
-      setCustomTextureAssets(textures);
-      setCustomDividerAssets(dividers);
-      setCustomIconAssets(icons);
-      setCustomImageAssets(images);
+      const personalAssets = personalLibrary?.assets ?? [];
+      setCustomTextureAssets(mergeAssetLists(
+        textures,
+        personalAssets.filter((asset) => asset.kind === 'texture'),
+      ));
+      setCustomDividerAssets(mergeAssetLists(
+        dividers,
+        personalAssets.filter((asset) => asset.kind === 'divider'),
+      ));
+      setCustomIconAssets(mergeAssetLists(
+        icons,
+        personalAssets.filter((asset) => asset.kind === 'icon'),
+      ));
+      setCustomImageAssets(mergeAssetLists(
+        images,
+        personalAssets.filter((asset) => asset.kind === 'image'),
+      ));
     };
     void loadCustomAssets();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canUploadCustomAssets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,12 +222,42 @@ export function useTemplateAssetLibrary({
     [discoveredImageAssets],
   );
 
-  const handleAssetUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, kind: 'texture' | 'divider' | 'icon' | 'image') => {
+  const currentAssetsForKind = useCallback((kind: EditableAssetKind): CardAssetOption[] => (
+    kind === 'texture'
+      ? customTextureAssets
+      : kind === 'divider'
+        ? customDividerAssets
+        : kind === 'icon'
+          ? customIconAssets
+          : customImageAssets
+  ), [customDividerAssets, customIconAssets, customImageAssets, customTextureAssets]);
+
+  const setAssetsForKind = useCallback((kind: EditableAssetKind, assets: CardAssetOption[]) => {
+    if (kind === 'texture') setCustomTextureAssets(assets);
+    else if (kind === 'divider') setCustomDividerAssets(assets);
+    else if (kind === 'icon') setCustomIconAssets(assets);
+    else setCustomImageAssets(assets);
+  }, []);
+
+  const persistAssetMetadata = useCallback(async (
+    kind: EditableAssetKind,
+    asset: CardAssetOption,
+  ) => {
+    const nextAssets = mergeAssetLists(currentAssetsForKind(kind), [asset]);
+    await writeProjectAssetListToStorage(
+      getProjectAssetStorage(),
+      storageKeyForKind(kind),
+      nextAssets,
+    );
+    setAssetsForKind(kind, nextAssets);
+  }, [currentAssetsForKind, setAssetsForKind]);
+
+  const handleAssetUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>, kind: EditableAssetKind) => {
     if (!canUploadCustomAssets) {
       event.target.value = '';
       toast({
-        title: 'Sign in to add local art',
-        description: "Custom images, icons, textures, and dividers are saved to this browser's local asset library after you connect an account.",
+        title: 'Sign in to add personal art',
+        description: 'Signed-in artwork can be reused from your personal Studio library across devices.',
       });
       return;
     }
@@ -203,84 +284,108 @@ export function useTemplateAssetLibrary({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (loadEvent) => {
-      const dataUri = loadEvent.target?.result as string;
-      const asset = normalizeLocalLibraryAsset({
-        id: `custom-${kind}-${nanoid()}`,
-        name: file.name.replace(/\.[^.]+$/, ''),
-        url: dataUri,
-        kind,
-        fileSizeBytes: storedFile.size,
-        tileMode: kind === 'texture' ? 'repeat' : kind === 'divider' ? 'stretch' : 'contain',
-        seamless: kind === 'texture',
-        allowedTargets: kind === 'texture'
-          ? ['text', 'shape', 'template']
-          : kind === 'divider'
-            ? ['divider']
-            : kind === 'icon'
-              ? ['icon']
-              : ['image', 'imageFrame', 'template'],
-        defaultBlendMode: kind === 'texture' ? 'multiply' : 'normal',
-        defaultOpacity: kind === 'texture' ? 45 : 100,
-        defaultScale: kind === 'texture' ? 160 : 100,
-        defaultWidth: kind === 'icon' ? 64 : kind === 'image' ? 300 : undefined,
-        defaultHeight: kind === 'icon' ? 64 : kind === 'image' ? 180 : undefined,
-      });
-
-      const storageHealth = await getBrowserStorageHealth();
-      if (storageHealth.level === 'critical' || (
-        storageHealth.remainingBytes !== null && storageHealth.remainingBytes < storedFile.size * 1.5
-      )) {
-        toast({
-          title: 'Browser Storage Almost Full',
-          description: 'Download a project backup and free browser storage before adding more artwork.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const storageKey = kind === 'texture'
-        ? CUSTOM_TEXTURE_ASSETS_STORAGE_KEY
-        : kind === 'divider'
-          ? CUSTOM_DIVIDER_ASSETS_STORAGE_KEY
-          : kind === 'icon'
-            ? CUSTOM_ICON_ASSETS_STORAGE_KEY
-            : CUSTOM_IMAGE_ASSETS_STORAGE_KEY;
-      const currentAssets = kind === 'texture'
-        ? customTextureAssets
-        : kind === 'divider'
-          ? customDividerAssets
-          : kind === 'icon'
-            ? customIconAssets
-            : customImageAssets;
-      const nextAssets = [...currentAssets, asset];
+    const assetName = file.name.replace(/\.[^.]+$/, '') || 'Studio artwork';
+    let durableUploadError: unknown = null;
+    if (DURABLE_STUDIO_MEDIA_TYPES.has(storedFile.type.toLowerCase())) {
       try {
-        await writeProjectAssetListToStorage(getProjectAssetStorage(), storageKey, nextAssets);
-      } catch (error) {
-        console.error('Unable to persist local artwork:', error);
-        toast({
-          title: 'Artwork Not Saved',
-          description: 'Browser storage rejected the artwork. Download a project backup, free storage, and try again.',
-          variant: 'destructive',
+        const { asset } = await uploadPersonalStudioMedia({
+          file: storedFile,
+          kind,
+          name: assetName,
         });
+        try {
+          await persistAssetMetadata(kind, asset);
+        } catch (error) {
+          console.warn('Unable to cache personal Studio asset metadata locally:', error);
+          setAssetsForKind(kind, mergeAssetLists(currentAssetsForKind(kind), [asset]));
+        }
+        toast({
+          title: 'Personal asset added',
+          description: `${file.name} is saved to your CardForge Studio media library.`,
+        });
+        event.target.value = '';
         return;
+      } catch (error) {
+        durableUploadError = error;
+        console.warn('Unable to save durable Studio media; falling back to browser storage:', error);
       }
+    }
 
-      if (kind === 'texture') setCustomTextureAssets(nextAssets);
-      else if (kind === 'divider') setCustomDividerAssets(nextAssets);
-      else if (kind === 'icon') setCustomIconAssets(nextAssets);
-      else setCustomImageAssets(nextAssets);
-
+    let dataUri: string;
+    try {
+      dataUri = await readFileAsDataUrl(storedFile);
+    } catch (error) {
+      event.target.value = '';
       toast({
-        title: 'Local asset added',
-        description: `${file.name} added to ${getAssetKindLabel(kind).toLowerCase()} assets.`,
+        title: 'Upload Error',
+        description: error instanceof Error ? error.message : 'Failed to read the selected asset.',
+        variant: 'destructive',
       });
-    };
-    reader.onerror = () => toast({ title: 'Upload Error', description: 'Failed to read the selected asset.', variant: 'destructive' });
-    reader.readAsDataURL(storedFile);
+      return;
+    }
+
+    const storageHealth = await getBrowserStorageHealth();
+    if (storageHealth.level === 'critical' || (
+      storageHealth.remainingBytes !== null && storageHealth.remainingBytes < storedFile.size * 1.5
+    )) {
+      event.target.value = '';
+      toast({
+        title: 'Browser Storage Almost Full',
+        description: 'Download a project backup and free browser storage before adding more artwork.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const asset = normalizeLocalLibraryAsset({
+      id: `custom-${kind}-${nanoid()}`,
+      name: assetName,
+      url: dataUri,
+      kind,
+      fileSizeBytes: storedFile.size,
+      tileMode: kind === 'texture' ? 'repeat' : kind === 'divider' ? 'stretch' : 'contain',
+      seamless: kind === 'texture',
+      allowedTargets: kind === 'texture'
+        ? ['text', 'shape', 'template']
+        : kind === 'divider'
+          ? ['divider']
+          : kind === 'icon'
+            ? ['icon']
+            : ['image', 'imageFrame', 'template'],
+      defaultBlendMode: kind === 'texture' ? 'multiply' : 'normal',
+      defaultOpacity: kind === 'texture' ? 45 : 100,
+      defaultScale: kind === 'texture' ? 160 : 100,
+      defaultWidth: kind === 'icon' ? 64 : kind === 'image' ? 300 : undefined,
+      defaultHeight: kind === 'icon' ? 64 : kind === 'image' ? 180 : undefined,
+    });
+
+    try {
+      await persistAssetMetadata(kind, asset);
+    } catch (error) {
+      console.error('Unable to persist local artwork:', error);
+      event.target.value = '';
+      toast({
+        title: 'Artwork Not Saved',
+        description: 'Browser storage rejected the artwork. Download a project backup, free storage, and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Local asset added',
+      description: durableUploadError
+        ? `${file.name} is saved in this browser because the personal media service was unavailable.`
+        : `${file.name} added to local ${getAssetKindLabel(kind).toLowerCase()} assets.`,
+    });
     event.target.value = '';
-  }, [canUploadCustomAssets, customDividerAssets, customIconAssets, customImageAssets, customTextureAssets, toast]);
+  }, [
+    canUploadCustomAssets,
+    currentAssetsForKind,
+    persistAssetMetadata,
+    setAssetsForKind,
+    toast,
+  ]);
 
   return {
     assetSearch,
