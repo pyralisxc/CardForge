@@ -16,7 +16,7 @@ export interface CardAssetOption {
   name: string;
   url: string;
   kind: 'texture' | 'divider' | 'border' | 'frame' | 'icon' | 'image' | 'template' | 'elementPreset';
-  librarySource?: 'official' | 'developer' | 'local';
+  librarySource?: 'official' | 'developer' | 'personal' | 'local';
   accessTier?: 'free' | 'paid' | 'developer' | 'hidden';
   registryStatus?: 'draft' | 'submitted' | 'voting' | 'publish_candidate' | 'published' | 'archived' | 'rejected' | 'localOnly';
   fileSizeBytes?: number;
