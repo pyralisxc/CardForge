@@ -4,7 +4,7 @@ import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 
-import { createIndexedDbStorage } from '../persistence/indexedDbStorage';
+import { createScopedProjectStorage } from '../persistence/projectPersistenceScope';
 import { createAppearanceSlice } from './appearanceSlice';
 import { createOutputSlice } from './outputSlice';
 import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
@@ -76,7 +76,7 @@ export const useProjectStore = create<ProjectState>()(
       }),
       {
         name: 'workspace',
-        storage: createJSONStorage(() => createIndexedDbStorage(
+        storage: createJSONStorage(() => createScopedProjectStorage(
           'project-workspace',
           { keepRecoverySnapshot: true, suppressWriteErrors: true, trackWorkspaceSaveStatus: true },
         )),
