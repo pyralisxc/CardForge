@@ -56,9 +56,7 @@ export const normalizeEmbeddedTemplateAsset = async ({
   try {
     const metadata = await sharp(source, { failOn: 'error', animated: false }).metadata();
     const detectedMime = metadata.format ? MIME_BY_FORMAT[metadata.format] : undefined;
-    if (!detectedMime || detectedMime !== mimeType) {
-      throw new Error('MIME mismatch');
-    }
+    if (!detectedMime || detectedMime !== mimeType) throw new Error('MIME mismatch');
     if (!metadata.width || !metadata.height) throw new Error('Missing dimensions');
     if (metadata.width > MAX_SOURCE_DIMENSION || metadata.height > MAX_SOURCE_DIMENSION) {
       throw new StudioDocumentStoreError(
@@ -133,15 +131,9 @@ const updateElementWithDataUri = (
   binding: ProjectAssetBinding,
   dataUri: string,
 ): FreeformCardElement => {
-  if (binding === 'element.image') {
-    return { ...element, imageSource: dataUri, content: dataUri };
-  }
-  if (binding === 'element.background') {
-    return { ...element, backgroundImageUrl: dataUri };
-  }
-  if (binding === 'element.icon') {
-    return { ...element, iconImageSource: dataUri };
-  }
+  if (binding === 'element.image') return { ...element, imageSource: dataUri, content: dataUri };
+  if (binding === 'element.background') return { ...element, backgroundImageUrl: dataUri };
+  if (binding === 'element.icon') return { ...element, iconImageSource: dataUri };
   if (binding === 'element.texture') {
     return {
       ...element,
@@ -160,13 +152,7 @@ const updateElementWithDataUri = (
     };
   }
   if (binding === 'element.divider') {
-    return {
-      ...element,
-      appearance: {
-        ...element.appearance,
-        dividerAsset: dataUri,
-      },
-    };
+    return { ...element, appearance: { ...element.appearance, dividerAsset: dataUri } };
   }
   return element;
 };
@@ -183,7 +169,6 @@ export const bindEmbeddedTemplateAsset = ({
   dataUri: string;
 }): TCGCardTemplate => {
   validateBindingTargets(template, binding, targetElementIds);
-
   if (binding === 'template.background') {
     return reconstructMinimalTemplateObject({ ...template, cardBackgroundImageUrl: dataUri });
   }
@@ -204,9 +189,10 @@ export const bindEmbeddedTemplateAsset = ({
 };
 
 const getElementDataUri = (
-  element: FreeformCardElement,
+  element: FreeformCardElement | undefined,
   binding: ProjectAssetBinding,
 ): string | undefined => {
+  if (!element) return undefined;
   if (binding === 'element.image') return element.imageSource || element.content;
   if (binding === 'element.background') return element.backgroundImageUrl;
   if (binding === 'element.icon') return element.iconImageSource;
@@ -231,7 +217,7 @@ export const readEmbeddedTemplateAssetDataUri = ({
   if (binding === 'template.border') return template.cardBorderImageSource;
   const elements = template.freeformCanvas?.elements ?? [];
   for (const targetId of targetElementIds) {
-    const value = getElementDataUri(elements.find((element) => element.id === targetId) as FreeformCardElement, binding);
+    const value = getElementDataUri(elements.find((element) => element.id === targetId), binding);
     if (value?.startsWith('data:')) return value;
   }
   return undefined;
@@ -274,6 +260,7 @@ export const preserveEmbeddedTemplateAssets = ({
       status: 'selected' as const,
       binding: currentAsset.binding,
       embeddedAssetId: currentAsset.embeddedAssetId,
+      assetUrl: undefined,
       targetElementIds,
     };
   });
