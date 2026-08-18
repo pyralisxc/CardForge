@@ -4,6 +4,8 @@ export const STUDIO_ASSET_DESTINATIONS = [
   'image.picture',
   'image.frame.front',
   'image.frame.back',
+  'image.border.front',
+  'image.border.back',
   'element.icon',
   'element.divider',
   'appearance.texture',
@@ -41,13 +43,15 @@ export const STUDIO_ASSET_DESTINATION_DEFINITIONS: StudioAssetDestinationDefinit
   { id: 'template.front', group: 'Templates', label: 'Front Templates', shortLabel: 'Fronts', description: 'Complete editable front designs offered in Template Studio and the Generator.', acceptedKinds: ['template'] },
   { id: 'template.back', group: 'Templates', label: 'Back Templates', shortLabel: 'Backs', description: 'Complete editable back designs matched to a front by physical card size.', acceptedKinds: ['template'] },
   { id: 'image.picture', group: 'Images', label: 'Pictures', shortLabel: 'Pictures', description: 'Ordinary artwork offered inside picture elements and image fields.', acceptedKinds: ['image'] },
-  { id: 'image.frame.front', group: 'Images', label: 'Front Frames', shortLabel: 'Front frames', description: 'Full-card visual artwork applied to the front surface of a Template.', acceptedKinds: ['image'] },
-  { id: 'image.frame.back', group: 'Images', label: 'Back Frames', shortLabel: 'Back frames', description: 'Full-card visual artwork applied to the back surface of a Template.', acceptedKinds: ['image'] },
+  { id: 'image.frame.front', group: 'Images', label: 'Front Foundations', shortLabel: 'Front foundations', description: 'Full-card visual foundation artwork rendered beneath editable front content.', acceptedKinds: ['image'] },
+  { id: 'image.frame.back', group: 'Images', label: 'Back Foundations', shortLabel: 'Back foundations', description: 'Full-card visual foundation artwork rendered beneath editable back content.', acceptedKinds: ['image'] },
+  { id: 'image.border.front', group: 'Images', label: 'Front Border Overlays', shortLabel: 'Front borders', description: 'Transparent professional border artwork layered above the complete front card render.', acceptedKinds: ['image'] },
+  { id: 'image.border.back', group: 'Images', label: 'Back Border Overlays', shortLabel: 'Back borders', description: 'Transparent professional border artwork layered above the complete back card render.', acceptedKinds: ['image'] },
   { id: 'element.icon', group: 'Elements', label: 'Icons', shortLabel: 'Icons', description: 'Symbols, badges, corner ornaments, gems, and compact decorative marks.', acceptedKinds: ['icon'] },
   { id: 'element.divider', group: 'Elements', label: 'Dividers', shortLabel: 'Dividers', description: 'Separators, rules, title plates, and wide decorative panels.', acceptedKinds: ['divider'] },
   { id: 'appearance.texture', group: 'Styles', label: 'Textures', shortLabel: 'Textures', description: 'Repeatable or scalable surface treatments used by Fill & Effects.', acceptedKinds: ['texture'] },
   { id: 'style.material', group: 'Styles', label: 'Materials & Themes', shortLabel: 'Materials', description: 'Reusable fills, gradients, materials, themes, and complete card treatments.', acceptedKinds: ['elementPreset'] },
-  { id: 'style.border', group: 'Styles', label: 'Borders', shortLabel: 'Borders', description: 'Reusable border and edge treatments.', acceptedKinds: ['elementPreset'] },
+  { id: 'style.border', group: 'Styles', label: 'Structural Borders', shortLabel: 'Structural borders', description: 'Reusable CSS/material edge treatments such as solid, double, etched, glow, and bevel.', acceptedKinds: ['elementPreset'] },
   { id: 'style.textFrame', group: 'Styles', label: 'Text Frames', shortLabel: 'Text frames', description: 'Reusable rules boxes, title treatments, and framed text surfaces.', acceptedKinds: ['elementPreset'] },
   { id: 'style.shape', group: 'Styles', label: 'Shape Styles', shortLabel: 'Shapes', description: 'Reusable visual treatments for panels, gems, badges, and shapes.', acceptedKinds: ['elementPreset'] },
   { id: 'style.divider', group: 'Styles', label: 'Divider Styles', shortLabel: 'Divider styles', description: 'Reusable appearance treatments for Divider Builder.', acceptedKinds: ['elementPreset'] },
@@ -138,7 +142,9 @@ export const getCompatibleStudioAssetDestinations = ({
   metadata?: unknown;
 }): StudioAssetDestination[] => {
   if (kind === 'template') return getDefaultStudioAssetDestinations({ kind, metadata });
-  if (kind === 'image') return ['image.picture', 'image.frame.front', 'image.frame.back'];
+  if (kind === 'image') {
+    return ['image.picture', 'image.frame.front', 'image.frame.back', 'image.border.front', 'image.border.back'];
+  }
   if (kind !== 'elementPreset') {
     return STUDIO_ASSET_DESTINATION_DEFINITIONS
       .filter((definition) => definition.acceptedKinds.includes(kind))
