@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import sharp from 'sharp';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { TCGCardTemplate } from '@/domain/templates';
@@ -54,15 +55,22 @@ const makePlan = (asset: ProjectProductionPlan['assets'][number]): ProjectProduc
 
 describe('agent Template embedded artwork', () => {
   it('normalizes a real raster image to an embedded WebP data URI', async () => {
-    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlK3f8AAAAASUVORK5CYII=';
+    const png = await sharp({
+      create: {
+        width: 2,
+        height: 2,
+        channels: 4,
+        background: { r: 220, g: 160, b: 40, alpha: 1 },
+      },
+    }).png().toBuffer();
     const result = await normalizeEmbeddedTemplateAsset({
-      data: pngBase64,
+      data: png.toString('base64'),
       mimeType: 'image/png',
     });
 
     expect(result.dataUri).toMatch(/^data:image\/webp;base64,/);
-    expect(result.width).toBe(1);
-    expect(result.height).toBe(1);
+    expect(result.width).toBe(2);
+    expect(result.height).toBe(2);
     expect(result.byteCount).toBeGreaterThan(0);
   });
 
