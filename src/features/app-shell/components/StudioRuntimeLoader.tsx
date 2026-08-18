@@ -31,7 +31,7 @@ export function StudioRuntimeLoader({
 
   useEffect(() => {
     let cancelled = false;
-    let timeoutId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let idleId: number | null = null;
     const browser = window as IdleCapableWindow;
 
@@ -42,7 +42,7 @@ export function StudioRuntimeLoader({
     if (typeof browser.requestIdleCallback === 'function') {
       idleId = browser.requestIdleCallback(startRuntime, { timeout: 800 });
     } else {
-      timeoutId = globalThis.setTimeout(startRuntime, 75);
+      timeoutId = setTimeout(startRuntime, 75);
     }
 
     return () => {
@@ -50,7 +50,7 @@ export function StudioRuntimeLoader({
       if (idleId !== null && typeof browser.cancelIdleCallback === 'function') {
         browser.cancelIdleCallback(idleId);
       }
-      if (timeoutId !== null) globalThis.clearTimeout(timeoutId);
+      if (timeoutId !== null) clearTimeout(timeoutId);
     };
   }, []);
 
