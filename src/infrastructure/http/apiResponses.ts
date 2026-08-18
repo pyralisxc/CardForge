@@ -74,6 +74,9 @@ export type ApiErrorCode =
   | 'studio_document_invalid'
   | 'studio_document_not_found'
   | 'studio_document_unavailable'
+  | 'studio_media_invalid'
+  | 'studio_media_not_found'
+  | 'studio_media_unavailable'
   | 'template_library_unavailable';
 
 export interface ApiErrorBody {
