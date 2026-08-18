@@ -12,7 +12,7 @@ import {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getProjectAssetStorage,
-  mergeProjectAssetListToStorage,
+  writeProjectAssetListToStorage,
 } from '@/features/project/client';
 import { normalizeStudioDocumentPayload } from '@/features/studio-documents/model';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
@@ -27,16 +27,16 @@ interface StudioDocumentHandoffOptions {
   isAccountLoading: boolean;
   isSignedIn: boolean;
   isStudioReady: boolean;
-  mergeAppearanceStyles: (styles: AppearanceStylePreset[]) => void;
+  replaceAppearanceStyles: (styles: AppearanceStylePreset[]) => void;
   setActiveTab: (tab: string) => void;
   setExportDpi: (dpi: number) => void;
   setExportMode: (mode: ExportMode) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   setSelectedPaperSize: (size: PaperSize) => void;
   setSelectedTemplateId: (id: string | null) => void;
-  mergeStoredCards: (cards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
+  setStoredCards: (cards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
-  mergeUserTemplates: (templates: Partial<TCGCardTemplate>[]) => number;
+  setUserTemplates: (templates: Partial<TCGCardTemplate>[]) => number;
   toast: (input: ToastInput) => void;
 }
 
@@ -44,16 +44,16 @@ export function useStudioDocumentHandoff({
   isAccountLoading,
   isSignedIn,
   isStudioReady,
-  mergeAppearanceStyles,
+  replaceAppearanceStyles,
   setActiveTab,
   setExportDpi,
   setExportMode,
   setPdfOptions,
   setSelectedPaperSize,
   setSelectedTemplateId,
-  mergeStoredCards,
+  setStoredCards,
   setTemplateEditorSelectedTemplateId,
-  mergeUserTemplates,
+  setUserTemplates,
   toast,
 }: StudioDocumentHandoffOptions) {
   const handledDocumentIdRef = useRef<string | null>(null);
@@ -90,15 +90,15 @@ export function useStudioDocumentHandoff({
         const patch = applyProjectDocumentToState(document);
         const assetStorage = getProjectAssetStorage();
         await Promise.all([
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
         ]);
         if (cancelled) return;
 
-        mergeUserTemplates(patch.userTemplates);
-        mergeAppearanceStyles(patch.appearanceStyles);
+        setUserTemplates(patch.userTemplates);
+        replaceAppearanceStyles(patch.appearanceStyles);
         if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);
         setPdfOptions({
           margin: patch.pdfMarginMm,
@@ -108,7 +108,7 @@ export function useStudioDocumentHandoff({
         });
         if (patch.exportMode) setExportMode(patch.exportMode);
         if (patch.exportDpi) setExportDpi(patch.exportDpi);
-        mergeStoredCards(patch.storedCards);
+        setStoredCards(patch.storedCards);
 
         const firstTemplateId = patch.userTemplates.find((template) => template.id)?.id ?? null;
         setSelectedTemplateId(firstTemplateId);
@@ -146,16 +146,16 @@ export function useStudioDocumentHandoff({
     isAccountLoading,
     isSignedIn,
     isStudioReady,
-    mergeAppearanceStyles,
-    mergeStoredCards,
-    mergeUserTemplates,
+    replaceAppearanceStyles,
     setActiveTab,
     setExportDpi,
     setExportMode,
     setPdfOptions,
     setSelectedPaperSize,
     setSelectedTemplateId,
+    setStoredCards,
     setTemplateEditorSelectedTemplateId,
+    setUserTemplates,
     toast,
   ]);
 }
