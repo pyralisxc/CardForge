@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { loadCardForgeCatalog } from '@/features/developer-assets/client/catalog';
-import type { AppearanceStyleLibrary, AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
+import { loadCardForgeStudioBootstrap } from '@/features/developer-assets/client/catalog';
+import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 
 interface UseBootstrapLibrariesInput {
   setAppearanceStylesFromFiles: (styles: AppearanceStylePreset[]) => void;
@@ -28,52 +28,45 @@ export function useBootstrapLibraries({
   useEffect(() => {
     let cancelled = false;
 
-    const loadPipelineTemplates = async () => {
+    const loadStudioLibraries = async () => {
       setIsLoadingTemplates(true);
       try {
-        const payload = (await loadCardForgeCatalog()).templates;
+        const payload = await loadCardForgeStudioBootstrap();
         if (cancelled) return;
-        if (!Array.isArray(payload.defaults) || !Array.isArray(payload.userTemplates)) {
+
+        if (!Array.isArray(payload.templates.defaults) || !Array.isArray(payload.templates.userTemplates)) {
           throw new Error('Template library response is incomplete.');
         }
+        if (!Array.isArray(payload.styles.styles)) {
+          throw new Error('Style library response is incomplete.');
+        }
+
         setTemplateLibraryFailed(false);
-        setDefaultTemplatesFromFiles(payload.defaults);
-        mergeUserTemplatesFromFiles(payload.userTemplates);
+        setStyleLibraryFailed(false);
+        setDefaultTemplatesFromFiles(payload.templates.defaults);
+        mergeUserTemplatesFromFiles(payload.templates.userTemplates);
+        setAppearanceStylesFromFiles(payload.styles.styles);
       } catch (error) {
-        console.warn('Unable to load pipeline templates:', error);
-        if (!cancelled) setTemplateLibraryFailed(true);
+        console.warn('Unable to load Studio libraries:', error);
+        if (!cancelled) {
+          setTemplateLibraryFailed(true);
+          setStyleLibraryFailed(true);
+        }
       } finally {
         if (!cancelled) setIsLoadingTemplates(false);
       }
     };
 
-    loadPipelineTemplates();
+    void loadStudioLibraries();
     return () => {
       cancelled = true;
     };
-  }, [setDefaultTemplatesFromFiles, mergeUserTemplatesFromFiles, reloadToken]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadPipelineStyles = async () => {
-      try {
-        const payload = (await loadCardForgeCatalog()).styles as Partial<AppearanceStyleLibrary>;
-        if (cancelled) return;
-        if (!Array.isArray(payload.styles)) throw new Error('Style library response is incomplete.');
-        setStyleLibraryFailed(false);
-        setAppearanceStylesFromFiles(payload.styles);
-      } catch (error) {
-        console.warn('Unable to load pipeline styles:', error);
-        if (!cancelled) setStyleLibraryFailed(true);
-      }
-    };
-
-    loadPipelineStyles();
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadToken, setAppearanceStylesFromFiles]);
+  }, [
+    mergeUserTemplatesFromFiles,
+    reloadToken,
+    setAppearanceStylesFromFiles,
+    setDefaultTemplatesFromFiles,
+  ]);
 
   return {
     isLoadingTemplates,
