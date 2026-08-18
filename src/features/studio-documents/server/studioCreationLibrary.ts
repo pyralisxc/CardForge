@@ -1,5 +1,11 @@
 import { CARD_FONT_OPTIONS, mergeCardFontOptions } from '@/domain/rendering';
-import type { CardAssetOption, AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
+import type {
+  AppearanceStylePreset,
+  CardAssetOption,
+  FreeformAppearance,
+  FreeformCardElement,
+  TCGCardTemplate,
+} from '@/domain/templates';
 import {
   getCachedCardForgeStudioAssets,
   getCachedCardForgeStudioBootstrap,
@@ -7,6 +13,7 @@ import {
 
 export const STUDIO_CREATION_LIBRARY_KINDS = [
   'template',
+  'frame-kit',
   'style',
   'font',
   'texture',
@@ -29,6 +36,9 @@ export interface StudioCreationLibraryItem {
   studioDestinations?: string[];
   defaultWidth?: number;
   defaultHeight?: number;
+  appearance?: FreeformAppearance;
+  elementUpdates?: Partial<FreeformCardElement>;
+  templateUpdates?: Partial<TCGCardTemplate>;
 }
 
 const templateItem = (template: TCGCardTemplate): StudioCreationLibraryItem => ({
@@ -39,13 +49,52 @@ const templateItem = (template: TCGCardTemplate): StudioCreationLibraryItem => (
   category: template.templateCategory,
 });
 
+const templateFrameKitItem = (template: TCGCardTemplate): StudioCreationLibraryItem | null => {
+  if (!template.id || template.templateRegistryStatus !== 'published') return null;
+  if (!template.cardBackgroundImageUrl && !template.cardBorderImageSource && !template.appearance) return null;
+
+  return {
+    id: `frame-kit-${template.id}`,
+    name: `${template.name} frame kit`,
+    kind: 'frame-kit',
+    description: 'Published CardForge Template treatment reusable as a cohesive frame/background starting point.',
+    category: template.templateCategory,
+    templateUpdates: {
+      aspectRatio: template.aspectRatio,
+      formatId: template.formatId,
+      trimWidthMm: template.trimWidthMm,
+      trimHeightMm: template.trimHeightMm,
+      frameStyle: template.frameStyle ?? 'custom',
+      cardBackgroundImageUrl: template.cardBackgroundImageUrl,
+      cardBorderImageSource: template.cardBorderImageSource,
+      baseBackgroundColor: template.baseBackgroundColor,
+      baseTextColor: template.baseTextColor,
+      cardBorderColor: template.cardBorderColor,
+      cardBorderWidth: template.cardBorderWidth,
+      cardBorderStyle: template.cardBorderStyle,
+      cardBorderRadius: template.cardBorderRadius,
+      appearance: template.appearance,
+    },
+  };
+};
+
 const styleItem = (style: AppearanceStylePreset): StudioCreationLibraryItem => ({
   id: style.id,
   name: style.name,
   kind: 'style',
+  description: style.kind === 'frameKit'
+    ? 'Reusable CardForge frame-kit appearance preset.'
+    : style.kind === 'border'
+      ? 'Reusable CardForge border treatment.'
+      : style.kind === 'textFrame'
+        ? 'Reusable CardForge text-frame treatment.'
+        : undefined,
   category: style.kind,
   allowedTargets: [...style.targets],
   studioDestinations: style.studioDestinations ? [...style.studioDestinations] : undefined,
+  appearance: style.appearance,
+  elementUpdates: style.updates,
+  templateUpdates: style.templateUpdates,
 });
 
 const assetItem = (
@@ -88,8 +137,12 @@ export const searchStudioCreationLibrary = async ({
     getCachedCardForgeStudioAssets('dev'),
   ]);
   const fonts = mergeCardFontOptions(CARD_FONT_OPTIONS, bootstrap.fonts.fonts ?? []);
+  const frameKits = bootstrap.templates.defaults
+    .map(templateFrameKitItem)
+    .filter((item): item is StudioCreationLibraryItem => Boolean(item));
   const items: StudioCreationLibraryItem[] = [
     ...bootstrap.templates.defaults.map(templateItem),
+    ...frameKits,
     ...bootstrap.styles.styles.map(styleItem),
     ...fonts.map((font) => ({
       id: font.value,
