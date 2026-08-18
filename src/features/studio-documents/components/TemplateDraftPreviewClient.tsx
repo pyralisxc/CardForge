@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
 
 import type { CardData } from '@/domain/cards';
@@ -11,10 +11,9 @@ import {
 } from '@/domain/templates';
 import { Button } from '@/components/ui/button';
 import { CardPreview } from '@/features/card-rendering/client';
+import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
-export const CARDFORGE_TEMPLATE_PREVIEW_MESSAGE = 'cardforge:template-draft-preview';
-
-export interface TemplateDraftPreviewPayload {
+interface TemplateDraftPreviewPayload {
   title: string;
   revision: number;
   template: TCGCardTemplate;
@@ -32,28 +31,40 @@ const buildPreviewData = (template: TCGCardTemplate): CardData => {
 
 export function TemplateDraftPreviewClient() {
   const [payload, setPayload] = useState<TemplateDraftPreviewPayload | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.source !== window.parent) return;
-      const message = event.data as { type?: unknown; preview?: unknown } | null;
-      if (!message || message.type !== CARDFORGE_TEMPLATE_PREVIEW_MESSAGE) return;
-      const preview = message.preview as TemplateDraftPreviewPayload | null;
-      if (!preview || typeof preview.title !== 'string' || !Number.isInteger(preview.revision)) return;
-      if (!preview.template || typeof preview.template !== 'object') return;
+    const token = new URL(window.location.href).searchParams.get('token');
+    if (!token) {
+      setErrorMessage('This CardForge draft preview link is invalid.');
+      return;
+    }
+
+    const controller = new AbortController();
+    void (async () => {
       try {
+        const response = await fetch(`/api/studio-document-preview?token=${encodeURIComponent(token)}`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(await readApiErrorMessage(response, 'Unable to load this CardForge draft preview.'));
+        }
+        const preview = await response.json() as TemplateDraftPreviewPayload;
         const template = reconstructMinimalTemplateObject(preview.template);
-        if (!template.id || !template.freeformCanvas) return;
+        if (!template.id || !template.freeformCanvas) {
+          throw new Error('This CardForge draft does not contain a renderable Template.');
+        }
         setPayload({ title: preview.title, revision: preview.revision, template });
-      } catch {
-        // Ignore malformed cross-frame preview messages.
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setErrorMessage(error instanceof Error ? error.message : 'Unable to load this CardForge draft preview.');
+        }
       }
-    };
-    window.addEventListener('message', handleMessage);
-    window.parent.postMessage({ type: 'cardforge:template-preview-ready' }, '*');
-    return () => window.removeEventListener('message', handleMessage);
+    })();
+    return () => controller.abort();
   }, []);
 
   const card = useMemo<DisplayCard | null>(() => {
@@ -109,8 +120,8 @@ export function TemplateDraftPreviewClient() {
           </div>
         </section>
       ) : (
-        <div className="mt-8 rounded-lg border border-[#2b3039] bg-[#0d1117] px-4 py-3 text-sm text-[#aab1bd]">
-          Preparing the CardForge draft preview…
+        <div className={`mt-8 max-w-lg rounded-lg border px-4 py-3 text-sm ${errorMessage ? 'border-red-500/40 bg-red-500/10 text-red-100' : 'border-[#2b3039] bg-[#0d1117] text-[#aab1bd]'}`}>
+          {errorMessage ?? 'Preparing the CardForge draft preview…'}
         </div>
       )}
     </main>
