@@ -41,6 +41,16 @@ export {
 } from './persistence/indexedDbStorage';
 export type { BrowserStorageHealth, BrowserStorageSaveStatus } from './persistence/indexedDbStorage';
 export {
+  createProjectPersistenceScope,
+  createScopedProjectStorage,
+  getProjectPersistenceScope,
+  getScopedProjectStorageNamespace,
+  LEGACY_PROJECT_ASSETS_NAMESPACE,
+  LEGACY_PROJECT_WORKSPACE_NAMESPACE,
+  setProjectPersistenceScope,
+} from './persistence/projectPersistenceScope';
+export type { ProjectPersistenceScope } from './persistence/projectPersistenceScope';
+export {
   readProjectPreference,
   removeProjectPreference,
   writeProjectPreference,
