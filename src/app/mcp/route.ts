@@ -26,6 +26,7 @@ import {
   StudioDocumentStoreError,
   updateDeveloperTemplateDraft,
 } from '@/features/studio-documents/server';
+import { registerAgentTemplateTools } from '@/features/studio-documents/server/mcpAgentTemplateTools';
 import {
   createTemplateInputSchema,
   documentIdInputSchema,
@@ -60,14 +61,21 @@ const studioDocumentUrl = (documentId: string) => absoluteUrl(
 
 const omitEmbeddedMediaForChat = (value: unknown): unknown => {
   if (typeof value === 'string') {
-    if (value.startsWith('data:')) return '[embedded media omitted; open this draft in CardForge Studio]';
+    if (value.startsWith('data:')) return '[embedded media retained by CardForge; use attach_template_artwork to replace it]';
     return value.length > 4000 ? `${value.slice(0, 4000)}…` : value;
   }
   if (Array.isArray(value)) return value.map(omitEmbeddedMediaForChat);
   if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [key, omitEmbeddedMediaForChat(entry)]),
-    );
+    const record = value as Record<string, unknown>;
+    const embeddedAssetId = typeof record.embeddedAssetId === 'string' ? record.embeddedAssetId : null;
+    const entries = Object.entries(record)
+      .filter(([key]) => key !== 'binding' && key !== 'embeddedAssetId')
+      .map(([key, entry]) => [key, omitEmbeddedMediaForChat(entry)] as const);
+    const sanitized = Object.fromEntries(entries);
+    if (embeddedAssetId && typeof sanitized.assetUrl !== 'string') {
+      sanitized.assetUrl = `embedded://${embeddedAssetId}`;
+    }
+    return sanitized;
   }
   return value;
 };
@@ -133,6 +141,13 @@ const documentStructuredContent = (document: Awaited<ReturnType<typeof createDev
 
 const handler = createMcpHandler(
   (server) => {
+    registerAgentTemplateTools({
+      server,
+      publicOrigin: publicOrigin(),
+      getAccess: getMcpDeveloperAccess,
+      toolError,
+    });
+
     server.registerTool(
       'get_studio_creation_guide',
       {
@@ -153,9 +168,10 @@ const handler = createMcpHandler(
               'Agree on visual direction: look and feel, palette, typography, hierarchy, and copy/content needs.',
               'Define every Studio-editable field and bind it through native fieldContracts to a real canvas element.',
               'Inventory assets with quantities and roles. Search the CardForge library before asking for new art.',
+              'For each distinct custom image, create one planned asset requirement with status needed, then attach the finished image with attach_template_artwork.',
               'Show the production plan to the user and use decisionMode confirmed after approval, or delegated only when the user explicitly delegated creative decisions.',
-              'Create the native editable Template, inspect the resulting Studio document, and revise the same document when a stronger pass is useful.',
-              'Open the finished private project in CardForge Studio for visual inspection and manual editing.',
+              'Create the native editable Template, attach required artwork, and call preview_template_draft so the user can visually review the exact CardForge render in chat.',
+              'Revise the same Studio document and re-preview until the user is satisfied, then let them open it in CardForge Studio to install it into their personal Template library.',
             ],
             canvas: {
               elementTypes: [...CARDFORGE_FREEFORM_ELEMENT_TYPES],
@@ -167,7 +183,7 @@ const handler = createMcpHandler(
               decisionModes: [...PROJECT_PRODUCTION_DECISION_MODES],
               assetSources: [...PROJECT_ASSET_REQUIREMENT_SOURCES],
               assetStatuses: [...PROJECT_ASSET_REQUIREMENT_STATUSES],
-              customArtRule: 'Do not claim custom-generated media is attached unless a usable assetUrl exists. Keep it needed, or use an explicit placeholder, until it can actually be bound.',
+              customArtRule: 'Keep new custom-generated artwork status needed in the creation plan, generate it, then use attach_template_artwork. CardForge embeds the normalized image into the Template itself and marks the requirement selected.',
             },
             quality: {
               nativeEditableFeatures: [
@@ -260,7 +276,7 @@ const handler = createMcpHandler(
       'update_editable_template',
       {
         title: 'Revise an editable CardForge Template',
-        description: 'Revise the same private Studio document after inspecting it or discussing changes. Load the document first, preserve its CardForge identity, send the current expectedRevision, and update the rich native Template plus its production plan.',
+        description: 'Revise the same private Studio document after inspecting it or discussing changes. Load the document first, preserve its CardForge identity, send the current expectedRevision, and update the rich native Template plus its production plan. CardForge preserves already embedded artwork for matching planned asset ids.',
         inputSchema: updateTemplateInputSchema,
         annotations: {
           readOnlyHint: false,
@@ -324,7 +340,7 @@ const handler = createMcpHandler(
       'get_editable_template',
       {
         title: 'Get an editable CardForge Template',
-        description: 'Load one private Studio document, including its native editable Template and production plan, before discussing or revising it.',
+        description: 'Load one private Studio document, including its native editable Template and production plan, before discussing or revising it. Embedded image bytes are omitted from model context but remain attached to the draft.',
         inputSchema: documentIdInputSchema,
         annotations: {
           readOnlyHint: true,
@@ -388,16 +404,19 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.2.0' },
+    serverInfo: { name: 'cardforge-studio', version: '0.3.0' },
     instructions: [
       'Act as a design director and production planner before creating a new CardForge Template.',
       'For a new design, establish purpose, audience, exact dimensions or physical format, visual direction, copy needs, Studio-editable fields, and an explicit asset inventory with quantities and roles.',
       'Use get_studio_creation_guide when the workflow or native capabilities are unclear, and search_studio_library before inventing a new asset when CardForge may already have a suitable template, style, font, texture, divider, icon, or image.',
       'Before create_editable_template, summarize the production plan to the user and get approval unless the user already explicitly delegated the creative decisions. Record decisionMode confirmed only after approval and delegated only after explicit delegation.',
+      'Use one planned asset requirement per distinct custom image. Keep custom-generated requirements status needed at creation, generate the image, then attach it with attach_template_artwork using the planned requirement id and appropriate native binding.',
       'Use fieldContracts for content the user should be able to edit in Studio, and bind every planned editable field and asset target to stable native element ids.',
-      'Do not claim custom-generated art, backgrounds, borders, or other media are attached unless a usable assetUrl is actually available. Keep unresolved custom media status needed, or use an explicit placeholder, until it can be bound.',
+      'CardForge embeds attached artwork into the Template itself. Do not resend already attached image bytes during ordinary revisions; keep the same planned asset id and CardForge will preserve the embedded artwork.',
       'Create with native CardForge fields rather than generic design-tool vocabulary. Rich native appearance, typography, image positioning, shape roles, grouping, and physical dimensions are supported.',
-      'After creation, inspect the result with get_editable_template. Use update_editable_template against the current revision when another pass materially improves the design or the user requests changes.',
+      'After creation and after meaningful revisions or artwork changes, call preview_template_draft so the user can visually inspect the exact current CardForge render in chat.',
+      'Use get_editable_template and update_editable_template against the current revision when another pass materially improves the design or the user requests changes. Re-preview the same draft until they are satisfied.',
+      'Only after visual approval should the user open the Studio link. Opening an agent draft installs it into the user personal Template library rather than publishing it.',
       'Never claim a private Template is published. Forge Review and the contribution Pipeline are separate explicit steps.',
     ].join(' '),
     maxSubscriptions: 0,

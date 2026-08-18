@@ -113,18 +113,23 @@ describe('Studio account-scoped persistence', () => {
     expect(workspaceStore).toContain('useProjectStore.setState(useProjectStore.getInitialState())');
   });
 
-  it('opens an external Studio document as the active project instead of accumulating it', async () => {
+  it('keeps non-agent external Studio documents as active-project opens instead of accumulating them', async () => {
     const handoff = await readFile(
       rootPath('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts'),
       'utf8',
     );
+    const branchStart = handoff.indexOf('// Non-agent Studio documents retain project-open semantics.');
+    const branchEnd = handoff.indexOf('      } catch (error) {', branchStart);
+    const nonAgentWorkspaceBranch = handoff.slice(branchStart, branchEnd);
 
+    expect(branchStart).toBeGreaterThan(-1);
+    expect(branchEnd).toBeGreaterThan(branchStart);
     expect(handoff).toContain('writeProjectAssetListToStorage');
-    expect(handoff).not.toContain('mergeProjectAssetListToStorage');
-    expect(handoff).toContain('useProjectStore.setState({');
-    expect(handoff).toContain('userTemplates: []');
-    expect(handoff).toContain('appearanceStyles: []');
-    expect(handoff).toContain('storedCards: []');
+    expect(nonAgentWorkspaceBranch).toContain('useProjectStore.setState({');
+    expect(nonAgentWorkspaceBranch).toContain('userTemplates: []');
+    expect(nonAgentWorkspaceBranch).toContain('appearanceStyles: []');
+    expect(nonAgentWorkspaceBranch).toContain('storedCards: []');
+    expect(nonAgentWorkspaceBranch).toContain('mergeStoredCards(patch.storedCards)');
     expect(handoff).toContain('normalizeStudioDocumentPayload');
     expect(handoff).toContain('applyProjectDocumentToState');
   });

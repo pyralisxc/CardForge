@@ -10,12 +10,19 @@ import {
   requireContributionScope,
   type DeveloperCockpitAccess,
 } from '@/features/developer-access/server';
+import type { ProjectAssetBinding } from '@/features/project/server';
 import {
   createProjectDocumentFromTemplateDraft,
   createTemplateFromTemplateDraft,
   type GptTemplateDraftInput,
 } from '@/features/studio-documents/model';
 
+import {
+  bindEmbeddedTemplateAsset,
+  normalizeEmbeddedTemplateAsset,
+  preserveEmbeddedTemplateAssets,
+  type EmbeddedTemplateAssetMimeType,
+} from './embeddedTemplateAssets';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import {
   createStudioDocument,
@@ -75,6 +82,13 @@ export const updateDeveloperTemplateDraft = async ({
     throw new StudioDocumentStoreError('The editable Template is missing its CardForge id.', 409);
   }
 
+  const preserved = preserveEmbeddedTemplateAssets({
+    currentTemplate,
+    nextTemplate: createTemplateFromTemplateDraft(input.template, templateId),
+    currentPlan: current.document.productionPlan,
+    nextPlan: input.productionPlan,
+  });
+
   return updateStudioDocument({
     ownerUserId: access.user.id,
     documentId,
@@ -82,8 +96,96 @@ export const updateDeveloperTemplateDraft = async ({
     title: input.title,
     document: {
       ...current.document,
-      userTemplates: [createTemplateFromTemplateDraft(input.template, templateId)],
-      productionPlan: input.productionPlan,
+      userTemplates: [preserved.template],
+      productionPlan: preserved.productionPlan,
+    },
+  });
+};
+
+const getSingleEditableTemplate = (templates: TCGCardTemplate[]): TCGCardTemplate => {
+  if (templates.length !== 1) {
+    throw new StudioDocumentStoreError(
+      'Embedded artwork currently requires a Studio document with exactly one editable Template.',
+      409,
+    );
+  }
+  const template = templates[0];
+  if (!template.id?.trim()) {
+    throw new StudioDocumentStoreError('The editable Template is missing its CardForge id.', 409);
+  }
+  return template;
+};
+
+export const attachDeveloperTemplateDraftAsset = async ({
+  access,
+  documentId,
+  expectedRevision,
+  assetRequirementId,
+  binding,
+  mimeType,
+  data,
+}: {
+  access: DeveloperCockpitAccess;
+  documentId: string;
+  expectedRevision: number;
+  assetRequirementId: string;
+  binding: ProjectAssetBinding;
+  mimeType: EmbeddedTemplateAssetMimeType;
+  data: string;
+}) => {
+  requireContributionScope(access, 'studio.ai.create');
+  const current = await getStudioDocument(access.user.id, documentId);
+  if (current.revision !== expectedRevision) {
+    throw new StudioDocumentStoreError(
+      'The Studio document changed. Reload it before attaching artwork.',
+      409,
+    );
+  }
+  const productionPlan = current.document.productionPlan;
+  if (!productionPlan) {
+    throw new StudioDocumentStoreError('This Studio document does not have a production plan.', 409);
+  }
+  const requirementIndex = productionPlan.assets.findIndex((asset) => asset.id === assetRequirementId);
+  const requirement = productionPlan.assets[requirementIndex];
+  if (!requirement) {
+    throw new StudioDocumentStoreError('That planned asset is not part of this Studio document.', 404);
+  }
+  if (!['custom-generated', 'user-provided', 'cardforge-output'].includes(requirement.source)) {
+    throw new StudioDocumentStoreError(
+      'Only generated, user-provided, or CardForge-output artwork can be embedded into a private Template.',
+      400,
+    );
+  }
+
+  const template = getSingleEditableTemplate(current.document.userTemplates);
+  const normalized = await normalizeEmbeddedTemplateAsset({ data, mimeType });
+  const targetElementIds = requirement.targetElementIds ?? [];
+  const nextTemplate = bindEmbeddedTemplateAsset({
+    template,
+    binding,
+    targetElementIds,
+    dataUri: normalized.dataUri,
+  });
+  const nextAssets = [...productionPlan.assets];
+  nextAssets[requirementIndex] = {
+    ...requirement,
+    status: 'selected',
+    binding,
+    embeddedAssetId: requirement.id,
+    assetUrl: undefined,
+    width: normalized.width,
+    height: normalized.height,
+  };
+
+  return updateStudioDocument({
+    ownerUserId: access.user.id,
+    documentId,
+    expectedRevision,
+    title: current.title,
+    document: {
+      ...current.document,
+      userTemplates: [nextTemplate],
+      productionPlan: { ...productionPlan, assets: nextAssets },
     },
   });
 };
