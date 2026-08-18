@@ -12,6 +12,7 @@ import {
 } from '@/features/developer-access/server';
 import {
   createProjectDocumentFromTemplateDraft,
+  createTemplateFromTemplateDraft,
   type GptTemplateDraftInput,
 } from '@/features/studio-documents/model';
 
@@ -20,6 +21,7 @@ import {
   createStudioDocument,
   getStudioDocument,
   listStudioDocuments,
+  updateStudioDocument,
 } from './studioDocumentStore';
 
 export const createDeveloperTemplateDraft = async (
@@ -46,6 +48,44 @@ export const getDeveloperTemplateDraft = async (
 ) => {
   requireContributionScope(access, 'studio.ai.create');
   return getStudioDocument(access.user.id, documentId);
+};
+
+export const updateDeveloperTemplateDraft = async ({
+  access,
+  documentId,
+  expectedRevision,
+  input,
+}: {
+  access: DeveloperCockpitAccess;
+  documentId: string;
+  expectedRevision: number;
+  input: GptTemplateDraftInput;
+}) => {
+  requireContributionScope(access, 'studio.ai.create');
+  const current = await getStudioDocument(access.user.id, documentId);
+  if (current.document.userTemplates.length !== 1) {
+    throw new StudioDocumentStoreError(
+      'MCP revision currently requires a Studio document with exactly one editable Template.',
+      409,
+    );
+  }
+  const currentTemplate = current.document.userTemplates[0];
+  const templateId = currentTemplate.id?.trim();
+  if (!templateId) {
+    throw new StudioDocumentStoreError('The editable Template is missing its CardForge id.', 409);
+  }
+
+  return updateStudioDocument({
+    ownerUserId: access.user.id,
+    documentId,
+    expectedRevision,
+    title: input.title,
+    document: {
+      ...current.document,
+      userTemplates: [createTemplateFromTemplateDraft(input.template, templateId)],
+      productionPlan: input.productionPlan,
+    },
+  });
 };
 
 const selectTemplate = (
