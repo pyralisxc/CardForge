@@ -12,6 +12,7 @@ import {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getProjectAssetStorage,
+  useProjectStore,
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
 import { normalizeStudioDocumentPayload } from '@/features/studio-documents/model';
@@ -27,16 +28,16 @@ interface StudioDocumentHandoffOptions {
   isAccountLoading: boolean;
   isSignedIn: boolean;
   isStudioReady: boolean;
-  replaceAppearanceStyles: (styles: AppearanceStylePreset[]) => void;
+  mergeAppearanceStyles: (styles: AppearanceStylePreset[]) => void;
   setActiveTab: (tab: string) => void;
   setExportDpi: (dpi: number) => void;
   setExportMode: (mode: ExportMode) => void;
   setPdfOptions: (options: { margin?: number; spacing?: number; cutLines?: boolean; duplexLayout?: PdfDuplexLayout }) => void;
   setSelectedPaperSize: (size: PaperSize) => void;
   setSelectedTemplateId: (id: string | null) => void;
-  setStoredCards: (cards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
+  mergeStoredCards: (cards: StoredDisplayCard[]) => { successCount: number; skippedCount: number };
   setTemplateEditorSelectedTemplateId: (id: string | null) => void;
-  setUserTemplates: (templates: Partial<TCGCardTemplate>[]) => number;
+  mergeUserTemplates: (templates: Partial<TCGCardTemplate>[]) => number;
   toast: (input: ToastInput) => void;
 }
 
@@ -44,16 +45,16 @@ export function useStudioDocumentHandoff({
   isAccountLoading,
   isSignedIn,
   isStudioReady,
-  replaceAppearanceStyles,
+  mergeAppearanceStyles,
   setActiveTab,
   setExportDpi,
   setExportMode,
   setPdfOptions,
   setSelectedPaperSize,
   setSelectedTemplateId,
-  setStoredCards,
+  mergeStoredCards,
   setTemplateEditorSelectedTemplateId,
-  setUserTemplates,
+  mergeUserTemplates,
   toast,
 }: StudioDocumentHandoffOptions) {
   const handledDocumentIdRef = useRef<string | null>(null);
@@ -97,8 +98,16 @@ export function useStudioDocumentHandoff({
         ]);
         if (cancelled) return;
 
-        setUserTemplates(patch.userTemplates);
-        replaceAppearanceStyles(patch.appearanceStyles);
+        // Opening an external Studio document is a project-open operation, not an
+        // accumulating import. Clear persisted project collections first, then reuse
+        // the same validated store actions used by ordinary project ingestion.
+        useProjectStore.setState({
+          userTemplates: [],
+          appearanceStyles: [],
+          storedCards: [],
+        });
+        mergeUserTemplates(patch.userTemplates);
+        mergeAppearanceStyles(patch.appearanceStyles);
         if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);
         setPdfOptions({
           margin: patch.pdfMarginMm,
@@ -108,7 +117,7 @@ export function useStudioDocumentHandoff({
         });
         if (patch.exportMode) setExportMode(patch.exportMode);
         if (patch.exportDpi) setExportDpi(patch.exportDpi);
-        setStoredCards(patch.storedCards);
+        mergeStoredCards(patch.storedCards);
 
         const firstTemplateId = patch.userTemplates.find((template) => template.id)?.id ?? null;
         setSelectedTemplateId(firstTemplateId);
@@ -146,16 +155,16 @@ export function useStudioDocumentHandoff({
     isAccountLoading,
     isSignedIn,
     isStudioReady,
-    replaceAppearanceStyles,
+    mergeAppearanceStyles,
+    mergeStoredCards,
+    mergeUserTemplates,
     setActiveTab,
     setExportDpi,
     setExportMode,
     setPdfOptions,
     setSelectedPaperSize,
     setSelectedTemplateId,
-    setStoredCards,
     setTemplateEditorSelectedTemplateId,
-    setUserTemplates,
     toast,
   ]);
 }
