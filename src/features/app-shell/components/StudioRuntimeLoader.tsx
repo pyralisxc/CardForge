@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
 import type { DeveloperAccessSessionState } from '@/features/developer-access/client';
-import { setProjectPersistenceScope, type ProjectPersistenceScope } from '@/features/project/client';
+import type { ProjectPersistenceScope } from '@/features/project/client';
 
 export type StudioRuntimeBusinessIdentity = {
   brandName: string;
@@ -17,7 +17,7 @@ type IdleCapableWindow = Window & typeof globalThis & {
 };
 
 const DeferredStudioShell = dynamic(
-  () => import('./CardForgeStudioShell').then((module) => module.CardForgeStudioShell),
+  () => import('./ScopedCardForgeStudioShell').then((module) => module.ScopedCardForgeStudioShell),
   { ssr: false },
 );
 
@@ -30,11 +30,6 @@ export function StudioRuntimeLoader({
   initialDeveloperAccess: DeveloperAccessSessionState;
   persistenceScope: ProjectPersistenceScope;
 }) {
-  // The heavy Studio bundle owns the Zustand workspace store. Set the account scope
-  // before that bundle is allowed to load so automatic hydration cannot touch legacy
-  // browser-global project state.
-  setProjectPersistenceScope(persistenceScope);
-
   const [shouldLoadRuntime, setShouldLoadRuntime] = useState(false);
 
   useEffect(() => {
@@ -67,6 +62,7 @@ export function StudioRuntimeLoader({
       <DeferredStudioShell
         businessIdentity={businessIdentity}
         initialDeveloperAccess={initialDeveloperAccess}
+        persistenceScope={persistenceScope}
       />
     );
   }
