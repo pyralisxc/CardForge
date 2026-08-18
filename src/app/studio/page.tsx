@@ -4,6 +4,7 @@ import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getCurrentDeveloperAccessSessionState } from '@/features/developer-access/server';
+import { createProjectPersistenceScope } from '@/features/project/server';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -21,7 +22,7 @@ export default async function StudioPage({
 }) {
   const documentId = (await searchParams).document;
   const authConfigured = isClerkServerConfigPresent();
-  let persistenceScope: `account:${string}` | 'guest' | 'local' = 'local';
+  let accountUserId: string | null = null;
 
   if (authConfigured) {
     const { isAuthenticated, redirectToSignIn, userId } = await auth();
@@ -30,9 +31,13 @@ export default async function StudioPage({
         returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`,
       });
     }
-    persistenceScope = userId ? `account:${encodeURIComponent(userId)}` : 'guest';
+    accountUserId = userId;
   }
 
+  const persistenceScope = createProjectPersistenceScope({
+    authConfigured,
+    accountUserId,
+  });
   const [businessIdentity, initialDeveloperAccess] = await Promise.all([
     getBusinessIdentity(),
     getCurrentDeveloperAccessSessionState(),
