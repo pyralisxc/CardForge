@@ -1,4 +1,4 @@
-import { CardForgeStudioShell } from '@/features/app-shell/client/studio';
+import { StudioRuntimeLoader } from '@/features/app-shell/components/StudioRuntimeLoader';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getCurrentDeveloperAccessSessionState } from '@/features/developer-access/server';
@@ -19,7 +19,7 @@ export default async function StudioPage() {
 
   return (
     <CardForgeAppProviders>
-      <CardForgeStudioShell businessIdentity={{
+      <StudioRuntimeLoader businessIdentity={{
         brandName: businessIdentity.brandName,
         copyrightHolder: businessIdentity.copyrightHolder,
       }} initialDeveloperAccess={initialDeveloperAccess} />
