@@ -71,10 +71,15 @@ describe('native Studio document validation', () => {
 
   it('keeps the MCP authoring schema closed over native CardForge vocabulary', () => {
     const route = readFileSync(resolve(process.cwd(), 'src/app/mcp/route.ts'), 'utf8');
+    const schema = readFileSync(
+      resolve(process.cwd(), 'src/features/studio-documents/server/mcpToolInputSchemas.ts'),
+      'utf8',
+    );
 
-    expect(route).toContain("CARDFORGE_FREEFORM_ELEMENT_TYPES");
-    expect(route).toContain("additionalProperties: false");
-    expect(route).toContain("Element types are text, image, icon, or shape");
-    expect(route).not.toContain("items: { type: 'object', additionalProperties: true }");
+    expect(route).toContain('CARDFORGE_FREEFORM_ELEMENT_TYPES');
+    expect(route).toContain('elementTypes: [...CARDFORGE_FREEFORM_ELEMENT_TYPES]');
+    expect(schema).toContain('additionalProperties: false');
+    expect(schema).toContain("type: { type: 'string', enum: [...CARDFORGE_FREEFORM_ELEMENT_TYPES] }");
+    expect(schema).not.toContain("items: { type: 'object', additionalProperties: true }");
   });
 });

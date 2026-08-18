@@ -7,6 +7,10 @@ import {
   type TCGCardTemplate,
 } from '@/domain/templates';
 import type { ExportMode, PaperSize, PdfDuplexLayout } from '@/domain/rendering';
+import {
+  normalizeProjectProductionPlan,
+  type ProjectProductionPlan,
+} from './projectProductionPlan';
 
 const PROJECT_DOCUMENT_VERSION = 1;
 
@@ -39,6 +43,7 @@ export interface ProjectDocumentV1 {
   appearanceStyles: AppearanceStylePreset[];
   exportSettings: ProjectDocumentExportSettings;
   customAssets: ProjectDocumentCustomAssets;
+  productionPlan?: ProjectProductionPlan;
 }
 
 export interface CreateProjectDocumentInput extends ProjectDocumentExportSettings {
@@ -49,6 +54,7 @@ export interface CreateProjectDocumentInput extends ProjectDocumentExportSetting
   customDividerAssets?: CardAssetOption[];
   customIconAssets?: CardAssetOption[];
   customImageAssets?: CardAssetOption[];
+  productionPlan?: ProjectProductionPlan;
 }
 
 export interface ProjectDocumentStatePatch extends ProjectDocumentExportSettings {
@@ -178,6 +184,7 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
     appearanceStyles: asArray<AppearanceStylePreset>(value.appearanceStyles),
     exportSettings: isRecord(value.exportSettings) ? value.exportSettings : {},
     customAssets: normalizeCustomAssets(value.customAssets),
+    productionPlan: normalizeProjectProductionPlan(value.productionPlan),
   };
 };
 
@@ -196,6 +203,7 @@ export const createProjectDocumentFromState = ({
   customDividerAssets = [],
   customIconAssets = [],
   customImageAssets = [],
+  productionPlan,
 }: CreateProjectDocumentInput): ProjectDocumentV1 => ({
   version: PROJECT_DOCUMENT_VERSION,
   userTemplates,
@@ -216,6 +224,7 @@ export const createProjectDocumentFromState = ({
     [CUSTOM_ICON_ASSETS_STORAGE_KEY]: customIconAssets,
     [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: customImageAssets,
   },
+  productionPlan,
 });
 
 export const applyProjectDocumentToState = (document: ProjectDocumentV1): ProjectDocumentStatePatch => ({
