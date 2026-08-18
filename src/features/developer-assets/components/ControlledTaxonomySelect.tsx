@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 
 import type { ContentTaxonomyOption } from '@/features/developer-assets/lib/contentTaxonomy';
 
+const toControlId = (label: string): string => `taxonomy-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+
 export function ControlledTaxonomySelect({
   label,
   selectedIds,
@@ -19,11 +21,13 @@ export function ControlledTaxonomySelect({
 }) {
   const selected = [...new Set(selectedIds.filter((id) => options.some((option) => option.id === id)))];
   const available = options.filter((option) => !selected.includes(option.id));
+  const controlId = toControlId(label);
 
   return (
     <div className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-      <span>{label}</span>
+      <label htmlFor={controlId}>{label}</label>
       <select
+        id={controlId}
         className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
         value=""
         onChange={(event) => {
@@ -47,6 +51,7 @@ export function ControlledTaxonomySelect({
                 type="button"
                 className="inline-flex items-center gap-1 border border-[#5f4526] bg-[#15100a] px-2 py-1 text-[11px] text-[#ffe7ad]"
                 title={option.description}
+                aria-label={`Remove ${option.label}`}
                 onClick={() => onChange(selected.filter((candidate) => candidate !== id))}
               >
                 {option.label}
