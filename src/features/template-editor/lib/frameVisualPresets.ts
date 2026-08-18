@@ -10,7 +10,7 @@ export const PREDEFINED_FRAME_VISUAL_PROPERTIES: Record<string, Partial<TCGCardT
     cardBorderStyle: 'solid',
     cardBackgroundImageUrl: undefined,
     frameStyle: 'classic-gold',
-    cardBorderImageSource: 'CSS: Classic Gold Gradient',
+    cardBorderImageSource: 'linear-gradient(135deg, #6f4517 0%, #f4d77b 24%, #a76b22 50%, #f8e7a7 76%, #714718 100%)',
   },
   'minimal-dark': {
     baseBackgroundColor: '#282828',
