@@ -1,7 +1,7 @@
-import { ClerkProvider, SignIn } from '@clerk/nextjs';
+import { SignIn } from '@clerk/nextjs';
 import Link from 'next/link';
 
-import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
+import { getSafeLocalReturnPath, isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
@@ -11,7 +11,15 @@ export const metadata = createPageMetadata({
   index: false,
 });
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    redirect_url?: string;
+    returnTo?: string;
+    next?: string;
+  }>;
+}) {
   if (!isClerkServerConfigPresent()) {
     return (
       <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12 text-[#f7f1e4]">
@@ -31,16 +39,19 @@ export default function SignInPage() {
     );
   }
 
+  const params = await searchParams;
+  const fallbackRedirectUrl = getSafeLocalReturnPath(
+    params.redirect_url ?? params.returnTo ?? params.next,
+  );
+
   return (
-    <ClerkProvider>
-      <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12">
-        <div className="grid justify-items-center gap-6">
-          <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[#f7f1e4]">
-            CardForge Studio
-          </Link>
-          <SignIn fallbackRedirectUrl="/account" />
-        </div>
-      </main>
-    </ClerkProvider>
+    <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12">
+      <div className="grid justify-items-center gap-6">
+        <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[#f7f1e4]">
+          CardForge Studio
+        </Link>
+        <SignIn fallbackRedirectUrl={fallbackRedirectUrl} />
+      </div>
+    </main>
   );
 }

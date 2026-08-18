@@ -1,4 +1,3 @@
-import { ClerkProvider } from '@clerk/nextjs';
 import type { ReactNode } from 'react';
 
 import { Toaster } from '@/components/ui/toaster';
@@ -10,7 +9,6 @@ import {
   createSiteContentMap,
   getCachedSiteContentBlocks,
 } from '@/features/public-site/server';
-import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 export async function CardForgeAppProviders({ children }: { children: ReactNode }) {
@@ -19,14 +17,11 @@ export async function CardForgeAppProviders({ children }: { children: ReactNode 
     sharingCopy['sharing.message'],
     getPublicAppUrl(),
   );
-  const app = (
+
+  return (
     <PublicShareSettingsProvider settings={shareSettings}>
       {children}
       <Toaster />
     </PublicShareSettingsProvider>
   );
-
-  return isClerkServerConfigPresent()
-    ? <ClerkProvider>{app}</ClerkProvider>
-    : app;
 }

@@ -25,26 +25,46 @@ describe('public header authentication controls', () => {
     expect(controlsSource).not.toContain('userProfileUrl="/profile"');
   });
 
-  it('keeps a direct public sign-in path without restoring Clerk to the public header bundle', () => {
+  it('keeps Clerk session ownership at the root while preserving a lightweight public header', () => {
     const headerSource = readFileSync(
       resolve(process.cwd(), 'src/features/public-site/components/PublicSiteHeader.tsx'),
+      'utf8',
+    );
+    const rootLayoutSource = readFileSync(
+      resolve(process.cwd(), 'src/app/layout.tsx'),
+      'utf8',
+    );
+    const pageProvidersSource = readFileSync(
+      resolve(process.cwd(), 'src/features/app-shell/server/CardForgeAppProviders.tsx'),
       'utf8',
     );
     const signInPageSource = readFileSync(
       resolve(process.cwd(), 'src/app/sign-in/[[...sign-in]]/page.tsx'),
       'utf8',
     );
-    const clerkInfrastructureSource = readFileSync(
-      resolve(process.cwd(), 'src/infrastructure/auth/clerk.ts'),
-      'utf8',
-    );
 
     expect(headerSource).toContain('href="/sign-in"');
     expect(headerSource).toContain('Sign in');
     expect(headerSource).not.toContain('@clerk/nextjs');
-    expect(signInPageSource).toContain("import { ClerkProvider, SignIn } from '@clerk/nextjs'");
-    expect(signInPageSource).toContain('<SignIn fallbackRedirectUrl="/account" />');
-    expect(clerkInfrastructureSource).toContain("'/sign-in'");
+    expect(rootLayoutSource).toContain("import { ClerkProvider } from '@clerk/nextjs'");
+    expect(pageProvidersSource).not.toContain('ClerkProvider');
+    expect(signInPageSource).toContain("import { SignIn } from '@clerk/nextjs'");
+    expect(signInPageSource).not.toContain('ClerkProvider');
+    expect(signInPageSource).toContain('fallbackRedirectUrl={fallbackRedirectUrl}');
+  });
+
+  it('keeps Studio and Studio-document requests inside the shared Clerk middleware lifecycle', () => {
+    expect(clerkConfig.shouldRunClerkMiddlewareForRequest('/studio', 'GET')).toBe(true);
+    expect(clerkConfig.shouldRunClerkMiddlewareForRequest('/studio/something', 'GET')).toBe(true);
+    expect(clerkConfig.shouldRunClerkMiddlewareForRequest('/api/studio-documents/123', 'GET')).toBe(true);
+  });
+
+  it('accepts only same-site relative sign-in destinations', () => {
+    expect(clerkConfig.getSafeLocalReturnPath('/studio?document=abc')).toBe('/studio?document=abc');
+    expect(clerkConfig.getSafeLocalReturnPath('/account#billing')).toBe('/account#billing');
+    expect(clerkConfig.getSafeLocalReturnPath('https://evil.example/studio')).toBe('/account');
+    expect(clerkConfig.getSafeLocalReturnPath('//evil.example/studio')).toBe('/account');
+    expect(clerkConfig.getSafeLocalReturnPath(undefined)).toBe('/account');
   });
 
   it('removes the superseded app-shell public header', () => {

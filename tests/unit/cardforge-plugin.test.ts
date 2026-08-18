@@ -46,7 +46,9 @@ describe('CardForge Studio plugin', () => {
     expect(route).toContain('/studio?document=');
     expect(route).not.toContain('/sign-in?redirect_url=');
     expect(route).toContain('openInStudioUrl: studioDocumentUrl(document.id)');
-    expect(handoff).toContain('This private draft will stay pending and open automatically');
+    expect(handoff).toContain('This private draft is still selected');
     expect(handoff).toContain('signInPromptedDocumentIdRef');
+    expect(handoff).toContain('inFlightDocumentIdRef');
+    expect(handoff).toContain('handledDocumentIdRef.current = documentId');
   });
 });

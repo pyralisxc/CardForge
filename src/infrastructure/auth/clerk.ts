@@ -20,10 +20,27 @@ export const getPublicAuthControlState = ({
   return isSignedIn ? 'signed-in' : 'signed-out';
 };
 
+export const getSafeLocalReturnPath = (
+  value: string | undefined,
+  fallback = '/account',
+): string => {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return fallback;
+
+  try {
+    const base = new URL('https://cardforge.local');
+    const candidate = new URL(value, base);
+    if (candidate.origin !== base.origin) return fallback;
+    return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+  } catch {
+    return fallback;
+  }
+};
+
 const CLERK_PAGE_PREFIXES = [
   '/account',
   '/profile',
   '/sign-in',
+  '/studio',
   '/__clerk',
   '/mcp',
 ];
@@ -39,6 +56,7 @@ const CLERK_API_PREFIXES = [
   '/api/roadmap',
   '/api/roadmap/items',
   '/api/roadmap/votes',
+  '/api/studio-documents',
 ];
 
 const CLERK_MUTATION_API_PREFIXES = [
