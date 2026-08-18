@@ -3,35 +3,25 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { shouldRunClerkMiddlewareForRequest } from '@/infrastructure/auth/clerk';
+describe('Clerk middleware configuration', () => {
+  it('uses the standard broad Next matcher as the single route-selection boundary', () => {
+    const proxy = readFileSync(resolve(process.cwd(), 'src/proxy.ts'), 'utf8');
+    const middleware = readFileSync(
+      resolve(process.cwd(), 'src/infrastructure/auth/middleware.ts'),
+      'utf8',
+    );
+    const clerkConfig = readFileSync(
+      resolve(process.cwd(), 'src/infrastructure/auth/clerk.ts'),
+      'utf8',
+    );
 
-describe('Clerk middleware route selection', () => {
-  it('leaves the owner console shell renderable while protecting owner APIs', () => {
-    expect(shouldRunClerkMiddlewareForRequest('/owner', 'GET')).toBe(false);
-    expect(shouldRunClerkMiddlewareForRequest('/owner', 'POST')).toBe(false);
-    expect(shouldRunClerkMiddlewareForRequest('/api/owner/console', 'GET')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/api/owner/console', 'PUT')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/api/owner/site-media/founder.portrait', 'POST')).toBe(true);
-  });
-
-  it('runs for the public creator-support checkout so optional Clerk identity is available', () => {
-    expect(shouldRunClerkMiddlewareForRequest('/api/billing/support/checkout', 'POST')).toBe(true);
-  });
-
-  it('runs for every protected developer cockpit API route', () => {
-    expect(shouldRunClerkMiddlewareForRequest('/api/developer-cockpit', 'GET')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/api/developer-cockpit/campaigns', 'POST')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/api/developer-cockpit/provider', 'POST')).toBe(true);
-  });
-
-  it('runs for the authenticated MCP server', () => {
-    expect(shouldRunClerkMiddlewareForRequest('/mcp', 'GET')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/mcp', 'POST')).toBe(true);
-  });
-
-  it('runs for the dedicated public sign-in route', () => {
-    expect(shouldRunClerkMiddlewareForRequest('/sign-in', 'GET')).toBe(true);
-    expect(shouldRunClerkMiddlewareForRequest('/sign-in/sso-callback', 'GET')).toBe(true);
+    expect(proxy).toContain("'/(api|trpc)(.*)'");
+    expect(proxy).toContain("'/__clerk/(.*)'");
+    expect(middleware).toContain('clerkMiddleware()');
+    expect(middleware).not.toContain('shouldRunClerkMiddlewareForRequest');
+    expect(clerkConfig).not.toContain('CLERK_PAGE_PREFIXES');
+    expect(clerkConfig).not.toContain('CLERK_API_PREFIXES');
+    expect(clerkConfig).not.toContain('CLERK_MUTATION_API_PREFIXES');
   });
 
   it('keeps the established Clerk middleware flow without an unconfigured Frontend API proxy', () => {
@@ -42,5 +32,16 @@ describe('Clerk middleware route selection', () => {
 
     expect(middleware).toContain('clerkMiddleware()');
     expect(middleware).not.toContain('frontendApiProxy');
+  });
+
+  it('keeps local development renderable when Clerk server configuration is absent', () => {
+    const middleware = readFileSync(
+      resolve(process.cwd(), 'src/infrastructure/auth/middleware.ts'),
+      'utf8',
+    );
+
+    expect(middleware).toContain('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY');
+    expect(middleware).toContain('CLERK_SECRET_KEY');
+    expect(middleware).toContain('NextResponse.next()');
   });
 });
