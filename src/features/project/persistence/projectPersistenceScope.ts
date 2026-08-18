@@ -1,24 +1,17 @@
 import type { StateStorage } from 'zustand/middleware';
 
+import {
+  createProjectPersistenceScope,
+  type ProjectPersistenceScope,
+} from '../lib/projectPersistenceIdentity';
 import { createIndexedDbStorage } from './indexedDbStorage';
 
-export type ProjectPersistenceScope = `account:${string}` | 'guest' | 'local';
+export { createProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
+export type { ProjectPersistenceScope } from '../lib/projectPersistenceIdentity';
 
 const DISABLED_SCOPE = 'unscoped-disabled';
 const MAX_WORKSPACE_JSON_LENGTH = 8 * 1024 * 1024;
 let activeProjectPersistenceScope: ProjectPersistenceScope | typeof DISABLED_SCOPE = DISABLED_SCOPE;
-
-export const createProjectPersistenceScope = ({
-  authConfigured,
-  accountUserId,
-}: {
-  authConfigured: boolean;
-  accountUserId?: string | null;
-}): ProjectPersistenceScope => {
-  if (!authConfigured) return 'local';
-  if (!accountUserId) return 'guest';
-  return `account:${encodeURIComponent(accountUserId)}`;
-};
 
 export const setProjectPersistenceScope = (scope: ProjectPersistenceScope) => {
   activeProjectPersistenceScope = scope;
