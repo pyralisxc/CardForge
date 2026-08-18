@@ -120,16 +120,16 @@ describe('Studio account-scoped persistence', () => {
     );
     const branchStart = handoff.indexOf('// Non-agent Studio documents retain project-open semantics.');
     const branchEnd = handoff.indexOf('      } catch (error) {', branchStart);
-    const nonAgentBranch = handoff.slice(branchStart, branchEnd);
+    const nonAgentWorkspaceBranch = handoff.slice(branchStart, branchEnd);
 
     expect(branchStart).toBeGreaterThan(-1);
     expect(branchEnd).toBeGreaterThan(branchStart);
-    expect(nonAgentBranch).toContain('writeProjectAssetListToStorage');
-    expect(nonAgentBranch).not.toContain('mergeProjectAssetListToStorage');
-    expect(nonAgentBranch).toContain('useProjectStore.setState({');
-    expect(nonAgentBranch).toContain('userTemplates: []');
-    expect(nonAgentBranch).toContain('appearanceStyles: []');
-    expect(nonAgentBranch).toContain('storedCards: []');
+    expect(handoff).toContain('writeProjectAssetListToStorage');
+    expect(nonAgentWorkspaceBranch).toContain('useProjectStore.setState({');
+    expect(nonAgentWorkspaceBranch).toContain('userTemplates: []');
+    expect(nonAgentWorkspaceBranch).toContain('appearanceStyles: []');
+    expect(nonAgentWorkspaceBranch).toContain('storedCards: []');
+    expect(nonAgentWorkspaceBranch).toContain('mergeStoredCards(patch.storedCards)');
     expect(handoff).toContain('normalizeStudioDocumentPayload');
     expect(handoff).toContain('applyProjectDocumentToState');
   });
