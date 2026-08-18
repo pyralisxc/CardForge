@@ -32,6 +32,20 @@ export interface CardForgeCatalogManifest {
   };
 }
 
+export interface CardForgeStudioBootstrapManifest {
+  version: string;
+  access: RegistryViewerAccess;
+  templates: CardForgeCatalogManifest['templates'];
+  styles: AppearanceStyleLibrary;
+  fonts: CardForgeCatalogManifest['fonts'];
+}
+
+export interface CardForgeStudioAssetManifest {
+  version: string;
+  access: RegistryViewerAccess;
+  assets: Pick<AssetRegistryPayload, 'textures' | 'dividers' | 'icons' | 'imageAssets'>;
+}
+
 const catalogVersion = (
   access: RegistryViewerAccess,
   rows: PublishedRegistryAssetRow[],
@@ -60,24 +74,60 @@ const sortRoutedRows = (rows: PublishedRegistryAssetRow[]): PublishedRegistryAss
   || left.name.localeCompare(right.name)
 ));
 
-export const getCardForgeCatalogManifest = async (
-  access: RegistryViewerAccess = 'free',
-): Promise<CardForgeCatalogManifest> => {
-  const rows = await getPublishedRegistryRows(access);
+const mapStudioBootstrap = async (
+  access: RegistryViewerAccess,
+  rows: PublishedRegistryAssetRow[],
+): Promise<CardForgeStudioBootstrapManifest> => {
   const configured = getSupabaseServerConfigStatus().configured;
-  const [templates, styles] = await Promise.all([
+  const [templates, styles, fonts] = await Promise.all([
     mapRegistryRowsToTemplateLibrary(sortRoutedRows(rows.filter((row) => row.asset_type === 'template' && isRoutedTo(row, 'template.')))),
     mapRegistryRowsToStyleLibrary(sortRoutedRows(rows.filter((row) => row.asset_type === 'elementPreset' && isRoutedTo(row, 'style.')))),
+    Promise.resolve(mapRegistryRowsToFontsPayload(
+      sortRoutedRows(rows.filter((row) => row.asset_type === 'font' && isRoutedTo(row, 'typography.font'))),
+      configured,
+    )),
   ]);
+
   return {
     version: catalogVersion(access, rows),
     access,
     templates: { defaults: templates, userTemplates: [] },
     styles: { version: 1, styles },
-    assets: mapAssetRegistryRowsToPayload(rows, configured),
-    fonts: mapRegistryRowsToFontsPayload(
-      sortRoutedRows(rows.filter((row) => row.asset_type === 'font' && isRoutedTo(row, 'typography.font'))),
-      configured,
-    ),
+    fonts,
+  };
+};
+
+export const getCardForgeStudioBootstrapManifest = async (
+  access: RegistryViewerAccess = 'free',
+): Promise<CardForgeStudioBootstrapManifest> => {
+  const rows = await getPublishedRegistryRows(access);
+  return mapStudioBootstrap(access, rows);
+};
+
+export const getCardForgeStudioAssetManifest = async (
+  access: RegistryViewerAccess = 'free',
+): Promise<CardForgeStudioAssetManifest> => {
+  const rows = await getPublishedRegistryRows(access);
+  const payload = mapAssetRegistryRowsToPayload(rows, getSupabaseServerConfigStatus().configured);
+  return {
+    version: catalogVersion(access, rows),
+    access,
+    assets: {
+      textures: payload.textures,
+      dividers: payload.dividers,
+      icons: payload.icons,
+      imageAssets: payload.imageAssets,
+    },
+  };
+};
+
+export const getCardForgeCatalogManifest = async (
+  access: RegistryViewerAccess = 'free',
+): Promise<CardForgeCatalogManifest> => {
+  const rows = await getPublishedRegistryRows(access);
+  const bootstrap = await mapStudioBootstrap(access, rows);
+  return {
+    ...bootstrap,
+    assets: mapAssetRegistryRowsToPayload(rows, getSupabaseServerConfigStatus().configured),
   };
 };
