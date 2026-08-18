@@ -27,16 +27,37 @@ const WORKSPACE_STORAGE_OPTIONS = {
   trackWorkspaceSaveStatus: true,
 } as const;
 
+type WorkspacePersistedState = Pick<
+  ProjectState,
+  | 'userTemplates'
+  | 'appearanceStyles'
+  | 'storedCards'
+  | 'selectedPaperSize'
+  | 'activeTab'
+  | 'richTextHighlightColor'
+  | 'activeCardSet'
+  | 'singleCardGeneratorSelectedTemplateId'
+  | 'templateEditorSelectedTemplateId'
+  | 'pdfMarginMm'
+  | 'pdfCardSpacingMm'
+  | 'pdfIncludeCutLines'
+  | 'pdfDuplexLayout'
+  | 'exportMode'
+  | 'exportDpi'
+>;
+
 const inertStorage: StateStorage = {
   getItem: () => null,
   setItem: () => undefined,
   removeItem: () => undefined,
 };
 
-const createWorkspaceJsonStorage = () => createJSONStorage<ProjectState>(() => createScopedProjectStorage(
+const createWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => createScopedProjectStorage(
   'project-workspace',
   WORKSPACE_STORAGE_OPTIONS,
 ));
+
+const createInertWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => inertStorage);
 
 let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 
@@ -100,7 +121,7 @@ export const useProjectStore = create<ProjectState>()(
       {
         name: 'workspace',
         storage: createWorkspaceJsonStorage(),
-        partialize: (state) => ({
+        partialize: (state): WorkspacePersistedState => ({
           userTemplates: state.userTemplates,
           appearanceStyles: dedupeAppearanceStyles(state.appearanceStyles),
           storedCards: state.storedCards,
@@ -133,7 +154,7 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
   setProjectPersistenceScope(scope);
 
   if (isScopeChange) {
-    useProjectStore.persist.setOptions({ storage: createJSONStorage<ProjectState>(() => inertStorage) });
+    useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
     useProjectStore.setState(useProjectStore.getInitialState());
     useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
   }
