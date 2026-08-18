@@ -87,18 +87,18 @@ export const templateDraftAppearanceSchema = z.object({
 }).strict();
 
 export const templateDraftElementSchema = z.object({
-  id: boundedTrimmedString(255).optional(),
+  id: boundedTrimmedString(255),
   type: z.enum(CARDFORGE_FREEFORM_ELEMENT_TYPES),
-  name: boundedTrimmedString(160).optional(),
-  x: z.number().finite().optional(),
-  y: z.number().finite().optional(),
-  width: z.number().finite().positive().max(20_000).optional(),
-  height: z.number().finite().positive().max(20_000).optional(),
+  name: boundedTrimmedString(160),
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().finite().positive().max(20_000),
+  height: z.number().finite().positive().max(20_000),
   rotation: z.number().finite().optional(),
   flipX: z.boolean().optional(),
   flipY: z.boolean().optional(),
   opacity: z.number().finite().min(0).max(1).optional(),
-  zIndex: z.number().finite().optional(),
+  zIndex: z.number().finite(),
   locked: z.boolean().optional(),
   parentId: boundedString(255).optional(),
   visible: z.boolean().optional(),
@@ -142,7 +142,15 @@ export const templateDraftElementSchema = z.object({
   strokeColor: boundedString(255).optional(),
   strokeWidth: z.number().finite().min(0).max(100).optional(),
   appearance: templateDraftAppearanceSchema.optional(),
-}).strict();
+}).strict().superRefine((element, context) => {
+  if (element.type === 'shape' && !element.shapeKind) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['shapeKind'],
+      message: 'Shape elements require a native CardForge shapeKind.',
+    });
+  }
+});
 
 const templateFieldContractSchema = z.object({
   key: boundedTrimmedString(255),
@@ -197,7 +205,7 @@ export const templateDraftSchema = z.object({
     height: z.number().finite().min(1).max(5000),
     gridSize: z.number().finite().positive().max(1000).optional(),
     elements: z.array(templateDraftElementSchema).max(200),
-  }).strict().optional(),
+  }).strict(),
 }).strict();
 
 const productionAssetRequirementSchema = z.object({
@@ -215,7 +223,29 @@ const productionAssetRequirementSchema = z.object({
   width: z.number().finite().positive().max(20_000).optional(),
   height: z.number().finite().positive().max(20_000).optional(),
   notes: boundedString(4_000).optional(),
-}).strict();
+}).strict().superRefine((asset, context) => {
+  if (asset.source === 'cardforge-library' && asset.status === 'selected' && !asset.assetId) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['assetId'],
+      message: 'Selected CardForge library assets require the library asset id.',
+    });
+  }
+  if (asset.source === 'custom-generated' && asset.status === 'selected' && !asset.assetUrl) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['assetUrl'],
+      message: 'A selected custom-generated asset requires a usable assetUrl; otherwise keep it needed.',
+    });
+  }
+  if (asset.source === 'placeholder' && asset.status !== 'placeholder') {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['status'],
+      message: 'Placeholder asset requirements must use placeholder status.',
+    });
+  }
+});
 
 export const projectProductionPlanSchema = z.object({
   version: z.literal(PROJECT_PRODUCTION_PLAN_VERSION),
@@ -244,6 +274,81 @@ export const gptTemplateDraftInputSchema = z.object({
   title: boundedTrimmedString(160),
   productionPlan: projectProductionPlanSchema,
   template: templateDraftSchema,
-}).strict();
+}).strict().superRefine((input, context) => {
+  const elements = input.template.freeformCanvas.elements;
+  const elementIds = new Set<string>();
+  elements.forEach((element, index) => {
+    if (elementIds.has(element.id)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['template', 'freeformCanvas', 'elements', index, 'id'],
+        message: `Duplicate element id "${element.id}".`,
+      });
+    }
+    elementIds.add(element.id);
+    if (element.parentId && !elements.some((candidate) => candidate.id === element.parentId)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['template', 'freeformCanvas', 'elements', index, 'parentId'],
+        message: `Parent element "${element.parentId}" does not exist.`,
+      });
+    }
+  });
+
+  const fieldContracts = input.template.fieldContracts ?? [];
+  const fieldKeys = new Set(fieldContracts.map((field) => field.key));
+  const duplicateFieldKeys = fieldContracts.filter((field, index) => (
+    fieldContracts.findIndex((candidate) => candidate.key === field.key) !== index
+  ));
+  duplicateFieldKeys.forEach((field) => {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['template', 'fieldContracts'],
+      message: `Duplicate field contract key "${field.key}".`,
+    });
+  });
+  fieldContracts.forEach((field, index) => {
+    if (field.elementId && !elementIds.has(field.elementId)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['template', 'fieldContracts', index, 'elementId'],
+        message: `Field contract target "${field.elementId}" does not exist.`,
+      });
+    }
+  });
+  input.productionPlan.editableFieldKeys.forEach((key, index) => {
+    if (!fieldKeys.has(key)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['productionPlan', 'editableFieldKeys', index],
+        message: `Planned editable field "${key}" needs a matching template field contract.`,
+      });
+    }
+  });
+  input.productionPlan.assets.forEach((asset, assetIndex) => {
+    (asset.targetElementIds ?? []).forEach((targetId, targetIndex) => {
+      if (!elementIds.has(targetId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['productionPlan', 'assets', assetIndex, 'targetElementIds', targetIndex],
+          message: `Planned asset target "${targetId}" does not exist in the canvas.`,
+        });
+      }
+    });
+  });
+
+  if (input.productionPlan.outputSize.unit === 'px') {
+    if (
+      input.productionPlan.outputSize.width !== input.template.freeformCanvas.width
+      || input.productionPlan.outputSize.height !== input.template.freeformCanvas.height
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['productionPlan', 'outputSize'],
+        message: 'Pixel output size must match the native freeform canvas dimensions.',
+      });
+    }
+  }
+});
 
 export type GptTemplateDraftInput = z.infer<typeof gptTemplateDraftInputSchema>;
