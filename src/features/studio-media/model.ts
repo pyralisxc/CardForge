@@ -34,7 +34,6 @@ export const studioMediaToCardAsset = (media: StudioMedia): CardAssetOption => {
     url: studioMediaContentPath(media.id),
     kind: media.kind,
     librarySource: 'personal' as const,
-    registryStatus: 'localOnly' as const,
     fileSizeBytes: media.normalizedByteCount,
     seamless: media.kind === 'texture',
     defaultBlendMode: media.kind === 'texture' ? 'multiply' : 'normal',
