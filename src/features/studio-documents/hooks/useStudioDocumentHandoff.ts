@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import { nanoid } from 'nanoid';
 
 import type { TCGCardTemplate, AppearanceStylePreset } from '@/domain/templates';
 import type { StoredDisplayCard } from '@/domain/cards';
@@ -12,10 +13,11 @@ import {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getProjectAssetStorage,
+  mergeProjectAssetListToStorage,
   useProjectStore,
   writeProjectAssetListToStorage,
 } from '@/features/project/client';
-import { normalizeStudioDocumentPayload } from '@/features/studio-documents/model';
+import { normalizeStudioDocumentPayload, type StudioDocumentSource } from '@/features/studio-documents/model';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 interface ToastInput {
@@ -40,6 +42,10 @@ interface StudioDocumentHandoffOptions {
   mergeUserTemplates: (templates: Partial<TCGCardTemplate>[]) => number;
   toast: (input: ToastInput) => void;
 }
+
+const templatesMatch = (left: TCGCardTemplate, right: TCGCardTemplate): boolean => (
+  JSON.stringify(left) === JSON.stringify(right)
+);
 
 export function useStudioDocumentHandoff({
   isAccountLoading,
@@ -83,13 +89,69 @@ export function useStudioDocumentHandoff({
           throw new Error(await readApiErrorMessage(response, 'Unable to open the Studio draft.'));
         }
         const payload = await response.json() as {
-          document?: { title?: unknown; document?: unknown };
+          document?: {
+            title?: unknown;
+            creationSource?: StudioDocumentSource;
+            document?: unknown;
+          };
           watermark?: { required?: unknown };
         };
         const document = normalizeStudioDocumentPayload(payload.document?.document);
         if (!document) throw new Error('The account document is not a valid CardForge Studio project.');
         const patch = applyProjectDocumentToState(document);
         const assetStorage = getProjectAssetStorage();
+
+        if (payload.document?.creationSource === 'gpt') {
+          if (patch.userTemplates.length !== 1 || !patch.userTemplates[0]?.id) {
+            throw new Error('This agent draft does not contain exactly one installable CardForge Template.');
+          }
+
+          const incomingTemplate = patch.userTemplates[0];
+          const existingTemplate = useProjectStore.getState().userTemplates.find(
+            (candidate) => candidate.id === incomingTemplate.id,
+          );
+          let templateToInstall = incomingTemplate;
+          let installedAsCopy = false;
+
+          if (existingTemplate && !templatesMatch(existingTemplate, incomingTemplate)) {
+            templateToInstall = {
+              ...incomingTemplate,
+              id: `gpt-${nanoid()}`,
+              name: `${incomingTemplate.name} (Agent copy)`,
+              templateSource: 'user',
+              templateLibrarySource: 'personal',
+            };
+            installedAsCopy = true;
+          }
+
+          await Promise.all([
+            mergeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
+            mergeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
+            mergeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
+            mergeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+          ]);
+          if (cancelled) return;
+
+          if (!existingTemplate || installedAsCopy) {
+            mergeUserTemplates([templateToInstall]);
+          }
+          const installedTemplateId = templateToInstall.id!;
+          setSelectedTemplateId(installedTemplateId);
+          setTemplateEditorSelectedTemplateId(installedTemplateId);
+          setActiveTab('template-maker');
+
+          handledDocumentIdRef.current = documentId;
+          url.searchParams.delete('document');
+          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          toast({
+            title: installedAsCopy ? 'Agent Template installed as a copy' : 'Agent Template installed',
+            description: installedAsCopy
+              ? `"${templateToInstall.name}" was added without overwriting your existing local edits.`
+              : `"${templateToInstall.name}" is now in your personal Template library on this device.`,
+          });
+          return;
+        }
+
         await Promise.all([
           writeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
           writeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
@@ -98,9 +160,7 @@ export function useStudioDocumentHandoff({
         ]);
         if (cancelled) return;
 
-        // Opening an external Studio document is a project-open operation, not an
-        // accumulating import. Clear persisted project collections first, then reuse
-        // the same validated store actions used by ordinary project ingestion.
+        // Non-agent Studio documents retain project-open semantics.
         useProjectStore.setState({
           userTemplates: [],
           appearanceStyles: [],
@@ -128,10 +188,10 @@ export function useStudioDocumentHandoff({
         url.searchParams.delete('document');
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
         toast({
-          title: 'Editable draft opened',
+          title: 'Editable project opened',
           description: payload.watermark?.required === true
-            ? 'The draft is ready in Studio. Your current tier keeps the CardForge watermark on previews and finished downloads.'
-            : 'The draft is ready in Studio with clean-output access from your current tier.',
+            ? 'The project is ready in Studio. Your current tier keeps the CardForge watermark on previews and finished downloads.'
+            : 'The project is ready in Studio with clean-output access from your current tier.',
         });
       } catch (error) {
         if (!cancelled) {
