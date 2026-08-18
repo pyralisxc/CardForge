@@ -78,9 +78,13 @@ describe('public header authentication controls', () => {
     const studioPageSource = readFileSync(resolve(process.cwd(), 'src/app/studio/page.tsx'), 'utf8');
 
     expect(studioPageSource).toContain("import { auth } from '@clerk/nextjs/server'");
-    expect(studioPageSource).toContain('if (documentId && isClerkServerConfigPresent())');
+    expect(studioPageSource).toContain('const authConfigured = isClerkServerConfigPresent()');
+    expect(studioPageSource).toContain('if (authConfigured)');
+    expect(studioPageSource).toContain('if (documentId && !isAuthenticated)');
     expect(studioPageSource).toContain('redirectToSignIn');
     expect(studioPageSource).toContain('returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`');
+    expect(studioPageSource).toContain('accountUserId = userId');
+    expect(studioPageSource).toContain('createProjectPersistenceScope({');
     expect(studioPageSource).not.toContain('if (!isAuthenticated)' + " return redirectToSignIn()" );
   });
 

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
 import type { DeveloperAccessSessionState } from '@/features/developer-access/client';
+import type { ProjectPersistenceScope } from '@/features/project/client';
 
 export type StudioRuntimeBusinessIdentity = {
   brandName: string;
@@ -16,16 +17,18 @@ type IdleCapableWindow = Window & typeof globalThis & {
 };
 
 const DeferredStudioShell = dynamic(
-  () => import('./CardForgeStudioShell').then((module) => module.CardForgeStudioShell),
+  () => import('./ScopedCardForgeStudioShell').then((module) => module.ScopedCardForgeStudioShell),
   { ssr: false },
 );
 
 export function StudioRuntimeLoader({
   businessIdentity,
   initialDeveloperAccess,
+  persistenceScope,
 }: {
   businessIdentity: StudioRuntimeBusinessIdentity;
   initialDeveloperAccess: DeveloperAccessSessionState;
+  persistenceScope: ProjectPersistenceScope;
 }) {
   const [shouldLoadRuntime, setShouldLoadRuntime] = useState(false);
 
@@ -59,6 +62,7 @@ export function StudioRuntimeLoader({
       <DeferredStudioShell
         businessIdentity={businessIdentity}
         initialDeveloperAccess={initialDeveloperAccess}
+        persistenceScope={persistenceScope}
       />
     );
   }

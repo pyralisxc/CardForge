@@ -36,10 +36,21 @@ export {
   MAX_LOCAL_ASSET_BYTES,
   MAX_LOCAL_ASSET_DIMENSION,
   optimizeLocalAssetFile,
+  quarantineBrowserStorageValue,
   subscribeToBrowserWorkspaceSaveStatus,
   validateLocalAssetFile,
 } from './persistence/indexedDbStorage';
 export type { BrowserStorageHealth, BrowserStorageSaveStatus } from './persistence/indexedDbStorage';
+export {
+  createProjectPersistenceScope,
+  createScopedProjectStorage,
+  getProjectPersistenceScope,
+  getScopedProjectStorageNamespace,
+  LEGACY_PROJECT_ASSETS_NAMESPACE,
+  LEGACY_PROJECT_WORKSPACE_NAMESPACE,
+  setProjectPersistenceScope,
+} from './persistence/projectPersistenceScope';
+export type { ProjectPersistenceScope } from './persistence/projectPersistenceScope';
 export {
   readProjectPreference,
   removeProjectPreference,
@@ -60,5 +71,5 @@ export {
   selectGeneratedDisplayCards,
   resolveGeneratorFrontTemplateId,
 } from './store/selectors';
-export { useProjectStore } from './store/workspaceStore';
+export { hydrateProjectWorkspaceForScope, useProjectStore } from './store/workspaceStore';
 export type { ProjectState } from './store/workspaceStore';

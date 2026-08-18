@@ -4,6 +4,7 @@ import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getCurrentDeveloperAccessSessionState } from '@/features/developer-access/server';
+import { createProjectPersistenceScope } from '@/features/project/server';
 import { isClerkServerConfigPresent } from '@/infrastructure/auth/clerk';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -20,15 +21,23 @@ export default async function StudioPage({
   searchParams: Promise<{ document?: string }>;
 }) {
   const documentId = (await searchParams).document;
-  if (documentId && isClerkServerConfigPresent()) {
-    const { isAuthenticated, redirectToSignIn } = await auth();
-    if (!isAuthenticated) {
+  const authConfigured = isClerkServerConfigPresent();
+  let accountUserId: string | null = null;
+
+  if (authConfigured) {
+    const { isAuthenticated, redirectToSignIn, userId } = await auth();
+    if (documentId && !isAuthenticated) {
       return redirectToSignIn({
         returnBackUrl: `/studio?document=${encodeURIComponent(documentId)}`,
       });
     }
+    accountUserId = userId;
   }
 
+  const persistenceScope = createProjectPersistenceScope({
+    authConfigured,
+    accountUserId,
+  });
   const [businessIdentity, initialDeveloperAccess] = await Promise.all([
     getBusinessIdentity(),
     getCurrentDeveloperAccessSessionState(),
@@ -39,7 +48,7 @@ export default async function StudioPage({
       <StudioRuntimeLoader businessIdentity={{
         brandName: businessIdentity.brandName,
         copyrightHolder: businessIdentity.copyrightHolder,
-      }} initialDeveloperAccess={initialDeveloperAccess} />
+      }} initialDeveloperAccess={initialDeveloperAccess} persistenceScope={persistenceScope} />
     </CardForgeAppProviders>
   );
 }

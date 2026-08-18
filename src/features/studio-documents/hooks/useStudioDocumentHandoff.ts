@@ -12,7 +12,8 @@ import {
   CUSTOM_IMAGE_ASSETS_STORAGE_KEY,
   CUSTOM_TEXTURE_ASSETS_STORAGE_KEY,
   getProjectAssetStorage,
-  mergeProjectAssetListToStorage,
+  useProjectStore,
+  writeProjectAssetListToStorage,
 } from '@/features/project/client';
 import { normalizeStudioDocumentPayload } from '@/features/studio-documents/model';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
@@ -90,13 +91,21 @@ export function useStudioDocumentHandoff({
         const patch = applyProjectDocumentToState(document);
         const assetStorage = getProjectAssetStorage();
         await Promise.all([
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
-          mergeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_DIVIDER_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_ICON_ASSETS_STORAGE_KEY]),
+          writeProjectAssetListToStorage(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_IMAGE_ASSETS_STORAGE_KEY]),
         ]);
         if (cancelled) return;
 
+        // Opening an external Studio document is a project-open operation, not an
+        // accumulating import. Clear persisted project collections first, then reuse
+        // the same validated store actions used by ordinary project ingestion.
+        useProjectStore.setState({
+          userTemplates: [],
+          appearanceStyles: [],
+          storedCards: [],
+        });
         mergeUserTemplates(patch.userTemplates);
         mergeAppearanceStyles(patch.appearanceStyles);
         if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);

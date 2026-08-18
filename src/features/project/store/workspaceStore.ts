@@ -1,10 +1,14 @@
 import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
-import { createJSONStorage, devtools, persist } from 'zustand/middleware';
+import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 
-import { createIndexedDbStorage } from '../persistence/indexedDbStorage';
+import {
+  createScopedProjectStorage,
+  setProjectPersistenceScope,
+  type ProjectPersistenceScope,
+} from '../persistence/projectPersistenceScope';
 import { createAppearanceSlice } from './appearanceSlice';
 import { createOutputSlice } from './outputSlice';
 import { resolveGeneratorFrontTemplateId, selectAllTemplates } from './selectors';
@@ -16,6 +20,46 @@ import {
   dedupeAppearanceStyles,
   normalizeActiveTab,
 } from './workspaceDefaults';
+
+const WORKSPACE_STORAGE_OPTIONS = {
+  keepRecoverySnapshot: true,
+  suppressWriteErrors: true,
+  trackWorkspaceSaveStatus: true,
+} as const;
+
+type WorkspacePersistedState = Pick<
+  ProjectState,
+  | 'userTemplates'
+  | 'appearanceStyles'
+  | 'storedCards'
+  | 'selectedPaperSize'
+  | 'activeTab'
+  | 'richTextHighlightColor'
+  | 'activeCardSet'
+  | 'singleCardGeneratorSelectedTemplateId'
+  | 'templateEditorSelectedTemplateId'
+  | 'pdfMarginMm'
+  | 'pdfCardSpacingMm'
+  | 'pdfIncludeCutLines'
+  | 'pdfDuplexLayout'
+  | 'exportMode'
+  | 'exportDpi'
+>;
+
+const inertStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
+const createWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => createScopedProjectStorage(
+  'project-workspace',
+  WORKSPACE_STORAGE_OPTIONS,
+));
+
+const createInertWorkspaceJsonStorage = () => createJSONStorage<WorkspacePersistedState>(() => inertStorage);
+
+let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 
 const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycleSlice> = (set, get) => ({
   _rehydrateCallback: () => {
@@ -76,11 +120,8 @@ export const useProjectStore = create<ProjectState>()(
       }),
       {
         name: 'workspace',
-        storage: createJSONStorage(() => createIndexedDbStorage(
-          'project-workspace',
-          { keepRecoverySnapshot: true, suppressWriteErrors: true, trackWorkspaceSaveStatus: true },
-        )),
-        partialize: (state) => ({
+        storage: createWorkspaceJsonStorage(),
+        partialize: (state): WorkspacePersistedState => ({
           userTemplates: state.userTemplates,
           appearanceStyles: dedupeAppearanceStyles(state.appearanceStyles),
           storedCards: state.storedCards,
@@ -101,10 +142,25 @@ export const useProjectStore = create<ProjectState>()(
           if (error) console.error('Error rehydrating the project workspace:', error);
           if (state) setTimeout(() => state._rehydrateCallback(), 0);
         },
+        skipHydration: true,
         version: 1,
       },
     ),
   ),
 );
+
+export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceScope) => {
+  const isScopeChange = hydratedPersistenceScope !== null && hydratedPersistenceScope !== scope;
+  setProjectPersistenceScope(scope);
+
+  if (isScopeChange) {
+    useProjectStore.persist.setOptions({ storage: createInertWorkspaceJsonStorage() });
+    useProjectStore.setState(useProjectStore.getInitialState());
+    useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
+  }
+
+  await useProjectStore.persist.rehydrate();
+  hydratedPersistenceScope = scope;
+};
 
 export type { ProjectState } from './types';
