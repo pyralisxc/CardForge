@@ -31,6 +31,10 @@ export const CARDFORGE_USE_CASE_SUGGESTIONS = CARDFORGE_USE_CASE_OPTIONS.map((op
 
 const specialtyTagSet = new Set<string>(CARDFORGE_SPECIALTY_SUGGESTIONS);
 const useCaseTagSet = new Set<string>(CARDFORGE_USE_CASE_SUGGESTIONS);
+const contentTagSet = new Set<string>([
+  ...CARDFORGE_SPECIALTY_SUGGESTIONS,
+  ...CARDFORGE_USE_CASE_SUGGESTIONS,
+]);
 
 const normalizeTaxonomyTag = (value: unknown): string => (
   typeof value === 'string'
@@ -57,6 +61,13 @@ export const normalizeSpecialtyTags = (value: unknown): string[] =>
 
 export const normalizeUseCaseTags = (value: unknown): string[] =>
   normalizeCanonicalTags(value, useCaseTagSet);
+
+/**
+ * Shared storage normalizer for the existing taxonomy columns. UI surfaces should
+ * use the specialty/use-case-specific option lists so contributors cannot invent tags.
+ */
+export const normalizeContentTaxonomyTags = (value: unknown): string[] =>
+  normalizeCanonicalTags(value, contentTagSet);
 
 export const formatContentTaxonomyTag = (value: string): string => value
   .replace(/-/g, ' ')
