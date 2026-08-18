@@ -29,7 +29,12 @@ import {
   getDeveloperAssetTierLabel,
   getDeveloperAssetTypeLabel,
 } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
-import { formatContentTaxonomyTag } from '@/features/developer-assets/lib/contentTaxonomy';
+import {
+  CARDFORGE_SPECIALTY_OPTIONS,
+  CARDFORGE_USE_CASE_OPTIONS,
+  formatContentTaxonomyTag,
+  type ContentTaxonomyOption,
+} from '@/features/developer-assets/lib/contentTaxonomy';
 import type { DeveloperAssetProgramView } from '@/features/developer-assets/lib/developerAssetProgram';
 import { isRepositoryStyle } from '@/features/developer-assets/lib/registryContentValidation';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
@@ -41,6 +46,67 @@ const getFontPreviewFormat = (url: string): string => {
   if (extension === 'ttf') return 'truetype';
   return 'opentype';
 };
+
+const parseTaxonomySelection = (value: string): string[] => [...new Set(
+  value.split(',').map((tag) => tag.trim()).filter(Boolean),
+)];
+
+function ControlledTaxonomySelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly ContentTaxonomyOption[];
+  onChange: (value: string) => void;
+}) {
+  const selected = parseTaxonomySelection(value);
+  const available = options.filter((option) => !selected.includes(option.id));
+  const update = (next: string[]) => onChange(next.join(','));
+
+  return (
+    <div className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+      <span>{label}</span>
+      <select
+        className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
+        value=""
+        onChange={(event) => {
+          if (!event.target.value) return;
+          update([...selected, event.target.value]);
+        }}
+      >
+        <option value="">Add from CardForge taxonomy…</option>
+        {available.map((option) => (
+          <option key={option.id} value={option.id}>{option.label}</option>
+        ))}
+      </select>
+      {selected.length ? (
+        <div className="flex flex-wrap gap-1.5 pt-1 normal-case tracking-normal">
+          {selected.map((id) => {
+            const option = options.find((candidate) => candidate.id === id);
+            if (!option) return null;
+            return (
+              <button
+                key={id}
+                type="button"
+                className="inline-flex items-center gap-1 border border-[#5f4526] bg-[#15100a] px-2 py-1 text-[11px] text-[#ffe7ad]"
+                title={option.description}
+                onClick={() => update(selected.filter((candidate) => candidate !== id))}
+              >
+                {option.label}
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <span className="pt-1 text-[10px] normal-case tracking-normal text-[#7f715c]">No classification selected.</span>
+      )}
+    </div>
+  );
+}
 
 export function VoteButtons({
   submission,
@@ -180,24 +246,18 @@ export function EditSubmissionForm({
         <textarea className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]" value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
       </label>
       <div className="grid gap-3 md:grid-cols-2">
-        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-          Specialties
-          <input
-            className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
-            placeholder="games, marketing"
-            value={specialtyTags}
-            onChange={(event) => onSpecialtyTagsChange(event.target.value)}
-          />
-        </label>
-        <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-          Use-case tags
-          <input
-            className="border border-[#5f4526] bg-[#0c0b09] p-3 text-sm normal-case tracking-normal text-[#ffe7ad]"
-            placeholder="tcg, event-poster"
-            value={useCaseTags}
-            onChange={(event) => onUseCaseTagsChange(event.target.value)}
-          />
-        </label>
+        <ControlledTaxonomySelect
+          label="Specialties"
+          value={specialtyTags}
+          options={CARDFORGE_SPECIALTY_OPTIONS}
+          onChange={onSpecialtyTagsChange}
+        />
+        <ControlledTaxonomySelect
+          label="Use cases"
+          value={useCaseTags}
+          options={CARDFORGE_USE_CASE_OPTIONS}
+          onChange={onUseCaseTagsChange}
+        />
       </div>
       <label className="grid gap-1 text-xs uppercase tracking-[0.12em] text-[#a98a55]">
         Studio placement
@@ -220,7 +280,7 @@ export function EditSubmissionForm({
         />
       </label>
       <p className="text-xs leading-5 text-[#a98a55]">
-        CardForge carries over authored Studio facts only. Confirm these fields yourself; missing classification and rights information is never generated automatically.
+        Studio placement controls where the asset appears. Specialty and use-case tags come from CardForge's shared taxonomy so contributors do not invent competing labels.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving} onClick={onSave}>
