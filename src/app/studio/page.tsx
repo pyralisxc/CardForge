@@ -1,4 +1,4 @@
-import { StudioRuntimeLoader } from '@/features/app-shell/components/StudioRuntimeLoader';
+import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
 import { CardForgeAppProviders } from '@/features/app-shell/server';
 import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getCurrentDeveloperAccessSessionState } from '@/features/developer-access/server';
