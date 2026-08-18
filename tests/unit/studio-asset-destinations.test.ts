@@ -18,16 +18,18 @@ describe('Studio asset destinations', () => {
     })).toEqual(['template.back']);
   });
 
-  it('keeps pictures and full-card frames as explicit image destinations', () => {
+  it('keeps pictures, foundations, and professional border overlays as explicit image destinations', () => {
     expect(getDefaultStudioAssetDestinations({ kind: 'image' })).toEqual(['image.picture']);
     expect(getDefaultStudioAssetDestinations({
       kind: 'image',
-      metadata: { studioDefaultDestination: 'image.frame.front' },
-    })).toEqual(['image.frame.front']);
+      metadata: { studioDefaultDestination: 'image.border.front' },
+    })).toEqual(['image.border.front']);
     expect(getCompatibleStudioAssetDestinations({ kind: 'image' })).toEqual([
       'image.picture',
       'image.frame.front',
       'image.frame.back',
+      'image.border.front',
+      'image.border.back',
     ]);
   });
 
@@ -43,7 +45,7 @@ describe('Studio asset destinations', () => {
       'element.icon',
       'unknown',
       'element.icon',
-      'element.divider',
-    ])).toEqual(['element.icon', 'element.divider']);
+      'image.border.front',
+    ])).toEqual(['element.icon', 'image.border.front']);
   });
 });
