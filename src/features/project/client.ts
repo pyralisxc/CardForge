@@ -36,6 +36,7 @@ export {
   MAX_LOCAL_ASSET_BYTES,
   MAX_LOCAL_ASSET_DIMENSION,
   optimizeLocalAssetFile,
+  quarantineBrowserStorageValue,
   subscribeToBrowserWorkspaceSaveStatus,
   validateLocalAssetFile,
 } from './persistence/indexedDbStorage';
@@ -70,5 +71,5 @@ export {
   selectGeneratedDisplayCards,
   resolveGeneratorFrontTemplateId,
 } from './store/selectors';
-export { useProjectStore } from './store/workspaceStore';
+export { hydrateProjectWorkspaceForScope, useProjectStore } from './store/workspaceStore';
 export type { ProjectState } from './store/workspaceStore';
