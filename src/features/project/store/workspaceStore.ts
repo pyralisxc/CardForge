@@ -33,7 +33,7 @@ const inertStorage: StateStorage = {
   removeItem: () => undefined,
 };
 
-const createWorkspaceJsonStorage = () => createJSONStorage(() => createScopedProjectStorage(
+const createWorkspaceJsonStorage = () => createJSONStorage<ProjectState>(() => createScopedProjectStorage(
   'project-workspace',
   WORKSPACE_STORAGE_OPTIONS,
 ));
@@ -133,7 +133,7 @@ export const hydrateProjectWorkspaceForScope = async (scope: ProjectPersistenceS
   setProjectPersistenceScope(scope);
 
   if (isScopeChange) {
-    useProjectStore.persist.setOptions({ storage: createJSONStorage(() => inertStorage) });
+    useProjectStore.persist.setOptions({ storage: createJSONStorage<ProjectState>(() => inertStorage) });
     useProjectStore.setState(useProjectStore.getInitialState());
     useProjectStore.persist.setOptions({ storage: createWorkspaceJsonStorage() });
   }
