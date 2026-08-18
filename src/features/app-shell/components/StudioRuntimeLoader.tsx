@@ -10,6 +10,11 @@ export type StudioRuntimeBusinessIdentity = {
   copyrightHolder: string;
 };
 
+type IdleCapableWindow = Window & typeof globalThis & {
+  requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
 const DeferredStudioShell = dynamic(
   () => import('./CardForgeStudioShell').then((module) => module.CardForgeStudioShell),
   { ssr: false },
@@ -28,21 +33,24 @@ export function StudioRuntimeLoader({
     let cancelled = false;
     let timeoutId: number | null = null;
     let idleId: number | null = null;
+    const browser = window as IdleCapableWindow;
 
     const startRuntime = () => {
       if (!cancelled) setShouldLoadRuntime(true);
     };
 
-    if ('requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(startRuntime, { timeout: 800 });
+    if (typeof browser.requestIdleCallback === 'function') {
+      idleId = browser.requestIdleCallback(startRuntime, { timeout: 800 });
     } else {
-      timeoutId = window.setTimeout(startRuntime, 75);
+      timeoutId = globalThis.setTimeout(startRuntime, 75);
     }
 
     return () => {
       cancelled = true;
-      if (idleId !== null && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId);
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      if (idleId !== null && typeof browser.cancelIdleCallback === 'function') {
+        browser.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null) globalThis.clearTimeout(timeoutId);
     };
   }, []);
 
