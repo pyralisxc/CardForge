@@ -31,8 +31,14 @@ export interface OwnerConnectedService {
   dashboardUrl: string;
 }
 
-export interface OwnerConsolePayload {
+export interface OwnerConsoleOverviewPayload {
   configured: boolean;
+  businessIdentity: BusinessIdentity;
+  roadmapItems: RoadmapAdminItem[];
+  databaseMetrics: OwnerDatabaseMetrics | null;
+}
+
+export interface OwnerSiteControlPayload {
   businessIdentity: BusinessIdentity;
   experienceSettings: ExperienceSettings;
   siteConfiguration: PublicSiteConfiguration;
@@ -42,6 +48,20 @@ export interface OwnerConsolePayload {
   founderProfile: FounderProfile;
   legalDocuments: LegalDocument[];
   roadmapItems: RoadmapAdminItem[];
+}
+
+export interface OwnerConsolePayload extends OwnerSiteControlPayload {
+  configured: boolean;
   databaseMetrics: OwnerDatabaseMetrics | null;
   contactRequests: ContactRequest[];
 }
+
+export const combineOwnerConsolePayload = (
+  overview: OwnerConsoleOverviewPayload,
+  site: OwnerSiteControlPayload,
+): OwnerConsolePayload => ({
+  ...site,
+  configured: overview.configured,
+  databaseMetrics: overview.databaseMetrics,
+  contactRequests: [],
+});

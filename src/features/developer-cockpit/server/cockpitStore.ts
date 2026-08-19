@@ -1,6 +1,9 @@
 import { getSiteContentBlocks } from '@/features/public-site/server';
 import type {
+  DeveloperCampaignWorkspaceView,
+  DeveloperCockpitBootstrap,
   DeveloperCockpitView,
+  DeveloperSiteWorkspaceView,
   SiteContentProposal,
 } from '@/features/developer-cockpit/model';
 import type { DeveloperCockpitAccess } from '@/features/developer-cockpit/server/access';
@@ -57,33 +60,36 @@ const fetchSiteProposals = async (
     if (!isMissingSupabaseTableError(error)) console.error('Failed to load site proposals:', error);
     return { configured: false, proposals: [] };
   }
+  return { configured: true, proposals: readDatabaseRows<SiteProposalRow>(data).map(mapProposalRow) };
+};
+
+export const getDeveloperCockpitBootstrap = async (
+  access: DeveloperCockpitAccess,
+): Promise<DeveloperCockpitBootstrap> => {
+  const marketing = await getMarketingContributorContext();
   return {
-    configured: true,
-    proposals: readDatabaseRows<SiteProposalRow>(data).map(mapProposalRow),
+    configured: getSupabaseServerConfigStatus().configured,
+    extendedContributionsEnabled: process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true',
+    currentUserId: access.user.id,
+    isDeveloper: access.isDeveloper,
+    isOwner: access.isOwner,
+    scopes: access.scopes,
+    marketingStrategy: marketing.strategy,
   };
 };
 
-export const getDeveloperCockpitView = async (
+export const getDeveloperCampaignWorkspace = async (
   access: DeveloperCockpitAccess,
-): Promise<DeveloperCockpitView> => {
-  const [campaignResult, proposalResult, siteContentBlocks, profiles, campaignMediaPage, campaignMediaSummary, marketing] = await Promise.all([
+): Promise<DeveloperCampaignWorkspaceView> => {
+  const [campaignResult, campaignMediaPage, campaignMediaSummary, marketing] = await Promise.all([
     fetchCampaigns(access),
-    fetchSiteProposals(access),
-    getSiteContentBlocks(),
-    listDeveloperAccessProfiles(access.isOwner),
     getAuthorizedCampaignMediaPage(access, { page: 1, pageSize: 24 }),
     getCampaignMediaLibrarySummary(access),
     getMarketingContributorContext(),
   ]);
   const publishJobs = await fetchPublishJobs(campaignResult.campaigns.map((campaign) => campaign.id));
   return {
-    configured: getSupabaseServerConfigStatus().configured
-      && campaignResult.configured
-      && proposalResult.configured,
-    extendedContributionsEnabled:
-      process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true',
     currentUserId: access.user.id,
-    isDeveloper: access.isDeveloper,
     isOwner: access.isOwner,
     scopes: access.scopes,
     campaigns: campaignResult.campaigns,
@@ -95,10 +101,44 @@ export const getDeveloperCockpitView = async (
       pageSize: campaignMediaPage.pageSize,
     },
     publishJobs,
+    marketingStrategy: marketing.strategy,
+    marketingCampaigns: marketing.campaigns,
+  };
+};
+
+export const getDeveloperSiteWorkspace = async (
+  access: DeveloperCockpitAccess,
+): Promise<DeveloperSiteWorkspaceView> => {
+  const [proposalResult, siteContentBlocks, profiles] = await Promise.all([
+    fetchSiteProposals(access),
+    getSiteContentBlocks(),
+    listDeveloperAccessProfiles(access.isOwner),
+  ]);
+  return {
+    currentUserId: access.user.id,
+    isOwner: access.isOwner,
+    scopes: access.scopes,
     siteProposals: proposalResult.proposals,
     siteContentBlocks,
     profiles,
-    marketingStrategy: marketing.strategy,
-    marketingCampaigns: marketing.campaigns,
+  };
+};
+
+export const getDeveloperCockpitView = async (
+  access: DeveloperCockpitAccess,
+): Promise<DeveloperCockpitView> => {
+  const [bootstrap, campaign, site] = await Promise.all([
+    getDeveloperCockpitBootstrap(access),
+    getDeveloperCampaignWorkspace(access),
+    getDeveloperSiteWorkspace(access),
+  ]);
+  return {
+    ...campaign,
+    configured: bootstrap.configured,
+    extendedContributionsEnabled: bootstrap.extendedContributionsEnabled,
+    isDeveloper: bootstrap.isDeveloper,
+    siteProposals: site.siteProposals,
+    siteContentBlocks: site.siteContentBlocks,
+    profiles: site.profiles,
   };
 };

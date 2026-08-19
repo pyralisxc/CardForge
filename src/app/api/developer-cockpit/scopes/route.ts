@@ -1,7 +1,7 @@
 import {
   createDeveloperCockpitErrorResponse,
   getCurrentDeveloperCockpitAccess,
-  getDeveloperCockpitView,
+  getDeveloperSiteWorkspace,
   requireContributionScope,
 } from '@/features/developer-cockpit/server';
 import { updateDeveloperContributionScopes } from '@/features/developer-access/server';
@@ -23,9 +23,7 @@ export async function PATCH(request: Request) {
       canDraftCampaigns: body.canDraftCampaigns,
       canProposeSiteContent: body.canProposeSiteContent,
     });
-    return createNoStoreJsonResponse({
-      cockpit: await getDeveloperCockpitView(access),
-    });
+    return createNoStoreJsonResponse({ site: await getDeveloperSiteWorkspace(access) });
   } catch (error) {
     return createDeveloperCockpitErrorResponse(error, 'Unable to update contribution scopes.');
   }

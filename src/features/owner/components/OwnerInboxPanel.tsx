@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from 'react';
-import { Archive, ChevronLeft, ChevronRight, Mail, RotateCcw, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Archive, ChevronLeft, ChevronRight, Mail, RefreshCw, RotateCcw, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -11,14 +11,33 @@ import { formatOwnerDateTime, OwnerMetricTile } from './OwnerPanelPrimitives';
 
 const PAGE_SIZE = 8;
 
-export function OwnerInboxPanel({ initialRequests }: { initialRequests: ContactRequest[] }) {
+export function OwnerInboxPanel() {
   const { toast } = useToast();
-  const [requests, setRequests] = useState(initialRequests);
+  const [requests, setRequests] = useState<ContactRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'all' | 'open' | 'closed'>('open');
   const [kind, setKind] = useState<'all' | ContactRequest['kind']>('all');
   const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const response = await fetch('/api/owner/contact-requests', { cache: 'no-store' });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load owner inbox.'));
+      const body = await response.json() as { requests: ContactRequest[] };
+      setRequests(body.requests);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load owner inbox.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -53,13 +72,21 @@ export function OwnerInboxPanel({ initialRequests }: { initialRequests: ContactR
     }
   };
 
+  if (loading && requests.length === 0) {
+    return <section className="border border-[#5f4526] bg-[#15100a] p-5 text-sm text-[#c7b288]" role="status">Loading owner inbox…</section>;
+  }
+  if (loadError && requests.length === 0) {
+    return <section className="border border-[#7d3d32] bg-[#1b0d09] p-5 text-sm text-[#ffd0c6]"><p>{loadError}</p><Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button></section>;
+  }
+
   return (
     <section className="space-y-4">
       <header className="border border-[#5f4526] bg-[#15100a] p-5">
-        <div className="flex items-center gap-3 text-[#e2aa4a]"><Mail className="h-5 w-5" aria-hidden="true" /><div><p className="text-xs uppercase tracking-[0.16em]">Owner inbox</p><h2 className="font-serif text-2xl text-[#fff1c7]">Support &amp; developer requests</h2></div></div>
+        <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3 text-[#e2aa4a]"><Mail className="h-5 w-5" aria-hidden="true" /><div><p className="text-xs uppercase tracking-[0.16em]">Owner inbox</p><h2 className="font-serif text-2xl text-[#fff1c7]">Support &amp; developer requests</h2></div></div><Button type="button" size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button></div>
         <p className="mt-3 text-sm leading-6 text-[#c7b288]">Search the latest 50 recorded requests, reply through your mail client, and close work that is finished. Resend delivery state remains visible as provider history.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3"><OwnerMetricTile label="Recorded" value={String(requests.length)} /><OwnerMetricTile label="Open" value={String(requests.filter((item) => item.status !== 'closed').length)} /><OwnerMetricTile label="Developer" value={String(requests.filter((item) => item.kind === 'developer').length)} /></div>
       </header>
+      {loadError ? <p role="alert" className="border border-[#7d3d32] bg-[#1b0d09] p-3 text-sm text-[#ffd0c6]">{loadError}</p> : null}
       <div className="grid gap-3 border border-[#5f4526] bg-[#100c08] p-4 md:grid-cols-[minmax(0,1fr)_auto_auto]">
         <label className="grid gap-1 text-xs text-[#c7b288]"><span className="flex items-center gap-2"><Search className="h-3.5 w-3.5" />Search inbox</span><input className="min-h-11 border border-[#5f4526] bg-[#0c0b09] px-3 text-[#ffe7ad]" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></label>
         <label className="grid gap-1 text-xs text-[#c7b288]">Status<select className="min-h-11 border border-[#5f4526] bg-[#0c0b09] px-3 text-[#ffe7ad]" value={status} onChange={(event) => { setStatus(event.target.value as typeof status); setPage(1); }}><option value="open">Open</option><option value="closed">Closed</option><option value="all">All</option></select></label>

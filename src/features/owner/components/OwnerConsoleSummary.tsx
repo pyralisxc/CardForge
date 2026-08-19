@@ -17,7 +17,7 @@ export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse
       const response = await fetch('/api/owner/email/test', { method: 'POST' });
       if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to send test email.'));
       const body = await response.json() as { to?: string };
-      toast({ title: 'Test email sent', description: `Sent to ${body.to ?? payload.console.businessIdentity.supportEmail}.` });
+      toast({ title: 'Test email sent', description: `Sent to ${body.to ?? payload.overview.businessIdentity.supportEmail}.` });
     } catch (error) {
       toast({ title: 'Test email failed', description: error instanceof Error ? error.message : 'Unable to send test email.', variant: 'destructive' });
     } finally {
@@ -34,7 +34,7 @@ export function OwnerConsoleSummary({ payload }: { payload: OwnerConsoleResponse
     && payload.integrationStatus.email.replyToConfigured;
   const status = [
     ['Auth', payload.integrationStatus.authConfigured ? 'Clerk' : 'Setup', payload.integrationStatus.authConfigured],
-    ['Database', payload.integrationStatus.supabase.configured && payload.console.configured ? 'Supabase' : 'Setup', payload.integrationStatus.supabase.configured && payload.console.configured],
+    ['Database', payload.integrationStatus.supabase.configured && payload.overview.configured ? 'Supabase' : 'Setup', payload.integrationStatus.supabase.configured && payload.overview.configured],
     ['Billing', billingReady ? 'Stripe' : (creatorPassReady ? 'Creator Pass' : 'Setup'), billingReady],
     ['Email', emailReady ? 'Resend' : (payload.integrationStatus.email.resendConfigured ? 'Setup' : 'Mailto'), emailReady],
     ['Domain', payload.integrationStatus.site.usingLocalFallback ? 'Local' : 'Configured', !payload.integrationStatus.site.usingLocalFallback],

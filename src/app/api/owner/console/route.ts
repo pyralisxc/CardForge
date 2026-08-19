@@ -1,6 +1,8 @@
 import {
-  getOwnerConsolePayload,
+  getOwnerConsoleOverviewPayload,
   getOwnerIntegrationStatus,
+  getOwnerSiteConsolePayload,
+  getOwnerSiteControlPayload,
   recordOwnerActivity,
 } from '@/features/owner/server';
 import {
@@ -48,31 +50,37 @@ const requireOwner = async () => {
   return { ok: true as const, access };
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const timing = createServerTimingTracker();
   try {
     const owner = await timing.track('owner_access', requireOwner);
     if (!owner.ok) return owner.response;
+    const scope = new URL(request.url).searchParams.get('scope');
+    if (scope === 'site') {
+      const siteControls = await timing.track('site_controls', getOwnerSiteControlPayload);
+      const response = createNoStoreJsonResponse({ siteControls });
+      response.headers.set('Server-Timing', timing.header());
+      return response;
+    }
+    if (scope && scope !== 'overview') {
+      return createApiErrorResponse(400, 'owner_request_invalid', 'Unknown owner console scope.');
+    }
 
-    const [integrationStatus, consolePayload] = await Promise.all([
+    const [integrationStatus, overview] = await Promise.all([
       timing.track('integration_status', async () => getOwnerIntegrationStatus()),
-      timing.track('owner_payload', getOwnerConsolePayload),
+      timing.track('owner_overview', getOwnerConsoleOverviewPayload),
     ]);
 
     const response = createNoStoreJsonResponse({
       ownerAccess: owner.access,
       integrationStatus,
-      console: consolePayload,
+      overview,
     });
     response.headers.set('Server-Timing', timing.header());
     return response;
   } catch (error) {
     console.error('Failed to load owner console:', error);
-    return createApiErrorResponse(
-      500,
-      'owner_console_unavailable',
-      'Unable to load owner console.'
-    );
+    return createApiErrorResponse(500, 'owner_console_unavailable', 'Unable to load owner console.');
   }
 }
 
@@ -106,14 +114,11 @@ export async function PUT(request: Request) {
         targetId,
         summary,
       });
-      return createNoStoreJsonResponse({ console: await getOwnerConsolePayload(), activityRecorded });
+      return createNoStoreJsonResponse({ console: await getOwnerSiteConsolePayload(), activityRecorded });
     };
 
     if (body.kind === 'businessIdentity') {
-      await updateBusinessIdentity(
-        body.businessIdentity ?? {},
-        body.expectedIdentityVersion,
-      );
+      await updateBusinessIdentity(body.businessIdentity ?? {}, body.expectedIdentityVersion);
       revalidatePublicIdentityCache();
       return respond({ action: 'identity.update', targetType: 'business_identity', targetId: 'cardforge', summary: 'Updated public business identity and legal operator details.' });
     }
@@ -125,9 +130,7 @@ export async function PUT(request: Request) {
 
     if (body.kind === 'siteContent') {
       const updatedBlocks = await updateSiteContentBlock(body.siteContentBlock ?? {});
-      const updatedBlock = updatedBlocks.find(
-        ({ slug }) => slug === body.siteContentBlock?.slug,
-      );
+      const updatedBlock = updatedBlocks.find(({ slug }) => slug === body.siteContentBlock?.slug);
       if (updatedBlock) {
         revalidateSiteContentCache();
         revalidatePath('/', 'layout');
@@ -145,9 +148,7 @@ export async function PUT(request: Request) {
 
     if (body.kind === 'legal') {
       const legalDocuments = await publishLegalDocument(body.legalDocument ?? {});
-      const publishedDocument = legalDocuments.find(
-        ({ slug }) => slug === body.legalDocument?.slug,
-      );
+      const publishedDocument = legalDocuments.find(({ slug }) => slug === body.legalDocument?.slug);
       if (publishedDocument) revalidateLegalDocumentCache(publishedDocument.slug);
       return respond({ action: 'legal.publish', targetType: 'legal_document', targetId: typeof body.legalDocument?.slug === 'string' ? body.legalDocument.slug : null, summary: 'Published a new version of a CardForge legal document.' });
     }
@@ -182,10 +183,6 @@ export async function PUT(request: Request) {
     }
 
     console.error('Failed to update owner console:', error);
-    return createApiErrorResponse(
-      500,
-      'owner_request_invalid',
-      'Unable to update owner console.'
-    );
+    return createApiErrorResponse(500, 'owner_request_invalid', 'Unable to update owner console.');
   }
 }

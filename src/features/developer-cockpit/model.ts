@@ -3,7 +3,8 @@ import {
   type SiteContentBlock,
   type SiteContentBlockSlug,
 } from '@/features/public-site/client';
-import type { DeveloperAccessProfile } from '@/features/developer-access/client';
+import type { DeveloperAccessProfile, DeveloperContributionScope } from '@/features/developer-access/client';
+import type { MarketingStrategy } from '@/domain/marketing';
 import type { MarketingContentWorkspaceView } from '@/features/marketing-content/client';
 
 export interface SiteContentProposal {
@@ -25,6 +26,28 @@ export interface SiteContentProposal {
   updatedAt: string;
 }
 
+export interface DeveloperCockpitBootstrap {
+  configured: boolean;
+  extendedContributionsEnabled: boolean;
+  currentUserId: string;
+  isDeveloper: boolean;
+  isOwner: boolean;
+  scopes: DeveloperContributionScope[];
+  marketingStrategy: MarketingStrategy;
+}
+
+export type DeveloperCampaignWorkspaceView = MarketingContentWorkspaceView;
+
+export interface DeveloperSiteWorkspaceView {
+  currentUserId: string;
+  isOwner: boolean;
+  scopes: DeveloperContributionScope[];
+  siteProposals: SiteContentProposal[];
+  siteContentBlocks: SiteContentBlock[];
+  profiles: DeveloperAccessProfile[];
+}
+
+/** Legacy combined view retained for compatibility at feature boundaries that still need every slice. */
 export interface DeveloperCockpitView extends MarketingContentWorkspaceView {
   configured: boolean;
   extendedContributionsEnabled: boolean;
@@ -45,10 +68,7 @@ const cleanLongText = (value: unknown): string => (
 export const normalizeSiteProposalInput = (
   input: { slug?: unknown; proposedBody?: unknown; rationale?: unknown },
 ): SiteProposalInputResult => {
-  const normalized = normalizeSiteContentBlockInput({
-    slug: input.slug,
-    body: input.proposedBody,
-  });
+  const normalized = normalizeSiteContentBlockInput({ slug: input.slug, body: input.proposedBody });
   if (!normalized.ok) {
     return {
       ok: false,
@@ -60,12 +80,5 @@ export const normalizeSiteProposalInput = (
   const rationale = cleanLongText(input.rationale);
   if (!rationale) return { ok: false, message: 'Explain why this site-copy change helps.' };
   if (rationale.length > 800) return { ok: false, message: 'Proposal rationale must be 800 characters or fewer.' };
-  return {
-    ok: true,
-    value: {
-      slug: normalized.value.slug,
-      proposedBody: normalized.value.body,
-      rationale,
-    },
-  };
+  return { ok: true, value: { slug: normalized.value.slug, proposedBody: normalized.value.body, rationale } };
 };

@@ -1,61 +1,119 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useToast } from '@/components/ui/use-toast';
 import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
-import type { OwnerConsoleResponse } from '@/features/owner/model/ownerConsoleClient';
+import {
+  combineOwnerConsolePayload,
+} from '@/features/owner/lib/ownerConsole';
+import {
+  loadOwnerSiteControls,
+  type OwnerConsoleResponse,
+} from '@/features/owner/model/ownerConsoleClient';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
 export function useOwnerConsole() {
-  const { toast } = useToast();
   const [payload, setPayload] = useState<OwnerConsoleResponse | null>(null);
+  const [siteConsole, setSiteConsole] = useState<OwnerConsolePayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSlowLoad, setIsSlowLoad] = useState(false);
+  const [isLoadingSite, setIsLoadingSite] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
+  const [siteLoadError, setSiteLoadError] = useState<string | null>(null);
+  const [isSlow, setIsSlow] = useState(false);
+  const siteRequestRef = useRef<Promise<OwnerConsolePayload> | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    const slowLoadTimer = window.setTimeout(() => {
-      if (mounted) setIsSlowLoad(true);
-    }, 2500);
-    const load = async () => {
-      setIsLoading(true);
-      setIsSlowLoad(false);
-      setLoadError(null);
-      try {
-        const response = await fetch('/api/owner/console', { cache: 'no-store' });
-        if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load owner console.'));
-        const nextPayload = await response.json() as OwnerConsoleResponse;
-        if (mounted) setPayload(nextPayload);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unable to load owner console.';
-        if (!mounted) return;
-        setLoadError(message);
-        toast({ title: 'Owner console unavailable', description: message, variant: 'destructive' });
-      } finally {
-        window.clearTimeout(slowLoadTimer);
-        if (mounted) setIsLoading(false);
-      }
-    };
-    void load();
-    return () => {
-      mounted = false;
-      window.clearTimeout(slowLoadTimer);
-    };
-  }, [reloadToken, toast]);
-
-  const updateConsole = useCallback((consolePayload: OwnerConsolePayload) => {
-    setPayload((current) => current ? { ...current, console: consolePayload } : current);
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    setIsSlow(false);
+    const slowTimer = window.setTimeout(() => setIsSlow(true), 1_500);
+    try {
+      const response = await fetch('/api/owner/console', { cache: 'no-store' });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load owner console.'));
+      const nextPayload = await response.json() as OwnerConsoleResponse;
+      setPayload(nextPayload);
+      setSiteConsole((current) => current ? {
+        ...current,
+        configured: nextPayload.overview.configured,
+        databaseMetrics: nextPayload.overview.databaseMetrics,
+        businessIdentity: nextPayload.overview.businessIdentity,
+        roadmapItems: nextPayload.overview.roadmapItems,
+      } : null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load owner console.');
+    } finally {
+      window.clearTimeout(slowTimer);
+      setIsLoading(false);
+      setIsSlow(false);
+    }
   }, []);
 
-  return {
-    isLoading,
-    isSlowLoad,
-    loadError,
+  const loadSite = useCallback(async (): Promise<OwnerConsolePayload> => {
+    if (siteConsole) return siteConsole;
+    if (siteRequestRef.current) return siteRequestRef.current;
+    if (!payload) throw new Error('Owner overview is not loaded yet.');
+
+    setIsLoadingSite(true);
+    setSiteLoadError(null);
+    const request = loadOwnerSiteControls()
+      .then((site) => {
+        const combined = combineOwnerConsolePayload(payload.overview, site);
+        setSiteConsole(combined);
+        return combined;
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Unable to load site controls.';
+        setSiteLoadError(message);
+        throw error;
+      })
+      .finally(() => {
+        siteRequestRef.current = null;
+        setIsLoadingSite(false);
+      });
+    siteRequestRef.current = request;
+    return request;
+  }, [payload, siteConsole]);
+
+  const updateConsole = useCallback((next: OwnerConsolePayload) => {
+    setSiteConsole((current) => ({
+      ...next,
+      databaseMetrics: current?.databaseMetrics ?? payload?.overview.databaseMetrics ?? next.databaseMetrics,
+    }));
+    setPayload((current) => current ? {
+      ...current,
+      overview: {
+        ...current.overview,
+        businessIdentity: next.businessIdentity,
+        roadmapItems: next.roadmapItems,
+      },
+    } : current);
+  }, [payload?.overview.databaseMetrics]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return useMemo(() => ({
     payload,
-    retry: () => setReloadToken((value) => value + 1),
+    siteConsole,
+    isLoading,
+    isLoadingSite,
+    isSlow,
+    loadError,
+    siteLoadError,
+    load,
+    loadSite,
     updateConsole,
-  };
+  }), [
+    payload,
+    siteConsole,
+    isLoading,
+    isLoadingSite,
+    isSlow,
+    loadError,
+    siteLoadError,
+    load,
+    loadSite,
+    updateConsole,
+  ]);
 }
