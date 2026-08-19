@@ -169,7 +169,7 @@ describe('agent Template install and chat preview architecture', () => {
   const preview = readSource('src/features/studio-documents/components/TemplateDraftPreviewClient.tsx');
   const mcpTools = readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts');
 
-  it('installs GPT drafts into personal local Templates without clearing the current workspace', () => {
+  it('installs and revises one personal local Template without clearing the workspace', () => {
     const gptBranch = handoff.slice(
       handoff.indexOf("payload.document?.creationSource === 'gpt'"),
       handoff.indexOf('// Non-agent Studio documents retain project-open semantics.'),
@@ -177,8 +177,17 @@ describe('agent Template install and chat preview architecture', () => {
     expect(gptBranch).toContain('mergeProjectAssetListToStorage');
     expect(gptBranch).toContain('mergeUserTemplates([templateToInstall])');
     expect(gptBranch).toContain("templateLibrarySource: 'personal'");
+    expect(gptBranch).toContain("title: existingTemplate ? 'Agent Template updated' : 'Agent Template installed'");
+    expect(gptBranch).not.toContain('(Agent copy)');
+    expect(gptBranch).not.toContain('nanoid');
     expect(gptBranch).not.toContain('useProjectStore.setState({');
     expect(gptBranch).not.toContain('mergeStoredCards(');
+  });
+
+  it('pins Studio installation to the exact previewed agent revision', () => {
+    expect(handoff).toContain("parseRequestedRevision(url.searchParams.get('revision'))");
+    expect(handoff).toContain('actualRevision !== requestedRevision');
+    expect(mcpTools).toContain('&revision=${document.revision}');
   });
 
   it('uses the canonical CardPreview renderer and keeps PNG review available', () => {
