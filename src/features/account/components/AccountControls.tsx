@@ -6,7 +6,7 @@ import {
 } from '@clerk/nextjs';
 import Link from 'next/link';
 import { LoaderCircle, LogIn, UserPlus } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { resolveAccountControlsState } from '@/features/account/lib/accountControlsState';
@@ -30,7 +30,7 @@ export function AccountControls({
 }: AccountControlsProps) {
   const state = resolveAccountControlsState({ authConfigured, isLoadingAccount });
 
-  if (state === 'checking') {
+  if (state === 'checking' && !isSignedIn) {
     return (
       <Button type="button" size="sm" disabled aria-label="Checking account access" className="gap-2 bg-[#6f552c] text-[#f8e3b0]">
         <LoaderCircle className="h-4 w-4 animate-spin" /> Checking…
@@ -66,10 +66,16 @@ function ClerkAccountControls({
 }) {
   const { isLoaded, isSignedIn, user } = useUser();
   const effectiveSignedIn = isLoaded ? Boolean(isSignedIn) : fallbackSignedIn;
+  const previousSignedInRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
-    onRefreshEntitlement();
+    const nextSignedIn = Boolean(isSignedIn);
+    const previousSignedIn = previousSignedInRef.current;
+    previousSignedInRef.current = nextSignedIn;
+    if (previousSignedIn !== null && previousSignedIn !== nextSignedIn) {
+      onRefreshEntitlement();
+    }
     if (isSignedIn) completeSignUpIntent(user?.createdAt);
   }, [isLoaded, isSignedIn, onRefreshEntitlement, user?.createdAt]);
 

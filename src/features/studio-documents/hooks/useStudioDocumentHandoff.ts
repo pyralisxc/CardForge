@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { nanoid } from 'nanoid';
 
 import type { TCGCardTemplate, AppearanceStylePreset } from '@/domain/templates';
 import type { StoredDisplayCard } from '@/domain/cards';
@@ -43,9 +42,11 @@ interface StudioDocumentHandoffOptions {
   toast: (input: ToastInput) => void;
 }
 
-const templatesMatch = (left: TCGCardTemplate, right: TCGCardTemplate): boolean => (
-  JSON.stringify(left) === JSON.stringify(right)
-);
+const parseRequestedRevision = (value: string | null): number | null => {
+  if (!value || !/^\d+$/u.test(value)) return null;
+  const revision = Number(value);
+  return Number.isSafeInteger(revision) && revision > 0 ? revision : null;
+};
 
 export function useStudioDocumentHandoff({
   isAccountLoading,
@@ -70,6 +71,7 @@ export function useStudioDocumentHandoff({
     if (isAccountLoading || !isSignedIn || !isStudioReady) return;
     const url = new URL(window.location.href);
     const documentId = url.searchParams.get('document');
+    const requestedRevision = parseRequestedRevision(url.searchParams.get('revision'));
     if (
       !documentId
       || handledDocumentIdRef.current === documentId
@@ -92,10 +94,22 @@ export function useStudioDocumentHandoff({
           document?: {
             title?: unknown;
             creationSource?: StudioDocumentSource;
+            revision?: unknown;
             document?: unknown;
           };
           watermark?: { required?: unknown };
         };
+        const actualRevision = Number.isInteger(payload.document?.revision)
+          ? Number(payload.document?.revision)
+          : null;
+        if (requestedRevision !== null && actualRevision !== requestedRevision) {
+          throw new Error(
+            actualRevision
+              ? `This agent draft is now revision ${actualRevision}. Reopen the latest CardForge preview before installing it.`
+              : 'CardForge could not verify the requested agent draft revision.',
+          );
+        }
+
         const document = normalizeStudioDocumentPayload(payload.document?.document);
         if (!document) throw new Error('The account document is not a valid CardForge Studio project.');
         const patch = applyProjectDocumentToState(document);
@@ -110,19 +124,12 @@ export function useStudioDocumentHandoff({
           const existingTemplate = useProjectStore.getState().userTemplates.find(
             (candidate) => candidate.id === incomingTemplate.id,
           );
-          let templateToInstall = incomingTemplate;
-          let installedAsCopy = false;
-
-          if (existingTemplate && !templatesMatch(existingTemplate, incomingTemplate)) {
-            templateToInstall = {
-              ...incomingTemplate,
-              id: `gpt-${nanoid()}`,
-              name: `${incomingTemplate.name} (Agent copy)`,
-              templateSource: 'user',
-              templateLibrarySource: 'personal',
-            };
-            installedAsCopy = true;
-          }
+          const templateToInstall: TCGCardTemplate = {
+            ...incomingTemplate,
+            templateSource: 'user',
+            templateLibrarySource: 'personal',
+            templateRevision: actualRevision ?? incomingTemplate.templateRevision,
+          };
 
           await Promise.all([
             mergeProjectAssetListToStorage(assetStorage, CUSTOM_TEXTURE_ASSETS_STORAGE_KEY, patch.customAssets[CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]),
@@ -132,9 +139,7 @@ export function useStudioDocumentHandoff({
           ]);
           if (cancelled) return;
 
-          if (!existingTemplate || installedAsCopy) {
-            mergeUserTemplates([templateToInstall]);
-          }
+          mergeUserTemplates([templateToInstall]);
           const installedTemplateId = templateToInstall.id!;
           setSelectedTemplateId(installedTemplateId);
           setTemplateEditorSelectedTemplateId(installedTemplateId);
@@ -142,12 +147,14 @@ export function useStudioDocumentHandoff({
 
           handledDocumentIdRef.current = documentId;
           url.searchParams.delete('document');
+          url.searchParams.delete('revision');
           window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          const revisionLabel = actualRevision ? ` revision ${actualRevision}` : '';
           toast({
-            title: installedAsCopy ? 'Agent Template installed as a copy' : 'Agent Template installed',
-            description: installedAsCopy
-              ? `"${templateToInstall.name}" was added without overwriting your existing local edits.`
-              : `"${templateToInstall.name}" is now in your personal Template library on this device.`,
+            title: existingTemplate ? 'Agent Template updated' : 'Agent Template installed',
+            description: existingTemplate
+              ? `"${templateToInstall.name}"${revisionLabel} replaced the earlier agent revision in your personal Template library on this device.`
+              : `"${templateToInstall.name}"${revisionLabel} is now in your personal Template library on this device.`,
           });
           return;
         }
@@ -186,6 +193,7 @@ export function useStudioDocumentHandoff({
 
         handledDocumentIdRef.current = documentId;
         url.searchParams.delete('document');
+        url.searchParams.delete('revision');
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
         toast({
           title: 'Editable project opened',
