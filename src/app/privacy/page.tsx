@@ -1,5 +1,7 @@
-import { PublicLegalPage } from '@/features/legal/client';
-import { getCachedPublishedLegalDocument } from '@/features/legal/server';
+import {
+  ConfiguredPublicLegalPage,
+  getCachedPublishedLegalDocument,
+} from '@/features/legal/server';
 import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -14,5 +16,5 @@ export default async function PrivacyPage() {
     getCachedPublishedLegalDocument('privacy'),
     getCachedPublicSiteConfiguration(),
   ]);
-  return <PublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration} />;
+  return <ConfiguredPublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration} />;
 }

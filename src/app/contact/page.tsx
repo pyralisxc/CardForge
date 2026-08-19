@@ -1,6 +1,8 @@
-import { PublicLegalPage } from '@/features/legal/client';
 import { ContactRequestForm } from '@/features/contact/client/form';
-import { getCachedPublishedLegalDocument } from '@/features/legal/server';
+import {
+  ConfiguredPublicLegalPage,
+  getCachedPublishedLegalDocument,
+} from '@/features/legal/server';
 import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
@@ -16,8 +18,8 @@ export default async function ContactPage() {
     getCachedPublicSiteConfiguration(),
   ]);
   return (
-    <PublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration}>
+    <ConfiguredPublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration}>
       <ContactRequestForm kind="support" defaultEmail="" defaultSubject="CardForge support request" />
-    </PublicLegalPage>
+    </ConfiguredPublicLegalPage>
   );
 }

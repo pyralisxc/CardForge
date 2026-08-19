@@ -22,7 +22,7 @@ export default async function ProfilePage() {
   ]);
 
   return (
-    <CardForgeAppProviders>
+    <CardForgeAppProviders scope="shell">
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
           accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}

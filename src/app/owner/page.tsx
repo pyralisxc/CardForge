@@ -60,7 +60,7 @@ export default async function OwnerPage({
     getCachedPublicSiteConfiguration(),
   ]);
   return (
-    <CardForgeAppProviders>
+    <CardForgeAppProviders scope="shell">
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
           accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}

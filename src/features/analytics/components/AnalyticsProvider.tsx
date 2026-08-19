@@ -28,7 +28,15 @@ import {
   initializeProductAnalytics,
 } from '../client/posthog';
 
-const PRIVATE_PATH_PREFIXES = ['/owner', '/developer/cockpit'] as const;
+const NON_TRACKABLE_PATH_PREFIXES = [
+  '/owner',
+  '/developer/cockpit',
+  '/account',
+  '/profile',
+  '/sign-in',
+  '/sign-up',
+  '/mcp-template-preview',
+] as const;
 
 const deleteAnalyticsCookies = () => {
   const names = document.cookie.split(';').map((entry) => entry.split('=')[0]?.trim()).filter(Boolean);
@@ -66,7 +74,7 @@ export function AnalyticsProvider({
     && posthogKey.trim().length > 0
     && isAllowedPostHogHost(posthogHost.trim());
   const enabled = googleEnabled || productAnalyticsEnabled;
-  const trackablePath = !PRIVATE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  const trackablePath = !NON_TRACKABLE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   const [preference, setPreference] = useState<AnalyticsConsentPreference | null>(null);
   const [preferenceReady, setPreferenceReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -93,9 +101,9 @@ export function AnalyticsProvider({
   }, [pathname]);
 
   useEffect(() => {
-    if (enabled) setPreference(getAnalyticsConsentPreference());
+    if (enabled && trackablePath) setPreference(getAnalyticsConsentPreference());
     setPreferenceReady(true);
-  }, [enabled]);
+  }, [enabled, trackablePath]);
 
   useEffect(() => {
     if (!googleEnabled || !trackablePath || !isAnalyticsConsentGranted(preference)) {
@@ -159,7 +167,10 @@ export function AnalyticsProvider({
 
   const decisionOpen = preference === null || showSettings;
   const reviewingPrivacy = pathname === '/privacy';
-  const requiredChoice = presentation === 'required_popup' && preference === null && !reviewingPrivacy;
+  const requiredChoice = trackablePath
+    && presentation === 'required_popup'
+    && preference === null
+    && !reviewingPrivacy;
 
   useEffect(() => {
     if (!enabled || !preferenceReady || !decisionOpen || !requiredChoice) return;
@@ -197,7 +208,7 @@ export function AnalyticsProvider({
     };
   }, [decisionOpen, enabled, preferenceReady, requiredChoice]);
 
-  if (!enabled || !preferenceReady) return null;
+  if (!enabled || !preferenceReady || !trackablePath) return null;
 
   const choose = (next: AnalyticsConsentPreference) => {
     if (next === 'granted_once') {

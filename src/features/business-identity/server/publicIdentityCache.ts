@@ -1,14 +1,24 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
+import { DEFAULT_BUSINESS_IDENTITY } from '../model/businessIdentity';
 import { getBusinessIdentity } from './businessIdentityStore';
 
 export const PUBLIC_IDENTITY_TAG = 'public:business-identity';
 
-export const getCachedBusinessIdentity = unstable_cache(
+const readCachedBusinessIdentity = unstable_cache(
   getBusinessIdentity,
   ['public-business-identity'],
   { tags: [PUBLIC_IDENTITY_TAG], revalidate: 3600 },
 );
+
+export const getCachedBusinessIdentity = async () => {
+  try {
+    return await readCachedBusinessIdentity();
+  } catch (error) {
+    console.error('Unable to load public business identity; using the compiled CardForge identity.', error);
+    return { ...DEFAULT_BUSINESS_IDENTITY };
+  }
+};
 
 export const revalidatePublicIdentityCache = (): void => {
   try {
