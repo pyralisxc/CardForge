@@ -15,11 +15,13 @@ describe('resolveAccountControlsState', () => {
     expect(resolveAccountControlsState({ authConfigured: true, isLoadingAccount: false })).toBe('ready');
   });
 
-  it('keeps the signed-in Clerk control mounted during background entitlement refreshes', () => {
+  it('keeps signed-in controls mounted and only refreshes entitlement on identity transitions', () => {
     const controls = readFileSync(
       resolve(process.cwd(), 'src/features/account/components/AccountControls.tsx'),
       'utf8',
     );
     expect(controls).toContain("state === 'checking' && !isSignedIn");
+    expect(controls).toContain('const previousSignedInRef = useRef<boolean | null>(null);');
+    expect(controls).toContain('previousSignedIn !== null && previousSignedIn !== nextSignedIn');
   });
 });
