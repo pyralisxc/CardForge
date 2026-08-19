@@ -14,6 +14,7 @@ describe('Studio MCP creative production flow', () => {
   const validation = readSource('src/features/studio-documents/templateDraftSchema.ts');
   const revisions = readSource('src/features/studio-documents/server/developerTemplateDrafts.ts');
   const projectDocument = readSource('src/features/project/model/projectDocument.ts');
+  const generatorFieldInput = readSource('src/features/card-generator/components/GeneratorFieldInput.tsx');
 
   it('exposes a conversation-to-plan-to-preview-to-revision workflow instead of one-shot creation', () => {
     expect(route).toContain("'get_studio_creation_guide'");
@@ -45,6 +46,10 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('materially changes purpose, deliverable, output size, quality target');
     expect(route).toContain('do not use placeholder art unless the user explicitly asks');
     expect(schemas).toContain("enum: ['text', 'structuredRows', 'image']");
+    expect(generatorFieldInput).toContain("field.isImage && onImageUpload");
+    expect(generatorFieldInput).toContain('Image URL or Upload');
+    expect(generatorFieldInput).toContain('Upload image for ${field.label}');
+    expect(generatorFieldInput).toContain('Image tools');
   });
 
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {
