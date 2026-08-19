@@ -8,20 +8,14 @@ import {
 } from '@/features/card-generator/client';
 import { getCachedExperienceSettings } from '@/features/experience-settings/server';
 import {
-  FounderProfileProvider,
-  SiteContentProvider,
-} from '@/features/public-site/client/context';
-import {
   createSiteContentMap,
-  getCachedAllSiteContentBlocks,
-  getCachedFounderProfile,
   getCachedPublicSiteConfiguration,
+  getCachedSiteContentBlocks,
   getCachedSiteMedia,
   getDefaultSiteMedia,
   getSiteMediaDisplaySrc,
   type SiteMediaAsset,
 } from '@/features/public-site/server';
-import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 import { ScopedAnalyticsProvider } from '../components/ScopedAnalyticsProvider';
 
@@ -29,7 +23,7 @@ const assetFor = (media: SiteMediaAsset[], slot: SiteMediaAsset['slot']): SiteMe
   media.find((asset) => asset.slot === slot) ?? getDefaultSiteMedia(slot)
 );
 
-const createBrandPresentation = (
+const createStudioBrandPresentation = (
   media: SiteMediaAsset[],
   settings: Awaited<ReturnType<typeof getCachedPublicSiteConfiguration>>,
   brandName: string,
@@ -49,40 +43,33 @@ const createBrandPresentation = (
   };
 };
 
-export async function CardForgeAppProviders({ children }: { children: ReactNode }) {
-  const [
-    founderProfile,
-    experienceSettings,
-    siteContentBlocks,
-    siteMedia,
-    siteConfiguration,
-    businessIdentity,
-  ] = await Promise.all([
-    getCachedFounderProfile(),
+export async function StudioAppProviders({
+  brandName,
+  children,
+}: {
+  brandName: string;
+  children: ReactNode;
+}) {
+  const [experienceSettings, sharingBlocks, siteMedia, siteConfiguration] = await Promise.all([
     getCachedExperienceSettings(),
-    getCachedAllSiteContentBlocks(),
+    getCachedSiteContentBlocks('sharing'),
     getCachedSiteMedia(),
     getCachedPublicSiteConfiguration(),
-    getCachedBusinessIdentity(),
   ]);
-  const siteContent = createSiteContentMap(siteContentBlocks);
+  const sharingCopy = createSiteContentMap(sharingBlocks);
   const shareSettings = createPublicShareSettings(
-    siteContent['sharing.message'],
+    sharingCopy['sharing.message'],
     getPublicAppUrl(),
   );
-  const brand = createBrandPresentation(siteMedia, siteConfiguration, businessIdentity.brandName);
+  const brand = createStudioBrandPresentation(siteMedia, siteConfiguration, brandName);
 
   return (
     <>
       <BrandPresentationProvider value={brand}>
-        <SiteContentProvider content={siteContent}>
-          <FounderProfileProvider profile={founderProfile}>
-            <PublicShareSettingsProvider settings={shareSettings}>
-              {children}
-              <Toaster />
-            </PublicShareSettingsProvider>
-          </FounderProfileProvider>
-        </SiteContentProvider>
+        <PublicShareSettingsProvider settings={shareSettings}>
+          {children}
+          <Toaster />
+        </PublicShareSettingsProvider>
       </BrandPresentationProvider>
       <ScopedAnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} />
     </>

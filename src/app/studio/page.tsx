@@ -1,8 +1,8 @@
 import { auth } from '@clerk/nextjs/server';
 
 import { StudioRuntimeLoader } from '@/features/app-shell/client/studio';
-import { CardForgeAppProviders } from '@/features/app-shell/server';
-import { getBusinessIdentity } from '@/features/business-identity/server';
+import { StudioAppProviders } from '@/features/app-shell/server';
+import { getCachedBusinessIdentity } from '@/features/business-identity/server';
 import {
   EMPTY_DEVELOPER_ACCESS_SESSION_STATE,
   getCurrentDeveloperAccessSessionState,
@@ -42,7 +42,7 @@ export default async function StudioPage({
     accountUserId,
   });
   const [businessIdentity, initialDeveloperAccess] = await Promise.all([
-    getBusinessIdentity(),
+    getCachedBusinessIdentity(),
     getCurrentDeveloperAccessSessionState().catch((error) => {
       console.error('Unable to load optional Studio developer access:', error);
       return EMPTY_DEVELOPER_ACCESS_SESSION_STATE;
@@ -50,11 +50,11 @@ export default async function StudioPage({
   ]);
 
   return (
-    <CardForgeAppProviders>
+    <StudioAppProviders brandName={businessIdentity.brandName}>
       <StudioRuntimeLoader businessIdentity={{
         brandName: businessIdentity.brandName,
         copyrightHolder: businessIdentity.copyrightHolder,
       }} initialDeveloperAccess={initialDeveloperAccess} persistenceScope={persistenceScope} />
-    </CardForgeAppProviders>
+    </StudioAppProviders>
   );
 }
