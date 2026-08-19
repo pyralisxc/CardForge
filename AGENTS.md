@@ -1,61 +1,79 @@
 # CardForge Working Rules
 
-CardForge is a live service app with local development, not a purely local app. Interpret Cameron's shorthand through that reality before choosing tools or verification paths.
+CardForge is a live service app with local development. A fresh agent must be able to work from the repository and current providers without relying on prior chat history.
 
-## Workflow Authority
+## Repository authority
 
-For CardForge implementation, refactor, testing, review, public-site, branding, accessibility, SEO, or UI-polish work, load and follow `.agents/skills/lean-repository-execution/SKILL.md` before applying generic process guidance.
+Treat `main` plus live provider state as authoritative. Read current product truth in this order:
 
-The lean skill is CardForge's sole execution workflow. Do not create `docs/superpowers/**` or any planning, ledger, status, workflow, or progress artifact unless Cameron explicitly requests that artifact. Use a compact inline plan only when the task is high risk, materially ambiguous, or Cameron asks for one.
+1. `README.md` for the live product/source map.
+2. `docs/architecture.md` for ownership and invariants.
+3. `docs/integrations.md` for provider-native ownership and trace paths.
+4. `docs/operations.md` for current release/provider procedures.
+5. `docs/risk-register.md` for unresolved or explicitly accepted risk only.
+
+Do not reconstruct current requirements from old chats, closed PR prose, completed migration instructions, or historical branches when current code/docs/provider state answer the question. Git history remains evidence; it is not a second specification.
+
+## Workflow authority
+
+For CardForge implementation, refactor, testing, review, public-site, branding, accessibility, SEO, or UI-polish work, load and follow `.agents/skills/lean-repository-execution/SKILL.md` before generic process guidance.
+
+The lean skill is CardForge's sole execution workflow. Do not create planning ledgers, status diaries, progress folders, or `docs/superpowers/**` unless Cameron explicitly requests that artifact. Use a compact inline plan only when work is high risk, materially ambiguous, or Cameron asks for one.
 
 ## Native-first integration rule
 
-CardForge owns CardForge product policy. Providers and frameworks own their supported identity, payment, database, email, analytics, delivery, protocol, cache, redirect, retry, and deployment lifecycles whenever those native paths satisfy the product requirement.
+CardForge owns CardForge product policy. Providers/frameworks own their supported identity, payment, database, email, analytics, delivery, protocol, cache, redirect, retry, and deployment lifecycles whenever those native paths satisfy the requirement.
 
 Before changing an external integration:
 
-- read the current official provider/framework guidance once;
+- read current official provider/framework guidance once;
 - identify the provider-native solution before designing CardForge glue;
-- use the provider's supported lifecycle directly unless a concrete product requirement cannot be met that way;
-- if extra CardForge orchestration is necessary, keep only the minimum behavior that bridges the documented gap and state that reason in the PR;
-- prefer deleting a workaround over preserving it as a compatibility layer when the native path now covers the requirement;
+- use that native lifecycle unless a concrete CardForge requirement cannot be met;
+- if extra orchestration is necessary, keep only the minimum bridge and state why in the PR;
+- prefer deleting a workaround when the provider-native path now covers it;
 - never add a second auth/session store, provider retry system, delivery ledger, cache, redirect protocol, or SDK abstraction merely for flexibility.
 
-`docs/integrations.md` is the human trace map for provider ownership and intentional CardForge seams. If an integration cannot be explained through that map in a few hops, simplify the implementation before adding another layer.
+`docs/integrations.md` is the human trace map. If a provider journey cannot be explained there in a few hops, simplify before adding another layer.
 
-## Cameron Shorthand
+## Human readability rule
 
-- Treat short replies like "yes", "do that", "verify it", "push it", "full clean cut", or similar as continuing the most recent concrete objective.
-- Before acting on shorthand, map the request to CardForge's actual ownership boundaries: local code, public UI, signed-in account state, or provider-owned systems.
-- If the request touches production services, account state, payments, email, owner tools, domain setup, or provider dashboards, assume live-provider verification is required unless Cameron explicitly asks for local-only work.
-- Do not expand vague approval into broad tool-chasing. Pick the smallest valid path that proves the specific claim.
+A maintainer should be able to answer “where does this behavior live?” without reconstructing a graph from dozens of files. Keep route composition thin, feature owners explicit, public `client.ts`/`server.ts` interfaces narrow, and large modules separated by real responsibility rather than arbitrary line count.
 
-## Verification Rules
+When fixing a bug, first find the native owner and make the smallest change there. Do not create a unique workaround simply because it is locally convenient.
 
-- Code health: use focused unit tests, `tsc --noEmit`, and `next build` as appropriate.
-- Public UI: localhost is acceptable for pages and components that do not depend on real signed-in provider state.
-- Auth/provider flows: verify on `https://cardforges.com` in the correct browser profile, because Clerk, Stripe, Resend, Supabase, Vercel, domains, and cookies are live service concerns.
-- Owner/admin flows must be verified in the Chrome profile signed into CardForge as the configured owner QA account.
-- Do not use raw HTTP requests to judge signed-in behavior. They do not carry the browser session and can produce misleading failures.
-- Do not chase local Clerk, Stripe, Resend, Supabase, or browser-profile failures unless the task is specifically local-provider setup.
-- If a verification path fails because the method is invalid for the target, stop and report the mismatch instead of trying unrelated tools.
-- Keep verification reports concise: what was checked, what passed, what failed, and whether the failure matters.
+## Roadmap and completed work
 
-## Local Development Boundaries
+The live `/roadmap` and Supabase roadmap tables own current future/completed product plans. When an official roadmap capability ships, mark it `shipped` so it appears as completed history while preserving votes. Do not leave completed work `planned` or `in_progress`. Delete only mistaken/duplicate rows when history has no value; normal completed roadmap records should remain shipped.
 
-- Localhost can prove build output, routing shells, and public UI behavior.
-- Localhost should not be treated as final proof for owner access, payments, email delivery, production domain behavior, or provider dashboard state.
-- Prefer live checks for production service behavior after code is pushed and deployed.
+Closed implementation plans, migration cutovers, and rollout checklists belong in Git/provider history, not in current docs.
 
-## Lean Repository Execution
+## Cameron shorthand
 
-Use one coherent objective branch and one final PR unless an independent ownership or high-risk billing, security, legal, migration, permission, or provider boundary requires separation.
+- Treat short replies like “yes”, “do that”, “verify it”, “push it”, or “full clean cut” as continuing the most recent concrete objective.
+- Map the request to CardForge's actual ownership boundary before choosing tools.
+- If the request touches production services, account state, payments, email, owner tools, domain setup, or provider dashboards, assume live-provider verification is required unless explicitly scoped local-only.
+- Do not expand vague approval into broad tool-chasing. Use the smallest valid proof path.
 
-During implementation, use one focused RED/GREEN cycle per behavior and run the complete repository gate once near completion. Default Git inspection to orientation, pre-commit, and pre-PR. Do not repeat unchanged Git/provider queries, poll agents, or create extra planning and progress artifacts.
+## Verification rules
 
-For remote GitHub-only work, do not use file-writing actions that create commits as the implementation loop. Prepare related file changes as one Git tree/commit, or an equivalent batch, and move the branch once per coherent milestone. GitHub CI is the code-health loop; Vercel Preview is hosted integration proof for a deployable checkpoint, not a substitute compile loop. Do not push incomplete, no-op, or test-only commits merely to obtain or retrigger a preview. If Vercel is rate limited, stop pushing until the provider state changes instead of creating more commits.
+- Code health: focused tests while implementing; complete repository gate near completion.
+- Public UI: localhost can prove provider-independent page/component behavior.
+- Hosted integration: Vercel Preview proves a coherent branch deploys and supports browser inspection.
+- Auth/provider flows: verify affected behavior on `https://cardforges.com` with the real signed-in owner/developer account when required.
+- Do not use raw HTTP to judge signed-in browser behavior; it lacks the real Clerk session.
+- Do not recreate retired QA identities merely to satisfy broad tests.
+- If a verification method is invalid for the target, stop and use the correct owner/provider path rather than trying unrelated tools.
+- Keep reports concise: what was checked, what passed, what failed, and whether it matters.
 
-Provider-backed work uses one preflight, one approved mutation, and one postflight verification. If the same check would run twice without a relevant state change, or two checks produce no new evidence, stop the loop and take over or report the blocker.
+## Lean repository execution
+
+Use one coherent objective branch and one final PR unless an independent high-risk billing, security, legal, migration, permission, or provider boundary requires separation.
+
+During implementation, use one focused RED/GREEN cycle per behavior and run the complete gate once near completion. Default Git inspection to orientation, pre-commit, and pre-PR. Do not repeat unchanged Git/provider queries or create extra process artifacts.
+
+For remote GitHub-only work, batch related file changes into one Git tree/commit per coherent milestone. GitHub CI is the deterministic code-health loop; Vercel Preview is hosted integration proof, not a compile loop. Do not push incomplete/no-op/test-only commits merely to retrigger provider status.
+
+Provider-backed work uses one preflight, one approved mutation, and one postflight verification. If the same check would run twice without a relevant state change, stop the loop.
 
 Direct instructions from Cameron override this protocol.
 
@@ -63,7 +81,7 @@ Direct instructions from Cameron override this protocol.
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may differ from training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing code and heed deprecation notices.
 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
