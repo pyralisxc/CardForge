@@ -49,36 +49,37 @@ describe('consolidated public routes and account navigation', () => {
     }
   });
 
-  it('uses the current account entitlement for public Developer navigation', () => {
+  it('keeps public account controls lightweight and lets developer access stay optional to Studio', () => {
     const slot = readSource('src/features/developer-access/server/DeveloperPublicAuthSlot.tsx');
     const controls = readSource('src/features/developer-access/components/DeveloperPublicAuthControls.tsx');
     const studioPage = readSource('src/app/studio/page.tsx');
 
     expect(slot).toContain('<DeveloperPublicAuthControls />');
     expect(slot).not.toContain('getCurrentDeveloperAccessSessionState');
-    expect(controls).not.toContain('useDeveloperAccess(');
-    expect(controls).toContain("accountSessionConfirmed && accessMode === 'dev'");
-    expect(controls).toContain('accountSessionConfirmed');
-    expect(controls).toContain('accountUserId === userId');
-    expect(controls).toContain('refreshEntitlement({ force: true })');
-    expect(controls).toContain('}, 1000)');
+    expect(controls).toContain('<PublicAuthControls />');
+    expect(controls).not.toContain('useAccountEntitlement');
+    expect(controls).not.toContain('accountSessionConfirmed');
+    expect(controls).not.toContain('setTimeout');
     const accountEntitlementRoute = readSource('src/app/api/account/entitlement/route.ts');
     expect(accountEntitlementRoute).toContain('getCurrentCardforgeUserAccess()');
     expect(accountEntitlementRoute).toContain('accountUserId: user?.id ?? null');
     const developerAccess = readSource('src/features/developer-access/server/access.ts');
     expect(developerAccess).toContain('resolveOwnerAccessForServerUser(authConfigured, resolvedUser)');
-    expect(studioPage).toContain('getCurrentDeveloperAccessSessionState()');
+    expect(studioPage).toContain('getCurrentDeveloperAccessSessionState().catch');
+    expect(studioPage).toContain('EMPTY_DEVELOPER_ACCESS_SESSION_STATE');
     expect(studioPage).toContain('initialDeveloperAccess={initialDeveloperAccess}');
   });
 
-  it('keeps Clerk controls available in the mobile menu and names identity management separately', () => {
+  it('keeps Clerk controls out of the mobile modal and names identity management separately', () => {
     const header = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
-    expect(header).toContain('{accountSlot ? (');
-    expect(header).toContain('cardforge-public-auth-status border-t');
+    expect(header).toContain('cardforge-public-auth-status hidden shrink-0 xl:block');
+    expect(header).toContain("href={accountSlot ? '/account' : '/sign-in'}");
+    expect(header).not.toContain('cardforge-public-auth-status border-t');
 
     const authControls = readSource('src/features/account/components/PublicAuthControls.tsx');
     expect(authControls).toContain('if (!isClerkPublicConfigPresent()) return null;');
-
+    expect(authControls).toContain("createAuthRouteHref('/sign-in', pathname)");
+    expect(authControls).not.toContain('SignInButton');
 
     const account = readSource('src/features/account/components/AccountProfilePage.tsx');
     expect(account).toContain('Profile &amp; security');

@@ -148,17 +148,15 @@ export function PublicSiteHeader({
                   </Link>
                 </DialogClose>
               ))}
-              {!accountSlot ? (
-                <DialogClose asChild>
-                  <Link
-                    href="/sign-in"
-                    prefetch={false}
-                    className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]"
-                  >
-                    <LogIn className="h-4 w-4" aria-hidden="true" /> Sign in
-                  </Link>
-                </DialogClose>
-              ) : null}
+              <DialogClose asChild>
+                <Link
+                  href={accountSlot ? '/account' : '/sign-in'}
+                  prefetch={false}
+                  className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--public-radius)] border border-[var(--public-border)] px-5 text-base font-bold text-[var(--public-ivory)] hover:border-[var(--public-brass)] hover:text-[var(--public-brass)]"
+                >
+                  <LogIn className="h-4 w-4" aria-hidden="true" /> {accountSlot ? 'Account' : 'Sign in'}
+                </Link>
+              </DialogClose>
               <DialogClose asChild>
                 <Link
                   href={siteConfiguration.primaryCtaHref}
@@ -170,12 +168,6 @@ export function PublicSiteHeader({
                 </Link>
               </DialogClose>
             </nav>
-            {accountSlot ? (
-              <div className="cardforge-public-auth-status border-t border-[var(--public-border)] pt-5">
-                <p className="mb-3 text-base font-semibold text-[var(--public-ivory)]">Account</p>
-                {accountSlot}
-              </div>
-            ) : null}
             <section className="border-t border-[var(--public-border)] pt-5" aria-labelledby="mobile-developer-heading">
               <h2 id="mobile-developer-heading" className="text-base font-semibold text-[var(--public-ivory)]">
                 {siteContent['shell.mobile.developer.heading']}

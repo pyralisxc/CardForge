@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import {
   ArrowRight,
   CheckCircle2,
@@ -18,6 +18,7 @@ import { useAccountEntitlement } from '@/features/account/client/entitlement';
 import { createDeveloperRequestMailto } from '@/features/contact/client/links';
 import { ContactRequestForm } from '@/features/contact/client/form';
 import { useSiteContent } from '@/features/public-site/client/context';
+import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 const standards = [
   'Every contribution has a named owner, source notes, and a visible review state.',
@@ -94,14 +95,12 @@ export function DeveloperProgramPage({
                 </Button>
               ) : !signedIn ? (
                 <>
-                  <SignInButton mode="modal">
-                    <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">Sign in first</Button>
-                  </SignInButton>
-                  <SignUpButton mode="modal">
-                    <Button variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-                      Create account
-                    </Button>
-                  </SignUpButton>
+                  <Button asChild className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                    <Link href={createAuthRouteHref('/sign-in', '/developer')} prefetch={false}>Sign in first</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                    <Link href={createAuthRouteHref('/sign-up', '/developer')} prefetch={false}>Create account</Link>
+                  </Button>
                 </>
               ) : (
                 <Button asChild variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
