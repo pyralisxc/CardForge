@@ -36,6 +36,19 @@ describe('provider infrastructure ownership', () => {
     }
   });
 
+  it('uses the native server-only Supabase client shape and prefers modern secret keys', async () => {
+    const supabase = await readFile(
+      rootPath('src', 'infrastructure', 'database', 'supabaseServer.ts'),
+      'utf8',
+    );
+
+    expect(supabase).toContain('SUPABASE_SECRET_KEY');
+    expect(supabase).toContain('SUPABASE_SERVICE_ROLE_KEY');
+    expect(supabase).toContain('persistSession: false');
+    expect(supabase).toContain('autoRefreshToken: false');
+    expect(supabase).toContain('detectSessionInUrl: false');
+  });
+
   it('keeps generator error copy with Card Generator', async () => {
     await expect(pathExists('src', 'features', 'card-generator', 'lib', 'errorCopy.ts')).resolves.toBe(true);
   });

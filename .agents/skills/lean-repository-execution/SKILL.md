@@ -23,6 +23,16 @@ Deliver the approved outcome with the least process that protects correctness an
 - **Product:** application behavior, accessibility, data models, exports, and compatibility.
 - **High risk:** billing, entitlements, authentication, permissions, security, legal identity or binding terms, production migrations, irreversible persistence, and provider/domain mutations.
 
+## Native-first provider preflight
+
+For any provider/framework integration change, spend one orientation pass on the current official guidance before designing code. Record the answer to three questions in the working reasoning and PR summary, not in a new process document:
+
+1. What is the provider-native supported path?
+2. What CardForge requirement, if any, is not covered by that path?
+3. What is the minimum CardForge-owned behavior required to bridge that gap?
+
+If question 2 has no concrete answer, do not add a wrapper, cache, reconciliation layer, redirect protocol, retry loop, session store, delivery queue, or alternate provider abstraction. Use or restore the native path. `docs/integrations.md` is the durable human map of intentional provider seams.
+
 ## Execution
 
 1. **Orient once.** Read `AGENTS.md`, affected owners, current status, and only necessary history. Reuse this orientation until files, ancestry, requirements, or provider state change.

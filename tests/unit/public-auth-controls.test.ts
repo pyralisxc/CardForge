@@ -15,10 +15,10 @@ describe('public header authentication controls', () => {
     expect(getState({ authConfigured: true, isLoaded: true, isSignedIn: true })).toBe('signed-in');
   });
 
-  it('builds same-site route-based auth journeys with preserved return intent', () => {
-    expect(clerkConfig.createAuthRouteHref('/sign-in', '/developer')).toBe('/sign-in?returnTo=%2Fdeveloper');
-    expect(clerkConfig.createAuthRouteHref('/sign-up', '/studio?document=abc')).toBe('/sign-up?returnTo=%2Fstudio%3Fdocument%3Dabc');
-    expect(clerkConfig.createAuthRouteHref('/sign-in', 'https://evil.example/studio')).toBe('/sign-in?returnTo=%2Faccount');
+  it('builds Clerk-native same-site auth journeys with preserved return intent', () => {
+    expect(clerkConfig.createAuthRouteHref('/sign-in', '/developer')).toBe('/sign-in?redirect_url=%2Fdeveloper');
+    expect(clerkConfig.createAuthRouteHref('/sign-up', '/studio?document=abc')).toBe('/sign-up?redirect_url=%2Fstudio%3Fdocument%3Dabc');
+    expect(clerkConfig.createAuthRouteHref('/sign-in', 'https://evil.example/studio')).toBe('/sign-in?redirect_url=%2Faccount');
   });
 
   it('uses route navigation instead of Clerk sign-in modals across CardForge entry surfaces', () => {
@@ -143,7 +143,8 @@ describe('public header authentication controls', () => {
 
     expect(proxySource).toContain("'/(api|trpc)(.*)'");
     expect(proxySource).toContain("'/__clerk/(.*)'");
-    expect(middlewareSource).toContain('clerkMiddleware()');
+    expect(middlewareSource).toContain('clerkMiddleware({');
+    expect(middlewareSource).toContain('authorizedParties: getClerkAuthorizedParties()');
     expect(middlewareSource).not.toContain('shouldRunClerkMiddlewareForRequest');
   });
 

@@ -7,10 +7,16 @@ interface SupabaseServerConfigStatus {
 
 let cachedClient: SupabaseClient | null = null;
 
+const getSupabaseServerSecret = (): string | null => (
+  process.env.SUPABASE_SECRET_KEY?.trim()
+  || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  || null
+);
+
 export const getSupabaseServerConfigStatus = (): SupabaseServerConfigStatus => {
-  const requiredValues: Array<[string, string | undefined]> = [
+  const requiredValues: Array<[string, string | null | undefined]> = [
     ['SUPABASE_URL', process.env.SUPABASE_URL],
-    ['SUPABASE_SERVICE_ROLE_KEY', process.env.SUPABASE_SERVICE_ROLE_KEY],
+    ['SUPABASE_SECRET_KEY', getSupabaseServerSecret()],
   ];
   const missing = requiredValues
     .filter(([, value]) => !value)
@@ -24,16 +30,18 @@ export const getSupabaseServerConfigStatus = (): SupabaseServerConfigStatus => {
 
 export const getSupabaseServerClient = (): SupabaseClient | null => {
   const status = getSupabaseServerConfigStatus();
-  if (!status.configured) return null;
+  const secret = getSupabaseServerSecret();
+  if (!status.configured || !secret) return null;
 
   if (!cachedClient) {
     cachedClient = createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      secret,
       {
         auth: {
           autoRefreshToken: false,
           persistSession: false,
+          detectSessionInUrl: false,
         },
       }
     );
