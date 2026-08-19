@@ -514,12 +514,21 @@ const main = async () => {
     throw new Error('Configure exactly one CARDFORGE_OWNER_ACCOUNT_EMAILS identity for Pipeline publication.');
   }
   const supabaseUrl = process.env.SUPABASE_URL || envFile.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || envFile.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY
+    || envFile.SUPABASE_SECRET_KEY
+    || process.env.SUPABASE_SERVICE_ROLE_KEY
+    || envFile.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseSecretKey) {
+    throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required.');
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+  const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
   const { data: ownerProfiles, error: ownerError } = await supabase
     .from('cardforge_developer_profiles')
     .select('clerk_user_id,email,first_name,last_name')

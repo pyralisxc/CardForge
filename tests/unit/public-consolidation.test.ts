@@ -64,7 +64,9 @@ describe('consolidated public routes and account navigation', () => {
     expect(accountEntitlementRoute).toContain('getCurrentCardforgeUserAccess()');
     expect(accountEntitlementRoute).toContain('accountUserId: user?.id ?? null');
     const developerAccess = readSource('src/features/developer-access/server/access.ts');
-    expect(developerAccess).toContain('resolveOwnerAccessForServerUser(authConfigured, resolvedUser)');
+    expect(developerAccess).toContain('ownerAccess,');
+    expect(developerAccess).not.toContain('resolveOwnerAccessForServerUser');
+    expect(developerAccess).not.toContain('session_profile');
     expect(studioPage).toContain('getCurrentDeveloperAccessSessionState().catch');
     expect(studioPage).toContain('EMPTY_DEVELOPER_ACCESS_SESSION_STATE');
     expect(studioPage).toContain('initialDeveloperAccess={initialDeveloperAccess}');
