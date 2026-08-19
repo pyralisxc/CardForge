@@ -6,7 +6,7 @@ import {
 } from '@clerk/nextjs';
 import Link from 'next/link';
 import { LoaderCircle, LogIn, UserPlus } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { resolveAccountControlsState } from '@/features/account/lib/accountControlsState';
@@ -66,10 +66,16 @@ function ClerkAccountControls({
 }) {
   const { isLoaded, isSignedIn, user } = useUser();
   const effectiveSignedIn = isLoaded ? Boolean(isSignedIn) : fallbackSignedIn;
+  const previousSignedInRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
-    onRefreshEntitlement();
+    const nextSignedIn = Boolean(isSignedIn);
+    const previousSignedIn = previousSignedInRef.current;
+    previousSignedInRef.current = nextSignedIn;
+    if (previousSignedIn !== null && previousSignedIn !== nextSignedIn) {
+      onRefreshEntitlement();
+    }
     if (isSignedIn) completeSignUpIntent(user?.createdAt);
   }, [isLoaded, isSignedIn, onRefreshEntitlement, user?.createdAt]);
 
