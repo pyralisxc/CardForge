@@ -14,6 +14,7 @@ describe('Studio MCP creative production flow', () => {
   const validation = readSource('src/features/studio-documents/templateDraftSchema.ts');
   const revisions = readSource('src/features/studio-documents/server/developerTemplateDrafts.ts');
   const projectDocument = readSource('src/features/project/model/projectDocument.ts');
+  const generatorFieldInput = readSource('src/features/card-generator/components/GeneratorFieldInput.tsx');
 
   it('exposes a conversation-to-plan-to-preview-to-revision workflow instead of one-shot creation', () => {
     expect(route).toContain("'get_studio_creation_guide'");
@@ -27,6 +28,28 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('preview_template_draft');
     expect(agentTools).toContain("'attach_template_artwork'");
     expect(agentTools).toContain("'preview_template_draft'");
+  });
+
+  it('resolves quality once, inventories high-value visual slots, and locks accepted planning', () => {
+    expect(route).toContain("id: 'simple'");
+    expect(route).toContain("id: 'professional'");
+    expect(route).toContain("id: 'premium'");
+    expect(route).toContain('ask one concise quality question');
+    expect(route).toContain('inventory every meaningful visual slot');
+    expect(route).toContain('hero/main art');
+    expect(route).toContain('fieldContract with type image');
+    expect(route).toContain('productionPlan.editableFieldKeys');
+    expect(route).toContain('PROJECT_ASSET_BINDINGS');
+    expect(route).toContain('planningLocked: true');
+    expect(route).toContain('treat its production plan as locked');
+    expect(route).toContain('Do not ask for the same approval');
+    expect(route).toContain('materially changes purpose, deliverable, output size, quality target');
+    expect(route).toContain('do not use placeholder art unless the user explicitly asks');
+    expect(schemas).toContain("enum: ['text', 'structuredRows', 'image']");
+    expect(generatorFieldInput).toContain("field.isImage && onImageUpload");
+    expect(generatorFieldInput).toContain('Image URL or Upload');
+    expect(generatorFieldInput).toContain('Upload image for ${field.label}');
+    expect(generatorFieldInput).toContain('Image tools');
   });
 
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {
