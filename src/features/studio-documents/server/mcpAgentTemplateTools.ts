@@ -238,7 +238,7 @@ export const registerAgentTemplateTools = ({
           revision: document.revision,
         });
         const previewUrl = `${publicOrigin}/mcp-template-preview?token=${encodeURIComponent(token)}`;
-        const openInStudioUrl = `${publicOrigin}/studio?document=${encodeURIComponent(document.id)}`;
+        const openInStudioUrl = `${publicOrigin}/studio?document=${encodeURIComponent(document.id)}&revision=${document.revision}`;
         const structuredContent = {
           title: document.title,
           revision: document.revision,
