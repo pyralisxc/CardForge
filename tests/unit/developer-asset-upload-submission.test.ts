@@ -22,6 +22,11 @@ const sourceFile = {
   arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(128)),
 } as unknown as File;
 
+const taxonomy = {
+  specialtyTags: ['games'],
+  useCaseTags: ['tcg'],
+};
+
 const setupStorage = () => {
   const upload = vi.fn().mockResolvedValue({ error: null });
   const remove = vi.fn().mockResolvedValue({ error: null });
@@ -37,7 +42,7 @@ describe('developer asset upload submission', () => {
     mockedCreateDeveloperAssetSubmission.mockReset();
   });
 
-  it('persists the uploaded object and submission as one server-owned workflow', async () => {
+  it('persists the uploaded object, destination, and canonical taxonomy as one workflow', async () => {
     const storage = setupStorage();
     mockedCreateDeveloperAssetSubmission.mockResolvedValue({ submissions: [] } as never);
 
@@ -47,6 +52,7 @@ describe('developer asset upload submission', () => {
       currentContributorIds: ['developer-1'],
       assetType: 'dividers',
       studioDestination: 'element.divider',
+      ...taxonomy,
       name: 'Gold Divider',
       description: 'A clean divider.',
       previewUrl: '',
@@ -59,6 +65,9 @@ describe('developer asset upload submission', () => {
       developerId: 'developer-1',
       input: expect.objectContaining({
         assetType: 'dividers',
+        studioDestination: 'element.divider',
+        specialtyTags: ['games'],
+        useCaseTags: ['tcg'],
         sourceUrl: 'https://cdn.example/gold-divider.svg',
         sourceStorageBucket: 'cardforge-developer-assets',
       }),
@@ -76,6 +85,7 @@ describe('developer asset upload submission', () => {
       currentContributorIds: ['developer-1'],
       assetType: 'imageAssets',
       studioDestination: 'image.border.front',
+      ...taxonomy,
       name: 'Ornate Gold Overlay',
       description: 'Transparent card border art.',
       previewUrl: '',
@@ -105,6 +115,7 @@ describe('developer asset upload submission', () => {
       currentContributorIds: ['developer-1'],
       assetType: 'imageAssets',
       studioDestination: 'image.border.front',
+      ...taxonomy,
       name: 'Flat Border',
       description: '',
       previewUrl: '',
@@ -129,6 +140,7 @@ describe('developer asset upload submission', () => {
       currentContributorIds: ['developer-1'],
       assetType: 'dividers',
       studioDestination: 'element.divider',
+      ...taxonomy,
       name: 'Gold Divider',
       description: '',
       previewUrl: '',
@@ -147,6 +159,7 @@ describe('developer asset upload submission', () => {
       currentContributorIds: ['developer-1'],
       assetType: 'templates',
       studioDestination: 'template.front',
+      ...taxonomy,
       name: 'Shared Template revision',
       description: '',
       previewUrl: '',

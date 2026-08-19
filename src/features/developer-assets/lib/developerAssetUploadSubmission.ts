@@ -90,6 +90,8 @@ export interface CreateUploadedDeveloperAssetSubmissionInput {
   includeRegistryRecipePayloads?: boolean;
   assetType: unknown;
   studioDestination: unknown;
+  specialtyTags: unknown;
+  useCaseTags: unknown;
   name: unknown;
   description: unknown;
   previewUrl: unknown;
@@ -103,6 +105,8 @@ export const createUploadedDeveloperAssetSubmission = async ({
   includeRegistryRecipePayloads = false,
   assetType: assetTypeValue,
   studioDestination,
+  specialtyTags,
+  useCaseTags,
   name,
   description,
   previewUrl,
@@ -151,6 +155,8 @@ export const createUploadedDeveloperAssetSubmission = async ({
       input: {
         assetType: assetTypeValue,
         studioDestination,
+        specialtyTags,
+        useCaseTags,
         name,
         description,
         previewUrl: typeof previewUrl === 'string' && previewUrl.trim() ? previewUrl.trim() : data.publicUrl,

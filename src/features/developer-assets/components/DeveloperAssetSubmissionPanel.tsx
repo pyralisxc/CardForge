@@ -21,8 +21,13 @@ import {
   type PersonalLibraryFilter,
   type PersonalLibraryItem,
 } from '@/features/developer-assets/components/DeveloperAssetHubModel';
+import { ControlledTaxonomySelect } from '@/features/developer-assets/components/ControlledTaxonomySelect';
 import { FieldHelp, GuidanceCard } from '@/features/developer-assets/components/DeveloperAssetHubUi';
 import { useDeveloperPersonalLibrary } from '@/features/developer-assets/components/useDeveloperPersonalLibrary';
+import {
+  CARDFORGE_SPECIALTY_OPTIONS,
+  CARDFORGE_USE_CASE_OPTIONS,
+} from '@/features/developer-assets/lib/contentTaxonomy';
 import { getDeveloperAssetTypeLabel } from '@/features/developer-assets/lib/pipelineAssetTaxonomy';
 import {
   getDefaultDeveloperAssetStudioDestination,
@@ -35,6 +40,7 @@ import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 interface DeveloperAssetsResponse {
   program: DeveloperAssetProgramView;
 }
+
 const formatBytes = (value: number): string => {
   if (!Number.isFinite(value) || value <= 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -53,6 +59,8 @@ export function DeveloperAssetSubmissionPanel({
   const { toast } = useToast();
   const [assetType, setAssetType] = useState<DeveloperUploadAssetType>('icons');
   const [studioDestination, setStudioDestination] = useState<StudioAssetDestination>('element.icon');
+  const [specialtyTags, setSpecialtyTags] = useState<string[]>([]);
+  const [useCaseTags, setUseCaseTags] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
@@ -119,11 +127,15 @@ export function DeveloperAssetSubmissionPanel({
     setIsSaving(true);
     try {
       if (!name.trim()) throw new Error('Name the asset before submitting.');
+      if (!specialtyTags.length) throw new Error('Choose at least one CardForge specialty.');
+      if (!useCaseTags.length) throw new Error('Choose at least one CardForge use case.');
       if (!selectedFile) throw new Error('Choose a source file before submitting.');
 
       const formData = new FormData();
       formData.set('assetType', assetType);
       formData.set('studioDestination', studioDestination);
+      formData.set('specialtyTags', specialtyTags.join(','));
+      formData.set('useCaseTags', useCaseTags.join(','));
       formData.set('name', name);
       formData.set('description', description);
       formData.set('previewUrl', previewUrl);
@@ -139,9 +151,11 @@ export function DeveloperAssetSubmissionPanel({
       setName('');
       setDescription('');
       setPreviewUrl('');
+      setSpecialtyTags([]);
+      setUseCaseTags([]);
       setSelectedFile(null);
       setFileInputKey((key) => key + 1);
-      toast({ title: 'Asset submitted', description: 'Your asset is now in the developer voting pipeline.' });
+      toast({ title: 'Asset submitted', description: 'Your classified asset is now in Forge Review.' });
     } catch (error) {
       toast({
         title: 'Asset not submitted',
@@ -154,212 +168,231 @@ export function DeveloperAssetSubmissionPanel({
   };
 
   return (
-          <TabsContent value="submit" className="mt-4">
-            <div className="border border-[#5f4526] bg-[#100c08] p-4">
-            <h3 className="font-serif text-xl text-[#fff1c7]">Submit a Library Candidate</h3>
-            <p className="mt-2 text-sm leading-6 text-[#c7b288]">
-              Media and font candidates enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used: inside Template Studio.
-            </p>
-            <div className="mt-4 flex flex-col gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-[#ffe7ad]">Revising a shared Template?</p>
-                <p className="mt-1 text-xs leading-5 text-[#a98a55]">Open it in Template Studio. The save control becomes Submit revision and sends the complete editable Template to Forge Review.</p>
-              </div>
-              <Button asChild variant="outline" className="shrink-0 border-[#8a642f] text-[#ffe7ad]">
-                <Link href="/studio">Open Template Studio</Link>
-              </Button>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <GuidanceCard
-                eyebrow="Destination"
-                title={getDeveloperAssetStudioDestinationLabel(studioDestination)}
-                body={`${getDeveloperAssetTypeLabel(assetType)} publish to this Studio surface after voting, owner review, and cap checks.`}
-              />
-              <GuidanceCard
-                eyebrow="Source"
-                title={submissionGuidance.sourceLabel}
-                body={submissionGuidance.sourceHelp}
-              />
-              <GuidanceCard
-                eyebrow="Reviewers check"
-                title={submissionGuidance.checklist.join(' / ')}
-                body={submissionGuidance.notesHelp}
-              />
-            </div>
-            <div className="mt-4 grid gap-3">
-              <div className="grid gap-2 text-sm text-[#c7b288]">
-                <label htmlFor="developer-asset-family" className="flex items-center justify-between gap-2">
-                  Asset family
-                  <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
-                </label>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Submission quick picks">
-                  {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => {
-                    const isActive = assetType === type;
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        className={`border p-3 text-left transition-colors ${isActive ? 'border-[#d8b365] bg-[#2a1b0d] text-[#ffe7ad]' : 'border-[#5f4526] bg-[#0c0b09] text-[#c7b288] hover:border-[#8a642f] hover:text-[#ffe7ad]'}`}
-                        aria-pressed={isActive}
-                        onClick={() => changeAssetType(type)}
-                      >
-                        <span className="block text-xs uppercase tracking-[0.12em] text-[#a98a55]">
-                          {type === 'fonts' ? 'Font upload' : 'Asset upload'}
-                        </span>
-                        <span className="mt-1 block font-medium">{getDeveloperAssetTypeLabel(type, { plural: false })}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <select
-                  id="developer-asset-family"
-                  className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
-                  value={assetType}
-                  onChange={(event) => changeAssetType(event.target.value as DeveloperUploadAssetType)}
-                >
-                  {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => (
-                    <option key={type} value={type}>{getDeveloperAssetTypeLabel(type, { plural: false })}</option>
-                  ))}
-                </select>
-              </div>
-              <label htmlFor="developer-asset-studio-destination" className="grid gap-2 text-sm text-[#c7b288]">
-                <span className="flex items-center justify-between gap-2">
-                  Studio destination
-                  <FieldHelp text="Choose where creators should find this asset. CardForge only permits destinations compatible with the selected asset family." />
-                </span>
-                <select
-                  id="developer-asset-studio-destination"
-                  className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
-                  value={studioDestination}
-                  onChange={(event) => setStudioDestination(event.target.value as StudioAssetDestination)}
-                >
-                  {studioDestinationOptions.map((destination) => (
-                    <option key={destination} value={destination}>{getDeveloperAssetStudioDestinationLabel(destination)}</option>
-                  ))}
-                </select>
-                <span className="text-xs leading-5 text-[#a98a55]">{submissionGuidance.destination}</span>
-              </label>
-              <label htmlFor="developer-asset-name" className="grid gap-2 text-sm text-[#c7b288]">
-                <span className="flex items-center justify-between gap-2">
-                  Name
-                  <FieldHelp text="Use a short library-facing name. This is what owners and peer reviewers see in queues." />
-                </span>
-                <input id="developer-asset-name" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={name} onChange={(event) => setName(event.target.value)} />
-              </label>
-              <div className="grid gap-2 text-sm text-[#c7b288]">
-                <span className="flex items-center justify-between gap-2">
-                  Candidate source
-                  <FieldHelp text="Choose from your browser library, drag a local file here, or browse your file directory. All three routes submit through the same review pipeline." />
-                </span>
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
-                  <div className="border border-[#5f4526] bg-[#0c0b09] p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-[#ffe7ad]">
-                        <Library className="h-4 w-4 text-[#d7b469]" />
-                        <span className="font-medium">Personal Library</span>
-                      </div>
-                      <select
-                        className="border border-[#5f4526] bg-[#100c08] px-2 py-1 text-xs text-[#ffe7ad]"
-                        value={personalLibraryFilter}
-                        onChange={(event) => setPersonalLibraryFilter(event.target.value as PersonalLibraryFilter)}
-                      >
-                        <option value="all">All saved</option>
-                        {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => (
-                          <option key={type} value={type}>{getDeveloperAssetTypeLabel(type)}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <p className="mt-2 text-xs leading-5 text-[#a98a55]">
-                      Pull locally saved art into Forge Review. Templates and Styles stay in their Studio-native authoring workflows.
-                    </p>
-                    <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
-                      {visiblePersonalLibraryItems.length === 0 ? (
-                        <p className="border border-dashed border-[#3c2c1b] p-3 text-xs leading-5 text-[#a98a55]">
-                          {getCandidateSourceEmptyMessage(personalLibraryFilter === 'all' ? assetType : personalLibraryFilter)}
-                        </p>
-                      ) : visiblePersonalLibraryItems.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className="grid w-full grid-cols-[2.75rem,minmax(0,1fr)] gap-3 border border-[#3c2c1b] bg-[#100c08] p-2 text-left hover:border-[#d8b365] hover:bg-[#1e160d]"
-                          onClick={() => void choosePersonalLibraryItem(item)}
-                        >
-                          <span className="grid h-11 w-11 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
-                            {item.previewUrl && !item.previewUrl.startsWith('/api/templates') ? (
-                              <img src={item.previewUrl} alt="" className="h-full w-full object-contain" />
-                            ) : (
-                              <FileUp className="h-4 w-4 text-[#d7b469]" />
-                            )}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm text-[#ffe7ad]">{item.name}</span>
-                            <span className="block text-xs text-[#a98a55]">{item.sourceLabel} - {getDeveloperAssetTypeLabel(item.assetType, { plural: false })}</span>
-                            <span className="block truncate text-xs text-[#6f5b3a]">{item.fileName}</span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <label
-                    className={`grid min-h-56 cursor-pointer place-items-center border border-dashed p-5 text-center transition-colors ${isDragActive ? 'border-[#d8b365] bg-[#2a1b0d]' : 'border-[#5f4526] bg-[#0c0b09]'}`}
-                    onDragEnter={(event) => {
-                      event.preventDefault();
-                      setIsDragActive(true);
-                    }}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDragLeave={() => setIsDragActive(false)}
-                    onDrop={handleCandidateDrop}
-                  >
-                    <span className="grid gap-3">
-                      <span className="mx-auto grid h-12 w-12 place-items-center border border-[#5f4526] bg-[#15100a] text-[#d7b469]">
-                        <UploadCloud className="h-5 w-5" />
-                      </span>
-                      <span className="text-sm font-medium text-[#ffe7ad]">{getCandidateBrowseLabel(assetType)}</span>
-                      <span className="text-xs leading-5 text-[#a98a55]">
-                        {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}.
-                      </span>
-                      <input
-                        key={fileInputKey}
-                        type="file"
-                        aria-label={`${getDeveloperAssetTypeLabel(assetType, { plural: false })} source file`}
-                        accept={submissionGuidance.accept}
-                        className="sr-only"
-                        onChange={handleFileChange}
-                      />
-                    </span>
-                  </label>
-                </div>
-                <span className="text-xs text-[#a98a55]">
-                  {selectedFile
-                    ? `${selectedFile.name} - ${Math.ceil(selectedFile.size / 1024)} KB selected`
-                    : 'No source selected yet.'}
-                </span>
-              </div>
-              <label htmlFor="developer-asset-preview-url" className="grid gap-2 text-sm text-[#c7b288]">
-                <span className="flex items-center justify-between gap-2">
-                  Preview URL (optional)
-                  <FieldHelp text="Optional. Leave blank to use the uploaded source file as the visual preview." />
-                </span>
-                <input id="developer-asset-preview-url" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} />
-              </label>
-              <label htmlFor="developer-asset-notes" className="grid gap-2 text-sm text-[#c7b288]">
-                <span className="flex items-center justify-between gap-2">
-                  Notes
-                  <FieldHelp text={submissionGuidance.notesHelp} />
-                </span>
-                <textarea
-                  id="developer-asset-notes"
-                  className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
-                  placeholder={submissionGuidance.notesHelp}
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                />
-              </label>
-              <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
-                {isSaving ? 'Uploading...' : 'Send to Forge Review'}
-              </Button>
-            </div>
+    <TabsContent value="submit" className="mt-4">
+      <div className="border border-[#5f4526] bg-[#100c08] p-4">
+        <h3 className="font-serif text-xl text-[#fff1c7]">Submit a Library Candidate</h3>
+        <p className="mt-2 text-sm leading-6 text-[#c7b288]">
+          Media and font candidates enter the shared CardForge review pipeline. Templates and visual Styles are authored where they are used: inside Template Studio.
+        </p>
+        <div className="mt-4 flex flex-col gap-3 border border-[#3c2c1b] bg-[#0c0b09] p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-[#ffe7ad]">Revising a shared Template?</p>
+            <p className="mt-1 text-xs leading-5 text-[#a98a55]">Open it in Template Studio. The save control becomes Submit revision and sends the complete editable Template to Forge Review.</p>
           </div>
-          </TabsContent>
+          <Button asChild variant="outline" className="shrink-0 border-[#8a642f] text-[#ffe7ad]">
+            <Link href="/studio">Open Template Studio</Link>
+          </Button>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <GuidanceCard
+            eyebrow="Destination"
+            title={getDeveloperAssetStudioDestinationLabel(studioDestination)}
+            body={`${getDeveloperAssetTypeLabel(assetType)} publish to this Studio surface after voting, owner review, and cap checks.`}
+          />
+          <GuidanceCard
+            eyebrow="Source"
+            title={submissionGuidance.sourceLabel}
+            body={submissionGuidance.sourceHelp}
+          />
+          <GuidanceCard
+            eyebrow="Reviewers check"
+            title={submissionGuidance.checklist.join(' / ')}
+            body={submissionGuidance.notesHelp}
+          />
+        </div>
+        <div className="mt-4 grid gap-3">
+          <div className="grid gap-2 text-sm text-[#c7b288]">
+            <label htmlFor="developer-asset-family" className="flex items-center justify-between gap-2">
+              Asset family
+              <FieldHelp text="Choose the accepted asset folder/type this submission belongs to so owners can cap and publish it correctly." />
+            </label>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Submission quick picks">
+              {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => {
+                const isActive = assetType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`border p-3 text-left transition-colors ${isActive ? 'border-[#d8b365] bg-[#2a1b0d] text-[#ffe7ad]' : 'border-[#5f4526] bg-[#0c0b09] text-[#c7b288] hover:border-[#8a642f] hover:text-[#ffe7ad]'}`}
+                    aria-pressed={isActive}
+                    onClick={() => changeAssetType(type)}
+                  >
+                    <span className="block text-xs uppercase tracking-[0.12em] text-[#a98a55]">
+                      {type === 'fonts' ? 'Font upload' : 'Asset upload'}
+                    </span>
+                    <span className="mt-1 block font-medium">{getDeveloperAssetTypeLabel(type, { plural: false })}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <select
+              id="developer-asset-family"
+              className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+              value={assetType}
+              onChange={(event) => changeAssetType(event.target.value as DeveloperUploadAssetType)}
+            >
+              {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => (
+                <option key={type} value={type}>{getDeveloperAssetTypeLabel(type, { plural: false })}</option>
+              ))}
+            </select>
+          </div>
+          <label htmlFor="developer-asset-studio-destination" className="grid gap-2 text-sm text-[#c7b288]">
+            <span className="flex items-center justify-between gap-2">
+              Studio destination
+              <FieldHelp text="Choose where creators should find this asset. CardForge only permits destinations compatible with the selected asset family." />
+            </span>
+            <select
+              id="developer-asset-studio-destination"
+              className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+              value={studioDestination}
+              onChange={(event) => setStudioDestination(event.target.value as StudioAssetDestination)}
+            >
+              {studioDestinationOptions.map((destination) => (
+                <option key={destination} value={destination}>{getDeveloperAssetStudioDestinationLabel(destination)}</option>
+              ))}
+            </select>
+            <span className="text-xs leading-5 text-[#a98a55]">{submissionGuidance.destination}</span>
+          </label>
+          <div className="grid gap-3 md:grid-cols-2">
+            <ControlledTaxonomySelect
+              label="Specialties"
+              selectedIds={specialtyTags}
+              options={CARDFORGE_SPECIALTY_OPTIONS}
+              onChange={setSpecialtyTags}
+              emptyLabel="Choose at least one specialty."
+            />
+            <ControlledTaxonomySelect
+              label="Use cases"
+              selectedIds={useCaseTags}
+              options={CARDFORGE_USE_CASE_OPTIONS}
+              onChange={setUseCaseTags}
+              emptyLabel="Choose at least one use case."
+            />
+          </div>
+          <p className="text-xs leading-5 text-[#a98a55]">
+            Studio destination controls where the asset appears. Specialty and use-case classification comes from CardForge's shared taxonomy and is stored with the submission from the start.
+          </p>
+          <label htmlFor="developer-asset-name" className="grid gap-2 text-sm text-[#c7b288]">
+            <span className="flex items-center justify-between gap-2">
+              Name
+              <FieldHelp text="Use a short library-facing name. This is what owners and peer reviewers see in queues." />
+            </span>
+            <input id="developer-asset-name" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <div className="grid gap-2 text-sm text-[#c7b288]">
+            <span className="flex items-center justify-between gap-2">
+              Candidate source
+              <FieldHelp text="Choose from your browser library, drag a local file here, or browse your file directory. All three routes submit through the same review pipeline." />
+            </span>
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
+              <div className="border border-[#5f4526] bg-[#0c0b09] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-[#ffe7ad]">
+                    <Library className="h-4 w-4 text-[#d7b469]" />
+                    <span className="font-medium">Personal Library</span>
+                  </div>
+                  <select
+                    className="border border-[#5f4526] bg-[#100c08] px-2 py-1 text-xs text-[#ffe7ad]"
+                    value={personalLibraryFilter}
+                    onChange={(event) => setPersonalLibraryFilter(event.target.value as PersonalLibraryFilter)}
+                  >
+                    <option value="all">All saved</option>
+                    {DEVELOPER_UPLOAD_ASSET_TYPES.map((type) => (
+                      <option key={type} value={type}>{getDeveloperAssetTypeLabel(type)}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[#a98a55]">
+                  Pull locally saved art into Forge Review. Templates and Styles stay in their Studio-native authoring workflows.
+                </p>
+                <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                  {visiblePersonalLibraryItems.length === 0 ? (
+                    <p className="border border-dashed border-[#3c2c1b] p-3 text-xs leading-5 text-[#a98a55]">
+                      {getCandidateSourceEmptyMessage(personalLibraryFilter === 'all' ? assetType : personalLibraryFilter)}
+                    </p>
+                  ) : visiblePersonalLibraryItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="grid w-full grid-cols-[2.75rem,minmax(0,1fr)] gap-3 border border-[#3c2c1b] bg-[#100c08] p-2 text-left hover:border-[#d8b365] hover:bg-[#1e160d]"
+                      onClick={() => void choosePersonalLibraryItem(item)}
+                    >
+                      <span className="grid h-11 w-11 place-items-center overflow-hidden border border-[#5f4526] bg-[#15100a]">
+                        {item.previewUrl && !item.previewUrl.startsWith('/api/templates') ? (
+                          <img src={item.previewUrl} alt="" className="h-full w-full object-contain" />
+                        ) : (
+                          <FileUp className="h-4 w-4 text-[#d7b469]" />
+                        )}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm text-[#ffe7ad]">{item.name}</span>
+                        <span className="block text-xs text-[#a98a55]">{item.sourceLabel} - {getDeveloperAssetTypeLabel(item.assetType, { plural: false })}</span>
+                        <span className="block truncate text-xs text-[#6f5b3a]">{item.fileName}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label
+                className={`grid min-h-56 cursor-pointer place-items-center border border-dashed p-5 text-center transition-colors ${isDragActive ? 'border-[#d8b365] bg-[#2a1b0d]' : 'border-[#5f4526] bg-[#0c0b09]'}`}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  setIsDragActive(true);
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDragLeave={() => setIsDragActive(false)}
+                onDrop={handleCandidateDrop}
+              >
+                <span className="grid gap-3">
+                  <span className="mx-auto grid h-12 w-12 place-items-center border border-[#5f4526] bg-[#15100a] text-[#d7b469]">
+                    <UploadCloud className="h-5 w-5" />
+                  </span>
+                  <span className="text-sm font-medium text-[#ffe7ad]">{getCandidateBrowseLabel(assetType)}</span>
+                  <span className="text-xs leading-5 text-[#a98a55]">
+                    {submissionGuidance.acceptedFileTypes}. Typical source size: about {formatBytes(expectedSourceSize)}.
+                  </span>
+                  <input
+                    key={fileInputKey}
+                    type="file"
+                    aria-label={`${getDeveloperAssetTypeLabel(assetType, { plural: false })} source file`}
+                    accept={submissionGuidance.accept}
+                    className="sr-only"
+                    onChange={handleFileChange}
+                  />
+                </span>
+              </label>
+            </div>
+            <span className="text-xs text-[#a98a55]">
+              {selectedFile
+                ? `${selectedFile.name} - ${Math.ceil(selectedFile.size / 1024)} KB selected`
+                : 'No source selected yet.'}
+            </span>
+          </div>
+          <label htmlFor="developer-asset-preview-url" className="grid gap-2 text-sm text-[#c7b288]">
+            <span className="flex items-center justify-between gap-2">
+              Preview URL (optional)
+              <FieldHelp text="Optional. Leave blank to use the uploaded source file as the visual preview." />
+            </span>
+            <input id="developer-asset-preview-url" className="border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]" value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} />
+          </label>
+          <label htmlFor="developer-asset-notes" className="grid gap-2 text-sm text-[#c7b288]">
+            <span className="flex items-center justify-between gap-2">
+              Notes
+              <FieldHelp text={submissionGuidance.notesHelp} />
+            </span>
+            <textarea
+              id="developer-asset-notes"
+              className="min-h-24 border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad]"
+              placeholder={submissionGuidance.notesHelp}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </label>
+          <Button className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]" disabled={isSaving || program.remainingSubmissions <= 0} onClick={submitAsset}>
+            {isSaving ? 'Uploading...' : 'Send to Forge Review'}
+          </Button>
+        </div>
+      </div>
+    </TabsContent>
   );
 }

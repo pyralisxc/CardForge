@@ -17,10 +17,10 @@ import {
 } from './developerAssets';
 import { isStudioAssetDestination, type StudioAssetDestination } from '@/domain/templates';
 import { getDeveloperAssetStudioDestinationOptions } from './pipelineAssetTaxonomy';
-import { normalizeContentTaxonomyTags } from './contentTaxonomy';
+import { normalizeSpecialtyTags, normalizeUseCaseTags } from './contentTaxonomy';
 
 export type DeveloperAssetSubmissionInputResult =
-  | { ok: true; value: Pick<DeveloperAssetSubmission, 'assetType' | 'requestedStudioDestination' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
+  | { ok: true; value: Pick<DeveloperAssetSubmission, 'assetType' | 'requestedStudioDestination' | 'specialtyTags' | 'useCaseTags' | 'name' | 'description' | 'previewUrl' | 'sourceUrl' | 'sourceFileSizeBytes' | 'sourceMimeType' | 'sourceStorageBucket' | 'sourceStoragePath'> }
   | { ok: false; message: string };
 
 export type DeveloperAssetSubmissionEditInputResult =
@@ -242,6 +242,8 @@ export const normalizeDeveloperProfileOverrideInput = (
 export const normalizeDeveloperAssetSubmissionInput = (value: {
   assetType?: unknown;
   studioDestination?: unknown;
+  specialtyTags?: unknown;
+  useCaseTags?: unknown;
   name?: unknown;
   description?: unknown;
   previewUrl?: unknown;
@@ -260,6 +262,10 @@ export const normalizeDeveloperAssetSubmissionInput = (value: {
   ) {
     return { ok: false, message: 'Choose a Studio destination compatible with this asset type.' };
   }
+  const specialtyTags = normalizeSpecialtyTags(value.specialtyTags);
+  if (!specialtyTags.length) return { ok: false, message: 'Choose at least one supported CardForge specialty.' };
+  const useCaseTags = normalizeUseCaseTags(value.useCaseTags);
+  if (!useCaseTags.length) return { ok: false, message: 'Choose at least one supported CardForge use case.' };
   const name = normalizeDeveloperAssetShortText(value.name, 96);
   if (!name) return { ok: false, message: 'Asset name is required.' };
   const previewUrl = normalizeUrl(value.previewUrl);
@@ -271,6 +277,8 @@ export const normalizeDeveloperAssetSubmissionInput = (value: {
     value: {
       assetType: value.assetType,
       requestedStudioDestination: value.studioDestination,
+      specialtyTags,
+      useCaseTags,
       name,
       description: normalizeDeveloperAssetLongText(value.description, 280),
       previewUrl: previewUrl || sourceUrl,
@@ -319,10 +327,10 @@ export const normalizeDeveloperAssetSubmissionEditInput = (value: {
         ? { sourceNotes: normalizeDeveloperAssetLongText(value.sourceNotes, 600) }
         : {}),
       ...(value.specialtyTags !== undefined
-        ? { specialtyTags: normalizeContentTaxonomyTags(value.specialtyTags) }
+        ? { specialtyTags: normalizeSpecialtyTags(value.specialtyTags) }
         : {}),
       ...(value.useCaseTags !== undefined
-        ? { useCaseTags: normalizeContentTaxonomyTags(value.useCaseTags) }
+        ? { useCaseTags: normalizeUseCaseTags(value.useCaseTags) }
         : {}),
       ...(requestedStudioDestination ? { requestedStudioDestination } : {}),
     },
@@ -366,8 +374,8 @@ export const mapDeveloperAssetSubmissionRow = (
   requestedStudioDestination: isStudioAssetDestination(row.requested_studio_destination)
     ? row.requested_studio_destination
     : null,
-  specialtyTags: normalizeContentTaxonomyTags(row.specialty_tags),
-  useCaseTags: normalizeContentTaxonomyTags(row.use_case_tags),
+  specialtyTags: normalizeSpecialtyTags(row.specialty_tags),
+  useCaseTags: normalizeUseCaseTags(row.use_case_tags),
   sourceNotes: row.source_notes ?? '',
   name: row.name,
   description: row.description ?? '',

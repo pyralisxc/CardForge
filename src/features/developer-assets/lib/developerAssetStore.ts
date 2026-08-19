@@ -225,6 +225,8 @@ export const createDeveloperAssetSubmission = async ({
   input: {
     assetType?: unknown;
     studioDestination?: unknown;
+    specialtyTags?: unknown;
+    useCaseTags?: unknown;
     name?: unknown;
     description?: unknown;
     previewUrl?: unknown;
@@ -253,6 +255,8 @@ export const createDeveloperAssetSubmission = async ({
       developer_email: developerEmail,
       asset_type: normalized.value.assetType,
       requested_studio_destination: normalized.value.requestedStudioDestination,
+      specialty_tags: normalized.value.specialtyTags,
+      use_case_tags: normalized.value.useCaseTags,
       name: normalized.value.name,
       description: normalized.value.description,
       preview_url: normalized.value.previewUrl,
