@@ -41,7 +41,8 @@ describe('public site shell source contract', () => {
     const navigationSource = readSource('src/features/public-site/model/publicNavigation.ts');
     const headerSource = readSource('src/features/public-site/components/PublicSiteHeader.tsx');
     const footerSource = readSource('src/features/public-site/components/PublicSiteFooter.tsx');
-    const layoutSource = readSource('src/app/layout.tsx');
+    const rootLayoutSource = readSource('src/app/layout.tsx');
+    const appProvidersSource = readSource('src/features/app-shell/server/CardForgeAppProviders.tsx');
 
     expect(navigationSource).toContain('export const PUBLIC_NAVIGATION');
     expect(navigationSource).toContain('footerGroups');
@@ -50,8 +51,10 @@ describe('public site shell source contract', () => {
     expect(footerSource).toContain("from '../model/publicNavigation'");
     expect(headerSource).not.toContain('const baseNavItems');
     expect(footerSource).toContain('PUBLIC_NAVIGATION.footerGroups.map');
-    expect(layoutSource).toContain('getCachedFounderProfile');
-    expect(layoutSource).toContain('<FounderProfileProvider profile={founderProfile}>');
+    expect(appProvidersSource).toContain('getCachedFounderProfile');
+    expect(appProvidersSource).toContain('<FounderProfileProvider profile={founderProfile}>');
+    expect(rootLayoutSource).not.toContain('getCachedFounderProfile');
+    expect(rootLayoutSource).not.toContain('<FounderProfileProvider');
   });
 
   it('provides skip navigation and one stable semantic landmark sequence', () => {

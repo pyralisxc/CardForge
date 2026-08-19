@@ -124,7 +124,7 @@ describe('business identity runtime cutover', () => {
     expect(homepage).not.toContain('d/b/a');
   });
 
-  it('passes a minimal runtime identity from the Studio route into the client shell', async () => {
+  it('passes a minimal fail-soft runtime identity from the Studio route into the client shell', async () => {
     const studioPage = await readFile(rootPath('src/app/studio/page.tsx'), 'utf8');
     const studioClient = await readFile(rootPath('src/features/app-shell/client/studio.ts'), 'utf8');
     const studioShell = await readFile(
@@ -132,9 +132,9 @@ describe('business identity runtime cutover', () => {
       'utf8',
     );
 
-    expect(studioPage).toContain("import { getBusinessIdentity } from '@/features/business-identity/server';");
+    expect(studioPage).toContain("import { getCachedBusinessIdentity } from '@/features/business-identity/server';");
     expect(studioPage).toContain('export default async function StudioPage({');
-    expect(studioPage).toContain('getBusinessIdentity()');
+    expect(studioPage).toContain('getCachedBusinessIdentity()');
     expect(studioPage).toContain('brandName: businessIdentity.brandName');
     expect(studioPage).toContain('copyrightHolder: businessIdentity.copyrightHolder');
     expect(studioClient).toContain('type StudioBusinessIdentity');

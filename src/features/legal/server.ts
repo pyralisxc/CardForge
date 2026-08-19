@@ -12,3 +12,4 @@ export {
   legalDocumentTag,
   revalidateLegalDocumentCache,
 } from './server/publicLegalCache';
+export { ConfiguredPublicLegalPage } from './server/ConfiguredPublicLegalPage';
