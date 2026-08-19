@@ -1,6 +1,8 @@
 import type {
   OwnerConnectedService,
+  OwnerConsoleOverviewPayload,
   OwnerConsolePayload,
+  OwnerSiteControlPayload,
 } from '@/features/owner/lib/ownerConsole';
 import type { AnalyticsConfigurationStatus } from '@/features/analytics/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
@@ -42,7 +44,7 @@ export interface OwnerConsoleResponse {
     };
     connectedServices: OwnerConnectedService[];
   };
-  console: OwnerConsolePayload;
+  overview: OwnerConsoleOverviewPayload;
 }
 
 export type OwnerPersonIdentityState = 'connected' | 'history_only' | 'account_only';
@@ -85,6 +87,12 @@ export interface OwnerPeoplePage {
     needsAttention: number;
   };
 }
+
+export const loadOwnerSiteControls = async (): Promise<OwnerSiteControlPayload> => {
+  const response = await fetch('/api/owner/console?scope=site', { cache: 'no-store' });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load site controls.'));
+  return ((await response.json()) as { siteControls: OwnerSiteControlPayload }).siteControls;
+};
 
 export const updateOwnerConsole = async (
   body: Record<string, unknown>,

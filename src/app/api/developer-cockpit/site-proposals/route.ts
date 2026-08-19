@@ -5,7 +5,7 @@ import {
   createSiteContentProposal,
   DeveloperCockpitStoreError,
   getCurrentDeveloperCockpitAccess,
-  getDeveloperCockpitView,
+  getDeveloperSiteWorkspace,
   publishSiteContentProposal,
   requireContributionScope,
   saveSiteContentProposal,
@@ -18,15 +18,8 @@ import { consumeRateLimit } from '@/infrastructure/security/abuseProtection';
 export const dynamic = 'force-dynamic';
 
 const consumeMutationLimit = async (userId: string) => {
-  const rateLimit = await consumeRateLimit({
-    action: 'developer-site-proposal',
-    identity: userId,
-    limit: 60,
-    windowSeconds: 3600,
-  });
-  if (!rateLimit.allowed) {
-    throw new DeveloperCockpitStoreError('Too many site-copy changes. Please try again later.', 429);
-  }
+  const rateLimit = await consumeRateLimit({ action: 'developer-site-proposal', identity: userId, limit: 60, windowSeconds: 3600 });
+  if (!rateLimit.allowed) throw new DeveloperCockpitStoreError('Too many site-copy changes. Please try again later.', 429);
 };
 
 export async function POST(request: Request) {
@@ -36,9 +29,7 @@ export async function POST(request: Request) {
     await consumeMutationLimit(access.user.id);
     const body = await request.json() as Parameters<typeof createSiteContentProposal>[1];
     await createSiteContentProposal(access, body);
-    return createNoStoreJsonResponse({
-      cockpit: await getDeveloperCockpitView(access),
-    }, { status: 201 });
+    return createNoStoreJsonResponse({ site: await getDeveloperSiteWorkspace(access) }, { status: 201 });
   } catch (error) {
     return createDeveloperCockpitErrorResponse(error, 'Unable to create the site-copy proposal.');
   }
@@ -58,47 +49,23 @@ export async function PATCH(request: Request) {
     const proposalId = typeof body.proposalId === 'string' ? body.proposalId : '';
     if (body.action === 'save') {
       requireContributionScope(access, 'site.propose');
-      await saveSiteContentProposal({
-        access,
-        proposalId,
-        expectedVersion: body.expectedVersion,
-        input: body.proposal ?? {},
-      });
+      await saveSiteContentProposal({ access, proposalId, expectedVersion: body.expectedVersion, input: body.proposal ?? {} });
     } else if (body.action === 'submit' || body.action === 'cancel') {
       requireContributionScope(access, 'site.propose');
-      await transitionSiteContentProposal({
-        access,
-        proposalId,
-        expectedVersion: body.expectedVersion,
-        to: body.action === 'submit' ? 'submitted' : 'cancelled',
-        reviewNote: body.reviewNote,
-      });
+      await transitionSiteContentProposal({ access, proposalId, expectedVersion: body.expectedVersion, to: body.action === 'submit' ? 'submitted' : 'cancelled', reviewNote: body.reviewNote });
     } else if (body.action === 'request_changes' || body.action === 'reject') {
       requireContributionScope(access, 'site.publish');
-      await transitionSiteContentProposal({
-        access,
-        proposalId,
-        expectedVersion: body.expectedVersion,
-        to: body.action === 'request_changes' ? 'changes_requested' : 'rejected',
-        reviewNote: body.reviewNote,
-      });
+      await transitionSiteContentProposal({ access, proposalId, expectedVersion: body.expectedVersion, to: body.action === 'request_changes' ? 'changes_requested' : 'rejected', reviewNote: body.reviewNote });
     } else if (body.action === 'publish') {
       requireContributionScope(access, 'site.publish');
-      await publishSiteContentProposal(
-        access,
-        proposalId,
-        body.expectedVersion,
-        body.reviewNote,
-      );
+      await publishSiteContentProposal(access, proposalId, body.expectedVersion, body.reviewNote);
       revalidateSiteContentCache();
       revalidatePath('/');
       revalidatePath('/about');
     } else {
       throw new DeveloperCockpitStoreError('Choose a supported site-proposal action.', 400);
     }
-    return createNoStoreJsonResponse({
-      cockpit: await getDeveloperCockpitView(access),
-    });
+    return createNoStoreJsonResponse({ site: await getDeveloperSiteWorkspace(access) });
   } catch (error) {
     return createDeveloperCockpitErrorResponse(error, 'Unable to update the site-copy proposal.');
   }

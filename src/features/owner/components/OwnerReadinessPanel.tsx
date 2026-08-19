@@ -13,6 +13,8 @@ import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
 import { updateOwnerConsole } from '@/features/owner/model/ownerConsoleClient';
 import { formatOwnerBytes, OwnerFieldHelp, OwnerMetricTile } from './OwnerPanelPrimitives';
 
+type OwnerReadinessPayload = Pick<OwnerConsolePayload, 'businessIdentity' | 'roadmapItems' | 'databaseMetrics'>;
+
 const roadmapStatusLabels: Record<OwnerConsolePayload['roadmapItems'][number]['status'], string> = {
   planned: 'Planned',
   in_progress: 'In progress',
@@ -28,7 +30,7 @@ export function OwnerReadinessPanel({
   compactRoadmap = false,
   onOpenRoadmap,
 }: {
-  consolePayload: OwnerConsolePayload;
+  consolePayload: OwnerReadinessPayload;
   onConsoleChange: (payload: OwnerConsolePayload) => void;
   view?: 'all' | 'identity' | 'health' | 'roadmap';
   compactRoadmap?: boolean;
@@ -39,7 +41,7 @@ export function OwnerReadinessPanel({
   const [isSaving, setIsSaving] = useState(false);
   useEffect(() => {
     setRoadmapItems(consolePayload.roadmapItems);
-  }, [consolePayload]);
+  }, [consolePayload.roadmapItems]);
 
   const saveBusinessIdentity = async (
     businessIdentity: BusinessIdentityInput,
@@ -58,6 +60,7 @@ export function OwnerReadinessPanel({
     try {
       const next = await updateOwnerConsole({ kind: 'roadmapStatus', roadmapItem: { itemId, status } }, 'Unable to update roadmap checkpoint.');
       onConsoleChange(next);
+      setRoadmapItems(next.roadmapItems);
       toast({ title: status === 'shipped' ? 'Checkpoint completed' : 'Checkpoint updated', description: 'The public roadmap now reflects the new status.' });
     } catch (error) {
       toast({ title: 'Roadmap not updated', description: error instanceof Error ? error.message : 'Unable to update roadmap checkpoint.', variant: 'destructive' });

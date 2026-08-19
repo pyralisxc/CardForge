@@ -2,7 +2,11 @@ import { getBusinessIdentity } from '@/features/business-identity/server';
 import { getContactRequests } from '@/features/contact/server';
 import { getLegalDocuments } from '@/features/legal/server';
 import { getExperienceSettings } from '@/features/experience-settings/server';
-import type { OwnerConsolePayload } from '@/features/owner/lib/ownerConsole';
+import type {
+  OwnerConsoleOverviewPayload,
+  OwnerConsolePayload,
+  OwnerSiteControlPayload,
+} from '@/features/owner/lib/ownerConsole';
 import { getOwnerDatabaseMetrics } from '@/features/owner/server/ownerDatabaseMetrics';
 import {
   getFounderProfile,
@@ -16,7 +20,21 @@ import {
 } from '@/features/roadmap/server';
 import { getSupabaseServerConfigStatus } from '@/infrastructure/database/supabaseServer';
 
-export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => {
+export const getOwnerConsoleOverviewPayload = async (): Promise<OwnerConsoleOverviewPayload> => {
+  const [businessIdentity, roadmapItems, databaseMetrics] = await Promise.all([
+    getBusinessIdentity(),
+    getRoadmapAdminItems(),
+    getOwnerDatabaseMetrics(),
+  ]);
+  return {
+    configured: getSupabaseServerConfigStatus().configured,
+    businessIdentity,
+    roadmapItems,
+    databaseMetrics,
+  };
+};
+
+export const getOwnerSiteControlPayload = async (): Promise<OwnerSiteControlPayload> => {
   const [
     businessIdentity,
     experienceSettings,
@@ -27,8 +45,6 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     founderProfile,
     legalDocuments,
     roadmapItems,
-    databaseMetrics,
-    contactRequests,
   ] = await Promise.all([
     getBusinessIdentity(),
     getExperienceSettings(),
@@ -39,12 +55,8 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     getFounderProfile(),
     getLegalDocuments(),
     getRoadmapAdminItems(),
-    getOwnerDatabaseMetrics(),
-    getContactRequests(),
   ]);
-
   return {
-    configured: getSupabaseServerConfigStatus().configured,
     businessIdentity,
     experienceSettings,
     siteConfiguration,
@@ -54,7 +66,27 @@ export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => 
     founderProfile,
     legalDocuments,
     roadmapItems,
-    databaseMetrics,
+  };
+};
+
+export const getOwnerSiteConsolePayload = async (): Promise<OwnerConsolePayload> => ({
+  ...(await getOwnerSiteControlPayload()),
+  configured: getSupabaseServerConfigStatus().configured,
+  databaseMetrics: null,
+  contactRequests: [],
+});
+
+/** Full fan-in retained only for explicit compatibility callers; Owner Console startup no longer uses it. */
+export const getOwnerConsolePayload = async (): Promise<OwnerConsolePayload> => {
+  const [overview, site, contactRequests] = await Promise.all([
+    getOwnerConsoleOverviewPayload(),
+    getOwnerSiteControlPayload(),
+    getContactRequests(),
+  ]);
+  return {
+    ...site,
+    configured: overview.configured,
+    databaseMetrics: overview.databaseMetrics,
     contactRequests,
   };
 };
