@@ -1,4 +1,4 @@
-import { SignIn } from '@clerk/nextjs';
+import { SignUp } from '@clerk/nextjs';
 import Link from 'next/link';
 
 import {
@@ -9,13 +9,13 @@ import {
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata = createPageMetadata({
-  title: 'Sign in to CardForge',
-  description: 'Sign in to your CardForge account.',
-  path: '/sign-in',
+  title: 'Create a CardForge account',
+  description: 'Create your CardForge account.',
+  path: '/sign-up',
   index: false,
 });
 
-export default async function SignInPage({
+export default async function SignUpPage({
   searchParams,
 }: {
   searchParams: Promise<{
@@ -28,9 +28,9 @@ export default async function SignInPage({
     return (
       <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12 text-[#f7f1e4]">
         <div className="w-full max-w-md border border-[#4d3c25] bg-[#1b1510] p-8 text-center shadow-2xl">
-          <h1 className="font-[var(--font-cardforge-spectral)] text-3xl font-semibold">Account sign-in is unavailable</h1>
+          <h1 className="font-[var(--font-cardforge-spectral)] text-3xl font-semibold">Account creation is unavailable</h1>
           <p className="mt-3 text-base leading-7 text-[#c8bda8]">
-            CardForge account sign-in has not been configured for this environment.
+            CardForge account sign-up has not been configured for this environment.
           </p>
           <Link
             href="/"
@@ -54,10 +54,10 @@ export default async function SignInPage({
         <Link href="/" className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[#f7f1e4]">
           CardForge Studio
         </Link>
-        <SignIn
+        <SignUp
           fallbackRedirectUrl={fallbackRedirectUrl}
-          signUpFallbackRedirectUrl={fallbackRedirectUrl}
-          signUpUrl={createAuthRouteHref('/sign-up', fallbackRedirectUrl)}
+          signInFallbackRedirectUrl={fallbackRedirectUrl}
+          signInUrl={createAuthRouteHref('/sign-in', fallbackRedirectUrl)}
         />
       </div>
     </main>

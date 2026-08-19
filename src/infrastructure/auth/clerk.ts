@@ -5,6 +5,7 @@ export const isClerkServerConfigPresent = (): boolean =>
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
 
 export type PublicAuthControlState = 'unconfigured' | 'connecting' | 'signed-out' | 'signed-in';
+export type CardForgeAuthRoute = '/sign-in' | '/sign-up';
 
 export const getPublicAuthControlState = ({
   authConfigured,
@@ -34,4 +35,13 @@ export const getSafeLocalReturnPath = (
   } catch {
     return fallback;
   }
+};
+
+export const createAuthRouteHref = (
+  route: CardForgeAuthRoute,
+  returnTo?: string,
+  fallback = '/account',
+): string => {
+  const safeReturnTo = getSafeLocalReturnPath(returnTo, fallback);
+  return `${route}?returnTo=${encodeURIComponent(safeReturnTo)}`;
 };

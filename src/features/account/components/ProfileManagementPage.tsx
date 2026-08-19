@@ -1,11 +1,12 @@
 "use client";
 
 import Link from 'next/link';
-import { SignInButton, UserProfile, useUser } from '@clerk/nextjs';
+import { UserProfile, useUser } from '@clerk/nextjs';
 import { FolderOpen, KeyRound, ShieldCheck, UserCircle2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { getAccountDisplayName, toPossessiveName } from '@/features/account/lib/accountDisplay';
+import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 const clerkAppearance = {
   variables: {
@@ -99,11 +100,11 @@ export function ProfileManagementPage() {
           <p className="mt-3 text-sm leading-5 text-[#c7b288]">
             Sign in to manage identity, security, export access, and local custom-art permissions.
           </p>
-          <SignInButton mode="modal">
-            <Button className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+          <Button asChild className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+            <Link href={createAuthRouteHref('/sign-in', '/profile')} prefetch={false}>
               Sign in
-            </Button>
-          </SignInButton>
+            </Link>
+          </Button>
         </div>
       </ProfileShell>
     );

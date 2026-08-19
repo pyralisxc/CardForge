@@ -6,43 +6,24 @@ import {
   resolveAccountEntitlement,
   type AccountEntitlement,
 } from '@/features/account/lib/accountEntitlement';
+import { isClerkPublicConfigPresent } from '@/infrastructure/auth/clerk';
 
-let sharedEntitlementRequest: Promise<AccountEntitlement> | null = null;
-let sharedEntitlementCache: { entitlement: AccountEntitlement; fetchedAt: number } | null = null;
-const ENTITLEMENT_CACHE_TTL_MS = 1500;
-
-const fetchAccountEntitlement = ({ force = false }: { force?: boolean } = {}) => {
-  if (!force && sharedEntitlementCache && Date.now() - sharedEntitlementCache.fetchedAt < ENTITLEMENT_CACHE_TTL_MS) {
-    return Promise.resolve(sharedEntitlementCache.entitlement);
+const loadAccountEntitlement = async (fallbackAuthConfigured: boolean): Promise<AccountEntitlement> => {
+  try {
+    const response = await fetch('/api/account/entitlement', {
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error('Unable to load account entitlement.');
+    return await response.json() as AccountEntitlement;
+  } catch {
+    return resolveAccountEntitlement({
+      authConfigured: fallbackAuthConfigured,
+    });
   }
-
-  if (sharedEntitlementRequest) return sharedEntitlementRequest;
-
-  sharedEntitlementRequest = (async () => {
-    try {
-      const response = await fetch('/api/account/entitlement', {
-        cache: 'no-store',
-      });
-      if (!response.ok) throw new Error('Unable to load account entitlement.');
-      const nextEntitlement = await response.json() as AccountEntitlement;
-      sharedEntitlementCache = { entitlement: nextEntitlement, fetchedAt: Date.now() };
-      return nextEntitlement;
-    } catch {
-      const fallbackEntitlement = resolveAccountEntitlement({
-        authConfigured: false,
-      });
-      sharedEntitlementCache = { entitlement: fallbackEntitlement, fetchedAt: Date.now() };
-      return fallbackEntitlement;
-    } finally {
-      sharedEntitlementRequest = null;
-    }
-  })();
-
-  return sharedEntitlementRequest;
 };
 
 export function useAccountEntitlement({
-  initialAuthConfigured = false,
+  initialAuthConfigured = isClerkPublicConfigPresent(),
 }: {
   initialAuthConfigured?: boolean;
 } = {}) {
@@ -52,12 +33,11 @@ export function useAccountEntitlement({
   const [isLoadingEntitlement, setIsLoadingEntitlement] = useState(true);
   const inFlightRefreshRef = useRef<Promise<void> | null>(null);
 
-  const refreshEntitlement = useCallback(async (options?: { force?: boolean }) => {
+  const refreshEntitlement = useCallback(async (_options?: { force?: boolean }) => {
     if (inFlightRefreshRef.current) return inFlightRefreshRef.current;
 
     setIsLoadingEntitlement(true);
-
-    const refresh = fetchAccountEntitlement(options)
+    const refresh = loadAccountEntitlement(initialAuthConfigured)
       .then(setEntitlement)
       .finally(() => {
         inFlightRefreshRef.current = null;
@@ -66,10 +46,9 @@ export function useAccountEntitlement({
 
     inFlightRefreshRef.current = refresh;
     return refresh;
-  }, []);
+  }, [initialAuthConfigured]);
 
   const applyEntitlement = useCallback((nextEntitlement: AccountEntitlement) => {
-    sharedEntitlementCache = { entitlement: nextEntitlement, fetchedAt: Date.now() };
     setEntitlement(nextEntitlement);
     setIsLoadingEntitlement(false);
   }, []);

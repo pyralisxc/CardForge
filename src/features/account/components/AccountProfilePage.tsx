@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { ArrowRight, ShieldCheck, UserCircle2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitl
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import { AccountBillingActions } from '@/features/billing/client/account';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
+import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 interface PlatformStatusPayload {
   billing: { productAccessConfigured: boolean };
@@ -78,7 +79,6 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
     return () => { isMounted = false; };
   }, []);
 
-
   const accountEmail = useMemo(() => (
     clerkIdentity.email ?? entitlement.accountEmail ?? 'No signed-in account'
   ), [clerkIdentity.email, entitlement.accountEmail]);
@@ -141,8 +141,12 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
         <Button disabled size="lg" variant="outline" className="border-[#755632] bg-transparent text-[#bea97f]">Account setup needed</Button>
       ) : !effectiveSignedIn ? (
         <>
-          <SignInButton mode="modal"><Button size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">Sign in</Button></SignInButton>
-          <SignUpButton mode="modal"><Button size="lg" variant="ghost" onClick={markSignUpIntent} className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">Create account</Button></SignUpButton>
+          <Button asChild size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+            <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
+          </Button>
+          <Button asChild size="lg" variant="ghost" onClick={markSignUpIntent} className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">
+            <Link href={createAuthRouteHref('/sign-up', '/account')} prefetch={false}>Create account</Link>
+          </Button>
         </>
       ) : !canStartCheckout ? (
         <Button disabled size="lg" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]"><ShieldCheck className="mr-2 h-5 w-5" /> Downloads active</Button>
