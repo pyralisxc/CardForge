@@ -168,6 +168,7 @@ describe('agent Template install and chat preview architecture', () => {
   const handoff = readSource('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts');
   const preview = readSource('src/features/studio-documents/components/TemplateDraftPreviewClient.tsx');
   const mcpTools = readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts');
+  const pluginSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
 
   it('installs and revises one personal local Template without clearing the workspace', () => {
     const gptBranch = handoff.slice(
@@ -195,6 +196,24 @@ describe('agent Template install and chat preview architecture', () => {
     expect(preview).toContain('<CardPreview');
     expect(preview).toContain('toPng(cardRef.current');
     expect(preview).toContain('/api/studio-document-preview?token=');
+  });
+
+  it('reports native image bindings and composition warnings to the agent', () => {
+    expect(mcpTools).toContain('const compositionDiagnostics');
+    expect(mcpTools).toContain('assetBindings');
+    expect(mcpTools).toContain('imageElements');
+    expect(mcpTools).toContain('borderedTextElementIds');
+    expect(mcpTools).toContain('targetElementIds');
+    expect(mcpTools).toContain('composition: compositionDiagnostics(document)');
+    expect(mcpTools).toContain('Asset ${asset.id} is selected but image element ${targetId} still has ${target.sourceState} artwork.');
+  });
+
+  it('teaches frame-first composition and exact main-art binding in the packaged plugin skill', () => {
+    expect(pluginSkill).toContain('## Core composition rule');
+    expect(pluginSkill).toContain('do **not** add another decorative border');
+    expect(pluginSkill).toContain('`binding: element.image`');
+    expect(pluginSkill).toContain('call `preview_template_draft`');
+    expect(pluginSkill).toContain('same normal personal local Template');
   });
 
   it('keeps generated image bytes out of preview results and reports production completeness', () => {

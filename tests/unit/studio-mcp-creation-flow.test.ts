@@ -52,6 +52,16 @@ describe('Studio MCP creative production flow', () => {
     expect(generatorFieldInput).toContain('Image tools');
   });
 
+  it('teaches frame-first composition and visible-slot artwork verification directly through MCP', () => {
+    expect(route).toContain('use that frame as the composition skeleton');
+    expect(route).toContain('Do not recreate those same regions with redundant decorative borders or opaque panels');
+    expect(route).toContain('For fixed main artwork, target the actual native image element and use binding element.image');
+    expect(route).toContain('A successful upload is not proof of correct placement');
+    expect(route).toContain('asset bindings, image-element source states, bordered text ids, and composition warnings');
+    expect(route).toContain('installs or updates the same Template in the user personal local Template library');
+    expect(route).toContain("version: '0.3.2'");
+  });
+
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {
     expect(schemas).toContain("required: ['title', 'productionPlan', 'template']");
     expect(schemas).toContain("required: ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'zIndex']");

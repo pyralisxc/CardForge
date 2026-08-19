@@ -44,6 +44,74 @@ const productionStatus = (document: DeveloperTemplateDraft) => {
   };
 };
 
+const imageSourceState = (source: string | undefined) => {
+  if (!source) return 'empty' as const;
+  if (source === 'artworkUrl') return 'placeholder' as const;
+  if (source.startsWith('data:')) return 'embedded' as const;
+  if (source.startsWith('embedded://')) return 'embedded-reference' as const;
+  return 'configured' as const;
+};
+
+const compositionDiagnostics = (document: DeveloperTemplateDraft) => {
+  const template = document.document.userTemplates[0];
+  const elements = template?.freeformCanvas?.elements ?? [];
+  const plan = document.document.productionPlan;
+  const imageElements = elements
+    .filter((element) => element.type === 'image')
+    .map((element) => ({
+      id: element.id,
+      name: element.name,
+      sourceState: imageSourceState(element.imageSource),
+    }));
+  const imageElementById = new Map(imageElements.map((element) => [element.id, element]));
+  const assetBindings = (plan?.assets ?? []).map((asset) => ({
+    id: asset.id,
+    role: asset.role,
+    kind: asset.kind,
+    status: asset.status,
+    binding: asset.binding ?? null,
+    targetElementIds: asset.targetElementIds ?? [],
+  }));
+  const borderedTextElementIds = elements
+    .filter((element) => {
+      if (element.type !== 'text') return false;
+      const utilityBorder = element.borderWidth
+        && !['_none_', 'none', 'border-0'].includes(element.borderWidth);
+      const appearanceBorder = element.appearance?.border?.kind
+        && element.appearance.border.kind !== 'none'
+        && (element.appearance.border.width ?? 1) > 0;
+      return Boolean(utilityBorder || appearanceBorder);
+    })
+    .map((element) => element.id);
+  const warnings: string[] = [];
+
+  for (const asset of plan?.assets ?? []) {
+    if (asset.binding !== 'element.image') continue;
+    const targets = asset.targetElementIds ?? [];
+    if (targets.length === 0) {
+      warnings.push(`Asset ${asset.id} uses element.image but does not target an image element.`);
+      continue;
+    }
+    for (const targetId of targets) {
+      const target = imageElementById.get(targetId);
+      if (!target) {
+        warnings.push(`Asset ${asset.id} targets ${targetId}, which is not a native image element.`);
+        continue;
+      }
+      if (asset.status === 'selected' && ['empty', 'placeholder'].includes(target.sourceState)) {
+        warnings.push(`Asset ${asset.id} is selected but image element ${targetId} still has ${target.sourceState} artwork.`);
+      }
+    }
+  }
+
+  return {
+    assetBindings,
+    imageElements,
+    borderedTextElementIds,
+    warnings,
+  };
+};
+
 const buildPreviewWidgetHtml = (origin: string) => `<!doctype html>
 <html>
 <head>
@@ -93,14 +161,20 @@ const buildPreviewWidgetHtml = (origin: string) => `<!doctype html>
     const revision = Number.isInteger(output.revision) ? 'Revision ' + output.revision : '';
     const remaining = Number.isInteger(output.remainingAssetCount) ? output.remainingAssetCount : 0;
     const ready = output.productionReady === true;
+    const warnings = output.composition && Array.isArray(output.composition.warnings)
+      ? output.composition.warnings.length
+      : 0;
     const productionLabel = ready
       ? 'ready to install'
       : remaining > 0
         ? remaining + ' planned asset' + (remaining === 1 ? '' : 's') + ' still needed'
         : 'draft still needs review';
+    const warningLabel = warnings > 0
+      ? warnings + ' composition warning' + (warnings === 1 ? '' : 's')
+      : '';
     status.innerHTML = '<strong></strong><span></span>';
     status.querySelector('strong').textContent = title;
-    status.querySelector('span').textContent = [revision, productionLabel].filter(Boolean).join(' · ');
+    status.querySelector('span').textContent = [revision, productionLabel, warningLabel].filter(Boolean).join(' · ');
     openButton.textContent = ready ? 'Open in CardForge' : 'Open draft in CardForge';
     openButton.disabled = !openUrl;
   };
@@ -169,7 +243,7 @@ export const registerAgentTemplateTools = ({
     'attach_template_artwork',
     {
       title: 'Attach generated artwork to a CardForge Template draft',
-      description: 'Attach one generated, user-provided, or CardForge-output PNG/JPEG/WebP to one planned artwork requirement. CardForge validates and normalizes it, embeds it into the Template itself, advances the same Studio document revision, and reports which planned assets still remain.',
+      description: 'Attach one generated, user-provided, or CardForge-output PNG/JPEG/WebP to one planned artwork requirement. CardForge validates and normalizes it, embeds it into the Template itself, advances the same Studio document revision, and reports the exact native binding and target element ids. Preview after attaching to verify the intended visible slot.',
       inputSchema: attachTemplateAssetInputSchema,
       annotations: {
         readOnlyHint: false,
@@ -190,6 +264,9 @@ export const registerAgentTemplateTools = ({
           data,
         });
         const status = productionStatus(document);
+        const attachedRequirement = document.document.productionPlan?.assets.find(
+          (asset) => asset.id === assetRequirementId,
+        );
         return {
           content: [{
             type: 'text',
@@ -201,6 +278,9 @@ export const registerAgentTemplateTools = ({
             documentId: document.id,
             revision: document.revision,
             assetRequirementId,
+            binding: attachedRequirement?.binding ?? binding,
+            targetElementIds: attachedRequirement?.targetElementIds ?? [],
+            composition: compositionDiagnostics(document),
             ...status,
           },
         };
@@ -214,7 +294,7 @@ export const registerAgentTemplateTools = ({
     'preview_template_draft',
     {
       title: 'Preview the current CardForge Template draft',
-      description: 'Render the exact current CardForge Template in chat for visual review. The result reports whether all planned production assets are complete. Use after initial creation and after meaningful layout, copy, style, or artwork revisions; do not call an asset-incomplete draft finished.',
+      description: 'Render the exact current CardForge Template in chat for visual review. The result reports production completeness plus composition and asset-binding diagnostics. Verify the intended image slot, frame structure, and text borders after meaningful layout or artwork revisions; do not call an asset-incomplete or misbound draft finished.',
       inputSchema: previewTemplateDraftInputSchema,
       annotations: {
         readOnlyHint: true,
@@ -232,6 +312,7 @@ export const registerAgentTemplateTools = ({
         const access = await getAccess();
         const document = await getDeveloperTemplateDraft(access, documentId);
         const status = productionStatus(document);
+        const composition = compositionDiagnostics(document);
         const token = createStudioDocumentPreviewToken({
           documentId: document.id,
           ownerUserId: access.user.id,
@@ -248,12 +329,13 @@ export const registerAgentTemplateTools = ({
           assetSummary: status.assetSummary,
           remainingAssetRequirementIds: status.remainingAssetRequirementIds,
           remainingAssetCount: status.remainingAssetRequirementIds.length,
+          composition,
         };
         return {
           content: [{
             type: 'text',
             text: status.productionReady
-              ? `Rendered "${document.title}" revision ${document.revision}. All planned production assets are complete; revise if the user requests changes or open it in Studio when approved.`
+              ? `Rendered "${document.title}" revision ${document.revision}. All planned production assets are complete; inspect the composition diagnostics and visual preview before opening it in Studio.`
               : `Rendered "${document.title}" revision ${document.revision} as a draft preview. ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain, so do not describe it as production-complete yet.`,
           }],
           structuredContent,
