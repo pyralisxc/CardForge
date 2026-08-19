@@ -43,6 +43,18 @@ describe('Clerk middleware configuration', () => {
     ]);
   });
 
+  it('keeps OAuth MCP traffic on Clerk middleware without browser authorized-party validation', () => {
+    const middleware = readFileSync(
+      resolve(process.cwd(), 'src/infrastructure/auth/middleware.ts'),
+      'utf8',
+    );
+
+    expect(middleware).toContain('const oauthClerkHandler = clerkMiddleware();');
+    expect(middleware).toContain("request.nextUrl.pathname === '/mcp'");
+    expect(middleware).toContain('return oauthClerkHandler(request, event);');
+    expect(middleware).toContain('return browserClerkHandler(request, event);');
+  });
+
   it('keeps the established Clerk middleware flow without an unconfigured Frontend API proxy', () => {
     const middleware = readFileSync(
       resolve(process.cwd(), 'src/infrastructure/auth/middleware.ts'),
