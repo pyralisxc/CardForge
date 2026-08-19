@@ -7,6 +7,7 @@ import {
   CARDFORGE_FREEFORM_SHAPE_KINDS,
 } from '@/domain/templates';
 import {
+  PROJECT_ASSET_BINDINGS,
   PROJECT_ASSET_REQUIREMENT_SOURCES,
   PROJECT_ASSET_REQUIREMENT_STATUSES,
   PROJECT_PRODUCTION_DECISION_MODES,
@@ -120,6 +121,9 @@ const validateDraftInput = (input: unknown) => {
 
 const documentStructuredContent = (document: Awaited<ReturnType<typeof createDeveloperTemplateDraft>>) => {
   const productionPlan = document.document.productionPlan;
+  const editableImageFieldKeys = document.document.userTemplates[0]?.fieldContracts
+    ?.filter((field) => field.type === 'image')
+    .map((field) => field.key) ?? [];
   return {
     document: {
       id: document.id,
@@ -131,8 +135,10 @@ const documentStructuredContent = (document: Awaited<ReturnType<typeof createDev
     },
     productionPlan: productionPlan ? {
       decisionMode: productionPlan.decisionMode,
+      planningLocked: true,
       outputSize: productionPlan.outputSize,
       editableFieldCount: productionPlan.editableFieldKeys.length,
+      editableImageFieldKeys,
       assetSummary: summarizeProjectProductionAssets(productionPlan),
     } : null,
     openInStudioUrl: studioDocumentUrl(document.id),
@@ -165,13 +171,17 @@ const handler = createMcpHandler(
           const structuredContent = {
             workflow: [
               'Establish the purpose, audience, deliverable, and exact output dimensions or physical format.',
-              'Agree on visual direction: look and feel, palette, typography, hierarchy, and copy/content needs.',
-              'Define every Studio-editable field and bind it through native fieldContracts to a real canvas element.',
-              'Inventory assets with quantities and roles. Search the CardForge library before asking for new art.',
-              'For each distinct custom image, create one planned asset requirement with status needed, then attach the finished image with attach_template_artwork.',
-              'Show the production plan to the user and use decisionMode confirmed after approval, or delegated only when the user explicitly delegated creative decisions.',
+              'Resolve one quality target before building the plan: simple, professional, or premium. Infer it when the request is explicit; otherwise ask one concise quality question. If the user explicitly delegates all creative decisions without naming a quality target, use professional.',
+              'Agree on visual direction: look and feel, palette, typography, hierarchy, and copy/content needs. Record the selected quality target in visualDirection.notes so later revisions preserve it.',
+              'Inventory every meaningful visual slot for this deliverable before creation. Consider hero or main art, background/environment, border/frame, brand/logo/product imagery, supporting imagery, and icons/emblems only where relevant; do not force irrelevant slots.',
+              'For each visual slot choose one strategy: native CardForge structure, a selected CardForge library asset, an editable user image slot, or produced artwork. Search the CardForge library before asking for or producing new art.',
+              'For every user-replaceable image slot, create a native image element plus a field contract with type image and include its key in productionPlan.editableFieldKeys. For fixed produced artwork, create a planned asset requirement targeting the native element or template-level surface.',
+              'Define every other Studio-editable field and bind it through native fieldContracts to a real canvas element.',
+              'For each distinct custom image, create one planned asset requirement with status needed, then attach the finished image with attach_template_artwork using the appropriate native binding.',
+              'Show the production plan to the user and use decisionMode confirmed after approval, or delegated only when the user explicitly delegated creative decisions. Once either mode is stored on the created draft, planning is locked.',
               'Create the native editable Template, attach required artwork, and call preview_template_draft so the user can visually review the exact CardForge render in chat.',
-              'Revise the same Studio document and re-preview until the user is satisfied, then let them open it in CardForge Studio to install it into their personal Template library.',
+              'After planning is locked, execute and revise the same Studio document without repeating the planning gate. Reopen planning only when the user materially changes the purpose, deliverable, output size, quality target, or explicitly asks to re-plan.',
+              'Revise and re-preview until the user is satisfied, then let them open it in CardForge Studio to install it into their personal Template library.',
             ],
             canvas: {
               elementTypes: [...CARDFORGE_FREEFORM_ELEMENT_TYPES],
@@ -183,12 +193,32 @@ const handler = createMcpHandler(
               decisionModes: [...PROJECT_PRODUCTION_DECISION_MODES],
               assetSources: [...PROJECT_ASSET_REQUIREMENT_SOURCES],
               assetStatuses: [...PROJECT_ASSET_REQUIREMENT_STATUSES],
+              assetBindings: [...PROJECT_ASSET_BINDINGS],
+              planningLockRule: 'A created draft with decisionMode confirmed or delegated already has an accepted plan. Do not ask for the same approval or restart discovery during ordinary copy, layout, style, or artwork revisions. Re-plan only after a material scope/quality change or an explicit user request.',
               customArtRule: 'Keep new custom-generated artwork status needed in the creation plan, generate it, then use attach_template_artwork. CardForge embeds the normalized image into the Template itself and marks the requirement selected.',
             },
             quality: {
+              qualityTargets: [
+                {
+                  id: 'simple',
+                  description: 'Native/library-first and fast. Prefer CardForge structure, typography, materials, and existing assets; use custom imagery only where the user asks for it or the deliverable clearly requires a primary image.',
+                },
+                {
+                  id: 'professional',
+                  description: 'Polished production default. Use native editable structure plus high-quality library or custom imagery for the primary visual surfaces that make the deliverable feel finished.',
+                },
+                {
+                  id: 'premium',
+                  description: 'Art-directed maximum. Use bespoke, user-provided, or generated imagery for every high-impact visual surface where unique artwork materially improves the result, while keeping replaceable content editable.',
+                },
+              ],
+              qualitySelectionRule: 'Ask one concise quality question only when the request does not already make the desired fidelity clear. Do not repeatedly ask the user to choose quality after the plan is confirmed or delegated.',
+              visualSlotRule: 'A high-quality deliverable must account for every meaningful image-bearing region before creation. Each slot must be intentionally native, library-backed, user-replaceable, or produced; professional and premium plans must not silently substitute generic filler shapes for missing high-value imagery.',
+              editableImageRule: 'When an image is expected to be replaced by the user in Studio, represent it as a native image element and a fieldContract with type image rather than baking it into an unrelated background or shape.',
+              placeholderRule: 'Do not use placeholder art in professional or premium work unless the user explicitly requests a placeholder/prototyping stage.',
               nativeEditableFeatures: [
                 'physical trim dimensions and custom canvas sizes',
-                'field contracts and generator-editable fields',
+                'field contracts including user-replaceable image fields',
                 'materials, gradients, textures, borders, glow, bevel, and shadow',
                 'shape roles and native shape kinds',
                 'image fit, position, scale, offset, and rotation',
@@ -198,7 +228,7 @@ const handler = createMcpHandler(
             },
           };
           return {
-            content: [{ type: 'text', text: 'CardForge creation workflow loaded. Plan the artifact and its asset inventory before creating the Studio document.' }],
+            content: [{ type: 'text', text: 'CardForge creation workflow loaded. Resolve quality once, inventory the meaningful visual slots, then create and execute the accepted production plan.' }],
             structuredContent,
           };
         } catch (error) {
@@ -237,7 +267,7 @@ const handler = createMcpHandler(
       'create_editable_template',
       {
         title: 'Create a planned editable CardForge Template',
-        description: 'Create one private, high-fidelity CardForge Template after planning its purpose, dimensions, visual direction, editable fields, and asset inventory with the user. productionPlan is required and must truthfully record confirmed user approval or explicit creative delegation. Use native Studio fields so the result remains editable.',
+        description: 'Create one private CardForge Template after resolving the requested quality target, identifying every meaningful visual slot, defining editable fields, and accepting the production plan. productionPlan is required and must truthfully record confirmed user approval or explicit creative delegation. Once created, that accepted plan is locked for ordinary revisions; use native Studio fields so replaceable text and imagery remain editable.',
         inputSchema: createTemplateInputSchema,
         annotations: {
           readOnlyHint: false,
@@ -262,7 +292,7 @@ const handler = createMcpHandler(
           return {
             content: [{
               type: 'text',
-              text: `Created "${document.title}" as a private editable Studio Template with ${assetSummary.totalAssetInstances} planned asset instance${assetSummary.totalAssetInstances === 1 ? '' : 's'}; ${assetSummary.neededInstances} still need production or selection.`,
+              text: `Created "${document.title}" as a private editable Studio Template with a locked ${validatedInput.productionPlan.decisionMode} production plan and ${assetSummary.totalAssetInstances} planned asset instance${assetSummary.totalAssetInstances === 1 ? '' : 's'}; ${assetSummary.neededInstances} still need production or selection.`,
             }],
             structuredContent: documentStructuredContent(document),
           };
@@ -276,7 +306,7 @@ const handler = createMcpHandler(
       'update_editable_template',
       {
         title: 'Revise an editable CardForge Template',
-        description: 'Revise the same private Studio document after inspecting it or discussing changes. Load the document first, preserve its CardForge identity, send the current expectedRevision, and update the rich native Template plus its production plan. CardForge preserves already embedded artwork for matching planned asset ids.',
+        description: 'Revise the same private Studio document against its accepted production plan. Load the document first, preserve its CardForge identity and planned asset ids, send the current expectedRevision, and update the rich native Template plus its production plan. Do not reopen planning for ordinary copy, layout, style, or artwork changes; re-plan only when the user materially changes purpose, deliverable, output size, quality target, or explicitly requests it. CardForge preserves already embedded artwork for matching planned asset ids.',
         inputSchema: updateTemplateInputSchema,
         annotations: {
           readOnlyHint: false,
@@ -302,7 +332,7 @@ const handler = createMcpHandler(
             input: validatedInput,
           });
           return {
-            content: [{ type: 'text', text: `Revised "${document.title}" to Studio document revision ${document.revision}.` }],
+            content: [{ type: 'text', text: `Revised "${document.title}" to Studio document revision ${document.revision} without reopening its accepted planning gate.` }],
             structuredContent: documentStructuredContent(document),
           };
         } catch (error) {
@@ -340,7 +370,7 @@ const handler = createMcpHandler(
       'get_editable_template',
       {
         title: 'Get an editable CardForge Template',
-        description: 'Load one private Studio document, including its native editable Template and production plan, before discussing or revising it. Embedded image bytes are omitted from model context but remain attached to the draft.',
+        description: 'Load one private Studio document, including its native editable Template and production plan, before revising it. A stored confirmed or delegated production plan is already accepted and should not be sent through the planning/approval gate again unless the user materially changes scope or explicitly asks to re-plan. Embedded image bytes are omitted from model context but remain attached to the draft.',
         inputSchema: documentIdInputSchema,
         annotations: {
           readOnlyHint: true,
@@ -352,8 +382,15 @@ const handler = createMcpHandler(
         try {
           const access = await getMcpDeveloperAccess();
           const document = await getDeveloperTemplateDraft(access, documentId);
+          const productionPlan = document.document.productionPlan;
+          const editableImageFieldKeys = document.document.userTemplates[0]?.fieldContracts
+            ?.filter((field) => field.type === 'image')
+            .map((field) => field.key) ?? [];
           const result = {
             document: omitEmbeddedMediaForChat(document),
+            planningLocked: Boolean(productionPlan),
+            planningDecisionMode: productionPlan?.decisionMode ?? null,
+            editableImageFieldKeys,
             openInStudioUrl: studioDocumentUrl(document.id),
           };
           return {
@@ -404,12 +441,17 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.3.0' },
+    serverInfo: { name: 'cardforge-studio', version: '0.3.1' },
     instructions: [
       'Act as a design director and production planner before creating a new CardForge Template.',
       'For a new design, establish purpose, audience, exact dimensions or physical format, visual direction, copy needs, Studio-editable fields, and an explicit asset inventory with quantities and roles.',
-      'Use get_studio_creation_guide when the workflow or native capabilities are unclear, and search_studio_library before inventing a new asset when CardForge may already have a suitable template, style, font, texture, divider, icon, or image.',
+      'Resolve the desired quality target exactly once: simple, professional, or premium. Infer it when the request is clear. If it is not clear and the user has not delegated all creative decisions, ask one concise quality question contrasting a faster native/library-first result with a more image-rich professional or premium result. If the user explicitly delegates all creative decisions without naming a quality target, default to professional. Record the quality target in productionPlan.visualDirection.notes.',
+      'Before create_editable_template, inventory every meaningful visual slot for the requested deliverable rather than applying a card-only checklist. Consider hero/main art, background/environment, border/frame, brand/logo/product imagery, supporting imagery, and icons/emblems where relevant. Every slot must intentionally use native structure, a selected CardForge library asset, an editable user image slot, or produced artwork.',
+      'For any image the user is expected to replace later, create a native image element and a fieldContract with type image, bind the contract to that element, and include its key in productionPlan.editableFieldKeys. This applies to cards, posters, marketing graphics, reference layouts, and other image-bearing deliverables.',
+      'For professional and premium work, do not silently substitute generic filler shapes for missing high-value imagery and do not use placeholder art unless the user explicitly asks for a placeholder/prototyping stage.',
+      'Use get_studio_creation_guide when the workflow or native capabilities are unclear, and search_studio_library before inventing a new asset when CardForge may already have a suitable template, style, font, texture, divider, icon, image, frame, or border.',
       'Before create_editable_template, summarize the production plan to the user and get approval unless the user already explicitly delegated the creative decisions. Record decisionMode confirmed only after approval and delegated only after explicit delegation.',
+      'Once a Studio document exists with decisionMode confirmed or delegated, treat its production plan as locked. Do not ask for the same approval, repeat discovery, or restart planning during ordinary copy, layout, style, or artwork revisions. Continue with get_editable_template, update_editable_template, attach_template_artwork, and preview_template_draft. Reopen planning only if the user materially changes purpose, deliverable, output size, quality target, or explicitly requests a new plan.',
       'Use one planned asset requirement per distinct custom image. Keep custom-generated requirements status needed at creation, generate the image, then attach it with attach_template_artwork using the planned requirement id and appropriate native binding.',
       'Use fieldContracts for content the user should be able to edit in Studio, and bind every planned editable field and asset target to stable native element ids.',
       'CardForge embeds attached artwork into the Template itself. Do not resend already attached image bytes during ordinary revisions; keep the same planned asset id and CardForge will preserve the embedded artwork.',

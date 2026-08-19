@@ -29,6 +29,24 @@ describe('Studio MCP creative production flow', () => {
     expect(agentTools).toContain("'preview_template_draft'");
   });
 
+  it('resolves quality once, inventories high-value visual slots, and locks accepted planning', () => {
+    expect(route).toContain("id: 'simple'");
+    expect(route).toContain("id: 'professional'");
+    expect(route).toContain("id: 'premium'");
+    expect(route).toContain('ask one concise quality question');
+    expect(route).toContain('inventory every meaningful visual slot');
+    expect(route).toContain('hero/main art');
+    expect(route).toContain('fieldContract with type image');
+    expect(route).toContain('productionPlan.editableFieldKeys');
+    expect(route).toContain('PROJECT_ASSET_BINDINGS');
+    expect(route).toContain('planningLocked: true');
+    expect(route).toContain('treat its production plan as locked');
+    expect(route).toContain('Do not ask for the same approval');
+    expect(route).toContain('materially changes purpose, deliverable, output size, quality target');
+    expect(route).toContain('do not use placeholder art unless the user explicitly asks');
+    expect(schemas).toContain("enum: ['text', 'structuredRows', 'image']");
+  });
+
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {
     expect(schemas).toContain("required: ['title', 'productionPlan', 'template']");
     expect(schemas).toContain("required: ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'zIndex']");
