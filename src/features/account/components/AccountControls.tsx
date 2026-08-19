@@ -30,7 +30,7 @@ export function AccountControls({
 }: AccountControlsProps) {
   const state = resolveAccountControlsState({ authConfigured, isLoadingAccount });
 
-  if (state === 'checking') {
+  if (state === 'checking' && !isSignedIn) {
     return (
       <Button type="button" size="sm" disabled aria-label="Checking account access" className="gap-2 bg-[#6f552c] text-[#f8e3b0]">
         <LoaderCircle className="h-4 w-4 animate-spin" /> Checking…
