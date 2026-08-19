@@ -36,6 +36,21 @@ describe('provider infrastructure ownership', () => {
     }
   });
 
+  it('uses the native server-only Supabase client shape and prefers modern secret keys everywhere admin access is created', async () => {
+    const sources = await Promise.all([
+      readFile(rootPath('src', 'infrastructure', 'database', 'supabaseServer.ts'), 'utf8'),
+      readFile(rootPath('scripts', 'sync-pipeline-defaults.mjs'), 'utf8'),
+    ]);
+
+    for (const source of sources) {
+      expect(source).toContain('SUPABASE_SECRET_KEY');
+      expect(source).toContain('SUPABASE_SERVICE_ROLE_KEY');
+      expect(source).toContain('persistSession: false');
+      expect(source).toContain('autoRefreshToken: false');
+      expect(source).toContain('detectSessionInUrl: false');
+    }
+  });
+
   it('keeps generator error copy with Card Generator', async () => {
     await expect(pathExists('src', 'features', 'card-generator', 'lib', 'errorCopy.ts')).resolves.toBe(true);
   });

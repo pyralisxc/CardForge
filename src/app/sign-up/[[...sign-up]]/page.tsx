@@ -18,11 +18,7 @@ export const metadata = createPageMetadata({
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    redirect_url?: string;
-    returnTo?: string;
-    next?: string;
-  }>;
+  searchParams: Promise<{ redirect_url?: string }>;
 }) {
   if (!isClerkServerConfigPresent()) {
     return (
@@ -44,9 +40,7 @@ export default async function SignUpPage({
   }
 
   const params = await searchParams;
-  const fallbackRedirectUrl = getSafeLocalReturnPath(
-    params.redirect_url ?? params.returnTo ?? params.next,
-  );
+  const fallbackRedirectUrl = getSafeLocalReturnPath(params.redirect_url);
 
   return (
     <main className="grid min-h-screen place-items-center bg-[#0c0b09] px-5 py-12">

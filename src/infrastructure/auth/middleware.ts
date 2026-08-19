@@ -1,7 +1,11 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const clerkHandler = clerkMiddleware();
+import { getClerkAuthorizedParties } from './clerk';
+
+const clerkHandler = clerkMiddleware({
+  authorizedParties: getClerkAuthorizedParties(),
+});
 
 export const cardforgeMiddleware = (
   request: NextRequest,

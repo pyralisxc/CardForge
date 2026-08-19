@@ -1,7 +1,6 @@
 import {
   getCardforgeUserAccessForUserId,
   getCurrentCardforgeUserAccess,
-  resolveOwnerAccessForServerUser,
   resolveAccountEntitlement,
   type CardforgeServerUser,
 } from '@/features/account/server';
@@ -14,7 +13,6 @@ import {
   type DeveloperContributionScope,
 } from '@/features/developer-access/model';
 import {
-  getDeveloperProfileIdentity,
   getDeveloperProfileCapabilities,
   upsertDeveloperProfile,
 } from '@/features/developer-access/server/profileStore';
@@ -37,31 +35,17 @@ export class DeveloperCockpitAccessError extends Error {
 const resolveDeveloperCockpitAccess = async ({
   authConfigured,
   user,
+  ownerAccess,
 }: Awaited<ReturnType<typeof getCurrentCardforgeUserAccess>>): Promise<DeveloperCockpitAccess> => {
   if (!user) {
     throw new DeveloperCockpitAccessError('Sign in before using the developer cockpit.', 401);
   }
 
-  const storedIdentity = user.source === 'session_profile'
-    ? await getDeveloperProfileIdentity(user.id)
-    : null;
-  const resolvedEmail = user.email ?? storedIdentity?.email ?? null;
-  const resolvedUser: CardforgeServerUser = {
-    ...user,
-    email: resolvedEmail,
-    emailAddresses: user.emailAddresses.length > 0
-      ? user.emailAddresses
-      : resolvedEmail ? [resolvedEmail] : [],
-    firstName: user.firstName ?? storedIdentity?.firstName ?? null,
-    lastName: user.lastName ?? storedIdentity?.lastName ?? null,
-  };
-  const ownerAccess = resolveOwnerAccessForServerUser(authConfigured, resolvedUser);
-
   const entitlement = resolveAccountEntitlement({
     authConfigured,
     isSignedIn: true,
-    emailAddresses: resolvedUser.emailAddresses,
-    privateMetadata: resolvedUser.privateMetadata,
+    emailAddresses: user.emailAddresses,
+    privateMetadata: user.privateMetadata,
     ownerAccess,
   });
   const isDeveloper = entitlement.accessMode === 'dev';
@@ -70,23 +54,23 @@ const resolveDeveloperCockpitAccess = async ({
   }
 
   await upsertDeveloperProfile({
-    developerId: resolvedUser.id,
-    email: resolvedUser.email,
-    firstName: resolvedUser.firstName,
-    lastName: resolvedUser.lastName,
+    developerId: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
   });
-  const capabilities = await getDeveloperProfileCapabilities(resolvedUser.id);
+  const capabilities = await getDeveloperProfileCapabilities(user.id);
   const isOwner = ownerAccess.isOwner;
   if (!isOwner && capabilities.status !== 'active') {
     throw new DeveloperCockpitAccessError('This developer profile is not active. Contact the CardForge owner if access should be restored.', 403);
   }
   const extendedContributionsEnabled = process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true';
   return {
-    user: resolvedUser,
+    user,
     isDeveloper,
     isOwner,
-    email: resolvedUser.email,
-    displayName: [resolvedUser.firstName, resolvedUser.lastName].filter(Boolean).join(' ').trim() || resolvedUser.email,
+    email: user.email,
+    displayName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
     scopes: resolveDeveloperContributionScopes({
       isOwner,
       profileStatus: capabilities.status,

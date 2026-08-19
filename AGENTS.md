@@ -8,6 +8,21 @@ For CardForge implementation, refactor, testing, review, public-site, branding, 
 
 The lean skill is CardForge's sole execution workflow. Do not create `docs/superpowers/**` or any planning, ledger, status, workflow, or progress artifact unless Cameron explicitly requests that artifact. Use a compact inline plan only when the task is high risk, materially ambiguous, or Cameron asks for one.
 
+## Native-first integration rule
+
+CardForge owns CardForge product policy. Providers and frameworks own their supported identity, payment, database, email, analytics, delivery, protocol, cache, redirect, retry, and deployment lifecycles whenever those native paths satisfy the product requirement.
+
+Before changing an external integration:
+
+- read the current official provider/framework guidance once;
+- identify the provider-native solution before designing CardForge glue;
+- use the provider's supported lifecycle directly unless a concrete product requirement cannot be met that way;
+- if extra CardForge orchestration is necessary, keep only the minimum behavior that bridges the documented gap and state that reason in the PR;
+- prefer deleting a workaround over preserving it as a compatibility layer when the native path now covers the requirement;
+- never add a second auth/session store, provider retry system, delivery ledger, cache, redirect protocol, or SDK abstraction merely for flexibility.
+
+`docs/integrations.md` is the human trace map for provider ownership and intentional CardForge seams. If an integration cannot be explained through that map in a few hops, simplify the implementation before adding another layer.
+
 ## Cameron Shorthand
 
 - Treat short replies like "yes", "do that", "verify it", "push it", "full clean cut", or similar as continuing the most recent concrete objective.

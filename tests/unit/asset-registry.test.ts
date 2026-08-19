@@ -5,15 +5,18 @@ import { getVisibleRegistryAccessTiers } from '@/features/developer-assets/lib/r
 
 describe('asset registry', () => {
   const originalSupabaseUrl = process.env.SUPABASE_URL;
+  const originalSupabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
   const originalSupabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   beforeEach(() => {
     delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SECRET_KEY;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   });
 
   afterEach(() => {
     process.env.SUPABASE_URL = originalSupabaseUrl;
+    process.env.SUPABASE_SECRET_KEY = originalSupabaseSecretKey;
     process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseServiceRoleKey;
   });
 
