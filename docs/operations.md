@@ -45,6 +45,10 @@ Release sequence:
 
 Rollback application behavior with a forward code fix or existing feature gate. Never delete migrations, ledgers, votes, campaign history, delivery history, or financial records to simulate rollback.
 
+### Solo-maintainer branch rule
+
+While `@pyralisxc` is the only trusted code owner, requiring an independent approval would deadlock releases because a PR author cannot approve their own change. Keep resolved review threads, GitHub `verify`, a READY exact-head Vercel Preview, and the relevant live workflow proof mandatory. Require one independent approval when a second trusted reviewer joins.
+
 ## Supabase migration and security procedure
 
 Migration files are immutable after creation. Every schema change is a new forward migration.
@@ -125,7 +129,7 @@ Rollback native provider calls by setting `CARDFORGE_META_PUBLISHING_ENABLED=fal
 
 ## Authenticated production smoke
 
-Reusable QA identities are retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/developer, or protected-recovery changes, use the real signed-in production account and verify only the affected path.
+The former reusable QA accounts were retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/developer, or protected-recovery changes, use the real signed-in owner/developer account and verify only the affected path.
 
 `npm run smoke:ui` is focused mocked browser regression coverage; it does not prove a real Clerk/Stripe/provider session.
 
@@ -133,7 +137,9 @@ Reusable QA identities are retired. Do not recreate them for generic coverage. F
 
 Stripe remains authoritative. `product_access` and voluntary `creator_support` are separate purposes; support must never grant product entitlement.
 
-From Owner billing tools, reconcile current subscription state and investigate missing Clerk users or missing ledger records rather than manually editing entitlement first. For webhook proof, resend an existing Stripe event when appropriate and require idempotent durable processing without unintended access changes.
+From Owner billing tools, reconcile current subscription state and record `checked`, `repaired`, `unchanged`, `missingClerkUser`, `ledgerCreated`, and `missingLedger`. Require `missingLedger` to be zero and investigate missing Clerk users before manually changing entitlement.
+
+For webhook proof, use **Stripe Workbench -> Webhooks** and resend an existing event when appropriate. Require HTTP 200, durable idempotent processing, one expected ledger/event record, and no unintended entitlement change. Do not alter a real subscription merely to manufacture test evidence.
 
 Safe support rollback disables/removes support checkout configuration while retaining purpose-aware webhook/ledger code. Never deploy an older webhook that cannot distinguish support from product access.
 
