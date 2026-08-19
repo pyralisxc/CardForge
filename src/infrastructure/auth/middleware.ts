@@ -3,13 +3,14 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { getClerkAuthorizedParties } from './clerk';
 
-const clerkHandler = clerkMiddleware({
+const browserClerkHandler = clerkMiddleware({
   authorizedParties: getClerkAuthorizedParties(),
 });
+const oauthClerkHandler = clerkMiddleware();
 
 export const cardforgeMiddleware = (
   request: NextRequest,
-  event: Parameters<typeof clerkHandler>[1],
+  event: Parameters<typeof browserClerkHandler>[1],
 ) => {
   if (
     !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
@@ -18,5 +19,9 @@ export const cardforgeMiddleware = (
     return NextResponse.next();
   }
 
-  return clerkHandler(request, event);
+  if (request.nextUrl.pathname === '/mcp') {
+    return oauthClerkHandler(request, event);
+  }
+
+  return browserClerkHandler(request, event);
 };
