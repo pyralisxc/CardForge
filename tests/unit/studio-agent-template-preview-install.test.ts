@@ -167,6 +167,7 @@ describe('agent Template preview tokens', () => {
 describe('agent Template install and chat preview architecture', () => {
   const handoff = readSource('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts');
   const preview = readSource('src/features/studio-documents/components/TemplateDraftPreviewClient.tsx');
+  const nativeExport = readSource('src/features/card-generator/lib/cardPreviewExport.tsx');
   const mcpTools = [
     readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
     readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
@@ -205,11 +206,19 @@ describe('agent Template install and chat preview architecture', () => {
     expect(mcpTools).toContain('&revision=${document.revision}');
   });
 
-  it('uses the canonical CardPreview renderer and keeps PNG review available', () => {
-    expect(preview).toContain("import { CardPreview } from '@/features/card-rendering/client'");
-    expect(preview).toContain('<CardPreview');
-    expect(preview).toContain('toPng(cardRef.current');
+  it('exports the exact Template through the canonical native PNG pipeline for in-chat review', () => {
+    expect(preview).toContain("import { renderCardToPngBlob } from '@/features/card-generator/client'");
+    expect(preview).toContain("renderCardToPngBlob(card, 'virtual', 150)");
+    expect(preview).toContain("type: 'cardforge-template-export'");
+    expect(preview).toContain('window.parent.postMessage');
+    expect(preview).not.toContain("import { CardPreview } from '@/features/card-rendering/client'");
+    expect(preview).not.toContain("from 'html-to-image'");
     expect(preview).toContain('/api/studio-document-preview?token=');
+    expect(nativeExport).toContain('export async function renderCardToPngBlob');
+    expect(nativeExport).toContain('return await renderer.renderToBlob(card, face)');
+    expect(mcpTools).toContain('id="preview-image"');
+    expect(mcpTools).toContain("payload.type !== 'cardforge-template-export'");
+    expect(mcpTools).toContain('event.source !== renderer.contentWindow');
   });
 
   it('reports native image bindings and composition warnings to the agent', () => {

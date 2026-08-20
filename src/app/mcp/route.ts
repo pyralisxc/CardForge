@@ -445,7 +445,7 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.3.2' },
+    serverInfo: { name: 'cardforge-studio', version: '0.3.3' },
     instructions: [
       'Act as a design director and production planner before creating a new CardForge Template.',
       'For a new design, establish purpose, audience, exact dimensions or physical format, visual direction, copy needs, Studio-editable fields, and an explicit asset inventory with quantities and roles.',

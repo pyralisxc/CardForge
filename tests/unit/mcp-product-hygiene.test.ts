@@ -112,6 +112,8 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(designSkill).toContain('do **not** add another decorative border');
     expect(designSkill).toContain('`binding: element.image`');
     expect(designSkill).toContain('call `preview_template_draft`');
+    expect(designSkill).toContain('native exported PNG shown directly in chat');
+    expect(designSkill).toContain('separate revision-bound Studio URL');
     expect(designSkill).toContain('same normal personal local Template');
 
     expect(setSkill).toContain('# Create CardForge cards and sets');

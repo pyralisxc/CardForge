@@ -84,7 +84,7 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('A successful upload is not proof of correct placement');
     expect(route).toContain('asset bindings, image-element source states, bordered text ids, and composition warnings');
     expect(route).toContain('installs or updates the same Template in the user personal local Template library');
-    expect(route).toContain("version: '0.3.2'");
+    expect(route).toContain("version: '0.3.3'");
   });
 
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {

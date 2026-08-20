@@ -1,6 +1,7 @@
 export { useCardZipExportActions } from './hooks/useCardZipExportActions';
 export { useGeneratedOutputActions } from './hooks/useGeneratedOutputActions';
 export { createBulkDisplayCards } from './lib/bulkGeneration';
+export { renderCardToPngBlob } from './lib/cardPreviewExport';
 export {
   PublicShareSettingsProvider,
   usePublicShareSettings,

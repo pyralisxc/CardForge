@@ -263,3 +263,23 @@ export async function renderCardToCanvas(
 ): Promise<HTMLCanvasElement> {
   return renderCardToCanvasWithProfile(card, getExportProfile(exportMode, exportDpi), face, highlightColor, watermark);
 }
+
+export async function renderCardToPngBlob(
+  card: DisplayCard,
+  exportMode: ExportMode,
+  exportDpi: number,
+  face: CardFace = 'front',
+  highlightColor = DEFAULT_RICH_TEXT_HIGHLIGHT_COLOR,
+  watermark?: CardExportWatermark,
+): Promise<Blob> {
+  const renderer = createCardFaceExportRenderer(
+    getExportProfile(exportMode, exportDpi),
+    highlightColor,
+    watermark,
+  );
+  try {
+    return await renderer.renderToBlob(card, face);
+  } finally {
+    renderer.cleanup();
+  }
+}
