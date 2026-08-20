@@ -7,7 +7,7 @@ import {
   createBulkExampleJson,
   createBulkFaceFieldDefinitions,
   createBulkImportContract,
-} from '@/features/card-generator/lib/bulkContracts';
+} from '@/features/card-generator/server';
 import { requireContributionScope, type DeveloperCockpitAccess } from '@/features/developer-access/server';
 import {
   normalizeEmbeddedTemplateAsset,
@@ -148,7 +148,7 @@ export const upsertDeveloperCardSet = async ({
     frontTemplateId: front.id!,
     backingTemplateId: back?.id ?? null,
   };
-  let sets = disposableFallback ? [] : [...current.document.cardSets];
+  const sets = disposableFallback ? [] : [...current.document.cardSets];
   const index = sets.findIndex((candidate) => candidate.id === nextSet.id);
   if (index >= 0) sets[index] = nextSet;
   else sets.push(nextSet);
