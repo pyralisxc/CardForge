@@ -8,7 +8,7 @@ import { DeveloperPublicAuthSlot } from '@/features/developer-access/server';
 import { createProjectPersistenceScope } from '@/features/project/server';
 import { PublicSiteHeader } from '@/features/public-site/client/shell';
 import { getCachedPublicSiteConfiguration } from '@/features/public-site/server';
-import { AccountStorageLibrary } from '@/features/storage-management/client';
+import { AccountCloudStorageBreakdown, AccountStorageLibrary } from '@/features/storage-management/client';
 import { createPageMetadata } from '@/shared/siteMetadata';
 
 export const metadata: Metadata = createPageMetadata({
@@ -46,6 +46,7 @@ export default async function AccountPage() {
         isSignedIn={entitlement.isSignedIn}
         cloudSetLimit={entitlement.capabilities.cloudSetLimit}
       />
+      <AccountCloudStorageBreakdown isSignedIn={entitlement.isSignedIn} />
     </CardForgeAppProviders>
   );
 }
