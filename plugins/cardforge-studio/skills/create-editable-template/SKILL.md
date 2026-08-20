@@ -7,7 +7,7 @@ description: Design and refine an editable CardForge Template with native fields
 
 Use this skill when the user is designing the reusable visual structure of a card. Keep the work native, editable, and visually reviewable rather than flattening the design into an image.
 
-## Composition rule
+## Core composition rule
 
 Keep the construction simple:
 
