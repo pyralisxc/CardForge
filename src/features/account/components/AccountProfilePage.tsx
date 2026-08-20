@@ -12,10 +12,14 @@ import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitl
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import { AccountBillingActions } from '@/features/billing/client/account';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
+import { AccountMcpUsageSection } from '@/features/mcp-usage/client/account';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 interface PlatformStatusPayload {
-  billing: { productAccessConfigured: boolean };
+  billing: {
+    designerPassConfigured: boolean;
+    productAccessConfigured: boolean;
+  };
 }
 
 interface ClerkIdentity {
@@ -90,6 +94,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
   const canStartCheckout = entitlement.authConfigured && effectiveSignedIn && !entitlement.canExportClean;
   const canManageBilling = entitlement.authConfigured && effectiveSignedIn && entitlement.hasStripeCustomer;
   const showCheckout = canStartCheckout && Boolean(platformStatus?.billing.productAccessConfigured);
+  const showDesignerCheckout = canStartCheckout && Boolean(platformStatus?.billing.designerPassConfigured);
   const accessExpiresOn = formatAccessExpiration(entitlement.accessExpiresAt);
   const isDeveloper = entitlement.authConfigured && effectiveSignedIn && entitlement.accessMode === 'dev';
   const isOwner = entitlement.authConfigured && effectiveSignedIn && entitlement.ownerAccess.isOwner;
@@ -116,9 +121,11 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
       ? 'Contributor access'
       : accessExpiresOn
         ? `Creator Pass through ${accessExpiresOn}`
-        : entitlement.canExportClean
-          ? 'Creator Pass'
-          : 'Free';
+        : entitlement.paidPlan === 'designer'
+          ? 'Designer Pass'
+          : entitlement.canExportClean
+            ? 'Creator Pass'
+            : 'Free';
 
   const accountActions = (
     <>
@@ -135,6 +142,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
         canManageBilling={canManageBilling}
         effectiveSignedIn={effectiveSignedIn}
         checkoutLabel="Get Creator Pass"
+        showDesignerCheckout={showDesignerCheckout}
         showCheckout={showCheckout}
       />
       {isClerkSetupIncomplete ? (
@@ -168,6 +176,7 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
           planLabel={planLabel}
         />
         <div className="mt-4 space-y-4">
+          {entitlement.authConfigured && effectiveSignedIn ? <AccountMcpUsageSection /> : null}
           <AccountDeveloperStatusSection isOwner={isOwner} />
         </div>
       </section>

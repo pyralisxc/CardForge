@@ -24,6 +24,14 @@ const replayRemovalMigrationPath = resolve(
   process.cwd(),
   'supabase/migrations/20260813034733_remove_session_replay_from_privacy.sql',
 );
+const mcpLegalMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260820060737_mcp_privacy_and_terms_publication.sql',
+);
+const designerPassLegalMigrationPath = resolve(
+  process.cwd(),
+  'supabase/migrations/20260820173100_designer_pass_legal_publication.sql',
+);
 
 const extractDollarQuoted = (sql: string, tag: string): string | undefined => (
   new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql)?.[1]
@@ -74,6 +82,8 @@ describe('versioned legal publication migration', () => {
     const experienceControlsSql = await readFile(experienceControlsMigrationPath, 'utf8');
     const posthogPrivacySql = await readFile(posthogPrivacyMigrationPath, 'utf8');
     const replayRemovalSql = await readFile(replayRemovalMigrationPath, 'utf8');
+    const mcpLegalSql = await readFile(mcpLegalMigrationPath, 'utf8');
+    const designerPassLegalSql = await readFile(designerPassLegalMigrationPath, 'utf8');
     const tagBySlug = {
       privacy: 'privacy_reviewed',
       terms: 'terms_reviewed',
@@ -96,6 +106,12 @@ describe('versioned legal publication migration', () => {
         const newChoice = extractDollarQuoted(posthogPrivacySql, 'new_choice');
         const oldReplayDisclosure = extractDollarQuoted(replayRemovalSql, 'old_replay_disclosure');
         const newEventDisclosure = extractDollarQuoted(replayRemovalSql, 'new_event_disclosure');
+        const oldProviderDisclosure = extractDollarQuoted(mcpLegalSql, 'old_provider_disclosure');
+        const newProviderDisclosure = extractDollarQuoted(mcpLegalSql, 'new_provider_disclosure');
+        const oldRetention = extractDollarQuoted(mcpLegalSql, 'old_retention');
+        const newRetention = extractDollarQuoted(mcpLegalSql, 'new_retention');
+        const oldDeletion = extractDollarQuoted(mcpLegalSql, 'old_deletion');
+        const newDeletion = extractDollarQuoted(mcpLegalSql, 'new_deletion');
         expect(previousBody, document.slug).toBeDefined();
         expect(oldMeasurement, document.slug).toBeDefined();
         expect(newMeasurement, document.slug).toBeDefined();
@@ -106,8 +122,25 @@ describe('versioned legal publication migration', () => {
         const publishedBody = previousBody
           ?.replace(oldMeasurement ?? '', newMeasurement ?? '')
           .replace(oldChoice ?? '', newChoice ?? '')
-          .replace(oldReplayDisclosure ?? '', newEventDisclosure ?? '');
+          .replace(oldReplayDisclosure ?? '', newEventDisclosure ?? '')
+          .replace(oldProviderDisclosure ?? '', newProviderDisclosure ?? '')
+          .replace(oldRetention ?? '', newRetention ?? '')
+          .replace(oldDeletion ?? '', newDeletion ?? '');
         expect(publishedBody, document.slug).toBe(document.body);
+        continue;
+      }
+      if (document.slug === 'terms') {
+        const previousBody = extractDollarQuoted(sql, tagBySlug.terms);
+        const oldTermsIntro = extractDollarQuoted(mcpLegalSql, 'old_terms_intro');
+        const newTermsIntro = extractDollarQuoted(mcpLegalSql, 'new_terms_intro');
+        expect(previousBody?.replace(oldTermsIntro ?? '', newTermsIntro ?? ''), document.slug).toBe(document.body);
+        continue;
+      }
+      if (document.slug === 'creator-pass-terms') {
+        const previousBody = extractDollarQuoted(sql, tagBySlug['creator-pass-terms']);
+        const oldPassIntro = extractDollarQuoted(designerPassLegalSql, 'old');
+        const newPassIntro = extractDollarQuoted(designerPassLegalSql, 'new');
+        expect(previousBody?.replace(oldPassIntro ?? '', newPassIntro ?? ''), document.slug).toBe(document.body);
         continue;
       }
       const isRetirementPublication = document.slug === 'contact';
@@ -115,6 +148,32 @@ describe('versioned legal publication migration', () => {
       const source = isRetirementPublication ? retirementSql : sql;
       expect(extractDollarQuoted(source, tag), document.slug).toBe(document.body);
     }
+  });
+
+  it('publishes MCP privacy and terms changes as immutable, guarded versions', async () => {
+    const sql = (await readFile(mcpLegalMigrationPath, 'utf8')).toLowerCase();
+
+    expect(sql).toContain('begin;');
+    expect(sql).toContain('commit;');
+    expect(sql).toContain('pg_advisory_xact_lock');
+    expect(sql).toContain('for update');
+    expect(sql).toContain('current_privacy.version + 1');
+    expect(sql).toContain('current_terms.version + 1');
+    expect(sql).toContain('private assistant working documents');
+    expect(sql).toContain('aggregate mcp usage');
+    expect(sql).not.toContain('update public.cardforge_legal_documents');
+  });
+
+  it('publishes Designer Pass legal changes as immutable, guarded versions', async () => {
+    const sql = (await readFile(designerPassLegalMigrationPath, 'utf8')).toLowerCase();
+
+    expect(sql).toContain('begin;');
+    expect(sql).toContain('commit;');
+    expect(sql).toContain('pg_advisory_xact_lock');
+    expect(sql).toContain('for update');
+    expect(sql).toContain('creator and designer pass terms');
+    expect(sql).toContain('current_document.version + 1');
+    expect(sql).not.toContain('update public.cardforge_legal_documents');
   });
 
   it('publishes atomically with identity-version and concurrency protection', async () => {

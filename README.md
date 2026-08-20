@@ -8,7 +8,7 @@ CardForge Studio is created and operated by Cameron Locke, an independent sole p
 
 - Public site: `/`, `/about`, `/cameron`, `/roadmap`, `/developer`, `/contact`, and legal pages.
 - Studio: `/studio`.
-- Account, Creator Pass, and profile: `/account`, `/profile`.
+- Account, Creator Pass, Designer Pass, and profile: `/account`, `/profile`.
 - Protected contributor workspace: `/developer/cockpit`.
 - Owner console: `/owner`.
 - Agent/MCP entry: `/mcp` with OAuth discovery under `/.well-known/`.

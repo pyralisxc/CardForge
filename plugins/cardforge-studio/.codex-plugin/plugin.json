@@ -1,9 +1,9 @@
 {
   "name": "cardforge-studio",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Design editable cards and Templates, generate complete card sets, add artwork, and continue editing in CardForge Studio.",
   "author": {
-    "name": "CardForge Studio",
+    "name": "Cameron Locke",
     "url": "https://cardforges.com"
   },
   "homepage": "https://cardforges.com/studio",
@@ -22,7 +22,7 @@
     "displayName": "CardForge Studio",
     "shortDescription": "Design cards and generate complete card sets",
     "longDescription": "Design editable card Templates, create individual cards or complete sets, bulk-generate from structured content, add unique artwork, review results, and continue editing everything in CardForge Studio. Developer publication tools remain a separate optional workflow.",
-    "developerName": "CardForge Studio",
+    "developerName": "Cameron Locke",
     "category": "Design",
     "capabilities": [
       "Interactive",

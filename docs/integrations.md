@@ -17,7 +17,7 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 3. `src/app/sign-in/[[...sign-in]]/page.tsx` and `src/app/sign-up/[[...sign-up]]/page.tsx` — Clerk's native components on CardForge routes.
 4. `src/features/account/lib/serverCardforgeUser.ts` — one `currentUser()` read for the current account; `clerkClient()` only for an explicit user id or metadata mutation.
 
-**CardForge owns:** same-site return-path sanitization and the access policy layered over Clerk identity: free, Creator Pass, developer, and owner. CardForge does not own a parallel session or sign-in lifecycle.
+**CardForge owns:** same-site return-path sanitization and the access policy layered over Clerk identity: free, Creator Pass, Designer Pass, developer, and owner. CardForge does not own a parallel session or sign-in lifecycle.
 
 ## Supabase — shared platform state
 
@@ -42,7 +42,7 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 3. `src/features/billing/server/processStripeWebhook.ts` — verified webhook ingress and current-subscription reconciliation.
 4. `src/features/billing/server/reconcileBillingState.ts` — owner recovery/reconciliation when provider mappings drift.
 
-**CardForge owns:** projecting an eligible Creator Pass subscription into CardForge access stored with the Clerk account, and a durable billing event ledger so cross-provider writes are idempotent and auditable. That bridge is necessary because Stripe owns payment state while Clerk/CardForge own application access. Creator-support payments are deliberately classified separately and never grant product access.
+**CardForge owns:** projecting eligible Creator Pass and Designer Pass subscriptions into paid CardForge access plus a trusted plan marker stored with the Clerk account, and a durable billing event ledger so cross-provider writes are idempotent and auditable. The server chooses configured Stripe Price IDs; clients choose only the named offering. Designer Pass does not imply contributor access. This bridge is necessary because Stripe owns payment state while Clerk/CardForge own application access. Creator-support payments are deliberately classified separately and never grant product access.
 
 ## Resend — transactional email
 
@@ -81,8 +81,11 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 1. `src/app/mcp/route.ts` — HTTP/MCP composition and top-level tool registration.
 2. `src/features/studio-documents/server/mcpAgentTemplateTools.ts` and `mcpToolInputSchemas.ts` — focused agent-tool behavior and contracts.
 3. `src/features/studio-documents/` and `src/features/project/` — the same native document/template authority used by Studio.
+4. `src/features/mcp-usage/` — privacy-minimized usage observation, plan targets, and account/owner presentation.
 
 **CardForge owns:** tool semantics, Studio-document authorization, production-plan policy, and native Template validation. `preview_template_draft` shows the native exported Template PNG in chat and keeps the exact revision-bound Studio URL as a separate handoff. MCP does not get a second renderer, template format, asset store, or publication authority.
+
+Supabase keeps daily MCP totals per account and tool—calls, success/failure, successful assisted actions, payload byte counts, and duration—but never stores prompts, card content, or document payloads in the usage table. The Owner Console is the source of truth for each plan’s public name, description, feature lines, action label, visibility, and capacity targets. Signed-out visitors never receive MCP access; every signed-in Free, Creator Pass, or Designer account receives the shared Studio assistant scope, while approved developers and the owner retain their separately validated developer scopes. Numeric action/storage targets remain observation-only: they do not block, bill overages, or grant entitlements. Business Solutions is always routed to a private inquiry rather than self-serve checkout.
 
 ## Vercel and Next.js — deployment and application runtime
 
@@ -113,6 +116,7 @@ When reading a workflow, start at the route/surface and follow the named owner r
 - **Agent-created Template:** `app/mcp` -> `features/studio-documents` -> canonical Project document -> Studio install -> normal Template library.
 - **Shared Template publication:** Template Editor -> `developer-assets` / Forge Review -> `cardforge_asset_registry` -> Studio catalog.
 - **Creator Pass:** billing checkout route -> Stripe -> signed webhook -> billing purpose -> Clerk private metadata -> account entitlement.
+- **Business Solutions:** owner-authored plan invitation -> business contact request -> Resend -> Owner Inbox. No enterprise entitlement or self-serve checkout is created.
 - **Campaign publication:** Owner Marketing -> `marketing-content` approval -> `marketing-distribution` job -> stateless `social-publishing` provider adapter.
 - **Contact request:** contact route -> `contact` validation/store -> Resend API -> Owner Inbox.
 

@@ -35,6 +35,8 @@ export type ApiErrorCode =
   | 'invalid_template_payload'
   | 'marketing_command_failed'
   | 'marketing_command_unavailable'
+  | 'mcp_allowance_invalid'
+  | 'mcp_usage_unavailable'
   | 'payload_too_large'
   | 'rate_limited'
   | 'owner_access_required'

@@ -35,7 +35,7 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'landing.workflow.step4.title', group: 'landing', section: 'Workflow steps', label: 'Step 4 title', body: 'Check and download', kind: 'short', maxLength: 100 },
   { slug: 'landing.workflow.step4.body', group: 'landing', section: 'Workflow steps', label: 'Step 4 description', body: 'Look through every card, fix anything odd, and save the finished files.', kind: 'long', maxLength: 300 },
   { slug: 'landing.access.eyebrow', group: 'landing', section: 'Access', label: 'Eyebrow', body: 'Choose your next step', kind: 'short', maxLength: 100 },
-  { slug: 'landing.access.headline', group: 'landing', section: 'Access', label: 'Headline', body: 'Start free. Upgrade when you need watermark-free downloads.', kind: 'short', maxLength: 180 },
+  { slug: 'landing.access.headline', group: 'landing', section: 'Access', label: 'Headline', body: 'The complete Studio at every level, with more ChatGPT plugin power as you grow.', kind: 'short', maxLength: 180 },
   { slug: 'landing.access.developer-note', group: 'landing', section: 'Access', label: 'Developer note', body: 'Developers can help improve shared CardForge tools and artwork through the Developer Program.', kind: 'long', maxLength: 300 },
   { slug: 'landing.founder.eyebrow', group: 'landing', section: 'Founder introduction', label: 'Eyebrow', body: 'A real person is building this', kind: 'short', maxLength: 100 },
   { slug: 'landing.founder.headline', group: 'landing', section: 'Founder introduction', label: 'Headline', body: 'Built independently by Cameron Locke', kind: 'short', maxLength: 160 },

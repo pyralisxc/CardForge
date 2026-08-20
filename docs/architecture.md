@@ -8,7 +8,7 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 
 - Public product: `/`, `/about`, `/cameron`, `/roadmap`, `/developer`, `/contact`, and legal pages.
 - Studio: `/studio` contains Template Studio and Generator.
-- Account/access: Clerk identifies users; CardForge applies free, Creator Pass, developer, and owner policy.
+- Account/access: Clerk identifies users; CardForge applies free, Creator Pass, Designer Pass, developer, and owner policy.
 - Billing: Stripe owns Checkout, subscriptions, customers, webhooks, and Billing Portal state; CardForge maps eligible product subscriptions into application access.
 - Shared platform state: Supabase owns CardForge shared records and approved managed media.
 - User projects: templates, generated cards, project uploads, preferences, and project files remain browser-local unless explicitly submitted/exported.
@@ -85,6 +85,7 @@ Cross-feature consumers use declared public interfaces. `src/lib`, `src/store`, 
 
 - Free: local design/generation and whatever portable-project access the owner-controlled experience policy currently allows.
 - Creator Pass: clean paid finished-output entitlement through Stripe-backed access.
+- Designer Pass: the same paid Studio access plus the higher Designer MCP capacity target; it does not grant contributor access.
 - Developer: Creator Pass-grade output plus contribution/pipeline capabilities according to active developer profile/scopes.
 - Owner: owner console plus developer-grade tooling.
 - Public Clerk metadata is display-only; trusted access comes from Clerk private metadata and server-owned allowlists/policy.
@@ -117,13 +118,15 @@ Extended contributor lanes and native Meta publication are independent owner-con
 
 `/mcp` uses the MCP protocol and Clerk OAuth/token verification. Agent tools operate on the same private Studio documents, Template validation, production planning, library assets, renderer, and publication boundaries used by browser Studio. There is no second agent template format, renderer, asset catalog, or publication path.
 
+`mcp-usage` owns plan presentation, capacity targets, and usage observation; it does not create billing entitlements. The Owner Console is the only mutable source for plan names, descriptions, feature lines, CTA labels, visibility, and capacity targets. MCP access itself follows authenticated account identity: signed-out requests fail closed, signed-in Free/Creator/Designer accounts receive the shared Studio assistant scope, and approved developers or the owner must still pass the developer-access boundary for developer scopes. Tool telemetry fails open so an observation outage cannot break an otherwise authorized action. Because observation writes aggregate usage, every observed MCP tool declares a non-read-only side effect even when its product action only reads data. Successful user-visible mutations count as assisted actions; reads, previews, failures, and retries remain visible operational calls but consume no action unit. Numeric plan and storage targets are informational until a separately reviewed quota and billing policy is approved.
+
 ## Roadmap and voting
 
 Supabase `cardforge_roadmap_items` and `cardforge_roadmap_votes` are the live roadmap source of truth. Official capabilities move through `planned`, `in_progress`, `testing`, and `shipped`; shipped records remain as completed history so votes/provenance are not lost. User suggestions may be archived for configured negative signal. Mistaken/duplicate rows may be deleted deliberately; completed legitimate work must not remain presented as future work.
 
 ## Owner console
 
-The Owner Console composes six job-oriented workspaces: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Feature modules remain authoritative for their data/mutations. Owner does not become a parallel database, provider config system, or product-domain owner.
+The Owner Console composes six job-oriented workspaces: Overview, Marketing, Growth & People, Site Controls, Studio Library, and Governance. Feature modules remain authoritative for their data/mutations. Growth & People presents the plan catalog, capacity targets, and MCP usage observation owned by `mcp-usage`; the console only composes that authority. General Site Controls no longer carry a duplicate Creator Pass visibility switch. Owner does not become a parallel database, provider config system, or product-domain owner.
 
 ## Source of truth
 

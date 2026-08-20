@@ -1,6 +1,7 @@
 import { createMcpHandler } from 'mcp-handler';
 
 import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import { summarizeProjectProductionAssets } from '@/features/project/server';
 import {
   attachDeveloperTemplateDraftAsset,
@@ -243,6 +244,28 @@ export const registerAgentTemplateTools = ({
   getAccess: () => Promise<DeveloperCockpitAccess>;
   toolError: (error: unknown) => ToolErrorResult;
 }) => {
+  const runObserved = async <Result>({
+    toolName,
+    input,
+    execute,
+  }: {
+    toolName: string;
+    input: unknown;
+    execute: (access: DeveloperCockpitAccess) => Promise<Result>;
+  }): Promise<Result | ToolErrorResult> => {
+    try {
+      const access = await getAccess();
+      return await observeMcpToolExecution({
+        ownerUserId: access.user.id,
+        toolName,
+        input,
+        execute: async () => execute(access),
+      });
+    } catch (error) {
+      return toolError(error);
+    }
+  };
+
   const previewResourceMeta = {
     ui: {
       csp: { frameDomains: [publicOrigin] },
@@ -290,8 +313,10 @@ export const registerAgentTemplateTools = ({
       },
     },
     async ({ documentId, expectedRevision, assetRequirementId, binding, mimeType, data }) => {
-      try {
-        const access = await getAccess();
+      return runObserved({
+        toolName: 'attach_template_artwork',
+        input: { documentId, expectedRevision, assetRequirementId, binding, mimeType, data },
+        execute: async (access) => {
         const document = await attachDeveloperTemplateDraftAsset({
           access,
           documentId,
@@ -321,10 +346,9 @@ export const registerAgentTemplateTools = ({
             composition: compositionDiagnostics(document),
             ...status,
           },
-        };
-      } catch (error) {
-        return toolError(error);
-      }
+          };
+        },
+      });
     },
   );
 
@@ -335,7 +359,7 @@ export const registerAgentTemplateTools = ({
       description: 'Export the exact current CardForge Template as a native PNG shown directly in chat for visual review. The result reports production completeness plus composition and asset-binding diagnostics, with the exact revision-bound Studio URL kept separately. Verify the intended image slot, frame structure, and text borders after meaningful layout or artwork revisions; do not call an asset-incomplete or misbound draft finished.',
       inputSchema: previewTemplateDraftInputSchema,
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         openWorldHint: false,
       },
@@ -346,8 +370,10 @@ export const registerAgentTemplateTools = ({
       },
     },
     async ({ documentId }) => {
-      try {
-        const access = await getAccess();
+      return runObserved({
+        toolName: 'preview_template_draft',
+        input: { documentId },
+        execute: async (access) => {
         const document = await getDeveloperTemplateDraft(access, documentId);
         const status = productionStatus(document);
         const composition = compositionDiagnostics(document);
@@ -377,10 +403,9 @@ export const registerAgentTemplateTools = ({
               : `Exported "${document.title}" revision ${document.revision} as a draft PNG in chat. ${status.remainingAssetRequirementIds.length} planned asset requirement${status.remainingAssetRequirementIds.length === 1 ? '' : 's'} remain, so do not describe it as production-complete yet.`,
           }],
           structuredContent,
-        };
-      } catch (error) {
-        return toolError(error);
-      }
+          };
+        },
+      });
     },
   );
 };

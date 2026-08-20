@@ -21,7 +21,6 @@ export interface PublicSiteConfiguration {
   announcementMessage: string;
   primaryCtaLabel: string;
   primaryCtaHref: string;
-  creatorPassOfferVisible: boolean;
   supportOfferVisible: boolean;
   homepageTitle: string;
   homepageDescription: string;
@@ -50,7 +49,6 @@ export const DEFAULT_PUBLIC_SITE_CONFIGURATION: PublicSiteConfiguration = {
   announcementMessage: '',
   primaryCtaLabel: 'Try the Studio',
   primaryCtaHref: '/studio',
-  creatorPassOfferVisible: true,
   supportOfferVisible: true,
   homepageTitle: 'Build Complete Card Sets',
   homepageDescription: 'Create highly customized card sets from reusable layouts and structured data, then review and export the whole set in your browser.',
@@ -155,7 +153,6 @@ export const hydratePublicSiteConfiguration = (
   primaryCtaHref: typeof row?.primary_cta_href === 'string' && isSafeInternalPath(row.primary_cta_href)
     ? row.primary_cta_href
     : DEFAULT_PUBLIC_SITE_CONFIGURATION.primaryCtaHref,
-  creatorPassOfferVisible: row?.creator_pass_offer_visible !== false,
   supportOfferVisible: row?.support_offer_visible !== false,
   homepageTitle: normalizeText(row?.homepage_title, DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageTitle, 80),
   homepageDescription: normalizeText(row?.homepage_description, DEFAULT_PUBLIC_SITE_CONFIGURATION.homepageDescription, 200),
@@ -175,7 +172,6 @@ export const normalizePublicSiteConfigurationInput = (
     announcement_message: input.announcementMessage,
     primary_cta_label: input.primaryCtaLabel,
     primary_cta_href: input.primaryCtaHref,
-    creator_pass_offer_visible: input.creatorPassOfferVisible,
     support_offer_visible: input.supportOfferVisible,
     homepage_title: input.homepageTitle,
     homepage_description: input.homepageDescription,

@@ -52,7 +52,7 @@ export function AccountIdentitySection({
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row">{actions}</div>
+      <div id="account-actions" className="mt-5 flex scroll-mt-5 flex-col gap-2 sm:flex-row">{actions}</div>
     </section>
   );
 }

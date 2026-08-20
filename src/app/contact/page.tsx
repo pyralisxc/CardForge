@@ -12,14 +12,20 @@ export const metadata = createPageMetadata({
   path: '/contact',
 });
 
-export default async function ContactPage() {
+export default async function ContactPage({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
+  const params = await searchParams;
+  const isBusinessInquiry = params.kind === 'business';
   const [{ businessIdentity, document }, siteConfiguration] = await Promise.all([
     getCachedPublishedLegalDocument('contact'),
     getCachedPublicSiteConfiguration(),
   ]);
   return (
     <ConfiguredPublicLegalPage businessIdentity={businessIdentity} document={document} siteConfiguration={siteConfiguration}>
-      <ContactRequestForm kind="support" defaultEmail="" defaultSubject="CardForge support request" />
+      <ContactRequestForm
+        kind={isBusinessInquiry ? 'business' : 'support'}
+        defaultEmail=""
+        defaultSubject={isBusinessInquiry ? 'CardForge Business Solutions inquiry' : 'CardForge support request'}
+      />
     </ConfiguredPublicLegalPage>
   );
 }

@@ -1,10 +1,12 @@
 import type Stripe from 'stripe';
 
+import type { PaidPlan } from '@/domain/entitlements';
 import { getConfiguredPublicAppUrl } from '@/infrastructure/http/publicUrl';
 
 export type BillingEnvironment = Partial<Record<
   | 'STRIPE_SECRET_KEY'
   | 'STRIPE_CREATOR_PASS_PRICE_ID'
+  | 'STRIPE_DESIGNER_PASS_PRICE_ID'
   | 'STRIPE_SUPPORT_MONTHLY_1_PRICE_ID'
   | 'STRIPE_SUPPORT_MONTHLY_5_PRICE_ID'
   | 'STRIPE_SUPPORT_MONTHLY_10_PRICE_ID'
@@ -19,21 +21,26 @@ export type BillingEnvironment = Partial<Record<
 >>;
 
 export interface BillingConfigStatus {
+  designerPassConfigured: boolean;
   productAccessConfigured: boolean;
   supportOneTimeConfigured: boolean;
   supportMonthlyConfigured: boolean;
   supportConfigured: boolean;
   webhookConfigured: boolean;
   missingProductAccess: string[];
+  missingDesignerPass: string[];
   missingSupport: string[];
 }
 
 export interface BuildProductAccessCheckoutSessionParamsInput {
   appUrl: string;
   email?: string | null;
+  offering?: ProductAccessOffering;
   priceId: string;
   userId: string;
 }
+
+export type ProductAccessOffering = 'creator_pass' | 'designer_pass';
 
 export type CreatorSupportOffering = 'support_one_time' | 'support_monthly';
 export type SupportMonthlyAmountCents = 100 | 500 | 1000 | 2000;
@@ -74,6 +81,7 @@ export interface BuildBillingPortalSessionParamsInput {
 
 export interface BuildStripePaidAccessMetadataInput {
   existingMetadata?: Record<string, unknown>;
+  paidPlan?: PaidPlan;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   stripeCheckoutSessionId?: string | null;
@@ -82,6 +90,7 @@ export interface BuildStripePaidAccessMetadataInput {
 const readEnvironment = (env?: BillingEnvironment): BillingEnvironment => env ?? {
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_CREATOR_PASS_PRICE_ID: process.env.STRIPE_CREATOR_PASS_PRICE_ID,
+  STRIPE_DESIGNER_PASS_PRICE_ID: process.env.STRIPE_DESIGNER_PASS_PRICE_ID,
   STRIPE_SUPPORT_MONTHLY_1_PRICE_ID: process.env.STRIPE_SUPPORT_MONTHLY_1_PRICE_ID,
   STRIPE_SUPPORT_MONTHLY_5_PRICE_ID: process.env.STRIPE_SUPPORT_MONTHLY_5_PRICE_ID,
   STRIPE_SUPPORT_MONTHLY_10_PRICE_ID: process.env.STRIPE_SUPPORT_MONTHLY_10_PRICE_ID,
@@ -107,6 +116,18 @@ export const getBillingConfigStatus = (env?: BillingEnvironment): BillingConfigS
   ]
     .filter(([, value]) => !value)
     .map(([key]) => key);
+  const missingDesignerPass = [
+    ['STRIPE_DESIGNER_PASS_PRICE_ID', source.STRIPE_DESIGNER_PASS_PRICE_ID] as [string, string | undefined],
+    ...sharedValues,
+  ]
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+  if (
+    source.STRIPE_DESIGNER_PASS_PRICE_ID
+    && source.STRIPE_DESIGNER_PASS_PRICE_ID === source.STRIPE_CREATOR_PASS_PRICE_ID
+  ) {
+    missingDesignerPass.push('STRIPE_DESIGNER_PASS_PRICE_ID_DISTINCT');
+  }
   const supportValues: Array<[string, string | undefined]> = [
     ['STRIPE_SUPPORT_MONTHLY_1_PRICE_ID', source.STRIPE_SUPPORT_MONTHLY_1_PRICE_ID],
     ['STRIPE_SUPPORT_MONTHLY_5_PRICE_ID', source.STRIPE_SUPPORT_MONTHLY_5_PRICE_ID],
@@ -136,15 +157,25 @@ export const getBillingConfigStatus = (env?: BillingEnvironment): BillingConfigS
   );
 
   return {
+    designerPassConfigured: missingDesignerPass.length === 0,
     productAccessConfigured: missingProductAccess.length === 0,
     supportOneTimeConfigured,
     supportMonthlyConfigured,
     supportConfigured: supportOneTimeConfigured && supportMonthlyConfigured,
     webhookConfigured: Boolean(source.STRIPE_WEBHOOK_SECRET),
     missingProductAccess,
+    missingDesignerPass,
     missingSupport,
   };
 };
+
+export const normalizeProductAccessOffering = (value: unknown): ProductAccessOffering | null => (
+  value === 'creator_pass' || value === 'designer_pass' ? value : null
+);
+
+export const getPaidPlanForProductAccessOffering = (
+  offering: ProductAccessOffering,
+): PaidPlan => offering === 'designer_pass' ? 'designer' : 'creator';
 
 const normalizeCurrency = (value: string | undefined): string | null => {
   const normalized = value?.trim().toLowerCase() ?? '';
@@ -248,6 +279,7 @@ export const validateCreatorSupportPrice = ({
 export const buildProductAccessCheckoutSessionParams = ({
   appUrl,
   email,
+  offering = 'creator_pass',
   priceId,
   userId,
 }: BuildProductAccessCheckoutSessionParamsInput): Stripe.Checkout.SessionCreateParams => {
@@ -255,7 +287,7 @@ export const buildProductAccessCheckoutSessionParams = ({
   const metadata = {
     clerkUserId: userId,
     billingPurpose: 'product_access',
-    billingOffering: 'creator_pass',
+    billingOffering: offering,
   };
 
   return {
@@ -366,12 +398,15 @@ export const shouldRevokeStripePaidAccessForSubscription = (
 
 export const buildStripePaidAccessMetadata = ({
   existingMetadata = {},
+  paidPlan,
   stripeCustomerId,
   stripeSubscriptionId,
   stripeCheckoutSessionId,
 }: BuildStripePaidAccessMetadataInput): Record<string, unknown> => ({
   ...existingMetadata,
   cardforgeAccess: 'paid',
+  cardforgePaidPlan: paidPlan
+    ?? (existingMetadata.cardforgePaidPlan === 'designer' ? 'designer' : 'creator'),
   cardforgeAccessExpiresAt: null,
   cardforgeStripeCustomerId: stripeCustomerId ?? existingMetadata.cardforgeStripeCustomerId ?? null,
   cardforgeStripeSubscriptionId: stripeSubscriptionId ?? existingMetadata.cardforgeStripeSubscriptionId ?? null,
@@ -386,6 +421,7 @@ export const buildStripeRevokedAccessMetadata = (
     ...existingMetadata,
     cardforgeAccess: existingMetadata.cardforgeAccess === 'paid' ? 'free' : existingMetadata.cardforgeAccess,
     cardforgeAccessExpiresAt: null,
+    cardforgePaidPlan: null,
     cardforgeStripeAccessUpdatedAt: new Date().toISOString(),
   };
 

@@ -9,6 +9,7 @@ import {
   getBillingConfigStatus,
   getCreatorSupportOfferConfiguration,
   getStripeCustomerIdFromMetadata,
+  normalizeProductAccessOffering,
   normalizeCreatorSupportOffering,
   normalizeSupportMonthlyAmountCents,
   normalizeSupportOneTimeAmountCents,
@@ -23,6 +24,7 @@ describe('billing', () => {
     expect(getBillingConfigStatus({
       STRIPE_SECRET_KEY: 'sk_test_123',
       STRIPE_CREATOR_PASS_PRICE_ID: 'price_123',
+      STRIPE_DESIGNER_PASS_PRICE_ID: 'price_designer',
       STRIPE_SUPPORT_MONTHLY_1_PRICE_ID: 'price_support_1',
       STRIPE_SUPPORT_MONTHLY_5_PRICE_ID: 'price_support_5',
       STRIPE_SUPPORT_MONTHLY_10_PRICE_ID: 'price_support_10',
@@ -32,24 +34,28 @@ describe('billing', () => {
       STRIPE_WEBHOOK_SECRET: 'whsec_123',
       NEXT_PUBLIC_APP_URL: 'https://cardforge.example',
     })).toEqual({
+      designerPassConfigured: true,
       productAccessConfigured: true,
       supportOneTimeConfigured: true,
       supportMonthlyConfigured: true,
       supportConfigured: true,
       webhookConfigured: true,
       missingProductAccess: [],
+      missingDesignerPass: [],
       missingSupport: [],
     });
 
     expect(getBillingConfigStatus({
       STRIPE_SECRET_KEY: 'sk_test_123',
     })).toEqual({
+      designerPassConfigured: false,
       productAccessConfigured: false,
       supportOneTimeConfigured: false,
       supportMonthlyConfigured: false,
       supportConfigured: false,
       webhookConfigured: false,
       missingProductAccess: ['STRIPE_CREATOR_PASS_PRICE_ID', 'NEXT_PUBLIC_APP_URL'],
+      missingDesignerPass: ['STRIPE_DESIGNER_PASS_PRICE_ID', 'NEXT_PUBLIC_APP_URL'],
       missingSupport: [
         'STRIPE_SUPPORT_MONTHLY_1_PRICE_ID',
         'STRIPE_SUPPORT_MONTHLY_5_PRICE_ID',
@@ -67,12 +73,14 @@ describe('billing', () => {
       NEXT_PUBLIC_APP_URL: 'https://mpmmhjjhdxjedbmuctiv.supabase.co',
       VERCEL_PROJECT_PRODUCTION_URL: 'card-forge-snowy.vercel.app',
     })).toEqual({
+      designerPassConfigured: false,
       productAccessConfigured: true,
       supportOneTimeConfigured: false,
       supportMonthlyConfigured: false,
       supportConfigured: false,
       webhookConfigured: false,
       missingProductAccess: [],
+      missingDesignerPass: ['STRIPE_DESIGNER_PASS_PRICE_ID'],
       missingSupport: [
         'STRIPE_SUPPORT_MONTHLY_1_PRICE_ID',
         'STRIPE_SUPPORT_MONTHLY_5_PRICE_ID',
@@ -110,6 +118,40 @@ describe('billing', () => {
           billingOffering: 'creator_pass',
         },
       },
+    });
+  });
+
+  it('builds Designer Pass checkout from the server-owned price and preserves the paid plan', () => {
+    expect(normalizeProductAccessOffering('designer_pass')).toBe('designer_pass');
+    expect(normalizeProductAccessOffering('unknown')).toBeNull();
+    expect(buildProductAccessCheckoutSessionParams({
+      appUrl: 'https://cardforge.example/',
+      offering: 'designer_pass',
+      priceId: 'price_designer',
+      userId: 'user_123',
+      email: 'designer@example.com',
+    })).toMatchObject({
+      mode: 'subscription',
+      line_items: [{ price: 'price_designer', quantity: 1 }],
+      metadata: {
+        billingPurpose: 'product_access',
+        billingOffering: 'designer_pass',
+      },
+      subscription_data: {
+        metadata: {
+          billingPurpose: 'product_access',
+          billingOffering: 'designer_pass',
+        },
+      },
+    });
+
+    expect(buildStripePaidAccessMetadata({
+      paidPlan: 'designer',
+      stripeSubscriptionId: 'sub_designer',
+    })).toMatchObject({
+      cardforgeAccess: 'paid',
+      cardforgePaidPlan: 'designer',
+      cardforgeStripeSubscriptionId: 'sub_designer',
     });
   });
 

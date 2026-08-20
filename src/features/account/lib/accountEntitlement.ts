@@ -1,6 +1,7 @@
 import type {
   AccessMode,
   ExportEntitlementCopy,
+  PaidPlan,
   ProjectCapabilities,
   ProjectFileAccessPolicy,
 } from '@/domain/entitlements';
@@ -50,6 +51,7 @@ export interface AccountEntitlement {
   hasStripeCustomer: boolean;
   isSignedIn: boolean;
   ownerAccess: OwnerAccess;
+  paidPlan: PaidPlan | null;
   source: 'clerk' | 'environment';
 }
 
@@ -83,6 +85,10 @@ const readMetadataAccessMode = (metadata: AccountMetadata | undefined): AccessMo
   const value = metadata?.cardforgeAccess;
   return value === 'dev' || value === 'paid' || value === 'free' ? value : null;
 };
+
+const readMetadataPaidPlan = (metadata: AccountMetadata | undefined): PaidPlan => (
+  metadata?.cardforgePaidPlan === 'designer' ? 'designer' : 'creator'
+);
 
 const toValidDate = (value: unknown): Date | null => {
   if (typeof value !== 'string' || value.trim().length === 0) return null;
@@ -185,6 +191,7 @@ export const resolveAccountEntitlement = ({
       && Boolean(getStripeCustomerIdFromMetadata(privateMetadata)),
     isSignedIn,
     ownerAccess,
+    paidPlan: accessMode === 'paid' ? readMetadataPaidPlan(privateMetadata) : null,
     source: configured ? 'clerk' : 'environment',
   };
 };

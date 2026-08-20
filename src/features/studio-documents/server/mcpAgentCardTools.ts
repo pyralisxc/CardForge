@@ -1,6 +1,7 @@
 import { createMcpHandler } from 'mcp-handler';
 
 import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import {
   attachDeveloperCardArtwork,
   getDeveloperCardGenerationContract,
@@ -18,7 +19,7 @@ import {
   upsertCardSetInputSchema,
 } from './mcpCardToolSchemas';
 
-const CARDFORGE_MCP_CAPABILITY_VERSION = '0.3.3';
+const CARDFORGE_MCP_CAPABILITY_VERSION = '0.4.0';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
@@ -62,17 +63,41 @@ export const registerAgentCardTools = ({
     `${publicOrigin}/studio?document=${encodeURIComponent(documentId)}&revision=${revision}`
   );
 
+  const runObserved = async <Result>({
+    toolName,
+    input,
+    execute,
+  }: {
+    toolName: string;
+    input: unknown;
+    execute: (access: DeveloperCockpitAccess) => Promise<Result>;
+  }): Promise<Result | ToolErrorResult> => {
+    try {
+      const access = await getAccess();
+      return await observeMcpToolExecution({
+        ownerUserId: access.user.id,
+        toolName,
+        input,
+        execute: async () => execute(access),
+      });
+    } catch (error) {
+      return toolError(error);
+    }
+  };
+
   server.registerTool(
     'get_card_generation_contract',
     {
       title: 'Prepare a Template for making cards or a bulk card set',
       description: 'Use when the user wants to make cards, generate a deck or set, or turn a list/CSV/JSON into cards. Reads the exact front/back Template fields, required fields, image fields, and CardForge bulk schema before any card write. Never guess card columns or image keys.',
       inputSchema: cardGenerationContractInputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ documentId, setId }) => {
-      try {
-        const access = await getAccess();
+      return runObserved({
+        toolName: 'get_card_generation_contract',
+        input: { documentId, setId },
+        execute: async (access) => {
         const result = await getDeveloperCardGenerationContract({ access, documentId, setId });
         const resolvedSetId = result.set?.id ?? null;
         return {
@@ -100,10 +125,9 @@ export const registerAgentCardTools = ({
               { action: 'upsert_cards', reason: 'Generate or revise multiple cards in one bounded bulk pass.' },
             ]),
           },
-        };
-      } catch (error) {
-        return toolError(error);
-      }
+          };
+        },
+      });
     },
   );
 
@@ -116,8 +140,10 @@ export const registerAgentCardTools = ({
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ documentId, expectedRevision, setId, name, frontTemplateId, backingTemplateId }) => {
-      try {
-        const access = await getAccess();
+      return runObserved({
+        toolName: 'upsert_card_set',
+        input: { documentId, expectedRevision, setId, name, frontTemplateId, backingTemplateId },
+        execute: async (access) => {
         const document = await upsertDeveloperCardSet({
           access,
           documentId,
@@ -143,10 +169,9 @@ export const registerAgentCardTools = ({
               { action: 'get_card_generation_contract', reason: 'Load the real Template fields before making one card or a bulk set.' },
             ]),
           },
-        };
-      } catch (error) {
-        return toolError(error);
-      }
+          };
+        },
+      });
     },
   );
 
@@ -163,8 +188,10 @@ export const registerAgentCardTools = ({
     cards: Array<{ cardId?: string; data: Record<string, string | number>; backingData?: Record<string, string | number> }>;
     bulk: boolean;
   }) => {
-    try {
-      const access = await getAccess();
+    return runObserved({
+      toolName: bulk ? 'upsert_cards' : 'upsert_card',
+      input: { documentId, expectedRevision, setId, cards },
+      execute: async (access) => {
       const result = await upsertDeveloperCards({ access, documentId, expectedRevision, setId, cards });
       return {
         content: [{
@@ -188,10 +215,9 @@ export const registerAgentCardTools = ({
             { action: 'preview_card_set', reason: 'Review the complete set data before opening the exact revision in Studio.' },
           ]),
         },
-      };
-    } catch (error) {
-      return toolError(error);
-    }
+        };
+      },
+    });
   };
 
   server.registerTool(
@@ -237,8 +263,10 @@ export const registerAgentCardTools = ({
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ documentId, expectedRevision, cardId, fieldKey, face, mimeType, data }) => {
-      try {
-        const access = await getAccess();
+      return runObserved({
+        toolName: 'attach_card_artwork',
+        input: { documentId, expectedRevision, cardId, fieldKey, face, mimeType, data },
+        execute: async (access) => {
         const document = await attachDeveloperCardArtwork({
           access,
           documentId,
@@ -266,10 +294,9 @@ export const registerAgentCardTools = ({
               { action: 'preview_card_set', reason: 'Review the set after meaningful card or artwork changes.' },
             ]),
           },
-        };
-      } catch (error) {
-        return toolError(error);
-      }
+          };
+        },
+      });
     },
   );
 
@@ -279,11 +306,13 @@ export const registerAgentCardTools = ({
       title: 'Review a CardForge card set before opening it in Studio',
       description: 'Use after making one or many cards to review the current set structure and card values. Embedded artwork bytes are omitted from model context. Check that card copy varies as intended, image fields are populated where required, and the set/card ids are stable before opening the exact revision in Studio.',
       inputSchema: getCardSetInputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ documentId, setId }) => {
-      try {
-        const access = await getAccess();
+      return runObserved({
+        toolName: 'preview_card_set',
+        input: { documentId, setId },
+        execute: async (access) => {
         const document = await getStudioDocument(access.user.id, documentId);
         const set = document.document.cardSets.find((candidate) => candidate.id === setId);
         if (!set) {
@@ -311,10 +340,9 @@ export const registerAgentCardTools = ({
               { action: 'open_in_studio', reason: 'Open openInStudioUrl to install or update this exact revision in the normal local CardForge workspace.' },
             ]),
           },
-        };
-      } catch (error) {
-        return toolError(error);
-      }
+          };
+        },
+      });
     },
   );
 };

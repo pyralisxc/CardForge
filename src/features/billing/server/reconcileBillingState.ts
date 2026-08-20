@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import {
   buildStripePaidAccessMetadata,
   buildStripeRevokedAccessMetadata,
+  getPaidPlanForProductAccessOffering,
   shouldGrantAccessForStripeSubscriptionStatus,
   shouldRevokeAccessForStripeSubscriptionStatus,
   classifySubscriptionBillingPurpose,
@@ -52,6 +53,7 @@ export async function reconcileBillingState() {
     }
     const prices = {
       creatorPassPriceId: process.env.STRIPE_CREATOR_PASS_PRICE_ID,
+      designerPassPriceId: process.env.STRIPE_DESIGNER_PASS_PRICE_ID,
       supportCurrency: process.env.STRIPE_SUPPORT_CURRENCY,
       supportMonthlyPriceIds: {
         100: process.env.STRIPE_SUPPORT_MONTHLY_1_PRICE_ID,
@@ -154,11 +156,18 @@ export async function reconcileBillingState() {
       const existingMetadata = user.privateMetadata ?? {};
       let nextMetadata: Record<string, unknown> | null = null;
       if (shouldGrantAccessForStripeSubscriptionStatus(subscription.status)) {
+        const classification = classifySubscriptionBillingPurpose({ subscription, prices });
+        if (classification.offering !== 'creator_pass' && classification.offering !== 'designer_pass') {
+          throw new Error(`Configured product subscription ${subscription.id} has no paid plan mapping.`);
+        }
+        const paidPlan = getPaidPlanForProductAccessOffering(classification.offering);
         const alreadyAligned = existingMetadata.cardforgeAccess === 'paid'
+          && existingMetadata.cardforgePaidPlan === paidPlan
           && existingMetadata.cardforgeStripeSubscriptionId === subscription.id;
         if (!alreadyAligned) {
           nextMetadata = buildStripePaidAccessMetadata({
             existingMetadata,
+            paidPlan,
             stripeCustomerId: getObjectId(subscription.customer),
             stripeSubscriptionId: subscription.id,
           });

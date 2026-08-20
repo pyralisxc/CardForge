@@ -12,16 +12,18 @@ export function AccountBillingActions({
   canManageBilling,
   effectiveSignedIn,
   checkoutLabel,
+  showDesignerCheckout = false,
   showCheckout,
 }: {
   authConfigured: boolean;
   canManageBilling: boolean;
   effectiveSignedIn: boolean;
   checkoutLabel: string;
+  showDesignerCheckout?: boolean;
   showCheckout: boolean;
 }) {
   const { toast } = useToast();
-  const { handleStartCheckout, isCheckoutStarting } = useCheckoutActions({
+  const { checkoutOffering, handleStartCheckout, isCheckoutStarting } = useCheckoutActions({
     authConfigured,
     isSignedIn: effectiveSignedIn,
     toast,
@@ -50,11 +52,23 @@ export function AccountBillingActions({
           size="lg"
           variant="outline"
           className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]"
-          onClick={handleStartCheckout}
+          onClick={() => handleStartCheckout('creator_pass')}
           disabled={isCheckoutStarting}
         >
           <CreditCard className="mr-2 h-5 w-5" />
-          {isCheckoutStarting ? 'Checking access...' : checkoutLabel}
+          {checkoutOffering === 'creator_pass' ? 'Checking access...' : checkoutLabel}
+        </Button>
+      ) : null}
+      {showDesignerCheckout ? (
+        <Button
+          size="lg"
+          variant="outline"
+          className="border-[#846634] bg-transparent text-[#f8e3b0] hover:border-[#d9a441] hover:bg-[#24180e] hover:text-[#fff1c7]"
+          onClick={() => handleStartCheckout('designer_pass')}
+          disabled={isCheckoutStarting}
+        >
+          <CreditCard className="mr-2 h-5 w-5" />
+          {checkoutOffering === 'designer_pass' ? 'Checking access...' : 'Choose Designer'}
         </Button>
       ) : null}
     </>
