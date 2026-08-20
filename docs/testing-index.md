@@ -1,2 +1,0 @@
-- [Testing principles](./testing.md)
-- [2026-08-20 audit](./testing-audit-2026-08-20.md)
