@@ -41,6 +41,6 @@ When the connector reloads or a write response is lost, do not create replacemen
 5. Use `attach_card_artwork` only with an image field key returned by the contract and the exact stable card id.
 6. Call `preview_card_set` after meaningful generation/artwork changes. Check that card copy varies as intended and that the set/card identities are correct before calling the set complete.
 7. Open the exact returned Studio revision to install or update the same normal local Template, set, and cards.
-8. In CardForge Studio, users can export finished media, export/import editable CardForge JSON, or explicitly back up selected sets to their account cloud slots. Do not invent a parallel transfer format in chat.
+8. In CardForge Studio, users can export finished media, export/import an editable individual card or set as CardForge JSON, or explicitly back up selected sets to their account cloud slots. Do not invent a parallel transfer format in chat.
 
 If CardForge reports a revision conflict, reload the current working document or generation contract and retry the intended operation with the new `expectedRevision` and the same stable identities.
