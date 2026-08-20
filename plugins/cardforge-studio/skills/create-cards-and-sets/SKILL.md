@@ -1,24 +1,34 @@
 ---
 name: create-cards-and-sets
-description: Create or revise CardForge card sets, individual cards, bulk card lists, and per-card artwork from an approved editable Template.
+description: Create or revise CardForge card sets, individual cards, bulk card lists, and per-card artwork from an approved editable Template, or inspect sets the linked account intentionally saved to CardForge cloud storage.
 ---
 
 # Create CardForge cards and sets
 
-Use this skill when the user wants actual card instances: one card, a deck/set, bulk generation from a list, or unique artwork across cards. The reusable Template stays separate from the card data.
+Use this skill when the user wants actual card instances: one card, a deck/set, bulk generation from a list, unique artwork across cards, or to continue from a set they already cloud-saved in CardForge. The reusable Template stays separate from the card data.
 
 ## Core model
 
 - **Template** = reusable visual design.
 - **Card** = one filled instance of that design.
-- **Set** = a named local collection of cards using a front Template and optional compatible back.
-- **Project** = the complete CardForge workspace.
+- **Set** = a named collection of cards using a front Template and optional compatible back.
+- **Cloud-saved Set** = one set the signed-in user explicitly backed up to an account cloud slot so it can be restored across devices and discovered by CardForge's ChatGPT integration.
+- **Project** = the complete local CardForge workspace.
 
-Normal personal work is local-first. The agent may edit one private mutable Studio working document, but approved Templates, sets, and cards install into the user's normal local CardForge workspace rather than a second cloud library.
+CardForge remains local-first: local Templates, sets, cards, and project state can exist without cloud saving. Cloud visibility is explicit and bounded by account slots. A private mutable Studio working document is the agent collaboration/revision layer; it is not the permanent cloud-set library.
+
+## Saved-set discovery
+
+When the user says things such as "my saved set", "the set I backed up", "the one I made on my other device", or expects CardForge to remember a set without providing a working-document id:
+
+1. Call `list_cloud_sets` instead of guessing what exists.
+2. If the intended set is clear, call `get_cloud_set` with its stable set id. A normal 52-card set fits in the default card page; use `cardOffset` to continue larger sets.
+3. Treat the result as read-only permanent library state. Do not claim to have changed the cloud save through these tools.
+4. Browser-only sets are intentionally invisible to ChatGPT until the user backs them up in CardForge Studio.
 
 ## Exact-contract rule
 
-Before making cards, call `get_card_generation_contract`. Never guess card columns or image keys. Use only the returned front/back fields, required fields, and image field keys.
+Before making or revising cards in a private agent working document, call `get_card_generation_contract`. Never guess card columns or image keys. Use only the returned front/back fields, required fields, and image field keys.
 
 When the connector reloads or a write response is lost, do not create replacements. Reload the current document/contract revision and retry with the **same set id and card ids**.
 
@@ -31,6 +41,6 @@ When the connector reloads or a write response is lost, do not create replacemen
 5. Use `attach_card_artwork` only with an image field key returned by the contract and the exact stable card id.
 6. Call `preview_card_set` after meaningful generation/artwork changes. Check that card copy varies as intended and that the set/card identities are correct before calling the set complete.
 7. Open the exact returned Studio revision to install or update the same normal local Template, set, and cards.
-8. In CardForge Studio, users can export finished media normally or export/import an editable individual card or set as CardForge JSON. Do not invent a parallel transfer format in chat.
+8. In CardForge Studio, users can export finished media, export/import editable CardForge JSON, or explicitly back up selected sets to their account cloud slots. Do not invent a parallel transfer format in chat.
 
 If CardForge reports a revision conflict, reload the current working document or generation contract and retry the intended operation with the new `expectedRevision` and the same stable identities.
