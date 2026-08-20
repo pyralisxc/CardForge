@@ -48,6 +48,20 @@ const activateCardSet = (state: ProjectState, set: CardSet) => {
   };
 };
 
+const retargetSetCards = (
+  state: ProjectState,
+  activeCardSet: CardSet,
+) => state.storedCards.map((card) => (
+  card.setId === activeCardSet.id
+    ? {
+        ...card,
+        setName: activeCardSet.name,
+        templateId: activeCardSet.frontTemplateId ?? card.templateId,
+        backingTemplateId: activeCardSet.backingTemplateId,
+      }
+    : card
+));
+
 export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSlice> = (set, get) => {
   const initialSet = createDefaultActiveCardSet();
   return {
@@ -120,7 +134,11 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
     },
     setActiveCardSetName: (name) => set((state) => {
       const activeCardSet = { ...state.activeCardSet, name: name.trim() || 'Untitled Set' };
-      return { activeCardSet, cardSets: upsertCardSet(state.cardSets, activeCardSet) };
+      return {
+        activeCardSet,
+        cardSets: upsertCardSet(state.cardSets, activeCardSet),
+        storedCards: retargetSetCards(state, activeCardSet),
+      };
     }),
     setActiveCardSetFrontTemplateId: (id) => set((state) => {
       const activeCardSet = {
@@ -131,6 +149,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
       return {
         activeCardSet,
         cardSets: upsertCardSet(state.cardSets, activeCardSet),
+        storedCards: retargetSetCards(state, activeCardSet),
         singleCardGeneratorSelectedTemplateId: id,
       };
     }),
@@ -148,6 +167,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         singleCardGeneratorSelectedTemplateId: frontTemplateId,
         activeCardSet,
         cardSets: upsertCardSet(state.cardSets, activeCardSet),
+        storedCards: retargetSetCards(state, activeCardSet),
       };
     }),
     setSingleCardGeneratorSelectedTemplateId: (id) => set((state) => {
@@ -160,6 +180,7 @@ export const createSettingsSlice: StateCreator<ProjectState, [], [], SettingsSli
         singleCardGeneratorSelectedTemplateId: id,
         activeCardSet,
         cardSets: upsertCardSet(state.cardSets, activeCardSet),
+        storedCards: retargetSetCards(state, activeCardSet),
       };
     }),
     setTemplateEditorSelectedTemplateId: (id) => set({ templateEditorSelectedTemplateId: id }),

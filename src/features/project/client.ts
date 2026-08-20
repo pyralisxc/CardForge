@@ -1,11 +1,20 @@
 export { BrowserStorageAlerts } from './components/BrowserStorageAlerts';
 export { useBrowserWorkspaceSaveStatus } from './hooks/useBrowserWorkspaceSaveStatus';
+export { useCardTransferActions } from './hooks/useCardTransferActions';
 export {
   buildProjectImportPreview,
   buildProjectImportSummary,
   useProjectFileActions,
 } from './hooks/useProjectFileActions';
 export type { ProjectImportMode, ProjectImportPreview } from './hooks/useProjectFileActions';
+export {
+  CARD_TRANSFER_VERSION,
+  createCardSetTransfer,
+  createCardTransfer,
+  parseCardForgeTransferFile,
+  parseCardForgeTransferValue,
+} from './model/cardTransfer';
+export type { CardForgeTransferV1, CardTransferKind } from './model/cardTransfer';
 export {
   applyProjectDocumentToState,
   createProjectDocumentFromState,
@@ -66,6 +75,7 @@ export {
 } from './persistence/projectAssets';
 export type { ProjectAssetStorage } from './persistence/projectAssets';
 export {
+  selectAllGeneratedDisplayCards,
   selectAllTemplates,
   selectEditingCard,
   selectGeneratedDisplayCards,

@@ -69,7 +69,13 @@ const selectTemplates = (
   cards: StoredDisplayCard[],
 ): TCGCardTemplate[] => {
   const ids = collectTemplateIds(sets, cards);
-  return templates.filter((template) => template.id && ids.has(template.id));
+  // Official/default Templates keep their stable library ids and do not need to be
+  // copied into a personal transfer. Personal Templates travel with the cards.
+  return templates.filter((template) => (
+    template.id
+    && ids.has(template.id)
+    && template.templateSource !== 'default'
+  ));
 };
 
 const filterAssetsForPayload = (
@@ -142,13 +148,11 @@ export const parseCardForgeTransferValue = (value: unknown): CardForgeTransferV1
   const templates = value.templates.map((template) => (
     reconstructMinimalTemplateObject({ ...(isRecord(template) ? template : {}), templateSource: 'user' })
   ));
-  const templateIds = new Set(templates.map((template) => template.id).filter(Boolean));
   const cards = value.cards.filter((candidate): candidate is StoredDisplayCard => (
     isRecord(candidate)
     && typeof candidate.templateId === 'string'
     && isRecord(candidate.data)
     && typeof candidate.uniqueId === 'string'
-    && templateIds.has(candidate.templateId)
   ));
   if (cards.length !== value.cards.length) return null;
   const fallback: CardSet = {

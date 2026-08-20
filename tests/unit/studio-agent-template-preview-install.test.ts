@@ -167,7 +167,11 @@ describe('agent Template preview tokens', () => {
 describe('agent Template install and chat preview architecture', () => {
   const handoff = readSource('src/features/studio-documents/hooks/useStudioDocumentHandoff.ts');
   const preview = readSource('src/features/studio-documents/components/TemplateDraftPreviewClient.tsx');
-  const mcpTools = readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts');
+  const mcpTools = [
+    readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
+    readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
+    readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
+  ].join('\n');
   const pluginSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
 
   it('installs and revises one personal local Template without clearing the workspace', () => {
@@ -182,7 +186,17 @@ describe('agent Template install and chat preview architecture', () => {
     expect(gptBranch).not.toContain('(Agent copy)');
     expect(gptBranch).not.toContain('nanoid');
     expect(gptBranch).not.toContain('useProjectStore.setState({');
-    expect(gptBranch).not.toContain('mergeStoredCards(');
+  });
+
+  it('installs agent-created sets and cards into the normal local workspace only when present', () => {
+    const gptBranch = handoff.slice(
+      handoff.indexOf("payload.document?.creationSource === 'gpt'"),
+      handoff.indexOf('// Non-agent Studio documents retain project-open semantics.'),
+    );
+    expect(gptBranch).toContain('if (patch.storedCards.length > 0)');
+    expect(gptBranch).toContain('mergeCardSetsFromFiles');
+    expect(gptBranch).toContain('mergeStoredCards(patch.storedCards)');
+    expect(gptBranch).toContain("setActiveTab(installedCardCount > 0 ? 'generator' : 'template-maker')");
   });
 
   it('pins Studio installation to the exact previewed agent revision', () => {
@@ -206,6 +220,16 @@ describe('agent Template install and chat preview architecture', () => {
     expect(mcpTools).toContain('targetElementIds');
     expect(mcpTools).toContain('composition: compositionDiagnostics(document)');
     expect(mcpTools).toContain('Asset ${asset.id} is selected but image element ${targetId} still has ${target.sourceState} artwork.');
+  });
+
+  it('exposes exact-contract individual and bulk card authoring tools', () => {
+    expect(mcpTools).toContain("'get_card_generation_contract'");
+    expect(mcpTools).toContain("'upsert_card_set'");
+    expect(mcpTools).toContain("'upsert_card'");
+    expect(mcpTools).toContain("'upsert_cards'");
+    expect(mcpTools).toContain("'attach_card_artwork'");
+    expect(mcpTools).toContain("'preview_card_set'");
+    expect(mcpTools).toContain('Never guess card columns or image keys');
   });
 
   it('teaches frame-first composition and exact main-art binding in the packaged plugin skill', () => {

@@ -23,6 +23,7 @@ import {
   readTypedProjectAssetListFromStorage,
   writeProjectAssetListToStorage,
 } from '../persistence/projectAssets';
+import { useProjectStore } from '../store/workspaceStore';
 import { withNextStep } from '@/shared/userFacingErrors';
 import { trackExportCompleted, trackExportStarted } from '@/features/analytics/client/tracking';
 
@@ -61,6 +62,7 @@ export type ProjectImportMode = 'replace' | 'merge';
 export interface ProjectImportPreview {
   fileName: string;
   templateCount: number;
+  setCount: number;
   outputCount: number;
   appearanceStyleCount: number;
   customAssetCount: number;
@@ -152,6 +154,7 @@ export const buildProjectImportPreview = ({
   return {
     fileName,
     templateCount: patch.userTemplates.length,
+    setCount: patch.cardSets.length,
     outputCount: patch.storedCards.length,
     appearanceStyleCount: patch.appearanceStyles.length,
     customAssetCount: countCustomAssets(patch),
@@ -213,8 +216,11 @@ export function useProjectFileActions({
       readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_ICON_ASSETS_STORAGE_KEY),
       readTypedProjectAssetListFromStorage<CardAssetOption>(assetStorage, CUSTOM_IMAGE_ASSETS_STORAGE_KEY),
     ]);
+    const workspaceState = useProjectStore.getState();
     const projectDocument = createProjectDocumentFromState({
       userTemplates,
+      cardSets: workspaceState.cardSets,
+      activeCardSetId: workspaceState.activeCardSet.id,
       storedCards,
       appearanceStyles,
       selectedPaperSize,
@@ -248,9 +254,7 @@ export function useProjectFileActions({
   const handleImportProject = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     if (!canUseProjectFiles) {
       showProjectFileGate();
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -272,11 +276,7 @@ export function useProjectFileActions({
         setPendingProjectImport({
           fileName: file.name,
           patch,
-          preview: buildProjectImportPreview({
-            fileName: file.name,
-            patch,
-            currentUserTemplates: userTemplates,
-          }),
+          preview: buildProjectImportPreview({ fileName: file.name, patch, currentUserTemplates: userTemplates }),
         });
       } catch (error) {
         toast({ title: 'Import Error', description: `Failed to parse or process JSON: ${(error as Error).message}`, variant: 'destructive' });
@@ -284,14 +284,10 @@ export function useProjectFileActions({
       }
     };
     reader.readAsText(file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }, [canUseProjectFiles, fileInputRef, showProjectFileGate, toast, userTemplates]);
 
-  const clearPendingProjectImport = useCallback(() => {
-    setPendingProjectImport(null);
-  }, []);
+  const clearPendingProjectImport = useCallback(() => setPendingProjectImport(null), []);
 
   const applyPendingProjectImport = useCallback(async (mode: ProjectImportMode) => {
     if (!pendingProjectImport) return;
@@ -318,13 +314,12 @@ export function useProjectFileActions({
     const importedTemplateCount = mode === 'merge'
       ? mergeUserTemplatesFromFiles(patch.userTemplates)
       : setUserTemplatesFromFiles(patch.userTemplates);
-    const firstImportedTemplateId = patch.userTemplates.find((template) => template.id && template.id.trim() !== '')?.id ?? null;
-    if (firstImportedTemplateId) {
-      setSelectedTemplateId(firstImportedTemplateId);
-    }
+    const workspaceState = useProjectStore.getState();
     if (mode === 'merge') {
+      workspaceState.mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
       setAppearanceStylesFromFiles(patch.appearanceStyles);
     } else {
+      workspaceState.setCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
       replaceAppearanceStylesFromFiles(patch.appearanceStyles);
     }
     if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);
@@ -340,11 +335,9 @@ export function useProjectFileActions({
     const { successCount, skippedCount } = mode === 'merge'
       ? mergeStoredCardsFromFile(patch.storedCards)
       : setStoredCardsFromFile(patch.storedCards);
-    const toastMessage = buildProjectImportSummary({
-      importedTemplateCount,
-      successCount,
-      skippedCount,
-    });
+    const activeSet = useProjectStore.getState().activeCardSet;
+    setSelectedTemplateId(activeSet.frontTemplateId);
+    const toastMessage = buildProjectImportSummary({ importedTemplateCount, successCount, skippedCount });
     setPendingProjectImport(null);
     toast({ title: mode === 'merge' ? 'Project Merged' : 'Project Imported', description: toastMessage, duration: 7000 });
   }, [mergeStoredCardsFromFile, mergeUserTemplatesFromFiles, pendingProjectImport, replaceAppearanceStylesFromFiles, setAppearanceStylesFromFiles, setExportDpi, setExportMode, setPdfOptions, setSelectedPaperSize, setSelectedTemplateId, setStoredCardsFromFile, setUserTemplatesFromFiles, toast]);
