@@ -111,9 +111,16 @@ export const getDeveloperCardGenerationContract = async ({
   const frontFields = getCardFields(front);
   const backFields = back ? getCardFields(back) : [];
   const bulkFields = createBulkFaceFieldDefinitions(frontFields, backFields);
+  const resolvedSet = set
+    ? {
+        ...set,
+        frontTemplateId: set.frontTemplateId ?? front.id!,
+        backingTemplateId: set.backingTemplateId ?? back?.id ?? null,
+      }
+    : null;
   return {
     document,
-    set: set ?? null,
+    set: resolvedSet,
     frontTemplateId: front.id!,
     backingTemplateId: back?.id ?? null,
     frontFields,
