@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import type { CardData, CardSet, StoredDisplayCard } from '@/domain/cards';
@@ -34,7 +34,12 @@ const selectFrontTemplate = (templates: TCGCardTemplate[], templateId?: string |
   const template = templateId
     ? templates.find((candidate) => candidate.id === templateId && candidate.templateUsage !== 'back-preset')
     : templates.find((candidate) => candidate.templateUsage !== 'back-preset');
-  if (!template?.id) throw new StudioDocumentStoreError('The Studio document does not contain the requested front Template.', 404);
+  if (!template?.id) {
+    throw new StudioDocumentStoreError(
+      'CardForge could not find the front Template for this set. Reload the working design and choose a current front Template before retrying.',
+      404,
+    );
+  }
   return template;
 };
 
@@ -45,16 +50,29 @@ const selectBackTemplate = (
 ): TCGCardTemplate | null => {
   if (!templateId) return null;
   const back = templates.find((candidate) => candidate.id === templateId && candidate.templateUsage === 'back-preset');
-  if (!back) throw new StudioDocumentStoreError('The requested card-back Template is not part of this Studio document.', 404);
+  if (!back) {
+    throw new StudioDocumentStoreError(
+      'CardForge could not find that card-back Template in this working design. Reload the design and use a current back Template id.',
+      404,
+    );
+  }
   if (!areTemplateFormatsCompatible(front, back)) {
-    throw new StudioDocumentStoreError('The requested card back does not match the front Template dimensions.', 409);
+    throw new StudioDocumentStoreError(
+      'That card back does not match the front Template dimensions. Choose a compatible back or remove the back before retrying.',
+      409,
+    );
   }
   return back;
 };
 
 const requireSet = (sets: CardSet[], setId: string): CardSet => {
   const set = sets.find((candidate) => candidate.id === setId);
-  if (!set) throw new StudioDocumentStoreError('That card set is not part of this Studio document.', 404);
+  if (!set) {
+    throw new StudioDocumentStoreError(
+      'That card set is not part of the current working design. Reload the card-generation contract or set preview and retry with the current set id.',
+      404,
+    );
+  }
   return set;
 };
 
@@ -68,7 +86,7 @@ const validateCardData = (template: TCGCardTemplate, data: CardData, faceLabel: 
   const unknown = Object.keys(data).filter((key) => !allowed.has(key));
   if (unknown.length > 0) {
     throw new StudioDocumentStoreError(
-      `${faceLabel} card data contains fields that are not in the Template contract: ${unknown.slice(0, 5).join(', ')}. Load get_card_generation_contract before generating cards.`,
+      `${faceLabel} card data contains fields that are not in the Template contract: ${unknown.slice(0, 5).join(', ')}. Reload get_card_generation_contract and use only the returned field keys.`,
       409,
     );
   }
@@ -79,7 +97,7 @@ const validateCardData = (template: TCGCardTemplate, data: CardData, faceLabel: 
   ));
   if (missing.length > 0) {
     throw new StudioDocumentStoreError(
-      `${faceLabel} card data is missing required fields: ${missing.map((field) => field.key).join(', ')}.`,
+      `${faceLabel} card data is missing required fields: ${missing.map((field) => field.key).join(', ')}. Reload get_card_generation_contract, fill those fields, and retry with the same stable card id.`,
       409,
     );
   }
@@ -90,6 +108,32 @@ const isDisposableFallbackSet = (set: CardSet, cards: StoredDisplayCard[]): bool
   && set.name === 'Untitled Set'
   && !cards.some((card) => card.setId === set.id)
 );
+
+const normalizeSetName = (value: string): string => value.trim() || 'Untitled Set';
+
+const findSameNameSet = (sets: CardSet[], name: string): CardSet | null => {
+  const normalized = normalizeSetName(name).toLocaleLowerCase();
+  return sets.find((set) => set.name.trim().toLocaleLowerCase() === normalized) ?? null;
+};
+
+const stableCardData = (data: CardData | undefined) => (
+  Object.entries(data ?? {}).sort(([left], [right]) => left.localeCompare(right))
+);
+
+export const createStableAgentCardId = (
+  setId: string,
+  input: AgentCardInput,
+  index = 0,
+): string => {
+  const fingerprint = JSON.stringify({
+    setId,
+    index,
+    data: stableCardData(input.data),
+    backingData: stableCardData(input.backingData),
+  });
+  const digest = createHash('sha256').update(fingerprint).digest('hex').slice(0, 24);
+  return `card-${digest}`;
+};
 
 export const getDeveloperCardGenerationContract = async ({
   access,
@@ -151,25 +195,27 @@ export const upsertDeveloperCardSet = async ({
   const current = await getStudioDocument(access.user.id, documentId);
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const explicitExisting = setId ? current.document.cardSets.find((candidate) => candidate.id === setId) : null;
+  const sameNameExisting = !setId ? findSameNameSet(current.document.cardSets, name) : null;
   const disposableFallback = !setId
     && current.document.cardSets.length === 1
     && isDisposableFallbackSet(current.document.cardSets[0], current.document.storedCards)
     ? current.document.cardSets[0]
     : null;
-  const existing = explicitExisting ?? disposableFallback;
+  const existing = explicitExisting ?? sameNameExisting ?? disposableFallback;
   const front = selectFrontTemplate(templates, frontTemplateId ?? existing?.frontTemplateId);
   const back = selectBackTemplate(templates, front, backingTemplateId ?? existing?.backingTemplateId);
   const nextSet: CardSet = {
-    id: explicitExisting?.id ?? setId?.trim() ?? `set-${randomUUID()}`,
-    name: name.trim() || explicitExisting?.name || 'Untitled Set',
+    id: existing?.id ?? setId?.trim() ?? `set-${randomUUID()}`,
+    name: normalizeSetName(name),
     frontTemplateId: front.id!,
     backingTemplateId: back?.id ?? null,
   };
-  const sets = disposableFallback ? [] : [...current.document.cardSets];
+  const replacingFallback = disposableFallback?.id === existing?.id;
+  const sets = replacingFallback ? [] : [...current.document.cardSets];
   const index = sets.findIndex((candidate) => candidate.id === nextSet.id);
   if (index >= 0) sets[index] = nextSet;
   else sets.push(nextSet);
-  const replacedSetId = disposableFallback?.id;
+  const replacedSetId = replacingFallback ? disposableFallback?.id : undefined;
   const storedCards = current.document.storedCards.map((card) => (
     card.setId === nextSet.id || (replacedSetId && card.setId === replacedSetId)
       ? {
@@ -219,9 +265,9 @@ export const upsertDeveloperCards = async ({
     : null;
   const byId = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
   const updatedIds: string[] = [];
-  cards.forEach((input) => {
+  cards.forEach((input, inputIndex) => {
     validateCardData(front, input.data, 'Front');
-    const uniqueId = input.cardId?.trim() || `card-${randomUUID()}`;
+    const uniqueId = input.cardId?.trim() || createStableAgentCardId(set.id, input, inputIndex);
     const existing = byId.get(uniqueId);
     const nextBackingData = back ? (input.backingData ?? existing?.backingData ?? {}) : undefined;
     if (back) validateCardData(back, nextBackingData ?? {}, 'Back');
@@ -276,16 +322,31 @@ export const attachDeveloperCardArtwork = async ({
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const cardIndex = current.document.storedCards.findIndex((card) => card.uniqueId === cardId);
   const card = current.document.storedCards[cardIndex];
-  if (!card) throw new StudioDocumentStoreError('That card is not part of this Studio document.', 404);
+  if (!card) {
+    throw new StudioDocumentStoreError(
+      'That card is not part of the current working design. Reload preview_card_set and retry with a current stable card id.',
+      404,
+    );
+  }
   const set = requireSet(current.document.cardSets, card.setId ?? current.document.activeCardSetId ?? '');
   const front = selectFrontTemplate(templates, set.frontTemplateId);
   const back = set.backingTemplateId
     ? selectBackTemplate(templates, front, set.backingTemplateId)
     : null;
   const template = face === 'back' ? back : front;
-  if (!template) throw new StudioDocumentStoreError('This set does not have a card-back Template.', 409);
+  if (!template) {
+    throw new StudioDocumentStoreError(
+      'This set does not have a card-back Template. Add a compatible back to the set or attach the artwork to the front face instead.',
+      409,
+    );
+  }
   const imageField = getCardFields(template).find((field) => field.key === fieldKey && field.isImage);
-  if (!imageField) throw new StudioDocumentStoreError('That field is not an image field on the selected card face.', 409);
+  if (!imageField) {
+    throw new StudioDocumentStoreError(
+      'That field is not an image field on the selected card face. Reload get_card_generation_contract and use one of its image field keys.',
+      409,
+    );
+  }
   const normalized = await normalizeEmbeddedTemplateAsset({ data, mimeType });
   const cards = [...current.document.storedCards];
   cards[cardIndex] = face === 'back'
