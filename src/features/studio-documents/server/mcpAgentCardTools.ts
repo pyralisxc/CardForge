@@ -18,7 +18,7 @@ import {
   upsertCardSetInputSchema,
 } from './mcpCardToolSchemas';
 
-const CARDFORGE_MCP_CAPABILITY_VERSION = '0.3.2';
+const CARDFORGE_MCP_CAPABILITY_VERSION = '0.3.3';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];

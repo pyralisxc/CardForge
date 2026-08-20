@@ -82,7 +82,7 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 2. `src/features/studio-documents/server/mcpAgentTemplateTools.ts` and `mcpToolInputSchemas.ts` — focused agent-tool behavior and contracts.
 3. `src/features/studio-documents/` and `src/features/project/` — the same native document/template authority used by Studio.
 
-**CardForge owns:** tool semantics, Studio-document authorization, production-plan policy, and native Template validation. MCP does not get a second renderer, template format, asset store, or publication authority.
+**CardForge owns:** tool semantics, Studio-document authorization, production-plan policy, and native Template validation. `preview_template_draft` shows the native exported Template PNG in chat and keeps the exact revision-bound Studio URL as a separate handoff. MCP does not get a second renderer, template format, asset store, or publication authority.
 
 ## Vercel and Next.js — deployment and application runtime
 
