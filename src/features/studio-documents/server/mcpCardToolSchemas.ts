@@ -55,13 +55,27 @@ export interface GetCardSetInput {
   setId: string;
 }
 
-const documentId = { type: 'string', format: 'uuid' } as const;
-const expectedRevision = { type: 'integer', minimum: 1 } as const;
-const setId = { type: 'string', minLength: 1, maxLength: 255 } as const;
+const documentId = {
+  type: 'string',
+  format: 'uuid',
+  description: 'The current CardForge working document id. Reuse the same document while designing its Template, set, and cards.',
+} as const;
+const expectedRevision = {
+  type: 'integer',
+  minimum: 1,
+  description: 'The exact current working-document revision. If CardForge reports a revision conflict, reload the document or card contract and retry with the new revision while reusing the same stable set/card ids.',
+} as const;
+const setId = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 255,
+  description: 'Stable set id. Reuse the same id for revisions and retries so a transient connector failure cannot create another set.',
+} as const;
 const cardData = {
   type: 'object',
   minProperties: 1,
   maxProperties: 200,
+  description: 'Card values keyed only by fields returned from get_card_generation_contract. Never invent field names.',
   additionalProperties: {
     oneOf: [
       { type: 'string', maxLength: 20000 },
@@ -74,7 +88,12 @@ const cardInput = {
   additionalProperties: false,
   required: ['data'],
   properties: {
-    cardId: { type: 'string', minLength: 1, maxLength: 255 },
+    cardId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 255,
+      description: 'Stable card id. Reuse it whenever revising or retrying this card. If omitted for a new card, CardForge derives a deterministic id from the submitted card data; use the returned id for later edits.',
+    },
     data: cardData,
     backingData: cardData,
   },
@@ -95,9 +114,24 @@ export const upsertCardSetInputSchema = fromJsonSchema<UpsertCardSetInput>({
     documentId,
     expectedRevision,
     setId,
-    name: { type: 'string', minLength: 1, maxLength: 160 },
-    frontTemplateId: { type: 'string', minLength: 1, maxLength: 255 },
-    backingTemplateId: { type: 'string', minLength: 1, maxLength: 255 },
+    name: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 160,
+      description: 'User-facing set name, for example “Clash of Fists”. If setId is omitted, CardForge safely reuses an existing set with the same name before creating another one.',
+    },
+    frontTemplateId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 255,
+      description: 'Front Template id from the current working document. Omit to keep or resolve the current front Template.',
+    },
+    backingTemplateId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 255,
+      description: 'Optional compatible card-back Template id from the current working document.',
+    },
   },
 });
 
@@ -116,7 +150,13 @@ export const upsertCardsInputSchema = fromJsonSchema<UpsertCardsInput>({
     documentId,
     expectedRevision,
     setId,
-    cards: { type: 'array', minItems: 1, maxItems: 100, items: cardInput },
+    cards: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 100,
+      description: 'One to 100 cards using the exact Template field keys. Give each planned card a stable cardId when possible so retries and later revisions update instead of duplicate.',
+      items: cardInput,
+    },
   },
 });
 
@@ -127,8 +167,18 @@ export const attachCardArtworkInputSchema = fromJsonSchema<AttachCardArtworkInpu
   properties: {
     documentId,
     expectedRevision,
-    cardId: { type: 'string', minLength: 1, maxLength: 255 },
-    fieldKey: { type: 'string', minLength: 1, maxLength: 255 },
+    cardId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 255,
+      description: 'Stable id of the card returned by upsert_card or upsert_cards.',
+    },
+    fieldKey: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 255,
+      description: 'Exact image field key returned by get_card_generation_contract for this card face.',
+    },
     face: { type: 'string', enum: ['front', 'back'] },
     mimeType: { type: 'string', enum: [...EMBEDDED_TEMPLATE_ASSET_MIME_TYPES] },
     data: {

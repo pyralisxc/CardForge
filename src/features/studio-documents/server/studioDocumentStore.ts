@@ -139,7 +139,10 @@ export const updateStudioDocument = async ({
     throw new StudioDocumentStoreError('Unable to update the Studio document.');
   }
   if (!data) {
-    throw new StudioDocumentStoreError('The Studio document changed or is no longer available. Reload it before saving.', 409);
+    throw new StudioDocumentStoreError(
+      `The CardForge working document changed after revision ${expectedRevision}. Reload the current design or card-generation contract, then retry with the new expectedRevision while reusing the same stable set and card ids.`,
+      409,
+    );
   }
   return toDocument(data as unknown as StudioDocumentRow);
 };

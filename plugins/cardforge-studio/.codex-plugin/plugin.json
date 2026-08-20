@@ -1,7 +1,7 @@
 {
   "name": "cardforge-studio",
-  "version": "0.1.0",
-  "description": "Create private editable CardForge Templates from chat and hand completed drafts to Forge Review.",
+  "version": "0.3.2",
+  "description": "Design editable cards and Templates, generate complete card sets, add artwork, and continue editing in CardForge Studio.",
   "author": {
     "name": "CardForge Studio",
     "url": "https://cardforges.com"
@@ -10,16 +10,18 @@
   "repository": "https://github.com/pyralisxc/CardForge",
   "keywords": [
     "card-design",
+    "card-sets",
+    "bulk-generation",
     "templates",
     "tabletop-games",
-    "marketing-creative"
+    "print-design"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "CardForge Studio",
-    "shortDescription": "Create editable Templates from chat",
-    "longDescription": "Create private, layered CardForge Templates in chat, open them in Studio for visual editing, and send chosen developer drafts to Forge Review without bypassing publication gates.",
+    "shortDescription": "Design cards and generate complete card sets",
+    "longDescription": "Design editable card Templates, create individual cards or complete sets, bulk-generate from structured content, add unique artwork, review results, and continue editing everything in CardForge Studio. Developer publication tools remain a separate optional workflow.",
     "developerName": "CardForge Studio",
     "category": "Design",
     "capabilities": [
@@ -30,9 +32,9 @@
     "privacyPolicyURL": "https://cardforges.com/privacy",
     "termsOfServiceURL": "https://cardforges.com/terms",
     "defaultPrompt": [
-      "Create an editable social post Template.",
-      "Show my private CardForge Studio drafts.",
-      "Continue my chosen Template in Forge Review."
+      "Design a printable card Template and help me refine it.",
+      "Turn this list into a complete CardForge card set.",
+      "Add unique artwork and review my existing card set."
     ],
     "brandColor": "#8A5A2B"
   }
