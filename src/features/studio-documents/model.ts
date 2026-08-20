@@ -1,4 +1,5 @@
 import {
+  materializeTemplateFieldBindings,
   reconstructMinimalTemplateObject,
   type TCGCardTemplate,
 } from '@/domain/templates';
@@ -60,7 +61,7 @@ export const normalizeStudioDocumentPayload = (value: unknown): ProjectDocumentV
 export const createTemplateFromTemplateDraft = (
   draft: GptTemplateDraftInput['template'],
   templateId: string,
-): TCGCardTemplate => reconstructMinimalTemplateObject({
+): TCGCardTemplate => materializeTemplateFieldBindings(reconstructMinimalTemplateObject({
   ...(draft as Partial<TCGCardTemplate>),
   id: templateId,
   name: draft.name.trim(),
@@ -70,14 +71,25 @@ export const createTemplateFromTemplateDraft = (
   templateAccessTier: undefined,
   templateRegistryStatus: 'localOnly',
   templateContributorName: undefined,
-});
+}));
 
 export const createProjectDocumentFromTemplateDraft = (
   input: GptTemplateDraftInput,
   templateId: string,
-): ProjectDocumentV1 => createProjectDocumentFromState({
-  userTemplates: [createTemplateFromTemplateDraft(input.template, templateId)],
-  storedCards: [],
-  appearanceStyles: [],
-  productionPlan: input.productionPlan,
-});
+): ProjectDocumentV1 => {
+  const template = createTemplateFromTemplateDraft(input.template, templateId);
+  const initialSetId = 'active-card-set';
+  return createProjectDocumentFromState({
+    userTemplates: [template],
+    cardSets: [{
+      id: initialSetId,
+      name: 'Untitled Set',
+      frontTemplateId: template.templateUsage === 'back-preset' ? null : template.id!,
+      backingTemplateId: null,
+    }],
+    activeCardSetId: initialSetId,
+    storedCards: [],
+    appearanceStyles: [],
+    productionPlan: input.productionPlan,
+  });
+};
