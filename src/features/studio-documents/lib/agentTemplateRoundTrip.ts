@@ -1,10 +1,16 @@
 "use client";
 
 import type { TCGCardTemplate } from '@/domain/templates';
+import {
+  getProjectPersistenceScope,
+  readProjectPreference,
+  removeProjectPreference,
+  writeProjectPreference,
+} from '@/features/project/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 import { normalizeStudioDocumentPayload, type StudioDocumentSource } from '../model';
 
-const AGENT_TEMPLATE_LINKS_STORAGE_KEY = 'cardforge-agent-template-links-v1';
+const AGENT_TEMPLATE_LINKS_PREFERENCE = 'agent-template-links-v1';
 
 interface AgentTemplateLink {
   documentId: string;
@@ -18,57 +24,51 @@ export type AgentTemplateSyncResult =
   | { status: 'synced'; revision: number }
   | { status: 'conflict'; revision: number };
 
-const getStorage = (): Storage | null => (
-  typeof window !== 'undefined' ? window.localStorage : null
-);
+const getPreferenceKey = () => `${AGENT_TEMPLATE_LINKS_PREFERENCE}:${getProjectPersistenceScope()}`;
 
-const readLinks = (): AgentTemplateLinks => {
-  const storage = getStorage();
-  if (!storage) return {};
-  try {
-    const parsed = JSON.parse(storage.getItem(AGENT_TEMPLATE_LINKS_STORAGE_KEY) || '{}') as unknown;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const links: AgentTemplateLinks = {};
-    Object.entries(parsed as Record<string, unknown>).forEach(([templateId, value]) => {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) return;
-      const record = value as Record<string, unknown>;
-      if (typeof record.documentId !== 'string' || !Number.isInteger(record.revision) || Number(record.revision) < 1) return;
-      links[templateId] = { documentId: record.documentId, revision: Number(record.revision) };
-    });
-    return links;
-  } catch {
-    return {};
+const readLinks = async (): Promise<AgentTemplateLinks> => {
+  const parsed = await readProjectPreference<unknown>(getPreferenceKey());
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const links: AgentTemplateLinks = {};
+  Object.entries(parsed as Record<string, unknown>).forEach(([templateId, value]) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const record = value as Record<string, unknown>;
+    if (typeof record.documentId !== 'string' || !Number.isInteger(record.revision) || Number(record.revision) < 1) return;
+    links[templateId] = { documentId: record.documentId, revision: Number(record.revision) };
+  });
+  return links;
+};
+
+const writeLinks = async (links: AgentTemplateLinks) => {
+  if (Object.keys(links).length === 0) {
+    await removeProjectPreference(getPreferenceKey());
+    return;
   }
+  await writeProjectPreference(getPreferenceKey(), links);
 };
 
-const writeLinks = (links: AgentTemplateLinks) => {
-  const storage = getStorage();
-  if (!storage) return;
-  storage.setItem(AGENT_TEMPLATE_LINKS_STORAGE_KEY, JSON.stringify(links));
-};
-
-export const rememberAgentTemplateLink = (
+export const rememberAgentTemplateLink = async (
   templateId: string,
   documentId: string,
   revision: number,
 ) => {
   if (!templateId || !documentId || !Number.isInteger(revision) || revision < 1) return;
-  writeLinks({
-    ...readLinks(),
+  await writeLinks({
+    ...await readLinks(),
     [templateId]: { documentId, revision },
   });
 };
 
-export const forgetAgentTemplateLink = (templateId: string) => {
+export const forgetAgentTemplateLink = async (templateId: string) => {
   if (!templateId) return;
-  const links = readLinks();
+  const links = await readLinks();
   if (!links[templateId]) return;
   delete links[templateId];
-  writeLinks(links);
+  await writeLinks(links);
 };
 
-export const getAgentTemplateLink = (templateId: string): AgentTemplateLink | null => (
-  readLinks()[templateId] ?? null
+export const getAgentTemplateLink = async (templateId: string): Promise<AgentTemplateLink | null> => (
+  (await readLinks())[templateId] ?? null
 );
 
 const discoverAgentTemplateLink = async (templateId: string): Promise<AgentTemplateLink | null> => {
@@ -107,7 +107,7 @@ const discoverAgentTemplateLink = async (templateId: string): Promise<AgentTempl
       : null;
     const project = normalizeStudioDocumentPayload(documentPayload.document?.document);
     if (revision === null || !project?.userTemplates.some((template) => template.id === templateId)) continue;
-    rememberAgentTemplateLink(templateId, documentId, revision);
+    await rememberAgentTemplateLink(templateId, documentId, revision);
     return { documentId, revision };
   }
 
@@ -119,7 +119,7 @@ export const syncAgentTemplateSave = async (
 ): Promise<AgentTemplateSyncResult> => {
   const templateId = template.id?.trim();
   if (!templateId) return { status: 'unlinked' };
-  const link = getAgentTemplateLink(templateId) ?? await discoverAgentTemplateLink(templateId);
+  const link = await getAgentTemplateLink(templateId) ?? await discoverAgentTemplateLink(templateId);
   if (!link) return { status: 'unlinked' };
 
   const response = await fetch(`/api/studio-documents/${encodeURIComponent(link.documentId)}`, {
@@ -127,6 +127,12 @@ export const syncAgentTemplateSave = async (
     credentials: 'same-origin',
   });
   if (!response.ok) {
+    if (response.status === 403 || response.status === 404) {
+      await forgetAgentTemplateLink(templateId);
+      const rediscoveredLink = await discoverAgentTemplateLink(templateId);
+      if (!rediscoveredLink) return { status: 'unlinked' };
+      return syncAgentTemplateSave(template);
+    }
     throw new Error(await readApiErrorMessage(response, 'Unable to reload the linked ChatGPT working draft.'));
   }
 
@@ -150,7 +156,7 @@ export const syncAgentTemplateSave = async (
     || !title
     || !project
   ) {
-    forgetAgentTemplateLink(templateId);
+    await forgetAgentTemplateLink(templateId);
     return { status: 'unlinked' };
   }
 
@@ -160,7 +166,7 @@ export const syncAgentTemplateSave = async (
 
   const templateIndex = project.userTemplates.findIndex((candidate) => candidate.id === templateId);
   if (templateIndex < 0) {
-    forgetAgentTemplateLink(templateId);
+    await forgetAgentTemplateLink(templateId);
     return { status: 'unlinked' };
   }
 
@@ -205,6 +211,6 @@ export const syncAgentTemplateSave = async (
   const updatedRevision = Number.isInteger(updatedPayload.document?.revision)
     ? Number(updatedPayload.document?.revision)
     : currentRevision + 1;
-  rememberAgentTemplateLink(templateId, link.documentId, updatedRevision);
+  await rememberAgentTemplateLink(templateId, link.documentId, updatedRevision);
   return { status: 'synced', revision: updatedRevision };
 };
