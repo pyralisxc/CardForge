@@ -2,7 +2,7 @@
 
 ## Starting point
 
-Before this maintenance pass, the CardForge unit suite contained 149 test files and 827 tests. The Vitest run itself completed in roughly 25 seconds, so raw runtime was not the primary concern.
+Immediately before this maintenance pass, the CardForge unit suite contained 149 test files and 828 tests. The Vitest run itself completed in roughly 25 seconds, so raw runtime was not the primary concern.
 
 The larger maintenance risk was implementation coupling: roughly one third of the test files inspected implementation source directly and asserted source strings, file placement, import paths, or historical SQL text.
 
@@ -17,10 +17,12 @@ Both patterns make refactors noisier without materially increasing protection of
 
 ## First-pass cleanup
 
-This pass removes 22 permanent test files:
+This pass removes 22 permanent test files and 78 tests:
 
 - four feature-specific ownership snapshot suites already covered by the generic architecture checker;
 - eighteen historical migration snapshot suites whose migration files are already protected from modification by `migrations:check`.
+
+The resulting suite contains 127 test files and 750 tests. That is about a 15% reduction in test files and a 9% reduction in tests while leaving runtime code unchanged.
 
 Behavioral tests for authentication, entitlements, billing, security, cloud saves, persistence, rendering, generation, MCP contracts, and destructive actions are intentionally retained.
 
