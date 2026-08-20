@@ -11,6 +11,13 @@ const readRoute = (route: string): string => readFileSync(
 );
 
 describe('site metadata', () => {
+  it('keeps root metadata on server-safe feature interfaces', () => {
+    const rootLayout = readFileSync(join(process.cwd(), 'src/app/layout.tsx'), 'utf8');
+
+    expect(rootLayout).toContain("from '@/features/business-identity/server'");
+    expect(rootLayout).not.toContain("from '@/features/brand-presentation/client'");
+  });
+
   it('creates a self-referencing canonical and matching Open Graph URL', () => {
     const metadata = createPageMetadata({
       title: 'About CardForge',
