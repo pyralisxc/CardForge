@@ -40,7 +40,9 @@ describe('project file actions', () => {
           { id: 'template-1', name: 'Imported Over Existing', aspectRatio: '2.5:3.5' },
           { id: 'template-3', name: 'Same Name', aspectRatio: '2.5:3.5' },
         ],
-        storedCards: [{ uniqueId: 'card-1', templateId: 'template-1', data: {} }],
+        cardSets: [{ id: 'set-1', name: 'Imported Set', frontTemplateId: 'template-1', backingTemplateId: null }],
+        activeCardSetId: 'set-1',
+        storedCards: [{ uniqueId: 'card-1', templateId: 'template-1', setId: 'set-1', setName: 'Imported Set', data: {} }],
         appearanceStyles: [{ id: 'style-1', name: 'Style', kind: 'theme', targets: [], appearance: {} }],
         selectedPaperSize: { name: 'Letter', widthMm: 215.9, heightMm: 279.4 },
         customAssets: {
@@ -55,6 +57,7 @@ describe('project file actions', () => {
     expect(preview).toMatchObject({
       fileName: 'project.json',
       templateCount: 2,
+      setCount: 1,
       outputCount: 1,
       appearanceStyleCount: 1,
       customAssetCount: 2,
