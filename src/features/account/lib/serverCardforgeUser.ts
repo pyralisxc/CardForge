@@ -85,6 +85,17 @@ const createCardforgeUserAccess = (
   ownerAccess: resolveOwnerAccessForServerUser(authConfigured, user),
 });
 
+const resolveEntitlementForAccess = (access: CardforgeServerUserAccess): AccountEntitlement => (
+  resolveAccountEntitlement({
+    accountUserId: access.user?.id ?? null,
+    authConfigured: access.authConfigured,
+    isSignedIn: Boolean(access.user),
+    emailAddresses: access.user?.emailAddresses ?? [],
+    privateMetadata: access.user?.privateMetadata ?? {},
+    ownerAccess: access.ownerAccess,
+  })
+);
+
 export const getCardforgeUserAccessForUserId = async (
   userId: string,
 ): Promise<CardforgeServerUserAccess> => {
@@ -108,6 +119,12 @@ export const getCardforgeUserAccessForUserId = async (
   );
 };
 
+export const getCardforgeEntitlementForUserId = async (
+  userId: string,
+): Promise<AccountEntitlement> => (
+  resolveEntitlementForAccess(await getCardforgeUserAccessForUserId(userId))
+);
+
 export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUserAccess> => {
   const authConfigured = isClerkAuthConfigured();
   if (!authConfigured) return createCardforgeUserAccess(false, null);
@@ -126,14 +143,6 @@ export const getCurrentCardforgeUserAccess = async (): Promise<CardforgeServerUs
   );
 };
 
-export const getCurrentCardforgeEntitlement = async (): Promise<AccountEntitlement> => {
-  const access = await getCurrentCardforgeUserAccess();
-  return resolveAccountEntitlement({
-    accountUserId: access.user?.id ?? null,
-    authConfigured: access.authConfigured,
-    isSignedIn: Boolean(access.user),
-    emailAddresses: access.user?.emailAddresses ?? [],
-    privateMetadata: access.user?.privateMetadata ?? {},
-    ownerAccess: access.ownerAccess,
-  });
-};
+export const getCurrentCardforgeEntitlement = async (): Promise<AccountEntitlement> => (
+  resolveEntitlementForAccess(await getCurrentCardforgeUserAccess())
+);
