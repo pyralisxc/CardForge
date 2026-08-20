@@ -88,7 +88,7 @@ export const resolveFieldContractV1 = ({
   const defaultValue = contract?.defaultValue ?? inferredDefaultValue ?? contract?.example;
   const description = contract?.description?.trim() || undefined;
   const example = contract?.example;
-  const allowedFormatting = contract?.allowedFormatting?.length
+  const allowedFormatting = Array.isArray(contract?.allowedFormatting)
     ? [...contract.allowedFormatting]
     : getDefaultAllowedFormatting(contentModel);
 

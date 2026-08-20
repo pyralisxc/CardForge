@@ -10,3 +10,4 @@ export {
   PUBLIC_IDENTITY_TAG,
   revalidatePublicIdentityCache,
 } from './server/publicIdentityCache';
+export { DEFAULT_BUSINESS_IDENTITY } from './model/businessIdentity';

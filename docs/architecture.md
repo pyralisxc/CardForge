@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: August 19, 2026
+Last updated: August 20, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. This document describes current product ownership and runtime invariants only. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`.
 
@@ -10,25 +10,35 @@ CardForge is a live local-first card production studio at `https://cardforges.co
 - Studio: `/studio` contains Template Studio and Generator.
 - Account/access: Clerk identifies users; CardForge applies free, Creator Pass, Designer Pass, developer, and owner policy.
 - Billing: Stripe owns Checkout, subscriptions, customers, webhooks, and Billing Portal state; CardForge maps eligible product subscriptions into application access.
-- Shared platform state: Supabase owns CardForge shared records and approved managed media.
-- User projects: templates, generated cards, project uploads, preferences, and project files remain browser-local unless explicitly submitted/exported.
+- Shared platform state: Supabase owns CardForge shared records, private account cloud-set mirrors, and approved managed media.
+- User projects: Templates, generated cards, project uploads, preferences, and project files use the browser-local workspace as the normal working copy. Signed-in users may explicitly mirror selected card sets to their private CardForge cloud library; arbitrary local workspace state is not automatically uploaded.
 - Email: Resend owns delivery; CardForge owns support/developer request validation/routing/history.
 - Analytics: GA4, PostHog, and Search Console own provider records; CardForge owns consent, event vocabulary, and owner report composition.
 - Social publication: Meta owns external authorization/posts; CardForge owns approval, destination policy, scheduling, retries, and delivery history.
 
 ## Storage lanes
 
-CardForge has three deliberate storage lanes.
+CardForge has four deliberate storage lanes.
 
 ### Browser workspace
 
-`src/features/project` owns Zustand workspace state, IndexedDB persistence, account/guest scoping, recovery snapshots, storage-health handling, local project assets, and portable project files. There is no parallel localStorage compatibility owner and no cloud-project sync today.
+`src/features/project` owns Zustand workspace state, IndexedDB persistence, account/guest scoping, recovery snapshots, storage-health handling, local project assets, and portable project files. The browser workspace remains the normal working copy, local sets remain unlimited, and there is no parallel localStorage compatibility owner.
+
+### Account cloud set mirror
+
+Signed-in users may explicitly back up selected CardForge sets to their account. Free accounts receive one cloud-set slot; Creator Pass, developer, and owner-grade access receive five. The quota limits cloud mirrors, not local creation.
+
+`cardforge_cloud_sets` stores one private account-owned CardForge Transfer V1 set manifest per saved set, including its cards and required personal Templates. Embedded artwork is removed from that JSON manifest, content-hashed, and stored in the private `cardforge-cloud-set-assets` Supabase Storage bucket. A cloud set is capped at 128 MB total, including up to 3 MB of metadata and referenced artwork subject to CardForge's existing 8 MB-per-local-artwork ceiling.
+
+Cloud artwork does not pass through Next.js request bodies. CardForge server routes authorize the account, enforce slot/storage limits, validate the manifest, and issue short-lived signed Supabase Storage URLs; the browser transfers the artwork directly to/from the private bucket. Loading a cloud set rehydrates the same Transfer V1 payload and merges it through the normal local CardForge import path. Removing a cloud mirror never deletes a device-local copy.
+
+The cloud set layer is a durable account backup/cross-device mirror, not a second editor state store or a replacement for browser persistence.
 
 ### Supabase platform state
 
-Server-only CardForge code reaches Supabase through `src/infrastructure/database/supabaseServer.ts`, preferring `SUPABASE_SECRET_KEY` with a deploy-safe legacy service-role fallback. Browser-direct Supabase writes are not a product path.
+Server-only CardForge code reaches Supabase through `src/infrastructure/database/supabaseServer.ts`, preferring `SUPABASE_SECRET_KEY` with a deploy-safe legacy service-role fallback. Browser-direct database writes are not a product path; direct browser object transfers occur only through server-issued signed URLs.
 
-Supabase stores owner/public settings, legal/business identity, roadmap/votes, billing ledgers, developer profiles/submissions/votes, asset registry state, campaign content/media/distribution history, contact history, private Studio documents, and other shared control-plane records.
+Supabase stores owner/public settings, legal/business identity, roadmap/votes, billing ledgers, developer profiles/submissions/votes, asset registry state, campaign content/media/distribution history, contact history, private Studio documents, cloud-set manifests/private set artwork, and other shared control-plane records.
 
 ### Pipeline-owned Studio catalog
 
@@ -41,9 +51,9 @@ Supabase stores owner/public settings, legal/business identity, roadmap/votes, b
 - `src/domain`: pure Cards, Templates, Rendering, and Entitlements policy.
 - `src/features/app-shell`: Studio shell and workspace bootstrap.
 - `src/features/template-editor`: Template Studio session/draft lifecycle, canvas/layer/inspector commands, history, and native Template-library commands.
-- `src/features/card-generator`: single/bulk card creation, generated output gallery, image controls, and exports.
+- `src/features/card-generator`: single/bulk card creation, generated output gallery, image controls, set/cloud-save controls, and exports.
 - `src/features/card-rendering`: shared preview/rendering, rich text, vector shapes, thumbnails, appearance, and watermarks.
-- `src/features/project`: browser workspace/persistence/recovery/assets/project files.
+- `src/features/project`: browser workspace/persistence/recovery/assets/project files plus the account cloud-set mirror and its canonical Transfer V1 packing/hydration.
 - `src/features/account`: current Clerk-backed user projection, entitlement surfaces, profile, and account administration.
 - `src/features/billing`: Stripe checkout/portal/webhooks, product/support classification, durable billing event/subscription records, and reconciliation.
 - `src/features/developer-access`: developer identity/profile status/contribution-scope owner and the only runtime access owner for developer profiles.
@@ -83,11 +93,11 @@ Cross-feature consumers use declared public interfaces. `src/lib`, `src/store`, 
 
 ## Access model
 
-- Free: local design/generation and whatever portable-project access the owner-controlled experience policy currently allows.
-- Creator Pass: clean paid finished-output entitlement through Stripe-backed access.
-- Designer Pass: the same paid Studio access plus the higher Designer MCP capacity target; it does not grant contributor access.
-- Developer: Creator Pass-grade output plus contribution/pipeline capabilities according to active developer profile/scopes.
-- Owner: owner console plus developer-grade tooling.
+- Free: local design/generation, one signed-in cloud-set slot, and whatever portable-project access the owner-controlled experience policy currently allows.
+- Creator Pass: clean paid finished-output entitlement, portable-project access, and five cloud-set slots.
+- Designer Pass: Creator Pass-grade Studio access and cloud storage plus the higher Designer MCP capacity target; it does not grant contributor access.
+- Developer: Creator Pass-grade output, five cloud-set slots, plus contribution/pipeline capabilities according to active developer profile/scopes.
+- Owner: owner console plus developer-grade tooling and five cloud-set slots.
 - Public Clerk metadata is display-only; trusted access comes from Clerk private metadata and server-owned allowlists/policy.
 
 Current account resolution uses Clerk's current-user identity directly; CardForge does not maintain a second session/profile fallback. Explicit user-id administration uses Clerk's Backend API.
@@ -119,6 +129,8 @@ Extended contributor lanes and native Meta publication are independent owner-con
 `/mcp` uses the MCP protocol and Clerk OAuth/token verification. Agent tools operate on the same private Studio documents, Template validation, production planning, library assets, renderer, and publication boundaries used by browser Studio. There is no second agent template format, renderer, asset catalog, or publication path.
 
 `mcp-usage` owns plan presentation, capacity targets, and usage observation; it does not create billing entitlements. The Owner Console is the only mutable source for plan names, descriptions, feature lines, CTA labels, visibility, and capacity targets. MCP access itself follows authenticated account identity: signed-out requests fail closed, signed-in Free/Creator/Designer accounts receive the shared Studio assistant scope, and approved developers or the owner must still pass the developer-access boundary for developer scopes. Tool telemetry fails open so an observation outage cannot break an otherwise authorized action. Because observation writes aggregate usage, every observed MCP tool declares a non-read-only side effect even when its product action only reads data. Successful user-visible mutations count as assisted actions; reads, previews, failures, and retries remain visible operational calls but consume no action unit. Numeric plan and storage targets are informational until a separately reviewed quota and billing policy is approved.
+
+Private Studio documents remain the temporary revisioned collaboration surface for ChatGPT. Account cloud-set saves now provide a durable server-resident CardForge set resource that can support a later MCP read/selection surface, but cloud-save rollout does not add or rename published MCP tools.
 
 ## Roadmap and voting
 

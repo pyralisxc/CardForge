@@ -26,8 +26,9 @@ For fixed main art, target the intended image element and attach it with `attach
 3. Resolve the requested quality once, define the editable fields and meaningful visual slots, and create one accepted production plan.
 4. Call `create_editable_template` once. Revise that same working document with `update_editable_template`; do not create another cloud draft for ordinary copy, layout, style, or artwork changes.
 5. Attach required fixed artwork to its planned native targets, then call `preview_template_draft` after meaningful changes. Inspect the native exported PNG shown directly in chat; treat its separate revision-bound Studio URL as the editing handoff, not the visual preview.
-6. Opening the approved revision installs or updates the same normal personal local Template; the private cloud document is only the temporary working handoff.
-7. If the user wants individual cards or a complete set from the approved Template, continue with the CardForge card/set skill rather than inventing CSV columns or card fields.
-8. Use `continue_template_in_pipeline` only when the user explicitly wants to submit a Template to Forge Review. Publication is separate from normal personal card creation.
+6. Opening the approved revision installs or updates the same normal personal local Template; the private cloud document is only the temporary working handoff. If that agent-linked Template is later explicitly saved in Layout Studio, CardForge syncs the saved Template back to the same private working document when its revision is still current. When the user says they saved Studio changes, reload `get_editable_template` before making the next agent revision. If CardForge reports that the ChatGPT draft is newer, preserve the browser copy and reopen the latest CardForge preview instead of overwriting it.
+7. This round trip applies only to the linked agent-created Template. Arbitrary browser-local Templates and local card/set edits remain local-first unless the user uses CardForge's existing transfer or agent card/set workflow.
+8. If the user wants individual cards or a complete set from the approved Template, continue with the CardForge card/set skill rather than inventing CSV columns or card fields.
+9. Use `continue_template_in_pipeline` only when the user explicitly wants to submit a Template to Forge Review. Publication is separate from normal personal card creation.
 
 All access, watermark, export, developer, and publication gates remain owned and enforced by CardForge.

@@ -8,39 +8,43 @@ import {
 } from '@/domain/entitlements';
 
 describe('projectAccess', () => {
-  it('maps free access to watermarked preview and generation without clean exports', () => {
+  it('maps free access to watermarked preview, generation, and one cloud set without clean exports', () => {
     expect(getProjectCapabilities('free')).toEqual({
       canPreview: true,
       canGenerate: true,
       canExportClean: false,
       canUseProjectFiles: false,
+      cloudSetLimit: 1,
     });
   });
 
-  it('can make portable project files free without unlocking clean finished exports', () => {
+  it('can make portable project files free without unlocking clean finished exports or extra cloud slots', () => {
     expect(getProjectCapabilities('free', 'free')).toEqual({
       canPreview: true,
       canGenerate: true,
       canExportClean: false,
       canUseProjectFiles: true,
+      cloudSetLimit: 1,
     });
   });
 
-  it('maps paid access to clean export without shipped library writes', () => {
+  it('maps paid access to clean export and five cloud set slots without shipped library writes', () => {
     expect(getProjectCapabilities('paid')).toEqual({
       canPreview: true,
       canGenerate: true,
       canExportClean: true,
       canUseProjectFiles: true,
+      cloudSetLimit: 5,
     });
   });
 
-  it('maps dev access to project and export capabilities without owning developer permissions', () => {
+  it('maps dev access to project, export, and five cloud-set capabilities without owning developer permissions', () => {
     expect(getProjectCapabilities('dev')).toEqual({
       canPreview: true,
       canGenerate: true,
       canExportClean: true,
       canUseProjectFiles: true,
+      cloudSetLimit: 5,
     });
   });
 
@@ -91,40 +95,42 @@ describe('projectAccess', () => {
       canExportClean: false,
       projectFileGateMessage: 'Creator Pass lets you download and open portable CardForge project files.',
     });
-    expect(copy.panelMessage).toContain('Build Templates');
+    expect(copy.panelMessage).toContain('unlimited local Templates and card sets');
+    expect(copy.panelMessage).toContain('1 set backed up in the cloud');
     expect(copy.panelMessage).toContain('download watermarked finished files');
-    expect(copy.panelMessage).toContain('removes the watermark');
+    expect(copy.panelMessage).toContain('5 cloud set slots');
   });
 
-  it('describes owner-enabled free project files alongside watermarked finished exports', () => {
+  it('describes owner-enabled free project files alongside one cloud slot and watermarked finished exports', () => {
     const copy = getExportEntitlementCopy('free', 'free');
     expect(copy).toMatchObject({
       modeLabel: 'Free plan',
       canExportClean: false,
       projectFileGateMessage: null,
     });
-    expect(copy.panelMessage).toContain('Build Templates');
+    expect(copy.panelMessage).toContain('unlimited local Templates and card sets');
+    expect(copy.panelMessage).toContain('1 set backed up in the cloud');
     expect(copy.panelMessage).toContain('move portable project files for free');
     expect(copy.panelMessage).toContain('download watermarked finished files');
   });
 
-  it('describes paid access as export entitlement without cloud project storage', () => {
+  it('describes paid access with five cloud set slots while keeping local projects unlimited', () => {
     expect(getExportEntitlementCopy('paid')).toEqual({
       modeLabel: 'Creator Pass active',
       canExportClean: true,
       gateMessage: null,
       projectFileGateMessage: null,
-      panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads and portable project files are available. Projects remain local to this browser unless you download and move a project file; CardForge does not store your card designs.',
+      panelMessage: 'Watermark-free PNG, PDF, and ZIP downloads, portable project files, and up to 5 cloud-saved card sets are available. Local projects remain unlimited on this device.',
     });
   });
 
-  it('describes dev access as local validation entitlement without cloud project storage', () => {
+  it('describes dev access with five cloud set slots while keeping local projects unlimited', () => {
     expect(getExportEntitlementCopy('dev')).toEqual({
       modeLabel: 'Contributor access',
       canExportClean: true,
       gateMessage: null,
       projectFileGateMessage: null,
-      panelMessage: 'Watermark-free downloads and portable project files are available for local validation. Projects stay on this device unless you download and move a project file.',
+      panelMessage: 'Watermark-free downloads, portable project files, and up to 5 cloud-saved card sets are available. Local projects remain unlimited on this device.',
     });
   });
 });

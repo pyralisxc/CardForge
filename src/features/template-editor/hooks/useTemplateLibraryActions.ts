@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 
 import { useProjectStore } from '@/features/project/client';
 import { selectAllTemplates } from '@/features/project/client';
+import { forgetAgentTemplateLink, syncAgentTemplateSave } from '@/features/studio-documents/client';
 import type { StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import { requireOkResponse } from '@/infrastructure/http/clientResponses';
@@ -175,6 +176,36 @@ export function useTemplateLibraryActions({
           variant: 'destructive',
         });
       }
+    } else if (templateForFile) {
+      try {
+        const syncResult = await syncAgentTemplateSave(templateForFile);
+        if (syncResult.status === 'synced') {
+          addOrUpdateTemplate({ ...templateForFile, templateRevision: syncResult.revision }, 'user');
+          toast({
+            title: 'Template saved and synced',
+            description: `"${templateForFile.name || savedTemplateId}" is saved in this browser and its linked ChatGPT working draft is now revision ${syncResult.revision}.`,
+          });
+        } else if (syncResult.status === 'conflict') {
+          toast({
+            title: 'Template saved locally; ChatGPT draft is newer',
+            description: `Your browser copy is safe. The linked ChatGPT working draft is already revision ${syncResult.revision}; reopen the latest CardForge preview before syncing this browser version.`,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Template saved in this browser',
+            description: `"${templateForFile.name || savedTemplateId}" is available in your personal library on this device.`,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Template saved locally; ChatGPT sync failed',
+          description: error instanceof Error
+            ? `${error.message} Your browser copy is safe; save again to retry the sync.`
+            : 'Your browser copy is safe, but CardForge could not update its linked ChatGPT working draft.',
+          variant: 'destructive',
+        });
+      }
     } else {
       toast({
         title: 'Template saved in this browser',
@@ -239,6 +270,7 @@ export function useTemplateLibraryActions({
         return;
       }
     }
+    forgetAgentTemplateLink(templateId);
     deleteTemplate(templateId, templateToDelete?.templateSource);
     setTemplatePendingDeleteId(null);
     toast({

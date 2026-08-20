@@ -202,7 +202,23 @@ describe('accountEntitlement', () => {
       source: 'clerk',
     });
     expect(entitlement.capabilities.canExportClean).toBe(true);
-    expect(entitlement.copy.panelMessage).toContain('Projects remain local');
+    expect(entitlement.capabilities.cloudSetLimit).toBe(5);
+    expect(entitlement.copy.panelMessage).toContain('5 cloud-saved card sets');
+  });
+
+  it('gives free signed-in accounts one cloud set slot', () => {
+    const entitlement = resolveAccountEntitlement({
+      accountUserId: 'user_free',
+      authConfigured: true,
+      isSignedIn: true,
+      emailAddresses: ['free@example.com'],
+      privateMetadata: {},
+      env: {},
+    });
+
+    expect(entitlement.accessMode).toBe('free');
+    expect(entitlement.capabilities.cloudSetLimit).toBe(1);
+    expect(entitlement.copy.panelMessage).toContain('1 set backed up in the cloud');
   });
 
   it('applies the owner project-file policy without changing finished export access', () => {
@@ -261,5 +277,6 @@ describe('accountEntitlement', () => {
         source: 'clerk_private_metadata',
       },
     });
+    expect(entitlement.capabilities.cloudSetLimit).toBe(5);
   });
 });

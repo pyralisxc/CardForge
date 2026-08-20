@@ -1,17 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import { ArrowRight, ShieldCheck, UserCircle2 } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Cloud,
+  CreditCard,
+  FolderOpen,
+  LayoutDashboard,
+  LibraryBig,
+  LockKeyhole,
+  ShieldCheck,
+  Sparkles,
+  UserCircle2,
+  Wrench,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { AccountDeveloperStatusSection } from '@/features/account/components/AccountDeveloperStatusSection';
-import { AccountIdentitySection } from '@/features/account/components/AccountIdentitySection';
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
-import { AccountBillingActions } from '@/features/billing/client/account';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
+import { AccountBillingActions } from '@/features/billing/client/account';
 import { AccountMcpUsageSection } from '@/features/mcp-usage/client/account';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
@@ -29,6 +41,12 @@ interface ClerkIdentity {
   displayName: string | null;
 }
 
+interface AccountProfilePageProps {
+  initialAuthConfigured?: boolean;
+  storageLibrary?: ReactNode;
+  cloudStorageDetails?: ReactNode;
+}
+
 const formatAccessExpiration = (value: string | null) => {
   if (!value) return null;
   const date = new Date(value);
@@ -40,7 +58,84 @@ const formatAccessExpiration = (value: string | null) => {
   }).format(date);
 };
 
-export function AccountProfilePage({ initialAuthConfigured = false }: { initialAuthConfigured?: boolean }) {
+function SectionHeading({
+  eyebrow,
+  title,
+  detail,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="mb-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#c79a4a]">{eyebrow}</p>
+      <h2 className="mt-2 font-serif text-2xl font-semibold text-[#fff1c7] md:text-3xl">{title}</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbb58b]">{detail}</p>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon,
+  label,
+  title,
+  detail,
+  footer,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  title: string;
+  detail: string;
+  footer?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex h-full flex-col border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
+      <div className="flex items-center gap-2 text-[#e2aa4a]">
+        {icon}
+        <span className="text-xs font-semibold uppercase tracking-[0.15em]">{label}</span>
+      </div>
+      <h3 className="mt-3 font-serif text-xl text-[#fff1c7]">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[#cbb58b]">{detail}</p>
+      {footer ? <div className="mt-4 text-xs leading-5 text-[#a9946c]">{footer}</div> : null}
+      {children ? <div className="mt-auto pt-5">{children}</div> : null}
+    </div>
+  );
+}
+
+function DashboardNav({ showDeveloper }: { showDeveloper: boolean }) {
+  const links = [
+    { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { id: 'my-cardforge', label: 'My CardForge', icon: <LibraryBig className="h-4 w-4" /> },
+    { id: 'account-and-billing', label: 'Account & billing', icon: <UserCircle2 className="h-4 w-4" /> },
+    ...(showDeveloper
+      ? [{ id: 'developer-tools', label: 'Developer', icon: <Wrench className="h-4 w-4" /> }]
+      : []),
+  ];
+
+  return (
+    <nav aria-label="Account sections" className="mt-4 grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
+      {links.map((link) => (
+        <a
+          key={link.id}
+          href={`#${link.id}`}
+          className="flex min-h-10 items-center gap-2 border border-transparent px-3 py-2 text-sm font-semibold text-[#cbb58b] transition-colors hover:border-[#5f4526] hover:bg-[#21170d] hover:text-[#fff1c7]"
+        >
+          {link.icon}
+          {link.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+export function AccountProfilePage({
+  initialAuthConfigured = false,
+  storageLibrary,
+  cloudStorageDetails,
+}: AccountProfilePageProps) {
   const entitlement = useAccountEntitlement({ initialAuthConfigured });
   const [clerkIdentity, setClerkIdentity] = useState<ClerkIdentity>({
     isLoaded: false,
@@ -98,22 +193,8 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
   const accessExpiresOn = formatAccessExpiration(entitlement.accessExpiresAt);
   const isDeveloper = entitlement.authConfigured && effectiveSignedIn && entitlement.accessMode === 'dev';
   const isOwner = entitlement.authConfigured && effectiveSignedIn && entitlement.ownerAccess.isOwner;
-  const accountTitle = isClerkSetupIncomplete
-    ? 'Account setup needed'
-    : effectiveSignedIn
-      ? 'Your account'
-      : 'Your CardForge account';
-  const accountPanelMessage = isClerkSetupIncomplete
-    ? 'Sign-in is not ready in this environment.'
-    : isOwner
-      ? 'You have access to CardForge owner tools.'
-      : isDeveloper
-        ? 'You can help review and contribute to shared CardForge assets.'
-        : accessExpiresOn
-          ? `Creator Pass is active through ${accessExpiresOn}.`
-          : entitlement.canExportClean
-            ? 'Watermark-free downloads are active for your account.'
-            : 'Make cards in Studio, then come back here whenever you need your account or plan.';
+  const showDeveloper = isDeveloper || isOwner;
+  const cloudSetLimit = entitlement.capabilities.cloudSetLimit;
 
   const planLabel = isOwner
     ? 'Owner access'
@@ -127,57 +208,221 @@ export function AccountProfilePage({ initialAuthConfigured = false }: { initialA
             ? 'Creator Pass'
             : 'Free';
 
-  const accountActions = (
-    <>
-      <Button asChild size="lg" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
-        <Link href="/studio" prefetch={false}>Open Studio <ArrowRight className="ml-2 h-5 w-5" /></Link>
-      </Button>
-      {entitlement.authConfigured && effectiveSignedIn ? (
-        <Button asChild size="lg" variant="outline" className="min-w-[11rem] border-[#d8b365]/70 bg-[#120e09] font-semibold text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-          <Link href="/profile" prefetch={false}><UserCircle2 className="mr-2 h-5 w-5" />Profile &amp; security</Link>
-        </Button>
-      ) : null}
-      <AccountBillingActions
-        authConfigured={entitlement.authConfigured}
-        canManageBilling={canManageBilling}
-        effectiveSignedIn={effectiveSignedIn}
-        checkoutLabel="Get Creator Pass"
-        showDesignerCheckout={showDesignerCheckout}
-        showCheckout={showCheckout}
-      />
-      {isClerkSetupIncomplete ? (
-        <Button disabled size="lg" variant="outline" className="border-[#755632] bg-transparent text-[#bea97f]">Account setup needed</Button>
-      ) : !effectiveSignedIn ? (
-        <>
-          <Button asChild size="lg" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
-            <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
-          </Button>
-          <Button asChild size="lg" variant="ghost" onClick={markSignUpIntent} className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">
-            <Link href={createAuthRouteHref('/sign-up', '/account')} prefetch={false}>Create account</Link>
-          </Button>
-        </>
-      ) : !canStartCheckout ? (
-        <Button disabled size="lg" variant="outline" className="border-[#5f7f54] bg-transparent text-[#bde3a8]"><ShieldCheck className="mr-2 h-5 w-5" /> Downloads active</Button>
-      ) : null}
-    </>
-  );
+  const accountTitle = isClerkSetupIncomplete
+    ? 'Account setup needed'
+    : effectiveSignedIn && accountDisplayName
+      ? `${accountDisplayName}'s CardForge`
+      : effectiveSignedIn
+        ? 'Your CardForge'
+        : 'Your CardForge account';
+
+  const heroDetail = isClerkSetupIncomplete
+    ? 'Sign-in is not ready in this environment.'
+    : effectiveSignedIn
+      ? 'Your plan, private library, device workspace, security, and billing are organized here.'
+      : 'Sign in to connect your private cloud library, cross-device saves, account security, and Creator Pass access.';
+
+  const cloudSlotLabel = `${cloudSetLimit} private cloud set slot${cloudSetLimit === 1 ? '' : 's'}`;
+  const downloadLabel = entitlement.canExportClean ? 'Watermark-free downloads' : 'Free exports include the CardForge watermark';
 
   return (
     <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
       {entitlement.authConfigured ? <ClerkIdentityBridge onChange={setClerkIdentity} /> : null}
-      <section className="mx-auto max-w-4xl px-4 py-5 md:px-6">
-        <AccountIdentitySection
-          accountDisplayName={accountDisplayName}
-          accountEmail={accountEmail}
-          accountPanelMessage={accountPanelMessage}
-          accountTitle={accountTitle}
-          actions={accountActions}
-          effectiveSignedIn={effectiveSignedIn}
-          planLabel={planLabel}
-        />
-        <div className="mt-4 space-y-4">
-          {entitlement.authConfigured && effectiveSignedIn ? <AccountMcpUsageSection /> : null}
-          <AccountDeveloperStatusSection isOwner={isOwner} />
+      <section className="mx-auto max-w-7xl px-4 py-5 md:px-6 lg:py-7">
+        <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
+          <aside className="border border-[#5f4526] bg-[#100c08] p-4 lg:sticky lg:top-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a98a55]">CardForge account</p>
+            <p className="mt-2 break-words font-serif text-lg text-[#fff1c7]">
+              {effectiveSignedIn ? accountDisplayName ?? accountEmail : 'Creator dashboard'}
+            </p>
+            <p className="mt-1 break-words text-xs leading-5 text-[#9f8a66]">
+              {effectiveSignedIn ? accountEmail : 'Sign in to connect cloud saves and account controls.'}
+            </p>
+            <div className="mt-4 inline-flex border border-[#6f532e] bg-[#1b140d] px-2.5 py-1 text-xs font-semibold text-[#f6d891]">
+              {planLabel}
+            </div>
+            <DashboardNav showDeveloper={showDeveloper} />
+            <Button asChild className="mt-5 w-full bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+              <Link href="/studio" prefetch={false}>Open Studio <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            </Button>
+          </aside>
+
+          <div className="min-w-0 space-y-5">
+            <section id="overview" className="scroll-mt-24 border border-[#5f4526] bg-[#100c08] p-4 md:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-[#e2aa4a]">
+                    <LayoutDashboard className="h-5 w-5" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em]">Overview</span>
+                  </div>
+                  <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[#fff1c7] md:text-4xl">{accountTitle}</h1>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbb58b]">{heroDetail}</p>
+                </div>
+                <div className="border border-[#6f532e] bg-[#1b140d] px-3 py-2 text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#a98a55]">Current plan</p>
+                  <p className="mt-1 text-sm font-semibold text-[#ffe7ad]">{planLabel}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 xl:grid-cols-3">
+                <SummaryCard
+                  icon={<Cloud className="h-4 w-4" />}
+                  label="Plan & access"
+                  title={planLabel}
+                  detail={`${cloudSlotLabel}. ${downloadLabel}.`}
+                  footer={accessExpiresOn && !isOwner && !isDeveloper ? `Current paid access runs through ${accessExpiresOn}.` : 'Cloud slot limits apply only to account backups; local creation remains unlimited.'}
+                >
+                  {entitlement.canExportClean ? (
+                    <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#bde3a8]">
+                      <CheckCircle2 className="h-4 w-4" /> Creator export access active
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#cbb58b]">Creator Pass raises cloud saves to 5 sets and removes export watermarks.</p>
+                  )}
+                </SummaryCard>
+
+                <SummaryCard
+                  icon={<FolderOpen className="h-4 w-4" />}
+                  label="Workspace"
+                  title="Local-first by default"
+                  detail="Your active CardForge workspace stays on this device. You choose which sets become private account cloud backups."
+                  footer="Device-only work is not automatically uploaded or exposed to ChatGPT."
+                >
+                  <Button asChild size="sm" className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+                    <Link href="/studio" prefetch={false}>Create in Studio <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                  </Button>
+                </SummaryCard>
+
+                <SummaryCard
+                  icon={<LockKeyhole className="h-4 w-4" />}
+                  label="Identity & security"
+                  title={effectiveSignedIn ? 'Account connected' : 'Sign in to connect'}
+                  detail={effectiveSignedIn ? accountEmail : 'Connect an account to manage security, cloud saves, billing, and cross-device access.'}
+                  footer={effectiveSignedIn ? 'Profile details, sign-in methods, passwords, and active sessions live under Profile & security.' : undefined}
+                >
+                  {effectiveSignedIn ? (
+                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                      <Link href="/profile" prefetch={false}>Profile &amp; security</Link>
+                    </Button>
+                  ) : entitlement.authConfigured ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                        <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="ghost" onClick={markSignUpIntent} className="text-[#f7d690] hover:bg-[#24180e] hover:text-[#fff3ca]">
+                        <Link href={createAuthRouteHref('/sign-up', '/account')} prefetch={false}>Create account</Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button disabled size="sm" variant="outline">Account setup needed</Button>
+                  )}
+                </SummaryCard>
+              </div>
+            </section>
+
+            <section id="my-cardforge" className="scroll-mt-24">
+              <SectionHeading
+                eyebrow="My CardForge"
+                title="Your work across device, cloud, and AI"
+                detail="Manage the things tied to your CardForge experience without mixing storage locations. Local sets, cloud backups, and AI working drafts stay visibly distinct."
+              />
+              <div className="space-y-4">
+                {storageLibrary}
+                {cloudStorageDetails}
+              </div>
+            </section>
+
+            <section id="account-and-billing" className="scroll-mt-24 border border-[#5f4526] bg-[#100c08] p-4 md:p-6">
+              <SectionHeading
+                eyebrow="Account"
+                title="Profile, billing, and data boundaries"
+                detail="Identity and subscription controls stay separate from your creative library, while still living in one account dashboard."
+              />
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <SummaryCard
+                  icon={<UserCircle2 className="h-4 w-4" />}
+                  label="Profile & security"
+                  title={effectiveSignedIn ? accountDisplayName ?? 'Your profile' : 'Account identity'}
+                  detail={effectiveSignedIn ? `Signed in as ${accountEmail}` : 'Sign in to manage your name, avatar, email addresses, password, providers, and active sessions.'}
+                >
+                  {effectiveSignedIn ? (
+                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                      <Link href="/profile" prefetch={false}><ShieldCheck className="mr-2 h-4 w-4" />Manage security</Link>
+                    </Button>
+                  ) : entitlement.authConfigured ? (
+                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                      <Link href={createAuthRouteHref('/sign-in', '/account')} prefetch={false}>Sign in</Link>
+                    </Button>
+                  ) : null}
+                </SummaryCard>
+
+                <SummaryCard
+                  icon={<CreditCard className="h-4 w-4" />}
+                  label="Billing & plan"
+                  title={planLabel}
+                  detail={canManageBilling
+                    ? 'Open your billing portal to manage the subscription attached to this CardForge account.'
+                    : showCheckout
+                      ? 'Choose Creator Pass or Designer Pass for watermark-free downloads, cloud saves, and expanded ChatGPT plugin capacity.'
+                      : entitlement.canExportClean
+                        ? 'Creator export access is active for this account.'
+                        : 'Free access includes one private cloud-set slot and watermarked exports.'}
+                  footer={cloudSlotLabel}
+                >
+                  <div className="flex flex-wrap gap-2">
+                    <AccountBillingActions
+                      authConfigured={entitlement.authConfigured}
+                      canManageBilling={canManageBilling}
+                      effectiveSignedIn={effectiveSignedIn}
+                      checkoutLabel="Get Creator Pass"
+                      showDesignerCheckout={showDesignerCheckout}
+                      showCheckout={showCheckout}
+                    />
+                    {effectiveSignedIn && !canManageBilling && !showCheckout && entitlement.canExportClean ? (
+                      <div className="inline-flex min-h-9 items-center gap-2 border border-[#5f7f54] px-3 text-sm font-semibold text-[#bde3a8]">
+                        <CheckCircle2 className="h-4 w-4" /> Access active
+                      </div>
+                    ) : null}
+                  </div>
+                </SummaryCard>
+
+                <div className="border border-[#5f4526] bg-[#15100a] p-4 md:col-span-2 md:p-5">
+                  <div className="flex items-center gap-2 text-[#e2aa4a]">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.15em]">Your data boundaries</span>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="border border-[#42311f] bg-[#100c08] p-3">
+                      <p className="text-sm font-semibold text-[#fff1c7]">This device</p>
+                      <p className="mt-1 text-xs leading-5 text-[#a9946c]">The normal workspace, personal Templates, and local uploads stay browser-owned.</p>
+                    </div>
+                    <div className="border border-[#42311f] bg-[#100c08] p-3">
+                      <p className="text-sm font-semibold text-[#fff1c7]">Private cloud</p>
+                      <p className="mt-1 text-xs leading-5 text-[#a9946c]">Only sets you explicitly back up use your account cloud slots and become available across devices.</p>
+                    </div>
+                    <div className="border border-[#42311f] bg-[#100c08] p-3">
+                      <p className="text-sm font-semibold text-[#fff1c7]">AI working drafts</p>
+                      <p className="mt-1 text-xs leading-5 text-[#a9946c]">Temporary Studio/ChatGPT collaboration documents remain separate from permanent cloud backups.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {entitlement.authConfigured && effectiveSignedIn ? <AccountMcpUsageSection /> : null}
+
+            {showDeveloper ? (
+              <section id="developer-tools" className="scroll-mt-24">
+                <SectionHeading
+                  eyebrow="Developer"
+                  title={isOwner ? 'Owner and contributor tools' : 'Contributor tools'}
+                  detail="Developer surfaces appear only for accounts that actually have contributor or owner access."
+                />
+                <AccountDeveloperStatusSection isOwner={isOwner} isDeveloper={isDeveloper} />
+              </section>
+            ) : null}
+          </div>
         </div>
       </section>
     </main>
