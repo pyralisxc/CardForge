@@ -36,9 +36,13 @@ const resolveDeveloperCockpitAccess = async ({
   authConfigured,
   user,
   ownerAccess,
-}: Awaited<ReturnType<typeof getCurrentCardforgeUserAccess>>): Promise<DeveloperCockpitAccess> => {
+}: Awaited<ReturnType<typeof getCurrentCardforgeUserAccess>>, {
+  allowStudioAiOnly = false,
+}: {
+  allowStudioAiOnly?: boolean;
+} = {}): Promise<DeveloperCockpitAccess> => {
   if (!user) {
-    throw new DeveloperCockpitAccessError('Sign in before using the developer cockpit.', 401);
+    throw new DeveloperCockpitAccessError('Sign in before using CardForge account tools.', 401);
   }
 
   const entitlement = resolveAccountEntitlement({
@@ -50,6 +54,16 @@ const resolveDeveloperCockpitAccess = async ({
   });
   const isDeveloper = entitlement.accessMode === 'dev';
   if (!isDeveloper && !ownerAccess.isOwner) {
+    if (allowStudioAiOnly) {
+      return {
+        user,
+        isDeveloper: false,
+        isOwner: false,
+        email: user.email,
+        displayName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
+        scopes: ['studio.ai.create'],
+      };
+    }
     throw new DeveloperCockpitAccessError('Developer access is required for the contribution cockpit.', 403);
   }
 
@@ -84,10 +98,16 @@ export const getCurrentDeveloperCockpitAccess = async (): Promise<DeveloperCockp
   resolveDeveloperCockpitAccess(await getCurrentCardforgeUserAccess())
 );
 
+// MCP private Studio/card tools are account features, not contribution-cockpit features.
+// A normal signed-in user receives only studio.ai.create; Forge Review still requires
+// library.submit and therefore remains developer/owner gated by requireContributionScope.
 export const getDeveloperCockpitAccessForUserId = async (
   userId: string,
 ): Promise<DeveloperCockpitAccess> => (
-  resolveDeveloperCockpitAccess(await getCardforgeUserAccessForUserId(userId))
+  resolveDeveloperCockpitAccess(
+    await getCardforgeUserAccessForUserId(userId),
+    { allowStudioAiOnly: true },
+  )
 );
 
 export const requireContributionScope = (

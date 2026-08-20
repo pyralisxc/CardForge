@@ -16,9 +16,11 @@ describe('CardForge MCP and plugin product hygiene', () => {
   const route = readSource('src/app/mcp/route.ts');
   const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
   const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
+  const cloudTools = readSource('src/features/studio-documents/server/mcpCloudSetTools.ts');
   const cardSchemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
   const cardDrafts = readSource('src/features/studio-documents/server/developerCardSetDrafts.ts');
   const studioStore = readSource('src/features/studio-documents/server/studioDocumentStore.ts');
+  const developerAccess = readSource('src/features/developer-access/server/access.ts');
   const designSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
   const setSkill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
   const plugin = JSON.parse(readSource('plugins/cardforge-studio/.codex-plugin/plugin.json')) as {
@@ -27,11 +29,12 @@ describe('CardForge MCP and plugin product hygiene', () => {
     interface: { shortDescription: string; longDescription: string; defaultPrompt: string[] };
   };
 
-  it('keeps the published MCP action names stable while improving metadata around them', () => {
+  it('keeps the published MCP action names explicit as cloud discovery is added', () => {
     const names = [
       ...toolNames(route),
       ...toolNames(templateTools),
       ...toolNames(cardTools),
+      ...toolNames(cloudTools),
     ].sort();
 
     expect(names).toEqual([
@@ -40,8 +43,10 @@ describe('CardForge MCP and plugin product hygiene', () => {
       'continue_template_in_pipeline',
       'create_editable_template',
       'get_card_generation_contract',
+      'get_cloud_set',
       'get_editable_template',
       'get_studio_creation_guide',
+      'list_cloud_sets',
       'list_editable_templates',
       'preview_card_set',
       'preview_template_draft',
@@ -62,6 +67,15 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(cardTools).toContain('Review a CardForge card set before opening it in Studio');
     expect(cardTools).toContain('deck or set');
     expect(cardTools).toContain('list/CSV/JSON');
+    expect(cloudTools).toContain('List cloud-saved CardForge sets');
+    expect(cloudTools).toContain('Read a cloud-saved CardForge set');
+  });
+
+  it('keeps account AI work separate from developer publication permissions', () => {
+    expect(developerAccess).toContain("scopes: ['studio.ai.create']");
+    expect(developerAccess).toContain('{ allowStudioAiOnly: true }');
+    expect(developerAccess).toContain("requireContributionScope");
+    expect(route).toContain('continueDeveloperTemplateDraftInPipeline');
   });
 
   it('makes successful card/set calls self-guiding and retry-aware', () => {
