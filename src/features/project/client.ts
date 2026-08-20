@@ -1,6 +1,7 @@
 export { BrowserStorageAlerts } from './components/BrowserStorageAlerts';
 export { useBrowserWorkspaceSaveStatus } from './hooks/useBrowserWorkspaceSaveStatus';
 export { useCardTransferActions } from './hooks/useCardTransferActions';
+export { useCloudSetActions } from './hooks/useCloudSetActions';
 export {
   buildProjectImportPreview,
   buildProjectImportSummary,
@@ -15,6 +16,28 @@ export {
   parseCardForgeTransferValue,
 } from './model/cardTransfer';
 export type { CardForgeTransferV1, CardTransferKind } from './model/cardTransfer';
+export {
+  CLOUD_SET_ASSET_BUCKET,
+  CLOUD_SET_ASSET_MIME_TYPES,
+  CLOUD_SET_ASSET_REFERENCE_PREFIX,
+  getCloudSetAssetIdFromReference,
+  getCloudSetAssetReference,
+  isCloudSetAssetId,
+  isCloudSetAssetMimeType,
+  MAX_CLOUD_SET_ASSET_BYTES,
+  MAX_CLOUD_SET_ASSETS,
+  MAX_CLOUD_SET_BYTES,
+  MAX_CLOUD_SET_METADATA_BYTES,
+} from './model/cloudSet';
+export type {
+  CloudSetAssetDescriptor,
+  CloudSetDownloadAsset,
+  CloudSetDownloadResult,
+  CloudSetListResult,
+  CloudSetPrepareResult,
+  CloudSetPreparedUpload,
+  CloudSetSummary,
+} from './model/cloudSet';
 export {
   applyProjectDocumentToState,
   createProjectDocumentFromState,
