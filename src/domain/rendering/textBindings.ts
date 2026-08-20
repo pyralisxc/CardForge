@@ -140,6 +140,25 @@ export function getImageFieldKeyForElement(
   return getBoundImageFieldKey(element) || deriveImageFieldKey(element);
 }
 
+export function getGeneratorImageFieldKeyForElement(
+  template: TCGCardTemplate,
+  element: Pick<FreeformCardElement, 'id' | 'name' | 'imageSource' | 'content' | 'locked'>
+): string | undefined {
+  const explicitContract = template.fieldContracts?.find((contract) => (
+    contract.type === 'image' && contract.elementId === element.id
+  ));
+  if (explicitContract?.key) return explicitContract.key;
+
+  const boundKey = getBoundImageFieldKey(element);
+  if (boundKey) return boundKey;
+
+  // Locked, fixed-source image layers are template composition, not card data.
+  if (element.locked) return undefined;
+
+  // Preserve legacy behavior for unlocked fixed-source image layers.
+  return deriveImageFieldKey(element);
+}
+
 export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): ExtractedPlaceholder[] {
   if (!template) return [];
 
@@ -164,10 +183,16 @@ export function extractUniquePlaceholderKeys(template?: TCGCardTemplate): Extrac
   template.freeformCanvas?.elements?.forEach((element) => {
     if (element.type === 'image') {
       const source = element.imageSource || element.content;
-
-      const imageFieldKey = getImageFieldKeyForElement(element);
-      if (!placeholderMap.has(imageFieldKey)) {
-        const defaultValue = source && isStaticImageSource(source.trim()) ? source.trim() : undefined;
+      const explicitContract = template.fieldContracts?.find((contract) => (
+        contract.type === 'image' && contract.elementId === element.id
+      ));
+      const imageFieldKey = getGeneratorImageFieldKeyForElement(template, element);
+      if (imageFieldKey && !placeholderMap.has(imageFieldKey)) {
+        const defaultValue = explicitContract
+          ? explicitContract.defaultValue
+          : source && isStaticImageSource(source.trim())
+            ? source.trim()
+            : undefined;
         placeholderMap.set(imageFieldKey, { key: imageFieldKey, defaultValue });
       }
 
