@@ -1,23 +1,20 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import 'fake-indexeddb/auto';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TCGCardTemplate } from '@/domain/templates';
+import { BROWSER_STORAGE_DATABASE } from '@/features/project/client';
 import {
   getAgentTemplateLink,
   rememberAgentTemplateLink,
   syncAgentTemplateSave,
 } from '@/features/studio-documents/lib/agentTemplateRoundTrip';
 
-const makeStorage = (): Storage => {
-  const values = new Map<string, string>();
-  return {
-    get length() { return values.size; },
-    clear: () => values.clear(),
-    getItem: (key) => values.get(key) ?? null,
-    key: (index) => Array.from(values.keys())[index] ?? null,
-    removeItem: (key) => { values.delete(key); },
-    setItem: (key, value) => { values.set(key, value); },
-  } as Storage;
-};
+const deleteDatabase = () => new Promise<void>((resolve, reject) => {
+  const request = indexedDB.deleteDatabase(BROWSER_STORAGE_DATABASE);
+  request.onsuccess = () => resolve();
+  request.onerror = () => reject(request.error);
+});
 
 const template: TCGCardTemplate = {
   id: 'gpt-template-1',
@@ -58,14 +55,16 @@ const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringif
   headers: { 'Content-Type': 'application/json' },
 });
 
+beforeEach(async () => {
+  await deleteDatabase();
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe('agent Template Studio round trip', () => {
   it('discovers an existing agent document and syncs an explicit Studio save back to it', async () => {
-    const storage = makeStorage();
-    vi.stubGlobal('window', { localStorage: storage });
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({
         documents: [{
@@ -104,7 +103,7 @@ describe('agent Template Studio round trip', () => {
     });
 
     expect(result).toEqual({ status: 'synced', revision: 3 });
-    expect(getAgentTemplateLink(template.id!)).toEqual({
+    await expect(getAgentTemplateLink(template.id!)).resolves.toEqual({
       documentId: '11111111-1111-4111-8111-111111111111',
       revision: 3,
     });
@@ -124,9 +123,7 @@ describe('agent Template Studio round trip', () => {
   });
 
   it('protects a newer ChatGPT revision from an older Studio save', async () => {
-    const storage = makeStorage();
-    vi.stubGlobal('window', { localStorage: storage });
-    rememberAgentTemplateLink(template.id!, '22222222-2222-4222-8222-222222222222', 4);
+    await rememberAgentTemplateLink(template.id!, '22222222-2222-4222-8222-222222222222', 4);
     const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
       document: {
         id: '22222222-2222-4222-8222-222222222222',
@@ -142,7 +139,7 @@ describe('agent Template Studio round trip', () => {
 
     expect(result).toEqual({ status: 'conflict', revision: 5 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(getAgentTemplateLink(template.id!)).toEqual({
+    await expect(getAgentTemplateLink(template.id!)).resolves.toEqual({
       documentId: '22222222-2222-4222-8222-222222222222',
       revision: 4,
     });
