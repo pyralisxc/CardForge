@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { StoredDisplayCard } from '@/domain/cards';
+import type { CardSet, StoredDisplayCard } from '@/domain/cards';
 import type { AppearanceStylePreset, TCGCardTemplate } from '@/domain/templates';
 import type { PaperSize } from '@/domain/rendering';
 import type { CardAssetOption } from '@/features/developer-assets/lib/cardAssets';
@@ -23,9 +23,18 @@ const template: TCGCardTemplate = {
   },
 };
 
+const cardSet: CardSet = {
+  id: 'set-1',
+  name: 'Rift Set',
+  frontTemplateId: 'user-template-1',
+  backingTemplateId: 'back-template-1',
+};
+
 const storedCard: StoredDisplayCard = {
   uniqueId: 'card-1',
   templateId: 'user-template-1',
+  setId: cardSet.id,
+  setName: cardSet.name,
   data: {
     cardName: 'Rift Adept',
     '__cardforgeFieldStyle.cardName.textColor': '#00ffaa',
@@ -99,6 +108,8 @@ describe('project document serialization', () => {
   it('creates a versioned local-first project document from app state', () => {
     const document = createProjectDocumentFromState({
       userTemplates: [template],
+      cardSets: [cardSet],
+      activeCardSetId: cardSet.id,
       storedCards: [storedCard],
       appearanceStyles: [style],
       selectedPaperSize: paperSize,
@@ -117,6 +128,8 @@ describe('project document serialization', () => {
     expect(document).toEqual<ProjectDocumentV1>({
       version: 1,
       userTemplates: [template],
+      cardSets: [cardSet],
+      activeCardSetId: cardSet.id,
       storedCards: [storedCard],
       appearanceStyles: [style],
       exportSettings: {
@@ -137,10 +150,12 @@ describe('project document serialization', () => {
     });
   });
 
-  it('applies a project document as a partial state while preserving card template references', () => {
+  it('applies a project document as a partial state while preserving set and card template references', () => {
     const state = applyProjectDocumentToState({
       version: 1,
       userTemplates: [template],
+      cardSets: [cardSet],
+      activeCardSetId: cardSet.id,
       storedCards: [storedCard],
       appearanceStyles: [style],
       exportSettings: {
@@ -161,6 +176,8 @@ describe('project document serialization', () => {
     });
 
     expect(state.userTemplates).toEqual([template]);
+    expect(state.cardSets).toEqual([cardSet]);
+    expect(state.activeCardSetId).toBe(cardSet.id);
     expect(state.storedCards).toEqual([storedCard]);
     expect(state.storedCards?.[0].templateId).toBe(state.userTemplates?.[0].id);
     expect(state.selectedPaperSize).toEqual(paperSize);
@@ -172,6 +189,8 @@ describe('project document serialization', () => {
     const parsed = parseProjectDocumentFile(JSON.stringify({
       version: 1,
       userTemplates: [template],
+      cardSets: [cardSet],
+      activeCardSetId: cardSet.id,
       storedCards: [storedCard],
       appearanceStyles: [style],
       exportSettings: {
@@ -192,6 +211,8 @@ describe('project document serialization', () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) throw new Error(parsed.error);
     expect(parsed.document.version).toBe(1);
+    expect(parsed.document.cardSets).toEqual([cardSet]);
+    expect(parsed.document.activeCardSetId).toBe(cardSet.id);
     expect(parsed.document.storedCards).toEqual([storedCard]);
     expect(parsed.document.customAssets).toEqual({
       'cardforge-maker-custom-textures': [textureAsset],

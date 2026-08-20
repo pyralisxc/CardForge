@@ -63,11 +63,12 @@ export const selectAllGeneratedDisplayCards = (state: ProjectState): DisplayCard
   }, []);
 };
 
-export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] => (
-  selectAllGeneratedDisplayCards(state).filter((card) => (
-    !card.setId || card.setId === state.activeCardSet.id
-  ))
-);
+export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] => {
+  const activeSetId = state.activeCardSet?.id;
+  return selectAllGeneratedDisplayCards(state).filter((card) => (
+    !activeSetId || !card.setId || card.setId === activeSetId
+  ));
+};
 
 export const selectEditingCard = (state: ProjectState): DisplayCard | null => {
   if (!state.editingCardUniqueId || !state.isEditDialogOpen) return null;
