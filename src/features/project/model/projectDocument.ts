@@ -1,4 +1,9 @@
-import type { StoredDisplayCard } from '@/domain/cards';
+import {
+  reconcileCardSets,
+  resolveActiveCardSet,
+  type CardSet,
+  type StoredDisplayCard,
+} from '@/domain/cards';
 import {
   reconstructMinimalTemplateObject,
   validateNativeTemplateStructure,
@@ -13,6 +18,12 @@ import {
 } from './projectProductionPlan';
 
 const PROJECT_DOCUMENT_VERSION = 1;
+const PROJECT_FALLBACK_SET: CardSet = {
+  id: 'active-card-set',
+  name: 'Untitled Set',
+  frontTemplateId: null,
+  backingTemplateId: null,
+};
 
 export const CUSTOM_TEXTURE_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-textures';
 export const CUSTOM_DIVIDER_ASSETS_STORAGE_KEY = 'cardforge-maker-custom-dividers';
@@ -39,6 +50,8 @@ export interface ProjectDocumentCustomAssets {
 export interface ProjectDocumentV1 {
   version: 1;
   userTemplates: TCGCardTemplate[];
+  cardSets: CardSet[];
+  activeCardSetId?: string;
   storedCards: StoredDisplayCard[];
   appearanceStyles: AppearanceStylePreset[];
   exportSettings: ProjectDocumentExportSettings;
@@ -48,6 +61,8 @@ export interface ProjectDocumentV1 {
 
 export interface CreateProjectDocumentInput extends ProjectDocumentExportSettings {
   userTemplates: TCGCardTemplate[];
+  cardSets?: CardSet[];
+  activeCardSetId?: string | null;
   storedCards: StoredDisplayCard[];
   appearanceStyles: AppearanceStylePreset[];
   customTextureAssets?: CardAssetOption[];
@@ -59,6 +74,8 @@ export interface CreateProjectDocumentInput extends ProjectDocumentExportSetting
 
 export interface ProjectDocumentStatePatch extends ProjectDocumentExportSettings {
   userTemplates: TCGCardTemplate[];
+  cardSets: CardSet[];
+  activeCardSetId: string;
   storedCards: StoredDisplayCard[];
   appearanceStyles: AppearanceStylePreset[];
   customAssets: ProjectDocumentCustomAssets;
@@ -177,10 +194,24 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
   if (!isRecord(value) || value.version !== PROJECT_DOCUMENT_VERSION) return null;
   if (!Array.isArray(value.userTemplates) && !Array.isArray(value.storedCards) && !Array.isArray(value.appearanceStyles)) return null;
 
+  const storedCards = asArray<StoredDisplayCard>(value.storedCards);
+  const cardSets = reconcileCardSets({
+    cardSets: asArray<unknown>(value.cardSets),
+    storedCards,
+    fallback: PROJECT_FALLBACK_SET,
+  });
+  const activeCardSet = resolveActiveCardSet({
+    cardSets,
+    preferredId: typeof value.activeCardSetId === 'string' ? value.activeCardSetId : storedCards[0]?.setId,
+    fallback: PROJECT_FALLBACK_SET,
+  });
+
   return {
     version: PROJECT_DOCUMENT_VERSION,
     userTemplates: normalizeTemplates(value.userTemplates),
-    storedCards: asArray<StoredDisplayCard>(value.storedCards),
+    cardSets,
+    activeCardSetId: activeCardSet.id,
+    storedCards,
     appearanceStyles: asArray<AppearanceStylePreset>(value.appearanceStyles),
     exportSettings: isRecord(value.exportSettings) ? value.exportSettings : {},
     customAssets: normalizeCustomAssets(value.customAssets),
@@ -190,6 +221,8 @@ const normalizeProjectDocument = (value: unknown): ProjectDocumentV1 | null => {
 
 export const createProjectDocumentFromState = ({
   userTemplates,
+  cardSets = [],
+  activeCardSetId,
   storedCards,
   appearanceStyles,
   selectedPaperSize,
@@ -204,31 +237,43 @@ export const createProjectDocumentFromState = ({
   customIconAssets = [],
   customImageAssets = [],
   productionPlan,
-}: CreateProjectDocumentInput): ProjectDocumentV1 => ({
-  version: PROJECT_DOCUMENT_VERSION,
-  userTemplates,
-  storedCards,
-  appearanceStyles,
-  exportSettings: {
-    selectedPaperSize,
-    pdfMarginMm,
-    pdfCardSpacingMm,
-    pdfIncludeCutLines,
-    pdfDuplexLayout,
-    exportMode,
-    exportDpi,
-  },
-  customAssets: {
-    [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: customTextureAssets,
-    [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: customDividerAssets,
-    [CUSTOM_ICON_ASSETS_STORAGE_KEY]: customIconAssets,
-    [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: customImageAssets,
-  },
-  productionPlan,
-});
+}: CreateProjectDocumentInput): ProjectDocumentV1 => {
+  const normalizedSets = reconcileCardSets({ cardSets, storedCards, fallback: PROJECT_FALLBACK_SET });
+  const activeCardSet = resolveActiveCardSet({
+    cardSets: normalizedSets,
+    preferredId: activeCardSetId,
+    fallback: PROJECT_FALLBACK_SET,
+  });
+  return {
+    version: PROJECT_DOCUMENT_VERSION,
+    userTemplates,
+    cardSets: normalizedSets,
+    activeCardSetId: activeCardSet.id,
+    storedCards,
+    appearanceStyles,
+    exportSettings: {
+      selectedPaperSize,
+      pdfMarginMm,
+      pdfCardSpacingMm,
+      pdfIncludeCutLines,
+      pdfDuplexLayout,
+      exportMode,
+      exportDpi,
+    },
+    customAssets: {
+      [CUSTOM_TEXTURE_ASSETS_STORAGE_KEY]: customTextureAssets,
+      [CUSTOM_DIVIDER_ASSETS_STORAGE_KEY]: customDividerAssets,
+      [CUSTOM_ICON_ASSETS_STORAGE_KEY]: customIconAssets,
+      [CUSTOM_IMAGE_ASSETS_STORAGE_KEY]: customImageAssets,
+    },
+    productionPlan,
+  };
+};
 
 export const applyProjectDocumentToState = (document: ProjectDocumentV1): ProjectDocumentStatePatch => ({
   userTemplates: document.userTemplates,
+  cardSets: document.cardSets,
+  activeCardSetId: document.activeCardSetId ?? document.cardSets[0]?.id ?? PROJECT_FALLBACK_SET.id,
   storedCards: document.storedCards,
   appearanceStyles: document.appearanceStyles,
   ...document.exportSettings,

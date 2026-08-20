@@ -40,7 +40,7 @@ export const resolveGeneratorFrontTemplateId = (
     : (templates.find((template) => template.templateUsage !== 'back-preset')?.id ?? null)
 );
 
-export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] => {
+export const selectAllGeneratedDisplayCards = (state: ProjectState): DisplayCard[] => {
   const templates = selectAllTemplates(state);
   return state.storedCards.reduce((acc: DisplayCard[], storedCard) => {
     const template = templates.find((candidate) => candidate.id === storedCard.templateId);
@@ -63,9 +63,15 @@ export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] 
   }, []);
 };
 
+export const selectGeneratedDisplayCards = (state: ProjectState): DisplayCard[] => (
+  selectAllGeneratedDisplayCards(state).filter((card) => (
+    !card.setId || card.setId === state.activeCardSet.id
+  ))
+);
+
 export const selectEditingCard = (state: ProjectState): DisplayCard | null => {
   if (!state.editingCardUniqueId || !state.isEditDialogOpen) return null;
 
-  const allDisplayCards = selectGeneratedDisplayCards(state);
+  const allDisplayCards = selectAllGeneratedDisplayCards(state);
   return allDisplayCards.find((card) => card.uniqueId === state.editingCardUniqueId) || null;
 };

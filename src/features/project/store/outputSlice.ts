@@ -25,7 +25,9 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
     }));
     set((state) => ({ storedCards: [...state.storedCards, ...storedCards] }));
   },
-  clearGeneratedCards: () => set({ storedCards: [] }),
+  clearGeneratedCards: () => set((state) => ({
+    storedCards: state.storedCards.filter((card) => card.setId && card.setId !== state.activeCardSet.id),
+  })),
   removeGeneratedCard: (cardUniqueId) => set((state) => {
     const storedCards = state.storedCards.filter((card) => card.uniqueId !== cardUniqueId);
     if (storedCards.length === state.storedCards.length) return state;
@@ -36,6 +38,19 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
       isEditDialogOpen: removedActiveEdit ? false : state.isEditDialogOpen,
     };
   }),
+  moveGeneratedCardToSet: (cardUniqueId, setId) => {
+    const targetSet = get().cardSets.find((candidate) => candidate.id === setId);
+    if (!targetSet) return false;
+    let changed = false;
+    set((state) => ({
+      storedCards: state.storedCards.map((card) => {
+        if (card.uniqueId !== cardUniqueId) return card;
+        changed = true;
+        return { ...card, setId: targetSet.id, setName: targetSet.name };
+      }),
+    }));
+    return changed;
+  },
   updateGeneratedCard: (updatedCard) => set((state) => ({
     storedCards: state.storedCards.map((card) => card.uniqueId === updatedCard.uniqueId
       ? {
@@ -85,13 +100,16 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         skippedCount += 1;
         return;
       }
+      const targetSet = card.setId
+        ? get().cardSets.find((candidate) => candidate.id === card.setId)
+        : activeCardSet;
       storedCards.push({
         uniqueId: card.uniqueId || nanoid(),
         templateId: template.id!,
         backingTemplateId: card.backingTemplateId ?? null,
         backingData: card.backingData,
-        setId: card.setId ?? activeCardSet.id,
-        setName: card.setName ?? activeCardSet.name,
+        setId: targetSet?.id ?? activeCardSet.id,
+        setName: targetSet?.name ?? card.setName ?? activeCardSet.name,
         data: card.data || {},
       });
       successCount += 1;
@@ -113,14 +131,17 @@ export const createOutputSlice: StateCreator<ProjectState, [], [], OutputSlice> 
         skippedCount += 1;
         return;
       }
+      const targetSet = card.setId
+        ? get().cardSets.find((candidate) => candidate.id === card.setId)
+        : activeCardSet;
       const uniqueId = card.uniqueId || nanoid();
       merged.set(uniqueId, {
         uniqueId,
         templateId: template.id!,
         backingTemplateId: card.backingTemplateId ?? null,
         backingData: card.backingData,
-        setId: card.setId ?? activeCardSet.id,
-        setName: card.setName ?? activeCardSet.name,
+        setId: targetSet?.id ?? activeCardSet.id,
+        setName: targetSet?.name ?? card.setName ?? activeCardSet.name,
         data: card.data || {},
       });
       successCount += 1;
