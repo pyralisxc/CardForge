@@ -46,8 +46,3 @@ create trigger cardforge_cloud_sets_touch_updated_at
   before update on public.cardforge_cloud_sets
   for each row
   execute function public.cardforge_touch_updated_at();
-
-update public.cardforge_roadmap_items
-set status = 'shipped', updated_at = now()
-where source = 'official'
-  and title = 'Cloud project saves for signed-in users';
