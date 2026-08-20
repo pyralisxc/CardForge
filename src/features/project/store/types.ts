@@ -28,6 +28,7 @@ export interface OutputSlice {
   addGeneratedCards: (newCards: DisplayCard[]) => void;
   clearGeneratedCards: () => void;
   removeGeneratedCard: (cardUniqueId: string) => void;
+  moveGeneratedCardToSet: (cardUniqueId: string, setId: string) => boolean;
   updateGeneratedCard: (updatedCard: DisplayCard) => void;
   retargetGeneratedCardsTemplate: (fromTemplateId: string, toTemplateId: string) => void;
   retargetGeneratedCardsBackingTemplate: (fromTemplateId: string, toTemplateId: string) => void;
@@ -41,6 +42,7 @@ export interface SettingsSlice {
   selectedPaperSize: PaperSize;
   activeTab: string;
   richTextHighlightColor: string;
+  cardSets: CardSet[];
   activeCardSet: CardSet;
   singleCardGeneratorSelectedTemplateId: string | null;
   templateEditorSelectedTemplateId: string | null;
@@ -53,6 +55,10 @@ export interface SettingsSlice {
   setSelectedPaperSize: (size: PaperSize) => void;
   setActiveTab: (tab: string) => void;
   setRichTextHighlightColor: (color: string) => void;
+  createCardSet: (name?: string) => string;
+  setActiveCardSetId: (id: string) => void;
+  setCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
+  mergeCardSetsFromFiles: (sets: CardSet[], activeSetId?: string | null) => number;
   setActiveCardSetName: (name: string) => void;
   setActiveCardSetFrontTemplateId: (id: string | null) => void;
   setActiveCardSetBackingTemplateId: (id: string | null) => void;

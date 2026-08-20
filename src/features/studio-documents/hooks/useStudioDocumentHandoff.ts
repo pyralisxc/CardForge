@@ -140,21 +140,32 @@ export function useStudioDocumentHandoff({
           if (cancelled) return;
 
           mergeUserTemplates([templateToInstall]);
+          const projectState = useProjectStore.getState();
+          let installedCardCount = 0;
+          if (patch.storedCards.length > 0) {
+            projectState.mergeCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
+            const cardResult = mergeStoredCards(patch.storedCards);
+            installedCardCount = cardResult.successCount;
+            if (patch.activeCardSetId) useProjectStore.getState().setActiveCardSetId(patch.activeCardSetId);
+          }
           const installedTemplateId = templateToInstall.id!;
           setSelectedTemplateId(installedTemplateId);
           setTemplateEditorSelectedTemplateId(installedTemplateId);
-          setActiveTab('template-maker');
+          setActiveTab(installedCardCount > 0 ? 'generator' : 'template-maker');
 
           handledDocumentIdRef.current = documentId;
           url.searchParams.delete('document');
           url.searchParams.delete('revision');
           window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
           const revisionLabel = actualRevision ? ` revision ${actualRevision}` : '';
+          const cardLabel = installedCardCount > 0
+            ? ` ${installedCardCount} card${installedCardCount === 1 ? '' : 's'} in the agent set were also added or updated.`
+            : '';
           toast({
             title: existingTemplate ? 'Agent Template updated' : 'Agent Template installed',
             description: existingTemplate
-              ? `"${templateToInstall.name}"${revisionLabel} replaced the earlier agent revision in your personal Template library on this device.`
-              : `"${templateToInstall.name}"${revisionLabel} is now in your personal Template library on this device.`,
+              ? `"${templateToInstall.name}"${revisionLabel} replaced the earlier agent revision in your personal Template library on this device.${cardLabel}`
+              : `"${templateToInstall.name}"${revisionLabel} is now in your personal Template library on this device.${cardLabel}`,
           });
           return;
         }
@@ -174,6 +185,7 @@ export function useStudioDocumentHandoff({
           storedCards: [],
         });
         mergeUserTemplates(patch.userTemplates);
+        useProjectStore.getState().setCardSetsFromFiles(patch.cardSets, patch.activeCardSetId);
         mergeAppearanceStyles(patch.appearanceStyles);
         if (patch.selectedPaperSize) setSelectedPaperSize(patch.selectedPaperSize);
         setPdfOptions({
@@ -186,7 +198,9 @@ export function useStudioDocumentHandoff({
         if (patch.exportDpi) setExportDpi(patch.exportDpi);
         mergeStoredCards(patch.storedCards);
 
-        const firstTemplateId = patch.userTemplates.find((template) => template.id)?.id ?? null;
+        const firstTemplateId = useProjectStore.getState().activeCardSet.frontTemplateId
+          ?? patch.userTemplates.find((template) => template.id)?.id
+          ?? null;
         setSelectedTemplateId(firstTemplateId);
         setTemplateEditorSelectedTemplateId(firstTemplateId);
         setActiveTab('template-maker');

@@ -7,6 +7,7 @@ import { PackageOpen, Pencil, Search, Trash2 } from 'lucide-react';
 import { CardPreview } from '@/features/card-rendering/client';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import { ExportCardImageButton } from '@/features/card-generator/components/ExportCardImageButton';
+import { ExportCardTransferButton } from '@/features/card-generator/components/ExportCardTransferButton';
 import { ShareCardButton } from '@/features/card-generator/components/ShareCardButton';
 import {
   resolveGeneratedGalleryColumnCount,
@@ -321,6 +322,10 @@ export function GeneratedCardGallery({
                                       ? `Download card ${rowStart + cardIndex + 1}`
                                       : 'Download individual card'
                                   }
+                                />
+                                <ExportCardTransferButton
+                                  cardUniqueId={cardItem.uniqueId}
+                                  ariaLabel={hasRepeatedExportButtons ? `Export editable card ${rowStart + cardIndex + 1}` : 'Export editable card'}
                                 />
                                 <Button
                                   type="button"

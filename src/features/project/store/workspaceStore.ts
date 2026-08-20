@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 
+import { reconcileCardSets, resolveActiveCardSet } from '@/domain/cards';
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 
 import {
@@ -35,6 +36,7 @@ type WorkspacePersistedState = Pick<
   | 'selectedPaperSize'
   | 'activeTab'
   | 'richTextHighlightColor'
+  | 'cardSets'
   | 'activeCardSet'
   | 'singleCardGeneratorSelectedTemplateId'
   | 'templateEditorSelectedTemplateId'
@@ -64,39 +66,54 @@ let hydratedPersistenceScope: ProjectPersistenceScope | null = null;
 const createLifecycleSlice: StateCreator<ProjectState, [], [], WorkspaceLifecycleSlice> = (set, get) => ({
   _rehydrateCallback: () => {
     const state = get();
-    const activeCardSet = state.activeCardSet || createDefaultActiveCardSet();
+    const fallbackSet = createDefaultActiveCardSet();
+    const cardSets = reconcileCardSets({
+      cardSets: Array.isArray(state.cardSets) ? state.cardSets : [],
+      activeCardSet: state.activeCardSet,
+      storedCards: state.storedCards,
+      fallback: fallbackSet,
+    });
+    const requestedActiveSet = resolveActiveCardSet({
+      cardSets,
+      preferredId: state.activeCardSet?.id,
+      fallback: fallbackSet,
+    });
     const templates = selectAllTemplates(state);
     const currentId = resolveGeneratorFrontTemplateId(
       templates,
-      activeCardSet.frontTemplateId || state.singleCardGeneratorSelectedTemplateId,
+      requestedActiveSet.frontTemplateId || state.singleCardGeneratorSelectedTemplateId,
     );
     const frontTemplate = templates.find((template) => template.id === currentId);
     const backTemplate = templates.find((template) => (
-      template.id === activeCardSet.backingTemplateId && template.templateUsage === 'back-preset'
+      template.id === requestedActiveSet.backingTemplateId && template.templateUsage === 'back-preset'
     ));
     const backingTemplateId = frontTemplate && backTemplate && areTemplateFormatsCompatible(frontTemplate, backTemplate)
       ? backTemplate.id ?? null
       : null;
+    const activeCardSet = {
+      ...requestedActiveSet,
+      frontTemplateId: currentId,
+      backingTemplateId,
+    };
+    const nextCardSets = cardSets.map((candidate) => candidate.id === activeCardSet.id ? activeCardSet : candidate);
     const templateEditorSelectedTemplateId = state.templateEditorSelectedTemplateId
       && templates.some((template) => template.id === state.templateEditorSelectedTemplateId)
       ? state.templateEditorSelectedTemplateId
       : currentId ?? templates[0]?.id ?? null;
 
     if (
-      state.activeCardSet !== activeCardSet
+      JSON.stringify(state.cardSets ?? []) !== JSON.stringify(nextCardSets)
+      || state.activeCardSet?.id !== activeCardSet.id
       || state.singleCardGeneratorSelectedTemplateId !== currentId
-      || activeCardSet.frontTemplateId !== currentId
-      || activeCardSet.backingTemplateId !== backingTemplateId
+      || state.activeCardSet?.frontTemplateId !== currentId
+      || state.activeCardSet?.backingTemplateId !== backingTemplateId
       || state.templateEditorSelectedTemplateId !== templateEditorSelectedTemplateId
     ) {
       set({
+        cardSets: nextCardSets,
         singleCardGeneratorSelectedTemplateId: currentId,
         templateEditorSelectedTemplateId,
-        activeCardSet: {
-          ...activeCardSet,
-          frontTemplateId: currentId,
-          backingTemplateId,
-        },
+        activeCardSet,
       });
     }
 
@@ -128,6 +145,7 @@ export const useProjectStore = create<ProjectState>()(
           selectedPaperSize: state.selectedPaperSize,
           activeTab: normalizeActiveTab(state.activeTab),
           richTextHighlightColor: state.richTextHighlightColor,
+          cardSets: state.cardSets,
           activeCardSet: state.activeCardSet,
           singleCardGeneratorSelectedTemplateId: state.singleCardGeneratorSelectedTemplateId,
           templateEditorSelectedTemplateId: state.templateEditorSelectedTemplateId,

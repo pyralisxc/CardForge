@@ -8,11 +8,21 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 describe('Studio MCP creative production flow', () => {
   const route = readSource('src/app/mcp/route.ts');
   const schemas = readSource('src/features/studio-documents/server/mcpToolInputSchemas.ts');
-  const agentSchemas = readSource('src/features/studio-documents/server/agentTemplateToolSchemas.ts');
-  const agentTools = readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts');
+  const agentSchemas = [
+    readSource('src/features/studio-documents/server/agentTemplateToolSchemas.ts'),
+    readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts'),
+  ].join('\n');
+  const agentTools = [
+    readSource('src/features/studio-documents/server/mcpAgentTemplateTools.ts'),
+    readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts'),
+    readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
+  ].join('\n');
   const creationLibrary = readSource('src/features/studio-documents/server/studioCreationLibrary.ts');
   const validation = readSource('src/features/studio-documents/templateDraftSchema.ts');
-  const revisions = readSource('src/features/studio-documents/server/developerTemplateDrafts.ts');
+  const revisions = [
+    readSource('src/features/studio-documents/server/developerTemplateDrafts.ts'),
+    readSource('src/features/studio-documents/server/developerCardSetDrafts.ts'),
+  ].join('\n');
   const projectDocument = readSource('src/features/project/model/projectDocument.ts');
   const generatorFieldInput = readSource('src/features/card-generator/components/GeneratorFieldInput.tsx');
 
@@ -28,6 +38,21 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('preview_template_draft');
     expect(agentTools).toContain("'attach_template_artwork'");
     expect(agentTools).toContain("'preview_template_draft'");
+  });
+
+  it('exposes exact-contract set, individual-card, and bulk-card authoring through the same Studio document', () => {
+    expect(agentTools).toContain("'get_card_generation_contract'");
+    expect(agentTools).toContain("'upsert_card_set'");
+    expect(agentTools).toContain("'upsert_card'");
+    expect(agentTools).toContain("'upsert_cards'");
+    expect(agentTools).toContain("'attach_card_artwork'");
+    expect(agentTools).toContain("'preview_card_set'");
+    expect(agentTools).toContain('Never guess card columns or image keys');
+    expect(revisions).toContain('createBulkImportContract');
+    expect(revisions).toContain('extractTemplateFieldDefinitions');
+    expect(revisions).toContain('updateStudioDocument({');
+    expect(projectDocument).toContain('cardSets: CardSet[]');
+    expect(projectDocument).toContain('activeCardSetId?: string');
   });
 
   it('resolves quality once, inventories high-value visual slots, and locks accepted planning', () => {
@@ -74,6 +99,7 @@ describe('Studio MCP creative production flow', () => {
     expect(schemas).not.toContain('additionalProperties: true');
     expect(agentSchemas).toContain('additionalProperties: false');
     expect(agentSchemas).toContain('PROJECT_ASSET_BINDINGS');
+    expect(agentSchemas).toContain('maxItems: 100');
     expect(route).not.toContain('fromJsonSchema');
   });
 
@@ -97,12 +123,12 @@ describe('Studio MCP creative production flow', () => {
     expect(agentTools).toContain('attachDeveloperTemplateDraftAsset');
   });
 
-  it('persists the production plan in the canonical project and revises through existing optimistic document authority', () => {
+  it('persists the production plan and sets in the canonical project while revising through optimistic document authority', () => {
     expect(projectDocument).toContain('productionPlan?: ProjectProductionPlan');
     expect(projectDocument).toContain('productionPlan: normalizeProjectProductionPlan(value.productionPlan)');
+    expect(projectDocument).toContain('cardSets: CardSet[]');
     expect(revisions).toContain('updateDeveloperTemplateDraft');
     expect(revisions).toContain('preserveEmbeddedTemplateAssets');
-    expect(revisions).toContain('updateStudioDocument({');
     expect(revisions).toContain('expectedRevision');
     expect(revisions).toContain('productionPlan: preserved.productionPlan');
   });

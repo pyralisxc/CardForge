@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BulkGenerator } from '@/features/card-generator/components/BulkGenerator';
+import { CardSetManager } from '@/features/card-generator/components/CardSetManager';
 import { CardWatermarkOverlay } from '@/features/card-rendering/client';
 import { ExportControlsPanel } from '@/features/card-generator/components/ExportControlsPanel';
 import { GeneratedCardGallery, type GeneratedGallerySort } from '@/features/card-generator/components/GeneratedCardGallery';
@@ -214,6 +215,7 @@ export function GenerationWorkspace({
               <p className="text-xs text-muted-foreground">Choose the front design and card back for this set.</p>
             </div>
           </div>
+          <CardSetManager />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
             <div>
               <Label htmlFor="active-card-set-name">Set name</Label>
