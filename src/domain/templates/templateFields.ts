@@ -4,10 +4,10 @@ import {
   buildScopedFieldDataKey,
   buildStaticSegmentFieldKey,
   extractUniquePlaceholderKeys,
-  getImageFieldKeyForElement,
   parseTemplateTextSegments,
   parseTextBinding,
 } from '@/domain/rendering';
+import { getGeneratorImageFieldKeyForElement } from '@/domain/rendering/textBindings';
 import { getDefaultAllowedFormatting, resolveFieldContractV1 } from '@/domain/templates/fieldContracts';
 
 export type TemplateFieldControl = 'input' | 'textarea';
@@ -67,7 +67,8 @@ const getTemplateImageFieldKeys = (template: TCGCardTemplate): Set<string> => {
   const imageKeys = new Set<string>();
   template.freeformCanvas?.elements?.forEach((element) => {
     if (element.type !== 'image') return;
-    imageKeys.add(getImageFieldKeyForElement(element));
+    const imageFieldKey = getGeneratorImageFieldKeyForElement(template, element);
+    if (imageFieldKey) imageKeys.add(imageFieldKey);
   });
   return imageKeys;
 };
@@ -226,7 +227,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         required: resolvedContract.required,
         isImage: false,
         isMultiline: resolvedContract.multiline,
-        supportsRichText: true,
+        supportsRichText: resolvedContract.allowedFormatting.length > 0,
         contractType: resolvedContract.type,
         description: resolvedContract.description,
         example: resolvedContract.example,
@@ -297,7 +298,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
       required: resolvedContract.required,
       isImage,
       isMultiline: resolvedContract.multiline,
-      supportsRichText: !isImage,
+      supportsRichText: !isImage && resolvedContract.allowedFormatting.length > 0,
       contractType: resolvedContract.type,
       description: resolvedContract.description,
       example: resolvedContract.example,
@@ -341,6 +342,7 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
     nonEmptyStaticSegments.forEach(({ segment, index }, staticSegmentPosition) => {
       const key = buildStaticSegmentFieldKey(element.id, index);
       const contract = contractMap.get(key);
+      const allowedFormatting = contract?.allowedFormatting ?? getDefaultAllowedFormatting(contentModel);
       const multipleStaticSegments = nonEmptyStaticSegments.length > 1;
       const baseLabel = multipleStaticSegments
         ? `${element.name || 'Text'} Base ${staticSegmentPosition + 1}`
@@ -355,12 +357,12 @@ export function extractTemplateFieldDefinitions(template?: TCGCardTemplate): Tem
         required: false,
         isImage: false,
         isMultiline: true,
-        supportsRichText: true,
+        supportsRichText: allowedFormatting.length > 0,
         contractType: contract?.type ?? 'text',
         description: contract?.description,
         example: contract?.example,
         maxLength: contract?.maxLength,
-        allowedFormatting: contract?.allowedFormatting ?? getDefaultAllowedFormatting(contentModel),
+        allowedFormatting,
         sourceElementId: element.id,
         sourceElementName: element.name,
         sourceElementPreview: element.name,
