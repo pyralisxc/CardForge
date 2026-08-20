@@ -7,7 +7,7 @@ import {
   createProjectDocumentFromState,
   parseProjectDocumentValue,
   type ProjectDocumentV1,
-} from '@/features/project/server';
+} from '@/features/project/client/model';
 import {
   gptTemplateDraftInputSchema,
   projectProductionPlanSchema,
