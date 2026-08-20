@@ -24,8 +24,9 @@ export default async function AccountPage() {
     getCachedBusinessIdentity(),
     getCachedPublicSiteConfiguration(),
   ]);
+  const authConfigured = entitlement.authConfigured;
   const persistenceScope = createProjectPersistenceScope({
-    authConfigured: entitlement.authConfigured,
+    authConfigured,
     accountUserId: entitlement.accountUserId,
   });
 
@@ -33,13 +34,13 @@ export default async function AccountPage() {
     <CardForgeAppProviders scope="shell">
       <div className="cardforge-public-tokens">
         <PublicSiteHeader
-          accountSlot={entitlement.authConfigured ? <DeveloperPublicAuthSlot /> : undefined}
+          accountSlot={authConfigured ? <DeveloperPublicAuthSlot /> : undefined}
           businessIdentity={businessIdentity}
           currentPath="/account"
           siteConfiguration={siteConfiguration}
         />
       </div>
-      <AccountProfilePage initialAuthConfigured={entitlement.authConfigured} />
+      <AccountProfilePage initialAuthConfigured={authConfigured} />
       <AccountStorageLibrary
         persistenceScope={persistenceScope}
         isSignedIn={entitlement.isSignedIn}
