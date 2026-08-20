@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Cloud,
   CloudDownload,
@@ -51,6 +52,7 @@ interface AccountStorageLibraryProps {
   persistenceScope: ProjectPersistenceScope;
   isSignedIn: boolean;
   cloudSetLimit: number;
+  embedded?: boolean;
 }
 
 const emptyCustomAssets = (): ProjectDocumentCustomAssets => ({
@@ -122,8 +124,10 @@ export function AccountStorageLibrary({
   persistenceScope,
   isSignedIn,
   cloudSetLimit,
+  embedded = false,
 }: AccountStorageLibraryProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [deviceHealth, setDeviceHealth] = useState<BrowserStorageHealth | null>(null);
@@ -278,8 +282,8 @@ export function AccountStorageLibrary({
 
   const openLocalSet = useCallback((setId: string) => {
     useProjectStore.getState().setActiveCardSetId(setId);
-    window.location.assign('/studio');
-  }, []);
+    router.push('/studio');
+  }, [router]);
 
   const deleteWorkingDraft = useCallback(async (document: StudioDocumentSummary) => {
     setDeletingDocumentId(document.id);
@@ -303,7 +307,7 @@ export function AccountStorageLibrary({
   }, [refreshDocuments, toast]);
 
   return (
-    <section className="mx-auto max-w-4xl px-4 pb-8 md:px-6" aria-labelledby="storage-library-title">
+    <section className={embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'} aria-labelledby="storage-library-title">
       <div className="border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
