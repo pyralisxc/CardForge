@@ -137,7 +137,7 @@ export const registerAgentCardTools = ({
       const result = await upsertDeveloperCards({ access, documentId, expectedRevision, setId, cards });
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: `${bulk ? 'Bulk' : 'Card'} update completed for "${result.set.name}". ${result.updatedIds.length} card${result.updatedIds.length === 1 ? '' : 's'} added or revised in Studio document revision ${result.document.revision}.`,
         }],
         structuredContent: {
