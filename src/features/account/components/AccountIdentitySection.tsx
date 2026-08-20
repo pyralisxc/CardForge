@@ -39,12 +39,12 @@ export function AccountIdentitySection({
         <div className="flex items-start gap-3">
           <FolderOpen className="mt-0.5 h-5 w-5 shrink-0 text-[#e2aa4a]" aria-hidden="true" />
           <div>
-            <h2 className="font-serif text-lg text-[#fff1c7]">Your work stays with you</h2>
+            <h2 className="font-serif text-lg text-[#fff1c7]">Your work, your choice</h2>
             <p
               className="mt-1 text-sm leading-5 text-[#c7b288]"
-              title="CardForge keeps projects and personal uploads in this browser until you choose to export or share them."
+              title="CardForge keeps your normal workspace on this device. When you sign in, you can explicitly back up selected sets to private account cloud slots for cross-device access and ChatGPT discovery."
             >
-              Your projects and personal uploads stay on this device unless you choose to export or share them.
+              Your normal workspace stays on this device. Sign in to explicitly back up selected sets to your private CardForge cloud library when you want cross-device access.
             </p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#a98a55]">Your plan</p>
             <p className="mt-1 text-sm text-[#ffe7ad]">{planLabel}</p>
