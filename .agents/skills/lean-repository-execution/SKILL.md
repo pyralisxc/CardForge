@@ -40,7 +40,7 @@ If question 2 has no concrete answer, do not add a wrapper, cache, reconciliatio
 3. **Implement cohesive batches.** Work inline by default. Do not use subagents for ordinary implementation. Use one only for independent investigation or high-risk/cross-owner final review.
 4. **Commit milestones.** Commit coherent outcomes, not every adjustment, test fix, or review note. When working through remote GitHub APIs instead of a local worktree, prepare related blobs/tree entries first, create one commit for the milestone, then move the branch once. Never use one-file-at-a-time commit creation as the normal edit loop.
 5. **Keep context lean.** Summarize routine tool output and retain only evidence that changes a decision, proves a check, or explains a failure.
-6. **Use hosted previews intentionally.** GitHub CI is the deterministic code-health loop. Vercel Preview is the live browser/integration check for a coherent deployable branch head. Default to one initial preview and only meaningful follow-up previews after relevant fixes; do not push no-op, incomplete, or test-only commits just to retrigger hosted status.
+6. **Use hosted previews intentionally.** GitHub CI is the deterministic code-health loop. Vercel Preview is the live browser/integration check for a coherent deployable branch head. Default to one initial preview and only meaningful follow-up previews after relevant fixes; do not push no-op, incomplete, or test-only commits just to retrigger hosted status. Repository `vercel.json` ignores hosted builds only when the complete diff is limited to `docs/**`, `tests/**`, `.agents/**`, `AGENTS.md`, or `README.md`; do not add an unrelated runtime file merely to force a Preview.
 
 ## Hard budgets
 
