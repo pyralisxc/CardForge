@@ -28,16 +28,14 @@ const readLinks = (): AgentTemplateLinks => {
   try {
     const parsed = JSON.parse(storage.getItem(AGENT_TEMPLATE_LINKS_STORAGE_KEY) || '{}') as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>).flatMap(([templateId, value]) => {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
-        const record = value as Record<string, unknown>;
-        if (typeof record.documentId !== 'string' || !Number.isInteger(record.revision) || Number(record.revision) < 1) {
-          return [];
-        }
-        return [[templateId, { documentId: record.documentId, revision: Number(record.revision) }]];
-      }),
-    );
+    const links: AgentTemplateLinks = {};
+    Object.entries(parsed as Record<string, unknown>).forEach(([templateId, value]) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+      const record = value as Record<string, unknown>;
+      if (typeof record.documentId !== 'string' || !Number.isInteger(record.revision) || Number(record.revision) < 1) return;
+      links[templateId] = { documentId: record.documentId, revision: Number(record.revision) };
+    });
+    return links;
   } catch {
     return {};
   }
@@ -73,12 +71,55 @@ export const getAgentTemplateLink = (templateId: string): AgentTemplateLink | nu
   readLinks()[templateId] ?? null
 );
 
+const discoverAgentTemplateLink = async (templateId: string): Promise<AgentTemplateLink | null> => {
+  const response = await fetch('/api/studio-documents', {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response, 'Unable to look up linked ChatGPT working drafts.'));
+  }
+  const payload = await response.json() as {
+    documents?: Array<{
+      id?: unknown;
+      creationSource?: StudioDocumentSource;
+      revision?: unknown;
+      updatedAt?: unknown;
+    }>;
+  };
+  const candidates = (payload.documents ?? [])
+    .filter((document) => document.creationSource === 'gpt' && typeof document.id === 'string' && Number.isInteger(document.revision))
+    .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')))
+    .slice(0, 20);
+
+  for (const candidate of candidates) {
+    const documentId = String(candidate.id);
+    const documentResponse = await fetch(`/api/studio-documents/${encodeURIComponent(documentId)}`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    if (!documentResponse.ok) continue;
+    const documentPayload = await documentResponse.json() as {
+      document?: { revision?: unknown; document?: unknown };
+    };
+    const revision = Number.isInteger(documentPayload.document?.revision)
+      ? Number(documentPayload.document?.revision)
+      : null;
+    const project = normalizeStudioDocumentPayload(documentPayload.document?.document);
+    if (revision === null || !project?.userTemplates.some((template) => template.id === templateId)) continue;
+    rememberAgentTemplateLink(templateId, documentId, revision);
+    return { documentId, revision };
+  }
+
+  return null;
+};
+
 export const syncAgentTemplateSave = async (
   template: TCGCardTemplate,
 ): Promise<AgentTemplateSyncResult> => {
   const templateId = template.id?.trim();
   if (!templateId) return { status: 'unlinked' };
-  const link = getAgentTemplateLink(templateId);
+  const link = getAgentTemplateLink(templateId) ?? await discoverAgentTemplateLink(templateId);
   if (!link) return { status: 'unlinked' };
 
   const response = await fetch(`/api/studio-documents/${encodeURIComponent(link.documentId)}`, {
