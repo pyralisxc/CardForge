@@ -1,4 +1,4 @@
-import { deleteCloudSet, getCloudSet } from '@/features/project/server';
+import { CloudSetStoreError, deleteCloudSet, getCloudSet } from '@/features/project/server';
 import { createNoStoreJsonResponse } from '@/infrastructure/http/apiResponses';
 import { getCloudSetAccount, toCloudSetErrorResponse } from '../_helpers';
 
@@ -15,7 +15,7 @@ export async function GET(
 ) {
   try {
     const setId = await readSetId(context);
-    if (!setId) throw new Error('A valid cloud set id is required.');
+    if (!setId) throw new CloudSetStoreError('A valid cloud set id is required.', 400);
     const account = await getCloudSetAccount();
     return createNoStoreJsonResponse(await getCloudSet(account.ownerUserId, setId));
   } catch (error) {
@@ -29,7 +29,7 @@ export async function DELETE(
 ) {
   try {
     const setId = await readSetId(context);
-    if (!setId) throw new Error('A valid cloud set id is required.');
+    if (!setId) throw new CloudSetStoreError('A valid cloud set id is required.', 400);
     const account = await getCloudSetAccount();
     await deleteCloudSet(account.ownerUserId, setId);
     return createNoStoreJsonResponse({ ok: true });
