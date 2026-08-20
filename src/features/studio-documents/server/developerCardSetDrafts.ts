@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import { areTemplateFormatsCompatible } from '@/domain/card-formats';
 import type { CardData, CardSet, StoredDisplayCard } from '@/domain/cards';
-import { extractTemplateFieldDefinitions, type TCGCardTemplate } from '@/domain/templates';
+import {
+  extractTemplateFieldDefinitions,
+  materializeTemplateFieldBindings,
+  type TCGCardTemplate,
+} from '@/domain/templates';
 import {
   createBulkExampleJson,
   createBulkFaceFieldDefinitions,
@@ -21,6 +25,10 @@ export interface AgentCardInput {
   data: CardData;
   backingData?: CardData;
 }
+
+const materializeGenerationTemplates = (templates: TCGCardTemplate[]): TCGCardTemplate[] => (
+  templates.map(materializeTemplateFieldBindings)
+);
 
 const selectFrontTemplate = (templates: TCGCardTemplate[], templateId?: string | null): TCGCardTemplate => {
   const template = templateId
@@ -94,10 +102,11 @@ export const getDeveloperCardGenerationContract = async ({
 }) => {
   requireContributionScope(access, 'studio.ai.create');
   const document = await getStudioDocument(access.user.id, documentId);
+  const templates = materializeGenerationTemplates(document.document.userTemplates);
   const set = setId ? requireSet(document.document.cardSets, setId) : document.document.cardSets[0];
-  const front = selectFrontTemplate(document.document.userTemplates, set?.frontTemplateId);
+  const front = selectFrontTemplate(templates, set?.frontTemplateId);
   const back = set?.backingTemplateId
-    ? selectBackTemplate(document.document.userTemplates, front, set.backingTemplateId)
+    ? selectBackTemplate(templates, front, set.backingTemplateId)
     : null;
   const frontFields = getCardFields(front);
   const backFields = back ? getCardFields(back) : [];
@@ -133,6 +142,7 @@ export const upsertDeveloperCardSet = async ({
 }) => {
   requireContributionScope(access, 'studio.ai.create');
   const current = await getStudioDocument(access.user.id, documentId);
+  const templates = materializeGenerationTemplates(current.document.userTemplates);
   const explicitExisting = setId ? current.document.cardSets.find((candidate) => candidate.id === setId) : null;
   const disposableFallback = !setId
     && current.document.cardSets.length === 1
@@ -140,8 +150,8 @@ export const upsertDeveloperCardSet = async ({
     ? current.document.cardSets[0]
     : null;
   const existing = explicitExisting ?? disposableFallback;
-  const front = selectFrontTemplate(current.document.userTemplates, frontTemplateId ?? existing?.frontTemplateId);
-  const back = selectBackTemplate(current.document.userTemplates, front, backingTemplateId ?? existing?.backingTemplateId);
+  const front = selectFrontTemplate(templates, frontTemplateId ?? existing?.frontTemplateId);
+  const back = selectBackTemplate(templates, front, backingTemplateId ?? existing?.backingTemplateId);
   const nextSet: CardSet = {
     id: explicitExisting?.id ?? setId?.trim() ?? `set-${randomUUID()}`,
     name: name.trim() || explicitExisting?.name || 'Untitled Set',
@@ -171,6 +181,7 @@ export const upsertDeveloperCardSet = async ({
     title: current.title,
     document: {
       ...current.document,
+      userTemplates: templates,
       cardSets: sets,
       activeCardSetId: nextSet.id,
       storedCards,
@@ -193,10 +204,11 @@ export const upsertDeveloperCards = async ({
 }) => {
   requireContributionScope(access, 'studio.ai.create');
   const current = await getStudioDocument(access.user.id, documentId);
+  const templates = materializeGenerationTemplates(current.document.userTemplates);
   const set = requireSet(current.document.cardSets, setId);
-  const front = selectFrontTemplate(current.document.userTemplates, set.frontTemplateId);
+  const front = selectFrontTemplate(templates, set.frontTemplateId);
   const back = set.backingTemplateId
-    ? selectBackTemplate(current.document.userTemplates, front, set.backingTemplateId)
+    ? selectBackTemplate(templates, front, set.backingTemplateId)
     : null;
   const byId = new Map(current.document.storedCards.map((card) => [card.uniqueId, card]));
   const updatedIds: string[] = [];
@@ -225,6 +237,7 @@ export const upsertDeveloperCards = async ({
     title: current.title,
     document: {
       ...current.document,
+      userTemplates: templates,
       activeCardSetId: set.id,
       storedCards: Array.from(byId.values()),
     },
@@ -253,13 +266,14 @@ export const attachDeveloperCardArtwork = async ({
 }) => {
   requireContributionScope(access, 'studio.ai.create');
   const current = await getStudioDocument(access.user.id, documentId);
+  const templates = materializeGenerationTemplates(current.document.userTemplates);
   const cardIndex = current.document.storedCards.findIndex((card) => card.uniqueId === cardId);
   const card = current.document.storedCards[cardIndex];
   if (!card) throw new StudioDocumentStoreError('That card is not part of this Studio document.', 404);
   const set = requireSet(current.document.cardSets, card.setId ?? current.document.activeCardSetId ?? '');
-  const front = selectFrontTemplate(current.document.userTemplates, set.frontTemplateId);
+  const front = selectFrontTemplate(templates, set.frontTemplateId);
   const back = set.backingTemplateId
-    ? selectBackTemplate(current.document.userTemplates, front, set.backingTemplateId)
+    ? selectBackTemplate(templates, front, set.backingTemplateId)
     : null;
   const template = face === 'back' ? back : front;
   if (!template) throw new StudioDocumentStoreError('This set does not have a card-back Template.', 409);
@@ -275,6 +289,10 @@ export const attachDeveloperCardArtwork = async ({
     documentId,
     expectedRevision,
     title: current.title,
-    document: { ...current.document, storedCards: cards },
+    document: {
+      ...current.document,
+      userTemplates: templates,
+      storedCards: cards,
+    },
   });
 };

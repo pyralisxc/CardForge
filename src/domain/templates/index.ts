@@ -33,6 +33,7 @@ export * from './constants';
 export * from './templateFactory';
 export * from './templateValidation';
 export * from './fieldContracts';
+export * from './materializeFieldBindings';
 export * from './templateFields';
 export * from './display';
 export * from './editorGeometry';
