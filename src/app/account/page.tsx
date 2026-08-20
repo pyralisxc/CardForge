@@ -40,13 +40,20 @@ export default async function AccountPage() {
           siteConfiguration={siteConfiguration}
         />
       </div>
-      <AccountProfilePage initialAuthConfigured={authConfigured} />
-      <AccountStorageLibrary
-        persistenceScope={persistenceScope}
-        isSignedIn={entitlement.isSignedIn}
-        cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+      <AccountProfilePage
+        initialAuthConfigured={authConfigured}
+        storageLibrary={(
+          <AccountStorageLibrary
+            embedded
+            persistenceScope={persistenceScope}
+            isSignedIn={entitlement.isSignedIn}
+            cloudSetLimit={entitlement.capabilities.cloudSetLimit}
+          />
+        )}
+        cloudStorageDetails={(
+          <AccountCloudStorageBreakdown embedded isSignedIn={entitlement.isSignedIn} />
+        )}
       />
-      <AccountCloudStorageBreakdown isSignedIn={entitlement.isSignedIn} />
     </CardForgeAppProviders>
   );
 }

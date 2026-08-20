@@ -12,7 +12,13 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / 1024 / 1024).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
 };
 
-export function AccountCloudStorageBreakdown({ isSignedIn }: { isSignedIn: boolean }) {
+export function AccountCloudStorageBreakdown({
+  isSignedIn,
+  embedded = false,
+}: {
+  isSignedIn: boolean;
+  embedded?: boolean;
+}) {
   const { toast } = useToast();
   const { cloud, isLoadingCloudSets } = useCloudSetActions({ toast, enabled: isSignedIn });
   const totalBytes = useMemo(() => (cloud?.sets ?? []).reduce((sum, set) => sum + set.storageBytes, 0), [cloud?.sets]);
@@ -20,7 +26,7 @@ export function AccountCloudStorageBreakdown({ isSignedIn }: { isSignedIn: boole
   if (!isSignedIn) return null;
 
   return (
-    <section className="mx-auto max-w-4xl px-4 pb-8 md:px-6" aria-labelledby="cloud-space-title">
+    <section className={embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'} aria-labelledby="cloud-space-title">
       <div className="border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
         <div className="flex items-center gap-2 text-[#e2aa4a]">
           <Cloud className="h-4 w-4" />
