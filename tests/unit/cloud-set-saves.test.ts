@@ -82,8 +82,7 @@ describe('cloud set saves', () => {
     expect(migration).toContain('false,');
     expect(migration).toContain('8388608');
     expect(migration).toContain('storage_bytes between 0 and 134217728');
-    expect(migration).toContain("title = 'Cloud project saves for signed-in users'");
-    expect(migration).toContain("status = 'shipped'");
+    expect(migration).not.toContain("status = 'shipped'");
   });
 
   it('keeps large artwork off Vercel function bodies by using signed Storage uploads', () => {
