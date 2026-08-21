@@ -1,4 +1,4 @@
-export const PRIMARY_NAVIGATION_IDS = ['about', 'roadmap', 'account'] as const;
+export const PRIMARY_NAVIGATION_IDS = ['about', 'plans', 'roadmap', 'account'] as const;
 export const HOMEPAGE_SECTION_IDS = ['showcase', 'workflow', 'access', 'founder', 'final_cta'] as const;
 
 export type PrimaryNavigationId = typeof PRIMARY_NAVIGATION_IDS[number];
@@ -34,12 +34,14 @@ export interface PublicSiteConfiguration {
 
 const NAVIGATION_ROUTES: Record<PrimaryNavigationId, string> = {
   about: '/about',
+  plans: '/plans',
   roadmap: '/roadmap',
   account: '/account',
 };
 
 const DEFAULT_NAVIGATION_LABELS: Record<PrimaryNavigationId, string> = {
   about: 'How it works',
+  plans: 'Plans',
   roadmap: 'Roadmap',
   account: 'Account',
 };
@@ -143,6 +145,14 @@ const normalizeHomepageSections = (value: unknown): HomepageSectionSetting[] => 
     ...HOMEPAGE_SECTION_IDS.filter((id) => !used.has(id)).map((id) => ({ id, visible: true })),
   ];
 };
+
+export const completePublicSiteConfiguration = (
+  configuration: PublicSiteConfiguration,
+): PublicSiteConfiguration => ({
+  ...configuration,
+  primaryNavigation: normalizeNavigation(configuration.primaryNavigation),
+  homepageSections: normalizeHomepageSections(configuration.homepageSections),
+});
 
 export const hydratePublicSiteConfiguration = (
   row: Record<string, unknown> | null | undefined,

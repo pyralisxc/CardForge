@@ -12,6 +12,7 @@ export function AccountBillingActions({
   canManageBilling,
   effectiveSignedIn,
   checkoutLabel,
+  portalLabel = 'Manage or change plan',
   showDesignerCheckout = false,
   showCheckout,
 }: {
@@ -19,6 +20,7 @@ export function AccountBillingActions({
   canManageBilling: boolean;
   effectiveSignedIn: boolean;
   checkoutLabel: string;
+  portalLabel?: string;
   showDesignerCheckout?: boolean;
   showCheckout: boolean;
 }) {
@@ -44,7 +46,7 @@ export function AccountBillingActions({
           disabled={isBillingPortalOpening}
         >
           <ReceiptText className="mr-2 h-5 w-5" />
-          {isBillingPortalOpening ? 'Opening billing...' : 'Manage billing'}
+          {isBillingPortalOpening ? 'Opening billing...' : portalLabel}
         </Button>
       ) : null}
       {showCheckout ? (

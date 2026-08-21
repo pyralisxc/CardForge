@@ -103,8 +103,8 @@ describe('billing', () => {
       customer_email: 'maker@example.com',
       client_reference_id: 'user_123',
       line_items: [{ price: 'price_123', quantity: 1 }],
-      success_url: 'https://cardforge.example/account?checkout=success',
-      cancel_url: 'https://cardforge.example/account?checkout=cancelled',
+      success_url: 'https://cardforge.example/account?checkout=success#account-and-billing',
+      cancel_url: 'https://cardforge.example/account?checkout=cancelled#account-and-billing',
       metadata: {
         clerkUserId: 'user_123',
         billingPurpose: 'product_access',

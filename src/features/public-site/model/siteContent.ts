@@ -1,4 +1,4 @@
-export type SiteContentGroup = 'shell' | 'landing' | 'about' | 'founder' | 'developer' | 'roadmap' | 'sharing';
+export type SiteContentGroup = 'shell' | 'landing' | 'plans' | 'about' | 'founder' | 'developer' | 'roadmap' | 'sharing';
 export type SiteContentKind = 'short' | 'long';
 
 type SiteContentDefinition = {
@@ -43,6 +43,22 @@ export const SITE_CONTENT_DEFINITIONS = [
   { slug: 'landing.founder.action', group: 'landing', section: 'Founder introduction', label: 'Link text', body: 'Come say hello', kind: 'short', maxLength: 80 },
   { slug: 'landing.final.headline', group: 'landing', section: 'Final action', label: 'Headline', body: 'Build your first set.', kind: 'short', maxLength: 140 },
   { slug: 'landing.final.body', group: 'landing', section: 'Final action', label: 'Introduction', body: 'Open the Studio, choose a starting point, and make something that feels like yours.', kind: 'long', maxLength: 350 },
+
+  { slug: 'plans.meta.title', group: 'plans', section: 'Search & sharing', label: 'Page title', body: 'CardForge Plans', kind: 'short', maxLength: 100 },
+  { slug: 'plans.meta.description', group: 'plans', section: 'Search & sharing', label: 'Page description', body: 'Compare CardForge Studio plans, ChatGPT plugin capacity, private workspace storage, and subscription options.', kind: 'long', maxLength: 200 },
+  { slug: 'plans.hero.eyebrow', group: 'plans', section: 'Hero', label: 'Eyebrow', body: 'CardForge plans', kind: 'short', maxLength: 100 },
+  { slug: 'plans.hero.headline', group: 'plans', section: 'Hero', label: 'Headline', body: 'Choose the plan that fits how you create.', kind: 'short', maxLength: 180 },
+  { slug: 'plans.hero.body', group: 'plans', section: 'Hero', label: 'Introduction', body: 'Start in the full browser Studio, then add finished exports, portable project files, and more CardForge for ChatGPT capacity when your workflow needs them.', kind: 'long', maxLength: 500 },
+  { slug: 'plans.compare.heading', group: 'plans', section: 'Plan comparison', label: 'Heading', body: 'See what every plan includes', kind: 'short', maxLength: 160 },
+  { slug: 'plans.compare.body', group: 'plans', section: 'Plan comparison', label: 'Introduction', body: 'Prices, plan names, included features, ChatGPT plugin actions, storage allowances, visibility, and actions are controlled from the Owner Console.', kind: 'long', maxLength: 400 },
+  { slug: 'plans.process.heading', group: 'plans', section: 'Subscription process', label: 'Heading', body: 'A straightforward subscription journey', kind: 'short', maxLength: 160 },
+  { slug: 'plans.process.account.title', group: 'plans', section: 'Subscription process', label: 'Account step title', body: 'Create your account', kind: 'short', maxLength: 100 },
+  { slug: 'plans.process.account.body', group: 'plans', section: 'Subscription process', label: 'Account step description', body: 'Your CardForge account keeps plan access, private cloud saves, ChatGPT plugin usage, and billing status together.', kind: 'long', maxLength: 320 },
+  { slug: 'plans.process.subscribe.title', group: 'plans', section: 'Subscription process', label: 'Subscribe step title', body: 'Subscribe securely', kind: 'short', maxLength: 100 },
+  { slug: 'plans.process.subscribe.body', group: 'plans', section: 'Subscription process', label: 'Subscribe step description', body: 'Choose Creator or Designer in Account, then complete payment through Stripe Checkout.', kind: 'long', maxLength: 320 },
+  { slug: 'plans.process.manage.title', group: 'plans', section: 'Subscription process', label: 'Manage step title', body: 'Change it when you need to', kind: 'short', maxLength: 100 },
+  { slug: 'plans.process.manage.body', group: 'plans', section: 'Subscription process', label: 'Manage step description', body: 'Return to Account to open Stripe billing, switch plans, update payment details, view invoices, or cancel.', kind: 'long', maxLength: 320 },
+  { slug: 'plans.beta.note', group: 'plans', section: 'Development beta', label: 'ChatGPT availability note', body: 'CardForge for ChatGPT is currently available for development beta testing through ChatGPT Developer Mode. Availability depends on ChatGPT access while the integration completes review.', kind: 'long', maxLength: 320 },
 
   { slug: 'about.hero.eyebrow', group: 'about', section: 'Hero', label: 'Eyebrow', body: 'About CardForge Studio', kind: 'short', maxLength: 100 },
   { slug: 'about.meta.title', group: 'about', section: 'Search & sharing', label: 'Page title', body: 'About CardForge', kind: 'short', maxLength: 100 },

@@ -25,6 +25,7 @@ export { StudioProductProof } from './components/StudioProductProof';
 export { InteractiveStudioShowcase } from './components/InteractiveStudioShowcase';
 export { WorkflowProof } from './components/WorkflowProof';
 export { AccessComparison } from './components/AccessComparison';
+export { PlansPageContent } from './components/PlansPageContent';
 export { FounderStrip } from './components/FounderStrip';
 export {
   getSiteMediaFrameAspectRatio,

@@ -15,6 +15,7 @@ export {
 export { ConfiguredPublicSiteShell } from './server/ConfiguredPublicSiteShell';
 export {
   DEFAULT_PUBLIC_SITE_CONFIGURATION,
+  completePublicSiteConfiguration,
   isHomepageSectionVisible,
   type PublicSiteConfiguration,
 } from './model/siteConfiguration';

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Cloud, Sparkles } from 'lucide-react';
 
 import type { McpAccountUsageSummary } from '@/features/mcp-usage/lib/mcpUsage';
-import { PlanChoiceGrid } from '@/features/mcp-usage/components/PlanChoiceGrid';
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024 * 1024) return `${Math.max(0, Math.round(bytes / 1024))} KB`;
@@ -57,11 +56,6 @@ export function AccountMcpUsageSection() {
               <UsageBar value={usage.documentBytes} limit={usage.allowance.onlineStorageLimitBytes} />
               <p className="mt-2 text-xs text-[#8f7b57]">{usage.documentCount} private ChatGPT plugin working document{usage.documentCount === 1 ? '' : 's'}. Normal Studio projects still remain in this browser.</p>
             </div>
-          </div>
-          <div className="mt-6 border-t border-[#3c2c1b] pt-5">
-            <h3 className="font-serif text-xl text-[#fff1c7]">Find the right plan for your next project</h3>
-            <p className="mt-2 mb-4 text-sm leading-6 text-[#c7b288]">Compare Studio exports and portable project files with monthly ChatGPT plugin actions and private plugin workspace.</p>
-            <PlanChoiceGrid plans={usage.availablePlans} currentPlanKey={usage.allowance.planKey} creatorHref="#account-actions" designerHref="#account-actions" />
           </div>
         </>
       )}

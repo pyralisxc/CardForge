@@ -5,6 +5,7 @@ import { getPublicAppUrl } from '@/infrastructure/http/publicUrl';
 const publicRoutes = [
   '/',
   '/about',
+  '/plans',
   '/developer',
   '/roadmap',
   '/cameron',

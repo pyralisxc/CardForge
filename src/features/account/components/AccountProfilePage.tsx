@@ -23,9 +23,9 @@ import { AccountDeveloperStatusSection } from '@/features/account/components/Acc
 import { useAccountEntitlement } from '@/features/account/hooks/useAccountEntitlement';
 import { getAccountDisplayName } from '@/features/account/lib/accountDisplay';
 import { completeSignUpIntent, markSignUpIntent } from '@/features/analytics/client/tracking';
-import { AccountBillingActions } from '@/features/billing/client/account';
-import { AccountMcpUsageSection } from '@/features/mcp-usage/client/account';
+import type { McpAllowance, McpUsagePlanKey } from '@/features/mcp-usage/client/plans';
 import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
+import { AccountPlanManagementPanel } from './AccountPlanManagementPanel';
 
 interface PlatformStatusPayload {
   billing: {
@@ -42,7 +42,10 @@ interface ClerkIdentity {
 }
 
 interface AccountProfilePageProps {
+  checkoutStatus?: 'cancelled' | 'success' | null;
+  initialPlanIntent?: 'creator' | 'designer' | null;
   initialAuthConfigured?: boolean;
+  plans: McpAllowance[];
   storageLibrary?: ReactNode;
   cloudStorageDetails?: ReactNode;
 }
@@ -109,7 +112,7 @@ function DashboardNav({ showDeveloper }: { showDeveloper: boolean }) {
   const links = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: 'my-cardforge', label: 'My CardForge', icon: <LibraryBig className="h-4 w-4" /> },
-    { id: 'account-and-billing', label: 'Account & billing', icon: <UserCircle2 className="h-4 w-4" /> },
+    { id: 'account-and-billing', label: 'Plan & billing', icon: <CreditCard className="h-4 w-4" /> },
     ...(showDeveloper
       ? [{ id: 'developer-tools', label: 'Developer', icon: <Wrench className="h-4 w-4" /> }]
       : []),
@@ -132,7 +135,10 @@ function DashboardNav({ showDeveloper }: { showDeveloper: boolean }) {
 }
 
 export function AccountProfilePage({
+  checkoutStatus = null,
+  initialPlanIntent = null,
   initialAuthConfigured = false,
+  plans,
   storageLibrary,
   cloudStorageDetails,
 }: AccountProfilePageProps) {
@@ -207,7 +213,11 @@ export function AccountProfilePage({
           : entitlement.canExportClean
             ? 'Creator Pass'
             : 'Free';
-
+  const currentPlanKey: McpUsagePlanKey = isOwner || isDeveloper || entitlement.paidPlan === 'designer'
+    ? 'designer'
+    : entitlement.canExportClean
+      ? 'creator'
+      : 'free';
   const accountTitle = isClerkSetupIncomplete
     ? 'Account setup needed'
     : effectiveSignedIn && accountDisplayName
@@ -277,7 +287,9 @@ export function AccountProfilePage({
                       <CheckCircle2 className="h-4 w-4" /> Creator export access active
                     </div>
                   ) : (
-                    <p className="text-sm text-[#cbb58b]">Creator Pass raises cloud saves to 5 sets and removes export watermarks.</p>
+                    <Button asChild size="sm" variant="outline" className="border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+                      <Link href="/plans" prefetch={false}>Compare plans</Link>
+                    </Button>
                   )}
                 </SummaryCard>
 
@@ -334,12 +346,28 @@ export function AccountProfilePage({
 
             <section id="account-and-billing" className="scroll-mt-24 border border-[#5f4526] bg-[#100c08] p-4 md:p-6">
               <SectionHeading
-                eyebrow="Account"
-                title="Profile, billing, and data boundaries"
-                detail="Identity and subscription controls stay separate from your creative library, while still living in one account dashboard."
+                eyebrow="Plan & billing"
+                title="Choose, start, or manage your plan"
+                detail="Compare the full offer here, then use the action tied to this account. New subscriptions use Stripe Checkout; existing subscriptions open Stripe billing for plan changes, invoices, payment details, or cancellation."
               />
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <AccountPlanManagementPanel
+                authConfigured={entitlement.authConfigured}
+                canExportClean={entitlement.canExportClean}
+                canManageBilling={canManageBilling}
+                checkoutStatus={checkoutStatus}
+                cloudSlotLabel={cloudSlotLabel}
+                currentPlanKey={currentPlanKey}
+                downloadLabel={downloadLabel}
+                effectiveSignedIn={effectiveSignedIn}
+                initialPlanIntent={initialPlanIntent}
+                planLabel={planLabel}
+                plans={plans}
+                showCheckout={showCheckout}
+                showDesignerCheckout={showDesignerCheckout}
+              />
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <SummaryCard
                   icon={<UserCircle2 className="h-4 w-4" />}
                   label="Profile & security"
@@ -357,37 +385,7 @@ export function AccountProfilePage({
                   ) : null}
                 </SummaryCard>
 
-                <SummaryCard
-                  icon={<CreditCard className="h-4 w-4" />}
-                  label="Billing & plan"
-                  title={planLabel}
-                  detail={canManageBilling
-                    ? 'Open your billing portal to manage the subscription attached to this CardForge account.'
-                    : showCheckout
-                      ? 'Choose Creator Pass or Designer Pass for watermark-free downloads, cloud saves, and expanded ChatGPT plugin capacity.'
-                      : entitlement.canExportClean
-                        ? 'Creator export access is active for this account.'
-                        : 'Free access includes one private cloud-set slot and watermarked exports.'}
-                  footer={cloudSlotLabel}
-                >
-                  <div className="flex flex-wrap gap-2">
-                    <AccountBillingActions
-                      authConfigured={entitlement.authConfigured}
-                      canManageBilling={canManageBilling}
-                      effectiveSignedIn={effectiveSignedIn}
-                      checkoutLabel="Get Creator Pass"
-                      showDesignerCheckout={showDesignerCheckout}
-                      showCheckout={showCheckout}
-                    />
-                    {effectiveSignedIn && !canManageBilling && !showCheckout && entitlement.canExportClean ? (
-                      <div className="inline-flex min-h-9 items-center gap-2 border border-[#5f7f54] px-3 text-sm font-semibold text-[#bde3a8]">
-                        <CheckCircle2 className="h-4 w-4" /> Access active
-                      </div>
-                    ) : null}
-                  </div>
-                </SummaryCard>
-
-                <div className="border border-[#5f4526] bg-[#15100a] p-4 md:col-span-2 md:p-5">
+                <div className="border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
                   <div className="flex items-center gap-2 text-[#e2aa4a]">
                     <Sparkles className="h-4 w-4" />
                     <span className="text-xs font-semibold uppercase tracking-[0.15em]">Your data boundaries</span>
@@ -409,8 +407,6 @@ export function AccountProfilePage({
                 </div>
               </div>
             </section>
-
-            {entitlement.authConfigured && effectiveSignedIn ? <AccountMcpUsageSection /> : null}
 
             {showDeveloper ? (
               <section id="developer-tools" className="scroll-mt-24">
