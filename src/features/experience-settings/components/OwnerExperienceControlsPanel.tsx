@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Save, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { CardForgeSurface } from '@/components/ui/cardforge-presentation';
 import { useToast } from '@/components/ui/use-toast';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
 
@@ -14,7 +15,8 @@ type OwnerExperienceControlsPanelProps = {
   onSettingsChange: (settings: ExperienceSettings) => void;
 };
 
-const selectClassName = 'w-full border border-[#5f4526] bg-[#0c0b09] p-3 text-[#ffe7ad] outline-none focus:border-[#d8b365]';
+const selectClassName = 'w-full border border-[var(--cf-border)] bg-[var(--cf-canvas)] p-3 text-[var(--cf-accent-text)] outline-none focus:border-[var(--cf-accent)]';
+const fieldClassName = 'grid gap-2 border border-[var(--cf-border-subtle)] bg-[var(--cf-surface-inset)] p-4 text-sm text-[var(--cf-text-muted)]';
 
 export function OwnerExperienceControlsPanel({
   settings,
@@ -38,10 +40,13 @@ export function OwnerExperienceControlsPanel({
         throw new Error(await readApiErrorMessage(response, 'Unable to save experience controls.'));
       }
       const result = await response.json() as { settings: ExperienceSettings; activityRecorded?: boolean };
+      setDraft(result.settings);
       onSettingsChange(result.settings);
       toast({
         title: 'Experience controls saved',
-        description: result.activityRecorded === false ? 'The policy changed, but owner change history was unavailable.' : 'New visits and refreshed Studio sessions now use the updated policy.',
+        description: result.activityRecorded === false
+          ? 'The settings changed, but owner change history was unavailable.'
+          : 'New visits and refreshed workspaces now use the updated experience and presentation settings.',
         variant: result.activityRecorded === false ? 'destructive' : 'default',
       });
     } catch (error) {
@@ -55,73 +60,106 @@ export function OwnerExperienceControlsPanel({
     }
   };
 
+  const unchanged = JSON.stringify(draft) === JSON.stringify(settings);
+
   return (
-    <section className="space-y-5 border border-[#5f4526] bg-[#15100a] p-6">
+    <CardForgeSurface as="section" className="space-y-5 p-6">
       <div className="flex items-start gap-3">
-        <SlidersHorizontal className="mt-1 h-5 w-5 text-[#e4aa43]" aria-hidden="true" />
+        <SlidersHorizontal className="mt-1 h-5 w-5 text-[var(--cf-accent-strong)]" aria-hidden="true" />
         <div>
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Experience controls</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#c7b288]">
-            Change launch behavior without a code deployment. CardForge remains the policy owner; Stripe still owns Creator Pass billing and Google still owns consented analytics records.
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Experience controls</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
+            Change safe launch and presentation values without changing page ownership. CardForge validates the available visual profiles so contrast, focus, and editor legibility remain code-reviewed.
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <label className="grid gap-2 border border-[#3c2c1b] bg-[#100c08] p-4 text-sm text-[#c7b288]">
-          <span className="font-medium text-[#ffe7ad]">Portable project files</span>
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Portable project files</span>
           <select
             className={selectClassName}
             value={draft.projectFileAccess}
-            onChange={(event) => setDraft((current) => ({
-              ...current,
-              projectFileAccess: event.target.value as ExperienceSettings['projectFileAccess'],
-            }))}
+            onChange={(event) => setDraft((current) => ({ ...current, projectFileAccess: event.target.value as ExperienceSettings['projectFileAccess'] }))}
           >
             <option value="creator_pass">Require Creator Pass</option>
             <option value="free">Available on the free plan</option>
           </select>
-          <span className="leading-6 text-[#a98a75]">
-            Controls opening and downloading CardForge project files only. Watermark-free PNG, PDF, ZIP, and Tabletop Simulator exports remain Creator Pass features.
-          </span>
+          <span className="leading-6 text-[var(--cf-text-subtle)]">Controls CardForge project files only. Watermark-free exports remain Creator Pass features.</span>
         </label>
 
-        <label className="grid gap-2 border border-[#3c2c1b] bg-[#100c08] p-4 text-sm text-[#c7b288]">
-          <span className="font-medium text-[#ffe7ad]">Analytics consent presentation</span>
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Analytics consent presentation</span>
           <select
             className={selectClassName}
             value={draft.analyticsConsentPresentation}
-            onChange={(event) => setDraft((current) => ({
-              ...current,
-              analyticsConsentPresentation: event.target.value as ExperienceSettings['analyticsConsentPresentation'],
-            }))}
+            onChange={(event) => setDraft((current) => ({ ...current, analyticsConsentPresentation: event.target.value as ExperienceSettings['analyticsConsentPresentation'] }))}
           >
             <option value="required_popup">Required choice popup</option>
             <option value="popup">Current popup</option>
             <option value="banner">Quiet banner</option>
           </select>
-          <span className="leading-6 text-[#a98a75]">
-            Every presentation offers Accept, Accept once, and Decline. Required choice blocks the page until the visitor decides; it never makes analytics mandatory.
-          </span>
+          <span className="leading-6 text-[var(--cf-text-subtle)]">Every presentation offers Accept, Accept once, and Decline. Existing visitor choices remain respected.</span>
         </label>
       </div>
 
-      <div className="border border-[#6d4f2b] bg-[#1b1209] p-4 text-sm leading-6 text-[#d8c29a]">
-        Launch default: project files require Creator Pass and analytics uses a required choice popup. Existing visitor choices are respected when the presentation changes.
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-accent-strong)]">CardForge presentation</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--cf-text-muted)]">
+          These curated settings feed the one semantic CardForge token system used by the public site, account surfaces, operational consoles, Studio, Generator, and Template editor roles.
+        </p>
       </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Presentation palette</span>
+          <select className={selectClassName} value={draft.presentationPalette} onChange={(event) => setDraft((current) => ({ ...current, presentationPalette: event.target.value as ExperienceSettings['presentationPalette'] }))}>
+            <option value="forge">Forge — warm obsidian</option>
+            <option value="obsidian">Obsidian — neutral dark</option>
+            <option value="slate">Slate — cool graphite</option>
+          </select>
+        </label>
+
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Accent character</span>
+          <select className={selectClassName} value={draft.presentationAccent} onChange={(event) => setDraft((current) => ({ ...current, presentationAccent: event.target.value as ExperienceSettings['presentationAccent'] }))}>
+            <option value="brass">Brass</option>
+            <option value="ember">Ember</option>
+            <option value="arcane">Arcane</option>
+          </select>
+        </label>
+
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Corner character</span>
+          <select className={selectClassName} value={draft.presentationCorners} onChange={(event) => setDraft((current) => ({ ...current, presentationCorners: event.target.value as ExperienceSettings['presentationCorners'] }))}>
+            <option value="square">Square</option>
+            <option value="subtle">Subtle</option>
+            <option value="soft">Soft</option>
+          </select>
+        </label>
+
+        <label className={fieldClassName}>
+          <span className="font-medium text-[var(--cf-accent-text)]">Contrast</span>
+          <select className={selectClassName} value={draft.presentationContrast} onChange={(event) => setDraft((current) => ({ ...current, presentationContrast: event.target.value as ExperienceSettings['presentationContrast'] }))}>
+            <option value="standard">Standard</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+      </div>
+
+      <CardForgeSurface tone="raised" className="border-[var(--cf-border-strong)] p-4 text-sm leading-6 text-[var(--cf-text-muted)]">
+        The default Forge + Brass + Subtle + Standard combination preserves the current CardForge presentation. Raw CSS and arbitrary colors remain code-owned so owner customization cannot bypass accessibility safeguards.
+      </CardForgeSurface>
 
       <Button
         type="button"
-        className="bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]"
-        disabled={isSaving || (
-          draft.projectFileAccess === settings.projectFileAccess
-          && draft.analyticsConsentPresentation === settings.analyticsConsentPresentation
-        )}
+        className="bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110"
+        disabled={isSaving || unchanged}
         onClick={save}
       >
         <Save className="mr-2 h-4 w-4" />
         {isSaving ? 'Saving experience controls...' : 'Save experience controls'}
       </Button>
-    </section>
+    </CardForgeSurface>
   );
 }

@@ -1,4 +1,3 @@
-
 @import '../features/card-rendering/cardRendering.css';
 @import '../features/public-site/siteMedia.css';
 
@@ -162,121 +161,18 @@ body {
 }
 
 @layer base {
-  :root {
-    /* Dark Fantasy TCG Theme */
-    --background: 220 15% 12%; /* Dark Slate Blue/Charcoal #1C1F26 */
-    --foreground: 220 10% 85%; /* Light Grey/Off-white #D4D6D9 */
-
-    --card: 220 15% 20%; /* Slightly Lighter Dark Slate #2D313B */
-    --card-foreground: 220 10% 80%; /* Light Grey #C8CACD */
-
-    --popover: 220 15% 18%; /* Darker popover #262A33 */
-    --popover-foreground: 220 10% 85%;
-
-    --primary: 260 60% 55%; /* Arcane Purple #7A52CC */
-    --primary-foreground: 220 10% 95%; /* Very Light Grey for contrast on purple */
-
-    --secondary: 220 20% 30%; /* Medium Slate #404754 */
-    --secondary-foreground: 220 10% 90%; /* Lighter Grey */
-
-    --muted: 220 15% 25%; /* Muted Dark Slate #353A45 */
-    --muted-foreground: 220 10% 60%; /* Grey for muted text #909399 */
-
-    --accent: 50 100% 60%; /* Fiery Gold/Orange #FFBF3F */
-    --accent-foreground: 220 20% 10%; /* Dark Brown/Black for contrast on gold */
-
-    --destructive: 0 70% 50%; /* Blood Red #B33636 */
-    --destructive-foreground: 0 0% 98%; /* Almost White */
-
-    --border: 220 15% 30%; /* Slate Border #404754 */
-    --input: 220 15% 22%; /* Dark Input Background #2F343F */
-    --ring: 50 100% 70%; /* Brighter Gold for focus rings */
-
-    --radius: 0.5rem; /* Default radius for cards */
-
-    /* Chart colors - can be adjusted if charts are used */
-    --chart-1: 260 70% 60%; /* Brighter Purple */
-    --chart-2: 210 70% 55%; /* Steel Blue */
-    --chart-3: 0 60% 55%; /* Crimson */
-    --chart-4: 120 40% 50%; /* Forest Green */
-    --chart-5: 30 70% 50%; /* Deep Orange */
-
-    /* Sidebar specific colors */
-    --sidebar-background: 220 15% 10%; /* Even Darker Sidebar #14171C */
-    --sidebar-foreground: 220 10% 75%; /* Slightly Dimmer Text #B9BBC0 */
-    --sidebar-primary: 260 60% 55%; /* Arcane Purple */
-    --sidebar-primary-foreground: 220 10% 95%;
-    --sidebar-accent: 50 100% 60%; /* Fiery Gold */
-    --sidebar-accent-foreground: 220 20% 10%;
-    --sidebar-border: 220 15% 20%; /* #2D313B */
-    --sidebar-ring: 50 100% 70%;
-  }
-
-  .dark {
-    /* Using the same variables as :root for a consistent dark theme */
-    --background: 220 15% 12%;
-    --foreground: 220 10% 85%;
-
-    --card: 220 15% 20%;
-    --card-foreground: 220 10% 80%;
-
-    --popover: 220 15% 18%;
-    --popover-foreground: 220 10% 85%;
-
-    --primary: 260 60% 55%;
-    --primary-foreground: 220 10% 95%;
-
-    --secondary: 220 20% 30%;
-    --secondary-foreground: 220 10% 90%;
-
-    --muted: 220 15% 25%;
-    --muted-foreground: 220 10% 60%;
-
-    --accent: 50 100% 60%;
-    --accent-foreground: 220 20% 10%;
-
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 220 15% 30%;
-    --input: 220 15% 22%;
-    --ring: 50 100% 70%;
-  }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
 
   :where(button, [role="button"], a, input, textarea, select, [tabindex]):focus-visible {
-    outline: 2px solid hsl(var(--ring));
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 
   body {
     @apply bg-background text-foreground;
   }
-}
-
-.cardforge-public,
-.cardforge-public-tokens {
-  --public-obsidian: #0c0b09;
-  --public-charcoal: #15110d;
-  --public-surface: #1b1510;
-  --public-surface-raised: #211912;
-  --public-ivory: #f7ead0;
-  --public-brass: #d9a441;
-  --public-text: #f4e7cc;
-  --public-muted-text: #c4af87;
-  --public-border: #644923;
-  --public-focus: #0c0b09;
-  --public-focus-contrast: #f7ead0;
-  --public-radius: 0.25rem;
-  --public-shadow: 0 1rem 2.5rem rgb(0 0 0 / 38%);
-  --public-space: clamp(2.5rem, 5vw, 4.5rem);
-  --public-font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --public-font-display: var(--font-cardforge-spectral), Georgia, serif;
 }
 
 .cardforge-public {
@@ -415,12 +311,7 @@ body {
     touch-action: none;
   }
 
-  [data-freeform-element-id] {
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
+  [data-freeform-element-id],
   [data-cardforge-resize-handle="true"] {
     touch-action: none;
     user-select: none;
@@ -456,7 +347,7 @@ body {
     }
 
     .cardforge-maker-shell {
-      border-radius: 8px;
+      border-radius: var(--cf-panel-radius);
     }
 
     .cardforge-canvas-scroll {
@@ -487,11 +378,11 @@ body {
       display: flex;
       align-items: center;
       min-height: 3rem;
-      border: 1px solid #2b2f39;
-      border-radius: 0.5rem;
-      background: rgba(8, 12, 18, 0.94);
+      border: 1px solid var(--cf-editor-border);
+      border-radius: var(--cf-panel-radius);
+      background: color-mix(in srgb, var(--cf-editor-shell) 94%, transparent);
       padding: 0.25rem;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
+      box-shadow: var(--cf-panel-shadow);
       backdrop-filter: blur(12px);
     }
 
@@ -514,7 +405,7 @@ body {
       inset: 0;
       display: block;
       border: 0;
-      background: rgba(2, 5, 9, 0.46);
+      background: color-mix(in srgb, var(--cf-canvas) 46%, transparent);
     }
 
     .cardforge-maker-library,
@@ -524,8 +415,8 @@ body {
       display: block;
       overflow-x: hidden;
       overflow-y: auto;
-      background: #0d1117;
-      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.48);
+      background: var(--cf-editor-inset);
+      box-shadow: var(--cf-panel-shadow);
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
@@ -536,7 +427,7 @@ body {
       bottom: 0;
       left: 0;
       width: min(88vw, 25rem);
-      border-right: 1px solid #252b35;
+      border-right: 1px solid var(--cf-editor-border);
     }
 
     .cardforge-maker-inspector {
@@ -544,8 +435,8 @@ body {
       bottom: 0;
       left: 0;
       height: min(78svh, 42rem);
-      border-top: 1px solid #252b35;
-      border-radius: 0.85rem 0.85rem 0 0;
+      border-top: 1px solid var(--cf-editor-border);
+      border-radius: var(--cf-panel-radius) var(--cf-panel-radius) 0 0;
     }
 
     .cardforge-mobile-overlay-close {
@@ -554,10 +445,10 @@ body {
       display: inline-flex;
       height: 2.5rem;
       width: 2.5rem;
-      border-color: #3b4352;
-      background: #111720;
-      color: #f3ead7;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      border-color: var(--cf-editor-control-border);
+      background: var(--cf-editor-control);
+      color: var(--cf-editor-text);
+      box-shadow: var(--cf-panel-shadow);
     }
 
     .cardforge-mobile-menu-close {
@@ -655,11 +546,11 @@ body {
     }
 
     .cardforge-maker-side:first-child {
-      border-right: 1px solid #252b35;
+      border-right: 1px solid var(--cf-editor-border);
     }
 
     .cardforge-maker-side:last-child {
-      border-left: 1px solid #252b35;
+      border-left: 1px solid var(--cf-editor-border);
       border-top-width: 0;
     }
 
@@ -684,55 +575,31 @@ body {
     .cardforge-maker-mobile-switcher {
       display: none;
     }
-
-    .cardforge-maker-shell {
-      min-height: calc(100vh - 145px) !important;
-    }
-
-    .cardforge-maker-grid {
-      min-height: calc(100vh - 205px) !important;
-    }
-
-    .cardforge-maker-scroll {
-      height: calc(100vh - 205px) !important;
-      min-height: 760px !important;
-      max-height: none !important;
-    }
-
-    .cardforge-canvas-stage {
-      min-height: 760px !important;
-    }
-
-    .cardforge-canvas-scroll {
-      height: calc(100vh - 238px) !important;
-      min-height: 720px !important;
-      padding: 2rem !important;
-    }
   }
 
   .cardforge-clerk-profile .cl-cardBox,
   .cardforge-clerk-profile .cl-navbar,
   .cardforge-clerk-profile .cl-scrollBox,
   .cardforge-clerk-profile .cl-pageScrollBox {
-    color: #f7ead0 !important;
-    background-color: #15100a !important;
-    border-color: #5f4526 !important;
+    color: var(--cf-text) !important;
+    background-color: var(--cf-surface) !important;
+    border-color: var(--cf-border) !important;
   }
 
   .cardforge-clerk-profile .cl-navbar {
-    background-color: #100c08 !important;
+    background-color: var(--cf-surface-inset) !important;
   }
 
   .cardforge-clerk-profile .cl-cardBox *,
   .cardforge-clerk-profile .cl-modalContent * {
-    color: #f7ead0 !important;
+    color: var(--cf-text) !important;
   }
 
   .cardforge-clerk-profile .cl-headerTitle,
   .cardforge-clerk-profile .cl-profileSectionTitleText,
   .cardforge-clerk-profile .cl-userPreviewMainIdentifier,
   .cardforge-clerk-profile .cl-userPreviewMainIdentifierText {
-    color: #fff1c7 !important;
+    color: var(--cf-text-strong) !important;
   }
 
   .cardforge-clerk-profile .cl-headerSubtitle,
@@ -740,7 +607,7 @@ body {
   .cardforge-clerk-profile .cl-navbarButton *,
   .cardforge-clerk-profile .cl-formFieldHintText,
   .cardforge-clerk-profile .cl-formFieldInfoText {
-    color: #cbb58b !important;
+    color: var(--cf-text-muted) !important;
   }
 
   .cardforge-clerk-profile .cl-navbarButton.cl-active,
@@ -751,34 +618,33 @@ body {
   .cardforge-clerk-profile .cl-menuButton *,
   .cardforge-clerk-profile .cl-footerActionLink,
   .cardforge-clerk-profile .cl-footerActionLink * {
-    color: #e4aa43 !important;
+    color: var(--cf-accent-strong) !important;
   }
 
   .cardforge-clerk-profile .cl-profileSection,
   .cardforge-clerk-profile .cl-profileSectionItem,
   .cardforge-clerk-profile .cl-profileSectionItemList {
-    border-color: #4a3823 !important;
+    border-color: var(--cf-border-subtle) !important;
   }
 
   .cardforge-clerk-profile .cl-badge {
-    border: 1px solid #5f4526 !important;
-    background-color: #100c08 !important;
-    color: #ffe7ad !important;
+    border: 1px solid var(--cf-border) !important;
+    background-color: var(--cf-surface-inset) !important;
+    color: var(--cf-accent-text) !important;
   }
 
   .cardforge-clerk-profile .cl-formFieldInput {
-    border-color: #5f4526 !important;
-    background-color: #100c08 !important;
-    color: #fff1c7 !important;
+    border-color: var(--cf-border) !important;
+    background-color: var(--cf-surface-inset) !important;
+    color: var(--cf-text-strong) !important;
   }
 
   .cardforge-clerk-profile .cl-formButtonPrimary {
-    background-color: #e4aa43 !important;
-    color: #140f0a !important;
+    background-color: var(--cf-accent-strong) !important;
+    color: var(--cf-accent-contrast) !important;
   }
 }
 
-/* Scoped .no-print class for browser printing */
 @media print {
   .no-print {
     display: none !important;

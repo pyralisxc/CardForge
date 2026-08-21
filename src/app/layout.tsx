@@ -49,7 +49,13 @@ export default async function RootLayout({
     : children;
 
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      data-cf-palette={experienceSettings.presentationPalette}
+      data-cf-accent={experienceSettings.presentationAccent}
+      data-cf-corners={experienceSettings.presentationCorners}
+      data-cf-contrast={experienceSettings.presentationContrast}
+    >
       <body className="font-sans antialiased">
         <div id="cardforge-app-content">{app}</div>
         <AnalyticsProvider presentation={experienceSettings.analyticsConsentPresentation} />

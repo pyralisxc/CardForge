@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-cf-palette="forge"] {
   --cf-canvas: #0c0b09;
   --cf-surface: #15100a;
   --cf-surface-inset: #100c08;
@@ -11,20 +12,6 @@
   --cf-text-strong: #fff1c7;
   --cf-text-muted: #cbb58b;
   --cf-text-subtle: #a98a75;
-  --cf-accent: #d8b365;
-  --cf-accent-strong: #e4aa43;
-  --cf-accent-text: #ffe7ad;
-  --cf-accent-contrast: #140f0a;
-  --cf-success: #a8e7b8;
-  --cf-success-border: #497352;
-  --cf-warning: #f0bd75;
-  --cf-warning-border: #8c6436;
-  --cf-danger: #ffd0c6;
-  --cf-danger-border: #7d3d32;
-  --cf-panel-radius: 0.25rem;
-  --cf-panel-shadow: 0 1rem 2.5rem rgb(0 0 0 / 38%);
-
-  /* Template editor keeps its specialized density while sharing semantic roles. */
   --cf-editor-canvas: #05080c;
   --cf-editor-shell: #090b0f;
   --cf-editor-surface: #12161d;
@@ -35,11 +22,176 @@
   --cf-editor-control-border: #2d3340;
   --cf-editor-text: #d8d1c4;
   --cf-editor-muted: #8f95a3;
-  --cf-editor-accent: #d5ad54;
-  --cf-editor-accent-border: #715829;
-  --cf-editor-selection: #7a52cc;
-  --cf-editor-selection-surface: #211a33;
-  --cf-editor-selection-text: #f3e9ff;
+}
+
+[data-cf-palette="obsidian"] {
+  --cf-canvas: #07090d;
+  --cf-surface: #0e1117;
+  --cf-surface-inset: #090c11;
+  --cf-surface-raised: #141922;
+  --cf-surface-hover: #1b2230;
+  --cf-border: #354052;
+  --cf-border-subtle: #252d3a;
+  --cf-border-strong: #4b5a70;
+  --cf-text: #e8edf5;
+  --cf-text-strong: #ffffff;
+  --cf-text-muted: #b1bccd;
+  --cf-text-subtle: #8996aa;
+  --cf-editor-canvas: #040609;
+  --cf-editor-shell: #080b10;
+  --cf-editor-surface: #0f141c;
+  --cf-editor-inset: #0a0e14;
+  --cf-editor-control: #151b25;
+  --cf-editor-control-hover: #1d2532;
+  --cf-editor-border: #303a49;
+  --cf-editor-control-border: #3b4759;
+  --cf-editor-text: #e0e6ef;
+  --cf-editor-muted: #98a4b5;
+}
+
+[data-cf-palette="slate"] {
+  --cf-canvas: #111419;
+  --cf-surface: #191e26;
+  --cf-surface-inset: #141820;
+  --cf-surface-raised: #222933;
+  --cf-surface-hover: #2c3542;
+  --cf-border: #4a5668;
+  --cf-border-subtle: #343d4b;
+  --cf-border-strong: #627084;
+  --cf-text: #e4e8ee;
+  --cf-text-strong: #ffffff;
+  --cf-text-muted: #b5becb;
+  --cf-text-subtle: #8e99a8;
+  --cf-editor-canvas: #0b0f15;
+  --cf-editor-shell: #11161d;
+  --cf-editor-surface: #181e27;
+  --cf-editor-inset: #121720;
+  --cf-editor-control: #202733;
+  --cf-editor-control-hover: #283241;
+  --cf-editor-border: #3a4555;
+  --cf-editor-control-border: #465365;
+  --cf-editor-text: #e1e6ed;
+  --cf-editor-muted: #9aa5b5;
+}
+
+:root,
+[data-cf-accent="brass"] {
+  --cf-accent: #d8b365;
+  --cf-accent-strong: #e4aa43;
+  --cf-accent-text: #ffe7ad;
+  --cf-accent-contrast: #140f0a;
+}
+
+[data-cf-accent="ember"] {
+  --cf-accent: #f0a04b;
+  --cf-accent-strong: #f97316;
+  --cf-accent-text: #ffd4ad;
+  --cf-accent-contrast: #1c0b03;
+}
+
+[data-cf-accent="arcane"] {
+  --cf-accent: #a78bfa;
+  --cf-accent-strong: #7c3aed;
+  --cf-accent-text: #ddd2ff;
+  --cf-accent-contrast: #ffffff;
+}
+
+:root,
+[data-cf-corners="subtle"] {
+  --cf-panel-radius: 0.25rem;
+}
+
+[data-cf-corners="square"] {
+  --cf-panel-radius: 0rem;
+}
+
+[data-cf-corners="soft"] {
+  --cf-panel-radius: 0.75rem;
+}
+
+:root {
+  --cf-success: #a8e7b8;
+  --cf-success-border: #497352;
+  --cf-warning: #f0bd75;
+  --cf-warning-border: #8c6436;
+  --cf-danger: #ffd0c6;
+  --cf-danger-border: #7d3d32;
+  --cf-danger-surface: #8f352d;
+  --cf-danger-contrast: #ffffff;
+  --cf-panel-shadow: 0 1rem 2.5rem rgb(0 0 0 / 38%);
+  --cf-section-space: clamp(2.5rem, 5vw, 4.5rem);
+  --cf-font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --cf-font-display: var(--font-cardforge-spectral), Georgia, serif;
+
+  --cf-editor-accent: var(--cf-accent);
+  --cf-editor-accent-border: var(--cf-accent);
+  --cf-editor-selection: var(--cf-accent-strong);
+  --cf-editor-selection-surface: var(--cf-surface-hover);
+  --cf-editor-selection-text: var(--cf-accent-contrast);
+
+  --background: var(--cf-canvas);
+  --foreground: var(--cf-text);
+  --card: var(--cf-surface);
+  --card-foreground: var(--cf-text);
+  --popover: var(--cf-surface-raised);
+  --popover-foreground: var(--cf-text);
+  --primary: var(--cf-accent-strong);
+  --primary-foreground: var(--cf-accent-contrast);
+  --secondary: var(--cf-surface-raised);
+  --secondary-foreground: var(--cf-text);
+  --muted: var(--cf-surface-inset);
+  --muted-foreground: var(--cf-text-muted);
+  --accent: var(--cf-surface-hover);
+  --accent-foreground: var(--cf-text);
+  --destructive: var(--cf-danger-surface);
+  --destructive-foreground: var(--cf-danger-contrast);
+  --border: var(--cf-border);
+  --input: var(--cf-border);
+  --ring: var(--cf-accent);
+  --radius: var(--cf-panel-radius);
+  --chart-1: var(--cf-accent-strong);
+  --chart-2: #4f8bd6;
+  --chart-3: #c65b54;
+  --chart-4: #58a46d;
+  --chart-5: #d47a42;
+  --sidebar-background: var(--cf-surface-inset);
+  --sidebar-foreground: var(--cf-text-muted);
+  --sidebar-primary: var(--cf-accent-strong);
+  --sidebar-primary-foreground: var(--cf-accent-contrast);
+  --sidebar-accent: var(--cf-surface-hover);
+  --sidebar-accent-foreground: var(--cf-text);
+  --sidebar-border: var(--cf-border-subtle);
+  --sidebar-ring: var(--cf-accent);
+}
+
+.dark {
+  --background: var(--cf-canvas);
+  --foreground: var(--cf-text);
+  --card: var(--cf-surface);
+  --card-foreground: var(--cf-text);
+  --popover: var(--cf-surface-raised);
+  --popover-foreground: var(--cf-text);
+  --primary: var(--cf-accent-strong);
+  --primary-foreground: var(--cf-accent-contrast);
+  --secondary: var(--cf-surface-raised);
+  --secondary-foreground: var(--cf-text);
+  --muted: var(--cf-surface-inset);
+  --muted-foreground: var(--cf-text-muted);
+  --accent: var(--cf-surface-hover);
+  --accent-foreground: var(--cf-text);
+  --destructive: var(--cf-danger-surface);
+  --destructive-foreground: var(--cf-danger-contrast);
+  --border: var(--cf-border);
+  --input: var(--cf-border);
+  --ring: var(--cf-accent);
+}
+
+[data-cf-contrast="high"] {
+  --cf-text-muted: var(--cf-text);
+  --cf-text-subtle: var(--cf-text);
+  --cf-border: var(--cf-border-strong);
+  --cf-editor-muted: var(--cf-editor-text);
+  --cf-editor-border: var(--cf-editor-control-border);
 }
 
 .cardforge-public,
@@ -53,8 +205,13 @@
   --public-text: var(--cf-text);
   --public-muted-text: var(--cf-text-muted);
   --public-border: var(--cf-border);
+  --public-focus: var(--cf-canvas);
+  --public-focus-contrast: var(--cf-text);
   --public-radius: var(--cf-panel-radius);
   --public-shadow: var(--cf-panel-shadow);
+  --public-space: var(--cf-section-space);
+  --public-font-body: var(--cf-font-body);
+  --public-font-display: var(--cf-font-display);
 }
 
 .cardforge-surface {
@@ -77,11 +234,6 @@
   overscroll-behavior: contain;
 }
 
-/*
- * Desktop Studio is an application viewport: the shell owns browser height;
- * each pane owns only its own scrolling/panning. Mobile/tablet retain their
- * existing overlay model from globals.css.
- */
 @media (min-width: 1024px) {
   .cardforge-application-viewport {
     height: 100dvh;
@@ -187,7 +339,6 @@
     flex: 1 1 auto;
   }
 
-  /* Generated output is a long-list pane, not another browser viewport. */
   .cardforge-application-viewport [data-testid="generated-gallery-scroll"] {
     height: clamp(24rem, 62dvh, 48rem) !important;
     min-height: 0;
