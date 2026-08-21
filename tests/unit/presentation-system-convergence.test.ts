@@ -125,12 +125,19 @@ describe('canonical CardForge presentation system', () => {
     expect(migration).not.toMatch(/\bdrop\b/i);
   });
 
-  it('keeps top-level protected and auth routes directly on canonical tokens', () => {
+  it('keeps high-reuse and top-level surfaces directly on canonical tokens', () => {
     for (const path of [
       'src/app/sign-in/[[...sign-in]]/page.tsx',
       'src/app/sign-up/[[...sign-up]]/page.tsx',
       'src/app/owner/page.tsx',
       'src/app/developer/cockpit/page.tsx',
+      'src/features/account/components/ProfileManagementPage.tsx',
+      'src/features/account/components/AccountControls.tsx',
+      'src/features/account/components/AccountPlanManagementPanel.tsx',
+      'src/features/app-shell/components/StudioHeader.tsx',
+      'src/features/mcp-usage/components/PlanChoiceGrid.tsx',
+      'src/features/roadmap/components/RoadmapPage.tsx',
+      'src/features/contact/components/ContactRequestForm.tsx',
     ]) {
       const source = readSource(path);
       expect(source, path).toContain('var(--cf-');
