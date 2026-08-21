@@ -10,20 +10,20 @@ import { createAuthRouteHref } from '@/infrastructure/auth/clerk';
 
 const clerkAppearance = {
   variables: {
-    colorPrimary: '#e4aa43',
-    colorBackground: '#15100a',
-    colorInputBackground: '#100c08',
-    colorInputText: '#fff1c7',
-    colorText: '#f7ead0',
-    colorTextSecondary: '#cbb58b',
-    borderRadius: '4px',
+    colorPrimary: 'var(--cf-accent-strong)',
+    colorBackground: 'var(--cf-surface)',
+    colorInputBackground: 'var(--cf-surface-inset)',
+    colorInputText: 'var(--cf-text-strong)',
+    colorText: 'var(--cf-text)',
+    colorTextSecondary: 'var(--cf-text-muted)',
+    borderRadius: 'var(--cf-panel-radius)',
     fontFamily: 'var(--font-cardforge-lato), sans-serif',
   },
   elements: {
     rootBox: 'w-full',
-    cardBox: 'w-full shadow-none border border-[#5f4526] bg-[#15100a]',
-    navbar: 'bg-[#100c08]',
-    pageScrollBox: 'bg-[#15100a]',
+    cardBox: 'w-full shadow-none border border-[var(--cf-border)] bg-[var(--cf-surface)]',
+    navbar: 'bg-[var(--cf-surface-inset)]',
+    pageScrollBox: 'bg-[var(--cf-surface)]',
   },
 };
 
@@ -39,17 +39,17 @@ function ProfileShell({
   detail?: string;
 }) {
   return (
-    <main className="min-h-screen bg-[#0c0b09] text-[#f7ead0]">
+    <main className="min-h-screen bg-[var(--cf-canvas)] text-[var(--cf-text)]">
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <div className="mb-4 border border-[#5f4526] bg-[#15100a] p-4 md:p-5">
-          <div className="flex items-center gap-3 text-[#e2aa4a]">
+        <div className="mb-4 border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4 md:p-5">
+          <div className="flex items-center gap-3 text-[var(--cf-accent-strong)]">
             <UserCircle2 className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.18em]">{eyebrow}</span>
           </div>
-          <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[#fff1c7] md:text-4xl">
+          <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight text-[var(--cf-text-strong)] md:text-4xl">
             {title}
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#cbb58b]">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--cf-text-muted)]">
             {detail}
           </p>
         </div>
@@ -62,12 +62,12 @@ function ProfileShell({
 export function ProfileSetupFallback() {
   return (
     <ProfileShell eyebrow="Setup required" title="Profile management is waiting on auth">
-      <div className="border border-[#7d5a2e] bg-[#181009] p-6">
-        <div className="flex items-center gap-3 text-[#e2aa4a]">
+      <div className="border border-[var(--cf-warning-border)] bg-[var(--cf-surface-inset)] p-6">
+        <div className="flex items-center gap-3 text-[var(--cf-warning)]">
           <ShieldCheck className="h-5 w-5" />
-          <h2 className="font-serif text-2xl text-[#fff1c7]">Account management unavailable</h2>
+          <h2 className="font-serif text-2xl text-[var(--cf-text-strong)]">Account management unavailable</h2>
         </div>
-        <p className="mt-4 text-sm leading-6 text-[#c7b288]">
+        <p className="mt-4 text-sm leading-6 text-[var(--cf-text-muted)]">
           Add the Clerk publishable key and secret key, then restart the dev server to test profile management.
         </p>
       </div>
@@ -85,7 +85,7 @@ export function ProfileManagementPage() {
   if (!isLoaded) {
     return (
       <ProfileShell>
-        <div className="border border-[#5f4526] bg-[#15100a] p-6 text-[#c7b288]">
+        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-6 text-[var(--cf-text-muted)]">
           Loading your profile...
         </div>
       </ProfileShell>
@@ -95,12 +95,12 @@ export function ProfileManagementPage() {
   if (!isSignedIn) {
     return (
       <ProfileShell title="Sign in to manage your profile" detail="Profile controls are available after CardForge connects your account.">
-        <div className="border border-[#5f4526] bg-[#15100a] p-4">
-          <h2 className="font-serif text-xl text-[#fff1c7]">Connect your account</h2>
-          <p className="mt-3 text-sm leading-5 text-[#c7b288]">
+        <div className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
+          <h2 className="font-serif text-xl text-[var(--cf-text-strong)]">Connect your account</h2>
+          <p className="mt-3 text-sm leading-5 text-[var(--cf-text-muted)]">
             Sign in to manage identity, security, export access, and local custom-art permissions.
           </p>
-          <Button asChild className="mt-5 bg-[#e4aa43] text-[#140f0a] hover:bg-[#f4c66b]">
+          <Button asChild className="mt-5 bg-[var(--cf-accent-strong)] text-[var(--cf-accent-contrast)] hover:brightness-110">
             <Link href={createAuthRouteHref('/sign-in', '/profile')} prefetch={false}>
               Sign in
             </Link>
@@ -117,35 +117,35 @@ export function ProfileManagementPage() {
       detail="Compact account controls for identity, security, and connected sign-in methods."
     >
       <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <aside className="border border-[#5f4526] bg-[#15100a] p-4">
+        <aside className="border border-[var(--cf-border)] bg-[var(--cf-surface)] p-4">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a98a55]">Settings</p>
-            <p className="break-words text-sm text-[#ffe7ad]">{user?.primaryEmailAddress?.emailAddress}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cf-text-subtle)]">Settings</p>
+            <p className="break-words text-sm text-[var(--cf-accent-text)]">{user?.primaryEmailAddress?.emailAddress}</p>
           </div>
-          <div className="mt-4 divide-y divide-[#4a3823] border-y border-[#4a3823]">
+          <div className="mt-4 divide-y divide-[var(--cf-border-subtle)] border-y border-[var(--cf-border-subtle)]">
             <div className="flex items-start gap-3 py-3">
-              <UserCircle2 className="mt-0.5 h-4 w-4 text-[#e2aa4a]" />
+              <UserCircle2 className="mt-0.5 h-4 w-4 text-[var(--cf-accent-strong)]" />
               <div>
-                <p className="text-sm font-medium text-[#fff1c7]">Identity</p>
-                <p className="text-xs leading-5 text-[#bfa97d]">Name, avatar, and email addresses.</p>
+                <p className="text-sm font-medium text-[var(--cf-text-strong)]">Identity</p>
+                <p className="text-xs leading-5 text-[var(--cf-text-muted)]">Name, avatar, and email addresses.</p>
               </div>
             </div>
             <div className="flex items-start gap-3 py-3">
-              <KeyRound className="mt-0.5 h-4 w-4 text-[#e2aa4a]" />
+              <KeyRound className="mt-0.5 h-4 w-4 text-[var(--cf-accent-strong)]" />
               <div>
-                <p className="text-sm font-medium text-[#fff1c7]">Security</p>
-                <p className="text-xs leading-5 text-[#bfa97d]">Password, providers, and active sessions.</p>
+                <p className="text-sm font-medium text-[var(--cf-text-strong)]">Security</p>
+                <p className="text-xs leading-5 text-[var(--cf-text-muted)]">Password, providers, and active sessions.</p>
               </div>
             </div>
             <div className="flex items-start gap-3 py-3">
-              <FolderOpen className="mt-0.5 h-4 w-4 text-[#e2aa4a]" />
+              <FolderOpen className="mt-0.5 h-4 w-4 text-[var(--cf-accent-strong)]" />
               <div>
-                <p className="text-sm font-medium text-[#fff1c7]">Local assets</p>
-                <p className="text-xs leading-5 text-[#bfa97d]">Custom art is browser-local after sign-in.</p>
+                <p className="text-sm font-medium text-[var(--cf-text-strong)]">Local assets</p>
+                <p className="text-xs leading-5 text-[var(--cf-text-muted)]">Custom art is browser-local after sign-in.</p>
               </div>
             </div>
           </div>
-          <Button asChild variant="outline" className="mt-4 w-full border-[#d8b365]/70 bg-transparent text-[#f8e3b0] hover:bg-[#2a1b0d] hover:text-[#fff1c7]">
+          <Button asChild variant="outline" className="mt-4 w-full border-[var(--cf-accent)] bg-transparent text-[var(--cf-accent-text)] hover:bg-[var(--cf-surface-hover)] hover:text-[var(--cf-text-strong)]">
             <Link href="/account" prefetch={false}>Open account summary</Link>
           </Button>
         </aside>
