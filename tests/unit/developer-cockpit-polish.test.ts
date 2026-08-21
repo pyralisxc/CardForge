@@ -236,14 +236,21 @@ describe('developer cockpit polish contract', () => {
     expect(proposalPanel).toContain('Withdraw proposal');
   });
 
-  it('uses a compact mobile cockpit navigator', () => {
+  it('uses the shared compact workspace navigator on mobile', () => {
     const cockpitPage = readFileSync(
       sourcePath('features', 'developer-cockpit', 'components', 'DeveloperCockpitPage.tsx'),
       'utf8',
     );
+    const presentation = readFileSync(
+      sourcePath('components', 'ui', 'cardforge-presentation.tsx'),
+      'utf8',
+    );
 
-    expect(cockpitPage).toContain('aria-label="Cockpit section"');
-    expect(cockpitPage).toContain('hidden sm:flex');
+    expect(cockpitPage).toContain('CardForgeWorkspaceNavigation');
+    expect(cockpitPage).toContain('label="Cockpit section"');
+    expect(presentation).toContain('aria-label={label}');
+    expect(presentation).toContain('sm:hidden');
+    expect(presentation).toContain('sm:flex');
     expect(cockpitPage).toContain("label: 'Asset Contributions'");
   });
 
