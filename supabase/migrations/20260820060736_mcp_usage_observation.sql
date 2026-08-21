@@ -164,16 +164,16 @@ as $$
       (pg_catalog.timezone('utc', pg_catalog.now()))::date as today
   ), usage as (
     select
-      pg_catalog.coalesce(pg_catalog.sum(daily.action_units), 0)::bigint as monthly_action_units,
+      pg_catalog.coalesce(pg_catalog.sum(daily.action_units), 0::bigint)::bigint as monthly_action_units,
       pg_catalog.coalesce(pg_catalog.sum(daily.action_units) filter (
         where daily.usage_date = boundaries.today
-      ), 0)::bigint as daily_action_units,
-      pg_catalog.coalesce(pg_catalog.sum(daily.attempts), 0)::bigint as tool_calls,
-      pg_catalog.coalesce(pg_catalog.sum(daily.successes), 0)::bigint as successful_calls,
-      pg_catalog.coalesce(pg_catalog.sum(daily.failures), 0)::bigint as failed_calls,
-      pg_catalog.coalesce(pg_catalog.sum(daily.request_bytes), 0)::bigint as request_bytes,
-      pg_catalog.coalesce(pg_catalog.sum(daily.response_bytes), 0)::bigint as response_bytes,
-      pg_catalog.coalesce(pg_catalog.sum(daily.duration_ms), 0)::bigint as duration_ms
+      ), 0::bigint)::bigint as daily_action_units,
+      pg_catalog.coalesce(pg_catalog.sum(daily.attempts), 0::bigint)::bigint as tool_calls,
+      pg_catalog.coalesce(pg_catalog.sum(daily.successes), 0::bigint)::bigint as successful_calls,
+      pg_catalog.coalesce(pg_catalog.sum(daily.failures), 0::bigint)::bigint as failed_calls,
+      pg_catalog.coalesce(pg_catalog.sum(daily.request_bytes), 0::bigint)::bigint as request_bytes,
+      pg_catalog.coalesce(pg_catalog.sum(daily.response_bytes), 0::bigint)::bigint as response_bytes,
+      pg_catalog.coalesce(pg_catalog.sum(daily.duration_ms), 0::bigint)::bigint as duration_ms
     from public.cardforge_mcp_usage_daily as daily
     cross join boundaries
     where daily.owner_user_id = p_owner_user_id
@@ -183,7 +183,7 @@ as $$
       pg_catalog.count(*)::bigint as document_count,
       pg_catalog.coalesce(pg_catalog.sum(
         pg_catalog.octet_length(pg_catalog.convert_to(document.document_payload::text, 'UTF8'))
-      ), 0)::bigint as document_bytes
+      ), 0::bigint)::bigint as document_bytes
     from public.cardforge_studio_documents as document
     where document.owner_user_id = p_owner_user_id
   )
@@ -227,14 +227,14 @@ as $$
     select (pg_catalog.date_trunc('month', pg_catalog.timezone('utc', pg_catalog.now())))::date as month_start
   ), usage as (
     select
-      pg_catalog.coalesce(pg_catalog.sum(daily.action_units), 0)::bigint as monthly_action_units,
-      pg_catalog.coalesce(pg_catalog.sum(daily.attempts), 0)::bigint as tool_calls,
-      pg_catalog.coalesce(pg_catalog.sum(daily.successes), 0)::bigint as successful_calls,
-      pg_catalog.coalesce(pg_catalog.sum(daily.failures), 0)::bigint as failed_calls,
+      pg_catalog.coalesce(pg_catalog.sum(daily.action_units), 0::bigint)::bigint as monthly_action_units,
+      pg_catalog.coalesce(pg_catalog.sum(daily.attempts), 0::bigint)::bigint as tool_calls,
+      pg_catalog.coalesce(pg_catalog.sum(daily.successes), 0::bigint)::bigint as successful_calls,
+      pg_catalog.coalesce(pg_catalog.sum(daily.failures), 0::bigint)::bigint as failed_calls,
       pg_catalog.count(distinct daily.owner_user_id)::bigint as active_users,
-      pg_catalog.coalesce(pg_catalog.sum(daily.request_bytes), 0)::bigint as request_bytes,
-      pg_catalog.coalesce(pg_catalog.sum(daily.response_bytes), 0)::bigint as response_bytes,
-      pg_catalog.coalesce(pg_catalog.sum(daily.duration_ms), 0)::bigint as duration_ms
+      pg_catalog.coalesce(pg_catalog.sum(daily.request_bytes), 0::bigint)::bigint as request_bytes,
+      pg_catalog.coalesce(pg_catalog.sum(daily.response_bytes), 0::bigint)::bigint as response_bytes,
+      pg_catalog.coalesce(pg_catalog.sum(daily.duration_ms), 0::bigint)::bigint as duration_ms
     from public.cardforge_mcp_usage_daily as daily
     cross join boundaries
     where daily.usage_date >= boundaries.month_start
@@ -243,7 +243,7 @@ as $$
       pg_catalog.count(*)::bigint as document_count,
       pg_catalog.coalesce(pg_catalog.sum(
         pg_catalog.octet_length(pg_catalog.convert_to(document.document_payload::text, 'UTF8'))
-      ), 0)::bigint as document_bytes
+      ), 0::bigint)::bigint as document_bytes
     from public.cardforge_studio_documents as document
   )
   select
