@@ -125,6 +125,37 @@ describe('canonical CardForge presentation system', () => {
     expect(migration).not.toMatch(/\bdrop\b/i);
   });
 
+  it('keeps top-level protected and auth routes directly on canonical tokens', () => {
+    for (const path of [
+      'src/app/sign-in/[[...sign-in]]/page.tsx',
+      'src/app/sign-up/[[...sign-up]]/page.tsx',
+      'src/app/owner/page.tsx',
+      'src/app/developer/cockpit/page.tsx',
+    ]) {
+      const source = readSource(path);
+      expect(source, path).toContain('var(--cf-');
+      expect(source, path).not.toMatch(/(?:bg|text|border)-\[#[0-9a-fA-F]{6}/u);
+    }
+  });
+
+  it('keeps remaining Forge utility literals as non-owning compatibility aliases', () => {
+    const presentation = readSource('src/app/cardforgePresentation.css');
+    const account = readSource('src/features/account/components/AccountProfilePage.tsx');
+
+    expect(account).toContain('bg-[#0c0b09]');
+    expect(presentation).toContain('Legacy Forge utility compatibility bridge');
+    expect(presentation).toContain('[class~="bg-[#0c0b09]"]');
+    expect(presentation).toContain('background-color: var(--cf-canvas) !important;');
+    expect(presentation).toContain('[class~="text-[#fff1c7]"]');
+    expect(presentation).toContain('color: var(--cf-text-strong) !important;');
+    expect(presentation).toContain('[class~="border-[#5f4526]"]');
+    expect(presentation).toContain('border-color: var(--cf-border) !important;');
+    expect(presentation).toContain('[class~="hover:bg-[#2a1b0d]"]:hover');
+    expect(presentation).toContain('[class~="border-[#d8b365]/70"]');
+    expect(presentation).toContain('.cardforge-clerk-profile .cl-cardBox');
+    expect(presentation).toContain('.cardforge-maker-library,');
+  });
+
   it('moves the Owner Console onto the same shared presentation primitives', () => {
     const owner = readSource('src/features/owner/components/OwnerConsolePage.tsx');
 
