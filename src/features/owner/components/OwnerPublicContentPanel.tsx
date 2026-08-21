@@ -15,13 +15,14 @@ import { OwnerShareToolkit } from './OwnerShareToolkit';
 const groupLabels: Record<SiteContentBlock['group'], string> = {
   shell: 'Shared header & footer',
   landing: 'Landing page',
+  plans: 'Plans page',
   about: 'About page',
   founder: 'Founder page',
   developer: 'Developer program',
   roadmap: 'Roadmap',
   sharing: 'Sharing',
 };
-const contentGroups: Array<SiteContentBlock['group']> = ['shell', 'landing', 'about', 'founder', 'developer', 'roadmap', 'sharing'];
+const contentGroups: Array<SiteContentBlock['group']> = ['shell', 'landing', 'plans', 'about', 'founder', 'developer', 'roadmap', 'sharing'];
 
 export function OwnerPublicContentPanel({ consolePayload, mode, onConsoleChange }: {
   consolePayload: OwnerConsolePayload;

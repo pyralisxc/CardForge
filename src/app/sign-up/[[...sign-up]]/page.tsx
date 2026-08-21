@@ -44,6 +44,11 @@ export default async function SignUpPage({
   const params = await searchParams;
   const fallbackRedirectUrl = getSafeLocalReturnPath(params.redirect_url);
   const plans = await getMcpAllowances();
+  const selectedPlanKey = (() => {
+    const intent = new URL(fallbackRedirectUrl, 'https://cardforge.local').searchParams.get('intent');
+    return intent === 'creator' || intent === 'designer' ? intent : null;
+  })();
+  const selectedPlan = plans.find((plan) => plan.planKey === selectedPlanKey);
 
   return (
     <main className="min-h-screen bg-[#0c0b09] px-5 py-10 text-[#f7f1e4]">
@@ -59,6 +64,16 @@ export default async function SignUpPage({
             <p className="mt-4 max-w-xl text-base leading-7 text-[#c7b288]">Your account keeps your plan, billing, ChatGPT plugin access, and private plugin workspace together. The Studio still opens instantly, and your everyday projects remain on this device unless you choose to export or share them.</p>
           </div>
           <div id="create-account" className="grid justify-items-center">
+            {selectedPlan ? (
+              <div className="mb-4 w-full max-w-md border border-[#6f532e] bg-[#1b140d] p-4 text-left">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#d8b365]">Selected plan</p>
+                <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-[var(--font-cardforge-spectral)] text-2xl font-semibold text-[#fff1c7]">{selectedPlan.displayName}</p>
+                  <p className="font-semibold text-[#f3d48f]">{selectedPlan.priceLabel} <span className="text-xs font-normal text-[#a9946c]">{selectedPlan.priceNote}</span></p>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#c7b288]">Create the account first. You will return directly to Plan &amp; billing to confirm the choice before Stripe Checkout opens.</p>
+              </div>
+            ) : null}
             <SignUp
               fallbackRedirectUrl={fallbackRedirectUrl}
               signInFallbackRedirectUrl={fallbackRedirectUrl}
@@ -70,7 +85,12 @@ export default async function SignUpPage({
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#d8b365]">Plans</p>
           <h2 id="signup-plans-heading" className="mt-2 font-[var(--font-cardforge-spectral)] text-3xl font-semibold text-[#fff1c7] md:text-4xl">See exactly what each plan gives you</h2>
           <p className="mt-3 mb-6 max-w-3xl text-base leading-7 text-[#c7b288]">Compare finished Studio exports and portable CardForge project files with monthly ChatGPT plugin actions and private plugin workspace.</p>
-          <PlanChoiceGrid plans={plans} creatorHref={fallbackRedirectUrl === '/account' ? '/account#account-actions' : fallbackRedirectUrl} />
+          <PlanChoiceGrid
+            plans={plans}
+            creatorHref="/sign-up?redirect_url=%2Faccount%3Fintent%3Dcreator%23account-and-billing#create-account"
+            designerHref="/sign-up?redirect_url=%2Faccount%3Fintent%3Ddesigner%23account-and-billing#create-account"
+            featuredPlanKey={selectedPlanKey ?? undefined}
+          />
         </section>
       </div>
     </main>

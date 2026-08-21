@@ -295,8 +295,8 @@ export const buildProductAccessCheckoutSessionParams = ({
     customer_email: email || undefined,
     client_reference_id: userId,
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${normalizedAppUrl}/account?checkout=success`,
-    cancel_url: `${normalizedAppUrl}/account?checkout=cancelled`,
+    success_url: `${normalizedAppUrl}/account?checkout=success#account-and-billing`,
+    cancel_url: `${normalizedAppUrl}/account?checkout=cancelled#account-and-billing`,
     allow_promotion_codes: true,
     metadata: {
       ...metadata,

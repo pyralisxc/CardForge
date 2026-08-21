@@ -13,12 +13,33 @@ describe('consolidated public routes and account navigation', () => {
     const footerLinks = PUBLIC_NAVIGATION.footerGroups.flatMap((group) => group.links.map((link) => link.href));
 
     expect(primaryLinks).toContain('/account');
+    expect(primaryLinks).toContain('/plans');
     expect(footerLinks).toContain('/account');
+    expect(footerLinks).toContain('/plans');
     expect([...primaryLinks, ...footerLinks]).not.toContain('/examples');
     expect([...primaryLinks, ...footerLinks]).not.toContain('/access');
     expect(footerLinks).not.toContain('/cameron#support');
     expect(PUBLIC_NAVIGATION.primary.map((link) => link.href)).not.toContain('/cameron');
     expect(PUBLIC_NAVIGATION.primary.map((link) => link.href)).not.toContain('/developer');
+  });
+
+  it('provides one canonical public plans page backed by owner-controlled allowances and copy', () => {
+    const plansPage = readSource('src/app/plans/page.tsx');
+    const plansPresentation = readSource('src/features/public-site/components/PlansPageContent.tsx');
+    const ownerCopy = readSource('src/features/owner/components/OwnerPublicContentPanel.tsx');
+
+    expect(plansPage).toContain("getCachedSiteContentBlocks('plans')");
+    expect(plansPage).toContain('getMcpAllowances()');
+    expect(plansPresentation).toContain('<PlanChoiceGrid plans={plans} />');
+    expect(ownerCopy).toContain("plans: 'Plans page'");
+  });
+
+  it('keeps sign-up in front of paid plan checkout intent', () => {
+    const signUp = readSource('src/app/sign-up/[[...sign-up]]/page.tsx');
+    expect(signUp).toContain('redirect_url=%2Faccount%3Fintent%3Dcreator%23account-and-billing#create-account');
+    expect(signUp).toContain('redirect_url=%2Faccount%3Fintent%3Ddesigner%23account-and-billing#create-account');
+    expect(signUp).not.toContain("'/account#account-actions'");
+    expect(signUp).toContain('Create the account first. You will return directly to Plan &amp; billing');
   });
 
   it('deletes the redundant route implementations instead of keeping redirects or dead pages', () => {

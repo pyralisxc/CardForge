@@ -1,14 +1,18 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
 
 import { getPublicSiteConfiguration } from './siteConfigurationStore';
+import { completePublicSiteConfiguration } from '../model/siteConfiguration';
 
 export const PUBLIC_SITE_CONFIGURATION_TAG = 'public:site-configuration';
 
-export const getCachedPublicSiteConfiguration = unstable_cache(
+const readCachedPublicSiteConfiguration = unstable_cache(
   getPublicSiteConfiguration,
   ['public-site-configuration'],
   { tags: [PUBLIC_SITE_CONFIGURATION_TAG], revalidate: 3600 },
 );
+
+export const getCachedPublicSiteConfiguration = () => readCachedPublicSiteConfiguration()
+  .then(completePublicSiteConfiguration);
 
 export const revalidatePublicSiteConfiguration = (): void => {
   try {

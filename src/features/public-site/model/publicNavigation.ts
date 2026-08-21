@@ -12,6 +12,7 @@ const NAVIGATION_LINKS = {
   home: { href: '/', label: 'Home' },
   about: { href: '/about', label: 'How it works' },
   studio: { href: '/studio', label: 'Studio' },
+  plans: { href: '/plans', label: 'Plans' },
   roadmap: { href: '/roadmap', label: 'Roadmap' },
   developer: { href: '/developer', label: 'Developers' },
   account: { href: '/account', label: 'Account' },
@@ -30,6 +31,7 @@ export const STUDIO_NAVIGATION = [
 export const PUBLIC_NAVIGATION = {
   primary: [
     NAVIGATION_LINKS.about,
+    NAVIGATION_LINKS.plans,
     NAVIGATION_LINKS.roadmap,
     NAVIGATION_LINKS.account,
   ],
@@ -40,6 +42,7 @@ export const PUBLIC_NAVIGATION = {
       label: 'Product',
       links: [
         NAVIGATION_LINKS.studio,
+        NAVIGATION_LINKS.plans,
         NAVIGATION_LINKS.account,
         NAVIGATION_LINKS.roadmap,
       ],

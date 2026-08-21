@@ -8,13 +8,14 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 describe('unified account dashboard', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const dashboard = readSource('src/features/account/components/AccountProfilePage.tsx');
+  const planManagement = readSource('src/features/account/components/AccountPlanManagementPanel.tsx');
   const developerStatus = readSource('src/features/account/components/AccountDeveloperStatusSection.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
 
   it('organizes the account around overview, creator work, account controls, and conditional developer tools', () => {
     expect(dashboard).toContain('Overview');
     expect(dashboard).toContain('My CardForge');
-    expect(dashboard).toContain('Account & billing');
+    expect(dashboard).toContain('Plan & billing');
     expect(dashboard).toContain("showDeveloper ? (");
     expect(dashboard).toContain('Developer surfaces appear only for accounts that actually have contributor or owner access.');
   });
@@ -32,6 +33,20 @@ describe('unified account dashboard', () => {
     expect(dashboard).toContain('Local-first by default');
     expect(dashboard).toContain('Device-only work is not automatically uploaded or exposed to ChatGPT.');
     expect(dashboard).toContain('Only sets you explicitly back up use your account cloud slots');
+  });
+
+  it('keeps plan comparison and Stripe-owned subscription actions together', () => {
+    expect(accountPage).toContain('getMcpAllowances()');
+    expect(accountPage).toContain('plans={plans}');
+    expect(dashboard).toContain('Choose, start, or manage your plan');
+    expect(dashboard).toContain('<AccountPlanManagementPanel');
+    expect(planManagement).toContain('<PlanChoiceGrid');
+    expect(planManagement).toContain('id="account-actions"');
+    expect(planManagement).toContain('<AccountBillingActions');
+    expect(dashboard).toContain('New subscriptions use Stripe Checkout');
+    expect(planManagement).toContain('Selected: {intendedPlanLabel}');
+    expect(accountPage).toContain('checkoutStatus={checkoutStatus}');
+    expect(accountPage).toContain('initialPlanIntent={initialPlanIntent}');
   });
 
   it('supports both contributor and owner account destinations', () => {

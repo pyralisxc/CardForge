@@ -13,6 +13,7 @@ describe('sitemap', () => {
     expect(urls).toEqual([
       'https://cardforges.com/',
       'https://cardforges.com/about',
+      'https://cardforges.com/plans',
       'https://cardforges.com/developer',
       'https://cardforges.com/roadmap',
       'https://cardforges.com/cameron',
