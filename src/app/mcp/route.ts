@@ -23,9 +23,12 @@ import {
 import {
   continueDeveloperTemplateDraftInPipeline,
   createDeveloperTemplateDraft,
+  editableTemplateSummaryForMcp,
   getDeveloperTemplateDraft,
   gptTemplateDraftInputSchema,
   listDeveloperTemplateDrafts,
+  omitEmbeddedMediaForMcp,
+  registerCardForgePluginSkills,
   searchStudioCreationLibrary,
   StudioDocumentStoreError,
   updateDeveloperTemplateDraft,
@@ -38,6 +41,14 @@ import {
   searchStudioLibraryInputSchema,
   updateTemplateInputSchema,
 } from '@/features/studio-documents/server/mcpToolInputSchemas';
+import {
+  editableTemplateListOutputSchema,
+  editableTemplateOutputSchema,
+  editableTemplateSummaryOutputSchema,
+  pipelineHandoffOutputSchema,
+  studioCreationGuideOutputSchema,
+  studioLibrarySearchOutputSchema,
+} from '@/features/studio-documents/server/mcpToolOutputSchemas';
 import { consumeRateLimit, RateLimitUnavailableError } from '@/infrastructure/security/abuseProtection';
 import { getMcpStudioAccess } from './mcpStudioAccess';
 
@@ -63,27 +74,6 @@ const absoluteUrl = (path: string) => `${publicOrigin()}${path}`;
 const studioDocumentUrl = (documentId: string) => absoluteUrl(
   `/studio?document=${encodeURIComponent(documentId)}`,
 );
-
-const omitEmbeddedMediaForChat = (value: unknown): unknown => {
-  if (typeof value === 'string') {
-    if (value.startsWith('data:')) return '[embedded media retained by CardForge; use attach_template_artwork to replace it]';
-    return value.length > 4000 ? `${value.slice(0, 4000)}…` : value;
-  }
-  if (Array.isArray(value)) return value.map(omitEmbeddedMediaForChat);
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const embeddedAssetId = typeof record.embeddedAssetId === 'string' ? record.embeddedAssetId : null;
-    const entries = Object.entries(record)
-      .filter(([key]) => key !== 'binding' && key !== 'embeddedAssetId')
-      .map(([key, entry]) => [key, omitEmbeddedMediaForChat(entry)] as const);
-    const sanitized = Object.fromEntries(entries);
-    if (embeddedAssetId && typeof sanitized.assetUrl !== 'string') {
-      sanitized.assetUrl = `embedded://${embeddedAssetId}`;
-    }
-    return sanitized;
-  }
-  return value;
-};
 
 const toolError = (error: unknown) => {
   const message = error instanceof DeveloperCockpitAccessError
@@ -136,34 +126,9 @@ const validateDraftInput = (input: unknown) => {
   );
 };
 
-const documentStructuredContent = (document: Awaited<ReturnType<typeof createDeveloperTemplateDraft>>) => {
-  const productionPlan = document.document.productionPlan;
-  const editableImageFieldKeys = document.document.userTemplates[0]?.fieldContracts
-    ?.filter((field) => field.type === 'image')
-    .map((field) => field.key) ?? [];
-  return {
-    document: {
-      id: document.id,
-      title: document.title,
-      creationSource: document.creationSource,
-      revision: document.revision,
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt,
-    },
-    productionPlan: productionPlan ? {
-      decisionMode: productionPlan.decisionMode,
-      planningLocked: true,
-      outputSize: productionPlan.outputSize,
-      editableFieldCount: productionPlan.editableFieldKeys.length,
-      editableImageFieldKeys,
-      assetSummary: summarizeProjectProductionAssets(productionPlan),
-    } : null,
-    openInStudioUrl: studioDocumentUrl(document.id),
-  };
-};
-
 const handler = createMcpHandler(
   (server) => {
+    registerCardForgePluginSkills(server);
     registerAgentTemplateTools({
       server,
       publicOrigin: publicOrigin(),
@@ -175,6 +140,7 @@ const handler = createMcpHandler(
       {
         title: 'Get the CardForge creation workflow',
         description: 'Read CardForge native authoring capabilities and the recommended conversation-to-Studio workflow before planning a new design.',
+        outputSchema: studioCreationGuideOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -262,6 +228,7 @@ const handler = createMcpHandler(
         title: 'Search the CardForge Studio library',
         description: 'Search CardForge templates, styles, fonts, textures, dividers, icons, and images while planning a design. Prefer reusing suitable library assets before inventing new ones.',
         inputSchema: searchStudioLibraryInputSchema,
+        outputSchema: studioLibrarySearchOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -287,6 +254,7 @@ const handler = createMcpHandler(
         title: 'Create a planned editable CardForge Template',
         description: 'Create one private CardForge Template after resolving the requested quality target, identifying every meaningful visual slot, defining editable fields, and accepting the production plan. productionPlan is required and must truthfully record confirmed user approval or explicit creative delegation. Once created, that accepted plan is locked for ordinary revisions; use native Studio fields so replaceable text and imagery remain editable.',
         inputSchema: createTemplateInputSchema,
+        outputSchema: editableTemplateSummaryOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -313,7 +281,7 @@ const handler = createMcpHandler(
               type: 'text',
               text: `Created "${document.title}" as a private editable Studio Template with a locked ${validatedInput.productionPlan.decisionMode} production plan and ${assetSummary.totalAssetInstances} planned asset instance${assetSummary.totalAssetInstances === 1 ? '' : 's'}; ${assetSummary.neededInstances} still need production or selection.`,
             }],
-            structuredContent: documentStructuredContent(document),
+            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id)),
           };
         },
       }),
@@ -325,6 +293,7 @@ const handler = createMcpHandler(
         title: 'Revise an editable CardForge Template',
         description: 'Revise the same private Studio document against its accepted production plan. Load the document first, preserve its CardForge identity and planned asset ids, send the current expectedRevision, and update the rich native Template plus its production plan. Do not reopen planning for ordinary copy, layout, style, or artwork changes; re-plan only when the user materially changes purpose, deliverable, output size, quality target, or explicitly requests it. CardForge preserves already embedded artwork for matching planned asset ids.',
         inputSchema: updateTemplateInputSchema,
+        outputSchema: editableTemplateSummaryOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -351,7 +320,7 @@ const handler = createMcpHandler(
           });
           return {
             content: [{ type: 'text', text: `Revised "${document.title}" to Studio document revision ${document.revision} without reopening its accepted planning gate.` }],
-            structuredContent: documentStructuredContent(document),
+            structuredContent: editableTemplateSummaryForMcp(document, studioDocumentUrl(document.id)),
           };
         },
       }),
@@ -362,6 +331,7 @@ const handler = createMcpHandler(
       {
         title: 'List editable CardForge Templates',
         description: 'List private Studio documents in the linked CardForge account so the user can choose one without guessing an id.',
+        outputSchema: editableTemplateListOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -387,6 +357,7 @@ const handler = createMcpHandler(
         title: 'Get an editable CardForge Template',
         description: 'Load one private Studio document, including its native editable Template and production plan, before revising it. A stored confirmed or delegated production plan is already accepted and should not be sent through the planning/approval gate again unless the user materially changes scope or explicitly asks to re-plan. Embedded image bytes are omitted from model context but remain attached to the draft.',
         inputSchema: documentIdInputSchema,
+        outputSchema: editableTemplateOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -403,14 +374,15 @@ const handler = createMcpHandler(
             ?.filter((field) => field.type === 'image')
             .map((field) => field.key) ?? [];
           const result = {
-            document: omitEmbeddedMediaForChat(document),
+            document: omitEmbeddedMediaForMcp(document),
             planningLocked: Boolean(productionPlan),
             planningDecisionMode: productionPlan?.decisionMode ?? null,
             editableImageFieldKeys,
             openInStudioUrl: studioDocumentUrl(document.id),
           };
           return {
-            content: [{ type: 'text', text: JSON.stringify(result) }],
+            content: [{ type: 'text', text: `Loaded "${document.title}" at Studio document revision ${document.revision}.` }],
+            structuredContent: result,
           };
         },
       }),
@@ -422,6 +394,7 @@ const handler = createMcpHandler(
         title: 'Continue a Template in Forge Review',
         description: 'Create a developer Pipeline draft from a private Studio Template, then return Forge Review. This is separate from creative planning and does not publish the Template.',
         inputSchema: pipelineInputSchema,
+        outputSchema: pipelineHandoffOutputSchema,
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -454,7 +427,12 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: 'cardforge-studio', version: '0.5.0' },
+    serverInfo: { name: 'cardforge-studio', version: '0.6.0' },
+    capabilities: {
+      extensions: {
+        'io.modelcontextprotocol/skills': {},
+      },
+    },
     instructions: [
       'Act as a design director and production planner before creating a new CardForge Template.',
       'For a new design, establish purpose, audience, exact dimensions or physical format, visual direction, copy needs, Studio-editable fields, and an explicit asset inventory with quantities and roles.',

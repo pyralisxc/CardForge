@@ -9,3 +9,5 @@ export * from './server/studioCreationLibrary';
 export * from './server/embeddedTemplateAssets';
 export * from './server/studioDocumentPreviewToken';
 export * from './server/mcpToolInputSchemas';
+export * from './server/mcpPluginSkills';
+export * from './server/mcpTemplateToolResults';

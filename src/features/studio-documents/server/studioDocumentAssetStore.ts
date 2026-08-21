@@ -42,7 +42,7 @@ export const externalizeStudioDocumentAssets = async ({
   ownerUserId: string;
   documentId: string;
   document: ProjectDocumentV1;
-}): Promise<ProjectDocumentV1> => {
+}): Promise<{ document: ProjectDocumentV1; uploadedAssetIds: string[] }> => {
   const pendingBySource = new Map<string, Promise<{ id: string; bytes: Buffer } | null>>();
   const assets = new Map<string, Buffer>();
 
@@ -73,11 +73,16 @@ export const externalizeStudioDocumentAssets = async ({
       }
       return getStudioDocumentAssetReference(prepared.id);
     }
-    if (Array.isArray(value)) return Promise.all(value.map(visit));
+    if (Array.isArray(value)) {
+      const entries: unknown[] = [];
+      for (const entry of value) entries.push(await visit(entry));
+      return entries;
+    }
     if (value && typeof value === 'object') {
-      const entries = await Promise.all(Object.entries(value as Record<string, unknown>).map(async ([key, entry]) => (
-        [key, await visit(entry)] as const
-      )));
+      const entries: Array<readonly [string, unknown]> = [];
+      for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+        entries.push([key, await visit(entry)] as const);
+      }
       return Object.fromEntries(entries);
     }
     return value;
@@ -89,6 +94,7 @@ export const externalizeStudioDocumentAssets = async ({
     throw new StudioDocumentStoreError(`A Studio document can contain at most ${MAX_STUDIO_DOCUMENT_ASSETS} private artwork files.`, 413);
   }
   const existingSizes = new Map<string, number>();
+  const existingIds = new Set<string>();
   if (referencedIds.length > 0) {
     const { data, error } = await requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).list(
       storagePrefix(ownerUserId, documentId),
@@ -98,6 +104,7 @@ export const externalizeStudioDocumentAssets = async ({
     (data ?? []).forEach((item) => {
       const id = item.name.endsWith('.webp') ? item.name.slice(0, -5) : '';
       const size = readObjectSize(item);
+      if (id) existingIds.add(id);
       if (size !== null) existingSizes.set(id, size);
     });
   }
@@ -108,15 +115,53 @@ export const externalizeStudioDocumentAssets = async ({
     throw new StudioDocumentStoreError('This Studio document contains more than 128 MB of private artwork.', 413);
   }
 
-  for (const [assetId, bytes] of assets) {
-    const { error } = await requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).upload(
-      storagePath(ownerUserId, documentId, assetId),
-      bytes,
-      { contentType: 'image/webp', cacheControl: '3600', upsert: true },
-    );
-    if (error) throw new StudioDocumentStoreError('Unable to store private Studio artwork.');
+  const uploadedAssetIds: string[] = [];
+  try {
+    for (const [assetId, bytes] of assets) {
+      if (existingIds.has(assetId)) continue;
+      const { error } = await requireStore().storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).upload(
+        storagePath(ownerUserId, documentId, assetId),
+        bytes,
+        { contentType: 'image/webp', cacheControl: '3600', upsert: false },
+      );
+      if (error) throw new StudioDocumentStoreError('Unable to store private Studio artwork.');
+      uploadedAssetIds.push(assetId);
+    }
+  } catch (error) {
+    await cleanupUploadedStudioDocumentAssets({ ownerUserId, documentId, uploadedAssetIds });
+    throw error;
   }
-  return storedDocument;
+  return { document: storedDocument, uploadedAssetIds };
+};
+
+export const cleanupUploadedStudioDocumentAssets = async ({
+  ownerUserId,
+  documentId,
+  uploadedAssetIds,
+}: {
+  ownerUserId: string;
+  documentId: string;
+  uploadedAssetIds: string[];
+}): Promise<void> => {
+  if (uploadedAssetIds.length === 0) return;
+  const store = requireStore();
+  const { data, error } = await store
+    .from('cardforge_studio_documents')
+    .select('document_payload')
+    .eq('id', documentId)
+    .eq('owner_user_id', ownerUserId)
+    .maybeSingle();
+  if (error) {
+    console.error('Unable to reconcile failed Studio artwork upload:', error);
+    return;
+  }
+  const referenced = new Set(collectStudioDocumentAssetIds(data?.document_payload));
+  const stalePaths = uploadedAssetIds
+    .filter((id) => !referenced.has(id))
+    .map((id) => storagePath(ownerUserId, documentId, id));
+  if (stalePaths.length === 0) return;
+  const removed = await store.storage.from(STUDIO_DOCUMENT_ASSET_BUCKET).remove(stalePaths);
+  if (removed.error) console.error('Unable to roll back failed Studio artwork upload:', removed.error);
 };
 
 export const getStudioDocumentAssetDownloads = async ({

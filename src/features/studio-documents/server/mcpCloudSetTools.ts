@@ -8,6 +8,10 @@ import {
   getCloudSet,
   listCloudSets,
 } from '@/features/project/server';
+import {
+  cloudSetListOutputSchema,
+  cloudSetOutputSchema,
+} from './mcpToolOutputSchemas';
 
 interface GetCloudSetInput {
   setId: string;
@@ -110,6 +114,7 @@ export const registerCloudSetTools = ({
     {
       title: 'List cloud-saved CardForge sets',
       description: 'Use when the user refers to a set they saved, backed up, made on another device, or expects CardForge to remember. Lists only the sets the linked CardForge account intentionally saved to its cloud slots; browser-only sets remain private to that device.',
+      outputSchema: cloudSetListOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -147,6 +152,7 @@ export const registerCloudSetTools = ({
       title: 'Read a cloud-saved CardForge set',
       description: 'Load the editable metadata for one set returned by list_cloud_sets, including its set record, required personal Templates, card values, and private-artwork manifest. This is read-only: it does not change the permanent cloud save or the browser workspace.',
       inputSchema: getCloudSetInputSchema,
+      outputSchema: cloudSetOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,

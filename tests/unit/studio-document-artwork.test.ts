@@ -5,7 +5,11 @@ import {
   getStudioDocumentAssetReference,
   replaceStudioDocumentAssetReferences,
 } from '@/features/studio-documents/assetReferences';
-import { normalizeMcpArtworkSource } from '@/features/studio-documents/server/mcpArtworkSources';
+import {
+  createMcpArtworkOperationBudget,
+  MAX_MCP_ARTWORK_ITEMS_PER_OPERATION,
+  normalizeMcpArtworkSource,
+} from '@/features/studio-documents/server/mcpArtworkSources';
 
 describe('Studio document artwork references', () => {
   it('deduplicates content-addressed ids and hydrates every matching reference', () => {
@@ -34,6 +38,18 @@ describe('Studio document artwork references', () => {
 });
 
 describe('MCP artwork source safety', () => {
+  it('bounds artwork count and aggregate bytes for one MCP write', () => {
+    const source = { mimeType: 'image/png' as const, sourceUrl: 'https://example.com/art.png' };
+    expect(() => createMcpArtworkOperationBudget(
+      Array.from({ length: MAX_MCP_ARTWORK_ITEMS_PER_OPERATION + 1 }, () => source),
+    )).toThrow(/at most/i);
+
+    expect(() => createMcpArtworkOperationBudget([
+      { mimeType: 'image/png', data: 'A'.repeat(24 * 1024 * 1024) },
+      { mimeType: 'image/png', data: 'A'.repeat(24 * 1024 * 1024) },
+    ])).toThrow(/aggregate/i);
+  });
+
   it('requires exactly one artwork transport', async () => {
     await expect(normalizeMcpArtworkSource({ mimeType: 'image/png' })).rejects.toMatchObject({
       status: 400,

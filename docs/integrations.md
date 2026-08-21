@@ -79,13 +79,15 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 **Start here:**
 
 1. `src/app/mcp/route.ts` — HTTP/MCP composition and top-level tool registration.
-2. `src/features/studio-documents/server/mcpAgentTemplateTools.ts`, `mcpAgentCardTools.ts`, and their input schemas — focused agent-tool behavior and contracts.
+2. `src/features/studio-documents/server/mcpAgentTemplateTools.ts`, `mcpAgentCardTools.ts`, `mcpToolOutputSchemas.ts`, and `mcpPluginSkills.ts` — focused agent-tool behavior, explicit structured outputs, and submission-time skill discovery.
 3. `src/features/studio-documents/` and `src/features/project/` — the same native document/template authority used by Studio.
 4. `src/features/mcp-usage/` — privacy-minimized usage observation, plan targets, and account/owner presentation.
 
 **CardForge owns:** tool semantics, Studio-document authorization, production-plan policy, and native Template validation. `preview_template_draft` shows the native exported Template PNG in chat and keeps the exact revision-bound Studio URL as a separate handoff. MCP does not get a second renderer, template format, asset store, or publication authority.
 
-Card copy and per-card artwork share the native `upsert_card` / `upsert_cards` transaction. Artwork uses an exact image field from the current generation contract and arrives as either a generated/uploaded public HTTPS source or bounded raw base64. CardForge validates and normalizes the image once, stores a private content-addressed WebP in the Studio-document asset bucket, and leaves only a stable reference in the document JSON. The Studio document API issues short-lived signed URLs and the browser rehydrates those references before applying the normal local project import. `preview_card_set` reports private resolution, renderable references, unresolved values, Template fallback, and placeholders separately.
+Every published tool declares an explicit output schema matching its `structuredContent`. The MCP skills extension exposes the two packaged `SKILL.md` files directly from `plugins/cardforge-studio`; their UTF-8 content and SHA-256 digests are the submission-time source of truth rather than a copied server prompt.
+
+Card copy and per-card artwork share the native `upsert_card` / `upsert_cards` transaction. Artwork uses an exact image field from the current generation contract and arrives as either a generated/uploaded public HTTPS source or bounded raw base64. CardForge pins each validated public DNS result for the HTTPS request, caps one write at 64 artwork files and 32 MB of aggregate input, and processes normalization without unbounded fan-out. It stores a private content-addressed WebP in the Studio-document asset bucket and leaves only a stable reference in the document JSON; failed uploads and revision conflicts reconcile newly created objects against the persisted document so they do not become billable orphans. The Studio document API issues short-lived signed URLs and the browser rehydrates those references before applying the normal local project import. `preview_card_set` reports private resolution, renderable references, unresolved values, Template fallback, and placeholders separately.
 
 `list_cloud_sets` and `get_cloud_set` expose only account sets the user explicitly saved to CardForge cloud slots. They reuse the entitlement already resolved during MCP authentication and do not perform a second Clerk identity fetch. Browser-only projects remain invisible to the connector.
 

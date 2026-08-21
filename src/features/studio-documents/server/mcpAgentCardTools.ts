@@ -16,8 +16,14 @@ import {
   upsertCardsInputSchema,
   upsertCardSetInputSchema,
 } from './mcpCardToolSchemas';
+import {
+  cardGenerationContractOutputSchema,
+  cardSetPreviewOutputSchema,
+  cardSetWriteOutputSchema,
+  cardWriteOutputSchema,
+} from './mcpToolOutputSchemas';
 
-const CARDFORGE_MCP_CAPABILITY_VERSION = '0.5.0';
+const CARDFORGE_MCP_CAPABILITY_VERSION = '0.6.0';
 
 type RegistrationCallback = Parameters<typeof createMcpHandler>[0];
 type McpRegistrationServer = Parameters<RegistrationCallback>[0];
@@ -160,6 +166,7 @@ export const registerAgentCardTools = ({
       title: 'Prepare a Template for making cards or a bulk card set',
       description: 'Use when the user wants to make cards, generate a deck or set, or turn a list/CSV/JSON into cards. Reads the exact front/back Template fields, required fields, image fields, and CardForge bulk schema before any card write. Never guess card columns or image keys.',
       inputSchema: cardGenerationContractInputSchema,
+      outputSchema: cardGenerationContractOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ documentId, setId }) => {
@@ -206,6 +213,7 @@ export const registerAgentCardTools = ({
       title: 'Create or update a CardForge card set',
       description: 'Use when the user names a set, deck, collection, expansion, or group of cards. Creates or revises that set in the same private working document. Reuse a stable setId on revisions or retries; when setId is omitted CardForge reuses an existing same-name set before creating another one.',
       inputSchema: upsertCardSetInputSchema,
+      outputSchema: cardSetWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ documentId, expectedRevision, setId, name, frontTemplateId, backingTemplateId }) => {
@@ -296,6 +304,7 @@ export const registerAgentCardTools = ({
       title: 'Make or update one CardForge card',
       description: 'Use for a single card in an existing working set. Load get_card_generation_contract first and use only its Template field keys. Copy and optional artwork are written together; artwork accepts a generated/uploaded public HTTPS sourceUrl or bounded raw base64 fallback. Reuse the returned stable cardId for edits or retries.',
       inputSchema: upsertCardInputSchema,
+      outputSchema: cardWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ documentId, expectedRevision, setId, card }) => upsertCards({
@@ -313,6 +322,7 @@ export const registerAgentCardTools = ({
       title: 'Generate cards in bulk for a CardForge set',
       description: 'Use when the user asks for multiple cards, a deck/set, bulk generation, or conversion of a list/CSV/JSON. Creates or revises up to 100 cards using structured objects and the exact CardForge field contract. Each card can include its artwork so CardForge performs one real bulk write. Never guess card columns or image keys; reuse stable cardId values for revisions and retries.',
       inputSchema: upsertCardsInputSchema,
+      outputSchema: cardWriteOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ documentId, expectedRevision, setId, cards }) => upsertCards({
@@ -330,6 +340,7 @@ export const registerAgentCardTools = ({
       title: 'Review a CardForge card set before opening it in Studio',
       description: 'Use after making one or many cards to review the current set structure and card values. Embedded artwork bytes are omitted from model context. Check that card copy varies as intended, image fields are populated where required, and the set/card ids are stable before opening the exact revision in Studio.',
       inputSchema: getCardSetInputSchema,
+      outputSchema: cardSetPreviewOutputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async ({ documentId, setId }) => {

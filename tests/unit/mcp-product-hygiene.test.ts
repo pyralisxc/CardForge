@@ -17,9 +17,12 @@ describe('CardForge MCP and plugin product hygiene', () => {
   const templateTools = readSource('src/features/studio-documents/server/mcpAgentTemplateToolsCore.ts');
   const cardTools = readSource('src/features/studio-documents/server/mcpAgentCardTools.ts');
   const cloudTools = readSource('src/features/studio-documents/server/mcpCloudSetTools.ts');
+  const pluginSkills = readSource('src/features/studio-documents/server/mcpPluginSkills.ts');
   const cardSchemas = readSource('src/features/studio-documents/server/mcpCardToolSchemas.ts');
   const cardDrafts = readSource('src/features/studio-documents/server/developerCardSetDrafts.ts');
   const studioStore = readSource('src/features/studio-documents/server/studioDocumentStore.ts');
+  const assetStore = readSource('src/features/studio-documents/server/studioDocumentAssetStore.ts');
+  const artworkSources = readSource('src/features/studio-documents/server/mcpArtworkSources.ts');
   const developerAccess = readSource('src/features/developer-access/server/access.ts');
   const designSkill = readSource('plugins/cardforge-studio/skills/create-editable-template/SKILL.md');
   const setSkill = readSource('plugins/cardforge-studio/skills/create-cards-and-sets/SKILL.md');
@@ -55,6 +58,32 @@ describe('CardForge MCP and plugin product hygiene', () => {
       'upsert_card_set',
       'upsert_cards',
     ]);
+  });
+
+  it('pins artwork downloads and cleans failed storage writes without unbounded fan-out', () => {
+    expect(artworkSources).toContain('request as httpsRequest');
+    expect(artworkSources).toContain('autoSelectFamily: false');
+    expect(artworkSources).toContain('const signal = AbortSignal.timeout(10_000)');
+    expect(artworkSources).toContain('signal,');
+    expect(artworkSources).not.toContain('response.resume()');
+    expect(artworkSources).toContain('lookup: (_hostname, _options, callback) =>');
+    expect(assetStore).toContain('cleanupUploadedStudioDocumentAssets');
+    expect(assetStore).not.toContain('Promise.all(value.map(visit))');
+    expect(studioStore).toContain('cleanupUploadedStudioDocumentAssets');
+  });
+
+  it('publishes an explicit output schema for every structured MCP tool', () => {
+    const sources = [route, templateTools, cardTools, cloudTools].join('\n');
+    expect(sources.match(/outputSchema:/g)).toHaveLength(toolNames(sources).length);
+  });
+
+  it('advertises and serves the two CardForge skills through the MCP skills extension', () => {
+    expect(route).toContain("'io.modelcontextprotocol/skills': {}");
+    expect(route).toContain('registerCardForgePluginSkills(server)');
+    expect(pluginSkills).toContain("'skills/list'");
+    expect(pluginSkills).toContain("'skills/get'");
+    expect(pluginSkills).toContain('server.registerResource(');
+    expect(pluginSkills).toContain("createHash('sha256')");
   });
 
   it('uses mainstream card/set language so targeted MCP discovery can find the right tools', () => {

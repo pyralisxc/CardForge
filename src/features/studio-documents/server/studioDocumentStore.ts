@@ -11,6 +11,7 @@ import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServe
 
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
 import {
+  cleanupUploadedStudioDocumentAssets,
   externalizeStudioDocumentAssets,
   removeStudioDocumentAssets,
   removeUnreferencedStudioDocumentAssets,
@@ -98,7 +99,7 @@ export const createStudioDocument = async ({
   document: ProjectDocumentV1;
 }): Promise<StudioDocument> => {
   const documentId = randomUUID();
-  const storedDocument = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
+  const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .insert({
@@ -106,8 +107,8 @@ export const createStudioDocument = async ({
       owner_user_id: ownerUserId,
       title,
       creation_source: creationSource,
-      document_version: storedDocument.version,
-      document_payload: storedDocument,
+      document_version: externalized.document.version,
+      document_payload: externalized.document,
     })
     .select(DOCUMENT_COLUMNS)
     .single();
@@ -136,13 +137,13 @@ export const updateStudioDocument = async ({
   document: ProjectDocumentV1;
   expectedRevision: number;
 }): Promise<StudioDocument> => {
-  const storedDocument = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
+  const externalized = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .update({
       title,
-      document_version: storedDocument.version,
-      document_payload: storedDocument,
+      document_version: externalized.document.version,
+      document_payload: externalized.document,
       revision: expectedRevision + 1,
     })
     .eq('id', documentId)
@@ -151,10 +152,20 @@ export const updateStudioDocument = async ({
     .select(DOCUMENT_COLUMNS)
     .maybeSingle();
   if (error) {
+    await cleanupUploadedStudioDocumentAssets({
+      ownerUserId,
+      documentId,
+      uploadedAssetIds: externalized.uploadedAssetIds,
+    });
     console.error('Failed to update Studio document:', error);
     throw new StudioDocumentStoreError('Unable to update the Studio document.');
   }
   if (!data) {
+    await cleanupUploadedStudioDocumentAssets({
+      ownerUserId,
+      documentId,
+      uploadedAssetIds: externalized.uploadedAssetIds,
+    });
     throw new StudioDocumentStoreError(
       `The CardForge working document changed after revision ${expectedRevision}. Reload the current design or card-generation contract, then retry with the new expectedRevision while reusing the same stable set and card ids.`,
       409,
@@ -169,6 +180,8 @@ export const deleteStudioDocument = async (
   ownerUserId: string,
   documentId: string,
 ): Promise<void> => {
+  await getStudioDocument(ownerUserId, documentId);
+  await removeStudioDocumentAssets(ownerUserId, documentId);
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .delete()
@@ -181,9 +194,4 @@ export const deleteStudioDocument = async (
     throw new StudioDocumentStoreError('Unable to delete the Studio document.');
   }
   if (!data) throw new StudioDocumentStoreError('Studio document not found.', 404);
-  try {
-    await removeStudioDocumentAssets(ownerUserId, documentId);
-  } catch (assetError) {
-    console.error('Unable to clean deleted Studio document artwork:', assetError);
-  }
 };

@@ -12,6 +12,10 @@ import {
   attachTemplateAssetInputSchema,
   previewTemplateDraftInputSchema,
 } from './agentTemplateToolSchemas';
+import {
+  templateArtworkOutputSchema,
+  templatePreviewOutputSchema,
+} from './mcpToolOutputSchemas';
 
 const PREVIEW_RESOURCE_URI = 'ui://cardforge/template-draft-preview.html';
 const PREVIEW_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
@@ -306,6 +310,7 @@ export const registerAgentTemplateTools = ({
       title: 'Attach generated artwork to a CardForge Template draft',
       description: 'Attach one generated, user-provided, or CardForge-output PNG/JPEG/WebP to one planned artwork requirement. CardForge validates and normalizes it, embeds it into the Template itself, advances the same Studio document revision, and reports the exact native binding and target element ids. Preview after attaching to verify the intended visible slot.',
       inputSchema: attachTemplateAssetInputSchema,
+      outputSchema: templateArtworkOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -358,6 +363,7 @@ export const registerAgentTemplateTools = ({
       title: 'Preview the current CardForge Template draft',
       description: 'Export the exact current CardForge Template as a native PNG shown directly in chat for visual review. The result reports production completeness plus composition and asset-binding diagnostics, with the exact revision-bound Studio URL kept separately. Verify the intended image slot, frame structure, and text borders after meaningful layout or artwork revisions; do not call an asset-incomplete or misbound draft finished.',
       inputSchema: previewTemplateDraftInputSchema,
+      outputSchema: templatePreviewOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,

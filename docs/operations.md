@@ -141,9 +141,11 @@ For a development-beta release:
 
 1. Complete the normal exact-head Preview and migration sequence, including the private Studio artwork bucket.
 2. Verify MCP discovery/OAuth against the real signed-in owner/developer account and confirm signed-out requests fail closed.
-3. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and cloud-set list/read.
-4. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
-5. Keep the public surface labeled development beta until the OpenAI review/submission lane and representative tool test cases are complete.
+3. In the MCP Inspector, confirm every tool exposes an input schema, output schema, and accurate annotations; confirm `skills/list`, `skills/get`, and each listed `resources/read` digest resolve.
+4. Call every tool with one representative request and at least one invalid request, including signed-out/private-data failure paths.
+5. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and cloud-set list/read.
+6. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
+7. Keep the public surface labeled development beta until OpenAI review accepts the submitted version.
 
 ## Billing reconciliation
 

@@ -1,4 +1,6 @@
 import { lookup } from 'node:dns/promises';
+import type { IncomingMessage } from 'node:http';
+import { request as httpsRequest, type RequestOptions } from 'node:https';
 import { isIP } from 'node:net';
 
 import {
@@ -13,6 +15,40 @@ export interface McpArtworkSource {
   data?: string;
   sourceUrl?: string;
 }
+
+export const MAX_MCP_ARTWORK_ITEMS_PER_OPERATION = 64;
+export const MAX_MCP_ARTWORK_BYTES_PER_OPERATION = 32 * 1024 * 1024;
+
+export interface McpArtworkOperationBudget {
+  consumeRemoteBytes: (bytes: number) => void;
+}
+
+const estimatedBase64Bytes = (value: string) => Math.floor(value.replace(/\s/gu, '').length * 3 / 4);
+
+export const createMcpArtworkOperationBudget = (
+  sources: McpArtworkSource[],
+): McpArtworkOperationBudget => {
+  if (sources.length > MAX_MCP_ARTWORK_ITEMS_PER_OPERATION) {
+    throw new StudioDocumentStoreError(
+      `One card write can include at most ${MAX_MCP_ARTWORK_ITEMS_PER_OPERATION} artwork files. Split larger sets across revision-safe calls.`,
+      413,
+    );
+  }
+  let consumedBytes = sources.reduce((total, source) => (
+    total + (source.data ? estimatedBase64Bytes(source.data) : 0)
+  ), 0);
+  if (consumedBytes > MAX_MCP_ARTWORK_BYTES_PER_OPERATION) {
+    throw new StudioDocumentStoreError('Artwork exceeds the 32 MB aggregate limit for one card write.', 413);
+  }
+  return {
+    consumeRemoteBytes: (bytes) => {
+      consumedBytes += bytes;
+      if (consumedBytes > MAX_MCP_ARTWORK_BYTES_PER_OPERATION) {
+        throw new StudioDocumentStoreError('Artwork exceeds the 32 MB aggregate limit for one card write.', 413);
+      }
+    },
+  };
+};
 
 const isPrivateIpv4 = (address: string): boolean => {
   const octets = address.split('.').map(Number);
@@ -59,7 +95,13 @@ const isPrivateAddress = (address: string): boolean => {
     || normalized.startsWith('2001:db8:');
 };
 
-const requirePublicHttpsUrl = async (value: string): Promise<URL> => {
+interface ResolvedPublicUrl {
+  url: URL;
+  address: string;
+  family: 4 | 6;
+}
+
+const requirePublicHttpsUrl = async (value: string): Promise<ResolvedPublicUrl> => {
   let url: URL;
   try {
     url = new URL(value);
@@ -77,66 +119,90 @@ const requirePublicHttpsUrl = async (value: string): Promise<URL> => {
   if (addresses.length === 0 || addresses.some(({ address }) => isPrivateAddress(address))) {
     throw new StudioDocumentStoreError('Artwork sourceUrl must resolve only to public network addresses.', 400);
   }
-  return url;
+  const selected = addresses[0]!;
+  return { url, address: selected.address, family: selected.family === 6 ? 6 : 4 };
 };
 
-const readBoundedResponse = async (response: Response): Promise<Buffer> => {
-  const declared = Number(response.headers.get('content-length'));
+const readBoundedResponse = async (response: IncomingMessage): Promise<Buffer> => {
+  const declared = Number(response.headers['content-length']);
   if (Number.isFinite(declared) && declared > MAX_EMBEDDED_TEMPLATE_ASSET_BYTES) {
     throw new StudioDocumentStoreError('Remote artwork must be 2.4 MB or smaller before CardForge normalization.', 413);
   }
-  if (!response.body) throw new StudioDocumentStoreError('Remote artwork returned an empty response.', 400);
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const chunks: Buffer[] = [];
   let size = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
+  for await (const value of response) {
+    const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
+    size += chunk.byteLength;
     if (size > MAX_EMBEDDED_TEMPLATE_ASSET_BYTES) {
-      await reader.cancel();
+      response.destroy();
       throw new StudioDocumentStoreError('Remote artwork must be 2.4 MB or smaller before CardForge normalization.', 413);
     }
-    chunks.push(value);
+    chunks.push(chunk);
   }
-  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), size);
+  if (size === 0) throw new StudioDocumentStoreError('Remote artwork returned an empty response.', 400);
+  return Buffer.concat(chunks, size);
 };
 
-const downloadArtwork = async (sourceUrl: string, mimeType: EmbeddedTemplateAssetMimeType): Promise<Buffer> => {
-  let url = await requirePublicHttpsUrl(sourceUrl);
+const requestPinned = (
+  resolved: ResolvedPublicUrl,
+  signal: AbortSignal,
+): Promise<IncomingMessage> => new Promise((resolve, reject) => {
+  const options: RequestOptions & { autoSelectFamily: boolean } = {
+    autoSelectFamily: false,
+    headers: { Accept: 'image/png,image/jpeg,image/webp' },
+    lookup: (_hostname, _options, callback) => {
+      callback(null, resolved.address, resolved.family);
+    },
+    servername: resolved.url.hostname,
+    signal,
+  };
+  const request = httpsRequest(resolved.url, options, resolve);
+  request.on('error', reject);
+  request.end();
+});
+
+const downloadArtwork = async (
+  sourceUrl: string,
+  mimeType: EmbeddedTemplateAssetMimeType,
+  budget: McpArtworkOperationBudget,
+): Promise<Buffer> => {
+  let resolved = await requirePublicHttpsUrl(sourceUrl);
+  const signal = AbortSignal.timeout(10_000);
   for (let redirect = 0; redirect <= 3; redirect += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
     try {
-      const response = await fetch(url, {
-        cache: 'no-store',
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: { Accept: 'image/png,image/jpeg,image/webp' },
-      });
-      if ([301, 302, 303, 307, 308].includes(response.status)) {
-        const location = response.headers.get('location');
+      const response = await requestPinned(resolved, signal);
+      const status = response.statusCode ?? 0;
+      if ([301, 302, 303, 307, 308].includes(status)) {
+        const location = response.headers.location;
+        response.destroy();
         if (!location || redirect === 3) throw new StudioDocumentStoreError('Remote artwork redirected too many times.', 400);
-        url = await requirePublicHttpsUrl(new URL(location, url).toString());
+        resolved = await requirePublicHttpsUrl(new URL(location, resolved.url).toString());
         continue;
       }
-      if (!response.ok) throw new StudioDocumentStoreError('CardForge could not download the remote artwork.', 400);
-      const responseType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+      if (status < 200 || status >= 300) {
+        response.destroy();
+        throw new StudioDocumentStoreError('CardForge could not download the remote artwork.', 400);
+      }
+      const responseType = response.headers['content-type']?.split(';')[0]?.trim().toLowerCase();
       if (responseType?.startsWith('image/') && responseType !== mimeType) {
+        response.destroy();
         throw new StudioDocumentStoreError('Remote artwork content type does not match mimeType.', 400);
       }
-      return await readBoundedResponse(response);
+      const bytes = await readBoundedResponse(response);
+      budget.consumeRemoteBytes(bytes.byteLength);
+      return bytes;
     } catch (error) {
       if (error instanceof StudioDocumentStoreError) throw error;
       throw new StudioDocumentStoreError('CardForge could not securely download the remote artwork.', 400);
-    } finally {
-      clearTimeout(timeout);
     }
   }
   throw new StudioDocumentStoreError('CardForge could not download the remote artwork.', 400);
 };
 
-export const normalizeMcpArtworkSource = async (source: McpArtworkSource) => {
+export const normalizeMcpArtworkSource = async (
+  source: McpArtworkSource,
+  budget = createMcpArtworkOperationBudget([source]),
+) => {
   const hasData = typeof source.data === 'string' && source.data.length > 0;
   const hasUrl = typeof source.sourceUrl === 'string' && source.sourceUrl.length > 0;
   if (hasData === hasUrl) {
@@ -144,6 +210,6 @@ export const normalizeMcpArtworkSource = async (source: McpArtworkSource) => {
   }
   const data = hasData
     ? source.data!
-    : (await downloadArtwork(source.sourceUrl!, source.mimeType)).toString('base64');
+    : (await downloadArtwork(source.sourceUrl!, source.mimeType, budget)).toString('base64');
   return normalizeEmbeddedTemplateAsset({ data, mimeType: source.mimeType });
 };

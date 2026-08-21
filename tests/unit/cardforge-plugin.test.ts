@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { getCardForgePluginSkillCatalog } from '@/features/studio-documents/server/mcpPluginSkills';
 
 describe('CardForge Studio plugin', () => {
   it('packages the authenticated production MCP server for ChatGPT and Codex', () => {
@@ -16,7 +19,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '0.5.0',
+      version: '0.6.0',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
@@ -39,7 +42,28 @@ describe('CardForge Studio plugin', () => {
     expect(access).not.toContain('getMcpAllowanceForPlan');
     expect(access).not.toContain('mcpEnabled');
     expect(route).toContain("acceptsToken: 'oauth_token'");
-    expect(route).toContain("version: '0.5.0'");
+    expect(route).toContain("version: '0.6.0'");
+  });
+
+  it('serves submission-time skill manifests with exact content digests', () => {
+    const catalog = getCardForgePluginSkillCatalog();
+    expect(catalog.map((skill) => skill.frontmatter.name)).toEqual([
+      'create-editable-template',
+      'create-cards-and-sets',
+    ]);
+
+    for (const skill of catalog) {
+      const content = readFileSync(resolve(
+        process.cwd(),
+        'plugins/cardforge-studio/skills',
+        skill.frontmatter.name,
+        'SKILL.md',
+      ), 'utf8');
+      expect(skill.resources).toEqual([{
+        uri: skill.uri,
+        digest: `sha256:${createHash('sha256').update(content, 'utf8').digest('hex')}`,
+      }]);
+    }
   });
 
   it('declares telemetry-writing tools as non-read-only for publication review', () => {

@@ -14,6 +14,7 @@ import {
 } from '@/features/card-generator/server';
 import { requireContributionScope, type DeveloperCockpitAccess } from '@/features/developer-access/server';
 import {
+  createMcpArtworkOperationBudget,
   normalizeMcpArtworkSource,
 } from './mcpArtworkSources';
 import type { McpCardArtworkInput } from './mcpCardToolSchemas';
@@ -257,6 +258,7 @@ export const upsertDeveloperCards = async ({
   cards: AgentCardInput[];
 }) => {
   requireContributionScope(access, 'studio.ai.create');
+  const artworkBudget = createMcpArtworkOperationBudget(cards.flatMap((card) => card.artwork ?? []));
   const current = await getStudioDocument(access.user.id, documentId);
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const set = requireSet(current.document.cardSets, setId);
@@ -295,7 +297,7 @@ export const upsertDeveloperCards = async ({
           409,
         );
       }
-      const normalized = await normalizeMcpArtworkSource(artwork);
+      const normalized = await normalizeMcpArtworkSource(artwork, artworkBudget);
       if (artwork.face === 'back') nextBackingData![artwork.fieldKey] = normalized.dataUri;
       else nextData[artwork.fieldKey] = normalized.dataUri;
       artworkResults.push({ cardId: uniqueId, fieldKey: artwork.fieldKey, face: artwork.face, status: 'stored' });

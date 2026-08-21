@@ -189,7 +189,7 @@ export const upsertCardsInputSchema = fromJsonSchema<UpsertCardsInput>({
       type: 'array',
       minItems: 1,
       maxItems: 100,
-      description: 'One to 100 cards using the exact Template field keys. Give each planned card a stable cardId when possible so retries and later revisions update instead of duplicate.',
+      description: 'One to 100 cards using the exact Template field keys. A single write may include up to 64 artwork files and 32 MB of aggregate artwork input; split larger artwork sets across revision-safe calls. Give each planned card a stable cardId when possible so retries and later revisions update instead of duplicate.',
       items: cardInput,
     },
   },

@@ -18,6 +18,7 @@ describe('Studio MCP creative production flow', () => {
     readSource('src/features/studio-documents/server/mcpAgentCardTools.ts'),
   ].join('\n');
   const creationLibrary = readSource('src/features/studio-documents/server/studioCreationLibrary.ts');
+  const templateToolResults = readSource('src/features/studio-documents/server/mcpTemplateToolResults.ts');
   const validation = readSource('src/features/studio-documents/templateDraftSchema.ts');
   const revisions = [
     readSource('src/features/studio-documents/server/developerTemplateDrafts.ts'),
@@ -66,7 +67,7 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('fieldContract with type image');
     expect(route).toContain('productionPlan.editableFieldKeys');
     expect(route).toContain('PROJECT_ASSET_BINDINGS');
-    expect(route).toContain('planningLocked: true');
+    expect(templateToolResults).toContain('planningLocked: true');
     expect(route).toContain('treat its production plan as locked');
     expect(route).toContain('Do not ask for the same approval');
     expect(route).toContain('materially changes purpose, deliverable, output size, quality target');
@@ -85,7 +86,7 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('A successful upload is not proof of correct placement');
     expect(route).toContain('asset bindings, image-element source states, bordered text ids, and composition warnings');
     expect(route).toContain('installs or updates the same Template in the user personal local Template library');
-    expect(route).toContain("version: '0.5.0'");
+    expect(route).toContain("version: '0.6.0'");
   });
 
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {
