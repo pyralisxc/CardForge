@@ -7,7 +7,7 @@ on:
       - '.github/workflows/presentation-migration-artifact.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   migrate:
@@ -15,12 +15,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: node scripts/migrate-presentation-tokens.mjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: presentation-migrated-source
-          path: |
-            src
+      - name: Commit clean cutover
+        run: |
+          git config user.name "CardForge migration"
+          git config user.email "49708731+pyralisxc@users.noreply.github.com"
+          git add src
+          git rm scripts/migrate-presentation-tokens.mjs .github/workflows/presentation-migration-artifact.yml
+          git commit -m "complete canonical presentation cutover"
+          git push origin HEAD:${{ github.head_ref }}
