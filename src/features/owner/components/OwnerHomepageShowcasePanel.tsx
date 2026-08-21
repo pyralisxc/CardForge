@@ -198,7 +198,7 @@ export function OwnerHomepageShowcasePanel({
                     onChange={(event) => {
                       const template = templatesById.get(event.target.value);
                       updateExample(index, {
-                        backTemplateId: template?.id,
+                        backTemplateId: template?.id ?? undefined,
                         backTemplateName: template?.name,
                       });
                     }}
