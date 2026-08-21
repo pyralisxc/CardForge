@@ -1,0 +1,26 @@
+name: Presentation migration artifact
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/migrate-presentation-tokens.mjs'
+      - '.github/workflows/presentation-migration-artifact.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/migrate-presentation-tokens.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: presentation-migrated-source
+          path: |
+            src
