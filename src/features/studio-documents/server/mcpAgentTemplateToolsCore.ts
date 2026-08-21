@@ -48,7 +48,7 @@ const productionStatus = (document: DeveloperTemplateDraft) => {
 const imageSourceState = (source: string | undefined) => {
   if (!source) return 'empty' as const;
   if (source === 'artworkUrl') return 'placeholder' as const;
-  if (source.startsWith('data:')) return 'embedded' as const;
+  if (source.startsWith('data:') || source.startsWith('cardforge-studio-asset://')) return 'embedded' as const;
   if (source.startsWith('embedded://')) return 'embedded-reference' as const;
   return 'configured' as const;
 };

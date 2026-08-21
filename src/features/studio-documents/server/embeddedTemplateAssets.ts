@@ -20,9 +20,13 @@ export const EMBEDDED_TEMPLATE_ASSET_MIME_TYPES = [
 export type EmbeddedTemplateAssetMimeType = typeof EMBEDDED_TEMPLATE_ASSET_MIME_TYPES[number];
 
 export const MAX_EMBEDDED_TEMPLATE_ASSET_BASE64_CHARS = 3_200_000;
-const MAX_EMBEDDED_TEMPLATE_ASSET_BYTES = 2_400_000;
+export const MAX_EMBEDDED_TEMPLATE_ASSET_BYTES = 2_400_000;
 const MAX_SOURCE_DIMENSION = 8192;
 const NORMALIZED_MAX_DIMENSION = 2400;
+
+const isPersistedStudioArtwork = (value?: string): value is string => Boolean(
+  value?.startsWith('data:') || value?.startsWith('cardforge-studio-asset://'),
+);
 
 const MIME_BY_FORMAT: Record<string, EmbeddedTemplateAssetMimeType | undefined> = {
   jpeg: 'image/jpeg',
@@ -51,7 +55,7 @@ export const normalizeEmbeddedTemplateAsset = async ({
 }: {
   data: string;
   mimeType: EmbeddedTemplateAssetMimeType;
-}): Promise<{ dataUri: string; width: number; height: number; byteCount: number }> => {
+}): Promise<{ dataUri: string; bytes: Buffer; width: number; height: number; byteCount: number }> => {
   const source = decodeBase64(data);
   try {
     const metadata = await sharp(source, { failOn: 'error', animated: false }).metadata();
@@ -65,19 +69,25 @@ export const normalizeEmbeddedTemplateAsset = async ({
       );
     }
 
-    const { data: normalized, info } = await sharp(source, { failOn: 'error', animated: false })
-      .rotate()
-      .resize({
-        width: NORMALIZED_MAX_DIMENSION,
-        height: NORMALIZED_MAX_DIMENSION,
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .webp({ quality: 90 })
-      .toBuffer({ resolveWithObject: true });
+    const alreadyNormalized = detectedMime === 'image/webp'
+      && metadata.width <= NORMALIZED_MAX_DIMENSION
+      && metadata.height <= NORMALIZED_MAX_DIMENSION;
+    const { data: normalized, info } = alreadyNormalized
+      ? { data: source, info: { width: metadata.width, height: metadata.height } }
+      : await sharp(source, { failOn: 'error', animated: false })
+        .rotate()
+        .resize({
+          width: NORMALIZED_MAX_DIMENSION,
+          height: NORMALIZED_MAX_DIMENSION,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 88 })
+        .toBuffer({ resolveWithObject: true });
 
     return {
       dataUri: `data:image/webp;base64,${normalized.toString('base64')}`,
+      bytes: normalized,
       width: info.width,
       height: info.height,
       byteCount: normalized.byteLength,
@@ -218,7 +228,7 @@ export const readEmbeddedTemplateAssetDataUri = ({
   const elements = template.freeformCanvas?.elements ?? [];
   for (const targetId of targetElementIds) {
     const value = getElementDataUri(elements.find((element) => element.id === targetId), binding);
-    if (value?.startsWith('data:')) return value;
+    if (isPersistedStudioArtwork(value)) return value;
   }
   return undefined;
 };
@@ -246,7 +256,7 @@ export const preserveEmbeddedTemplateAssets = ({
       binding: currentAsset.binding,
       targetElementIds: currentAsset.targetElementIds ?? [],
     });
-    if (!dataUri?.startsWith('data:')) return nextAsset;
+    if (!isPersistedStudioArtwork(dataUri)) return nextAsset;
 
     const targetElementIds = nextAsset.targetElementIds ?? currentAsset.targetElementIds ?? [];
     template = bindEmbeddedTemplateAsset({

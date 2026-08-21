@@ -11,11 +11,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { renderCardToPngBlob } from '@/features/card-generator/client';
 import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
+import type { StudioDocumentAssetDownload } from '../assetReferences';
+import { hydrateStudioDocumentAssetValue } from '../client/studioDocumentAssetHydration';
 
 interface TemplateDraftPreviewPayload {
   title: string;
   revision: number;
   template: TCGCardTemplate;
+  assets: StudioDocumentAssetDownload[];
 }
 
 interface ExportedTemplatePreview {
@@ -71,11 +74,14 @@ export function TemplateDraftPreviewClient() {
           throw new Error(await readApiErrorMessage(response, 'Unable to load this CardForge draft preview.'));
         }
         const preview = await response.json() as TemplateDraftPreviewPayload;
-        const template = reconstructMinimalTemplateObject(preview.template);
+        const template = reconstructMinimalTemplateObject(await hydrateStudioDocumentAssetValue(
+          preview.template,
+          preview.assets ?? [],
+        ));
         if (!template.id || !template.freeformCanvas) {
           throw new Error('This CardForge draft does not contain a renderable Template.');
         }
-        setPayload({ title: preview.title, revision: preview.revision, template });
+        setPayload({ title: preview.title, revision: preview.revision, template, assets: [] });
       } catch (error) {
         if (!controller.signal.aborted) {
           const message = error instanceof Error ? error.message : 'Unable to load this CardForge draft preview.';

@@ -1,7 +1,7 @@
 {
   "name": "cardforge-studio",
-  "version": "0.4.0",
-  "description": "Design editable cards and Templates, generate complete card sets, add artwork, and continue editing in CardForge Studio.",
+  "version": "0.5.0",
+  "description": "Development beta to design editable cards, generate complete card sets with ChatGPT, and continue in CardForge Studio.",
   "author": {
     "name": "Cameron Locke",
     "url": "https://cardforges.com"
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "CardForge Studio",
     "shortDescription": "Design cards and generate complete card sets",
-    "longDescription": "Design editable card Templates, create individual cards or complete sets, bulk-generate from structured content, add unique artwork, review results, and continue editing everything in CardForge Studio. Developer publication tools remain a separate optional workflow.",
+    "longDescription": "Development beta to design editable card Templates, create individual cards or complete sets, bulk-generate copy and unique artwork with ChatGPT, review results, and continue everything in CardForge Studio. Developer publication tools remain a separate optional workflow.",
     "developerName": "Cameron Locke",
     "category": "Design",
     "capabilities": [

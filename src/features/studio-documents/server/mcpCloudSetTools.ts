@@ -1,8 +1,8 @@
 import { fromJsonSchema } from '@modelcontextprotocol/server';
 import { createMcpHandler } from 'mcp-handler';
 
-import { getCardforgeEntitlementForUserId } from '@/features/account/server';
 import type { DeveloperCockpitAccess } from '@/features/developer-access/server';
+import { observeMcpToolExecution } from '@/features/mcp-usage/server';
 import {
   CloudSetStoreError,
   getCloudSet,
@@ -51,6 +51,7 @@ type ToolErrorResult = {
 
 const compactValue = (value: unknown): unknown => {
   if (typeof value === 'string') {
+    if (value.startsWith('cardforge-studio-asset://')) return '[private artwork stored by CardForge]';
     if (value.startsWith('data:')) return '[embedded artwork retained by CardForge]';
     return value.length > 4000 ? `${value.slice(0, 4000)}…` : value;
   }
@@ -82,6 +83,27 @@ export const registerCloudSetTools = ({
     }
     return toolError(error);
   };
+  const runObserved = async <Result>({
+    toolName,
+    input,
+    execute,
+  }: {
+    toolName: string;
+    input: unknown;
+    execute: (access: DeveloperCockpitAccess) => Promise<Result>;
+  }): Promise<Result | ToolErrorResult> => {
+    try {
+      const access = await getAccess();
+      return await observeMcpToolExecution({
+        ownerUserId: access.user.id,
+        toolName,
+        input,
+        execute: async () => execute(access),
+      });
+    } catch (error) {
+      return cloudError(error);
+    }
+  };
 
   server.registerTool(
     'list_cloud_sets',
@@ -89,15 +111,16 @@ export const registerCloudSetTools = ({
       title: 'List cloud-saved CardForge sets',
       description: 'Use when the user refers to a set they saved, backed up, made on another device, or expects CardForge to remember. Lists only the sets the linked CardForge account intentionally saved to its cloud slots; browser-only sets remain private to that device.',
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         openWorldHint: false,
       },
     },
-    async () => {
-      try {
-        const access = await getAccess();
-        const entitlement = await getCardforgeEntitlementForUserId(access.user.id);
+    async () => runObserved({
+      toolName: 'list_cloud_sets',
+      input: {},
+      execute: async (access) => {
+        const entitlement = access.entitlement;
         if (!entitlement.isSignedIn || !entitlement.accountUserId) {
           throw new CloudSetStoreError('A linked CardForge account is required to read cloud-saved sets.', 401);
         }
@@ -114,10 +137,8 @@ export const registerCloudSetTools = ({
           }],
           structuredContent: result,
         };
-      } catch (error) {
-        return cloudError(error);
-      }
-    },
+      },
+    }),
   );
 
   server.registerTool(
@@ -127,15 +148,16 @@ export const registerCloudSetTools = ({
       description: 'Load the editable metadata for one set returned by list_cloud_sets, including its set record, required personal Templates, card values, and private-artwork manifest. This is read-only: it does not change the permanent cloud save or the browser workspace.',
       inputSchema: getCloudSetInputSchema,
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         openWorldHint: false,
       },
     },
-    async ({ setId, cardOffset = 0, cardLimit = 60 }) => {
-      try {
-        const access = await getAccess();
-        const entitlement = await getCardforgeEntitlementForUserId(access.user.id);
+    async ({ setId, cardOffset = 0, cardLimit = 60 }) => runObserved({
+      toolName: 'get_cloud_set',
+      input: { setId, cardOffset, cardLimit },
+      execute: async (access) => {
+        const entitlement = access.entitlement;
         if (!entitlement.isSignedIn || !entitlement.accountUserId) {
           throw new CloudSetStoreError('A linked CardForge account is required to read a cloud-saved set.', 401);
         }
@@ -171,9 +193,7 @@ export const registerCloudSetTools = ({
           }],
           structuredContent,
         };
-      } catch (error) {
-        return cloudError(error);
-      }
-    },
+      },
+    }),
   );
 };

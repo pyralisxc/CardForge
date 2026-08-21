@@ -1,5 +1,6 @@
 import {
   getStudioDocument,
+  getStudioDocumentAssetDownloads,
   readStudioDocumentPreviewToken,
   StudioDocumentStoreError,
 } from '@/features/studio-documents/server';
@@ -28,10 +29,16 @@ export async function GET(request: Request) {
       return createApiErrorResponse(409, 'studio_document_conflict', 'This draft cannot be rendered as a single CardForge Template preview.');
     }
 
+    const assets = await getStudioDocumentAssetDownloads({
+      ownerUserId: payload.ownerUserId,
+      documentId: payload.documentId,
+      value: template,
+    });
     return createNoStoreJsonResponse({
       title: document.title,
       revision: document.revision,
       template,
+      assets,
     });
   } catch (error) {
     if (error instanceof StudioDocumentStoreError) {

@@ -45,7 +45,8 @@ describe('Studio MCP creative production flow', () => {
     expect(agentTools).toContain("'upsert_card_set'");
     expect(agentTools).toContain("'upsert_card'");
     expect(agentTools).toContain("'upsert_cards'");
-    expect(agentTools).toContain("'attach_card_artwork'");
+    expect(agentTools).toContain('artwork accepts a generated/uploaded public HTTPS sourceUrl');
+    expect(agentTools).not.toContain("'attach_card_artwork'");
     expect(agentTools).toContain("'preview_card_set'");
     expect(agentTools).toContain('Never guess card columns or image keys');
     expect(revisions).toContain('createBulkImportContract');
@@ -84,7 +85,7 @@ describe('Studio MCP creative production flow', () => {
     expect(route).toContain('A successful upload is not proof of correct placement');
     expect(route).toContain('asset bindings, image-element source states, bordered text ids, and composition warnings');
     expect(route).toContain('installs or updates the same Template in the user personal local Template library');
-    expect(route).toContain("version: '0.4.0'");
+    expect(route).toContain("version: '0.5.0'");
   });
 
   it('keeps the MCP input vocabulary native, rich, closed, and production-plan aware', () => {

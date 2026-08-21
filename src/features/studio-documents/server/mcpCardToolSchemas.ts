@@ -24,6 +24,15 @@ export interface McpCardInput {
   cardId?: string;
   data: Record<string, string | number>;
   backingData?: Record<string, string | number>;
+  artwork?: McpCardArtworkInput[];
+}
+
+export interface McpCardArtworkInput {
+  fieldKey: string;
+  face: 'front' | 'back';
+  mimeType: EmbeddedTemplateAssetMimeType;
+  data?: string;
+  sourceUrl?: string;
 }
 
 export interface UpsertCardInput {
@@ -38,16 +47,6 @@ export interface UpsertCardsInput {
   expectedRevision: number;
   setId: string;
   cards: McpCardInput[];
-}
-
-export interface AttachCardArtworkInput {
-  documentId: string;
-  expectedRevision: number;
-  cardId: string;
-  fieldKey: string;
-  face: 'front' | 'back';
-  mimeType: EmbeddedTemplateAssetMimeType;
-  data: string;
 }
 
 export interface GetCardSetInput {
@@ -96,6 +95,42 @@ const cardInput = {
     },
     data: cardData,
     backingData: cardData,
+    artwork: {
+      type: 'array',
+      maxItems: 12,
+      description: 'Optional per-card artwork resolved in the same atomic card write. Use sourceUrl for a generated/uploaded HTTPS file when available; raw base64 data remains a bounded fallback. Use only image field keys from get_card_generation_contract.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['fieldKey', 'face', 'mimeType'],
+        oneOf: [
+          { required: ['data'], not: { required: ['sourceUrl'] } },
+          { required: ['sourceUrl'], not: { required: ['data'] } },
+        ],
+        properties: {
+          fieldKey: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            description: 'Exact image field key returned by get_card_generation_contract for this face.',
+          },
+          face: { type: 'string', enum: ['front', 'back'] },
+          mimeType: { type: 'string', enum: [...EMBEDDED_TEMPLATE_ASSET_MIME_TYPES] },
+          data: {
+            type: 'string',
+            minLength: 1,
+            maxLength: MAX_EMBEDDED_TEMPLATE_ASSET_BASE64_CHARS,
+            description: 'Raw base64 image bytes without a data: prefix. Prefer sourceUrl when ChatGPT has an HTTPS generated/uploaded file reference.',
+          },
+          sourceUrl: {
+            type: 'string',
+            format: 'uri',
+            maxLength: 4096,
+            description: 'Short-lived or permanent public HTTPS URL for a generated/uploaded PNG, JPEG, or WebP. CardForge downloads it once, validates it, normalizes it, and stores a private copy.',
+          },
+        },
+      },
+    },
   },
 } as const;
 
@@ -156,36 +191,6 @@ export const upsertCardsInputSchema = fromJsonSchema<UpsertCardsInput>({
       maxItems: 100,
       description: 'One to 100 cards using the exact Template field keys. Give each planned card a stable cardId when possible so retries and later revisions update instead of duplicate.',
       items: cardInput,
-    },
-  },
-});
-
-export const attachCardArtworkInputSchema = fromJsonSchema<AttachCardArtworkInput>({
-  type: 'object',
-  additionalProperties: false,
-  required: ['documentId', 'expectedRevision', 'cardId', 'fieldKey', 'face', 'mimeType', 'data'],
-  properties: {
-    documentId,
-    expectedRevision,
-    cardId: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 255,
-      description: 'Stable id of the card returned by upsert_card or upsert_cards.',
-    },
-    fieldKey: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 255,
-      description: 'Exact image field key returned by get_card_generation_contract for this card face.',
-    },
-    face: { type: 'string', enum: ['front', 'back'] },
-    mimeType: { type: 'string', enum: [...EMBEDDED_TEMPLATE_ASSET_MIME_TYPES] },
-    data: {
-      type: 'string',
-      minLength: 1,
-      maxLength: MAX_EMBEDDED_TEMPLATE_ASSET_BASE64_CHARS,
-      description: 'Raw base64 image bytes only. Do not include a data: URL prefix.',
     },
   },
 });

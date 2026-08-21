@@ -10,7 +10,7 @@ This is the current runbook for `https://cardforges.com`. It contains only proce
 - `www.cardforges.com` redirects to the apex domain.
 - Clerk owns authentication and trusted private account metadata.
 - Stripe owns Creator Pass, Designer Pass, support checkout, customers, subscriptions, webhooks, and Billing Portal.
-- Supabase owns shared product state and managed public/protected media; user projects remain local.
+- Supabase owns shared product state, private temporary ChatGPT Studio documents and their normalized artwork, cloud-set backups, and managed public/protected media; ordinary browser projects remain local.
 - Resend owns transactional email delivery.
 - GA4, PostHog, and Search Console own analytics/search records.
 - Meta owns Facebook/Instagram authorization and provider posts; CardForge owns marketing approval/scheduling/delivery history.
@@ -132,6 +132,18 @@ Rollback native provider calls by setting `CARDFORGE_META_PUBLISHING_ENABLED=fal
 The former reusable QA accounts were retired. Do not recreate them for generic coverage. For auth, billing, entitlement, provider-domain, owner/developer, or protected-recovery changes, use the real signed-in owner/developer account and verify only the affected path.
 
 `npm run smoke:ui` is focused mocked browser regression coverage; it does not prove a real Clerk/Stripe/provider session.
+
+## ChatGPT development beta
+
+The packaged integration is `plugins/cardforge-studio`, authored by Cameron Locke, and connects to `https://cardforges.com/mcp`. Public plan names, pricing copy, feature lines, visibility, and MCP capacity targets remain Owner Console content; the plugin must not introduce a parallel tier catalog or access toggle.
+
+For a development-beta release:
+
+1. Complete the normal exact-head Preview and migration sequence, including the private Studio artwork bucket.
+2. Verify MCP discovery/OAuth against the real signed-in owner/developer account and confirm signed-out requests fail closed.
+3. Connect the production MCP URL through ChatGPT Developer Mode and exercise Template creation, one-card and bulk copy/artwork upserts, explicit artwork diagnostics, exact-revision Studio handoff, and cloud-set list/read.
+4. Confirm image generation returns standalone artwork to CardForge assembly rather than flattened finished-card images.
+5. Keep the public surface labeled development beta until the OpenAI review/submission lane and representative tool test cases are complete.
 
 ## Billing reconciliation
 

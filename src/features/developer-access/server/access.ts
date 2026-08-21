@@ -2,6 +2,7 @@ import {
   getCardforgeUserAccessForUserId,
   getCurrentCardforgeUserAccess,
   resolveAccountEntitlement,
+  type AccountEntitlement,
   type CardforgeServerUser,
 } from '@/features/account/server';
 import {
@@ -19,6 +20,7 @@ import {
 
 export interface DeveloperCockpitAccess {
   user: CardforgeServerUser;
+  entitlement: AccountEntitlement;
   isDeveloper: boolean;
   isOwner: boolean;
   scopes: DeveloperContributionScope[];
@@ -46,6 +48,7 @@ const resolveDeveloperCockpitAccess = async ({
   }
 
   const entitlement = resolveAccountEntitlement({
+    accountUserId: user.id,
     authConfigured,
     isSignedIn: true,
     emailAddresses: user.emailAddresses,
@@ -57,6 +60,7 @@ const resolveDeveloperCockpitAccess = async ({
     if (allowStudioAiOnly) {
       return {
         user,
+        entitlement,
         isDeveloper: false,
         isOwner: false,
         email: user.email,
@@ -81,6 +85,7 @@ const resolveDeveloperCockpitAccess = async ({
   const extendedContributionsEnabled = process.env.CARDFORGE_EXTENDED_CONTRIBUTIONS_ENABLED === 'true';
   return {
     user,
+    entitlement,
     isDeveloper,
     isOwner,
     email: user.email,

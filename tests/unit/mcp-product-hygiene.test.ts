@@ -38,7 +38,6 @@ describe('CardForge MCP and plugin product hygiene', () => {
     ].sort();
 
     expect(names).toEqual([
-      'attach_card_artwork',
       'attach_template_artwork',
       'continue_template_in_pipeline',
       'create_editable_template',
@@ -63,7 +62,7 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(cardTools).toContain('Create or update a CardForge card set');
     expect(cardTools).toContain('Make or update one CardForge card');
     expect(cardTools).toContain('Generate cards in bulk for a CardForge set');
-    expect(cardTools).toContain('Add artwork to one CardForge card');
+    expect(cardTools).toContain('artwork accepts a generated/uploaded public HTTPS sourceUrl');
     expect(cardTools).toContain('Review a CardForge card set before opening it in Studio');
     expect(cardTools).toContain('deck or set');
     expect(cardTools).toContain('list/CSV/JSON');
@@ -76,6 +75,12 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(developerAccess).toContain('{ allowStudioAiOnly: true }');
     expect(developerAccess).toContain("requireContributionScope");
     expect(route).toContain('continueDeveloperTemplateDraftInPipeline');
+  });
+
+  it('reuses the authenticated account entitlement for cloud reads and observes those calls once', () => {
+    expect(cloudTools).toContain('access.entitlement');
+    expect(cloudTools).toContain('observeMcpToolExecution');
+    expect(cloudTools).not.toContain('getCardforgeEntitlementForUserId');
   });
 
   it('makes successful card/set calls self-guiding and retry-aware', () => {
@@ -134,6 +139,8 @@ describe('CardForge MCP and plugin product hygiene', () => {
     expect(setSkill).toContain('call `get_card_generation_contract`');
     expect(setSkill).toContain('same set id and card ids');
     expect(setSkill).toContain('`upsert_cards`');
+    expect(setSkill).toContain('Image generation creates standalone artwork assets only');
+    expect(setSkill).not.toContain('`attach_card_artwork`');
     expect(setSkill).toContain('`preview_card_set`');
     expect(setSkill).toContain('export/import an editable individual card or set as CardForge JSON');
   });

@@ -3,8 +3,9 @@ import type { FreeformCardElement, TemplateFieldAllowedFormatting, TemplateField
 import type { TemplateFieldDefinition } from '@/domain/templates/templateFields';
 import {
   buildScopedFieldDataKey,
+  deriveImageFieldKey,
   extractPlaceholderKeysFromText,
-  getImageFieldKeyForElement,
+  getGeneratorImageFieldKeyForElement,
   parseTemplateTextSegments,
   parseTextBinding,
 } from '@/domain/rendering';
@@ -258,7 +259,22 @@ const buildContractFromElementKey = (
 
 export const normalizeTemplateFieldContracts = (template: TCGCardTemplate): TCGCardTemplate => {
   const existingContracts = template.fieldContracts || [];
-  const nextContracts: TemplateFieldContract[] = [...existingContracts];
+  const lockedStructuralImageContracts = new Set<string>();
+  template.freeformCanvas?.elements.forEach((element) => {
+    if (element.type !== 'image' || !element.locked) return;
+    const source = (element.imageSource || element.content || '').trim();
+    const derivedKey = deriveImageFieldKey(element);
+    const staleContract = existingContracts.find((contract) => (
+      contract.type === 'image'
+      && contract.key === derivedKey
+      && !contract.elementId
+      && contract.defaultValue === source
+    ));
+    if (staleContract) lockedStructuralImageContracts.add(staleContract.key);
+  });
+  const nextContracts: TemplateFieldContract[] = existingContracts.filter((contract) => (
+    !lockedStructuralImageContracts.has(contract.key)
+  ));
   const upsertContract = (contract: TemplateFieldContract) => {
     const index = nextContracts.findIndex((existing) => (
       existing.key === contract.key && existing.elementId === contract.elementId
@@ -279,7 +295,8 @@ export const normalizeTemplateFieldContracts = (template: TCGCardTemplate): TCGC
       }
 
       if (element.type === 'image') {
-        const key = getImageFieldKeyForElement(element);
+        const key = getGeneratorImageFieldKeyForElement({ ...template, fieldContracts: nextContracts }, element);
+        if (!key) return;
         const existing = existingContracts.find((contract) => contract.key === key && contract.elementId === element.id)
           || existingContracts.find((contract) => contract.key === key && !contract.elementId);
         upsertContract(buildContractFromElementKey(element, key, existing, false));

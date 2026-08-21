@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { ProjectDocumentV1 } from '@/features/project/server';
 import {
   normalizeStudioDocumentPayload,
@@ -8,6 +10,11 @@ import {
 import { getSupabaseServerClient } from '@/infrastructure/database/supabaseServer';
 
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
+import {
+  externalizeStudioDocumentAssets,
+  removeStudioDocumentAssets,
+  removeUnreferencedStudioDocumentAssets,
+} from './studioDocumentAssetStore';
 
 interface StudioDocumentRow {
   id: string;
@@ -90,18 +97,26 @@ export const createStudioDocument = async ({
   creationSource: StudioDocumentSource;
   document: ProjectDocumentV1;
 }): Promise<StudioDocument> => {
+  const documentId = randomUUID();
+  const storedDocument = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .insert({
+      id: documentId,
       owner_user_id: ownerUserId,
       title,
       creation_source: creationSource,
-      document_version: document.version,
-      document_payload: document,
+      document_version: storedDocument.version,
+      document_payload: storedDocument,
     })
     .select(DOCUMENT_COLUMNS)
     .single();
   if (error || !data) {
+    try {
+      await removeStudioDocumentAssets(ownerUserId, documentId);
+    } catch (assetError) {
+      console.error('Unable to clean artwork after a failed Studio document creation:', assetError);
+    }
     console.error('Failed to create Studio document:', error);
     throw new StudioDocumentStoreError('Unable to create the Studio document.');
   }
@@ -121,12 +136,13 @@ export const updateStudioDocument = async ({
   document: ProjectDocumentV1;
   expectedRevision: number;
 }): Promise<StudioDocument> => {
+  const storedDocument = await externalizeStudioDocumentAssets({ ownerUserId, documentId, document });
   const { data, error } = await requireStore()
     .from('cardforge_studio_documents')
     .update({
       title,
-      document_version: document.version,
-      document_payload: document,
+      document_version: storedDocument.version,
+      document_payload: storedDocument,
       revision: expectedRevision + 1,
     })
     .eq('id', documentId)
@@ -144,7 +160,9 @@ export const updateStudioDocument = async ({
       409,
     );
   }
-  return toDocument(data as unknown as StudioDocumentRow);
+  const updated = toDocument(data as unknown as StudioDocumentRow);
+  await removeUnreferencedStudioDocumentAssets({ ownerUserId, documentId, document: updated.document });
+  return updated;
 };
 
 export const deleteStudioDocument = async (
@@ -163,4 +181,9 @@ export const deleteStudioDocument = async (
     throw new StudioDocumentStoreError('Unable to delete the Studio document.');
   }
   if (!data) throw new StudioDocumentStoreError('Studio document not found.', 404);
+  try {
+    await removeStudioDocumentAssets(ownerUserId, documentId);
+  } catch (assetError) {
+    console.error('Unable to clean deleted Studio document artwork:', assetError);
+  }
 };

@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@clerk/nextjs/server', () => ({ auth: vi.fn() }));
-vi.mock('@/features/account/server', () => ({
-  getCardforgeUserAccessForUserId: vi.fn(),
-  resolveAccountEntitlement: vi.fn(),
-}));
 vi.mock('@/features/developer-access/server', () => ({
   DeveloperCockpitAccessError: class DeveloperCockpitAccessError extends Error {
     constructor(message: string, public readonly status: number) {
@@ -17,10 +13,6 @@ vi.mock('@/features/developer-access/server', () => ({
 
 import { auth } from '@clerk/nextjs/server';
 
-import {
-  getCardforgeUserAccessForUserId,
-  resolveAccountEntitlement,
-} from '@/features/account/server';
 import { getDeveloperCockpitAccessForUserId } from '@/features/developer-access/server';
 import { getMcpStudioAccess } from '@/app/mcp/mcpStudioAccess';
 
@@ -33,25 +25,24 @@ const user = {
   privateMetadata: {},
 };
 
-const accountAccess = (isOwner = false) => ({
-  authConfigured: true,
-  ownerAccess: { isOwner },
-  user,
-});
-
 describe('MCP Studio access', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(auth).mockResolvedValue({ userId: 'clerk_123' } as never);
-    vi.mocked(getCardforgeUserAccessForUserId).mockResolvedValue(accountAccess() as never);
-    vi.mocked(resolveAccountEntitlement).mockReturnValue({ accessMode: 'free' } as never);
+    vi.mocked(getDeveloperCockpitAccessForUserId).mockResolvedValue({
+      user,
+      entitlement: { accessMode: 'free' },
+      isDeveloper: false,
+      isOwner: false,
+      scopes: ['studio.ai.create'],
+    } as never);
   });
 
   it('fails closed before account lookup when the OAuth token has no user', async () => {
     vi.mocked(auth).mockResolvedValue({ userId: null } as never);
 
     await expect(getMcpStudioAccess()).rejects.toMatchObject({ status: 401 });
-    expect(getCardforgeUserAccessForUserId).not.toHaveBeenCalled();
+    expect(getDeveloperCockpitAccessForUserId).not.toHaveBeenCalled();
   });
 
   it('gives a signed-in Free or Creator account only the shared Studio assistant scope', async () => {
@@ -61,12 +52,11 @@ describe('MCP Studio access', () => {
       scopes: ['studio.ai.create'],
       user,
     });
-    expect(getDeveloperCockpitAccessForUserId).not.toHaveBeenCalled();
+    expect(getDeveloperCockpitAccessForUserId).toHaveBeenCalledOnce();
   });
 
   it('keeps developer scope validation behind the developer-access authority', async () => {
     const developerAccess = { user, isDeveloper: true, isOwner: false, scopes: ['studio.ai.create', 'assets.read'] };
-    vi.mocked(resolveAccountEntitlement).mockReturnValue({ accessMode: 'dev' } as never);
     vi.mocked(getDeveloperCockpitAccessForUserId).mockResolvedValue(developerAccess as never);
 
     await expect(getMcpStudioAccess()).resolves.toBe(developerAccess);
@@ -75,7 +65,6 @@ describe('MCP Studio access', () => {
 
   it('routes owner access through the same developer-access authority', async () => {
     const ownerAccess = { user, isDeveloper: true, isOwner: true, scopes: ['studio.ai.create', 'assets.read'] };
-    vi.mocked(getCardforgeUserAccessForUserId).mockResolvedValue(accountAccess(true) as never);
     vi.mocked(getDeveloperCockpitAccessForUserId).mockResolvedValue(ownerAccess as never);
 
     await expect(getMcpStudioAccess()).resolves.toBe(ownerAccess);

@@ -16,7 +16,7 @@ describe('CardForge Studio plugin', () => {
 
     expect(manifest).toMatchObject({
       name: 'cardforge-studio',
-      version: '0.4.0',
+      version: '0.5.0',
       author: { name: 'Cameron Locke' },
       mcpServers: './.mcp.json',
       skills: './skills/',
@@ -39,7 +39,7 @@ describe('CardForge Studio plugin', () => {
     expect(access).not.toContain('getMcpAllowanceForPlan');
     expect(access).not.toContain('mcpEnabled');
     expect(route).toContain("acceptsToken: 'oauth_token'");
-    expect(route).toContain("version: '0.4.0'");
+    expect(route).toContain("version: '0.5.0'");
   });
 
   it('declares telemetry-writing tools as non-read-only for publication review', () => {

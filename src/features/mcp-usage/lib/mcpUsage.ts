@@ -102,7 +102,6 @@ export const isMcpAvailableForAccount = ({
 }): boolean => isSignedIn;
 
 export const METERED_MCP_TOOL_NAMES = new Set([
-  'attach_card_artwork',
   'attach_template_artwork',
   'create_editable_template',
   'update_editable_template',

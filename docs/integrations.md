@@ -79,11 +79,15 @@ The governing rule is native-first and minimum-ownership: use the provider/frame
 **Start here:**
 
 1. `src/app/mcp/route.ts` — HTTP/MCP composition and top-level tool registration.
-2. `src/features/studio-documents/server/mcpAgentTemplateTools.ts` and `mcpToolInputSchemas.ts` — focused agent-tool behavior and contracts.
+2. `src/features/studio-documents/server/mcpAgentTemplateTools.ts`, `mcpAgentCardTools.ts`, and their input schemas — focused agent-tool behavior and contracts.
 3. `src/features/studio-documents/` and `src/features/project/` — the same native document/template authority used by Studio.
 4. `src/features/mcp-usage/` — privacy-minimized usage observation, plan targets, and account/owner presentation.
 
 **CardForge owns:** tool semantics, Studio-document authorization, production-plan policy, and native Template validation. `preview_template_draft` shows the native exported Template PNG in chat and keeps the exact revision-bound Studio URL as a separate handoff. MCP does not get a second renderer, template format, asset store, or publication authority.
+
+Card copy and per-card artwork share the native `upsert_card` / `upsert_cards` transaction. Artwork uses an exact image field from the current generation contract and arrives as either a generated/uploaded public HTTPS source or bounded raw base64. CardForge validates and normalizes the image once, stores a private content-addressed WebP in the Studio-document asset bucket, and leaves only a stable reference in the document JSON. The Studio document API issues short-lived signed URLs and the browser rehydrates those references before applying the normal local project import. `preview_card_set` reports private resolution, renderable references, unresolved values, Template fallback, and placeholders separately.
+
+`list_cloud_sets` and `get_cloud_set` expose only account sets the user explicitly saved to CardForge cloud slots. They reuse the entitlement already resolved during MCP authentication and do not perform a second Clerk identity fetch. Browser-only projects remain invisible to the connector.
 
 Supabase keeps daily MCP totals per account and tool—calls, success/failure, successful assisted actions, payload byte counts, and duration—but never stores prompts, card content, or document payloads in the usage table. The Owner Console is the source of truth for each plan’s public name, description, feature lines, action label, visibility, and capacity targets. Signed-out visitors never receive MCP access; every signed-in Free, Creator Pass, or Designer account receives the shared Studio assistant scope, while approved developers and the owner retain their separately validated developer scopes. Numeric action/storage targets remain observation-only: they do not block, bill overages, or grant entitlements. Business Solutions is always routed to a private inquiry rather than self-serve checkout.
 

@@ -130,6 +130,42 @@ describe('agent Template embedded artwork', () => {
     });
     expect(result.productionPlan.assets[0].assetUrl).toBeUndefined();
   });
+
+  it('preserves content-addressed private artwork when the agent revises a stored draft', () => {
+    const assetReference = `cardforge-studio-asset://${'a'.repeat(64)}`;
+    const currentPlan = makePlan({
+      id: 'hero',
+      name: 'Hero art',
+      kind: 'image',
+      role: 'Primary art',
+      source: 'custom-generated',
+      quantity: 1,
+      status: 'selected',
+      binding: 'element.image',
+      embeddedAssetId: 'hero',
+      targetElementIds: ['hero-art'],
+    });
+    const nextPlan = makePlan({
+      id: 'hero',
+      name: 'Hero art',
+      kind: 'image',
+      role: 'Primary art',
+      source: 'custom-generated',
+      quantity: 1,
+      status: 'selected',
+      targetElementIds: ['hero-art'],
+    });
+
+    const result = preserveEmbeddedTemplateAssets({
+      currentTemplate: makeTemplate(assetReference),
+      nextTemplate: makeTemplate('artworkUrl'),
+      currentPlan,
+      nextPlan,
+    });
+
+    expect(result.template.freeformCanvas?.elements[0].imageSource).toBe(assetReference);
+    expect(result.productionPlan.assets[0].embeddedAssetId).toBe('hero');
+  });
 });
 
 describe('agent Template preview tokens', () => {
@@ -236,7 +272,8 @@ describe('agent Template install and chat preview architecture', () => {
     expect(mcpTools).toContain("'upsert_card_set'");
     expect(mcpTools).toContain("'upsert_card'");
     expect(mcpTools).toContain("'upsert_cards'");
-    expect(mcpTools).toContain("'attach_card_artwork'");
+    expect(mcpTools).toContain('artwork accepts a generated/uploaded public HTTPS sourceUrl');
+    expect(mcpTools).not.toContain("'attach_card_artwork'");
     expect(mcpTools).toContain("'preview_card_set'");
     expect(mcpTools).toContain('Never guess card columns or image keys');
   });

@@ -1,6 +1,7 @@
 export {
   isClerkAuthConfigured,
   resolveAccountEntitlement,
+  type AccountEntitlement,
 } from './lib/accountEntitlement';
 export {
   getCardforgeEntitlementForUserId,
