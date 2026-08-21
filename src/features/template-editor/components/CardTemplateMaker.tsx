@@ -297,7 +297,7 @@ export function CardTemplateMaker({
     ? {
         label: `Submit Template revision ${nextTemplateRevision}`,
         shortLabel: isSavingTemplate ? 'Submitting…' : 'Submit revision',
-        description: `Save this browser draft and submit revision ${nextTemplateRevision} to Forge Review. The shared Template stays unchanged until publication. (Ctrl+S)`,
+        description: `Save this browser draft and submit revision ${nextTemplateRevision} in Forge Review. The shared Template stays unchanged until publication. (Ctrl+S)`,
       }
     : isSharedTemplate
       ? {
@@ -378,7 +378,7 @@ export function CardTemplateMaker({
   return (
     <TooltipProvider>
       <div
-        className={cn('cardforge-maker-shell min-h-[calc(100vh-145px)] overflow-hidden rounded-[10px] border', makerTheme.shell)}
+        className={cn('cardforge-maker-shell min-h-0 overflow-hidden rounded-[10px] border', makerTheme.shell)}
         data-mobile-panel={mobilePanel}
       >
         <TemplateEditorTopBar
@@ -478,7 +478,7 @@ export function CardTemplateMaker({
           }}
           onOpenMenu={() => setMobilePanel('library')}
         />
-        <div className="cardforge-maker-grid grid min-h-[calc(100vh-205px)] min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
+        <div className="cardforge-maker-grid grid min-h-0 min-w-0 grid-cols-1 lg:grid-cols-[240px_minmax(320px,1fr)_300px] xl:grid-cols-[280px_minmax(420px,1fr)_330px] 2xl:grid-cols-[300px_minmax(520px,1fr)_360px]">
           {developerFontFaceCss && <style>{developerFontFaceCss}</style>}
           {mobilePanel !== 'canvas' ? (
             <button type="button" className="cardforge-mobile-overlay-backdrop lg:hidden" aria-label="Close open editor panel" onClick={() => setMobilePanel('canvas')} />

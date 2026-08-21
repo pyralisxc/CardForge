@@ -1,6 +1,6 @@
 # CardForge Architecture
 
-Last updated: August 20, 2026
+Last updated: August 21, 2026
 
 CardForge is a live local-first card production studio at `https://cardforges.com`. This document describes current product ownership and runtime invariants only. Historical rollout steps belong in Git/provider history; provider-specific ownership details belong in `docs/integrations.md`.
 
@@ -107,6 +107,8 @@ Current account resolution uses Clerk's current-user identity directly; CardForg
 Template Studio owns reusable front Templates and separate card-back Templates. Generator owns a card set's selected front Template/back, card values, and export settings. Generated cards own independent front `data` and back `backingData`; layouts remain reusable blueprints.
 
 Text/image editability is expressed through native field contracts and real canvas elements. Image fields retain generator-side fit/position/scale/rotation/offset/flip controls.
+
+Template canvas pointer semantics have one interaction owner in `useCanvasPointerInteractions`. A primary tap/click selects a layer; another quick tap/click while that selected layer remains under the pointer performs tap-through to the next visible overlapping layer, wrapping through the stack. Movement converts the same press into drag/resize instead of tap-through. Long-press and right-click use the same selected-layer context action, and multi-touch canvas gestures cancel any pending press. `TemplateEditableElement` renders/forwards interaction surfaces only; it does not own a separate gesture timer or mobile-only selection model. Canvas pinch/pan remains distinct from page, pane, sheet, and dialog scroll ownership.
 
 Shared structured Template revisions originate in Template Studio: developer edits become numbered Forge Review submissions while the published version stays live; owner edits record/publish the numbered revision atomically. Generic developer uploads accept media/fonts only rather than parallel JSON Template authoring.
 

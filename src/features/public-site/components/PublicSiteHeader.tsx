@@ -128,7 +128,7 @@ export function PublicSiteHeader({
           <DialogContent
             id="public-mobile-navigation"
             overlayClassName="cardforge-public-tokens"
-            className="cardforge-public-tokens cardforge-public-mobile-menu left-auto right-0 top-0 h-svh max-w-sm translate-x-0 translate-y-0 content-start gap-6 overflow-y-auto rounded-none border-y-0 border-l border-r-0 border-[var(--public-border)] bg-[var(--public-charcoal)] p-6 text-[var(--public-ivory)] shadow-[var(--public-shadow)]"
+            className="cardforge-public-tokens cardforge-public-mobile-menu cardforge-mobile-scroll-surface left-auto right-0 top-0 h-dvh max-w-sm translate-x-0 translate-y-0 content-start gap-6 overflow-y-auto rounded-none border-y-0 border-l border-r-0 border-[var(--public-border)] bg-[var(--public-charcoal)] p-6 text-[var(--public-ivory)] shadow-[var(--public-shadow)]"
           >
             <div className="pr-12">
               <DialogTitle className="font-[var(--public-font-display)] text-2xl text-[var(--public-ivory)]">

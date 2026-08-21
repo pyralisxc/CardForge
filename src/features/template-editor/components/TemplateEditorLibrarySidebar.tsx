@@ -70,7 +70,7 @@ export function TemplateEditorLibrarySidebar({
 
   return (
     <aside className="cardforge-maker-side cardforge-maker-library min-w-0 border-b border-[var(--cf-editor-border)] bg-[#0d1117] lg:border-b-0 lg:border-r">
-      <ScrollArea className="cardforge-maker-scroll h-[calc(100vh-205px)] min-h-[760px]">
+      <ScrollArea className="cardforge-maker-scroll h-full min-h-0">
         <div className="space-y-3 p-2">
           <TemplateLibraryPanel
             canUseProjectFiles={canUseProjectFiles}

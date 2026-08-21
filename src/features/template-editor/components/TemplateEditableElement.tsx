@@ -1,7 +1,6 @@
 "use client";
 
-import type { CSSProperties, MouseEvent, PointerEvent } from 'react';
-import { useEffect, useRef } from 'react';
+import type { CSSProperties, PointerEvent } from 'react';
 
 import type { CardData } from '@/domain/cards';
 import {
@@ -36,7 +35,11 @@ interface TemplateEditableElementProps {
   zoom: number;
   onElementContextAction: (element: FreeformCardElement) => void;
   onElementEdit: (element: FreeformCardElement) => void;
-  onElementPointerDown: (event: PointerEvent<HTMLDivElement>, element: FreeformCardElement) => void;
+  onElementPointerDown: (
+    event: PointerEvent<HTMLDivElement>,
+    element: FreeformCardElement,
+    onElementContextAction: (element: FreeformCardElement) => void,
+  ) => void;
   onResizePointerDown: (event: PointerEvent<HTMLButtonElement>, element: FreeformCardElement, handle: ResizeHandle) => void;
 }
 
@@ -50,17 +53,6 @@ export function TemplateEditableElement({
   onElementPointerDown,
   onResizePointerDown,
 }: TemplateEditableElementProps) {
-  const longPressTimerRef = useRef<number | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-
-  const clearLongPress = () => {
-    if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current);
-    longPressTimerRef.current = null;
-    touchStartRef.current = null;
-  };
-
-  useEffect(() => clearLongPress, []);
-
   if (element.visible === false) return null;
 
   const imageResolution = element.type === 'image'
@@ -101,26 +93,10 @@ export function TemplateEditableElement({
         interactionElement.locked && 'cursor-not-allowed'
       )}
       style={overlayStyle}
-      onPointerDown={(event) => {
-        onElementPointerDown(event, element);
-        if (event.pointerType !== 'touch' || interactionElement.locked) return;
-        clearLongPress();
-        touchStartRef.current = { x: event.clientX, y: event.clientY };
-        longPressTimerRef.current = window.setTimeout(() => {
-          onElementContextAction(element);
-          longPressTimerRef.current = null;
-        }, 450);
-      }}
-      onPointerMove={(event) => {
-        const start = touchStartRef.current;
-        if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) < 10) return;
-        clearLongPress();
-      }}
-      onPointerUp={clearLongPress}
-      onPointerCancel={clearLongPress}
-      onContextMenu={(event: MouseEvent<HTMLDivElement>) => {
+      onPointerDown={(event) => onElementPointerDown(event, element, onElementContextAction)}
+      onContextMenu={(event) => {
         event.preventDefault();
-        onElementContextAction(element);
+        event.stopPropagation();
       }}
       onDoubleClick={() => {
         if (element.type === 'text') onElementEdit(element);

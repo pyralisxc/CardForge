@@ -147,7 +147,7 @@ export function GeneratedCardGallery({
 
   return (
     <div>
-      <div className="sticky top-0 z-10 bg-background pb-2 flex items-center justify-between mb-2 gap-3 flex-wrap">
+      <div className="z-10 mb-2 flex flex-wrap items-center justify-between gap-3 bg-background pb-2 sm:sticky sm:top-0">
         <h2 className="min-w-0 text-xl font-semibold text-foreground sm:text-2xl">
           Cards in This Set ({generatedDisplayCards.length})
           {selectedTemplate && (
@@ -221,7 +221,7 @@ export function GeneratedCardGallery({
       </div>
 
       {generatedDisplayCards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[calc(100vh-300px)] border rounded-md bg-card/30 text-muted-foreground p-8 text-center shadow-inner">
+        <div className="flex min-h-[50dvh] flex-col items-center justify-center rounded-md border bg-card/30 p-8 text-center text-muted-foreground shadow-inner">
           <PackageOpen className="h-16 w-16 mb-4 text-primary/70" />
           <p className="text-lg font-medium">Your set is ready for its first card.</p>
           <p className="text-sm">Make one card or add a list above. Every card will appear here so you can review and edit it before downloading the set.</p>
@@ -230,7 +230,7 @@ export function GeneratedCardGallery({
         <div
           ref={scrollParentRef}
           data-testid="generated-gallery-scroll"
-          className="h-[calc(100vh-250px)] overflow-auto rounded-md border bg-card/30 p-4 shadow-inner"
+          className="h-[min(70dvh,44rem)] touch-pan-y overflow-auto overscroll-y-auto rounded-md border bg-card/30 p-4 shadow-inner [-webkit-overflow-scrolling:touch] sm:h-[min(72dvh,46rem)]"
         >
           <div className="mb-3 flex items-center justify-between gap-3 rounded-md border bg-background/80 px-3 py-2 text-xs text-muted-foreground">
             <span>

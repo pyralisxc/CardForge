@@ -136,6 +136,7 @@ export function useTemplateEditorViewport({
     touchPointersRef.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
     if (touchPointersRef.current.size >= 2) {
       event.preventDefault();
+      event.stopPropagation();
       setAutoFitCanvas(false);
       pointer.cancelDrag();
       beginTouchGesture();
