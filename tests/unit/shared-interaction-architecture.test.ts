@@ -6,26 +6,21 @@ import { describe, expect, it } from 'vitest';
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('shared CardForge interaction architecture', () => {
-  it('gives the Studio one desktop viewport owner instead of per-pane viewport arithmetic', () => {
-    const studioShell = readSource('src/features/app-shell/components/CardForgeStudioShell.tsx');
-    const maker = readSource('src/features/template-editor/components/CardTemplateMaker.tsx');
-    const library = readSource('src/features/template-editor/components/TemplateEditorLibrarySidebar.tsx');
-    const inspector = readSource('src/features/template-editor/components/TemplateEditorInspectorSidebar.tsx');
-    const canvas = readSource('src/features/template-editor/components/TemplateCanvasStage.tsx');
-    const gallery = readSource('src/features/card-generator/components/GeneratedCardGallery.tsx');
-    const globals = readSource('src/app/globals.css');
+  it('gives the Studio one canonical desktop viewport owner instead of per-pane viewport arithmetic', () => {
+    const scopedStudio = readSource('src/features/app-shell/components/ScopedCardForgeStudioShell.tsx');
+    const presentationCss = readSource('src/app/cardforgePresentation.css');
+    const layout = readSource('src/app/layout.tsx');
 
-    expect(studioShell).toContain('cardforge-application-viewport');
-    expect(studioShell).toContain('cardforge-studio-workspace');
-
-    for (const source of [maker, library, inspector, canvas, gallery]) {
-      expect(source).not.toMatch(/calc\(100vh\s*-/u);
-    }
-
-    expect(globals).not.toContain('height: calc(100vh - 205px) !important;');
-    expect(globals).not.toContain('height: calc(100vh - 238px) !important;');
-    expect(globals).not.toContain('min-height: 760px !important;');
-    expect(globals).not.toContain('min-height: 720px !important;');
+    expect(scopedStudio).toContain('cardforge-application-viewport');
+    expect(scopedStudio).toContain('cardforge-studio-workspace');
+    expect(layout).toContain("import './cardforgePresentation.css';");
+    expect(presentationCss).toContain('.cardforge-application-viewport');
+    expect(presentationCss).toContain('height: 100dvh;');
+    expect(presentationCss).toContain('.cardforge-application-viewport .cardforge-maker-scroll');
+    expect(presentationCss).toContain('height: 100% !important;');
+    expect(presentationCss).toContain('.cardforge-application-viewport .cardforge-canvas-scroll');
+    expect(presentationCss).toContain('flex: 1 1 auto;');
+    expect(presentationCss).not.toMatch(/calc\(100vh\s*-/u);
   });
 
   it('uses one constrained scrolling-dialog contract for long modal editors', () => {
@@ -34,16 +29,17 @@ describe('shared CardForge interaction architecture', () => {
 
     expect(dialog).toContain('min-h-0');
     expect(dialog).toContain('flex-1');
+    expect(dialog).toContain('max-h-[90dvh]');
     expect(editCard).toContain('ScrollableDialogContent');
     expect(editCard).toContain('ScrollableDialogBody');
     expect(editCard).not.toContain('<ScrollArea className="flex-grow');
   });
 
-  it('centralizes recurring CardForge surfaces, section introductions, status, and workspace navigation', () => {
+  it('centralizes recurring CardForge surfaces, status, workspace navigation, and lazy workspace states', () => {
     const primitives = readSource('src/components/ui/cardforge-presentation.tsx');
-    const owner = readSource('src/features/owner/components/OwnerConsolePage.tsx');
     const developer = readSource('src/features/developer-cockpit/components/DeveloperCockpitPage.tsx');
-    const account = readSource('src/features/account/components/AccountProfilePage.tsx');
+    const backWorkflow = readSource('src/features/app-shell/components/GeneratorBackWorkflowBanner.tsx');
+    const scopedStudio = readSource('src/features/app-shell/components/ScopedCardForgeStudioShell.tsx');
 
     expect(primitives).toContain('CardForgeSurface');
     expect(primitives).toContain('CardForgeSectionIntro');
@@ -51,17 +47,16 @@ describe('shared CardForge interaction architecture', () => {
     expect(primitives).toContain('CardForgeWorkspaceNavigation');
     expect(primitives).toContain('CardForgeWorkspaceState');
 
-    expect(owner).toContain('CardForgeWorkspaceNavigation');
-    expect(owner).not.toContain('function WorkspaceIntroduction');
     expect(developer).toContain('CardForgeWorkspaceNavigation');
+    expect(developer).toContain('CardForgeWorkspaceState');
+    expect(developer).toContain('CardForgeStatusBadge');
     expect(developer).not.toContain('function LazyWorkspace');
-    expect(account).toContain('CardForgeSectionIntro');
-    expect(account).not.toContain('function SectionHeading');
-    expect(account).not.toContain('function SummaryCard');
+    expect(backWorkflow).toContain('CardForgeSurface');
+    expect(scopedStudio).toContain('CardForgeWorkspaceState');
   });
 
   it('defines semantic CardForge presentation tokens as the shared branding seam', () => {
-    const globals = readSource('src/app/globals.css');
+    const presentationCss = readSource('src/app/cardforgePresentation.css');
     const makerTheme = readSource('src/features/template-editor/lib/makerTheme.ts');
 
     for (const token of [
@@ -76,11 +71,14 @@ describe('shared CardForge interaction architecture', () => {
       '--cf-accent',
       '--cf-accent-strong',
       '--cf-panel-radius',
+      '--cf-editor-canvas',
+      '--cf-editor-surface',
     ]) {
-      expect(globals).toContain(token);
+      expect(presentationCss).toContain(token);
     }
 
-    expect(globals).toContain('--public-obsidian: var(--cf-canvas);');
+    expect(presentationCss).toContain('--public-obsidian: var(--cf-canvas);');
+    expect(presentationCss).toContain('--public-border: var(--cf-border);');
     expect(makerTheme).toContain('var(--cf-editor-');
   });
 });

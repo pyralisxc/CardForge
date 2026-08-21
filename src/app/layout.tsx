@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import './globals.css';
+import './cardforgePresentation.css';
 
 import { AnalyticsProvider } from '@/features/analytics/client';
 import { DEFAULT_BUSINESS_IDENTITY } from '@/features/business-identity/server';
