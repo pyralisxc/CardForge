@@ -138,7 +138,7 @@ export function AssistantDraftLibrary({
     <>
       <div className="mt-6 border-t border-[#4a3823] pt-5">
         <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#e2aa4a]" /><h3 className="font-serif text-xl text-[#fff1c7]">AI &amp; Studio working drafts</h3></div>
-        <p className="mt-1 text-xs leading-5 text-[#a9946c]">These are temporary private collaboration documents. Opening or updating one restarts its {draftRetentionHours ?? 'plan'}-hour active window; visiting this page does not. Expired drafts remain recoverable for 24 hours.</p>
+        <p className="mt-1 text-xs leading-5 text-[#a9946c]">These are temporary private collaboration documents. Opening or updating one restarts its {draftRetentionHours ? `${draftRetentionHours}-hour` : 'plan-specific'} active window; visiting this page does not. Expired drafts remain recoverable for 24 hours.</p>
         {!isSignedIn ? (
           <p className="mt-3 text-sm text-[#cbb58b]">Sign in to see private working drafts.</p>
         ) : loadingDocuments ? (
