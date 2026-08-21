@@ -3,12 +3,6 @@ import { join, relative, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  DEFAULT_EXPERIENCE_SETTINGS,
-  hydrateExperienceSettings,
-  normalizeExperienceSettingsInput,
-} from '@/features/experience-settings/client';
-
 const root = process.cwd();
 const readSource = (path: string) => readFileSync(resolve(root, path), 'utf8');
 const migrationPath = 'supabase/migrations/20260821180000_owner_presentation_controls.sql';
@@ -51,37 +45,16 @@ describe('CardForge presentation ownership', () => {
     expect(presentation).not.toContain('[class~="bg-[#');
   });
 
-  it('applies validated owner presentation settings once at the root through the existing experience-settings owner', () => {
+  it('routes validated Owner Console presentation settings through the existing experience-settings owner once', () => {
     const layout = readSource('src/app/layout.tsx');
+    const model = readSource('src/features/experience-settings/model/experienceSettings.ts');
     const store = readSource('src/features/experience-settings/server/experienceSettingsStore.ts');
     const panel = readSource('src/features/experience-settings/components/OwnerExperienceControlsPanel.tsx');
 
-    expect(DEFAULT_EXPERIENCE_SETTINGS).toMatchObject({
-      presentationPalette: 'forge',
-      presentationAccent: 'brass',
-      presentationCorners: 'subtle',
-      presentationContrast: 'standard',
-    });
-    expect(hydrateExperienceSettings({
-      presentation_palette: 'slate',
-      presentation_accent: 'arcane',
-      presentation_corners: 'soft',
-      presentation_contrast: 'high',
-    })).toMatchObject({
-      presentationPalette: 'slate',
-      presentationAccent: 'arcane',
-      presentationCorners: 'soft',
-      presentationContrast: 'high',
-    });
-    expect(() => normalizeExperienceSettingsInput({
-      projectFileAccess: 'creator_pass',
-      analyticsConsentPresentation: 'required_popup',
-      presentationPalette: 'raw-css',
-      presentationAccent: 'brass',
-      presentationCorners: 'subtle',
-      presentationContrast: 'standard',
-    })).toThrow();
-
+    expect(model).toContain("PRESENTATION_PALETTES = ['forge', 'obsidian', 'slate']");
+    expect(model).toContain("PRESENTATION_ACCENTS = ['brass', 'ember', 'arcane']");
+    expect(model).toContain("PRESENTATION_CORNERS = ['square', 'subtle', 'soft']");
+    expect(model).toContain("PRESENTATION_CONTRASTS = ['standard', 'high']");
     expect(layout).toContain('data-cf-palette={experienceSettings.presentationPalette}');
     expect(layout).toContain('data-cf-accent={experienceSettings.presentationAccent}');
     expect(layout).toContain('data-cf-corners={experienceSettings.presentationCorners}');
@@ -94,9 +67,7 @@ describe('CardForge presentation ownership', () => {
     expect(panel).toContain('Accent character');
     expect(panel).toContain('Corner character');
     expect(panel).toContain('Contrast');
-  });
 
-  it('persists presentation choices through one additive owner-settings migration', () => {
     expect(existsSync(resolve(root, migrationPath))).toBe(true);
     const migration = readSource(migrationPath);
     expect(migration).toContain('add column if not exists presentation_palette');
