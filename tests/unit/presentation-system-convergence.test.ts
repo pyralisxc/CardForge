@@ -131,9 +131,11 @@ describe('canonical CardForge presentation system', () => {
       'src/app/sign-up/[[...sign-up]]/page.tsx',
       'src/app/owner/page.tsx',
       'src/app/developer/cockpit/page.tsx',
+      'src/features/account/components/AccountProfilePage.tsx',
       'src/features/account/components/ProfileManagementPage.tsx',
       'src/features/account/components/AccountControls.tsx',
       'src/features/account/components/AccountPlanManagementPanel.tsx',
+      'src/features/account/components/AccountDeveloperStatusSection.tsx',
       'src/features/app-shell/components/StudioHeader.tsx',
       'src/features/mcp-usage/components/PlanChoiceGrid.tsx',
       'src/features/roadmap/components/RoadmapPage.tsx',
@@ -147,9 +149,9 @@ describe('canonical CardForge presentation system', () => {
 
   it('keeps remaining Forge utility literals as non-owning compatibility aliases', () => {
     const presentation = readSource('src/app/cardforgePresentation.css');
-    const account = readSource('src/features/account/components/AccountProfilePage.tsx');
+    const legacyOwnerPanel = readSource('src/features/owner/components/OwnerReadinessPanel.tsx');
 
-    expect(account).toContain('bg-[#0c0b09]');
+    expect(legacyOwnerPanel).toContain('bg-[#15100a]');
     expect(presentation).toContain('Legacy Forge utility compatibility bridge');
     expect(presentation).toContain('[class~="bg-[#0c0b09]"]');
     expect(presentation).toContain('background-color: var(--cf-canvas) !important;');
