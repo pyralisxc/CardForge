@@ -111,6 +111,7 @@ describe('MCP usage observation', () => {
     expect(migration).toContain('price_note');
     const aggregateColumns = migration.match(/create table public\.cardforge_mcp_usage_daily \(([\s\S]*?)\n\);/)?.[1] ?? '';
     expect(aggregateColumns).not.toMatch(/prompt|card_content|document_payload/i);
+    expect(`${migration}\n${assetMigration}`).not.toContain('pg_catalog.coalesce');
     expect(`${migration}\n${assetMigration}`).not.toMatch(/pg_catalog\.coalesce\([\s\S]*?, 0\)::bigint/u);
     expect(`${migration}\n${assetMigration}`).toContain('0::bigint');
   });
