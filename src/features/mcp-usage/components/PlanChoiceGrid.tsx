@@ -33,6 +33,12 @@ export function PlanChoiceGrid({
             ? designerHref
             : defaultPlanHref(plan.planKey);
         const isFeatured = plan.planKey === featuredPlanKey;
+        const features = [
+          ...plan.featureSummary.split('\n').map((feature) => feature.trim()).filter(Boolean),
+          plan.planKey === 'enterprise'
+            ? 'Assistant-draft retention tailored to your team'
+            : `Assistant drafts stay active for ${plan.draftRetentionHours} hours`,
+        ];
         return (
           <article key={plan.planKey} className={`flex min-h-full snap-start flex-col border bg-[#15100a] p-5 ${isFeatured ? 'border-[#d8b365] shadow-[inset_0_3px_0_#d8b365]' : 'border-[#5f4526]'}`}>
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -45,7 +51,7 @@ export function PlanChoiceGrid({
             </div>
             <p className="mt-3 text-sm leading-6 text-[#c7b288]">{plan.description}</p>
             <ul className="mt-4 space-y-2 text-sm text-[#d8c49a]">
-              {plan.featureSummary.split('\n').map((feature) => feature.trim()).filter(Boolean).map((feature) => (
+              {features.map((feature) => (
                 <li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#d8b365]" aria-hidden="true" /><span>{feature}</span></li>
               ))}
             </ul>

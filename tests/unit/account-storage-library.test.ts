@@ -8,6 +8,7 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 describe('account storage library', () => {
   const accountPage = readSource('src/app/account/page.tsx');
   const storageLibrary = readSource('src/features/storage-management/components/AccountStorageLibrary.tsx');
+  const assistantDraftLibrary = readSource('src/features/storage-management/components/AssistantDraftLibrary.tsx');
 
   it('makes storage a first-class account surface while preserving project ownership', () => {
     expect(accountPage).toContain("AccountStorageLibrary");
@@ -19,10 +20,12 @@ describe('account storage library', () => {
   it('keeps device, cloud, and working-draft deletion boundaries explicit', () => {
     expect(storageLibrary).toContain('Remove from device');
     expect(storageLibrary).toContain('Remove cloud');
-    expect(storageLibrary).toContain('Delete draft');
+    expect(assistantDraftLibrary).toContain('Delete draft');
     expect(storageLibrary).toContain('Shared Templates/assets and any cloud backup were left alone');
     expect(storageLibrary).toContain('Copies already on your devices will remain');
-    expect(storageLibrary).toContain('Installed local work and cloud sets were not deleted');
+    expect(assistantDraftLibrary).toContain('Installed local work and cloud sets were not deleted');
+    expect(assistantDraftLibrary).toContain('Recoverable trash');
+    expect(assistantDraftLibrary).toContain('Restore draft');
     expect(storageLibrary).not.toContain('Delete everywhere');
   });
 
@@ -35,10 +38,12 @@ describe('account storage library', () => {
   });
 
   it('keeps account cloud saves and private AI working documents independently manageable', () => {
-    expect(storageLibrary).toContain("fetch('/api/studio-documents'");
-    expect(storageLibrary).toContain("method: 'DELETE'");
+    expect(assistantDraftLibrary).toContain("fetch('/api/studio-documents'");
+    expect(assistantDraftLibrary).toContain("method: 'DELETE'");
+    expect(assistantDraftLibrary).toContain('<AlertDialog');
+    expect(assistantDraftLibrary).toContain('setPendingDocumentDelete(document)');
     expect(storageLibrary).toContain('useCloudSetActions');
-    expect(storageLibrary).toContain('AI &amp; Studio working drafts');
+    expect(assistantDraftLibrary).toContain('AI &amp; Studio working drafts');
     expect(storageLibrary).toContain('Cloud sets');
   });
 });

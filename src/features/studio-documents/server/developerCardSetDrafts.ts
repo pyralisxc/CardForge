@@ -19,6 +19,7 @@ import {
 } from './mcpArtworkSources';
 import type { McpCardArtworkInput } from './mcpCardToolSchemas';
 import { StudioDocumentStoreError } from './StudioDocumentStoreError';
+import { getStudioDocumentRetentionHours } from './studioDocumentAccess';
 import { getStudioDocument, updateStudioDocument } from './studioDocumentStore';
 
 export interface AgentCardInput {
@@ -147,7 +148,11 @@ export const getDeveloperCardGenerationContract = async ({
   setId?: string;
 }) => {
   requireContributionScope(access, 'studio.ai.create');
-  const document = await getStudioDocument(access.user.id, documentId);
+  const document = await getStudioDocument(
+    access.user.id,
+    documentId,
+    await getStudioDocumentRetentionHours(access.entitlement),
+  );
   const templates = materializeGenerationTemplates(document.document.userTemplates);
   const set = setId ? requireSet(document.document.cardSets, setId) : document.document.cardSets[0];
   const front = selectFrontTemplate(templates, set?.frontTemplateId);
@@ -194,7 +199,8 @@ export const upsertDeveloperCardSet = async ({
   backingTemplateId?: string | null;
 }) => {
   requireContributionScope(access, 'studio.ai.create');
-  const current = await getStudioDocument(access.user.id, documentId);
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
+  const current = await getStudioDocument(access.user.id, documentId, retentionHours);
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const explicitExisting = setId ? current.document.cardSets.find((candidate) => candidate.id === setId) : null;
   const sameNameExisting = !setId ? findSameNameSet(current.document.cardSets, name) : null;
@@ -241,6 +247,7 @@ export const upsertDeveloperCardSet = async ({
       activeCardSetId: nextSet.id,
       storedCards,
     },
+    retentionHours,
   });
 };
 
@@ -259,7 +266,8 @@ export const upsertDeveloperCards = async ({
 }) => {
   requireContributionScope(access, 'studio.ai.create');
   const artworkBudget = createMcpArtworkOperationBudget(cards.flatMap((card) => card.artwork ?? []));
-  const current = await getStudioDocument(access.user.id, documentId);
+  const retentionHours = await getStudioDocumentRetentionHours(access.entitlement);
+  const current = await getStudioDocument(access.user.id, documentId, retentionHours);
   const templates = materializeGenerationTemplates(current.document.userTemplates);
   const set = requireSet(current.document.cardSets, setId);
   const front = selectFrontTemplate(templates, set.frontTemplateId);
@@ -327,6 +335,7 @@ export const upsertDeveloperCards = async ({
       activeCardSetId: set.id,
       storedCards: Array.from(byId.values()),
     },
+    retentionHours,
   });
   return { document, set, updatedIds, artworkResults };
 };

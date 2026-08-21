@@ -54,6 +54,7 @@ type AllowanceRow = {
   monthly_action_limit: number;
   daily_safety_limit: number;
   online_storage_limit_bytes: number;
+  draft_retention_hours: number;
 };
 
 export class McpUsageStoreError extends Error {
@@ -88,6 +89,7 @@ const toAllowance = (row: AllowanceRow): McpAllowance | null => {
     monthlyActionLimit: toNumber(row.monthly_action_limit),
     dailySafetyLimit: toNumber(row.daily_safety_limit),
     onlineStorageLimitBytes: toNumber(row.online_storage_limit_bytes),
+    draftRetentionHours: toNumber(row.draft_retention_hours),
   };
 };
 
@@ -174,7 +176,7 @@ export const getMcpAllowances = async ({ allowFallback = true }: { allowFallback
   }
   const { data, error } = await supabase
     .from('cardforge_mcp_allowance_settings')
-    .select('plan_key,display_name,description,feature_summary,cta_label,price_label,price_note,is_visible,monthly_action_limit,daily_safety_limit,online_storage_limit_bytes')
+    .select('plan_key,display_name,description,feature_summary,cta_label,price_label,price_note,is_visible,monthly_action_limit,daily_safety_limit,online_storage_limit_bytes,draft_retention_hours')
     .order('monthly_action_limit', { ascending: true });
   if (error) {
     if (allowFallback) {
@@ -299,6 +301,7 @@ export const updateMcpAllowance = async ({
   monthlyActionLimit,
   dailySafetyLimit,
   onlineStorageLimitBytes,
+  draftRetentionHours,
 }: {
   planKey: McpUsagePlanKey;
   displayName: string;
@@ -311,6 +314,7 @@ export const updateMcpAllowance = async ({
   monthlyActionLimit: number;
   dailySafetyLimit: number;
   onlineStorageLimitBytes: number;
+  draftRetentionHours: number;
 }): Promise<McpOwnerUsageDashboard> => {
   const normalizedDisplayName = displayName.trim();
   const normalizedDescription = description.trim();
@@ -327,7 +331,8 @@ export const updateMcpAllowance = async ({
     || typeof isVisible !== 'boolean'
     || !Number.isInteger(monthlyActionLimit) || monthlyActionLimit < 0 || monthlyActionLimit > 1_000_000
     || !Number.isInteger(dailySafetyLimit) || dailySafetyLimit < 0 || dailySafetyLimit > 100_000
-    || !Number.isSafeInteger(onlineStorageLimitBytes) || onlineStorageLimitBytes < 0 || onlineStorageLimitBytes > 100 * 1024 ** 4) {
+    || !Number.isSafeInteger(onlineStorageLimitBytes) || onlineStorageLimitBytes < 0 || onlineStorageLimitBytes > 100 * 1024 ** 4
+    || !Number.isInteger(draftRetentionHours) || draftRetentionHours < 1 || draftRetentionHours > 24 * 365) {
     throw new McpUsageStoreError('Usage allowances must be whole numbers within the supported range.', 400);
   }
   const supabase = getSupabaseServerClient();
@@ -347,6 +352,7 @@ export const updateMcpAllowance = async ({
       monthly_action_limit: monthlyActionLimit,
       daily_safety_limit: dailySafetyLimit,
       online_storage_limit_bytes: onlineStorageLimitBytes,
+      draft_retention_hours: draftRetentionHours,
       updated_at: new Date().toISOString(),
     })
     .eq('plan_key', planKey)

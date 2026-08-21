@@ -9,3 +9,6 @@ enabled = true
 
 [db.seed]
 enabled = false
+
+[functions.purge-assistant-drafts]
+verify_jwt = false

@@ -1,5 +1,6 @@
 import {
   getCurrentStudioDocumentAccount,
+  listDeletedStudioDocuments,
   listStudioDocuments,
   StudioDocumentAccessError,
   StudioDocumentStoreError,
@@ -11,8 +12,15 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const account = await getCurrentStudioDocumentAccount();
-    const documents = await listStudioDocuments(account.ownerUserId);
-    return createNoStoreJsonResponse({ documents, watermark: account.watermark });
+    const documents = await listStudioDocuments(account.ownerUserId, account.retentionHours);
+    const deletedDocuments = await listDeletedStudioDocuments(account.ownerUserId);
+    return createNoStoreJsonResponse({
+      documents,
+      deletedDocuments,
+      retentionHours: account.retentionHours,
+      recoveryHours: 24,
+      watermark: account.watermark,
+    });
   } catch (error) {
     if (error instanceof StudioDocumentAccessError) {
       return createApiErrorResponse(error.status, 'sign_in_required', error.message);

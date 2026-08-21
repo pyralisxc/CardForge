@@ -36,6 +36,11 @@ export interface StudioDocumentSummary {
   revision: number;
   createdAt: string;
   updatedAt: string;
+  lastActivityAt: string;
+  expiresAt: string;
+  retentionHours: number;
+  deletedAt: string | null;
+  purgeAfter: string | null;
 }
 
 export interface StudioDocument extends StudioDocumentSummary {

@@ -1,18 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Cloud,
   CloudDownload,
   CloudUpload,
   Database,
-  ExternalLink,
   HardDrive,
   Loader2,
   RefreshCw,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 
@@ -37,16 +34,7 @@ import {
   type ProjectDocumentCustomAssets,
   type ProjectPersistenceScope,
 } from '@/features/project/client';
-import { readApiErrorMessage } from '@/infrastructure/http/clientResponses';
-
-interface StudioDocumentSummary {
-  id: string;
-  title: string;
-  creationSource: string;
-  revision: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import { AssistantDraftLibrary } from './AssistantDraftLibrary';
 
 interface AccountStorageLibraryProps {
   persistenceScope: ProjectPersistenceScope;
@@ -68,18 +56,6 @@ const formatBytes = (bytes: number | null | undefined) => {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-};
-
-const formatDate = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Unknown';
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
 };
 
 function StorageBar({ ratio }: { ratio: number | null }) {
@@ -133,9 +109,7 @@ export function AccountStorageLibrary({
   const [deviceHealth, setDeviceHealth] = useState<BrowserStorageHealth | null>(null);
   const [customAssets, setCustomAssets] = useState<ProjectDocumentCustomAssets>(emptyCustomAssets);
   const [portableSetBytes, setPortableSetBytes] = useState<Record<string, number>>({});
-  const [studioDocuments, setStudioDocuments] = useState<StudioDocumentSummary[]>([]);
-  const [loadingDocuments, setLoadingDocuments] = useState(false);
-  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [draftRefreshVersion, setDraftRefreshVersion] = useState(0);
 
   const cardSets = useProjectStore((state) => state.cardSets);
   const storedCards = useProjectStore((state) => state.storedCards);
@@ -203,30 +177,6 @@ export function AccountStorageLibrary({
     setPortableSetBytes(next);
   }, [cardSets, customAssets, hydrated, storedCards, userTemplates]);
 
-  const refreshDocuments = useCallback(async () => {
-    if (!isSignedIn) {
-      setStudioDocuments([]);
-      return;
-    }
-    setLoadingDocuments(true);
-    try {
-      const response = await fetch('/api/studio-documents', { cache: 'no-store' });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to load private working drafts.'));
-      const payload = await response.json() as { documents?: StudioDocumentSummary[] };
-      setStudioDocuments(Array.isArray(payload.documents) ? payload.documents : []);
-    } catch (error) {
-      toast({
-        title: 'Working drafts unavailable',
-        description: error instanceof Error ? error.message : 'Unable to load private working drafts.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingDocuments(false);
-    }
-  }, [isSignedIn, toast]);
-
-  useEffect(() => { void refreshDocuments(); }, [refreshDocuments]);
-
   const cardCounts = useMemo(() => {
     const counts = new Map<string, number>();
     storedCards.forEach((card) => {
@@ -285,27 +235,6 @@ export function AccountStorageLibrary({
     router.push('/studio');
   }, [router]);
 
-  const deleteWorkingDraft = useCallback(async (document: StudioDocumentSummary) => {
-    setDeletingDocumentId(document.id);
-    try {
-      const response = await fetch(`/api/studio-documents/${encodeURIComponent(document.id)}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(await readApiErrorMessage(response, 'Unable to delete this working draft.'));
-      await refreshDocuments();
-      toast({
-        title: 'Working draft deleted',
-        description: `“${document.title}” was removed from private AI/Studio working storage. Installed local work and cloud sets were not deleted.`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Working draft not deleted',
-        description: error instanceof Error ? error.message : 'Unable to delete this working draft.',
-        variant: 'destructive',
-      });
-    } finally {
-      setDeletingDocumentId(null);
-    }
-  }, [refreshDocuments, toast]);
-
   return (
     <section className={embedded ? undefined : 'mx-auto max-w-4xl px-4 pb-8 md:px-6'} aria-labelledby="storage-library-title">
       <div className="border border-[#5f4526] bg-[#100c08] p-4 md:p-5">
@@ -325,7 +254,7 @@ export function AccountStorageLibrary({
             variant="outline"
             size="sm"
             className="border-[#70532e] bg-transparent text-[#f6d891] hover:bg-[#24180e]"
-            onClick={() => { void refreshDeviceDetails(); void refreshCloudSets(); void refreshDocuments(); }}
+            onClick={() => { void refreshDeviceDetails(); void refreshCloudSets(); setDraftRefreshVersion((version) => version + 1); }}
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
@@ -433,40 +362,7 @@ export function AccountStorageLibrary({
           ) : <p className="mt-3 text-sm text-[#cbb58b]">No cloud-saved sets yet.</p>}
         </div>
 
-        <div className="mt-6 border-t border-[#4a3823] pt-5">
-          <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#e2aa4a]" /><h3 className="font-serif text-xl text-[#fff1c7]">AI &amp; Studio working drafts</h3></div>
-          <p className="mt-1 text-xs leading-5 text-[#a9946c]">These are temporary private collaboration documents. They are separate from your permanent cloud sets and from installed local Templates.</p>
-          {!isSignedIn ? (
-            <p className="mt-3 text-sm text-[#cbb58b]">Sign in to see private working drafts.</p>
-          ) : loadingDocuments ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-[#cbb58b]"><Loader2 className="h-4 w-4 animate-spin" /> Loading working drafts…</p>
-          ) : studioDocuments.length ? (
-            <div className="mt-3 space-y-2">
-              {studioDocuments.map((document) => (
-                <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 border border-[#4a3823] bg-[#15100a] p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[#fff1c7]">{document.title}</p>
-                    <p className="mt-1 text-xs text-[#bba57c]">Revision {document.revision} · {document.creationSource === 'gpt' ? 'ChatGPT working draft' : 'Studio working document'} · updated {formatDate(document.updatedAt)}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline"><Link href={`/studio?document=${encodeURIComponent(document.id)}&revision=${document.revision}`}>Continue <ExternalLink className="ml-2 h-3.5 w-3.5" /></Link></Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={Boolean(deletingDocumentId)}
-                      onClick={() => {
-                        if (window.confirm(`Delete the private working draft “${document.title}”? Installed local work and cloud sets will not be deleted.`)) void deleteWorkingDraft(document);
-                      }}
-                    >
-                      {deletingDocumentId === document.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                      Delete draft
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : <p className="mt-3 text-sm text-[#cbb58b]">No private working drafts are attached to this account.</p>}
-        </div>
+        <AssistantDraftLibrary isSignedIn={isSignedIn} refreshVersion={draftRefreshVersion} />
       </div>
     </section>
   );

@@ -55,7 +55,7 @@ Choosing "Accept" or "Decline" stores the analytics choice in a first-party cook
 
 Information you choose to provide may include an account identifier, email address, optional name, contact requests and their contents, roadmap suggestions and votes, developer profile details, developer submissions, source files, and developer votes. Developer submissions, public source files, and published library assets are intentionally shared with the review pipeline and may become visible to other users. Do not upload confidential files, private client work, or content you do not have permission to share.
 
-Browser IndexedDB data remains until you clear it or the browser removes it, and downloaded project files remain until you delete them from the places where you saved them. Private assistant working documents and aggregate MCP usage remain in CardForge's platform records until they are deleted through an available account or support process, or retained for an operational, security, abuse-prevention, legal, or record-integrity need. Other platform and provider records are retained for periods that vary by record, operational need, legal obligation, and provider setting. Some billing, legal, voting, attribution, published-asset, aggregate usage, and security records may need to remain after an account is disabled or deleted to preserve accurate platform history and system integrity.
+Browser IndexedDB data remains until you clear it or the browser removes it, and downloaded project files remain until you delete them from the places where you saved them. Private assistant working documents use an inactivity window tied to the current account plan: 12 hours for Free, 24 hours for Creator Pass, and 48 hours for Designer Pass and owner/developer accounts by default. Opening or updating a document restarts its window; merely listing documents on the Account page does not. The CardForge owner may adjust these plan windows in the Owner Console. An expired or manually deleted assistant document remains in recoverable trash for 24 hours, then CardForge permanently removes its stored document and private artwork. Aggregate MCP usage may remain for operational, security, abuse-prevention, legal, or record-integrity needs. Other platform and provider records are retained for periods that vary by record, operational need, legal obligation, and provider setting. Some billing, legal, voting, attribution, published-asset, aggregate usage, and security records may need to remain after an account is disabled or deleted to preserve accurate platform history and system integrity.
 
 For a privacy question or an access or deletion inquiry, including a request concerning private assistant working documents, contact [${DEFAULT_BUSINESS_IDENTITY.legalEmail}](mailto:${DEFAULT_BUSINESS_IDENTITY.legalEmail}). CardForge may need to verify the requester and may be unable to alter records that must remain for security, record-integrity, provider, or legal reasons. Account deletion does not delete browser IndexedDB or downloaded project files under your control.
 
@@ -69,6 +69,8 @@ const termsBody = `${operatorDescription}
 
 Your agreement for the service is with ${DEFAULT_BUSINESS_IDENTITY.legalOperatorName} as the legal operator of ${DEFAULT_BUSINESS_IDENTITY.brandName}. CardForge lets users create templates, generate previews, manage local projects, use connected assistant tools that create private cloud working documents, submit developer assets, and export content according to their account access. You are responsible for the content, artwork, data, trademarks, and intellectual property you bring into the tool or send through a connected assistant.
 
+Private assistant working documents are temporary collaboration storage, not permanent project backups. Their current inactivity window is shown with the applicable plan and in Account storage. Expired or manually deleted drafts remain recoverable for 24 hours before permanent removal. Keep portable project files or another copy of work you need to preserve.
+
 You keep ownership of the content you create. By using CardForge, you grant CardForge the limited permission needed to operate the service, render previews, process exports, preserve local/project state, and, when you submit assets to the developer pipeline, review, display, publish, archive, and maintain those submitted assets as part of the shared library.
 
 The product is in active beta. Features, pricing, access levels, export behavior, developer rules, and library availability may change as the service develops. Do not use CardForge for unlawful content, infringing content, malicious uploads, harassment, or activity that harms the platform or other users.
@@ -79,7 +81,7 @@ const creatorPassTermsBody = `${operatorDescription}
 
 These supplemental terms apply when CardForge Studio offers Creator Pass or Designer Pass access. The selected pass unlocks the features and limits shown at purchase for the stated billing period; it does not transfer ownership of CardForge Studio, shared library assets, or third-party material. Designer Pass does not grant contributor access unless CardForge separately approves that account for the contributor program.
 
-Keep your own project backups and review exported work before production. Availability, included features, usage limits, and pricing may change for future billing periods, subject to notice and applicable law. Cancellation stops future renewal and does not erase projects stored in your browser or files you downloaded.`;
+Keep your own project backups and review exported work before production. Private assistant draft retention follows the current plan presentation and is separate from permanent browser projects and downloaded project files. Availability, included features, usage limits, retention windows, and pricing may change for future billing periods, subject to notice and applicable law. Cancellation stops future renewal and does not erase projects stored in your browser or files you downloaded.`;
 
 const supporterTermsBody = `${operatorDescription}
 
@@ -156,9 +158,9 @@ const createDefaultDocument = (
 });
 
 export const DEFAULT_LEGAL_DOCUMENTS: LegalDocument[] = [
-  createDefaultDocument('privacy', 'Privacy Policy', privacyBody, '2026-08-20'),
-  createDefaultDocument('terms', 'Terms of Service', termsBody),
-  createDefaultDocument('creator-pass-terms', 'Creator and Designer Pass Terms', creatorPassTermsBody),
+  createDefaultDocument('privacy', 'Privacy Policy', privacyBody, '2026-08-21'),
+  createDefaultDocument('terms', 'Terms of Service', termsBody, '2026-08-21'),
+  createDefaultDocument('creator-pass-terms', 'Creator and Designer Pass Terms', creatorPassTermsBody, '2026-08-21'),
   createDefaultDocument('supporter-terms', 'Supporter Terms', supporterTermsBody),
   createDefaultDocument('refund', 'Refund and Cancellation Policy', refundBody),
   createDefaultDocument('developer-terms', 'Developer Contributor Terms', developerTermsBody),

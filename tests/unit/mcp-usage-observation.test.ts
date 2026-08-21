@@ -44,6 +44,7 @@ describe('MCP usage observation', () => {
       'Built around your team',
     ]);
     expect(DEFAULT_MCP_ALLOWANCES.find(({ planKey }) => planKey === 'designer')?.isVisible).toBe(true);
+    expect(DEFAULT_MCP_ALLOWANCES.slice(0, 3).map(({ draftRetentionHours }) => draftRetentionHours)).toEqual([12, 24, 48]);
     const customerFacingFeatures = DEFAULT_MCP_ALLOWANCES.map(({ featureSummary }) => featureSummary).join('\n');
     expect(customerFacingFeatures).toContain('ChatGPT plugin actions');
     expect(customerFacingFeatures).toContain('private ChatGPT plugin workspace');
